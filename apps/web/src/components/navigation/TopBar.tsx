@@ -7,6 +7,8 @@ import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { useCareerStore } from "@/store/career";
+import { useApplicationsStore } from "@/store/applications";
+import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
 import { CommandPalette } from "./CommandPalette";
 
@@ -21,7 +23,9 @@ function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void)
 }
 
 export function TopBar() {
-  const [cmd, setCmd] = useState(false);
+  const cmd = useUIStore((s) => s.commandOpen);
+  const setCmd = useUIStore((s) => s.setCommandOpen);
+  const applications = useApplicationsStore((s) => s.applications);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const hydrated = useHydration((s) => s.hydrated);
@@ -29,6 +33,9 @@ export function TopBar() {
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
   const unread = hydrated ? notifications.filter((n) => !n.read).length : 0;
+  // Career status is derived from real application state (spec §3 "Career status").
+  const apps = Object.values(applications);
+  const careerStatus = !hydrated ? "Career Explorer" : apps.some((a) => a.status === "offer") ? "Deciding on an offer" : apps.some((a) => a.status === "interview") ? "Interviewing" : apps.some((a) => a.status === "submitted" || a.status === "under_review") ? "Actively applying" : "Career Explorer";
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(notifRef, () => setNotifOpen(false));
@@ -38,12 +45,12 @@ export function TopBar() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setCmd((v) => !v);
+        setCmd(!useUIStore.getState().commandOpen);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [setCmd]);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
@@ -107,7 +114,7 @@ export function TopBar() {
           <Avatar name={dna.name} size={34} />
           <span className="hidden text-left lg:block">
             <span className="block text-[13px] font-semibold leading-tight text-ink">{dna.name}</span>
-            <span className="block text-[11px] leading-tight text-ink-3">Career Explorer</span>
+            <span className="block text-[11px] leading-tight text-ink-3">{careerStatus}</span>
           </span>
           <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>

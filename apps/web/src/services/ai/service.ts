@@ -44,6 +44,7 @@ export interface AIService {
   generateCoverLetter(input: GenerateArtifactInput): Promise<string>;
   generateScreeningAnswers(input: GenerateArtifactInput): Promise<string>;
   careerInsight(input: { dna: CareerDNA; strongMatches: number; topTitles: string[] }): Promise<string>;
+  generateFollowUpEmail(input: GenerateArtifactInput & { appliedAt?: string; kind: "follow_up" | "thank_you" }): Promise<string>;
   usage(): AIUsageRecord[];
 }
 
@@ -132,6 +133,15 @@ export class TemplateAIService implements AIService {
       `A: ${dna.minSalary ? `Open to discuss; my expectation starts at ₹${Math.round(dna.minSalary / 100_000)}L.` : "Open to discuss."} (Edit this before submitting.)`,
     ].join("\n");
     return this.run("screening_answers", "Draft screening answers the candidate will review.", text, runId);
+  }
+
+  async generateFollowUpEmail({ job, dna, appliedAt, kind, runId }: GenerateArtifactInput & { appliedAt?: string; kind: "follow_up" | "thank_you" }) {
+    const when = appliedAt ? new Date(appliedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long" }) : "recently";
+    const text =
+      kind === "thank_you"
+        ? [`Subject: Thank you — ${job.title} interview`, ``, `Hi there,`, ``, `Thank you for taking the time to speak with me about the ${job.title} role at ${job.company}. I enjoyed our conversation and came away even more excited about the team's direction.`, ``, `If it's useful, I'm happy to share more detail on ${dna.strengths[0]?.toLowerCase() ?? "my recent work"}.`, ``, `Best regards,`, dna.name].join("\n")
+        : [`Subject: Following up — ${job.title} application`, ``, `Hi there,`, ``, `I applied for the ${job.title} role at ${job.company} on ${when} and wanted to check in. I'm very interested in the position — ${job.requirements[1] ? job.requirements[1].toLowerCase() : "the scope"} is exactly where I do my best work.`, ``, `I'd welcome the chance to talk. Thank you for your time.`, ``, `Best regards,`, dna.name].join("\n");
+    return this.run("cover_letter_generation", "Draft a short, polite follow-up email the candidate will review before sending.", text, runId);
   }
 
   async careerInsight({ dna, strongMatches, topTitles }: { dna: CareerDNA; strongMatches: number; topTitles: string[] }) {

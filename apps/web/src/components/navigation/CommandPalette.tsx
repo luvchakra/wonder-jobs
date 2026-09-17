@@ -32,7 +32,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   );
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return t ? commands.filter((c) => c.label.toLowerCase().includes(t) || c.hint?.toLowerCase().includes(t)) : commands;
+    if (!t) return commands;
+    const hits = commands.filter((c) => c.label.toLowerCase().includes(t) || c.hint?.toLowerCase().includes(t));
+    // Anything typed can be a job search — Wonder's global field is a search field first (spec §3).
+    const search: Command = { id: "search-q", label: `Search jobs for “${q.trim()}”`, hint: "Titles, companies, skills", href: `/app/jobs?q=${encodeURIComponent(q.trim())}`, icon: Search, group: "Actions" };
+    return [search, ...hits.filter((c) => c.id !== "search")];
   }, [q, commands]);
   useEffect(() => {
     if (open) {
@@ -75,7 +79,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         aria-activedescendant={filtered[idx] ? `cmd-${filtered[idx].id}` : undefined}
       />
       <ul id="wj-cmd-list" role="listbox" className="mt-3 max-h-80 overflow-y-auto">
-        {filtered.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-3">Nothing matches “{q}”.</li>}
         {(["Actions", "Go to"] as const).map((group) => {
           const items = filtered.filter((c) => c.group === group);
           if (!items.length) return null;

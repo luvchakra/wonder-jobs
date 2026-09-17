@@ -15,7 +15,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 | WJ-005 | Navigation | Desktop sidebar | DONE | `components/navigation/Sidebar.tsx`. |
 | WJ-006 | Navigation | Mobile bottom navigation | DONE | `components/navigation/MobileNav.tsx`. |
 | WJ-007 | Home | Desktop dashboard | DONE | `app/app/page.tsx` — hero, metrics, active run, top opportunities, activity, right rail. |
-| WJ-008 | Home | Mobile dashboard | DONE | Same page, responsive grid collapses to single column; verified via screenshot at 390px. |
+| WJ-008 | Home | Mobile dashboard | DONE | Dedicated `MobileHome` (spec §6): greeting, "What would you like to do today?" field (opens the global command field), Run Wonder card with live automation-state chips, quick actions, actionable recent activity, Wonder assistant. Desktop dashboard renders from `md` up. |
 | WJ-009 | Workflow | Run Wonder setup | DONE | `app/app/runs/new` — goal, automation level, provider, search details. |
 | WJ-010 | Workflow | Workflow timeline | DONE | `components/workflow/WorkflowTimeline.tsx` — one component, horizontal (dashboard) and vertical (run detail) variants; no duplicated logic (Rule spec §41). |
 | WJ-011 | Workflow | Live stage progress | DONE | Engine emits progress/counts per chunk; UI subscribes via the workflow store (real state, not simulated — Rule 9). |
@@ -28,10 +28,10 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 | WJ-018 | Workflow | State machine validation | DONE | `domain/workflow/status.ts` — explicit transition table, `assertTransition` throws `InvalidTransitionError`; unit tested. |
 | WJ-019 | Automation | Automation levels | DONE | Assist/Guided/Autonomous/Continuous; `resolveCapability` enforces risk-based gating (unit tested). |
 | WJ-020 | Automation | Automation policy | DONE | `app/app/automation/settings` — automatic/ask me/off per capability, grouped by risk. |
-| WJ-021 | Automation | Scheduled runs | DONE | `app/app/automation/scheduled` — list, enable/disable, run now, duplicate, delete. |
+| WJ-021 | Automation | Scheduled runs | DONE | List, enable/disable, run now, duplicate, delete. Due schedules now actually fire while the app is open via `services/scheduler.ts` (`SchedulerRunner`, one tick per minute, idempotent: the schedule advances before the run starts). |
 | WJ-022 | Automation | Scheduled workflow builder | DONE | `ScheduleBuilder` — trigger/schedule/stages/search/conditions/actions/level/provider. |
 | WJ-023 | Automation | Workflow templates | DONE | `services/mock/templates.ts` — 5 templates, duplicate supported. |
-| WJ-024 | Automation | Silence/no-op outcome | DONE | Runs set `silent: true` when nothing meaningful happened; notification logic skips them; scheduled-run cards say "quiet — nothing to report". |
+| WJ-024 | Automation | Silence/no-op outcome | DONE | Each schedule's condition (`strong_matches > n`, `new_jobs > n`, `always`) is carried on the run and evaluated by `conditionMet()` in the engine (unit tested); unmet → `silent`, no notification; cards say "quiet — nothing to report". |
 | WJ-025 | Jobs | Jobs search UI | DONE | Debounced search, filters (mode/fit/freshness/salary/source), sort, paging. |
 | WJ-026 | Jobs | Job cards | DONE | `components/jobs/JobCard.tsx`, shared across Home/Jobs/Run results. |
 | WJ-027 | Jobs | Job detail | DONE | Overview / Why it's a match / Company / Sources & signals tabs. |
@@ -45,7 +45,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 | WJ-035 | Applications | Cover letter UI | DONE | Same `ArtifactEditor`, `cover_letter` type. |
 | WJ-036 | Applications | Screening answers UI | DONE | Same `ArtifactEditor`, `answers` type. |
 | WJ-037 | AI | Provider abstraction | DONE | `services/ai/service.ts` (`AIProvider`/`AIService`) — application code never talks to a vendor SDK directly. |
-| WJ-038 | AI | WonderJobs AI | DONE | `WonderJobsAIProvider` — deterministic templates, no key required, no per-token billing. |
+| WJ-038 | AI | WonderJobs AI | DONE | `WonderJobsAIProvider` — deterministic templates, no key required, no per-token billing. Tasks: resume, cover letter, screening answers, career insight, follow-up email. |
 | WJ-039 | AI | Anthropic BYOK | DONE | Server adapter via `@anthropic-ai/sdk`, `claude-opus-5` default model. |
 | WJ-040 | AI | OpenAI BYOK | DONE | Server adapter via fetch (Chat Completions). |
 | WJ-041 | AI | Gemini BYOK | DONE | Server adapter via fetch (generateContent). |
@@ -71,11 +71,11 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 | WJ-061 | Accessibility | Screen-reader workflow states | DONE | `aria-live` region on run detail, `role="progressbar"`, status never color-only (icon + label pairs). |
 | WJ-062 | Security | BYOK secret handling | DONE | AES-256-GCM at rest, masked on read, per-tenant isolation, never logged (verified with curl + log grep), revocable. |
 | WJ-063 | Security | Authorization checks | DONE | Server-side session cookie scopes every key/complete route to its own tenant; verified cross-tenant isolation with curl. |
-| WJ-064 | Security | External action audit | DONE | `WorkflowAction.history` records created/confirmed/executing/succeeded/failed with timestamps. |
+| WJ-064 | Security | External action audit | DONE | `WorkflowAction.history` inside runs, plus `store/actions.ts` ledger for application-level actions (follow-up / thank-you email: draft → review → explicit confirm → execute once by idempotency key → history, failure state, retry). Governed by the `send_email` policy. |
 | WJ-065 | Performance | Image optimization | DONE | No raster imagery — all hero/scene art is inline SVG; no `next/image` payloads to optimize. |
 | WJ-066 | Performance | Job list performance | DONE | Debounced search, paged rendering (24/page), memoized filtering. |
 | WJ-067 | Performance | Animation performance | DONE | Parallax uses `translate3d`/`will-change` only, rAF-batched, no layout-triggering properties. |
-| WJ-068 | Analytics | Core product events | DONE | `lib/analytics.ts` — all spec §47 events wired at their call sites; secrets/resume/answer text excluded by a forbidden-key filter. |
+| WJ-068 | Analytics | Core product events | DONE | `lib/analytics.ts` — all spec §47 events wired at their call sites, including `onboarding_completed` from the 3-step onboarding flow; secrets/resume/answer text excluded by a forbidden-key filter. |
 | WJ-069 | QA | Mobile visual QA | DONE | Screenshotted Home, Jobs, Landing, Onboarding at 390×844; no horizontal overflow observed. |
 | WJ-070 | QA | Desktop visual QA | DONE | Screenshotted all major screens at 1440×900+; see PR/session notes. |
 | WJ-071 | QA | Landing-page visual QA | DONE | Full-page screenshot at desktop + mobile; parallax verified via scroll before capture. |
@@ -85,14 +85,15 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 | WJ-075 | QA | Accessibility QA | NEEDS_REVIEW | Structural a11y (labels, roles, focus, contrast tokens) is in place; no automated axe/Lighthouse pass was run in this environment. |
 | WJ-076 | Release | Production build validation | DONE | `npm run check` (lint + typecheck + vitest + `next build`) passes clean from the workspace root. |
 | WJ-077 | Release | Performance validation | NEEDS_REVIEW | No Lighthouse/Web Vitals run captured in this environment; architecture follows the performance rules in §40. |
-| WJ-078 | Release | Final UX polish | IN_PROGRESS | Core flows are DONE end to end; further passes (micro-copy, empty-state photography, additional breakpoints) can continue iteratively. |
+| WJ-078 | Release | Final UX polish | IN_PROGRESS | Pass 2 added: 3-step onboarding writing real Career DNA, collapsible/auto-collapsing sidebar for tablet, derived career status in the top bar, free-text job search from the global command field, mobile run status card, reminder notifications generated from real follow-ups/interviews. |
 
 ## Deviations from the spec
 
 - **Sources**: `LinkedIn, Indeed, Naukri, Foundit, Glassdoor, Wellfound` are mock adapters (`services/jobs/sources.ts`, `MockSourceAdapter`) backed by a deterministic generated job universe (~1,100 canonical roles). No real scraping/API integration exists yet; the `JobSourceAdapter` interface is the seam for swapping in real adapters later (per §2: "typed service/interface and realistic mock adapter").
 - **BYOK secret store**: in-memory (`server/secrets.ts`), keyed by an httpOnly session cookie. This resets on cold start. The `SecretStore` interface is DB-ready (e.g. Supabase + RLS); swapping the implementation requires no route changes.
 - **Auth**: no real login exists yet — the app assigns an anonymous per-browser session cookie. Wiring a real identity provider is out of scope for this pass but the `getSession()` seam in `server/auth.ts` is where it plugs in.
-- **Scheduled runs**: the mock backend does not run a server-side cron; "Run now" executes immediately in the browser via the same `WorkflowEngine`. A production deployment needs a scheduler (e.g. a cron-triggered serverless function) calling the same `WorkflowService.startRun`.
+- **Scheduled runs**: there is no server-side cron yet. Due schedules fire from a client-side scheduler (`services/scheduler.ts`) while the app is open — same `WorkflowService.startRun` a server cron would call. Production needs that cron (e.g. a scheduled serverless function) so runs happen with the app closed.
+- **Email delivery**: application-level follow-up emails go through the full confirm/idempotency/audit ledger but delivery is mocked (no mail provider connected). The send step in `components/applications/FollowUpAction.tsx` is where a provider plugs in.
 
 ## Working notes
 

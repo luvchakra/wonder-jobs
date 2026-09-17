@@ -21,7 +21,10 @@ import { StageDetail } from "@/components/workflow/StageDetail";
 import { RunErrorBanner } from "@/components/workflow/RunErrorBanner";
 import { JobCard } from "@/components/jobs/JobCard";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
-import { STATUS_META } from "@/domain/workflow/status";
+import { STATUS_META, isActive } from "@/domain/workflow/status";
+import { Bot, Square } from "lucide-react";
+import { Button } from "@/components/common/Button";
+import { getWorkflowService } from "@/services/workflow/service";
 
 type Tab = "progress" | "results" | "logs";
 
@@ -179,6 +182,33 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
             ))}
           </ol>
         </Card>
+      )}
+
+      {isActive(run.status) && (
+        <div className="fixed inset-x-4 bottom-20 z-30 md:hidden">
+          <div className="wj-card flex items-center gap-3 p-3 shadow-lg" role="status">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+              <Bot className="size-4" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold text-ink">{run.status === "WAITING_FOR_USER" ? "Wonder needs your input" : run.status === "PAUSED" ? "Paused" : "Wonder is working…"}</span>
+              <span className="block truncate text-[12px] text-ink-3">{run.status === "WAITING_FOR_USER" ? "Review, then continue." : run.status === "PAUSED" ? "Resume when you're ready." : "This may take a few minutes."}</span>
+            </span>
+            {run.status === "WAITING_FOR_USER" ? (
+              <Button size="sm" onClick={() => getWorkflowService().continue(run.id)}>
+                Continue
+              </Button>
+            ) : run.status === "PAUSED" ? (
+              <Button size="sm" onClick={() => getWorkflowService().resume(run.id)}>
+                Resume
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => getWorkflowService().stop(run.id)}>
+                Stop
+              </Button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

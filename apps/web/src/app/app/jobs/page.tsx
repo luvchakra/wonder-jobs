@@ -41,7 +41,8 @@ function JobsInner() {
   useEffect(() => {
     const fit = params.get("fit") as FitLabel | null;
     const onlySaved = params.get("saved") === "1";
-    if (fit || onlySaved) setFilters({ minFit: fit ?? null, onlySaved });
+    const q = params.get("q");
+    if (fit || onlySaved || q) setFilters({ ...(fit || onlySaved ? { minFit: fit ?? null, onlySaved } : {}), ...(q != null ? { query: q } : {}) });
   }, [params, setFilters]);
 
   const appByJob = useMemo(() => new Map(Object.values(applications).map((a) => [a.jobId, a])), [applications]);

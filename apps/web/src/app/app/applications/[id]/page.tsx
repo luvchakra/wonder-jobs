@@ -15,6 +15,7 @@ import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { companyColor, WORK_MODE_LABEL } from "@/components/jobs/JobCard";
 import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
+import { FollowUpAction } from "@/components/applications/FollowUpAction";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
@@ -190,6 +191,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             >
               Schedule
             </Button>
+          </Card>
+          <Card>
+            <FollowUpAction application={app} job={job} />
           </Card>
           <Button variant="ghost" size="sm" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => setConfirmDelete(true)} className="text-danger-600">
             Remove application

@@ -13,8 +13,8 @@
  * Harmless / a no-op if the dashboard setting gets fixed later (the extra
  * copy is just unused).
  */
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
 
 const src = path.join(process.cwd(), ".next");
 const dest = path.join(process.cwd(), "apps", "web", ".next");

@@ -373,7 +373,7 @@ export class WorkflowEngine {
       this.transition(run, warnings ? "COMPLETED_WITH_WARNINGS" : "COMPLETED");
       run.completedAt = this.now();
       this.recomputeSummary(run);
-      run.silent = run.trigger === "schedule" && run.summary.strongMatches === 0 && run.summary.errors === 0;
+      run.silent = run.trigger === "schedule" && run.summary.errors === 0 && !conditionMet(run);
       this.push(run, "run_completed", run.silent ? "Finished quietly — nothing new worth your attention." : "Finished.");
     } catch (e) {
       if (e instanceof StopSignal) {
@@ -684,6 +684,14 @@ export class WorkflowEngine {
     }
     return c;
   }
+}
+
+/** Evaluate a scheduled run's condition against its results (spec §18: silence is a valid outcome). */
+export function conditionMet(run: Pick<WorkflowRun, "summary" | "config">): boolean {
+  const c = run.config.scheduleCondition ?? { key: "strong_matches", op: ">", value: 0 };
+  if (c.key === "always") return true;
+  const actual = c.key === "strong_matches" ? run.summary.strongMatches : run.summary.jobsDiscovered;
+  return actual > c.value;
 }
 
 export function emptySummary(): RunSummary {

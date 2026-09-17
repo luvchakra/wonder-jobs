@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkflowEngine, StopSignal, type StageExecutor } from "./engine";
+import { WorkflowEngine, StopSignal, conditionMet, type StageExecutor } from "./engine";
 import { canTransition, InvalidTransitionError, assertTransition } from "./status";
 import { defaultPolicy, resolveCapability } from "@/domain/automation/policy";
 import type { RunConfig } from "./types";
@@ -241,5 +241,18 @@ describe("engine", () => {
 
   it("exposes StopSignal for executors", () => {
     expect(new StopSignal().name).toBe("StopSignal");
+  });
+});
+
+describe("schedule conditions", () => {
+  const base = { summary: { jobsDiscovered: 120, jobsRetained: 90, strongMatches: 0, applicationsPrepared: 0, actionsExecuted: 0, errors: 0, warnings: 0 } };
+  it("defaults to strong matches > 0", () => {
+    expect(conditionMet({ ...base, config })).toBe(false);
+    expect(conditionMet({ summary: { ...base.summary, strongMatches: 2 }, config })).toBe(true);
+  });
+  it("supports new_jobs thresholds and always", () => {
+    expect(conditionMet({ ...base, config: { ...config, scheduleCondition: { key: "new_jobs", op: ">", value: 100 } } })).toBe(true);
+    expect(conditionMet({ ...base, config: { ...config, scheduleCondition: { key: "new_jobs", op: ">", value: 500 } } })).toBe(false);
+    expect(conditionMet({ ...base, config: { ...config, scheduleCondition: { key: "always", op: ">", value: 0 } } })).toBe(true);
   });
 });

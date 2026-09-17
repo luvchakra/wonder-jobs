@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";

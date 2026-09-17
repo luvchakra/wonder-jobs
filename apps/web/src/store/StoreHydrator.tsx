@@ -7,7 +7,10 @@ import { useApplicationsStore } from "./applications";
 import { useAutomationStore } from "./automation";
 import { useAIStore } from "./ai";
 import { useWorkflowStore } from "./workflow";
+import { useUIStore } from "./ui";
+import { useActionsStore } from "./actions";
 import { getWorkflowService } from "@/services/workflow/service";
+import { SchedulerRunner } from "@/components/automation/SchedulerRunner";
 
 /** Rehydrates persisted stores on the client, then boots the workflow service. */
 export function StoreHydrator({ children }: { children: React.ReactNode }) {
@@ -23,6 +26,8 @@ export function StoreHydrator({ children }: { children: React.ReactNode }) {
         useAutomationStore.persist.rehydrate(),
         useAIStore.persist.rehydrate(),
         useWorkflowStore.persist.rehydrate(),
+        useUIStore.persist.rehydrate(),
+        useActionsStore.persist.rehydrate(),
       ]);
       useJobsStore.getState().loadInitial();
       getWorkflowService().hydrate();
@@ -30,5 +35,10 @@ export function StoreHydrator({ children }: { children: React.ReactNode }) {
       setHydrated();
     })();
   }, [hydrated, setHydrated]);
-  return <>{children}</>;
+  return (
+    <>
+      {hydrated && <SchedulerRunner />}
+      {children}
+    </>
+  );
 }

@@ -81,3 +81,14 @@ export function useAnimatedNumber(value: number, durationMs = 600) {
   }, [value, reduced, durationMs]);
   return reduced || durationMs <= 0 ? value : display;
 }
+
+/** Generic media-query subscription; false during SSR. */
+const mediaStores = new Map<string, ReturnType<typeof mediaStore>>();
+export function useMediaQuery(query: string) {
+  let store = mediaStores.get(query);
+  if (!store) {
+    store = mediaStore(query);
+    mediaStores.set(query, store);
+  }
+  return useSyncExternalStore(store.subscribe, store.snapshot, () => false);
+}

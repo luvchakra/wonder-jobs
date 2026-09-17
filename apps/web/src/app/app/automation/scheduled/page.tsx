@@ -33,7 +33,7 @@ export default function ScheduledRunsPage() {
     const wf = workflows[s.workflowId];
     if (!wf) return toast.error("Workflow missing", "Edit the schedule to fix its workflow.");
     try {
-      const run = getWorkflowService().startRun({ workflowId: wf.id, workflowName: wf.name, config: wf.config, stageKeys: wf.stageKeys, trigger: "schedule" });
+      const run = getWorkflowService().startRun({ workflowId: wf.id, workflowName: wf.name, config: { ...wf.config, scheduleCondition: s.condition }, stageKeys: wf.stageKeys, trigger: "schedule" });
       upsert({ ...s, lastRunAt: new Date().toISOString(), lastRunId: run.id });
       router.push(`/app/runs/${run.id}`);
     } catch (e) {

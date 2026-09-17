@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "next build && node scripts/fix-output-dir.js",
+  "buildCommand": "next build && node scripts/fix-output-dir.mjs",
   "outputDirectory": ".next",
   "ignoreCommand": "bash scripts/vercel-should-build.sh"
 }

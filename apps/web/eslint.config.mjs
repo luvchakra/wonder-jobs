@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vercel output-dir workaround copies .next here during builds (see scripts/fix-output-dir.mjs)
+    "apps/**",
   ]),
 ]);
 

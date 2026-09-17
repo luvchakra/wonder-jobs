@@ -144,6 +144,14 @@ export interface RunConfig {
   minMatchThreshold: number;
   maxResults: number;
   notify: "always" | "strong_matches_only" | "never";
+  /** For scheduled runs: the outcome is "silent" (no notification) unless this holds. */
+  scheduleCondition?: ScheduleCondition;
+}
+
+export interface ScheduleCondition {
+  key: "strong_matches" | "new_jobs" | "always";
+  op: ">";
+  value: number;
 }
 
 export interface RunSummary {
@@ -205,7 +213,7 @@ export interface WorkflowSchedule {
   days: number[]; // 0..6
   time: string; // HH:mm
   timezone: string;
-  condition: { key: "strong_matches" | "new_jobs" | "always"; op: ">"; value: number };
+  condition: ScheduleCondition;
   actions: ("notify" | "save_jobs" | "prepare_materials")[];
   lastRunAt?: string;
   lastRunId?: string;

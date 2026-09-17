@@ -19,6 +19,9 @@ import { AIProviderCard } from "@/components/ai/AIProviderCard";
 import { ActiveRunCard } from "@/components/workflow/ActiveRunCard";
 import { JobCard } from "@/components/jobs/JobCard";
 import { EmptyState } from "@/components/common/States";
+import { MobileHome } from "@/components/career/MobileHome";
+import { useAutomationStore } from "@/store/automation";
+import { useUIStore } from "@/store/ui";
 import Link from "next/link";
 
 const DAY = 86_400_000;
@@ -38,6 +41,8 @@ export default function HomePage() {
   const unsave = useJobsStore((s) => s.unsave);
   const applications = useApplicationsStore((s) => s.applications);
   const activeRun = useWorkflowStore(selectActiveRun);
+  const defaultLevel = useAutomationStore((s) => s.defaultLevel);
+  const openCommand = useUIStore((s) => s.setCommandOpen);
   const firstName = dna.name.split(" ")[0];
 
   const top = useMemo(() => order.filter((id) => matches[id] && !rejected[id]).sort((a, b) => matches[b].score - matches[a].score).slice(0, 3), [order, matches, rejected]);
@@ -50,7 +55,11 @@ export default function HomePage() {
   const appByJob = new Map(apps.map((a) => [a.jobId, a]));
 
   return (
-    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <>
+    <div className="md:hidden">
+      <MobileHome name={dna.name} level={defaultLevel} activity={activity} activeRun={activeRun} />
+    </div>
+    <div className="hidden md:grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
       {/* Hero */}
       <section className="relative overflow-hidden rounded-[24px] border border-line bg-surface xl:col-span-2" aria-labelledby="home-hero">
         <div className="absolute inset-y-0 right-0 hidden w-[52%] md:block">
@@ -129,9 +138,9 @@ export default function HomePage() {
             <p className="text-[13px] font-semibold text-ink">Hey {firstName}, I&apos;m Wonder</p>
             <p className="text-[12px] text-ink-3">I can search, analyze, prepare and track your job search. What would you like to do?</p>
           </div>
-          <Link href="/app/runs/new" aria-label="Start with Wonder" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600">
+          <button type="button" onClick={() => openCommand(true)} aria-label="Ask Wonder" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600">
             <ArrowRight className="size-4" aria-hidden />
-          </Link>
+          </button>
         </Card>
         <Card>
           <div className="mb-3 flex items-center justify-between">
@@ -156,5 +165,6 @@ export default function HomePage() {
         </Card>
       </aside>
     </div>
+    </>
   );
 }

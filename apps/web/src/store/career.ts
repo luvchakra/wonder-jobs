@@ -13,6 +13,9 @@ interface CareerState {
   insights: CareerInsight[];
   notifications: Notification[];
   plan: "free" | "pro";
+  /** Follow-up ids already turned into a notification, so reminders fire once. */
+  reminded: string[];
+  markReminded: (id: string) => void;
   updateDNA: (patch: Partial<CareerDNA>) => void;
   completeOnboarding: () => void;
   addActivity: (item: Omit<ActivityItem, "id" | "at">) => void;
@@ -32,6 +35,8 @@ export const useCareerStore = create<CareerState>()(
       insights: seedInsights(),
       notifications: seedNotifications(),
       plan: "free",
+      reminded: [],
+      markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
       updateDNA: (patch) => set((s) => ({ dna: { ...s.dna, ...patch, updatedAt: new Date().toISOString() } })),
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
