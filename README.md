@@ -18,11 +18,19 @@ Copy `apps/web/.env.example` to `apps/web/.env.local` (and set the same variable
 
 | Variable | Purpose |
 |---|---|
-| `SUPABASE_URL` | Supabase project URL (server-side only). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role / secret key. Server-side only — never exposed to the browser. RLS is on with no anon policies. |
-| `WONDER_SECRET_KEY` | 32+ char key that encrypts BYOK provider secrets at rest (AES-256-GCM). Required in production. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (`SUPABASE_URL` also accepted). |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key. Not used by the server today (all data access is service-role, server-side); reserved for Supabase Auth on the client. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key. Server-side only — never exposed to the browser. RLS is on with no anon policies. |
+| `SECRET_ENCRYPTION_KEY` | 32+ char key that encrypts BYOK provider secrets at rest (AES-256-GCM). Required in production (`WONDER_SECRET_KEY` also accepted). |
 
-Without the Supabase variables the app runs in local-only mode (browser localStorage + in-memory server state). With them, every store syncs per tenant to `wonderjobs.app_state`, provider keys go to `wonderjobs.ai_provider_secrets` (ciphertext only) and external actions are audited in `wonderjobs.action_audit`. All tables live in the dedicated `wonderjobs` schema (migrations `wonderjobs_persistence`, `wonderjobs_schema_isolation`).
+Without the Supabase variables the app runs in local-only mode (browser localStorage + in-memory server state). With them, every store syncs per tenant to `wonderjobs.app_state`, provider keys go to `wonderjobs.ai_provider_secrets` (ciphertext only) and external actions are audited in `wonderjobs.action_audit`. All tables live in the dedicated `wonderjobs` schema. Schema source: `apps/web/supabase/migrations/`.
+
+## Database schema
+
+Apply the schema once per Supabase project, either:
+
+- **SQL Editor** — paste `apps/web/supabase/migrations/0001_wonderjobs_persistence.sql` into Supabase → SQL Editor and run it, or
+- **CLI** — `DATABASE_URL="postgresql://…" npm run db:migrate` (idempotent; records applied files in `public._wonderjobs_migrations`).
 
 ## Docs
 

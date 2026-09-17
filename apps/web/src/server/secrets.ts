@@ -102,9 +102,9 @@ const g = globalThis as unknown as { __wjSecretStore?: SecretStore; __wjDevKey?:
 export const secretStore: SecretStore = getSupabaseAdmin() ? new SupabaseSecretStore() : (g.__wjSecretStore ?? (g.__wjSecretStore = new MemorySecretStore()));
 
 function masterKey(): Buffer {
-  const env = process.env.WONDER_SECRET_KEY;
+  const env = process.env.SECRET_ENCRYPTION_KEY ?? process.env.WONDER_SECRET_KEY;
   if (env && env.length >= 32) return createHash("sha256").update(env).digest();
-  if (process.env.NODE_ENV === "production") throw new Error("WONDER_SECRET_KEY must be set (32+ chars) to store provider keys.");
+  if (process.env.NODE_ENV === "production") throw new Error("SECRET_ENCRYPTION_KEY must be set (32+ chars) to store provider keys.");
   // Development only: ephemeral key per process. Keys must be re-entered after a restart.
   return g.__wjDevKey ?? (g.__wjDevKey = randomBytes(32));
 }

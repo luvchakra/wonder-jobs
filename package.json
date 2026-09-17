@@ -15,6 +15,7 @@
     "lint": "npm run lint -w @wonder/web",
     "typecheck": "npm run typecheck -w @wonder/web",
     "test": "npm run test -w @wonder/web",
-    "check": "npm run check -w @wonder/web"
+    "check": "npm run check -w @wonder/web",
+    "db:migrate": "npm run db:migrate -w @wonder/web"
   }
 }
