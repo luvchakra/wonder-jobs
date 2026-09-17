@@ -11,6 +11,7 @@
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import type { AIProviderId, BYOKStatus } from "@/domain/ai/types";
+import { getSupabaseAdmin, touchTenant } from "./supabase";
 
 export interface StoredSecret {
   provider: AIProviderId;
@@ -53,9 +54,52 @@ class MemorySecretStore implements SecretStore {
   }
 }
 
-// Survives Next.js dev HMR reloads via globalThis.
+interface SecretRow {
+  tenant_id: string;
+  provider: AIProviderId;
+  ciphertext: string;
+  masked: string;
+  model: string | null;
+  connected_at: string;
+  last_verified_at: string | null;
+  last_error: string | null;
+}
+
+/** Supabase-backed store: rows hold ciphertext only; the master key never leaves the app server. */
+class SupabaseSecretStore implements SecretStore {
+  private sb() {
+    const sb = getSupabaseAdmin();
+    if (!sb) throw new Error("Supabase is not configured");
+    return sb;
+  }
+  private fromRow(r: SecretRow): StoredSecret {
+    return { provider: r.provider, ciphertext: r.ciphertext, masked: r.masked, model: r.model ?? undefined, connectedAt: r.connected_at, lastVerifiedAt: r.last_verified_at ?? undefined, lastError: r.last_error ?? undefined };
+  }
+  async list(t: string) {
+    const { data, error } = await this.sb().from("ai_provider_secrets").select("*").eq("tenant_id", t);
+    if (error) throw new Error(`Could not load provider keys: ${error.message}`);
+    return ((data ?? []) as SecretRow[]).map((r) => this.fromRow(r));
+  }
+  async get(t: string, p: AIProviderId) {
+    const { data, error } = await this.sb().from("ai_provider_secrets").select("*").eq("tenant_id", t).eq("provider", p).maybeSingle();
+    if (error) throw new Error(`Could not load provider key: ${error.message}`);
+    return data ? this.fromRow(data as SecretRow) : undefined;
+  }
+  async put(t: string, s: StoredSecret) {
+    await touchTenant(t);
+    const row: SecretRow = { tenant_id: t, provider: s.provider, ciphertext: s.ciphertext, masked: s.masked, model: s.model ?? null, connected_at: s.connectedAt, last_verified_at: s.lastVerifiedAt ?? null, last_error: s.lastError ?? null };
+    const { error } = await this.sb().from("ai_provider_secrets").upsert(row, { onConflict: "tenant_id,provider" });
+    if (error) throw new Error(`Could not save provider key: ${error.message}`);
+  }
+  async remove(t: string, p: AIProviderId) {
+    const { error } = await this.sb().from("ai_provider_secrets").delete().eq("tenant_id", t).eq("provider", p);
+    if (error) throw new Error(`Could not remove provider key: ${error.message}`);
+  }
+}
+
+// Supabase when configured; otherwise in-memory (survives Next.js dev HMR reloads via globalThis).
 const g = globalThis as unknown as { __wjSecretStore?: SecretStore; __wjDevKey?: Buffer };
-export const secretStore: SecretStore = g.__wjSecretStore ?? (g.__wjSecretStore = new MemorySecretStore());
+export const secretStore: SecretStore = getSupabaseAdmin() ? new SupabaseSecretStore() : (g.__wjSecretStore ?? (g.__wjSecretStore = new MemorySecretStore()));
 
 function masterKey(): Buffer {
   const env = process.env.WONDER_SECRET_KEY;

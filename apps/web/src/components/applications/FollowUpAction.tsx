@@ -12,6 +12,7 @@ import { useAIStore } from "@/store/ai";
 import { TemplateAIService, WonderJobsAIProvider, FallbackProvider } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { hashKey } from "@/lib/ids";
+import { auditAction } from "@/lib/audit";
 import { formatDate, formatTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
@@ -70,17 +71,20 @@ export function FollowUpAction({ application, job }: { application: Application;
     setBusy("send");
     const action = createAction({ type: "send_email", applicationId: application.id, idempotencyKey, label: `${kind === "thank_you" ? "Thank-you" : "Follow-up"} email to ${job?.company ?? "employer"}`, content: draft });
     updateAction(action.id, { status: "confirmed" }, { event: "confirmed", detail: "Confirmed by you" });
+    auditAction({ actionId: action.id, actionType: "send_email", event: "confirmed", detail: "Confirmed by user" });
     updateAction(action.id, { status: "executing", attempts: 1 }, { event: "executing", detail: "attempt 1" });
     try {
       // Mock delivery. A real mail provider plugs in here; the ledger semantics stay the same.
       await new Promise((r) => setTimeout(r, 700));
       updateAction(action.id, { status: "succeeded", executedAt: new Date().toISOString() }, { event: "succeeded" });
+      auditAction({ actionId: action.id, actionType: "send_email", event: "succeeded" });
       addEvent(application.id, { type: "follow_up", title: kind === "thank_you" ? "Thank-you note sent" : "Follow-up sent", detail: "Sent with your approval" });
       if (pendingFollowUp) completeFollowUp(application.id, pendingFollowUp.id);
       toast.success("Sent", "Recorded on the application timeline.");
       setDraft("");
     } catch (e) {
       updateAction(action.id, { status: "failed", error: e instanceof Error ? e.message : "Send failed" }, { event: "failed", detail: e instanceof Error ? e.message : undefined });
+      auditAction({ actionId: action.id, actionType: "send_email", event: "failed", detail: e instanceof Error ? e.message : undefined });
       toast.error("Couldn't send", "You can retry from the history below.");
     } finally {
       setBusy(null);

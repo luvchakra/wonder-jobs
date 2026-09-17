@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { remoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
 import { SEED_DNA, seedActivity, seedInsights, seedNotifications, seedUpcoming } from "@/services/mock/seed";
 import { newId } from "@/lib/ids";
@@ -45,6 +46,6 @@ export const useCareerStore = create<CareerState>()(
       markRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (id == null || n.id === id ? { ...n, read: true } : n)) })),
       setInsights: (insights) => set({ insights }),
     }),
-    { name: "wj.career", storage: createJSONStorage(() => localStorage), skipHydration: true, version: 1 },
+    { name: "wj.career", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1 },
   ),
 );

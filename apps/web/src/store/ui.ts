@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { remoteStorage } from "./remoteStorage";
 
 interface UIState {
   commandOpen: boolean;
@@ -18,6 +19,6 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
     }),
-    { name: "wj.ui", storage: createJSONStorage(() => localStorage), skipHydration: true, version: 1, partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed }) },
+    { name: "wj.ui", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1, partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed }) },
   ),
 );

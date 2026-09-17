@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { remoteStorage } from "./remoteStorage";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import { isActive } from "@/domain/workflow/status";
 import { seedSchedules, seedWorkflows } from "@/services/mock/seed";
@@ -57,7 +58,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         return copy;
       },
     }),
-    { name: "wj.workflow", storage: createJSONStorage(() => localStorage), skipHydration: true, version: 1 },
+    { name: "wj.workflow", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1 },
   ),
 );
 

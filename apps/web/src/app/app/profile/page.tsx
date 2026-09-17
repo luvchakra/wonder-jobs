@@ -1,5 +1,5 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronRight, Crown, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut } from "lucide-react";
@@ -13,6 +13,8 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
+import { syncStatus } from "@/store/remoteStorage";
+import { Cloud, CloudOff } from "lucide-react";
 
 const MORE = [
   { href: "/app/career-dna", label: "Career DNA", icon: Dna },
@@ -25,6 +27,27 @@ const MORE = [
   { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
   { href: "/app/learning", label: "Learning", icon: BookOpen },
 ];
+
+function CloudSyncCard() {
+  const [backend, setBackend] = useState<"supabase" | "local" | "unknown">("unknown");
+  const sync = useSyncExternalStore(syncStatus.subscribe, syncStatus.get, () => "idle" as const);
+  useEffect(() => {
+    fetch("/api/state/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { backend: "supabase" | "local" }) => setBackend(d.backend))
+      .catch(() => setBackend("local"));
+  }, []);
+  const cloud = backend === "supabase";
+  return (
+    <Card className="mt-4 flex items-start gap-3">
+      <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${cloud ? "bg-success-100 text-success-600" : "bg-bg-soft text-ink-3"}`}>{cloud ? <Cloud className="size-5" aria-hidden /> : <CloudOff className="size-5" aria-hidden />}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold text-ink">{backend === "unknown" ? "Checking sync…" : cloud ? "Synced to the cloud" : "Stored on this device only"}</p>
+        <p className="text-[12px] text-ink-3">{cloud ? `Your Career DNA, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.` : "Persistence isn't configured on this deployment yet, so data lives in this browser. Provider keys are held in memory only."}</p>
+      </div>
+    </Card>
+  );
+}
 
 function ProfileInner() {
   const params = useSearchParams();
@@ -46,6 +69,7 @@ function ProfileInner() {
           </div>
         </div>
       </Card>
+      <CloudSyncCard />
       {(plan === "free" || upgrade) && (
         <Card className="mt-4 border-brand-200 bg-brand-50/60">
           <div className="flex items-start gap-3">

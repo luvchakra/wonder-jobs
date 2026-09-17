@@ -12,12 +12,15 @@ import { useActionsStore } from "./actions";
 import { getWorkflowService } from "@/services/workflow/service";
 import { SchedulerRunner } from "@/components/automation/SchedulerRunner";
 
+let booting = false;
+
 /** Rehydrates persisted stores on the client, then boots the workflow service. */
 export function StoreHydrator({ children }: { children: React.ReactNode }) {
   const hydrated = useHydration((s) => s.hydrated);
   const setHydrated = useHydration((s) => s.setHydrated);
   useEffect(() => {
-    if (hydrated) return;
+    if (hydrated || booting) return;
+    booting = true;
     (async () => {
       await Promise.all([
         useCareerStore.persist.rehydrate(),

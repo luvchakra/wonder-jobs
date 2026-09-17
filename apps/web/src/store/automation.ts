@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { remoteStorage } from "./remoteStorage";
 import { defaultPolicy, type AutomationLevel, type AutomationPolicy, type Capability, type PolicyMode } from "@/domain/automation/policy";
 import { track } from "@/lib/analytics";
 
@@ -24,6 +25,6 @@ export const useAutomationStore = create<AutomationState>()(
       setDefaultLevel: (l) => set({ defaultLevel: l }),
       resetPolicy: () => set({ policy: defaultPolicy() }),
     }),
-    { name: "wj.automation", storage: createJSONStorage(() => localStorage), skipHydration: true, version: 1 },
+    { name: "wj.automation", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1 },
   ),
 );
