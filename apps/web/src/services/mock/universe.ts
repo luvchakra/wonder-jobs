@@ -67,9 +67,9 @@ export function getUniverse(): Universe {
 
   // Featured roles keep stable ids so seeded applications/activity can reference them.
   const featured: Partial<Job>[] = [
-    { id: "job_google_pm", title: "Product Manager", company: "Google", location: "Bengaluru, India", workMode: "hybrid", salaryMin: 2_800_000, salaryMax: 4_500_000, seniority: "mid", postedAt: new Date(now - 2 * DAY).toISOString(), tags: ["Leadership", "Growth"] },
-    { id: "job_microsoft_spm", title: "Senior Product Manager", company: "Microsoft", location: "Hyderabad, India", workMode: "remote", salaryMin: 3_000_000, salaryMax: 5_000_000, seniority: "senior", postedAt: new Date(now - 3 * DAY).toISOString(), tags: ["Strategy", "AI"] },
-    { id: "job_amazon_growth", title: "Product Manager, Growth", company: "Amazon", location: "Bengaluru, India", workMode: "onsite", salaryMin: 2_800_000, salaryMax: 4_500_000, seniority: "mid", postedAt: new Date(now - 4 * DAY).toISOString(), tags: ["Growth", "Analytics"] },
+    { id: "job_google_pm", title: "Product Manager", company: "Google", location: "Bengaluru, India", workMode: "hybrid", salaryMin: 2_800_000, salaryMax: 4_500_000, seniority: "mid", postedAt: new Date(now - 2 * DAY).toISOString(), tags: ["Leadership", "Growth"], skills: ["Product Strategy", "Roadmapping", "User Research", "A/B Testing", "Analytics", "Stakeholder Management"], onEmployerSite: true, repostCount: 0 },
+    { id: "job_microsoft_spm", title: "Senior Product Manager", company: "Microsoft", location: "Hyderabad, India", workMode: "remote", salaryMin: 3_000_000, salaryMax: 5_000_000, seniority: "senior", postedAt: new Date(now - 3 * DAY).toISOString(), tags: ["Strategy", "AI"], skills: ["Product Strategy", "Roadmapping", "Prioritization", "Metrics", "PRDs", "Go-to-Market"], onEmployerSite: true, repostCount: 0 },
+    { id: "job_amazon_growth", title: "Product Manager, Growth", company: "Amazon", location: "Bengaluru, India", workMode: "onsite", salaryMin: 2_800_000, salaryMax: 4_500_000, seniority: "mid", postedAt: new Date(now - 4 * DAY).toISOString(), tags: ["Growth", "Analytics"], skills: ["A/B Testing", "Analytics", "Experimentation", "Metrics", "SQL", "Retention"], onEmployerSite: true, repostCount: 0 },
     { id: "job_meta_pm", title: "Product Manager", company: "Meta", location: "Remote, India", workMode: "remote", salaryMin: 3_500_000, salaryMax: 5_500_000, seniority: "senior", postedAt: new Date(now - 9 * DAY).toISOString(), tags: ["Consumer", "AI"] },
     { id: "job_airbnb_pm", title: "Product Manager", company: "Airbnb", location: "Remote, India", workMode: "remote", salaryMin: 3_200_000, salaryMax: 5_200_000, seniority: "mid", postedAt: new Date(now - 8 * DAY).toISOString(), tags: ["Consumer", "Growth"] },
     { id: "job_razorpay_spm", title: "Senior Product Manager, Platform", company: "Razorpay", location: "Bengaluru, India", workMode: "hybrid", salaryMin: 3_200_000, salaryMax: 4_800_000, seniority: "senior", postedAt: new Date(now - 1 * DAY).toISOString(), tags: ["Platform", "B2B"] },
@@ -86,9 +86,9 @@ export function getUniverse(): Universe {
     const salaryMax = base.salaryMax ?? (hasSalary && salaryMin ? Math.round((salaryMin * (1.35 + rand.next() * 0.3)) / 100_000) * 100_000 : undefined);
     const currency = loc.country === "IN" ? "INR" : loc.country === "GB" ? "GBP" : "USD";
     const skillPool = SKILLS[t.track];
-    const skills = rand.sample(skillPool, Math.min(skillPool.length, rand.int(4, 7)));
+    const skills = base.skills ?? rand.sample(skillPool, Math.min(skillPool.length, rand.int(4, 7)));
     const posted = base.postedAt ?? new Date(now - rand.int(0, 45) * DAY - rand.int(0, 23) * 3_600_000).toISOString();
-    const onEmployerSite = rand.chance(0.7);
+    const onEmployerSite = base.onEmployerSite ?? rand.chance(0.7);
     const applyPath = onEmployerSite ? "employer_site" : rand.chance(0.8) ? "platform" : rand.chance(0.5) ? "email" : "unknown";
     const reqs = REQ_BY_TRACK[t.track];
     const years = YEARS[t.seniority];
@@ -114,7 +114,7 @@ export function getUniverse(): Universe {
       applyUrl: onEmployerSite ? `https://careers.${company.domain}/jobs/${1000 + idx}` : `https://jobs.example/${idx}`,
       applyPath,
       onEmployerSite,
-      repostCount: rand.chance(0.15) ? rand.int(1, 3) : 0,
+      repostCount: base.repostCount ?? (rand.chance(0.15) ? rand.int(1, 3) : 0),
       tags: base.tags ?? rand.sample(TAGS_BY_TRACK[t.track], 2),
     };
   };

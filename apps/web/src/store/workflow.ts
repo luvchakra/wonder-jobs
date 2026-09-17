@@ -62,4 +62,3 @@ export const useWorkflowStore = create<WorkflowState>()(
 );
 
 export const selectActiveRun = (s: WorkflowState) => Object.values(s.runs).find((r) => isActive(r.status));
-export const selectRunsSorted = (s: WorkflowState) => Object.values(s.runs).sort((a, b) => b.createdAt.localeCompare(a.createdAt));

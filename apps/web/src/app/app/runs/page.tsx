@@ -1,7 +1,8 @@
 "use client";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Play, Timer } from "lucide-react";
-import { selectActiveRun, selectRunsSorted, useWorkflowStore } from "@/store/workflow";
+import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { formatDate, formatDuration, formatNumber, formatTime, shortId } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -12,8 +13,9 @@ import { ActiveRunCard } from "@/components/workflow/ActiveRunCard";
 import { RunStatusPill } from "@/components/workflow/RunStatusPill";
 
 export default function RunsPage() {
-  const runs = useWorkflowStore(selectRunsSorted);
+  const runsById = useWorkflowStore((s) => s.runs);
   const active = useWorkflowStore(selectActiveRun);
+  const runs = useMemo(() => Object.values(runsById).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [runsById]);
   const history = runs.filter((r) => r.id !== active?.id);
   return (
     <div>

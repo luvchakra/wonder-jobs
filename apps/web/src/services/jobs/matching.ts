@@ -58,7 +58,7 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   // skills
   const mine = new Map(dna.skills.map((s) => [s.name.toLowerCase(), s.level]));
   const overlap = job.skills.filter((s) => mine.has(s.toLowerCase()));
-  const skillScore = job.skills.length ? Math.min(1, overlap.reduce((n, s) => n + (mine.get(s.toLowerCase())! / 5), 0) / Math.max(3, job.skills.length * 0.7)) : 0.5;
+  const skillScore = job.skills.length ? Math.min(1, overlap.reduce((n, s) => n + mine.get(s.toLowerCase())! / 5, 0) / job.skills.length + (overlap.length >= 4 ? 0.08 : 0)) : 0.5;
 
   // seniority
   const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[dna.seniority];
@@ -86,7 +86,7 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   const weights = { skills: 0.32, seniority: 0.18, industry: 0.1, career_goal: 0.18, location: 0.12, compensation: 0.1 } as const;
   const raw = skillScore * weights.skills + seniorityScore * weights.seniority + industryScore * weights.industry + goalScore * weights.career_goal + locationScore * weights.location + compScore * weights.compensation;
-  const score = Math.round(Math.max(20, Math.min(98, raw * 100)));
+  const score = Math.round(Math.max(20, Math.min(96, raw * 100)));
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of ${job.skills.length} listed skills match your Career DNA (${overlap.slice(0, 3).join(", ")}).` : "Few of the listed skills appear in your Career DNA." },
