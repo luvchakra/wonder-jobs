@@ -2,34 +2,19 @@
   "name": "wonder-jobs",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run build"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "lucide-react": "^1.47.0",
-    "next": "16.3.5",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "tailwind-merge": "^3.7.0",
-    "zod": "^4.6.5",
-    "zustand": "^5.0.15"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^22.20.3",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.5",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^5.0.1"
+    "dev": "npm run dev -w @wonder/web",
+    "build": "npm run build -w @wonder/web",
+    "start": "npm run start -w @wonder/web",
+    "lint": "npm run lint -w @wonder/web",
+    "typecheck": "npm run typecheck -w @wonder/web",
+    "test": "npm run test -w @wonder/web",
+    "check": "npm run check -w @wonder/web"
   }
 }

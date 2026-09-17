@@ -11,6 +11,7 @@ import { newId } from "@/lib/ids";
 import { resolveCapability, type AutomationPolicy, type Capability } from "@/domain/automation/policy";
 import { assertTransition, isTerminal, type RunStatus } from "./status";
 import { STAGES, STAGE_KEYS, STAGE_ORDER, type StageKey } from "./stages";
+import { resolveRunValue } from "./resolve";
 import type {
   Evidence,
   Provenance,
@@ -489,6 +490,7 @@ export class WorkflowEngine {
   }
 
   private context(run: WorkflowRun, stage: WorkflowStageRun, ctl: RunControl, policy: AutomationPolicy): StageContext {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const engine = this;
     let lastProgressEmit = 0;
     return {
@@ -606,17 +608,7 @@ export class WorkflowEngine {
 
   // ---------------------------------------------------------------- helpers
   private resolveValue(run: WorkflowRun, key: string): unknown {
-    const o = run.overrides.find((x) => x.key === key);
-    if (o) return o.value;
-    for (const k of [...STAGE_KEYS].reverse()) {
-      const out = run.outputs[k];
-      if (out && key in out.data) return out.data[key];
-    }
-    const i = run.inputs.find((x) => x.key === key);
-    if (i) return i.value;
-    const cfg = run.config as unknown as Record<string, unknown>;
-    if (key in cfg) return cfg[key];
-    return undefined;
+    return resolveRunValue(run, key).value;
   }
 
   private recomputeSummary(run: WorkflowRun) {

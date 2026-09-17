@@ -39,7 +39,6 @@ export function track(event: AnalyticsEvent, props: Record<string, Primitive> = 
   buffer.push(entry);
   if (buffer.length > 200) buffer.shift();
   if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
     console.debug("[analytics]", event, safe);
   }
 }
