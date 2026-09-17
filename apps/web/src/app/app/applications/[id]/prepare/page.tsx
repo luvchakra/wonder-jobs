@@ -11,7 +11,7 @@ import { useAutomationStore } from "@/store/automation";
 import type { ArtifactType } from "@/domain/applications/types";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { ProviderError } from "@/domain/ai/types";
-import { TemplateAIService, WonderJobsAIProvider } from "@/services/ai/service";
+import { FallbackProvider, TemplateAIService, WonderJobsAIProvider } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { track } from "@/lib/analytics";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -58,8 +58,10 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
 
   const ai = () => {
     const p = aiConfig.activeProvider;
-    const cost = { anthropic: { input: 3, output: 15 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } } as const;
-    return p === "wonderjobs" ? new TemplateAIService(new WonderJobsAIProvider(), recordUsage, null) : new TemplateAIService(new RemoteBYOKProvider(p, aiConfig.activeModel), recordUsage, cost[p]);
+    const cost = { anthropic: { input: 5, output: 25 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } } as const;
+    if (p === "wonderjobs") return new TemplateAIService(new WonderJobsAIProvider(), recordUsage, null);
+    const provider = new FallbackProvider(new RemoteBYOKProvider(p, aiConfig.activeModel), new WonderJobsAIProvider(), () => aiConfig.allowPlatformFallback, (reason) => toast.info("Used WonderJobs AI for this request", reason));
+    return new TemplateAIService(provider, recordUsage, cost[p]);
   };
   const artifact = (t: ArtifactType) => app.artifacts.find((a) => a.type === t);
 

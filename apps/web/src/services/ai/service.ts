@@ -150,3 +150,26 @@ export function providerErrorMessage(e: unknown): { message: string; kind: Provi
   if (e instanceof ProviderError) return { message: e.message, kind: e.kind };
   return { message: e instanceof Error ? e.message : "Unknown provider error", kind: "unknown" };
 }
+
+/**
+ * Wraps a BYOK provider so that, only when the user opted in, a failed request
+ * is retried on WonderJobs AI (platform-billed). Never silent: the caller sees
+ * `fellBack` on the result via usage records carrying provider "wonderjobs".
+ */
+export class FallbackProvider implements AIProvider {
+  readonly id: AIProviderId;
+  readonly model: string;
+  constructor(private readonly primary: AIProvider, private readonly fallback: AIProvider, private readonly allow: () => boolean, private readonly onFallback?: (reason: string) => void) {
+    this.id = primary.id;
+    this.model = primary.model;
+  }
+  async complete(req: CompletionRequest): Promise<CompletionResult> {
+    try {
+      return await this.primary.complete(req);
+    } catch (e) {
+      if (!this.allow() || !(e instanceof ProviderError)) throw e;
+      this.onFallback?.(e.message);
+      return this.fallback.complete(req);
+    }
+  }
+}

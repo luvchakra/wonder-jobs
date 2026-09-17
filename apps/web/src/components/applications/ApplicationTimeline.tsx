@@ -1,14 +1,16 @@
+"use client";
 import { Bookmark, CalendarDays, FileCheck, Flag, Mail, MessageSquare, Search, Send, StickyNote } from "lucide-react";
 import type { ApplicationEvent } from "@/domain/applications/types";
 import { formatDate, formatTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { useNow } from "@/lib/motion";
 
 const ICONS = { discovered: Search, saved: Bookmark, prepared: FileCheck, submitted: Send, follow_up: Mail, recruiter_response: MessageSquare, interview: CalendarDays, outcome: Flag, note: StickyNote } as const;
 
 export function ApplicationTimeline({ events, className }: { events: ApplicationEvent[]; className?: string }) {
+  const now = useNow();
   const sorted = [...events].sort((a, b) => a.at.localeCompare(b.at));
   if (!sorted.length) return <p className="text-sm text-ink-3">No events yet.</p>;
-  const now = Date.now();
   return (
     <ol className={cn("relative", className)} aria-label="Application timeline">
       {sorted.map((e, i) => {

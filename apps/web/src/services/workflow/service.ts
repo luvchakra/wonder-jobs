@@ -8,7 +8,7 @@ import { WorkflowEngine } from "@/domain/workflow/engine";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import { isActive } from "@/domain/workflow/status";
 import type { RunConfig, WorkflowRun } from "@/domain/workflow/types";
-import { TemplateAIService, WonderJobsAIProvider, type AIService } from "@/services/ai/service";
+import { FallbackProvider, TemplateAIService, WonderJobsAIProvider, type AIService } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { createExecutors, inheritCaches, seedCachesFromCatalog } from "./executors";
 import { useAutomationStore } from "@/store/automation";
@@ -90,8 +90,12 @@ class WorkflowService {
     const snapshot = run?.config.provider ?? { provider: "wonderjobs", model: "wonder-1", billing: "platform" as const };
     const record = (r: AIUsageRecord) => useAIStore.getState().recordUsage(r);
     if (snapshot.provider === "wonderjobs") return new TemplateAIService(new WonderJobsAIProvider(), record, null);
-    const cost = { anthropic: { input: 3, output: 15 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } }[snapshot.provider];
-    return new TemplateAIService(new RemoteBYOKProvider(snapshot.provider, snapshot.model ?? ""), record, cost);
+    const cost = { anthropic: { input: 5, output: 25 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } }[snapshot.provider];
+    const primary = new RemoteBYOKProvider(snapshot.provider, snapshot.model ?? "");
+    const provider = new FallbackProvider(primary, new WonderJobsAIProvider(), () => useAIStore.getState().config.allowPlatformFallback, (reason) =>
+      useCareerStore.getState().notify({ category: "provider_issue", title: `Switched to WonderJobs AI for one request`, body: `${reason} You allowed automatic fallback in AI settings.`, href: "/app/settings/ai" }),
+    );
+    return new TemplateAIService(provider, record, cost);
   }
 
   hasActiveRun() {

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
@@ -29,13 +29,11 @@ function ApplicationsInner() {
   const create = useApplicationsStore((s) => s.create);
   const jobs = useJobsStore((s) => s.jobs);
   const saved = useJobsStore((s) => s.saved);
-  const [tab, setTab] = useState<Tab>("all");
+  const paramTab = params.get("tab") as Tab | null;
+  const [pickedTab, setTab] = useState<Tab | null>(null);
+  const tab: Tab = pickedTab ?? (paramTab && TABS.some((x) => x.value === paramTab) ? paramTab : "all");
   const [adding, setAdding] = useState(false);
   const [pickJob, setPickJob] = useState("");
-  useEffect(() => {
-    const t = params.get("tab") as Tab | null;
-    if (t && TABS.some((x) => x.value === t)) setTab(t);
-  }, [params]);
 
   const list = useMemo(() => Object.values(applications).sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt)), [applications]);
   const byGroup = (a: Application) => APPLICATION_STATUS_META[a.status].group;

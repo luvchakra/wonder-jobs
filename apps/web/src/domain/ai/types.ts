@@ -26,9 +26,9 @@ export const AI_PROVIDERS: Record<AIProviderId, AIProviderMeta> = {
     tagline: "Use your API key",
     billing: "byok",
     models: [
-      { id: "claude-sonnet-5", label: "Claude Sonnet 5", default: true },
-      { id: "claude-opus-5", label: "Claude Opus 5" },
-      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+      { id: "claude-opus-5", label: "Claude Opus 5", default: true },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
     ],
     keyPrefixHint: "sk-ant-",
     keyPlaceholder: "sk-ant-…",
