@@ -419,7 +419,7 @@ export function MarketingFooter() {
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-10 px-4 sm:px-6 md:grid-cols-6">
         <div className="col-span-2">
           <WonderLogo />
-          <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Go further.</p>
+          <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Belong.</p>
           <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">An AI job-search agent that searches real sources, explains every match and prepares applications you approve. It never applies on your behalf.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href="/sign-up" size="sm" className="rounded-full">

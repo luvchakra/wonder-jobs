@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Mail, ShieldCheck, Sparkles, Compass, FileEdit } from "lucide-react";
 import { HeroScene } from "@/components/landing/HeroScene";
-import { WonderMark } from "@/components/brand/WonderLogo";
+import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { Input, Field } from "@/components/common/Input";
 import { PasswordInput } from "./PasswordInput";
@@ -110,9 +110,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
       <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:items-center md:gap-16 md:px-10">
         <div className="md:flex-1">
-          <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold">
-            <WonderMark size={30} /> WonderJobs
-          </Link>
+          <WonderLogo href="/" tone="dark" size={34} />
           <h1 className="mt-10 text-[36px] font-semibold leading-[1.05] tracking-tight md:mt-14 md:text-[48px]">
             A smarter
             <br />

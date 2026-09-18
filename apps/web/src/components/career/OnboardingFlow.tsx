@@ -7,7 +7,7 @@ import type { AutomationLevel } from "@/domain/automation/policy";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { Chip, Select } from "@/components/common/Input";
 import { HeroScene } from "@/components/landing/HeroScene";
-import { WonderMark } from "@/components/brand/WonderLogo";
+import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { Textarea, Input } from "@/components/common/Input";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
@@ -94,9 +94,7 @@ function Steps() {
       <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-10 md:max-w-lg md:justify-center">
         <div className="flex items-center justify-between">
           {step === 0 ? (
-            <span className="inline-flex items-center gap-2 text-lg font-semibold">
-              <WonderMark size={30} /> WonderJobs
-            </span>
+            <WonderLogo href={null} tone="dark" size={34} />
           ) : (
             <button type="button" onClick={() => setStep((s) => s - 1)} className="inline-flex items-center gap-1 text-sm font-medium text-white/80 hover:text-white">
               <ArrowLeft className="size-4" aria-hidden /> Back

@@ -1,5 +1,7 @@
 # WonderJobs
 
+<img src="apps/web/public/brand/wonderjobs-lockup-light.png" alt="WonderJobs — Find. Grow. Belong." width="420">
+
 Your next opportunity is out there. Wonder finds it.
 
 Monorepo (npm workspaces). The web app lives in `apps/web` (Next.js 16, App Router, TypeScript, Tailwind v4).
@@ -48,6 +50,19 @@ Runs search live public sources through `GET /api/jobs/search` (one request per 
 
 - `/help` is public: user guide, FAQ and an assistant that answers from the guide and links the matching section (`POST /api/help/ask`; uses the platform model when `WONDERJOBS_AI_KEY` is set). Linked as **Get Help** in the avatar menu.
 - The landing page ends with **Contact us**; messages are always stored in `wonderjobs.contact_messages` (migration `0003`) with the signed-in tenant when there is one, and you can always read them in Supabase → Table Editor. To also get an email copy, set `CONTACT_NOTIFY_EMAILS` (comma-separated recipients) and `RESEND_API_KEY` (a free [Resend](https://resend.com) key); without the key, notifications are logged server-side instead of emailed. Public company pages: `/about`, `/privacy`, `/terms`, `/security`, `/cookies`.
+
+## Brand assets
+
+`apps/web/public/brand/` holds the logo in the forms the app uses: the full lockup with the tagline, the
+logo without it (navigation), and the butterfly mark on its own. Each comes in a **light** and a **dark**
+variant — the wordmark's neutral grey is invisible on the product's dark surfaces, so `tone="dark"` swaps
+in light ink while keeping the brand purples. `components/brand/WonderLogo.tsx` exposes `WonderMark`,
+`WonderLogo` and `WonderLockup`; the favicon and PWA icons are generated from the mark at request time.
+If the source artwork changes, drop it in and re-run:
+
+```bash
+node apps/web/scripts/brand-assets.mjs apps/web/scripts/brand-source.png
+```
 
 ## Installing as an app
 

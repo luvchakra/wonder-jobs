@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Mail, KeyRound } from "lucide-react";
 import { HeroScene } from "@/components/landing/HeroScene";
-import { WonderMark } from "@/components/brand/WonderLogo";
+import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { Input, Field } from "@/components/common/Input";
 import { PasswordInput } from "./PasswordInput";
@@ -16,9 +16,7 @@ function Shell({ title, sub, children }: { title: string; sub: string; children:
       <HeroScene variant="dusk" className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
       <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:justify-center">
-        <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold">
-          <WonderMark size={30} /> WonderJobs
-        </Link>
+        <WonderLogo href="/" tone="dark" size={34} />
         <div className="mt-8 w-full rounded-[24px] bg-white p-6 text-ink shadow-xl md:p-8">
           <h1 className="text-[22px] font-semibold tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-ink-3">{sub}</p>

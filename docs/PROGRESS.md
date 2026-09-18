@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — story "PWA installability (WJ-090)"._
+_Last updated: 2026-09-18 — stories "Calendar subscribe feed (WJ-091)" and "Official logo rolled out (WJ-092)"._
 
 ## At a glance
 
@@ -31,7 +31,7 @@ _Last updated: 2026-09-18 — story "PWA installability (WJ-090)"._
 | 10. Persistence & sync | 4 | 0 | 0 | ✅ |
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
 | 12. Help center & support | 5 | 0 | 0 | ✅ |
-| 13. Secondary product areas | 7 | 3 | 2 | 🟡 early versions |
+| 13. Secondary product areas | 8 | 3 | 2 | 🟡 early versions |
 | 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
@@ -41,7 +41,7 @@ _Last updated: 2026-09-18 — story "PWA installability (WJ-090)"._
 - ✅ Motion utilities: reduced-motion, low-power hint, ScrollReveal, keyframes — WJ-004
 - ✅ Desktop sidebar, top bar, mobile bottom nav, command field — WJ-005, WJ-006
 - ✅ Shared states (loading / empty / error), toasts — WJ-057, WJ-058
-- ✅ Brand assets (WonderMark/WonderLogo), layered SVG scenes (no raster imagery)
+- ✅ Official logo rolled out across the app in light and dark ink, with generated favicon/PWA icons — WJ-092
 
 ## 2. Accounts & sessions (spec §5, later requests)
 
@@ -169,7 +169,8 @@ _Last updated: 2026-09-18 — story "PWA installability (WJ-090)"._
 - 🟡 Resume Studio: organises materials; deeper AI coaching planned
 - 🟡 Interview Prep: prep packs; mock-interview AI planned
 - 🟡 Insights: derived from real runs/applications; trend history grows with use
-- ⬜ Calendar sync (Google / Microsoft / Apple)
+- ✅ Calendar subscribe feed: signed, cookie-less iCalendar URL that Google/Outlook/Apple Calendar poll — real interviews, follow-ups and scheduled runs, no OAuth app to register — WJ-091
+- ⬜ Two-way calendar sync (writing back to Google/Microsoft) — needs an OAuth client per provider
 - ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API, so nothing renders there rather than faking it), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
 - ⬜ Push notifications (the SW above has no push subscription handling yet; a server-side sender and per-tenant subscription storage are still needed)
 
