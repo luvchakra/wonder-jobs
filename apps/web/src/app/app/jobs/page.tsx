@@ -92,6 +92,7 @@ function JobsInner() {
         <EmptyState title="No jobs match these filters" body="Try a broader search, or run Wonder to search all sources again." action={{ label: "Run Wonder", href: "/app/runs/new" }} />
       ) : (
         <>
+          <h2 className="wj-sr-only">Job results</h2>
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
               <li key={id}>

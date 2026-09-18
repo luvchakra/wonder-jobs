@@ -108,7 +108,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     <div className="relative min-h-dvh overflow-hidden bg-ink text-white">
       <HeroScene variant="dusk" className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:items-center md:gap-16 md:px-10">
+      <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:items-center md:gap-16 md:px-10">
         <div className="md:flex-1">
           <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold">
             <WonderMark size={30} /> WonderJobs
@@ -207,7 +207,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             </a>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

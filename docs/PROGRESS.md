@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — story "Contact message email notifications"._
+_Last updated: 2026-09-18 — story "Automated accessibility audit (WJ-075)"._
 
 ## At a glance
 
@@ -32,7 +32,7 @@ _Last updated: 2026-09-18 — story "Contact message email notifications"._
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
 | 12. Help center & support | 5 | 0 | 0 | ✅ |
 | 13. Secondary product areas | 6 | 3 | 2 | 🟡 early versions |
-| 14. Quality, accessibility, performance | 8 | 1 | 1 | 🟡 automated a11y audit pending |
+| 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
 ## 1. Foundation & design system (spec §2–4)
@@ -174,7 +174,7 @@ _Last updated: 2026-09-18 — story "Contact message email notifications"._
 
 ## 14. Quality, accessibility, performance (spec §39–47)
 
-- ✅ 36 unit tests (engine, policy, normalizer, migrations, matching) — WJ-072, WJ-073
+- ✅ 40 unit tests (engine, policy, normalizer, migrations, matching, contact notifications) — WJ-072, WJ-073
 - ✅ Playwright end-to-end scripts: auth + demo, full run, review restore, forgot password
 - ✅ Security QA of BYOK routes and cross-tenant isolation — WJ-074
 - ✅ Keyboard navigation, reduced motion, screen-reader workflow states — WJ-059..061
@@ -182,8 +182,8 @@ _Last updated: 2026-09-18 — story "Contact message email notifications"._
 - ✅ Analytics events per spec §47 with secret filtering — WJ-068
 - ✅ Mobile and desktop visual QA — WJ-069, WJ-070
 - ✅ `npm run check` (lint, typecheck, tests, build) green before every push — WJ-076
-- 🟡 Structural accessibility in place; no automated axe/Lighthouse run yet — WJ-075
-- ⬜ Automated a11y audit in CI
+- ✅ Automated accessibility audit: `npm run a11y` (axe-core, 18 pages, reduced-motion emulated), 0 violations — WJ-075
+- ⬜ Wire `npm run a11y` into CI (it needs a Chromium binary the repo doesn't vendor; run locally with `npx playwright install chromium` first, or reuse an existing install via `PW_CHROMIUM_PATH`)
 
 ## 15. Operations & release
 

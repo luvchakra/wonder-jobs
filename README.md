@@ -10,6 +10,7 @@ Monorepo (npm workspaces). The web app lives in `apps/web` (Next.js 16, App Rout
 npm install
 npm run dev        # http://localhost:3000
 npm run check      # lint + typecheck + tests + production build
+npm run a11y       # axe-core accessibility audit against a production build (needs Chromium: `npx playwright install chromium`, or set PW_CHROMIUM_PATH)
 ```
 
 ## Configuration

@@ -15,7 +15,7 @@ function Shell({ title, sub, children }: { title: string; sub: string; children:
     <div className="relative min-h-dvh overflow-hidden bg-ink text-white">
       <HeroScene variant="dusk" className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:justify-center">
+      <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:justify-center">
         <Link href="/" className="inline-flex items-center gap-2 text-lg font-semibold">
           <WonderMark size={30} /> WonderJobs
         </Link>
@@ -24,7 +24,7 @@ function Shell({ title, sub, children }: { title: string; sub: string; children:
           <p className="mt-1 text-sm text-ink-3">{sub}</p>
           {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

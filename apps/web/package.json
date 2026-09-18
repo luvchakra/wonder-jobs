@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "db:migrate": "node scripts/db-migrate.mjs"
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "a11y": "node scripts/a11y-audit.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
@@ -31,9 +32,11 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "axe-core": "^4.13.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.1"

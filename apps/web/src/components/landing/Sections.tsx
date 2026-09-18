@@ -25,7 +25,7 @@ export function SourceLogoStrip() {
           </p>
           <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4" aria-label="Connected job sources">
             {sources.map((s) => (
-              <li key={s.id} className="text-[20px] font-semibold tracking-tight text-ink-3/80" style={{ fontFamily: "var(--font-sans)" }}>
+              <li key={s.id} className="text-[20px] font-semibold tracking-tight text-ink-3" style={{ fontFamily: "var(--font-sans)" }}>
                 {s.name}
               </li>
             ))}
@@ -271,7 +271,12 @@ export function PersonaSection() {
           </div>
           {p.points.map((pt, i) => (
             <div key={pt} className="wj-card flex flex-col justify-between p-6">
-              <span className="text-[28px] font-semibold text-brand-200">0{i + 1}</span>
+              {/* Purely decorative ordinal — the point itself is read from the paragraph below. brand-400 (not
+                  the lighter brand-200, which is meant for dark backgrounds) keeps this ≥3:1 on the white card,
+                  which 28px semibold qualifies for as WCAG "large text". */}
+              <span className="text-[28px] font-semibold text-brand-400" aria-hidden="true">
+                0{i + 1}
+              </span>
               <p className="mt-6 text-[16px] font-medium text-ink">{pt}</p>
             </div>
           ))}

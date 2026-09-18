@@ -19,7 +19,7 @@
   --wj-ink: #14142b;
   --wj-ink-2: #3f4160;
   --wj-ink-3: #6b6d8a;
-  --wj-ink-4: #9a9bb5;
+  --wj-ink-4: #6c6e94; /* darkened from #9a9bb5 (2.72:1 on white) to clear WCAG AA 4.5:1 on both white and --wj-surface-2 */
 
   /* brand */
   --wj-brand-50: #f1efff;
@@ -33,18 +33,20 @@
   --wj-brand-800: #3c259b;
   --wj-brand-900: #2e1d78;
 
-  /* accents */
+  /* accents. The -600 shade of each is darkened just enough to clear WCAG AA
+     (4.5:1) against its own -100 background — axe-core caught these
+     (scripts/a11y-audit.mjs); the -100/-500 tones are unchanged. */
   --wj-blue-100: #e3ecff;
   --wj-blue-500: #3b7bff;
-  --wj-blue-600: #2f66d9;
+  --wj-blue-600: #2b63d8;
   --wj-success-100: #e2f7ec;
-  --wj-success-600: #1c8f5a;
+  --wj-success-600: #187c4e;
   --wj-warning-100: #fff3d6;
-  --wj-warning-600: #b26a00;
+  --wj-warning-600: #a05f00;
   --wj-danger-100: #ffe4e6;
-  --wj-danger-600: #d12f4a;
+  --wj-danger-600: #c52c45;
   --wj-info-100: #e8f3ff;
-  --wj-info-600: #2a6fd6;
+  --wj-info-600: #286ace;
   --wj-pink-500: #c26ef5;
 
   /* gradients */

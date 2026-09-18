@@ -135,7 +135,7 @@ function ParallaxBinder() {
 export function FloatingDashboardCard({ className }: { className?: string }) {
   return (
     <div className={cn("wj-glass rounded-[22px] p-5 shadow-lg", className)} aria-label="Preview of the WonderJobs dashboard">
-      <p className="text-[12px] text-ink-3">Good morning, Alex 👋</p>
+      <p className="text-[12px] text-ink-2">Good morning, Alex 👋</p>
       <p className="mt-1 text-[22px] font-semibold leading-tight tracking-tight text-ink">
         Wonder found <span className="wj-gradient-text">7 things</span> worth your attention.
       </p>
@@ -146,7 +146,7 @@ export function FloatingDashboardCard({ className }: { className?: string }) {
           { icon: CalendarDays, t: "1 interview tomorrow", s: "Be prepared", c: "bg-[#fbe8ff] text-pink-500" },
           { icon: Bookmark, t: "1 saved job has changed", s: "See what's new", c: "bg-success-100 text-success-600" },
         ].map((r) => (
-          <li key={r.t} className="flex items-center gap-3 rounded-[14px] bg-white/80 px-3 py-2">
+          <li key={r.t} className="flex items-center gap-3 rounded-[14px] bg-white px-3 py-2">
             <span className={cn("flex size-8 items-center justify-center rounded-[10px]", r.c)}>
               <r.icon className="size-4" aria-hidden />
             </span>
