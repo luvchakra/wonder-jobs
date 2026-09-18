@@ -6,7 +6,7 @@ import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { getUniverse } from "@/services/mock/universe";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
-import { SEED_DNA } from "@/services/mock/seed";
+import { useCareerStore } from "./career";
 import { track } from "@/lib/analytics";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
@@ -24,6 +24,8 @@ interface JobsState {
   sort: JobSort;
   loaded: boolean;
   loadInitial: () => void;
+  /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
+  rescore: () => void;
   replaceCatalog: (jobs: CanonicalJob[]) => void;
   setMatches: (matches: JobMatch[]) => void;
   setQuality: (quality: JobQuality[]) => void;
@@ -44,7 +46,7 @@ export const useJobsStore = create<JobsState>()(
       order: [],
       matches: {},
       quality: {},
-      saved: { job_google_pm: new Date().toISOString(), job_amazon_growth: new Date().toISOString(), job_airbnb_pm: new Date().toISOString() },
+      saved: {},
       rejected: {},
       filters: DEFAULT_FILTERS,
       sort: "best_match",
@@ -53,15 +55,24 @@ export const useJobsStore = create<JobsState>()(
         if (get().loaded) return;
         const canonical = deduplicate(getUniverse().jobs);
         const sources = Object.fromEntries(get().sources.map((s) => [s.id, s]));
+        const dna = useCareerStore.getState().dna;
         const jobs: Record<string, CanonicalJob> = {};
         const matches: Record<string, JobMatch> = {};
         const quality: Record<string, JobQuality> = {};
         for (const j of canonical) {
           jobs[j.id] = j;
-          matches[j.id] = computeMatch(j, { dna: SEED_DNA });
+          matches[j.id] = computeMatch(j, { dna });
           quality[j.id] = computeQuality(j, sources);
         }
         set({ jobs, order: canonical.map((j) => j.id), matches, quality, loaded: true });
+      },
+      rescore: () => {
+        const { jobs, order, loaded } = get();
+        if (!loaded) return;
+        const dna = useCareerStore.getState().dna;
+        const matches: Record<string, JobMatch> = {};
+        for (const id of order) matches[id] = computeMatch(jobs[id], { dna });
+        set({ matches });
       },
       replaceCatalog: (list) => set({ jobs: Object.fromEntries(list.map((j) => [j.id, j])), order: list.map((j) => j.id), loaded: true }),
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),

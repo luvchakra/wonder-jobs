@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { isStateStoreName, MAX_BATCH_BYTES, MAX_STATE_BYTES, stateStore, type StateStoreName } from "@/server/state";
 
@@ -7,7 +7,9 @@ export const runtime = "nodejs";
 
 /** GET → every store document of the tenant in one response: `{ docs: { [store]: { state, version, updatedAt } } }`. */
 export async function GET() {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   try {
     const docs = await stateStore.getAll(tenantId);
     return NextResponse.json({ docs }, { headers: { "cache-control": "no-store" } });
@@ -18,7 +20,9 @@ export async function GET() {
 
 /** PUT { docs: { [store]: state } } → upsert all in one round trip. Unknown stores are rejected. */
 export async function PUT(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`state:${tenantId}`, { capacity: 120, refillPerSec: 4 });
   if (!rl.ok) return NextResponse.json({ error: "Too many updates" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const text = await req.text();

@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
+import { syncsToServer } from "@/lib/mode";
 import { AI_PROVIDERS, type AIProviderConfig, type AIProviderId, type AIUsageRecord, type BYOKStatus } from "@/domain/ai/types";
 import { track } from "@/lib/analytics";
 
@@ -43,6 +44,10 @@ export const useAIStore = create<AIState>()(
       setAllowPlatformFallback: (v) => set((s) => ({ config: { ...s.config, allowPlatformFallback: v } })),
       recordUsage: (r) => set((s) => ({ usage: [r, ...s.usage].slice(0, 500) })),
       refreshKeys: async () => {
+        if (!syncsToServer()) {
+          set({ keysLoaded: true });
+          return;
+        }
         try {
           const res = await fetch("/api/ai/keys", { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);

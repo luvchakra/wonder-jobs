@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AI_PROVIDERS } from "@/domain/ai/types";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { encrypt, maskKey, secretStore, toStatus } from "@/server/secrets";
 
@@ -16,13 +16,17 @@ const SaveBody = z.object({
 
 /** GET → masked status only. Plaintext keys are never returned (spec §23). */
 export async function GET() {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const keys = (await secretStore.list(tenantId)).map(toStatus);
   return NextResponse.json({ keys }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`keys:${tenantId}`, { capacity: 10, refillPerSec: 0.2 });
   if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = SaveBody.safeParse(await req.json().catch(() => null));
@@ -45,7 +49,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const provider = ProviderId.safeParse(new URL(req.url).searchParams.get("provider"));
   if (!provider.success) return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   await secretStore.remove(tenantId, provider.data);

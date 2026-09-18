@@ -3,7 +3,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { Application, ApplicationArtifact, ApplicationEvent, ApplicationStatus, ArtifactType, ArtifactVersion } from "@/domain/applications/types";
-import { seedApplications } from "@/services/mock/seed";
 import { newId } from "@/lib/ids";
 
 interface ApplicationsState {
@@ -22,7 +21,7 @@ interface ApplicationsState {
 export const useApplicationsStore = create<ApplicationsState>()(
   persist(
     (set, get) => ({
-      applications: Object.fromEntries(seedApplications().map((a) => [a.id, a])),
+      applications: {},
       create: (jobId, status = "saved") => {
         const existing = Object.values(get().applications).find((a) => a.jobId === jobId);
         if (existing) return existing;
@@ -34,7 +33,7 @@ export const useApplicationsStore = create<ApplicationsState>()(
           artifacts: [],
           events: [{ id: newId("ev"), applicationId: "", type: "discovered", at: new Date().toISOString(), title: "Job discovered" }],
           followUps: [],
-          submissionKey: `submit:${jobId}:alex`,
+          submissionKey: `submit:${jobId}:me`,
         };
         app.events[0].applicationId = app.id;
         set((s) => ({ applications: { ...s.applications, [app.id]: app } }));

@@ -1,5 +1,6 @@
 "use client";
 import type { PersistStorage, StorageValue } from "zustand/middleware";
+import { getClientMode, storageKeyFor, syncsToServer } from "@/lib/mode";
 
 /**
  * Zustand storage that persists each store as a per-tenant document on the
@@ -72,16 +73,21 @@ function writeLocal(name: string, value: string) {
   memoryFallback.set(name, value);
 }
 
+/** Local keys are namespaced per signed-in user (or the demo) so a shared device never mixes accounts. */
+function localKey(name: string) {
+  return storageKeyFor(name, getClientMode());
+}
+
 function readDirty(): Set<string> {
   try {
-    const raw = readLocal(DIRTY_KEY);
+    const raw = readLocal(localKey(DIRTY_KEY));
     return new Set(raw ? (JSON.parse(raw) as string[]) : []);
   } catch {
     return new Set();
   }
 }
 function writeDirty(set: Set<string>) {
-  writeLocal(DIRTY_KEY, JSON.stringify([...set]));
+  writeLocal(localKey(DIRTY_KEY), JSON.stringify([...set]));
 }
 function markDirty(names: Iterable<string>) {
   const d = readDirty();
@@ -132,7 +138,7 @@ function parse(value: string | null): StorageValue<unknown> | null {
 function loadAll(): Promise<Record<string, Doc> | null> {
   if (loadAllPromise) return loadAllPromise;
   loadAllPromise = (async () => {
-    if (typeof fetch === "undefined") return null;
+    if (typeof fetch === "undefined" || !syncsToServer()) return null;
     try {
       // The app layout starts this request before any JS is parsed (see app/app/layout.tsx).
       const w = typeof window === "undefined" ? undefined : (window as unknown as { __wjState?: Promise<Response | undefined> });
@@ -167,13 +173,13 @@ async function revalidate() {
   const dirty = readDirty();
   const toPush = new Set<string>();
   // Unsynced local edits (e.g. written while offline) win and go up first.
-  for (const name of dirty) if (readLocal(name) !== null) toPush.add(name);
+  for (const name of dirty) if (readLocal(localKey(name)) !== null) toPush.add(name);
   for (const [name, doc] of Object.entries(docs)) {
     if (dirty.has(name)) continue; // local edits win; they go up below
     const value = JSON.stringify(doc.state);
     serverDocs.set(name, value);
-    if (readLocal(name) !== value) {
-      writeLocal(name, value);
+    if (readLocal(localKey(name)) !== value) {
+      writeLocal(localKey(name), value);
       serialized.set(name, value);
       latest.delete(name);
       remoteChangeListeners.forEach((l) => l(name));
@@ -181,7 +187,7 @@ async function revalidate() {
   }
   // Local copies the server has never seen (first sync after an offline period / migration).
   for (const name of known) {
-    if (!(name in docs) && !toPush.has(name) && readLocal(name) !== null) toPush.add(name);
+    if (!(name in docs) && !toPush.has(name) && readLocal(localKey(name)) !== null) toPush.add(name);
   }
   if (toPush.size) {
     for (const n of toPush) pendingPush.add(n);
@@ -201,9 +207,10 @@ function serializePending() {
     const s = JSON.stringify(v);
     if (serialized.get(name) === s) continue; // no-op write
     serialized.set(name, s);
-    writeLocal(name, s);
+    writeLocal(localKey(name), s);
     changed.push(name);
   }
+  if (changed.length && !syncsToServer()) return; // demo: device only
   if (changed.length) {
     markDirty(changed);
     for (const n of changed) pendingPush.add(n);
@@ -227,10 +234,10 @@ function schedulePush() {
 async function pushNow(keepalive: boolean) {
   const names = [...pendingPush];
   pendingPush = new Set();
-  if (!names.length || typeof fetch === "undefined") return;
+  if (!names.length || typeof fetch === "undefined" || !syncsToServer()) return;
   const docs: Record<string, unknown> = {};
   for (const n of names) {
-    const s = serialized.get(n) ?? readLocal(n);
+    const s = serialized.get(n) ?? readLocal(localKey(n));
     const v = parse(s);
     if (v) docs[n] = v;
   }
@@ -274,12 +281,13 @@ export function createRemoteStorage<S>(): PersistStorage<S> {
       known.add(name);
       const fromServer = serverDocs.get(name);
       if (fromServer !== undefined) return parse(fromServer) as StorageValue<S> | null;
-      const localValue = readLocal(name);
+      const localValue = readLocal(localKey(name));
       if (localValue !== null) {
         serialized.set(name, localValue);
         void revalidate();
         return parse(localValue) as StorageValue<S> | null;
       }
+      if (!syncsToServer()) return null;
       // Nothing local yet: this device has never seen the tenant. One batched request.
       return loadAll().then((docs) => {
         revalidated = true;
@@ -287,7 +295,7 @@ export function createRemoteStorage<S>(): PersistStorage<S> {
         if (!doc) return null;
         const value = JSON.stringify(doc.state);
         serverDocs.set(name, value);
-        writeLocal(name, value);
+        writeLocal(localKey(name), value);
         serialized.set(name, value);
         return parse(value) as StorageValue<S> | null;
       });
@@ -300,7 +308,7 @@ export function createRemoteStorage<S>(): PersistStorage<S> {
     removeItem(name) {
       const ls = local();
       try {
-        ls?.removeItem(name);
+        ls?.removeItem(localKey(name));
       } catch {
         /* ignore */
       }
@@ -309,7 +317,7 @@ export function createRemoteStorage<S>(): PersistStorage<S> {
       serialized.delete(name);
       serverDocs.delete(name);
       clearDirty([name]);
-      if (typeof fetch !== "undefined") void fetch(`/api/state/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {});
+      if (typeof fetch !== "undefined" && syncsToServer()) void fetch(`/api/state/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {});
     },
   };
 }

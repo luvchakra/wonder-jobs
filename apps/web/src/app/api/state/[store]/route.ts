@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { isStateStoreName, MAX_STATE_BYTES, stateStore } from "@/server/state";
 
@@ -11,7 +11,9 @@ type Ctx = { params: Promise<{ store: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const { store } = await ctx.params;
   if (!isStateStoreName(store)) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   try {
     const doc = await stateStore.get(tenantId, store);
     if (!doc) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
@@ -25,7 +27,9 @@ export async function GET(_req: Request, ctx: Ctx) {
 export async function PUT(req: Request, ctx: Ctx) {
   const { store } = await ctx.params;
   if (!isStateStoreName(store)) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`state:${tenantId}`, { capacity: 120, refillPerSec: 4 });
   if (!rl.ok) return NextResponse.json({ error: "Too many updates" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const text = await req.text();
@@ -48,7 +52,9 @@ export async function PUT(req: Request, ctx: Ctx) {
 export async function DELETE(_req: Request, ctx: Ctx) {
   const { store } = await ctx.params;
   if (!isStateStoreName(store)) return NextResponse.json({ error: "Unknown store" }, { status: 404 });
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   await stateStore.remove(tenantId, store);
   return NextResponse.json({ ok: true });
 }

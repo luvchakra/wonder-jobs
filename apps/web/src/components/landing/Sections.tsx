@@ -211,9 +211,9 @@ export function FeatureGrid() {
               <span className="wj-gradient-text">Nothing you don&apos;t.</span>
             </h2>
           </div>
-          <Link href="/app" className="inline-flex items-center gap-1 text-[14px] font-semibold text-brand-600 hover:underline">
-            View all features <ArrowRight className="size-4" aria-hidden />
-          </Link>
+          <a href="/demo" className="inline-flex items-center gap-1 text-[14px] font-semibold text-brand-600 hover:underline">
+            Try it in the demo <ArrowRight className="size-4" aria-hidden />
+          </a>
         </ScrollReveal>
         <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {FEATURES.map((f, i) => (
@@ -344,7 +344,7 @@ export function FinalCTA() {
           Ready to find what&apos;s next?
         </h2>
         <p className="mt-4 text-[17px] text-white/75">Stop searching harder. Start searching smarter.</p>
-        <Button href="/onboarding" size="xl" className="mt-8 rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
+        <Button href="/sign-up" size="xl" className="mt-8 rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
           Get Started Free
         </Button>
         <p className="mt-4 text-[12px] text-white/60">No credit card required</p>

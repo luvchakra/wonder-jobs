@@ -3,6 +3,8 @@
  * keys, resume text, screening answers or model reasoning.
  */
 export type AnalyticsEvent =
+  | "account_created"
+  | "signed_in"
   | "onboarding_completed"
   | "run_started"
   | "run_paused"

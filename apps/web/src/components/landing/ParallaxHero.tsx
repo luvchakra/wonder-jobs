@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useRef } from "react";
-import Link from "next/link";
 import { ArrowRight, Play, CheckCircle2, Bookmark, CalendarDays, Mail, Briefcase } from "lucide-react";
 import { HeroScene } from "./HeroScene";
 import { Button } from "@/components/common/Button";
@@ -78,7 +77,7 @@ export function ParallaxHero() {
           </h1>
           <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2">WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.</p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button href="/onboarding" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
+            <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
               Get Started Free
             </Button>
             <Button href="#how-it-works" size="xl" variant="glass" className="rounded-full" icon={<Play className="size-4" aria-hidden />}>
@@ -152,9 +151,9 @@ export function FloatingDashboardCard({ className }: { className?: string }) {
           </li>
         ))}
       </ul>
-      <Link href="/app" className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600">
-        Open dashboard <ArrowRight className="size-3.5" aria-hidden />
-      </Link>
+      <a href="/demo" className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600">
+        Open the demo <ArrowRight className="size-3.5" aria-hidden />
+      </a>
     </div>
   );
 }

@@ -34,10 +34,10 @@ export function MarketingNav() {
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <Button href="/app" variant="ghost" size="sm">
+          <Button href="/sign-in" variant="ghost" size="sm">
             Sign in
           </Button>
-          <Button href="/onboarding" variant="dark" size="sm" className="rounded-full px-4">
+          <Button href="/sign-up" variant="dark" size="sm" className="rounded-full px-4">
             Get Started
           </Button>
         </div>
@@ -55,10 +55,10 @@ export function MarketingNav() {
             ))}
           </nav>
           <div className="mt-3 flex gap-2">
-            <Button href="/app" variant="outline" full>
+            <Button href="/sign-in" variant="outline" full>
               Sign in
             </Button>
-            <Button href="/onboarding" variant="dark" full>
+            <Button href="/sign-up" variant="dark" full>
               Get Started
             </Button>
           </div>

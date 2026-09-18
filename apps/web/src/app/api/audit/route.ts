@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { getSupabaseAdmin, touchTenant } from "@/server/supabase";
 
@@ -15,7 +15,9 @@ const Body = z.object({
 
 /** Append-only audit of external side effects (spec §46). No-op without Supabase. */
 export async function POST(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`audit:${tenantId}`, { capacity: 60, refillPerSec: 2 });
   if (!rl.ok) return NextResponse.json({ error: "Too many events" }, { status: 429 });
   const parsed = Body.safeParse(await req.json().catch(() => null));

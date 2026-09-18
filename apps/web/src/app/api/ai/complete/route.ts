@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { decrypt, secretStore } from "@/server/secrets";
 import { getServerProvider } from "@/server/providers";
@@ -23,7 +23,9 @@ const Body = z.object({
  * usage. Nothing about the request is logged.
  */
 export async function POST(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`complete:${tenantId}`, { capacity: 30, refillPerSec: 0.5 });
   if (!rl.ok) return NextResponse.json({ error: "You're sending requests too quickly. Wonder will retry shortly.", kind: "rate_limit" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));

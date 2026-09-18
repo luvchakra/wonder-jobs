@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Compass, FileEdit, Sparkles, ShieldCheck, ArrowLeft } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { HeroScene } from "@/components/landing/HeroScene";
@@ -27,13 +27,18 @@ const FEATURES = [
 export function OnboardingFlow() {
   return (
     <StoreHydrator>
-      <Steps />
+      <Suspense fallback={null}>
+        <Steps />
+      </Suspense>
     </StoreHydrator>
   );
 }
 
 function Steps() {
   const router = useRouter();
+  const params = useSearchParams();
+  const rawNext = params.get("next");
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app/runs/new";
   const hydrated = useHydration((s) => s.hydrated);
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);
@@ -51,7 +56,7 @@ function Steps() {
     setDefaultLevel(level);
     completeOnboarding();
     track("onboarding_completed", { level });
-    router.push("/app/runs/new");
+    router.push(next);
   };
 
   return (
@@ -69,9 +74,16 @@ function Steps() {
               <ArrowLeft className="size-4" aria-hidden /> Back
             </button>
           )}
-          <Link href="/app" className="text-sm font-medium text-white/80 hover:text-white">
+          <button
+            type="button"
+            onClick={() => {
+              completeOnboarding();
+              router.push(next);
+            }}
+            className="text-sm font-medium text-white/80 hover:text-white"
+          >
             Skip
-          </Link>
+          </button>
         </div>
 
         <div className="mt-12 flex-1 md:mt-14" aria-live="polite">
@@ -135,7 +147,7 @@ function Steps() {
           {step === 0 && (
             <p className="mt-4 text-center text-sm text-white/70">
               Already have an account?{" "}
-              <Link href="/app" className="font-semibold text-white hover:underline">
+              <Link href="/sign-in" className="font-semibold text-white hover:underline">
                 Sign in
               </Link>
             </p>

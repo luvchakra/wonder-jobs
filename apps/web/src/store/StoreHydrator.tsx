@@ -9,8 +9,12 @@ import { useAIStore } from "./ai";
 import { useWorkflowStore } from "./workflow";
 import { useUIStore } from "./ui";
 import { useActionsStore } from "./actions";
+import { useAuthStore } from "./auth";
 import { onRemoteChange } from "./remoteStorage";
 import { getWorkflowService } from "@/services/workflow/service";
+import { isDemoSeeded, seedDemo } from "@/services/mock/demo";
+import { getClientMode } from "@/lib/mode";
+import { getSupabaseBrowser } from "@/lib/auth/browser";
 import { SchedulerRunner } from "@/components/automation/SchedulerRunner";
 
 const STORES = {
@@ -32,7 +36,27 @@ function afterPaint(fn: () => void) {
   else setTimeout(fn, 0);
 }
 
+/** Signed-in users: fill in the name from the account the first time, before onboarding asks for anything. */
+async function bootstrapIdentity() {
+  const sb = getSupabaseBrowser();
+  if (!sb) return;
+  const { data } = await sb.auth.getSession();
+  const user = data.session?.user;
+  if (!user) return;
+  useAuthStore.getState().set({ email: user.email ?? null, userId: user.id });
+  const career = useCareerStore.getState();
+  if (!career.dna.name) {
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const name = typeof meta.full_name === "string" && meta.full_name.trim() ? meta.full_name.trim() : (user.email?.split("@")[0] ?? "");
+    if (name) career.updateDNA({ name });
+  }
+}
+
 function finishBoot() {
+  const mode = getClientMode();
+  useAuthStore.getState().set({ mode: mode.mode, userId: mode.mode === "user" ? mode.userId : null });
+  // Demo / local development: the sample candidate, applied once per device.
+  if (mode.mode !== "user" && !isDemoSeeded()) seedDemo();
   // The catalog is needed by the first screen and is cheap (~40 ms); compute before paint so nothing flashes.
   if (typeof performance !== "undefined") performance.mark("wj:boot");
   useJobsStore.getState().loadInitial();
@@ -40,6 +64,7 @@ function finishBoot() {
   afterPaint(() => {
     getWorkflowService().hydrate();
     void useAIStore.getState().refreshKeys();
+    if (mode.mode === "user") void bootstrapIdentity();
   });
 }
 
@@ -69,6 +94,14 @@ export function StoreHydrator({ children }: { children: React.ReactNode }) {
       onRemoteChange((name) => {
         const store = STORES[name as keyof typeof STORES];
         if (store) void store.persist.rehydrate();
+      }),
+    [],
+  );
+  // Matches follow the candidate: any Career DNA change re-scores the catalog.
+  useEffect(
+    () =>
+      useCareerStore.subscribe((s, prev) => {
+        if (s.dna !== prev.dna) useJobsStore.getState().rescore();
       }),
     [],
   );

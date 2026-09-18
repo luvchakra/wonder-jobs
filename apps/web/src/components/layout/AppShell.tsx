@@ -1,15 +1,32 @@
 "use client";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { TopBar } from "@/components/navigation/TopBar";
 import { MobileNav } from "@/components/navigation/MobileNav";
 import { Toaster } from "@/components/feedback/Toast";
 import { StoreHydrator } from "@/store/StoreHydrator";
 import { useHydration } from "@/store/hydration";
+import { useCareerStore } from "@/store/career";
+import { useAuthStore } from "@/store/auth";
 import { PageLoading } from "@/components/common/States";
 
+/**
+ * Renders product pages once local state is hydrated. A signed-in account
+ * that hasn't finished onboarding is taken there first, so Career DNA exists
+ * before any run or match is shown.
+ */
 function Gate({ children }: { children: React.ReactNode }) {
   const hydrated = useHydration((s) => s.hydrated);
-  if (!hydrated) {
+  const onboarded = useCareerStore((s) => s.onboarded);
+  const mode = useAuthStore((s) => s.mode);
+  const router = useRouter();
+  const pathname = usePathname();
+  const needsOnboarding = hydrated && mode === "user" && !onboarded;
+  useEffect(() => {
+    if (needsOnboarding) router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
+  }, [needsOnboarding, router, pathname]);
+  if (!hydrated || needsOnboarding) {
     return (
       <div className="p-6">
         <PageLoading />

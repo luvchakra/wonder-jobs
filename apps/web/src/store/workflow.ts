@@ -4,8 +4,6 @@ import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import { isActive } from "@/domain/workflow/status";
-import { seedSchedules, seedWorkflows } from "@/services/mock/seed";
-import { seedRuns } from "@/services/mock/runs";
 import { newId } from "@/lib/ids";
 
 interface WorkflowState {
@@ -23,9 +21,9 @@ interface WorkflowState {
 export const useWorkflowStore = create<WorkflowState>()(
   persist(
     (set, get) => ({
-      runs: Object.fromEntries(seedRuns().map((r) => [r.id, r])),
-      workflows: Object.fromEntries(seedWorkflows().map((w) => [w.id, w])),
-      schedules: Object.fromEntries(seedSchedules().map((s) => [s.id, s])),
+      runs: {},
+      workflows: {},
+      schedules: {},
       upsertRun: (run) =>
         set((s) => {
           const runs = { ...s.runs, [run.id]: run };

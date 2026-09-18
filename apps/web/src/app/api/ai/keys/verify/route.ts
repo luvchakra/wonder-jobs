@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSession } from "@/server/auth";
+import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { decrypt, secretStore, toStatus } from "@/server/secrets";
 import { getServerProvider } from "@/server/providers";
@@ -10,7 +10,9 @@ export const runtime = "nodejs";
 
 /** Makes one tiny request with the stored key so the user can confirm it works. */
 export async function POST(req: Request) {
-  const { tenantId } = await getSession();
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { tenantId } = session;
   const rl = rateLimit(`verify:${tenantId}`, { capacity: 5, refillPerSec: 0.1 });
   if (!rl.ok) return NextResponse.json({ error: "Too many checks. Try again shortly." }, { status: 429 });
   const body = z.object({ provider: z.enum(["anthropic", "openai", "gemini"]) }).safeParse(await req.json().catch(() => null));

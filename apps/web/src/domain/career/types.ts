@@ -15,6 +15,23 @@ export interface CareerDNA {
   updatedAt: string;
 }
 
+/** A brand-new account before onboarding: nothing invented, everything to be filled by the candidate. */
+export const EMPTY_DNA: CareerDNA = {
+  name: "",
+  headline: "",
+  careerGoal: "",
+  yearsExperience: 0,
+  seniority: "mid",
+  skills: [],
+  industries: [],
+  preferredLocations: [],
+  workModes: ["remote", "hybrid", "onsite"],
+  currency: "INR",
+  strengths: [],
+  growthAreas: [],
+  updatedAt: new Date(0).toISOString(),
+};
+
 export interface ActivityItem {
   id: string;
   at: string;

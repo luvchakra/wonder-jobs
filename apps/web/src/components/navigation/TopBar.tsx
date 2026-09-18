@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, LogOut, Search, Settings, Sparkles, User } from "lucide-react";
+import { Bell, ChevronDown, FlaskConical, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -10,6 +10,8 @@ import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
+import { useAuthStore } from "@/store/auth";
+import { signOutEverywhere } from "@/lib/auth/browser";
 import { CommandPalette } from "./CommandPalette";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
@@ -29,7 +31,11 @@ export function TopBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const hydrated = useHydration((s) => s.hydrated);
+  const mode = useAuthStore((s) => s.mode);
+  const userId = useAuthStore((s) => s.userId);
+  const email = useAuthStore((s) => s.email);
   const dna = useCareerStore((s) => s.dna);
+  const displayName = dna.name || email?.split("@")[0] || "You";
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
   const unread = hydrated ? notifications.filter((n) => !n.read).length : 0;
@@ -111,15 +117,21 @@ export function TopBar() {
 
       <div className="relative" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-bg-soft">
-          <Avatar name={dna.name} size={34} />
+          <Avatar name={displayName} size={34} />
           <span className="hidden text-left lg:block">
-            <span className="block text-[13px] font-semibold leading-tight text-ink">{dna.name}</span>
-            <span className="block text-[11px] leading-tight text-ink-3">{careerStatus}</span>
+            <span className="block text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
+            <span className="block text-[11px] leading-tight text-ink-3">{mode === "demo" ? "Demo mode" : careerStatus}</span>
           </span>
           <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>
         {profileOpen && (
-          <div role="menu" className="absolute right-0 top-12 w-56 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+          <div role="menu" className="absolute right-0 top-12 w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+            {mode === "demo" && (
+              <p className="px-3 pb-2 pt-1.5 text-[11px] leading-snug text-ink-3">
+                You&apos;re exploring sample data. Nothing here is saved to an account.
+              </p>
+            )}
+            {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
             {[
               { href: "/app/profile", label: "Profile", icon: User },
               { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
@@ -130,9 +142,36 @@ export function TopBar() {
               </Link>
             ))}
             <div className="my-1 border-t border-line" />
-            <Link role="menuitem" href="/" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-              <LogOut className="size-4" aria-hidden /> Sign out
-            </Link>
+            {mode === "demo" ? (
+              <>
+                <a role="menuitem" href="/sign-up" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+                  <UserPlus className="size-4" aria-hidden /> Create your account
+                </a>
+                <a role="menuitem" href="/demo/exit?next=/sign-in" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+                  <LogIn className="size-4" aria-hidden /> Exit demo &amp; sign in
+                </a>
+              </>
+            ) : (
+              <>
+                <a role="menuitem" href="/demo" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+                  <FlaskConical className="size-4" aria-hidden /> Demo
+                </a>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={async () => {
+                    setProfileOpen(false);
+                    await signOutEverywhere(userId);
+                    // Full reload on purpose: drops every in-memory store before another account can sign in.
+                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+                    window.location.href = "/";
+                  }}
+                  className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
+                >
+                  <LogOut className="size-4" aria-hidden /> Sign out
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

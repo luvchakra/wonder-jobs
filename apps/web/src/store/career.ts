@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
-import { SEED_DNA, seedActivity, seedInsights, seedNotifications, seedUpcoming } from "@/services/mock/seed";
+import { EMPTY_DNA } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
 
 interface CareerState {
@@ -29,12 +29,12 @@ interface CareerState {
 export const useCareerStore = create<CareerState>()(
   persist(
     (set) => ({
-      dna: SEED_DNA,
-      onboarded: true,
-      activity: seedActivity(),
-      upcoming: seedUpcoming(),
-      insights: seedInsights(),
-      notifications: seedNotifications(),
+      dna: EMPTY_DNA,
+      onboarded: false,
+      activity: [],
+      upcoming: [],
+      insights: [],
+      notifications: [],
       plan: "free",
       reminded: [],
       markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
