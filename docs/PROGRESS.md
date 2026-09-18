@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — stories "Calendar subscribe feed (WJ-091)" and "Official logo rolled out (WJ-092)"._
+_Last updated: 2026-09-18 — story "Help centre reachable from everywhere (WJ-093)"._
 
 ## At a glance
 
@@ -30,7 +30,7 @@ _Last updated: 2026-09-18 — stories "Calendar subscribe feed (WJ-091)" and "Of
 | 9. AI providers (BYOK + platform) | 8 | 0 | 1 | ✅ |
 | 10. Persistence & sync | 4 | 0 | 0 | ✅ |
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
-| 12. Help center & support | 5 | 0 | 0 | ✅ |
+| 12. Help center & support | 6 | 0 | 0 | ✅ |
 | 13. Secondary product areas | 8 | 3 | 2 | 🟡 early versions |
 | 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
@@ -157,6 +157,7 @@ _Last updated: 2026-09-18 — stories "Calendar subscribe feed (WJ-091)" and "Of
 - ✅ Help assistant chatbot: answers from the guide and links the matching section; platform model when configured — WJ-088
 - ✅ `/api/help/ask` (retrieval + optional model, rate-limited, public)
 - ✅ Roadmap / known limitations published in the guide (kept in sync with this file)
+- ✅ Public with no sign-in, and linked from the landing nav and footer, the app sidebar and command palette, the auth and reset screens, onboarding and the 404 page — WJ-093
 
 ## 13. Secondary product areas (spec §35–38)
 

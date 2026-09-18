@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Briefcase, Calendar, Dna, FileText, Home, LayoutList, MessagesSquare, Search, Settings2, Timer, User, Zap, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Briefcase, Calendar, Dna, FileText, Home, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, User, Zap, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -26,6 +26,8 @@ export const RESOURCES_NAV: NavItem[] = [
   { href: "/app/resume-studio", label: "Resume Studio", icon: FileText },
   { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
   { href: "/app/learning", label: "Learning", icon: BookOpen },
+  // Public page: reachable signed out too, which is the point — people need it most when they can't get in.
+  { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 
 export const MOBILE_NAV: NavItem[] = [

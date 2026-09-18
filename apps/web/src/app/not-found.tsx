@@ -16,9 +16,15 @@ export default function NotFound() {
           Home
         </Button>
       </div>
-      <Link href="/app/jobs" className="text-[13px] font-medium text-brand-600 hover:underline">
-        Browse jobs
-      </Link>
+      <p className="text-[13px] text-ink-3">
+        <Link href="/app/jobs" className="font-medium text-brand-600 hover:underline">
+          Browse jobs
+        </Link>{" "}
+        ·{" "}
+        <Link href="/help" className="font-medium text-brand-600 hover:underline">
+          Help &amp; guide
+        </Link>
+      </p>
     </div>
   );
 }

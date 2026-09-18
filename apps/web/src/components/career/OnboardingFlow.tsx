@@ -100,16 +100,21 @@ function Steps() {
               <ArrowLeft className="size-4" aria-hidden /> Back
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              completeOnboarding();
-              router.push(next);
-            }}
-            className="text-sm font-medium text-white/80 hover:text-white"
-          >
-            Skip
-          </button>
+          <div className="flex items-center gap-4">
+            <Link href="/help" className="text-sm font-medium text-white/70 hover:text-white">
+              Help
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                completeOnboarding();
+                router.push(next);
+              }}
+              className="text-sm font-medium text-white/80 hover:text-white"
+            >
+              Skip
+            </button>
+          </div>
         </div>
 
         <div className="mt-12 flex-1 md:mt-14" aria-live="polite">

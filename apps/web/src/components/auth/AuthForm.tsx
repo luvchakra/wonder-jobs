@@ -202,7 +202,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             Just looking?{" "}
             <a href="/demo" className="font-semibold text-brand-600 hover:underline">
               Explore the demo
-            </a>
+            </a>{" "}
+            · Stuck?{" "}
+            <Link href="/help" className="font-semibold text-brand-600 hover:underline">
+              Read the guide
+            </Link>
           </p>
         </div>
       </main>

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { HELP_FAQ, HELP_SECTIONS } from "@/content/help";
 import { HelpAssistant } from "@/components/help/HelpAssistant";
+import { HelpBackLink } from "@/components/help/HelpBackLink";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { MarketingFooter } from "@/components/landing/Sections";
 
@@ -17,9 +17,7 @@ export default function HelpPage() {
     <div className="bg-white text-ink">
       <MarketingNav />
       <main id="main" className="mx-auto max-w-6xl px-4 pb-20 pt-24 sm:px-6">
-        <Link href="/app" className="inline-flex items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
-          <ArrowLeft className="size-4" aria-hidden /> Back to the app
-        </Link>
+        <HelpBackLink />
         <header className="mt-4 max-w-2xl">
           <p className="wj-eyebrow text-brand-600">Get help</p>
           <h1 className="mt-2 text-[36px] font-semibold leading-tight tracking-tight md:text-[44px]">User guide &amp; FAQ</h1>
