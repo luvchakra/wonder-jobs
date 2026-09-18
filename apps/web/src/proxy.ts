@@ -10,7 +10,7 @@ import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken }
  * cookie so the client can namespace its local state before any request.
  */
 const PROTECTED = [/^\/app(\/|$)/, /^\/onboarding(\/|$)/];
-const AUTH_PAGES = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/];
+const AUTH_PAGES = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/forgot-password(\/|$)/];
 
 function writeSessionCookies(res: NextResponse, req: NextRequest, session: StoredSession) {
   const secure = process.env.NODE_ENV === "production";
@@ -61,5 +61,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up"],
+  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password"],
 };

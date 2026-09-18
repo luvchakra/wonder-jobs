@@ -69,7 +69,8 @@ function AISettingsInner() {
                 <Badge tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>Included in your plan</Badge>
                 {config.activeProvider === "wonderjobs" && <Badge tone="brand">Active</Badge>}
               </div>
-              <p className="text-[12px] text-ink-3">Matching, ranking and quality checks are always deterministic and explainable. Drafting: {platform?.configured ? `written by ${platform.model} on the platform's own key — no charge to you.` : platform === null ? "checking…" : "template drafts on this deployment (no platform model connected). Connect your own key below for AI-written materials."}</p>
+              <p className="text-[12px] text-ink-3">Matching, ranking and quality checks are always deterministic and explainable. Drafting: {platform?.configured ? `written by ${platform.model} on the platform's own key — no charge to you. Used automatically whenever you haven't connected a key of your own.` : platform === null ? "checking…" : "template drafts on this deployment (no platform model connected). Connect your own key below for AI-written materials."}</p>
+              {platform && !platform.configured && <p className="mt-1 text-[11px] text-ink-4">Operators: set WONDERJOBS_AI_KEY (an Anthropic key) in the deployment&apos;s environment variables to turn WonderJobs AI into a real model for every account.</p>}
             </div>
             {config.activeProvider !== "wonderjobs" && (
               <Button size="sm" onClick={() => use("wonderjobs")}>

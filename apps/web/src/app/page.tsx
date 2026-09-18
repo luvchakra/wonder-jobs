@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { ParallaxHero } from "@/components/landing/ParallaxHero";
 import { AgentSection, FeatureGrid, FinalCTA, JourneySection, MarketingFooter, PersonaSection, ProviderSection, SourceLogoStrip } from "@/components/landing/Sections";
+import { ContactSection, ShowcaseSection } from "@/components/landing/Showcase";
 
 export const metadata: Metadata = {
   title: "WonderJobs — Your next opportunity is out there. Wonder finds it.",
@@ -21,9 +22,11 @@ export default function LandingPage() {
         <AgentSection />
         <JourneySection />
         <FeatureGrid />
+        <ShowcaseSection />
         <PersonaSection />
         <ProviderSection />
         <FinalCTA />
+        <ContactSection />
       </main>
       <MarketingFooter />
     </div>

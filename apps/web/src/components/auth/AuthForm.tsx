@@ -7,6 +7,8 @@ import { HeroScene } from "@/components/landing/HeroScene";
 import { WonderMark } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { Input, Field } from "@/components/common/Input";
+import { PasswordInput } from "./PasswordInput";
+import { GoogleButton } from "./GoogleButton";
 import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
 import { track } from "@/lib/analytics";
 
@@ -28,6 +30,7 @@ function friendly(message: string) {
   if (m.includes("already registered")) return "There's already an account for this email. Sign in instead.";
   if (m.includes("password should be")) return "Use at least 8 characters for your password.";
   if (m.includes("rate limit") || m.includes("too many")) return "Too many attempts. Give it a minute and try again.";
+  if (m.includes("provider is not enabled") || m.includes("unsupported provider")) return "Google sign-in isn't switched on for this deployment yet. Use email and password, or a magic link.";
   return message;
 }
 
@@ -46,6 +49,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   // Full navigation: the product boots its stores fresh under this user's namespace.
   const finish = (userId: string) => {
     rememberUser(userId);
+     
     window.location.href = next;
   };
 
@@ -154,7 +158,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
                 <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
               </Field>
               <Field label="Password" htmlFor="password" hint={mode === "sign-up" ? "At least 8 characters." : undefined}>
-                <Input id="password" name="password" type="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
+                <PasswordInput id="password" name="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
+                {mode === "sign-in" && (
+                  <Link href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`} className="self-end text-[12px] font-medium text-brand-600 hover:underline">
+                    Forgot password?
+                  </Link>
+                )}
               </Field>
               {error && (
                 <p role="alert" className="rounded-[12px] bg-danger-100/60 px-3 py-2 text-[13px] text-danger-600">
@@ -167,6 +176,10 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               <Button type="button" variant="outline" size="lg" full loading={busy === "magic"} disabled={busy !== null || !email.trim()} onClick={magic} icon={<Mail className="size-4" aria-hidden />}>
                 Email me a magic link instead
               </Button>
+              <div className="flex items-center gap-3 text-[12px] text-ink-4" aria-hidden>
+                <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+              </div>
+              <GoogleButton next={next} disabled={busy !== null} onError={(m) => setError(friendly(m))} label={mode === "sign-up" ? "Sign up with Google" : "Continue with Google"} />
             </form>
           )}
 

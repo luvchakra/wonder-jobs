@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, FlaskConical, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, FlaskConical, LifeBuoy, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -136,6 +136,7 @@ export function TopBar() {
               { href: "/app/profile", label: "Profile", icon: User },
               { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
               { href: "/app/automation/settings", label: "Automation settings", icon: Settings },
+              { href: "/help", label: "Get Help", icon: LifeBuoy },
             ].map((m) => (
               <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
                 <m.icon className="size-4" aria-hidden /> {m.label}

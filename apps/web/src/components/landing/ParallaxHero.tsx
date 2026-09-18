@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { ArrowRight, Play, CheckCircle2, Bookmark, CalendarDays, Mail, Briefcase } from "lucide-react";
 import { HeroScene } from "./HeroScene";
 import { Button } from "@/components/common/Button";
@@ -69,22 +69,26 @@ export function ParallaxHero() {
 
       <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pb-24 pt-32 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:pt-40">
         <div data-parallax={FACTORS.copy} data-fade="1" className="will-change-transform">
-          <p className="wj-eyebrow text-brand-700">A brighter tomorrow, faster</p>
-          <h1 id="hero-title" className="mt-4 text-display font-semibold text-ink">
+          <p className="wj-eyebrow wj-hero-in text-brand-700" style={{ "--wj-i": 0 } as CSSProperties}>
+            A brighter tomorrow, faster
+          </p>
+          <h1 id="hero-title" className="wj-hero-in mt-4 text-display font-semibold text-ink" style={{ "--wj-i": 1 } as CSSProperties}>
             Your next opportunity is out there.
             <br />
             <span className="wj-gradient-text">Wonder finds it.</span>
           </h1>
-          <p className="mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2">WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.</p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <p className="wj-hero-in mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2" style={{ "--wj-i": 2 } as CSSProperties}>
+            WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.
+          </p>
+          <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
               Get Started Free
             </Button>
-            <Button href="#how-it-works" size="xl" variant="glass" className="rounded-full" icon={<Play className="size-4" aria-hidden />}>
-              Watch Video
+            <Button href="/demo" size="xl" variant="glass" className="rounded-full" icon={<Play className="size-4" aria-hidden />}>
+              See the live demo
             </Button>
           </div>
-          <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know">
+          <ul className="wj-hero-in mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know" style={{ "--wj-i": 4 } as CSSProperties}>
             {["No credit card required", "Free plan available", "Built for people who want better opportunities"].map((t) => (
               <li key={t} className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="size-3.5 text-brand-500" aria-hidden /> {t}
@@ -93,7 +97,7 @@ export function ParallaxHero() {
           </ul>
         </div>
 
-        <div className="relative hidden min-h-[420px] md:block">
+        <div className="wj-hero-in relative hidden min-h-[420px] md:block" style={{ "--wj-i": 3 } as CSSProperties}>
           <p className="wj-handwritten absolute left-0 top-0 rotate-[-8deg] text-[22px] text-ink" data-parallax={FACTORS.copy}>
             A better you is a few steps away.
           </p>
@@ -105,7 +109,9 @@ export function ParallaxHero() {
           </ul>
           {/* Floating product UI */}
           <div data-parallax={FACTORS.ui} className="absolute bottom-0 left-6 w-[360px] will-change-transform">
-            <FloatingDashboardCard />
+            <div className="wj-float">
+              <FloatingDashboardCard />
+            </div>
           </div>
         </div>
       </div>

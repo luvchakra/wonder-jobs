@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, Crown, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut } from "lucide-react";
+import { ChevronRight, Crown, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut, LifeBuoy } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
@@ -28,6 +28,7 @@ const MORE = [
   { href: "/app/resume-studio", label: "Resume Studio", icon: FileText },
   { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
   { href: "/app/learning", label: "Learning", icon: BookOpen },
+  { href: "/help", label: "Get Help", icon: LifeBuoy },
 ];
 
 function CloudSyncCard() {

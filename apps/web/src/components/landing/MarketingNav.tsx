@@ -9,8 +9,10 @@ const LINKS = [
   { href: "#product", label: "Product" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#features", label: "Features" },
-  { href: "#personas", label: "Who it's for" },
+  { href: "#screens", label: "Screens" },
   { href: "#ai", label: "Your AI" },
+  { href: "/help", label: "Help" },
+  { href: "#contact", label: "Contact" },
 ];
 
 export function MarketingNav() {

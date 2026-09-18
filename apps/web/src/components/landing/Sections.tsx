@@ -355,34 +355,75 @@ export function FinalCTA() {
 }
 
 /* --------------------------------------------------------------- footer */
-const FOOTER: { title: string; links: { label: string; href: string }[] }[] = [
-  { title: "Product", links: [{ label: "Features", href: "#features" }, { label: "Pricing", href: "#cta" }, { label: "How it works", href: "#how-it-works" }] },
-  { title: "Resources", links: [{ label: "Blog", href: "#" }, { label: "Help Center", href: "#" }, { label: "Learning", href: "/app/learning" }] },
-  { title: "Company", links: [{ label: "About", href: "#" }, { label: "Careers", href: "#" }, { label: "Contact", href: "#" }] },
-  { title: "Legal", links: [{ label: "Privacy", href: "#" }, { label: "Terms", href: "#" }, { label: "Cookies", href: "#" }] },
+const FOOTER: { title: string; links: { label: string; href: string; badge?: string }[] }[] = [
+  {
+    title: "Product",
+    links: [
+      { label: "How it works", href: "/#how-it-works" },
+      { label: "Features", href: "/#features" },
+      { label: "Screens", href: "/#screens" },
+      { label: "Who it's for", href: "/#personas" },
+      { label: "Your AI, your keys", href: "/#ai" },
+      { label: "Live demo", href: "/demo" },
+      { label: "Pricing", href: "/#cta", badge: "Free" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { label: "Help center", href: "/help" },
+      { label: "User guide", href: "/help#getting-started" },
+      { label: "FAQ", href: "/help#faq" },
+      { label: "Roadmap", href: "/help#roadmap" },
+      { label: "Job sources", href: "/help#sources" },
+      { label: "Learning", href: "/app/learning" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "/about" },
+      { label: "Contact us", href: "/#contact" },
+      { label: "Careers", href: "/about#careers" },
+      { label: "Press", href: "/#contact" },
+      { label: "Security", href: "/security" },
+    ],
+  },
+  {
+    title: "Account",
+    links: [
+      { label: "Sign in", href: "/sign-in" },
+      { label: "Create account", href: "/sign-up" },
+      { label: "Forgot password", href: "/forgot-password" },
+      { label: "AI settings", href: "/app/settings/ai" },
+      { label: "Get help", href: "/help" },
+    ],
+  },
+];
+
+const LEGAL = [
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
+  { label: "Cookies", href: "/cookies" },
+  { label: "Security", href: "/security" },
 ];
 
 export function MarketingFooter() {
   return (
-    <footer className="bg-white py-14" aria-label="Footer">
+    <footer className="border-t border-line bg-white pt-14" aria-label="Footer">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-10 px-4 sm:px-6 md:grid-cols-6">
         <div className="col-span-2">
           <WonderLogo />
           <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Go further.</p>
-          <ul className="mt-6 flex gap-3" aria-label="Social">
-            {[
-              { label: "LinkedIn", glyph: "in" },
-              { label: "X", glyph: "X" },
-              { label: "Instagram", glyph: "IG" },
-              { label: "YouTube", glyph: "YT" },
-            ].map((s) => (
-              <li key={s.label}>
-                <a href="#" aria-label={s.label} className="flex size-9 items-center justify-center rounded-full border border-line text-[12px] font-bold text-ink-3 hover:text-ink">
-                  <span aria-hidden>{s.glyph}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">An AI job-search agent that searches real sources, explains every match and prepares applications you approve. It never applies on your behalf.</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button href="/sign-up" size="sm" className="rounded-full">
+              Get started free
+            </Button>
+            <Button href="/demo" variant="outline" size="sm" className="rounded-full">
+              Try the demo
+            </Button>
+          </div>
         </div>
         {FOOTER.map((c) => (
           <div key={c.title}>
@@ -390,8 +431,9 @@ export function MarketingFooter() {
             <ul className="mt-3 space-y-2">
               {c.links.map((l) => (
                 <li key={l.label}>
-                  <a href={l.href} className="text-[13px] text-ink-3 hover:text-ink">
+                  <a href={l.href} className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
                     {l.label}
+                    {l.badge && <span className="rounded-full bg-success-100 px-1.5 py-0.5 text-[10px] font-semibold text-success-600">{l.badge}</span>}
                   </a>
                 </li>
               ))}
@@ -399,7 +441,18 @@ export function MarketingFooter() {
           </div>
         ))}
       </div>
-      <p className="mx-auto mt-10 max-w-7xl px-4 text-[12px] text-ink-4 sm:px-6">© {new Date().getFullYear()} WonderJobs. All rights reserved.</p>
+      <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-3 border-t border-line px-4 py-6 text-[12px] text-ink-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p>© {new Date().getFullYear()} WonderJobs. All rights reserved.</p>
+        <ul className="flex flex-wrap gap-x-5 gap-y-1" aria-label="Legal">
+          {LEGAL.map((l) => (
+            <li key={l.label}>
+              <a href={l.href} className="hover:text-ink">
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </footer>
   );
 }

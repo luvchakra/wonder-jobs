@@ -17,8 +17,19 @@ export function AuthCallback() {
     const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app";
     const fail = (m: string) => setError(m);
     if (!sb) return fail("Sign-in isn't configured on this deployment.");
-    if (params.get("error_description")) return fail(params.get("error_description")!);
+    if (params.get("error_description")) return fail(params.get("error_description")!.replace(/\+/g, " "));
+    const tokenHash = params.get("token_hash");
+    const type = params.get("type");
     (async () => {
+      if (tokenHash && type) {
+        // Token-hash links (recovery, magic link, email confirmation) work on any device: no PKCE verifier needed.
+        const { data, error: err } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: type as "recovery" | "magiclink" | "signup" | "email" | "invite" | "email_change" });
+        if (err || !data.session) return fail(err?.message ?? "This link is no longer valid. Request a new one.");
+        rememberUser(data.session.user.id);
+         
+        window.location.href = type === "recovery" ? "/reset-password" : next;
+        return;
+      }
       if (code) {
         const { data, error: err } = await sb.auth.exchangeCodeForSession(code);
         if (err || !data.session) return fail(err?.message ?? "This link is no longer valid. Request a new one.");
@@ -29,6 +40,7 @@ export function AuthCallback() {
         if (!data.session) return fail("This link is no longer valid. Request a new one.");
         rememberUser(data.session.user.id);
       }
+       
       window.location.href = next;
     })();
   }, [params]);
