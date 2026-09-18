@@ -64,9 +64,14 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
           ctx.addEvidence({ label: src.name, value: `${(perSource[src.id] ?? 0).toLocaleString("en-IN")} jobs`, tone: "success" });
         } catch (e) {
           if (e instanceof SourceUnavailableError) {
-            failures.push(src.name);
-            ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
-            ctx.warn(`${src.name} is temporarily unavailable. Other sources completed successfully.`);
+            if (e.kind === "needs_setup") {
+              ctx.addEvidence({ label: src.name, value: "Needs setup", tone: "warning" });
+              ctx.warn(`${src.name} isn't configured on this deployment yet, so it was skipped.`);
+            } else {
+              failures.push(src.name);
+              ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
+              ctx.warn(`${src.name} is temporarily unavailable: ${e.message}`);
+            }
           } else throw e;
         }
       }
@@ -211,7 +216,11 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const ranked = rankedCache.get(ctx.run.id) ?? [];
       const jobs = new Map((canonicalCache.get(ctx.run.id) ?? []).map((j) => [j.id, j]));
       const matches = new Map((matchCache.get(ctx.run.id) ?? []).map((m) => [m.jobId, m]));
-      const targets = ranked.filter((id) => matches.get(id)?.fit === "strong").slice(0, 3);
+      // Strong opportunities first; when there are fewer than three, the best "worth considering" roles fill in
+      // so the candidate always gets tailored materials for the top of the shortlist.
+      const strongIds = ranked.filter((id) => matches.get(id)?.fit === "strong");
+      const targets = [...strongIds, ...ranked.filter((id) => matches.get(id)?.fit === "worth_considering")].slice(0, 3);
+      if (targets.length && !strongIds.length) ctx.addEvidence({ label: "No strong matches", value: "Preparing the top of the shortlist instead", tone: "info" });
       const apps = useApplicationsStore.getState();
       const dna = useCareerStore.getState().dna;
       const ai = deps.ai(ctx.run.id);
@@ -286,14 +295,17 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const decision = ctx.policy("submit_application");
       if (decision === "skip") {
         ctx.addEvidence({ label: "Skipped", value: "Submitting applications is turned off in Automation Settings." });
-        return { data: { submittedApplicationIds: [] } };
+        return { data: { submittedApplicationIds: [], handedOffApplicationIds: [] } };
       }
+      // Wonder never submits on an employer's site on the candidate's behalf: employers' forms need the
+      // candidate's own identity and consent. The external action is the hand-off: materials are final,
+      // the employer's application page is opened for the candidate, and the tracker records it.
       const actions = ids
         .map((id) => appsState.applications[id])
         .filter((a): a is NonNullable<typeof a> => !!a && a.status === "ready_for_review")
         .map((a) => {
           const job = jobs[a.jobId];
-          return ctx.registerAction({ type: "submit_application", idempotencyKey: a.submissionKey, targetId: a.id, label: `Submit application to ${job?.company ?? "employer"} — ${job?.title ?? "role"}` });
+          return ctx.registerAction({ type: "submit_application", idempotencyKey: a.submissionKey, targetId: a.id, label: `Hand off ${job?.title ?? "role"} at ${job?.company ?? "employer"}: open the employer's application page with your materials ready` });
         });
       const pending = actions.filter((a) => a.status === "pending_confirmation");
       if (pending.length) {
@@ -303,30 +315,46 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
             a.history.push({ at: new Date().toISOString(), event: "confirmed", detail: "Auto-confirmed by your automation policy (Autonomous)" });
           }
         } else {
-          await ctx.requestUser(`Wonder will submit ${pending.length} application${pending.length === 1 ? "" : "s"} on your behalf. Approve each one, or decline.`);
+          await ctx.requestUser(`${pending.length} application${pending.length === 1 ? " is" : "s are"} ready to submit. Approve each hand-off; Wonder queues the employer's application page and your materials — you press submit.`);
         }
       }
-      const submitted: string[] = [];
+      // Continuing without deciding is a decision: anything still pending is recorded as not approved, never
+      // silently carried forward to a later run.
+      let notApproved = 0;
+      for (const a of actions) {
+        const fresh = ctx.run.actions.find((x) => x.id === a.id) ?? a;
+        if (fresh.status === "pending_confirmation") {
+          fresh.status = "rejected";
+          fresh.history.push({ at: new Date().toISOString(), event: "rejected", detail: "Not approved before continuing" });
+          notApproved++;
+        }
+      }
+      const handedOff: string[] = [];
       for (const a of actions) {
         const fresh = ctx.run.actions.find((x) => x.id === a.id) ?? a;
         if (fresh.status !== "confirmed") continue;
         await ctx.executeAction(fresh.id, async () => {
-          await ctx.sleep(600);
-          useApplicationsStore.getState().setStatus(fresh.targetId, "submitted", { type: "submitted", title: "Submitted", detail: "Submitted by Wonder with your approval" });
-          track("application_submitted", { applicationId: fresh.targetId });
+          const app = useApplicationsStore.getState().applications[fresh.targetId];
+          const job = app ? jobs[app.jobId] : undefined;
+          useApplicationsStore.getState().setNextAction(fresh.targetId, `Apply on ${job?.company ?? "the employer"}'s site, then mark as submitted`);
+          useApplicationsStore.getState().addEvent(fresh.targetId, { type: "note", title: "Ready to submit", detail: `Materials are final. Open the application page${job?.applyUrl ? ` (${job.applyUrl})` : ""}, submit, then mark this application as submitted so Wonder can track it.` });
         });
-        if ((ctx.run.actions.find((x) => x.id === a.id) ?? fresh).status === "succeeded") submitted.push(fresh.targetId);
-        ctx.setProgress(submitted.length, actions.length);
+        if ((ctx.run.actions.find((x) => x.id === a.id) ?? fresh).status === "succeeded") handedOff.push(fresh.targetId);
+        ctx.setProgress(handedOff.length, actions.length);
       }
       const declined = ctx.run.actions.filter((x) => x.status === "rejected").length;
-      ctx.setCounts({ submitted: submitted.length, declined });
-      ctx.addEvidence({ label: "Submitted", value: String(submitted.length), tone: submitted.length ? "success" : "neutral" });
-      if (declined) ctx.addEvidence({ label: "Declined by you", value: String(declined) });
-      return { data: { submittedApplicationIds: submitted }, counts: { submitted: submitted.length } };
+      ctx.setCounts({ handed_off: handedOff.length, declined });
+      ctx.addEvidence({ label: "Ready for you to submit", value: String(handedOff.length), tone: handedOff.length ? "success" : "neutral" });
+      if (handedOff.length) ctx.addEvidence({ label: "Why not automatic", value: "Employers' forms need your own identity and consent; Wonder prepares everything and hands off.", tone: "info" });
+      if (declined) ctx.addEvidence({ label: "Declined or not approved", value: String(declined), tone: notApproved ? "warning" : "neutral" });
+      if (notApproved) ctx.warn(`${notApproved} hand-off${notApproved === 1 ? " was" : "s were"} not approved before continuing. Open the application to submit it yourself, or rerun from this stage.`);
+      return { data: { submittedApplicationIds: [], handedOffApplicationIds: handedOff }, counts: { handed_off: handedOff.length } };
     },
 
     track: async (ctx) => {
-      const submitted = ctx.output<{ submittedApplicationIds: string[] }>("apply")?.submittedApplicationIds ?? [];
+      const out = ctx.output<{ submittedApplicationIds: string[]; handedOffApplicationIds?: string[] }>("apply");
+      const submitted = out?.submittedApplicationIds ?? [];
+      const handedOff = out?.handedOffApplicationIds ?? [];
       await ctx.sleep(300);
       await ctx.checkpoint();
       const due = new Date(Date.now() + 5 * 86_400_000).toISOString();
@@ -334,9 +362,15 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         useApplicationsStore.getState().addFollowUp(id, { dueAt: due, kind: "follow_up", note: "Follow up if there is no response" });
         useApplicationsStore.getState().setNextAction(id, "Wait for response · follow up in 5 days", due);
       }
-      ctx.setProgress(submitted.length, submitted.length);
+      const soon = new Date(Date.now() + 2 * 86_400_000).toISOString();
+      for (const id of handedOff) {
+        useApplicationsStore.getState().addFollowUp(id, { dueAt: soon, kind: "follow_up", note: "Submit this application on the employer's site and mark it as submitted" });
+      }
+      const total = submitted.length + handedOff.length;
+      ctx.setProgress(total, total);
       ctx.addEvidence({ label: "Follow-ups scheduled", value: String(submitted.length) });
-      return { provenance: "SYSTEM_DERIVED", data: { followUpsScheduled: submitted.length } };
+      if (handedOff.length) ctx.addEvidence({ label: "Submission reminders", value: String(handedOff.length), tone: "info" });
+      return { provenance: "SYSTEM_DERIVED", data: { followUpsScheduled: total } };
     },
 
     learn: async (ctx) => {

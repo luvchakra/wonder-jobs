@@ -86,6 +86,22 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 </div>
               </div>
             </div>
+            {job && (app.status === "ready_for_review" || app.status === "saved" || app.status === "preparing") && (
+              <div className="mt-4 flex flex-wrap gap-2 rounded-[14px] border border-brand-200 bg-brand-50/60 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-ink">Submit on {job.company}&apos;s site</p>
+                  <p className="text-[12px] text-ink-3">Wonder prepares everything but never submits for you: employers&apos; forms need your own identity and consent. Apply there, then mark it submitted so Wonder tracks it.</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button size="sm" href={job.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
+                    Open application page
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setStatus(app.id, "submitted", { type: "submitted", title: "Submitted", detail: "Marked as submitted by you" })}>
+                    Mark as submitted
+                  </Button>
+                </div>
+              </div>
+            )}
             <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
               <div className="rounded-[12px] bg-surface-2 p-3">
                 <dt className="text-ink-3">Date applied</dt>

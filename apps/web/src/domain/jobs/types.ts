@@ -9,6 +9,13 @@ export interface JobSource {
   reliability: "high" | "medium" | "low";
   color: string;
   short: string;
+  website?: string;
+  /** Shown in settings and run setup so the candidate knows what the source is. */
+  note?: string;
+  /** Needs server-side credentials before it can be searched. */
+  requiresSetup?: boolean;
+  /** Reported by the server at boot; undefined until known. */
+  available?: boolean;
 }
 
 /** A raw posting as observed on one source. */

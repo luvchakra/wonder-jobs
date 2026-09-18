@@ -15,6 +15,7 @@ import { getWorkflowService } from "@/services/workflow/service";
 import { isDemoSeeded, seedDemo } from "@/services/mock/demo";
 import { getClientMode } from "@/lib/mode";
 import { getSupabaseBrowser } from "@/lib/auth/browser";
+import { WonderJobsAIProvider } from "@/services/ai/service";
 import { SchedulerRunner } from "@/components/automation/SchedulerRunner";
 
 const STORES = {
@@ -64,7 +65,14 @@ function finishBoot() {
   afterPaint(() => {
     getWorkflowService().hydrate();
     void useAIStore.getState().refreshKeys();
-    if (mode.mode === "user") void bootstrapIdentity();
+    WonderJobsAIProvider.setRemote(mode.mode === "user" ? null : false);
+    if (mode.mode === "user") {
+      void bootstrapIdentity();
+      void fetch("/api/jobs/sources", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { available?: Record<string, boolean> } | null) => d?.available && useJobsStore.getState().setSourceAvailability(d.available))
+        .catch(() => {});
+    }
   });
 }
 

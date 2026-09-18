@@ -20,6 +20,7 @@ function AISettingsInner() {
   const config = useAIStore((s) => s.config);
   const usage = useAIStore((s) => s.usage);
   const keysLoaded = useAIStore((s) => s.keysLoaded);
+  const platform = useAIStore((s) => s.platform);
   const selectProvider = useAIStore((s) => s.selectProvider);
   const setAllowPlatformFallback = useAIStore((s) => s.setAllowPlatformFallback);
   const wantSwitch = params.get("switch") as AIProviderId | null;
@@ -68,7 +69,7 @@ function AISettingsInner() {
                 <Badge tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>Included in your plan</Badge>
                 {config.activeProvider === "wonderjobs" && <Badge tone="brand">Active</Badge>}
               </div>
-              <p className="text-[12px] text-ink-3">Runs Wonder&apos;s matching, ranking and drafting without any key. No per-token charges.</p>
+              <p className="text-[12px] text-ink-3">Matching, ranking and quality checks are always deterministic and explainable. Drafting: {platform?.configured ? `written by ${platform.model} on the platform's own key — no charge to you.` : platform === null ? "checking…" : "template drafts on this deployment (no platform model connected). Connect your own key below for AI-written materials."}</p>
             </div>
             {config.activeProvider !== "wonderjobs" && (
               <Button size="sm" onClick={() => use("wonderjobs")}>

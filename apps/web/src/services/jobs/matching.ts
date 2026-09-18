@@ -6,8 +6,29 @@
 import type { CareerDNA } from "@/domain/career/types";
 import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, JobMatch, JobQuality, JobQualitySignal, JobSource } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
+import { remoteOpenTo } from "./normalize";
 
 const DAY = 86_400_000;
+const memo = new Map<string, RegExp>();
+/** Whole-word, case-insensitive mention of a skill in posting text ("Go" never matches "Google"). */
+function mentions(text: string, skill: string) {
+  let re = memo.get(skill);
+  if (!re) {
+    const esc = (v: string) => v.toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const forms = [esc(skill)];
+    // Distinctive stems catch the usual inflections: "Roadmapping" → roadmap, "Stakeholder Management" → stakeholder,
+    // "A/B Testing" → a/b test, "Analytics" → analytic. Short or generic words must match exactly.
+    for (const word of skill.toLowerCase().split(/[\s/-]+/)) {
+      const stem = word.replace(/(ping|ing|ment|ments|ies|es|s)$/, "");
+      if (stem.length >= 6 && !GENERIC_STEMS.has(stem)) forms.push(`${esc(stem)}[a-z]*`);
+    }
+    if (/^a\/b test/i.test(skill)) forms.push("a\\/b[- ]test[a-z]*", "ab[- ]test[a-z]*", "experiment[a-z]*");
+    re = new RegExp(`(^|[^a-z0-9+#.])(${forms.join("|")})(?![a-z0-9+#])`);
+    memo.set(skill, re);
+  }
+  return re.test(text);
+}
+const GENERIC_STEMS = new Set(["manage", "product", "busines", "customer", "servic", "system", "engineer", "develop", "design", "market", "operat", "strateg", "communic", "leadersh", "project", "program", "technic", "solution", "platform", "applic", "process", "support", "quality", "researc", "analysi"]);
 /** One shared formatter: `toLocaleString` re-creates one per call, which dominated catalog load time. */
 const OBSERVED_AT = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2, lead: 3, director: 4 } as const;
@@ -37,8 +58,8 @@ export function deduplicate(jobs: Job[]): CanonicalJob[] {
 }
 
 export function fitLabel(score: number): FitLabel {
-  if (score >= 85) return "strong";
-  if (score >= 70) return "worth_considering";
+  if (score >= 82) return "strong";
+  if (score >= 68) return "worth_considering";
   if (score >= 55) return "stretch";
   return "low_fit";
 }
@@ -57,10 +78,16 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   const locations = (ctx.preferredLocations ?? dna.preferredLocations).map((l) => l.toLowerCase());
   const minSalary = ctx.minSalary ?? dna.minSalary;
 
-  // skills
+  // skills: how much of what the candidate has does the role ask for, and how much of what the role asks for
+  // does the candidate have. Both are read from the posting's own text, not only its tag list, and the
+  // denominators are capped so a posting that name-drops twenty tools can't bury a genuine fit.
   const mine = new Map(dna.skills.map((s) => [s.name.toLowerCase(), s.level]));
-  const overlap = job.skills.filter((s) => mine.has(s.toLowerCase()));
-  const skillScore = job.skills.length ? Math.min(1, overlap.reduce((n, s) => n + mine.get(s.toLowerCase())! / 5, 0) / job.skills.length + (overlap.length >= 4 ? 0.08 : 0)) : 0.5;
+  const text = `${job.title} ${job.skills.join(" ")} ${job.requirements.join(" ")} ${job.description}`.toLowerCase();
+  const overlap = dna.skills.filter((s) => job.skills.some((j) => j.toLowerCase() === s.name.toLowerCase()) || mentions(text, s.name)).map((s) => s.name);
+  const weighted = overlap.reduce((n, s) => n + mine.get(s.toLowerCase())! / 5, 0);
+  const skillScore = !dna.skills.length
+    ? 0.5
+    : Math.min(1, 0.5 * (weighted / Math.min(Math.max(job.skills.length, 3), 6)) + 0.5 * (overlap.length / Math.min(dna.skills.length, 6)) + (overlap.length >= 4 ? 0.08 : 0));
 
   // seniority
   const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[dna.seniority];
@@ -77,10 +104,22 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   // location
   const jl = job.location.toLowerCase();
-  const locationScore = job.workMode === "remote" || locations.some((l) => jl.includes(l.replace(", india", "")) || (l === "remote" && jl.includes("remote"))) ? 1 : locations.some((l) => l.includes("india") && jl.includes("india")) ? 0.6 : 0.3;
+  const openTo = remoteOpenTo(job, locations);
+  const locationScore =
+    job.workMode === "remote"
+      ? openTo === false
+        ? 0.55 // remote, but restricted to a region the candidate isn't in
+        : 1
+      : locations.length === 0
+        ? 0.7
+        : locations.some((l) => jl.includes(l.replace(", india", "")) || (l === "remote" && jl.includes("remote")))
+          ? 1
+          : locations.some((l) => l.includes("india") && jl.includes("india"))
+            ? 0.6
+            : 0.3;
 
   // compensation
-  let compScore = 0.7; // unknown salary — neutral, flagged in quality
+  let compScore = 0.8; // undisclosed salary is the norm in real postings — near-neutral here, flagged in quality
   if (job.salaryMax != null && minSalary != null) {
     const max = job.currency === "INR" ? job.salaryMax : job.salaryMax * 30;
     compScore = max >= minSalary * 1.15 ? 1 : max >= minSalary ? 0.85 : max >= minSalary * 0.85 ? 0.55 : 0.3;
@@ -88,14 +127,15 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   const weights = { skills: 0.32, seniority: 0.18, industry: 0.1, career_goal: 0.18, location: 0.12, compensation: 0.1 } as const;
   const raw = skillScore * weights.skills + seniorityScore * weights.seniority + industryScore * weights.industry + goalScore * weights.career_goal + locationScore * weights.location + compScore * weights.compensation;
-  const score = Math.round(Math.max(20, Math.min(96, raw * 100)));
+  // A remote role the employer restricts to another region can be worth a look, never a "strong" opportunity.
+  const score = Math.round(Math.max(20, Math.min(openTo === false ? 74 : 96, raw * 100)));
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of ${job.skills.length} listed skills match your Career DNA (${overlap.slice(0, 3).join(", ")}).` : "Few of the listed skills appear in your Career DNA." },
     { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? "Same level as your current role." : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above your current role." : "Below your current level." },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
     { dimension: "career_goal", label: "Career-goal alignment", score: goalScore, summary: goalHits ? "The role title matches your stated career goal." : "The role is adjacent to your stated goal." },
-    { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : `${job.location} is outside your preferred locations.` },
+    { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career DNA to sharpen this." : `${job.location} is outside your preferred locations.` },
     { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
   ];
 

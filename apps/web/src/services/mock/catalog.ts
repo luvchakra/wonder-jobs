@@ -1,14 +1,6 @@
-import type { JobSource } from "@/domain/jobs/types";
 
-/** Job sources with a source adapter (mock adapters for now — see services/jobs/sources.ts). */
-export const JOB_SOURCES: JobSource[] = [
-  { id: "linkedin", name: "LinkedIn", short: "in", integrated: true, enabled: true, reliability: "high", color: "#0a66c2" },
-  { id: "indeed", name: "Indeed", short: "id", integrated: true, enabled: true, reliability: "high", color: "#2557a7" },
-  { id: "naukri", name: "Naukri", short: "nk", integrated: true, enabled: true, reliability: "medium", color: "#4a90e2" },
-  { id: "foundit", name: "Foundit", short: "fd", integrated: true, enabled: true, reliability: "medium", color: "#6d4cf5" },
-  { id: "glassdoor", name: "Glassdoor", short: "gd", integrated: true, enabled: true, reliability: "medium", color: "#0caa41" },
-  { id: "wellfound", name: "Wellfound", short: "wf", integrated: true, enabled: true, reliability: "medium", color: "#111111" },
-];
+// The demo universe is keyed by the real source registry so sample data and live data share ids.
+export { JOB_SOURCES } from "@/domain/jobs/sources";
 
 export interface CompanySeed {
   name: string;

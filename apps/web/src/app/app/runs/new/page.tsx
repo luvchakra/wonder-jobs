@@ -138,12 +138,17 @@ export default function RunSetupPage() {
               </Field>
               <div className="sm:col-span-2">
                 <p className="mb-2 text-[13px] font-medium text-ink-2">Sources</p>
+                <p className="mb-2 text-[12px] text-ink-3">Live public job feeds and company career pages. Wonder reads each posting and scores it against your Career DNA.</p>
                 <div className="flex flex-wrap gap-2">
-                  {sources.map((s) => (
-                    <Chip key={s.id} active={sourceIds.includes(s.id)} onClick={() => setSourceIds((ids) => (ids.includes(s.id) ? ids.filter((x) => x !== s.id) : [...ids, s.id]))}>
-                      {s.name}
-                    </Chip>
-                  ))}
+                  {sources.map((s) => {
+                    const blocked = s.requiresSetup && s.available === false;
+                    return (
+                      <Chip key={s.id} active={sourceIds.includes(s.id) && !blocked} onClick={() => !blocked && setSourceIds((ids) => (ids.includes(s.id) ? ids.filter((x) => x !== s.id) : [...ids, s.id]))} className={blocked ? "opacity-50" : ""}>
+                        {s.name}
+                        {blocked ? " · needs setup" : ""}
+                      </Chip>
+                    );
+                  })}
                 </div>
               </div>
             </div>

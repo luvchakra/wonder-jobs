@@ -15,6 +15,9 @@ export interface CareerDNA {
   updatedAt: string;
 }
 
+/** Industry choices offered in onboarding and the Career DNA editor (postings are classified into the same names). */
+export const INDUSTRIES = ["Technology", "Fintech", "Consumer", "E-commerce", "Mobility", "Education", "Gaming", "Travel", "Telecom", "Healthcare", "Media"];
+
 /** A brand-new account before onboarding: nothing invented, everything to be filled by the candidate. */
 export const EMPTY_DNA: CareerDNA = {
   name: "",

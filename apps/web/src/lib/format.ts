@@ -61,6 +61,7 @@ export function formatTime(iso: string) {
 }
 
 export function formatDuration(ms: number) {
+  ms = Math.max(0, Math.round(ms)); // clocks tick by the minute in the UI; never show a negative elapsed time
   if (ms < 1000) return `${ms}ms`;
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s}s`;

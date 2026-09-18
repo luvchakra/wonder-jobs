@@ -103,6 +103,8 @@ export interface CreateRunInput {
 interface RunControl {
   pauseGate?: { promise: Promise<void>; resolve: () => void };
   userGate?: { promise: Promise<void>; resolve: () => void };
+  /** Set when a restored run is continued: the next user gate is already answered. */
+  userGateSatisfied?: boolean;
   restartRequested: boolean;
   stopRequested: boolean;
   loop?: Promise<void>;
@@ -136,8 +138,9 @@ export class WorkflowEngine {
   /** Hydrate runs restored from persistence. Active runs are marked STOPPED (the process died). */
   hydrate(runs: WorkflowRun[]) {
     for (const run of runs) {
-      if (!isTerminal(run.status) && run.status !== "PENDING") {
-        // Persisted state is preserved; the process that executed it is gone.
+      if (!isTerminal(run.status) && run.status !== "PENDING" && run.status !== "WAITING_FOR_USER") {
+        // Persisted state is preserved; the process that executed it is gone. A run that was waiting for the
+        // candidate keeps waiting: closing the tab is not a decision, and `continueFromUser` restores it.
         run.status = "STOPPED";
         for (const s of run.stages) if (s.status === "RUNNING" || s.status === "PAUSED" || s.status === "STOPPING" || s.status === "WAITING_FOR_USER") s.status = "STOPPED";
         run.events.push(this.event("run_stopped", "Run was interrupted and restored as stopped. Completed stages are preserved — rerun from any stage to continue."));
@@ -250,6 +253,22 @@ export class WorkflowEngine {
     const run = this.mustGet(runId);
     const ctl = this.control(runId);
     if (run.status !== "WAITING_FOR_USER") throw new Error("Run is not waiting for you");
+    if (!ctl.loop) {
+      // Restored from persistence: no executor is parked on the gate. Re-run the waiting stage with its wait
+      // already answered; completed stages are skipped and outputs are intact.
+      const stage = this.currentStage(run);
+      if (stage && stage.status === "WAITING_FOR_USER") {
+        stage.status = "PENDING";
+        stage.waitingReason = undefined;
+      }
+      ctl.userGateSatisfied = true;
+      this.transition(run, "RUNNING");
+      this.push(run, "run_resumed", "Thanks — continuing.");
+      ctl.loop = this.loop(run, ctl).finally(() => {
+        ctl.loop = undefined;
+      });
+      return;
+    }
     this.transition(run, "RUNNING");
     const stage = this.currentStage(run);
     if (stage && stage.status === "WAITING_FOR_USER") {
@@ -530,6 +549,10 @@ export class WorkflowEngine {
       policy: (c) => resolveCapability(c, policy, run.config.automationLevel),
       async requestUser(reason) {
         if (ctl.stopRequested) throw new StopSignal();
+        if (ctl.userGateSatisfied) {
+          ctl.userGateSatisfied = false; // answered before the restore; don't ask twice
+          return;
+        }
         engine.transition(run, "WAITING_FOR_USER");
         engine.transitionStage(stage, "WAITING_FOR_USER", run);
         stage.waitingReason = reason;

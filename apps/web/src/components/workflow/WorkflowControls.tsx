@@ -18,6 +18,7 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
   const [rerunOpen, setRerunOpen] = useState(false);
   const [from, setFrom] = useState<StageKey>(run.rerunFromStage ?? run.currentStage ?? "search");
   const terminal = isTerminal(run.status);
+  const pendingActions = run.actions.filter((a) => a.status === "pending_confirmation" && a.stageKey === run.currentStage).length;
   const act = (fn: () => void, msg?: string) => {
     try {
       fn();
@@ -51,8 +52,8 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
           </Button>
         )}
         {run.status === "WAITING_FOR_USER" && (
-          <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.continue(run.id))}>
-            Continue
+          <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.continue(run.id))} title={pendingActions ? "Pending approvals will be recorded as not approved" : undefined}>
+            {pendingActions ? `Continue without ${pendingActions} pending` : "Continue"}
           </Button>
         )}
         {!terminal && run.status !== "PENDING" && (

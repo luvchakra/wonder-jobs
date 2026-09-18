@@ -10,6 +10,8 @@ interface AIState {
   config: AIProviderConfig;
   usage: AIUsageRecord[];
   keysLoaded: boolean;
+  /** Whether "WonderJobs AI" is backed by a real model on this deployment (null until known). */
+  platform: { configured: boolean; model?: string } | null;
   selectProvider: (id: AIProviderId, model?: string) => void;
   setModel: (model: string) => void;
   setBYOK: (status: BYOKStatus) => void;
@@ -28,6 +30,7 @@ export const useAIStore = create<AIState>()(
       config: { activeProvider: "wonderjobs", activeModel: "wonder-1", byok: {}, allowPlatformFallback: false },
       usage: [],
       keysLoaded: false,
+      platform: null,
       selectProvider: (id, model) => {
         track("provider_selected", { provider: id });
         set((s) => ({ config: { ...s.config, activeProvider: id, activeModel: model ?? AI_PROVIDERS[id].models.find((m) => m.default)?.id ?? AI_PROVIDERS[id].models[0].id } }));
@@ -45,14 +48,14 @@ export const useAIStore = create<AIState>()(
       recordUsage: (r) => set((s) => ({ usage: [r, ...s.usage].slice(0, 500) })),
       refreshKeys: async () => {
         if (!syncsToServer()) {
-          set({ keysLoaded: true });
+          set({ keysLoaded: true, platform: { configured: false } });
           return;
         }
         try {
           const res = await fetch("/api/ai/keys", { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = (await res.json()) as { keys: BYOKStatus[] };
-          set((s) => ({ keysLoaded: true, config: { ...s.config, byok: Object.fromEntries(data.keys.map((k) => [k.provider, k])) } }));
+          const data = (await res.json()) as { keys: BYOKStatus[]; platform?: { configured: boolean; model?: string } };
+          set((s) => ({ keysLoaded: true, platform: data.platform ?? { configured: false }, config: { ...s.config, byok: Object.fromEntries(data.keys.map((k) => [k.provider, k])) } }));
         } catch {
           set({ keysLoaded: true });
         }

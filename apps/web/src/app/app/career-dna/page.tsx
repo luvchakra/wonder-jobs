@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
-import type { CareerDNA } from "@/domain/career/types";
+import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -12,7 +12,6 @@ import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
-const INDUSTRIES = ["Technology", "Fintech", "Consumer", "E-commerce", "Mobility", "Education", "Gaming", "Travel", "Telecom"];
 
 export default function CareerDNAPage() {
   const dna = useCareerStore((s) => s.dna);

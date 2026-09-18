@@ -256,3 +256,32 @@ describe("schedule conditions", () => {
     expect(conditionMet({ ...base, config: { ...config, scheduleCondition: { key: "always", op: ">", value: 0 } } })).toBe(true);
   });
 });
+
+describe("restore", () => {
+  it("keeps a run that was waiting for the user and continues it after a reload", async () => {
+    const { engine, run } = makeEngine();
+    void engine.start(run.id);
+    await until(() => run.status === "WAITING_FOR_USER");
+    expect(run.currentStage).toBe("review");
+    // A new process: the same persisted run, no executor parked on the gate.
+    const { engine: restored } = makeEngine();
+    restored.hydrate([structuredClone(run)]);
+    const again = restored.getRun(run.id)!;
+    expect(again.status).toBe("WAITING_FOR_USER");
+    expect(again.stages.find((s) => s.key === "review")?.status).toBe("WAITING_FOR_USER");
+    restored.continueFromUser(again.id);
+    await until(() => again.currentStage !== "review" || ["COMPLETED", "COMPLETED_WITH_WARNINGS", "FAILED"].includes(again.status));
+    expect(again.stages.find((s) => s.key === "review")?.status).toBe("COMPLETED");
+    expect(again.stages.filter((s) => s.key === "prepare")[0].status).toBe("COMPLETED"); // earlier work preserved, not redone
+  });
+
+  it("still stops runs that were mid-stage when the process died", () => {
+    const { engine, run } = makeEngine();
+    run.status = "RUNNING";
+    run.stages[1].status = "RUNNING";
+    run.currentStage = "search";
+    engine.hydrate([run]);
+    expect(engine.getRun(run.id)!.status).toBe("STOPPED");
+  });
+});
+

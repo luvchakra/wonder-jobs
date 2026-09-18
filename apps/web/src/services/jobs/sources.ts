@@ -1,11 +1,14 @@
 /**
- * Job source adapters. Each adapter streams pages of raw postings for a search
- * query. Additional platforms plug in by implementing JobSourceAdapter.
+ * Job source adapters. Each adapter streams pages of postings for a search.
+ * Signed-in accounts search real sources through the server (`/api/jobs/search`,
+ * one request per source, so evidence and progress are per source); the demo
+ * and local development use the deterministic sample universe.
  */
 import type { Job, JobSource } from "@/domain/jobs/types";
 import type { RunConfig } from "@/domain/workflow/types";
-import { JOB_SOURCES } from "@/services/mock/catalog";
+import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { getUniverse } from "@/services/mock/universe";
+import { getClientMode } from "@/lib/mode";
 
 export interface SourceSearchPage {
   jobs: Job[];
@@ -19,13 +22,40 @@ export interface JobSourceAdapter {
 }
 
 export class SourceUnavailableError extends Error {
-  constructor(public readonly sourceId: string, message: string) {
+  constructor(public readonly sourceId: string, message: string, public readonly kind: "unavailable" | "needs_setup" = "unavailable") {
     super(message);
     this.name = "SourceUnavailableError";
   }
 }
 
-/** Mock adapter backed by the deterministic universe; pages arrive with realistic latency. */
+/** Live adapter: the server fetches and normalizes the source; pages are sliced here so progress is observable. */
+export class RemoteSourceAdapter implements JobSourceAdapter {
+  constructor(public readonly source: JobSource) {}
+
+  async *search(criteria: RunConfig["searchCriteria"], opts: { pageSize?: number; sleep?: (ms: number) => Promise<void> } = {}) {
+    const pageSize = opts.pageSize ?? 40;
+    const sleep = opts.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+    const params = new URLSearchParams({ source: this.source.id, q: criteria.query, locations: criteria.locations.join(",") });
+    let res: Response;
+    try {
+      res = await fetch(`/api/jobs/search?${params}`, { cache: "no-store" });
+    } catch {
+      throw new SourceUnavailableError(this.source.id, `${this.source.name} could not be reached.`);
+    }
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string; kind?: string };
+      throw new SourceUnavailableError(this.source.id, body.error ?? `${this.source.name} responded ${res.status}`, body.kind === "needs_setup" ? "needs_setup" : "unavailable");
+    }
+    const { jobs } = (await res.json()) as { jobs: Job[] };
+    const totalPages = Math.max(1, Math.ceil(jobs.length / pageSize));
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) await sleep(60);
+      yield { jobs: jobs.slice(page * pageSize, (page + 1) * pageSize), page: page + 1, totalPages };
+    }
+  }
+}
+
+/** Sample adapter backed by the deterministic universe; pages arrive with realistic latency. */
 export class MockSourceAdapter implements JobSourceAdapter {
   constructor(public readonly source: JobSource) {}
 
@@ -49,17 +79,25 @@ export class MockSourceAdapter implements JobSourceAdapter {
   }
 }
 
-const registry = new Map<string, JobSourceAdapter>();
-for (const s of JOB_SOURCES) registry.set(s.id, new MockSourceAdapter(s));
+const live = new Map<string, JobSourceAdapter>();
+const sample = new Map<string, JobSourceAdapter>();
+for (const s of JOB_SOURCES) {
+  live.set(s.id, new RemoteSourceAdapter(s));
+  sample.set(s.id, new MockSourceAdapter(s));
+}
+
+function registry() {
+  return getClientMode().mode === "user" ? live : sample;
+}
 
 export function getSourceAdapter(id: string) {
-  return registry.get(id);
+  return registry().get(id);
 }
 
 export function listSourceAdapters() {
-  return [...registry.values()];
+  return [...registry().values()];
 }
 
 export function registerSourceAdapter(adapter: JobSourceAdapter) {
-  registry.set(adapter.source.id, adapter);
+  live.set(adapter.source.id, adapter);
 }

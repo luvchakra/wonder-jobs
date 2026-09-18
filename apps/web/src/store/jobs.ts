@@ -3,7 +3,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource } from "@/domain/jobs/types";
-import { JOB_SOURCES } from "@/services/mock/catalog";
+import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
+import { getClientMode } from "@/lib/mode";
 import { getUniverse } from "@/services/mock/universe";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
 import { useCareerStore } from "./career";
@@ -36,7 +37,13 @@ interface JobsState {
   setFilters: (patch: Partial<JobFilters>) => void;
   setSort: (sort: JobSort) => void;
   setSourceEnabled: (id: string, enabled: boolean) => void;
+  /** From the server: which sources this deployment can query. */
+  setSourceAvailability: (available: Record<string, boolean>) => void;
 }
+
+/** How much of the catalog a signed-in account keeps between sessions (the rest is re-discovered by runs). */
+const PERSISTED_CATALOG = 300;
+const PERSISTED_DESCRIPTION = 1500;
 
 export const useJobsStore = create<JobsState>()(
   persist(
@@ -53,6 +60,11 @@ export const useJobsStore = create<JobsState>()(
       loaded: false,
       loadInitial: () => {
         if (get().loaded) return;
+        if (getClientMode().mode === "user") {
+          // Real accounts only know jobs their runs discovered (already rehydrated); nothing is invented.
+          set({ loaded: true });
+          return;
+        }
         const canonical = deduplicate(getUniverse().jobs);
         const sources = Object.fromEntries(get().sources.map((s) => [s.id, s]));
         const dna = useCareerStore.getState().dna;
@@ -108,14 +120,40 @@ export const useJobsStore = create<JobsState>()(
       setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
       setSort: (sort) => set({ sort }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled } : x)) })),
+      setSourceAvailability: (available) => set((s) => ({ sources: s.sources.map((x) => ({ ...x, available: available[x.id] ?? x.available, enabled: x.requiresSetup && available[x.id] === false ? false : x.enabled })) })),
     }),
     {
       name: "wj.jobs",
       storage: createRemoteStorage(),
       skipHydration: true,
-      version: 1,
-      // The catalog is regenerated deterministically; only user decisions persist.
-      partialize: (s) => ({ saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort }),
+      version: 2,
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<JobsState>;
+        return { ...current, ...p, sources: reconcileSources(p.sources), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {} };
+      },
+      // Demo/local: the catalog is regenerated deterministically, only decisions persist.
+      // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
+      partialize: (s) => {
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort };
+        if (getClientMode().mode !== "user") return base;
+        const keep = new Set<string>(Object.keys(s.saved));
+        for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {
+          if (keep.size >= PERSISTED_CATALOG) break;
+          keep.add(id);
+        }
+        const order = s.order.filter((id) => keep.has(id));
+        const jobs: Record<string, CanonicalJob> = {};
+        const matches: Record<string, JobMatch> = {};
+        const quality: Record<string, JobQuality> = {};
+        for (const id of order) {
+          const j = s.jobs[id];
+          if (!j) continue;
+          jobs[id] = { ...j, description: j.description.slice(0, PERSISTED_DESCRIPTION) };
+          if (s.matches[id]) matches[id] = s.matches[id];
+          if (s.quality[id]) quality[id] = s.quality[id];
+        }
+        return { ...base, jobs, order, matches, quality };
+      },
     },
   ),
 );

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Compass, FileEdit, Sparkles, ShieldCheck, ArrowLeft } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
+import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
+import { Chip, Select } from "@/components/common/Input";
 import { HeroScene } from "@/components/landing/HeroScene";
 import { WonderMark } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
@@ -48,11 +50,37 @@ function Steps() {
   const [goal, setGoal] = useState<string | null>(null);
   const [locations, setLocations] = useState<string | null>(null);
   const [level, setLevel] = useState<AutomationLevel>("guided");
+  const [headline, setHeadline] = useState<string | null>(null);
+  const [seniority, setSeniority] = useState<CareerDNA["seniority"] | null>(null);
+  const [years, setYears] = useState<string | null>(null);
+  const [skillsText, setSkillsText] = useState<string | null>(null);
+  const [industries, setIndustries] = useState<string[] | null>(null);
   const goalValue = goal ?? dna.careerGoal;
   const locValue = locations ?? dna.preferredLocations.join(", ");
+  const headlineValue = headline ?? dna.headline;
+  const seniorityValue = seniority ?? dna.seniority;
+  const yearsValue = years ?? (dna.yearsExperience ? String(dna.yearsExperience) : "");
+  const skillsValue = skillsText ?? dna.skills.map((s) => s.name).join(", ");
+  const industriesValue = industries ?? dna.industries;
+  const parsedSkills = () =>
+    skillsValue
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((v, i, a) => a.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i)
+      .slice(0, 25)
+      .map((name) => dna.skills.find((s) => s.name.toLowerCase() === name.toLowerCase()) ?? { name, level: 4 as const });
 
   const finish = () => {
-    updateDNA({ careerGoal: goalValue.trim() || dna.careerGoal, preferredLocations: locValue.split(",").map((s) => s.trim()).filter(Boolean) });
+    updateDNA({
+      careerGoal: goalValue.trim() || dna.careerGoal,
+      preferredLocations: locValue.split(",").map((s) => s.trim()).filter(Boolean),
+      headline: headlineValue.trim(),
+      seniority: seniorityValue,
+      yearsExperience: Math.max(0, Math.min(50, Number(yearsValue) || 0)),
+      skills: parsedSkills(),
+      industries: industriesValue,
+    });
     setDefaultLevel(level);
     completeOnboarding();
     track("onboarding_completed", { level });
@@ -108,7 +136,7 @@ function Steps() {
           )}
           {step === 1 && (
             <div className="wj-animate-fade-up">
-              <p className="wj-eyebrow text-brand-200">Step 1 of 2</p>
+              <p className="wj-eyebrow text-brand-200">Step 1 of 3</p>
               <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">What are you looking for?</h1>
               <p className="mt-2 text-[14px] text-white/75">Plain language is perfect. This becomes your career goal — Wonder uses it to judge every match.</p>
               <div className="mt-6 flex flex-col gap-4">
@@ -119,7 +147,38 @@ function Steps() {
           )}
           {step === 2 && (
             <div className="wj-animate-fade-up">
-              <p className="wj-eyebrow text-brand-200">Step 2 of 2</p>
+              <p className="wj-eyebrow text-brand-200">Step 2 of 3</p>
+              <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">A little about you</h1>
+              <p className="mt-2 text-[14px] text-white/75">This is your Career DNA. Wonder scores every real posting against it, so the more honest, the better the matches. You can refine it any time.</p>
+              <div className="mt-6 flex flex-col gap-4">
+                <Input value={headlineValue} onChange={(e) => setHeadline(e.target.value)} aria-label="Headline" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Headline, e.g. Product Manager · Consumer & Fintech" disabled={!hydrated} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Select value={seniorityValue} onChange={(e) => setSeniority(e.target.value as CareerDNA["seniority"])} aria-label="Current level" className="border-white/20 bg-white/10 text-white focus:border-brand-300 focus:ring-brand-500/30" disabled={!hydrated}>
+                    {(["junior", "mid", "senior", "lead", "director"] as const).map((l) => (
+                      <option key={l} value={l} className="text-ink">
+                        {l[0].toUpperCase() + l.slice(1)} level
+                      </option>
+                    ))}
+                  </Select>
+                  <Input value={yearsValue} onChange={(e) => setYears(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" aria-label="Years of experience" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Years of experience" disabled={!hydrated} />
+                </div>
+                <Textarea value={skillsValue} onChange={(e) => setSkillsText(e.target.value)} aria-label="Skills" className="min-h-20 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Your strongest skills, comma-separated: e.g. Product Strategy, SQL, A/B Testing, Roadmapping" disabled={!hydrated} />
+                <div>
+                  <p className="mb-2 text-[12px] font-medium text-white/70">Industries you want</p>
+                  <div className="flex flex-wrap gap-2">
+                    {INDUSTRIES.map((i) => (
+                      <Chip key={i} active={industriesValue.includes(i)} onClick={() => setIndustries(industriesValue.includes(i) ? industriesValue.filter((x) => x !== i) : [...industriesValue, i])} className={industriesValue.includes(i) ? "" : "border-white/25 bg-white/10 text-white hover:bg-white/20"}>
+                        {i}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {step === 3 && (
+            <div className="wj-animate-fade-up">
+              <p className="wj-eyebrow text-brand-200">Step 3 of 3</p>
               <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">How much should Wonder do on its own?</h1>
               <p className="mt-2 text-[14px] text-white/75">You can change this any time. Nothing is ever sent to an employer without your approval.</p>
               <div className="mt-6 rounded-[20px] bg-white p-3 text-ink">
@@ -130,13 +189,13 @@ function Steps() {
         </div>
 
         <div className="mt-8">
-          <div className="mb-5 flex justify-center gap-1.5" aria-label={`Step ${step + 1} of 3`}>
-            {[0, 1, 2].map((i) => (
+          <div className="mb-5 flex justify-center gap-1.5" aria-label={`Step ${step + 1} of 4`}>
+            {[0, 1, 2, 3].map((i) => (
               <span key={i} className={cn("h-1.5 rounded-full transition-all", i === step ? "w-5 bg-white" : "w-1.5 bg-white/40")} />
             ))}
           </div>
-          {step < 2 ? (
-            <Button size="xl" full onClick={() => setStep((s) => s + 1)} disabled={step === 1 && !goalValue.trim()}>
+          {step < 3 ? (
+            <Button size="xl" full onClick={() => setStep((s) => s + 1)} disabled={(step === 1 && !goalValue.trim()) || (step === 2 && parsedSkills().length === 0)}>
               {step === 0 ? "Get Started" : "Continue"}
             </Button>
           ) : (

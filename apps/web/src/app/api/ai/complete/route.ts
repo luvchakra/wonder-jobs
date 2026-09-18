@@ -5,11 +5,12 @@ import { rateLimit } from "@/server/rateLimit";
 import { decrypt, secretStore } from "@/server/secrets";
 import { getServerProvider } from "@/server/providers";
 import { ServerProviderError } from "@/server/providers/types";
+import { platformAI } from "@/server/providers/platform";
 
 export const runtime = "nodejs";
 
 const Body = z.object({
-  provider: z.enum(["anthropic", "openai", "gemini"]),
+  provider: z.enum(["wonderjobs", "anthropic", "openai", "gemini"]),
   model: z.string().trim().min(1).max(80).optional(),
   task: z.string().max(40),
   system: z.string().max(8_000),
@@ -31,6 +32,17 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request.", kind: "invalid_response" }, { status: 400 });
   const { provider, model, system, prompt, maxTokens } = parsed.data;
+  if (provider === "wonderjobs") {
+    const platform = platformAI();
+    if (!platform) return NextResponse.json({ error: "WonderJobs AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
+    try {
+      const result = await getServerProvider("anthropic")!.complete(platform.apiKey, { model: platform.model, system, prompt, maxTokens: maxTokens ?? 2048 });
+      return NextResponse.json(result);
+    } catch (e) {
+      if (e instanceof ServerProviderError) return NextResponse.json({ error: e.message.replace("your API key", "the platform key"), kind: e.kind }, { status: e.status });
+      return NextResponse.json({ error: "WonderJobs AI request failed.", kind: "unknown" }, { status: 502 });
+    }
+  }
   const secret = await secretStore.get(tenantId, provider);
   if (!secret) return NextResponse.json({ error: `No ${provider} API key is connected. Add one in AI settings or switch to WonderJobs AI.`, kind: "not_configured" }, { status: 409 });
   const adapter = getServerProvider(provider);

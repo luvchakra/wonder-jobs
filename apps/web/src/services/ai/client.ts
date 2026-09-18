@@ -1,7 +1,7 @@
 "use client";
 /** Client-side BYOK provider: the key never leaves the server; we call our own route. */
 import { ProviderError, type AIProviderId } from "@/domain/ai/types";
-import type { AIProvider, CompletionRequest, CompletionResult } from "./service";
+import { composePrompt, type AIProvider, type CompletionRequest, type CompletionResult } from "./service";
 
 export class RemoteBYOKProvider implements AIProvider {
   constructor(public readonly id: AIProviderId, public readonly model: string) {}
@@ -11,7 +11,7 @@ export class RemoteBYOKProvider implements AIProvider {
       res = await fetch("/api/ai/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: this.id, model: this.model, task: req.task, system: req.system, prompt: req.prompt, maxTokens: req.maxTokens }),
+        body: JSON.stringify({ provider: this.id, model: this.model, task: req.task, system: req.system, prompt: composePrompt(req), maxTokens: req.maxTokens }),
       });
     } catch {
       throw new ProviderError(this.id, "network", "Could not reach WonderJobs to contact your AI provider. Check your connection and retry.");

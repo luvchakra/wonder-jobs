@@ -22,8 +22,14 @@ Copy `apps/web/.env.example` to `apps/web/.env.local` (and set the same variable
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key. Used by the browser for Supabase Auth (sign-in, sign-up, magic links) and by the server/proxy to verify session tokens. Data access itself stays service-role and server-side. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key. Server-side only — never exposed to the browser. RLS is on with no anon policies. |
 | `SECRET_ENCRYPTION_KEY` | 32+ char key that encrypts BYOK provider secrets at rest (AES-256-GCM). Required in production (`WONDER_SECRET_KEY` also accepted). |
+| `WONDERJOBS_AI_KEY` / `WONDERJOBS_AI_MODEL` | Optional. Anthropic key (and model, default `claude-sonnet-5`) that powers "WonderJobs AI" drafting for every account on the platform's bill. Without it, drafts are deterministic templates and the AI settings page says so; users can still connect their own key. |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Optional. Enables the Adzuna India job source (free developer tier). |
 
 Without the Supabase variables the app runs in local-only mode (no sign-in, the seeded demo candidate, browser localStorage + in-memory server state). With them, visitors sign in with Supabase Auth, every store syncs per user to `wonderjobs.app_state`, provider keys go to `wonderjobs.ai_provider_secrets` (ciphertext only) and external actions are audited in `wonderjobs.action_audit`. All tables live in the dedicated `wonderjobs` schema. Schema source: `apps/web/supabase/migrations/`.
+
+## Job sources (real data)
+
+Runs search live public sources through `GET /api/jobs/search` (one request per source, server-side, cached 15 minutes): **company career sites** (public Greenhouse, Lever and Ashby boards listed in `apps/web/src/server/jobs/providers.ts`; applications go straight to the employer), **Remotive**, **Jobicy**, **Remote OK**, **Himalayas**, **Arbeitnow** (Europe, off by default) and **Adzuna India** (needs keys). Every posting is normalized by `services/jobs/normalize.ts`: skills, seniority, industry, work mode and salary are derived from the posting's own text with deterministic rules, then scored against the account's Career DNA. Wonder never submits an application on an employer's site; the apply stage hands off with materials ready and the tracker records the submission when the candidate marks it. The demo keeps the generated sample universe.
 
 ## Accounts, sessions and the demo
 
