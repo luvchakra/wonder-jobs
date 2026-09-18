@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — story "Auth, help center, landing refresh"._
+_Last updated: 2026-09-18 — story "Contact message email notifications"._
 
 ## At a glance
 
@@ -143,6 +143,7 @@ _Last updated: 2026-09-18 — story "Auth, help center, landing refresh"._
 - ✅ Personas (labelled illustrative), provider section, final CTA — WJ-051..053
 - ✅ No "watch video" CTA anywhere; hero secondary CTA opens the live demo
 - ✅ Contact section at the end: form → `/api/contact` → `wonderjobs.contact_messages` (honeypot, rate limit, honest local-mode message) — WJ-085
+- ✅ Contact email notifications: `CONTACT_NOTIFY_EMAILS` (comma-separated) + optional `RESEND_API_KEY`; logged instead of sent when no key — WJ-089
 - ✅ Footer with Product / Resources / Company / Account columns and a legal row, every link real — WJ-054
 - ✅ About, Privacy, Terms, Security, Cookies pages — WJ-086
 - ✅ Nav links to Screens, Help and Contact

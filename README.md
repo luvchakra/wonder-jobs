@@ -46,7 +46,7 @@ Runs search live public sources through `GET /api/jobs/search` (one request per 
 ## Help center and contact
 
 - `/help` is public: user guide, FAQ and an assistant that answers from the guide and links the matching section (`POST /api/help/ask`; uses the platform model when `WONDERJOBS_AI_KEY` is set). Linked as **Get Help** in the avatar menu.
-- The landing page ends with **Contact us**; messages are stored in `wonderjobs.contact_messages` (migration `0003`) with the signed-in tenant when there is one. Read them in Supabase → Table Editor. Public company pages: `/about`, `/privacy`, `/terms`, `/security`, `/cookies`.
+- The landing page ends with **Contact us**; messages are always stored in `wonderjobs.contact_messages` (migration `0003`) with the signed-in tenant when there is one, and you can always read them in Supabase → Table Editor. To also get an email copy, set `CONTACT_NOTIFY_EMAILS` (comma-separated recipients) and `RESEND_API_KEY` (a free [Resend](https://resend.com) key); without the key, notifications are logged server-side instead of emailed. Public company pages: `/about`, `/privacy`, `/terms`, `/security`, `/cookies`.
 
 ## Database schema
 

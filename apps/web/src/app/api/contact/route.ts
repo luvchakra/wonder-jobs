@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { notifyContactRecipients } from "@/server/notify";
 
 export const runtime = "nodejs";
 
@@ -29,12 +30,16 @@ export async function POST(req: Request) {
   if (!sb) {
     // Local mode: nothing to write to. Say so honestly instead of pretending it was delivered.
     console.info("[contact] (no database configured)", { name, email, topic, message: message.slice(0, 200) });
-    return NextResponse.json({ ok: true, stored: false });
+    const notified = await notifyContactRecipients({ name, email, topic, message, page });
+    return NextResponse.json({ ok: true, stored: false, notified: notified.sent });
   }
   const { error } = await sb.from("contact_messages").insert({ name, email, topic, message, page: page ?? null, user_agent: req.headers.get("user-agent")?.slice(0, 300) ?? null, tenant_id: tenantId });
   if (error) {
     console.error("[contact] insert failed", error.message);
     return NextResponse.json({ error: "We couldn't save your message right now. Try again in a minute." }, { status: 503 });
   }
-  return NextResponse.json({ ok: true, stored: true });
+  // Best-effort: recipients come from CONTACT_NOTIFY_EMAILS; the message is
+  // already safely stored above, so a notification failure never fails this request.
+  const notified = await notifyContactRecipients({ name, email, topic, message, page });
+  return NextResponse.json({ ok: true, stored: true, notified: notified.sent });
 }
