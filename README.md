@@ -49,6 +49,10 @@ Runs search live public sources through `GET /api/jobs/search` (one request per 
 - `/help` is public: user guide, FAQ and an assistant that answers from the guide and links the matching section (`POST /api/help/ask`; uses the platform model when `WONDERJOBS_AI_KEY` is set). Linked as **Get Help** in the avatar menu.
 - The landing page ends with **Contact us**; messages are always stored in `wonderjobs.contact_messages` (migration `0003`) with the signed-in tenant when there is one, and you can always read them in Supabase → Table Editor. To also get an email copy, set `CONTACT_NOTIFY_EMAILS` (comma-separated recipients) and `RESEND_API_KEY` (a free [Resend](https://resend.com) key); without the key, notifications are logged server-side instead of emailed. Public company pages: `/about`, `/privacy`, `/terms`, `/security`, `/cookies`.
 
+## Installing as an app
+
+WonderJobs is an installable PWA (`app/manifest.ts`, generated icons, `public/sw.js`). On Chrome/Edge/Android, "Install app" appears in the avatar menu once the browser decides the page qualifies; there's no such API on iOS Safari or Firefox, so people there use the browser's own "Add to Home Screen". The service worker deliberately caches nothing — this app is local-first and syncs real state already (`store/remoteStorage.ts`), so a caching layer on top would risk showing stale jobs or applications — it only shows a small offline page if a navigation's request fails outright.
+
 ## Database schema
 
 Apply the schema once per Supabase project, either:

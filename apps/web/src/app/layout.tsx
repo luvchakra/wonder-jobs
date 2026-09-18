@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
   description:
     "WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.",
   applicationName: "WonderJobs",
+  // manifest.ts and apple-icon.tsx are picked up automatically by their file names; this fills in the
+  // iOS-specific "add to home screen" tags that a web manifest alone doesn't cover.
+  appleWebApp: { capable: true, title: "WonderJobs", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -22,7 +26,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <RegisterServiceWorker />
+      </body>
     </html>
   );
 }

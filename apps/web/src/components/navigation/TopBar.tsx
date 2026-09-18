@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, FlaskConical, LifeBuoy, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -12,6 +12,8 @@ import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
+import { useInstallPrompt } from "@/lib/pwa";
+import { toast } from "@/components/feedback/Toast";
 import { CommandPalette } from "./CommandPalette";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
@@ -42,6 +44,7 @@ export function TopBar() {
   // Career status is derived from real application state (spec §3 "Career status").
   const apps = Object.values(applications);
   const careerStatus = !hydrated ? "Career Explorer" : apps.some((a) => a.status === "offer") ? "Deciding on an offer" : apps.some((a) => a.status === "interview") ? "Interviewing" : apps.some((a) => a.status === "submitted" || a.status === "under_review") ? "Actively applying" : "Career Explorer";
+  const { available: canInstall, promptInstall } = useInstallPrompt();
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(notifRef, () => setNotifOpen(false));
@@ -142,6 +145,20 @@ export function TopBar() {
                 <m.icon className="size-4" aria-hidden /> {m.label}
               </Link>
             ))}
+            {canInstall && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={async () => {
+                  setProfileOpen(false);
+                  const outcome = await promptInstall();
+                  if (outcome === "accepted") toast.success("Installing WonderJobs", "Find it on your home screen or app launcher.");
+                }}
+                className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
+              >
+                <Download className="size-4" aria-hidden /> Install app
+              </button>
+            )}
             <div className="my-1 border-t border-line" />
             {mode === "demo" ? (
               <>

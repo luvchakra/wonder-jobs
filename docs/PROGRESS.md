@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — story "Automated accessibility audit (WJ-075)"._
+_Last updated: 2026-09-18 — story "PWA installability (WJ-090)"._
 
 ## At a glance
 
@@ -31,7 +31,7 @@ _Last updated: 2026-09-18 — story "Automated accessibility audit (WJ-075)"._
 | 10. Persistence & sync | 4 | 0 | 0 | ✅ |
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
 | 12. Help center & support | 5 | 0 | 0 | ✅ |
-| 13. Secondary product areas | 6 | 3 | 2 | 🟡 early versions |
+| 13. Secondary product areas | 7 | 3 | 2 | 🟡 early versions |
 | 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
@@ -170,7 +170,8 @@ _Last updated: 2026-09-18 — story "Automated accessibility audit (WJ-075)"._
 - 🟡 Interview Prep: prep packs; mock-interview AI planned
 - 🟡 Insights: derived from real runs/applications; trend history grows with use
 - ⬜ Calendar sync (Google / Microsoft / Apple)
-- ⬜ Push notifications / PWA install prompt
+- ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API, so nothing renders there rather than faking it), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
+- ⬜ Push notifications (the SW above has no push subscription handling yet; a server-side sender and per-tenant subscription storage are still needed)
 
 ## 14. Quality, accessibility, performance (spec §39–47)
 
