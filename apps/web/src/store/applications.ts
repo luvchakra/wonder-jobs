@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { remoteStorage } from "./remoteStorage";
+import { persist } from "zustand/middleware";
+import { createRemoteStorage } from "./remoteStorage";
 import type { Application, ApplicationArtifact, ApplicationEvent, ApplicationStatus, ArtifactType, ArtifactVersion } from "@/domain/applications/types";
 import { seedApplications } from "@/services/mock/seed";
 import { newId } from "@/lib/ids";
@@ -101,6 +101,6 @@ export const useApplicationsStore = create<ApplicationsState>()(
           return { applications };
         }),
     }),
-    { name: "wj.applications", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1 },
+    { name: "wj.applications", storage: createRemoteStorage(), skipHydration: true, version: 1 },
   ),
 );

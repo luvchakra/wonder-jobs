@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "buildCommand": "next build && node scripts/fix-output-dir.mjs",
   "outputDirectory": ".next",
-  "ignoreCommand": "bash scripts/vercel-should-build.sh"
+  "ignoreCommand": "bash scripts/vercel-should-build.sh",
+  "regions": ["bom1"]
 }

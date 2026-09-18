@@ -1,19 +1,44 @@
 "use client";
-import type { StateStorage } from "zustand/middleware";
+import type { PersistStorage, StorageValue } from "zustand/middleware";
 
 /**
  * Zustand storage that persists each store as a per-tenant document on the
  * server (Supabase when configured) with localStorage as cache and fallback.
  *
- * - getItem: server first; on 404/offline, the local copy (which is then
- *   uploaded on the next write — that migrates existing local data).
- * - setItem: local immediately; server debounced per store, flushed on
- *   pagehide/visibility change with keepalive so the last write lands.
+ * Built for instant page loads (spec §40):
+ * - Local-first reads. When a local copy exists, `getItem` returns it
+ *   synchronously so every store hydrates in the same tick — no network on
+ *   the critical path. The server is then consulted once, in the background,
+ *   in a single batched request; stores whose server copy is newer are
+ *   re-hydrated in place (stale-while-revalidate).
+ * - First visit on a device (no local copy): one batched GET for all stores.
+ * - Writes: serialization is debounced off the interaction, no-op writes are
+ *   dropped, and all dirty stores go to the server in one batched PUT.
+ *   Unsynced stores are remembered so they survive reloads and win over the
+ *   server copy on the next revalidation.
  */
-const DEBOUNCE_MS = 900;
-const pending = new Map<string, { value: string; timer: ReturnType<typeof setTimeout> }>();
+const SERIALIZE_MS = 120;
+const PUSH_MS = 900;
+const DIRTY_KEY = "wj.sync.dirty";
+
+type Doc = { state: unknown; version: number; updatedAt: string };
+
 const memoryFallback = new Map<string, string>();
+/** Latest in-memory value per store (object form), pending serialization. */
+const latest = new Map<string, StorageValue<unknown>>();
+/** Last serialized value per store — used to drop no-op writes. */
+const serialized = new Map<string, string>();
+/** Server copies fetched this page load (already applied locally). */
+const serverDocs = new Map<string, string>();
+let serializeTimer: ReturnType<typeof setTimeout> | null = null;
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSerialize = new Set<string>();
+let pendingPush = new Set<string>();
 let listenersBound = false;
+let loadAllPromise: Promise<Record<string, Doc> | null> | null = null;
+let revalidated = false;
+/** Store names that hydrated through this adapter this page load. */
+const known = new Set<string>();
 
 function local() {
   try {
@@ -47,10 +72,33 @@ function writeLocal(name: string, value: string) {
   memoryFallback.set(name, value);
 }
 
+function readDirty(): Set<string> {
+  try {
+    const raw = readLocal(DIRTY_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+function writeDirty(set: Set<string>) {
+  writeLocal(DIRTY_KEY, JSON.stringify([...set]));
+}
+function markDirty(names: Iterable<string>) {
+  const d = readDirty();
+  for (const n of names) d.add(n);
+  writeDirty(d);
+}
+function clearDirty(names: Iterable<string>) {
+  const d = readDirty();
+  for (const n of names) d.delete(n);
+  writeDirty(d);
+}
+
 export type SyncState = "idle" | "syncing" | "synced" | "local";
 const listeners = new Set<(s: SyncState) => void>();
 let current: SyncState = "idle";
 function setSync(s: SyncState) {
+  if (s === current) return;
   current = s;
   listeners.forEach((l) => l(s));
 }
@@ -62,22 +110,151 @@ export const syncStatus = {
   },
 };
 
-async function push(name: string, value: string, keepalive = false) {
+/** Stores whose server copy changed after hydration; the hydrator re-reads them. */
+const remoteChangeListeners = new Set<(name: string) => void>();
+export function onRemoteChange(l: (name: string) => void) {
+  remoteChangeListeners.add(l);
+  return () => {
+    remoteChangeListeners.delete(l);
+  };
+}
+
+function parse(value: string | null): StorageValue<unknown> | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as StorageValue<unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** One GET for every store document of this tenant. Shared by all callers of a page load. */
+function loadAll(): Promise<Record<string, Doc> | null> {
+  if (loadAllPromise) return loadAllPromise;
+  loadAllPromise = (async () => {
+    if (typeof fetch === "undefined") return null;
+    try {
+      // The app layout starts this request before any JS is parsed (see app/app/layout.tsx).
+      const w = typeof window === "undefined" ? undefined : (window as unknown as { __wjState?: Promise<Response | undefined> });
+      const early = w?.__wjState;
+      if (w) w.__wjState = undefined;
+      const res = (await early) ?? (await fetch("/api/state", { cache: "no-store" }));
+      if (!res.ok) {
+        setSync("local");
+        return null;
+      }
+      const body = (await res.json()) as { docs: Record<string, Doc> };
+      setSync("synced");
+      return body.docs ?? {};
+    } catch {
+      setSync("local");
+      return null;
+    }
+  })();
+  return loadAllPromise;
+}
+
+/**
+ * Background reconciliation, once per page load: dirty stores are pushed,
+ * stores with a newer server copy are re-hydrated, and local-only stores
+ * are migrated up. Never blocks rendering.
+ */
+async function revalidate() {
+  if (revalidated) return;
+  revalidated = true;
+  const docs = await loadAll();
+  if (!docs) return;
+  const dirty = readDirty();
+  const toPush = new Set<string>();
+  // Unsynced local edits (e.g. written while offline) win and go up first.
+  for (const name of dirty) if (readLocal(name) !== null) toPush.add(name);
+  for (const [name, doc] of Object.entries(docs)) {
+    if (dirty.has(name)) continue; // local edits win; they go up below
+    const value = JSON.stringify(doc.state);
+    serverDocs.set(name, value);
+    if (readLocal(name) !== value) {
+      writeLocal(name, value);
+      serialized.set(name, value);
+      latest.delete(name);
+      remoteChangeListeners.forEach((l) => l(name));
+    }
+  }
+  // Local copies the server has never seen (first sync after an offline period / migration).
+  for (const name of known) {
+    if (!(name in docs) && !toPush.has(name) && readLocal(name) !== null) toPush.add(name);
+  }
+  if (toPush.size) {
+    for (const n of toPush) pendingPush.add(n);
+    schedulePush();
+  }
+}
+
+function serializePending() {
+  if (serializeTimer) clearTimeout(serializeTimer);
+  serializeTimer = null;
+  const names = pendingSerialize;
+  pendingSerialize = new Set();
+  const changed: string[] = [];
+  for (const name of names) {
+    const v = latest.get(name);
+    if (!v) continue;
+    const s = JSON.stringify(v);
+    if (serialized.get(name) === s) continue; // no-op write
+    serialized.set(name, s);
+    writeLocal(name, s);
+    changed.push(name);
+  }
+  if (changed.length) {
+    markDirty(changed);
+    for (const n of changed) pendingPush.add(n);
+    schedulePush();
+  }
+}
+
+function scheduleSerialize(name: string) {
+  pendingSerialize.add(name);
+  if (!serializeTimer) serializeTimer = setTimeout(serializePending, SERIALIZE_MS);
+}
+
+function schedulePush() {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    void pushNow(false);
+  }, PUSH_MS);
+}
+
+async function pushNow(keepalive: boolean) {
+  const names = [...pendingPush];
+  pendingPush = new Set();
+  if (!names.length || typeof fetch === "undefined") return;
+  const docs: Record<string, unknown> = {};
+  for (const n of names) {
+    const s = serialized.get(n) ?? readLocal(n);
+    const v = parse(s);
+    if (v) docs[n] = v;
+  }
+  if (!Object.keys(docs).length) return;
   try {
     setSync("syncing");
-    const res = await fetch(`/api/state/${encodeURIComponent(name)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: JSON.parse(value) }), keepalive });
-    setSync(res.ok ? "synced" : "local");
+    const res = await fetch("/api/state", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ docs }), keepalive });
+    if (res.ok) {
+      clearDirty(Object.keys(docs));
+      setSync("synced");
+    } else {
+      setSync("local");
+    }
   } catch {
     setSync("local");
   }
 }
 
+/** Flush everything pending to the server now (used on pagehide with keepalive). */
 export function flushRemote(keepalive = true) {
-  for (const [name, p] of pending) {
-    clearTimeout(p.timer);
-    pending.delete(name);
-    void push(name, p.value, keepalive);
-  }
+  serializePending();
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = null;
+  void pushNow(keepalive);
 }
 
 function bindFlushListeners() {
@@ -89,55 +266,73 @@ function bindFlushListeners() {
   });
 }
 
-export const remoteStorage: StateStorage = {
-  async getItem(name) {
-    bindFlushListeners();
-    const localValue = readLocal(name);
-    if (typeof fetch === "undefined") return localValue;
-    try {
-      const res = await fetch(`/api/state/${encodeURIComponent(name)}`, { cache: "no-store" });
-      if (res.status === 204 || res.status === 404) {
-        // Nothing on this backend yet: use the local copy and migrate it up.
-        if (localValue) void push(name, localValue);
-        return localValue;
+/** Storage adapter for one persisted store (object-level; serialization is deferred). */
+export function createRemoteStorage<S>(): PersistStorage<S> {
+  return {
+    getItem(name) {
+      bindFlushListeners();
+      known.add(name);
+      const fromServer = serverDocs.get(name);
+      if (fromServer !== undefined) return parse(fromServer) as StorageValue<S> | null;
+      const localValue = readLocal(name);
+      if (localValue !== null) {
+        serialized.set(name, localValue);
+        void revalidate();
+        return parse(localValue) as StorageValue<S> | null;
       }
-      if (res.ok) {
-        const doc = (await res.json()) as { state: unknown };
+      // Nothing local yet: this device has never seen the tenant. One batched request.
+      return loadAll().then((docs) => {
+        revalidated = true;
+        const doc = docs?.[name];
+        if (!doc) return null;
         const value = JSON.stringify(doc.state);
+        serverDocs.set(name, value);
         writeLocal(name, value);
-        setSync("synced");
-        return value;
+        serialized.set(name, value);
+        return parse(value) as StorageValue<S> | null;
+      });
+    },
+    setItem(name, value) {
+      bindFlushListeners();
+      latest.set(name, value as StorageValue<unknown>);
+      scheduleSerialize(name);
+    },
+    removeItem(name) {
+      const ls = local();
+      try {
+        ls?.removeItem(name);
+      } catch {
+        /* ignore */
       }
-      return localValue;
-    } catch {
-      setSync("local");
-      return localValue;
-    }
-  },
-  setItem(name, value) {
-    writeLocal(name, value);
-    bindFlushListeners();
-    const existing = pending.get(name);
-    if (existing) clearTimeout(existing.timer);
-    const timer = setTimeout(() => {
-      pending.delete(name);
-      void push(name, value);
-    }, DEBOUNCE_MS);
-    pending.set(name, { value, timer });
-  },
-  removeItem(name) {
-    const ls = local();
-    try {
-      ls?.removeItem(name);
-    } catch {
-      /* ignore */
-    }
-    memoryFallback.delete(name);
-    if (typeof fetch !== "undefined") void fetch(`/api/state/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {});
-  },
-};
+      memoryFallback.delete(name);
+      latest.delete(name);
+      serialized.delete(name);
+      serverDocs.delete(name);
+      clearDirty([name]);
+      if (typeof fetch !== "undefined") void fetch(`/api/state/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {});
+    },
+  };
+}
 
-/** Test hook: pending writes by store name. */
+/** Test hook: stores with unsent changes (serialized or not). */
 export function pendingWrites() {
-  return [...pending.keys()];
+  return [...new Set([...pendingSerialize, ...pendingPush])];
+}
+
+/** Test hook: reset module state between tests. */
+export function __resetRemoteStorage() {
+  latest.clear();
+  serialized.clear();
+  serverDocs.clear();
+  memoryFallback.clear();
+  pendingSerialize = new Set();
+  pendingPush = new Set();
+  if (serializeTimer) clearTimeout(serializeTimer);
+  if (pushTimer) clearTimeout(pushTimer);
+  serializeTimer = null;
+  pushTimer = null;
+  loadAllPromise = null;
+  revalidated = false;
+  known.clear();
+  current = "idle";
 }

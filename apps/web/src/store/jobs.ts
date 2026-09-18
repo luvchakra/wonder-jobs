@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { remoteStorage } from "./remoteStorage";
+import { persist } from "zustand/middleware";
+import { createRemoteStorage } from "./remoteStorage";
 import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource } from "@/domain/jobs/types";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { getUniverse } from "@/services/mock/universe";
@@ -100,7 +100,7 @@ export const useJobsStore = create<JobsState>()(
     }),
     {
       name: "wj.jobs",
-      storage: createJSONStorage(() => remoteStorage),
+      storage: createRemoteStorage(),
       skipHydration: true,
       version: 1,
       // The catalog is regenerated deterministically; only user decisions persist.

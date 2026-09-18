@@ -38,12 +38,26 @@ export function relativeTime(iso: string, now = Date.now()) {
   return future ? `in ${s}` : `${s} ago`;
 }
 
-export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {
-  return new Date(iso).toLocaleDateString("en-IN", opts);
+// Intl formatters are expensive to construct; `toLocaleDateString` builds one per call.
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function dateFormatter(opts: Intl.DateTimeFormatOptions) {
+  const key = JSON.stringify(opts);
+  let f = formatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-IN", opts);
+    formatters.set(key, f);
+  }
+  return f;
+}
+const DEFAULT_DATE: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+const TIME: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
+
+export function formatDate(iso: string, opts: Intl.DateTimeFormatOptions = DEFAULT_DATE) {
+  return dateFormatter(opts).format(new Date(iso));
 }
 
 export function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  return dateFormatter(TIME).format(new Date(iso));
 }
 
 export function formatDuration(ms: number) {

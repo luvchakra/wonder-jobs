@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { remoteStorage } from "./remoteStorage";
+import { persist } from "zustand/middleware";
+import { createRemoteStorage } from "./remoteStorage";
 import { AI_PROVIDERS, type AIProviderConfig, type AIProviderId, type AIUsageRecord, type BYOKStatus } from "@/domain/ai/types";
 import { track } from "@/lib/analytics";
 
@@ -69,7 +69,7 @@ export const useAIStore = create<AIState>()(
     }),
     {
       name: "wj.ai",
-      storage: createJSONStorage(() => remoteStorage),
+      storage: createRemoteStorage(),
       skipHydration: true,
       version: 1,
       // BYOK status is server-owned; only the selection and usage persist locally.

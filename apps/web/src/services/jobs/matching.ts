@@ -8,6 +8,8 @@ import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, Jo
 import { hashKey } from "@/lib/ids";
 
 const DAY = 86_400_000;
+/** One shared formatter: `toLocaleString` re-creates one per call, which dominated catalog load time. */
+const OBSERVED_AT = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const SENIORITY_RANK = { junior: 0, mid: 1, senior: 2, lead: 3, director: 4 } as const;
 
 export function canonicalKey(job: Pick<Job, "title" | "company" | "location">) {
@@ -121,7 +123,7 @@ export function computeQuality(job: CanonicalJob | Job, sources: Record<string, 
     { key: "salary_transparency", label: "Salary transparency", value: job.salaryMax != null ? "Salary range provided" : "Salary not provided", sentiment: job.salaryMax != null ? "positive" : "neutral" },
     { key: "source_reliability", label: "Source reliability", value: `${bestReliability[0].toUpperCase()}${bestReliability.slice(1)}`, sentiment: bestReliability === "high" ? "positive" : bestReliability === "medium" ? "neutral" : "caution" },
     { key: "apply_path", label: "Application path", value: job.applyPath === "unknown" ? "Unclear" : "Direct", sentiment: job.applyPath === "unknown" ? "caution" : "positive" },
-    { key: "last_observed", label: "Last observed", value: new Date(job.observedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }), sentiment: "neutral" },
+    { key: "last_observed", label: "Last observed", value: OBSERVED_AT.format(new Date(job.observedAt)), sentiment: "neutral" },
   ];
   const positives = signals.filter((s) => s.sentiment === "positive").length;
   const cautions = signals.filter((s) => s.sentiment === "caution").length;

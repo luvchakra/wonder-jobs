@@ -29,7 +29,7 @@ Without the Supabase variables the app runs in local-only mode (browser localSto
 
 Apply the schema once per Supabase project, either:
 
-- **SQL Editor** — paste `apps/web/supabase/migrations/0001_wonderjobs_persistence.sql` into Supabase → SQL Editor and run it, or
+- **SQL Editor** — paste each file in `apps/web/supabase/migrations/` (in order) into Supabase → SQL Editor and run it, or
 - **CLI** — `DATABASE_URL="postgresql://…" npm run db:migrate` (idempotent; records applied files in `public._wonderjobs_migrations`), or
 - **From the deployment** — `POST /api/admin/migrate` with `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` and body `{ "databaseUrl": "postgresql://…" }`. Runs only the bundled migrations; useful when your machine can't reach Postgres directly (Supabase's direct host is IPv6-only — the route falls back to the IPv4 pooler automatically).
 

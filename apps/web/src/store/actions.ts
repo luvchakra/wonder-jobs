@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { remoteStorage } from "./remoteStorage";
+import { persist } from "zustand/middleware";
+import { createRemoteStorage } from "./remoteStorage";
 import type { ActionType } from "@/domain/workflow/types";
 import { newId } from "@/lib/ids";
 
@@ -51,6 +51,6 @@ export const useActionsStore = create<ActionsState>()(
         }),
       byKey: (key) => Object.values(get().actions).find((a) => a.idempotencyKey === key && a.status === "succeeded"),
     }),
-    { name: "wj.actions", storage: createJSONStorage(() => remoteStorage), skipHydration: true, version: 1 },
+    { name: "wj.actions", storage: createRemoteStorage(), skipHydration: true, version: 1 },
   ),
 );
