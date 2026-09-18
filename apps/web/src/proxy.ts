@@ -12,9 +12,10 @@ import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken }
 const PROTECTED = [/^\/app(\/|$)/, /^\/onboarding(\/|$)/];
 const AUTH_PAGES = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/];
 
-function writeSessionCookies(res: NextResponse, session: StoredSession) {
+function writeSessionCookies(res: NextResponse, req: NextRequest, session: StoredSession) {
   const secure = process.env.NODE_ENV === "production";
-  for (const n of chunkNames(AUTH_COOKIE)) res.cookies.delete(n);
+  // Only expire chunks that exist: every Set-Cookie costs header space at the edge.
+  for (const n of chunkNames(AUTH_COOKIE)) if (req.cookies.has(n)) res.cookies.delete(n);
   const chunks = splitChunks(toBase64Url(JSON.stringify(session)));
   if (chunks.length === 1) res.cookies.set(AUTH_COOKIE, chunks[0], { path: "/", maxAge: COOKIE_MAX_AGE, sameSite: "lax", secure });
   else chunks.forEach((c, i) => res.cookies.set(`${AUTH_COOKIE}.${i}`, c, { path: "/", maxAge: COOKIE_MAX_AGE, sameSite: "lax", secure }));
@@ -42,7 +43,7 @@ export async function proxy(req: NextRequest) {
 
   if (user) {
     const res = isAuthPage ? NextResponse.redirect(new URL(req.nextUrl.searchParams.get("next") || "/app", req.url)) : NextResponse.next();
-    if (refreshed) writeSessionCookies(res, refreshed);
+    if (refreshed) writeSessionCookies(res, req, refreshed);
     if (req.cookies.get(USER_COOKIE)?.value !== user.userId) res.cookies.set(USER_COOKIE, user.userId, { path: "/", maxAge: COOKIE_MAX_AGE, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
     return res;
   }
