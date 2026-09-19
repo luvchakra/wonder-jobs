@@ -125,7 +125,8 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const preferredLocations = ctx.get<string[]>("preferredLocations");
       const minSalary = ctx.get<number>("minSalary");
       const careerGoal = ctx.get<string>("careerGoal");
-      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal }));
+      const learnedSignals = snapshot.career.learnedSignals;
+      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals }));
       const strong = matches.filter((m) => m.fit === "strong").length;
       const worth = matches.filter((m) => m.fit === "worth_considering").length;
       ctx.setProgress(matches.length, matches.length);

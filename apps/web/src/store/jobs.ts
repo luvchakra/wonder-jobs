@@ -7,6 +7,7 @@ import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { getClientMode } from "@/lib/mode";
 import { getUniverse } from "@/services/mock/universe";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
+import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
 import { track } from "@/lib/analytics";
 
@@ -32,7 +33,7 @@ interface JobsState {
   setQuality: (quality: JobQuality[]) => void;
   save: (jobId: string) => void;
   unsave: (jobId: string) => void;
-  reject: (jobId: string) => void;
+  reject: (jobId: string, reason?: RejectionReason) => void;
   unreject: (jobId: string) => void;
   setFilters: (patch: Partial<JobFilters>) => void;
   setSort: (sort: JobSort) => void;
@@ -71,9 +72,10 @@ export const useJobsStore = create<JobsState>()(
         const jobs: Record<string, CanonicalJob> = {};
         const matches: Record<string, JobMatch> = {};
         const quality: Record<string, JobQuality> = {};
+        const learnedSignals = useCareerStore.getState().learnedSignals;
         for (const j of canonical) {
           jobs[j.id] = j;
-          matches[j.id] = computeMatch(j, { dna });
+          matches[j.id] = computeMatch(j, { dna, learnedSignals });
           quality[j.id] = computeQuality(j, sources);
         }
         set({ jobs, order: canonical.map((j) => j.id), matches, quality, loaded: true });
@@ -81,9 +83,9 @@ export const useJobsStore = create<JobsState>()(
       rescore: () => {
         const { jobs, order, loaded } = get();
         if (!loaded) return;
-        const dna = useCareerStore.getState().dna;
+        const { dna, learnedSignals } = useCareerStore.getState();
         const matches: Record<string, JobMatch> = {};
-        for (const id of order) matches[id] = computeMatch(jobs[id], { dna });
+        for (const id of order) matches[id] = computeMatch(jobs[id], { dna, learnedSignals });
         set({ matches });
       },
       replaceCatalog: (list) => set({ jobs: Object.fromEntries(list.map((j) => [j.id, j])), order: list.map((j) => j.id), loaded: true }),
@@ -103,20 +105,30 @@ export const useJobsStore = create<JobsState>()(
           delete saved[jobId];
           return { saved };
         }),
-      reject: (jobId) => {
-        track("job_rejected", { jobId });
+      reject: (jobId, reason) => {
+        track("job_rejected", { jobId, reason: reason ?? "none" });
+        const job = get().jobs[jobId];
+        const at = new Date().toISOString();
         set((s) => {
           const saved = { ...s.saved };
           delete saved[jobId];
-          return { rejected: { ...s.rejected, [jobId]: new Date().toISOString() }, saved };
+          return { rejected: { ...s.rejected, [jobId]: at }, saved };
         });
+        // Every rejection feeds the learning loop (spec: "not for me" must actually influence future
+        // ranking), whether or not the candidate gave a reason — a reason is what lets it target a
+        // specific pattern (industry, work mode, seniority); without one it's just recorded.
+        if (job) useCareerStore.getState().recordRejection({ jobId, at, reason, industry: job.industry, workMode: job.workMode });
+        get().rescore();
       },
-      unreject: (jobId) =>
+      unreject: (jobId) => {
         set((s) => {
           const rejected = { ...s.rejected };
           delete rejected[jobId];
           return { rejected };
-        }),
+        });
+        useCareerStore.getState().clearRejection(jobId);
+        get().rescore();
+      },
       setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
       setSort: (sort) => set({ sort }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled } : x)) })),

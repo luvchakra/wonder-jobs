@@ -135,14 +135,14 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
 
     match: async (ctx) => {
       const jobs = canonicalCache.get(ctx.run.id) ?? [];
-      const dna = useCareerStore.getState().dna;
+      const { dna, learnedSignals } = useCareerStore.getState();
       const preferredLocations = ctx.get<string[]>("preferredLocations");
       const minSalary = ctx.get<number>("minSalary");
       const careerGoal = ctx.get<string>("careerGoal");
       const matches: JobMatch[] = [];
       ctx.setProgress(0, jobs.length);
       for (let i = 0; i < jobs.length; i += CHUNK) {
-        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal }));
+        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals }));
         ctx.setProgress(matches.length, jobs.length);
         await ctx.sleep(90);
         await ctx.checkpoint();

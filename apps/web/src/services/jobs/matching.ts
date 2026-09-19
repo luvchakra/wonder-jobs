@@ -7,6 +7,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, JobMatch, JobQuality, JobQualitySignal, JobSource } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { remoteOpenTo } from "./normalize";
+import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learning";
 
 const DAY = 86_400_000;
 const memo = new Map<string, RegExp>();
@@ -70,6 +71,8 @@ export interface MatchContext {
   preferredLocations?: string[];
   minSalary?: number;
   careerGoal?: string;
+  /** Active "not for me" learning signals (spec: rejections must actually influence future ranking). */
+  learnedSignals?: LearnedSignal[];
 }
 
 export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = Date.now()): JobMatch {
@@ -127,8 +130,12 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   const weights = { skills: 0.32, seniority: 0.18, industry: 0.1, career_goal: 0.18, location: 0.12, compensation: 0.1 } as const;
   const raw = skillScore * weights.skills + seniorityScore * weights.seniority + industryScore * weights.industry + goalScore * weights.career_goal + locationScore * weights.location + compScore * weights.compensation;
+  // "Not for me" learning (spec: it must actually affect future ranking, not just hide the one job): a
+  // small, bounded penalty once the same reason has repeated enough times to be a pattern rather than
+  // noise — see domain/career/learning.ts. Never enough on its own to erase an otherwise strong match.
+  const learned = ctx.learnedSignals?.length ? learnedRankingEffect(job, dna.seniority, ctx.learnedSignals) : { points: 0 };
   // A remote role the employer restricts to another region can be worth a look, never a "strong" opportunity.
-  const score = Math.round(Math.max(20, Math.min(openTo === false ? 74 : 96, raw * 100)));
+  const score = Math.round(Math.max(20, Math.min(openTo === false ? 74 : 96, raw * 100 - learned.points)));
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of ${job.skills.length} listed skills match your Career DNA (${overlap.slice(0, 3).join(", ")}).` : "Few of the listed skills appear in your Career DNA." },
@@ -145,6 +152,7 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   if (delta === 1) highlights.push("Growth move");
   if (job.workMode === "remote") highlights.push("Remote");
   if (now - new Date(job.postedAt).getTime() < 3 * DAY) highlights.push("New");
+  if (learned.note) highlights.push(learned.note);
 
   return { jobId: job.id, score, fit: fitLabel(score), reasons, highlights: highlights.slice(0, 3), computedAt: new Date(now).toISOString() };
 }

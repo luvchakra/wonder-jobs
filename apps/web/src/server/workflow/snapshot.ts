@@ -1,5 +1,6 @@
 import type { CareerDNA, Notification, ActivityItem } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
+import type { LearnedSignal } from "@/domain/career/learning";
 import type { CanonicalJob, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import type { AutomationPolicy } from "@/domain/automation/policy";
@@ -17,6 +18,8 @@ export interface CareerDoc {
   onboarded: boolean;
   activity: ActivityItem[];
   notifications: Notification[];
+  /** "Not for me" learning signals (domain/career/learning.ts); read by the scheduled-run match stage too. */
+  learnedSignals: LearnedSignal[];
   [key: string]: unknown;
 }
 export interface JobsDoc {
@@ -64,7 +67,7 @@ export async function loadTenantSnapshot(tenantId: string): Promise<TenantSnapsh
   ]);
   return {
     tenantId,
-    career: { dna: career?.dna ?? EMPTY_DNA, onboarded: career?.onboarded ?? false, activity: career?.activity ?? [], notifications: career?.notifications ?? [], ...career } as CareerDoc,
+    career: { dna: career?.dna ?? EMPTY_DNA, onboarded: career?.onboarded ?? false, activity: career?.activity ?? [], notifications: career?.notifications ?? [], learnedSignals: career?.learnedSignals ?? [], ...career } as CareerDoc,
     jobs: {
       // A tenant that has never opened the jobs page has no sources document yet; the defaults are what the client would use.
       sources: jobs?.sources?.length ? jobs.sources : JOB_SOURCES,

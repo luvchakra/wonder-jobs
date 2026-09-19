@@ -2,7 +2,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, ThumbsDown, Clock, Wallet } from "lucide-react";
+import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock, Wallet } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
@@ -20,6 +20,7 @@ import { MatchBadge, FitLabel } from "@/components/jobs/MatchBadge";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
 import { WORK_MODE_LABEL, companyColor } from "@/components/jobs/JobCard";
 import { toast } from "@/components/feedback/Toast";
+import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { cn } from "@/lib/cn";
 
 type Tab = "overview" | "why" | "company" | "sources";
@@ -34,8 +35,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const rejected = useJobsStore((s) => !!s.rejected[id]);
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
-  const reject = useJobsStore((s) => s.reject);
-  const unreject = useJobsStore((s) => s.unreject);
   const application = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === id));
   const createApp = useApplicationsStore((s) => s.create);
   const [tab, setTab] = useState<Tab>("overview");
@@ -256,22 +255,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             <Button size="lg" full onClick={prepare}>
               {application && application.status !== "saved" ? "Open application" : "Prepare Application"}
             </Button>
-            <Button
-              size="lg"
-              full
-              variant="outline"
-              icon={<ThumbsDown className="size-4" aria-hidden />}
-              aria-pressed={rejected}
-              onClick={() => {
-                if (rejected) unreject(job.id);
-                else {
-                  reject(job.id);
-                  toast.info("Marked not for me", "Wonder will show fewer roles like this.", { label: "Undo", onClick: () => unreject(job.id) });
-                }
-              }}
-            >
-              {rejected ? "Undo not for me" : "Not for me"}
-            </Button>
+            <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
             </a>

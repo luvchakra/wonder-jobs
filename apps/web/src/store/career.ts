@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
+import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from "@/domain/career/learning";
 import { newId } from "@/lib/ids";
 
 interface CareerState {
@@ -17,6 +18,20 @@ interface CareerState {
   /** Follow-up ids already turned into a notification, so reminders fire once. */
   reminded: string[];
   markReminded: (id: string) => void;
+  /** Every "not for me" rejection, capped, with the reason if the candidate gave one. Feeds computeLearnedSignals. */
+  rejectionHistory: RejectionRecord[];
+  /** Signal ids the candidate dismissed — never resurfaced even once evidence clears the threshold again. */
+  dismissedSignals: string[];
+  /** Recomputed after every rejection change; read by matching (spec: "not for me" must affect ranking). */
+  learnedSignals: LearnedSignal[];
+  /** Records one rejection and recomputes learned signals from the full history. */
+  recordRejection: (record: RejectionRecord) => void;
+  /** Undoing a rejection removes that one record and recomputes — the signal can lose its evidence. */
+  clearRejection: (jobId: string) => void;
+  /** The candidate agrees the pattern is real; status becomes visible history, behavior is unchanged (it was already active). */
+  confirmLearnedSignal: (id: string) => void;
+  /** Turns a signal off and remembers not to suggest it again. */
+  dismissLearnedSignal: (id: string) => void;
   updateDNA: (patch: Partial<CareerDNA>) => void;
   completeOnboarding: () => void;
   addActivity: (item: Omit<ActivityItem, "id" | "at">) => void;
@@ -38,6 +53,27 @@ export const useCareerStore = create<CareerState>()(
       plan: "free",
       reminded: [],
       markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
+      rejectionHistory: [],
+      dismissedSignals: [],
+      learnedSignals: [],
+      recordRejection: (record) =>
+        set((s) => {
+          const rejectionHistory = [...s.rejectionHistory.filter((r) => r.jobId !== record.jobId), record].slice(-300);
+          const dismissed = new Set(s.dismissedSignals);
+          return { rejectionHistory, learnedSignals: computeLearnedSignals(rejectionHistory, dismissed) };
+        }),
+      clearRejection: (jobId) =>
+        set((s) => {
+          const rejectionHistory = s.rejectionHistory.filter((r) => r.jobId !== jobId);
+          const dismissed = new Set(s.dismissedSignals);
+          return { rejectionHistory, learnedSignals: computeLearnedSignals(rejectionHistory, dismissed) };
+        }),
+      confirmLearnedSignal: (id) => set((s) => ({ learnedSignals: s.learnedSignals.map((sig) => (sig.id === id ? { ...sig, status: "confirmed" } : sig)) })),
+      dismissLearnedSignal: (id) =>
+        set((s) => {
+          const dismissedSignals = s.dismissedSignals.includes(id) ? s.dismissedSignals : [...s.dismissedSignals, id].slice(-100);
+          return { dismissedSignals, learnedSignals: s.learnedSignals.filter((sig) => sig.id !== id) };
+        }),
       updateDNA: (patch) => set((s) => ({ dna: { ...s.dna, ...patch, updatedAt: new Date().toISOString() } })),
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),

@@ -9,6 +9,7 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
+import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -151,6 +152,7 @@ export default function CareerDNAPage() {
             </Field>
           </div>
         </Card>
+        <LearnedPreferences />
         <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career DNA unless you allow it in Automation Settings.</p>
       </div>
     </div>

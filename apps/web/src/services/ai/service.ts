@@ -136,57 +136,76 @@ export class TemplateAIService implements AIService {
   }
 
   async generateResume({ job, dna, runId }: GenerateArtifactInput) {
+    // Grounded strictly in Career DNA: the domain model carries no employment history (no companies,
+    // titles, dates or metrics), so any "experience" bullet here would be invented outright. The
+    // fabricated version of this template used to write "Led roadmap and discovery for a consumer
+    // product used by millions" for every candidate, regardless of what they'd actually entered.
     const matched = job.skills.filter((s) => dna.skills.some((d) => d.name.toLowerCase() === s.toLowerCase()));
+    const industryPhrase = dna.industries.length ? dna.industries.slice(0, 2).join(" and ").toLowerCase() : "[your industries]";
+    const strengthLines = dna.strengths.length ? dna.strengths.map((s) => `- ${s}`) : ["- [Add a strength to your Career DNA]"];
+    const skillLine = [...matched, ...dna.skills.filter((s) => s.level >= 4).map((s) => s.name)].filter((v, i, a) => a.indexOf(v) === i).slice(0, 8).join(" · ") || "[Add skills to your Career DNA]";
     const text = [
-      `# ${dna.name}`,
-      `${dna.headline}`,
+      `# ${dna.name || "[Your name]"}`,
+      `${dna.headline || "[Your headline]"}`,
       ``,
       `## Summary`,
-      `${dna.yearsExperience}+ years building ${dna.industries.slice(0, 2).join(" and ").toLowerCase()} products. Targeting the ${job.title} role at ${job.company}: ${matched.length ? `hands-on with ${matched.slice(0, 4).join(", ")}` : "bringing strong product fundamentals"} and a record of shipping end to end.`,
+      `${dna.yearsExperience ? `${dna.yearsExperience}+ years` : "[years of experience]"} building ${industryPhrase} products. Targeting the ${job.title} role at ${job.company}${matched.length ? `: hands-on with ${matched.slice(0, 4).join(", ")}` : ""}.`,
       ``,
       `## Core strengths`,
-      ...dna.strengths.map((s) => `- ${s}`),
+      ...strengthLines,
       ``,
       `## Relevant skills`,
-      `${[...matched, ...dna.skills.filter((s) => s.level >= 4).map((s) => s.name)].filter((v, i, a) => a.indexOf(v) === i).slice(0, 8).join(" · ")}`,
+      skillLine,
       ``,
-      `## Experience highlights`,
-      `- Led roadmap and discovery for a consumer product used by millions; improved activation through ${dna.skills.some((s) => s.name === "A/B Testing") ? "a structured experimentation program" : "focused discovery"}.`,
-      `- Partnered with design, data and engineering to ship quarterly bets aligned to ${job.tags[0]?.toLowerCase() ?? "growth"} goals.`,
-      `- Defined success metrics and dashboards that leadership used for planning.`,
+      `## Experience`,
+      `[Add your recent roles here — company, title, dates and 2–3 measurable outcomes. Wonder doesn't have your employment history yet; import a resume that includes dates, or fill this in directly.]`,
     ].join("\n");
     return this.run("resume_generation", "You are WonderJobs, a career assistant. Tailor the candidate's resume for the target role in Markdown. Keep it truthful: only use facts from the context; never invent employers, dates or numbers; use [bracketed placeholders] for anything missing. Be concise and specific to the role.", contextFor(dna, job), text, runId);
   }
 
   async generateCoverLetter({ job, dna, runId }: GenerateArtifactInput) {
+    // `dna.industries[0].toLowerCase()` used to throw for a minimal profile with no industries set
+    // (Career DNA doesn't require one); and a candidate with exactly one industry had a second,
+    // never-claimed one ("consumer") invented to fill out the sentence. Both are fixed below.
+    const primaryIndustry = dna.industries[0] ? dna.industries[0].toLowerCase() : "[your industry]";
+    const secondIndustry = dna.industries[1]?.toLowerCase();
+    const strength0 = dna.strengths[0] ?? "[a strength from your Career DNA]";
+    const strength1 = dna.strengths[1];
     const text = [
       `Dear ${job.company} Hiring Team,`,
       ``,
-      `I'm excited to apply for the ${job.title} role. Over ${dna.yearsExperience} years in ${dna.industries[0].toLowerCase()} and ${dna.industries[1]?.toLowerCase() ?? "consumer"} products, I've learned that great outcomes come from clear priorities and honest measurement — both of which I'd bring to ${job.company}.`,
+      `I'm excited to apply for the ${job.title} role. Over ${dna.yearsExperience || "[years of experience]"} years in ${primaryIndustry}${secondIndustry ? ` and ${secondIndustry}` : ""} products, I've learned that great outcomes come from clear priorities and honest measurement — both of which I'd bring to ${job.company}.`,
       ``,
-      `What draws me to this role: ${job.requirements[1] ? job.requirements[1].toLowerCase() : "the scope"} is exactly the kind of work I do best. ${dna.strengths[0]}. ${dna.strengths[1]}.`,
+      `What draws me to this role: ${job.requirements[1] ? job.requirements[1].toLowerCase() : "the scope"} is exactly the kind of work I do best. ${strength0}.${strength1 ? ` ${strength1}.` : ""}`,
       ``,
       `I'd welcome the chance to talk about how I can help the team move faster with more clarity.`,
       ``,
       `Warm regards,`,
-      `${dna.name}`,
+      `${dna.name || "[Your name]"}`,
     ].join("\n");
     return this.run("cover_letter_generation", "You are WonderJobs, a career assistant. Write a concise, human cover letter (under 220 words) for this role, grounded only in the context. No clichés, no invented achievements; [bracketed placeholders] for missing facts.", contextFor(dna, job), text, runId);
   }
 
   async generateScreeningAnswers({ job, dna, runId }: GenerateArtifactInput) {
+    // Every answer below used to assert something Career DNA doesn't actually contain: an industry-fit
+    // claim regardless of whether the industries actually overlap, an invented "shipped end to end"
+    // story, and a specific notice period ("30–60 days") nobody entered. Availability, specific project
+    // outcomes and employment specifics aren't in the domain model, so they're marked for the candidate
+    // to fill in rather than guessed.
+    const industryMatch = dna.industries.some((i) => i.toLowerCase() === job.industry.toLowerCase());
+    const shippedAnswer = dna.strengths[0] ? `${dna.strengths[0]}. [Add the specific role and outcome before submitting.]` : "[Describe a project you shipped end to end, including your role and the outcome — Wonder doesn't have this in your Career DNA yet.]";
     const text = [
       `Q: Why ${job.company}?`,
-      `A: ${job.company} operates in ${job.industry.toLowerCase()}, which is where I've built most of my product experience. The ${job.title} scope matches my goal: ${dna.careerGoal.toLowerCase()}.`,
+      `A: ${job.company} operates in ${job.industry.toLowerCase()}${industryMatch ? ", which is one of my target industries" : ""}. The ${job.title} scope matches my goal${dna.careerGoal ? `: ${dna.careerGoal.toLowerCase()}` : " of growing in this direction"}.`,
       ``,
       `Q: Describe a product you shipped end to end.`,
-      `A: I led discovery, defined the PRD and metrics, and partnered with engineering through launch. We tracked adoption weekly and iterated based on user research and experiment results.`,
+      `A: ${shippedAnswer}`,
       ``,
       `Q: Notice period / availability`,
-      `A: Available to start within 30–60 days. (Edit this before submitting.)`,
+      `A: [Add your notice period or availability date.] (Edit this before submitting.)`,
       ``,
       `Q: Expected compensation`,
-      `A: ${dna.minSalary ? `Open to discuss; my expectation starts at ₹${Math.round(dna.minSalary / 100_000)}L.` : "Open to discuss."} (Edit this before submitting.)`,
+      `A: ${dna.minSalary ? `Open to discuss; my expectation starts at ₹${Math.round(dna.minSalary / 100_000)}L.` : "[Add your compensation expectation, or leave open to discuss.]"} (Edit this before submitting.)`,
     ].join("\n");
     return this.run("screening_answers", "You are WonderJobs, a career assistant. Draft short answers to common screening questions for this role, in the candidate's voice, grounded only in the context. Mark anything the candidate must confirm with (Edit this before submitting).", contextFor(dna, job), text, runId);
   }
@@ -195,7 +214,7 @@ export class TemplateAIService implements AIService {
     const when = appliedAt ? new Date(appliedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long" }) : "recently";
     const text =
       kind === "thank_you"
-        ? [`Subject: Thank you — ${job.title} interview`, ``, `Hi there,`, ``, `Thank you for taking the time to speak with me about the ${job.title} role at ${job.company}. I enjoyed our conversation and came away even more excited about the team's direction.`, ``, `If it's useful, I'm happy to share more detail on ${dna.strengths[0]?.toLowerCase() ?? "my recent work"}.`, ``, `Best regards,`, dna.name].join("\n")
+        ? [`Subject: Thank you — ${job.title} interview`, ``, `Hi there,`, ``, `Thank you for taking the time to speak with me about the ${job.title} role at ${job.company}. I enjoyed our conversation and came away even more excited about the team's direction.`, ``, `If it's useful, I'm happy to share more detail on ${dna.strengths[0] ? dna.strengths[0].toLowerCase() : "[a relevant strength]"}.`, ``, `Best regards,`, dna.name].join("\n")
         : [`Subject: Following up — ${job.title} application`, ``, `Hi there,`, ``, `I applied for the ${job.title} role at ${job.company} on ${when} and wanted to check in. I'm very interested in the position — ${job.requirements[1] ? job.requirements[1].toLowerCase() : "the scope"} is exactly where I do my best work.`, ``, `I'd welcome the chance to talk. Thank you for your time.`, ``, `Best regards,`, dna.name].join("\n");
     return this.run("cover_letter_generation", "You are WonderJobs, a career assistant. Draft a short, polite follow-up email (subject line first) the candidate will review before sending. Grounded only in the context.", contextFor(dna, job), text, runId);
   }

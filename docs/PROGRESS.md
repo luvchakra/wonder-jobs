@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — story "Follow-up and interview reminders from the server (WJ-097)"._
+_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)” and “Honest 'not for me' learning loop (WJ-099)”._
 
 ## At a glance
 
@@ -81,6 +81,8 @@ _Last updated: 2026-09-19 — story "Follow-up and interview reminders from the 
 - ✅ Calibration on live postings: stem-aware skill matching, pay-unknown neutral, remote-region cap, thresholds 82/68/55
 - ✅ Evidence-based quality signals with confidence language (no "ghost job" claims) — WJ-029
 - ✅ "Why it's a match" and "Sources & signals" tabs on job detail
+- ✅ "Not for me" actually influences future ranking: 3+ same-reason rejections become a bounded, dismissible ranking signal (previously the toast claimed this and nothing read the data) — WJ-099
+- ⬜ "Why Was This Job Filtered" (a job never shown, not one shown and scored low) — not implemented; only "Why This Job" (a shown job's own score) exists today
 
 ## 6. Run Wonder — workflow engine (spec §7, §12–15)
 
@@ -115,6 +117,13 @@ _Last updated: 2026-09-19 — story "Follow-up and interview reminders from the 
 - ✅ Server-side cron fires due schedules with the app closed: `/api/cron/scheduled-runs`, one run per tenant per tick, `nextRunAt` advanced before the run so nothing re-fires in a loop — WJ-094
 - ✅ Schedule times evaluated in the schedule's own timezone, DST-aware (unit-tested) — WJ-094
 - 🟡 Cadence is capped by the Vercel plan: Hobby allows one cron run a day, so it ships as a daily backstop and the browser still fires schedules on time while a tab is open. `CRON_INTERVAL_MINUTES` ≤ 60 (Pro) hands scheduling to the server outright and the client ticker stands down. Neither can double-fire — one shared `isDue` rule.
+
+## AI content grounding (WJ-098)
+
+- ✅ `TemplateAIService` (the deterministic draft every candidate sees without a configured model, and the seed a real model is asked to refine) no longer fabricates candidate facts: an invented "Experience highlights" section, an invented "shipped end to end" story, an invented notice period, and an invented second industry are now `[bracketed placeholders]` or omitted — see `docs/AI_GROUNDING_REPORT.md`
+- ✅ Regression fix: `generateCoverLetter` crashed for a candidate with zero industries set (`dna.industries[0].toLowerCase()`) — a real minimal-profile crash, not just a wording issue
+- ✅ 14 deterministic grounding tests against minimal and evidenced candidate fixtures
+- ⬜ Resume "Experience" section still can't be grounded automatically — Career DNA has no employment-history field (no companies/titles/dates); needs the resume-import extraction model extended, not an AI-service change
 
 ## 9. AI providers — BYOK and platform (spec §25–27, request #1)
 
