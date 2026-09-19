@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)” and “Why Was This Filtered (WJ-101)”._
+_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)” and “Playwright E2E infrastructure + auth.spec.ts, actually executed”._
 
 ## At a glance
 
@@ -191,6 +191,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 
 - ✅ 40 unit tests (engine, policy, normalizer, migrations, matching, contact notifications) — WJ-072, WJ-073
 - ✅ Playwright end-to-end scripts: auth + demo, full run, review restore, forgot password
+- 🟡 Real `@playwright/test` E2E suite (`apps/web/playwright.config.ts` + `apps/web/e2e/`, distinct from the ad-hoc scripts above): `auth.spec.ts` (18 tests, real Supabase accounts, no mocking) actually executed against chromium — 13 passed, 5 honestly skipped, 0 failed. Firefox/WebKit BLOCKED (no binaries in this sandbox). Found and fixed a real defect along the way: `GET /demo` was mutating session state (entering demo mode, which bypasses the sign-in requirement) on Next.js's automatic Link-prefetch request, not just on a real visit. See `apps/web/docs/TEST_EXECUTION_REPORT.md`. Rest of the golden-journey suite not written yet
 - ✅ Security QA of BYOK routes and cross-tenant isolation — WJ-074
 - ✅ Keyboard navigation, reduced motion, screen-reader workflow states — WJ-059..061
 - ✅ Performance pass: local-first hydration, batched sync, React Compiler, `bom1` functions, static id routes — WJ-077
