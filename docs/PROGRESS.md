@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094)"._
+_Last updated: 2026-09-19 — story "Import Career DNA from a resume (WJ-095)"._
 
 ## At a glance
 
@@ -21,7 +21,7 @@ _Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094
 |---|---:|---:|---:|---|
 | 1. Foundation & design system | 5 | 0 | 0 | ✅ |
 | 2. Accounts & sessions | 8 | 0 | 2 | 🟡 Google needs provider config; custom SMTP recommended |
-| 3. Onboarding & Career DNA | 3 | 0 | 1 | ✅ |
+| 3. Onboarding & Career DNA | 4 | 0 | 0 | ✅ |
 | 4. Job discovery (real sources) | 7 | 0 | 2 | ✅ |
 | 5. Matching, quality & explanations | 4 | 0 | 0 | ✅ |
 | 6. Run Wonder (workflow engine) | 10 | 0 | 0 | ✅ |
@@ -61,7 +61,7 @@ _Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094
 - ✅ 4-step onboarding writing real Career DNA (goal, level, years, skills, industries, locations, "about you")
 - ✅ Career DNA page with editing; matches re-scored on every change
 - ✅ New accounts start empty (no invented history); onboarding gated in the app shell
-- ⬜ Resume import to pre-fill Career DNA
+- ✅ Import Career DNA from a resume: PDF / Word / pasted text, every suggestion shown with the words it came from, applied only when the candidate ticks it; the file is never stored — WJ-095
 
 ## 4. Job discovery — real sources (spec §8–9, "don't show dummy data")
 

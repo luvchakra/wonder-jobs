@@ -13,6 +13,7 @@ import { Textarea, Input } from "@/components/common/Input";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { StoreHydrator } from "@/store/StoreHydrator";
 import { useHydration } from "@/store/hydration";
+import { ResumeImport } from "@/components/career/ResumeImport";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { track } from "@/lib/analytics";
@@ -153,7 +154,24 @@ function Steps() {
               <p className="wj-eyebrow text-brand-200">Step 2 of 3</p>
               <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">A little about you</h1>
               <p className="mt-2 text-[14px] text-white/75">This is your Career DNA. Wonder scores every real posting against it, so the more honest, the better the matches. You can refine it any time.</p>
-              <div className="mt-6 flex flex-col gap-4">
+              <div className="mt-5">
+                <ResumeImport
+                  tone="dark"
+                  label="Fill this in from my resume"
+                  onApply={(patch) => {
+                    // Straight into the fields on screen, not into the store: this is still a draft the
+                    // candidate is editing, and nothing is saved until they finish onboarding.
+                    if (patch.headline !== undefined) setHeadline(patch.headline);
+                    if (patch.seniority !== undefined) setSeniority(patch.seniority);
+                    if (patch.yearsExperience !== undefined) setYears(String(patch.yearsExperience));
+                    if (patch.skills?.length) setSkillsText(patch.skills.map((s) => s.name).join(", "));
+                    if (patch.industries?.length) setIndustries(patch.industries.filter((i) => INDUSTRIES.includes(i)));
+                    if (patch.preferredLocations?.length && !locations) setLocations(patch.preferredLocations.join(", "));
+                    if (patch.name) updateDNA({ name: patch.name });
+                  }}
+                />
+              </div>
+              <div className="mt-4 flex flex-col gap-4">
                 <Input value={headlineValue} onChange={(e) => setHeadline(e.target.value)} aria-label="Headline" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Headline, e.g. Product Manager · Consumer & Fintech" disabled={!hydrated} />
                 <div className="grid grid-cols-2 gap-3">
                   <Select value={seniorityValue} onChange={(e) => setSeniority(e.target.value as CareerDNA["seniority"])} aria-label="Current level" className="border-white/20 bg-white/10 text-white focus:border-brand-300 focus:ring-brand-500/30" disabled={!hydrated}>

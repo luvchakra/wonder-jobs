@@ -8,6 +8,7 @@ import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
+import { ResumeImport } from "@/components/career/ResumeImport";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -29,6 +30,7 @@ export default function CareerDNAPage() {
         actions={
           <>
             <Badge>Updated {formatDate(dna.updatedAt)}</Badge>
+            <ResumeImport onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             <Button
               disabled={!dirty}
               onClick={() => {
