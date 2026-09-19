@@ -154,11 +154,12 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
             <div className="rounded-[16px] border border-dashed border-line-strong bg-bg-soft p-6 text-center">
               <Upload className="mx-auto size-6 text-ink-3" aria-hidden />
               <p className="mt-2 text-[14px] font-medium text-ink">Upload a PDF or Word file</p>
-              <p className="mt-1 text-[12px] text-ink-3">Up to 5 MB. Scanned or image-only PDFs have no text to read — paste those instead.</p>
+              <p className="mt-1 text-[12px] text-ink-2">Up to 5 MB. Scanned or image-only PDFs have no text to read — paste those instead.</p>
               <input
                 ref={fileRef}
                 type="file"
                 accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                aria-label="Resume file"
                 className="sr-only"
                 onChange={(e) => {
                   const file = e.target.files?.[0];

@@ -12,14 +12,21 @@ interface Support {
 
 /** Browser capability doesn't change while the page is open, so there is nothing to subscribe to. */
 const noSubscribe = () => () => {};
+/**
+ * Cached deliberately, and this is not an optimisation: `useSyncExternalStore` compares snapshots by
+ * identity, so returning a fresh object each call makes every render look like a change and React
+ * re-renders until it gives up and throws. Capability can't change mid-page, so one object is correct.
+ */
+let cachedSupport: Support | undefined;
 const clientSupport = (): Support =>
-  "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
-    ? { ok: true }
-    : {
-        ok: false,
-        // Most often iOS Safari outside an installed PWA: a real limitation, worth saying plainly.
-        why: /iphone|ipad/i.test(navigator.userAgent) ? "On iPhone and iPad, notifications work once you add WonderJobs to your Home Screen." : "This browser doesn't support web notifications.",
-      };
+  (cachedSupport ??=
+    "serviceWorker" in navigator && "PushManager" in window && "Notification" in window
+      ? { ok: true }
+      : {
+          ok: false,
+          // Most often iOS Safari outside an installed PWA: a real limitation, worth saying plainly.
+          why: /iphone|ipad/i.test(navigator.userAgent) ? "On iPhone and iPad, notifications work once you add WonderJobs to your Home Screen." : "This browser doesn't support web notifications.",
+        });
 /** The server can't know what the browser supports, and rendering nothing is the safe answer. */
 const serverSupport = (): Support | null => null;
 

@@ -24,11 +24,34 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url)) + "/..";
 const AXE_SOURCE = readFileSync(new URL("../../../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
 
 const PUBLIC_PAGES = ["/", "/sign-in", "/sign-up", "/forgot-password", "/help", "/about", "/privacy", "/terms", "/security", "/cookies"];
-const DEMO_PAGES = ["/app", "/app/jobs", "/app/runs", "/app/applications", "/app/automation/settings", "/app/career-dna", "/app/settings/ai", "/app/profile"];
+const DEMO_PAGES = ["/app", "/app/jobs", "/app/runs", "/app/applications", "/app/automation/settings", "/app/automation/scheduled", "/app/career-dna", "/app/settings/ai", "/app/profile"];
+
+/**
+ * Screens that only exist after an interaction. A dialog is exactly where accessibility tends to break
+ * — focus, labelling, contrast on an overlay — so auditing only what renders on load would miss the
+ * riskiest part of the UI.
+ */
+const INTERACTIONS = [
+  {
+    name: "/app/career-dna (resume import dialog)",
+    url: "/app/career-dna",
+    open: async (page) => {
+      await page.getByRole("button", { name: /import from resume/i }).click();
+      await page.getByRole("dialog").waitFor({ state: "visible", timeout: 5_000 });
+      // The paste panel is part of the same dialog and is worth auditing with it.
+      await page.getByRole("button", { name: /paste the text instead/i }).click();
+    },
+  },
+];
 
 // Impacts axe-core reports, worst first. Anything at or above FAIL_AT fails the run.
 const IMPACT_RANK = { minor: 0, moderate: 1, serious: 2, critical: 3 };
 const FAIL_AT = "serious";
+
+async function runAxe(page) {
+  await page.addScriptTag({ content: AXE_SOURCE });
+  return await page.evaluate(async () => await globalThis.axe.run(document, { resultTypes: ["violations"] }));
+}
 
 async function auditPage(page, url) {
   await page.goto(url, { waitUntil: "load", timeout: 30_000 });
@@ -37,11 +60,14 @@ async function auditPage(page, url) {
   await page.waitForTimeout(300);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
-  await page.addScriptTag({ content: AXE_SOURCE });
-  const results = await page.evaluate(async () => {
-    return await globalThis.axe.run(document, { resultTypes: ["violations"] });
-  });
-  return results.violations;
+  return (await runAxe(page)).violations;
+}
+
+async function auditInteraction(page, base, step) {
+  await page.goto(base + step.url, { waitUntil: "load", timeout: 30_000 });
+  await step.open(page);
+  await page.waitForTimeout(200);
+  return (await runAxe(page)).violations;
 }
 
 async function main() {
@@ -86,6 +112,14 @@ async function main() {
       });
       for (const v of violations) findings.push({ page: p, id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length, targets: v.nodes.slice(0, 3).map((n) => n.target.join(" ")) });
     }
+
+    for (const step of INTERACTIONS) {
+      const violations = await auditInteraction(page, base, step).catch((e) => {
+        console.error(`  ! ${step.name}: could not audit (${e.message})`);
+        return [];
+      });
+      for (const v of violations) findings.push({ page: step.name, id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length, targets: v.nodes.slice(0, 3).map((n) => n.target.join(" ")) });
+    }
   } finally {
     await browser.close();
     if (server) server.kill();
@@ -97,7 +131,7 @@ async function main() {
     byPage.get(f.page).push(f);
   }
 
-  console.log(`\nAudited ${PUBLIC_PAGES.length + DEMO_PAGES.length} pages, ${findings.length} violation group(s) found.\n`);
+  console.log(`\nAudited ${PUBLIC_PAGES.length + DEMO_PAGES.length} pages and ${INTERACTIONS.length} interaction state(s), ${findings.length} violation group(s) found.\n`);
   for (const [p, list] of byPage) {
     console.log(`${p}`);
     for (const f of list) console.log(`  [${f.impact}] ${f.id} — ${f.help} (${f.nodes} node${f.nodes === 1 ? "" : "s"}: ${f.targets.join(", ")})`);
