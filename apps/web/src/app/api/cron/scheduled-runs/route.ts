@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
+import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
+import { raiseDueReminders } from "@/server/workflow/reminders";
+import { notifyTenant } from "@/server/push/subscriptions";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
 
 export const runtime = "nodejs";
@@ -14,11 +16,11 @@ const TENANT_BUDGET_MS = 60_000;
 const MAX_TENANTS = 200;
 
 /**
- * Fires every tenant's due scheduled runs (spec §18).
+ * Fires every tenant's due scheduled runs, and raises every due reminder (spec §18, §45).
  *
- * Until now a schedule only fired while the candidate had a tab open, which made "every weekday at
- * 08:00" a promise the product couldn't keep. Vercel Cron calls this; it does the same work the
- * browser's scheduler did, against persisted state, for everyone at once.
+ * Until now both of these only happened while the candidate had a tab open, which made "every weekday
+ * at 08:00" — and "your interview is tomorrow" — promises the product couldn't keep. Vercel Cron calls
+ * this; it does the same work the browser's scheduler did, against persisted state, for everyone.
  *
  * Authentication: `CRON_SECRET`, which Vercel sends as `Authorization: Bearer …` on scheduled
  * invocations. With no secret configured the endpoint refuses to run rather than standing open.
@@ -58,12 +60,34 @@ export async function GET(req: Request) {
     }
   }
 
+  // Reminders are cheap (a read, and a write only when there is something to say), so they run even
+  // when the schedule pass used most of the budget — a missed interview reminder is worse than a late run.
+  let reminded = 0;
+  let remindedTenants = 0;
+  try {
+    for (const tenantId of await listTenantsWithDueReminders(now, MAX_TENANTS)) {
+      if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
+      try {
+        const report = await raiseDueReminders(tenantId, now);
+        if (!report.raised) continue;
+        remindedTenants++;
+        reminded += report.raised;
+        for (const push of report.pushes) await notifyTenant(tenantId, push);
+      } catch (e) {
+        failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
+  }
+
   return NextResponse.json({
     ok: true,
     at: now.toISOString(),
     tenantsDue: tenants.length,
     ran: reports.length,
     deferred,
+    reminders: { tenants: remindedTenants, raised: reminded },
     tookMs: Date.now() - startedAt,
     outcomes: reports,
     failures,

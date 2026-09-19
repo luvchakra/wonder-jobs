@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — story "Push notification delivery (WJ-096)"._
+_Last updated: 2026-09-19 — story "Follow-up and interview reminders from the server (WJ-097)"._
 
 ## At a glance
 
@@ -175,7 +175,7 @@ _Last updated: 2026-09-19 — story "Push notification delivery (WJ-096)"._
 - ⬜ Two-way calendar sync (writing back to Google/Microsoft) — needs an OAuth client per provider
 - ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API, so nothing renders there rather than faking it), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
 - ✅ Push notifications: RFC 8291/8292 Web Push with no dependency (verified against the RFC's own test vector), per-browser subscriptions in Postgres, opt-in from Profile, delivered by the scheduled-run cron — WJ-096
-- 🟡 Follow-up and interview reminders are still pushed only while a tab is open; the cron sweeps schedules, not application due-dates
+- ✅ Follow-up and interview reminders are raised by the cron too, so they arrive with the app closed; the browser still raises them while open and neither repeats the other — WJ-097
 
 ## 14. Quality, accessibility, performance (spec §39–47)
 

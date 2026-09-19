@@ -56,6 +56,7 @@ Schedules fire on the server, so a run happens at its time whether or not anyone
   On **Pro**, change the schedule to `*/15 * * * *` and set `CRON_INTERVAL_MINUTES=15`. Any value at or below 60 tells the app the cron is punctual enough to own scheduling outright, and the browser stands down entirely. The default when the variable is unset is 1440 (daily).
 - **What a scheduled run does**: the stages that need nobody present — read the Career DNA, search the enabled sources, deduplicate, analyse, match, check quality, rank — then publishes the catalog, saves strong matches if the automation policy allows, and notifies (or stays silent when the schedule's condition is not met). Preparing materials, reviewing them and handing off to an employer always wait for the candidate; a schedule made only of those stages is skipped rather than half-run.
 - **Times are the candidate's own**: a schedule stores the timezone it was created in and fires at that wall-clock time, across daylight-saving changes.
+- **The same invocation also raises reminders**: follow-ups and interviews coming due (or a day overdue) become notifications, and a push if the candidate turned them on. Migration `0006` is what lets the cron ask the database who needs one.
 
 ## Push notifications
 
