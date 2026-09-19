@@ -98,7 +98,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
       actions,
       lastRunAt: sch?.lastRunAt,
       lastRunId: sch?.lastRunId,
-      nextRunAt: trigger === "schedule" ? nextRunAt({ frequency, days, time }) : undefined,
+      nextRunAt: trigger === "schedule" ? nextRunAt({ frequency, days, time, timezone }) : undefined,
       createdAt: sch?.createdAt ?? new Date().toISOString(),
     };
     upsertWorkflow(workflow);

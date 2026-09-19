@@ -11,6 +11,7 @@ import { useUIStore } from "./ui";
 import { useActionsStore } from "./actions";
 import { useAuthStore } from "./auth";
 import { onRemoteChange } from "./remoteStorage";
+import { setScheduleOwner } from "@/services/scheduler";
 import { getWorkflowService } from "@/services/workflow/service";
 import { isDemoSeeded, seedDemo } from "@/services/mock/demo";
 import { getClientMode } from "@/lib/mode";
@@ -70,7 +71,10 @@ function finishBoot() {
       void bootstrapIdentity();
       void fetch("/api/jobs/sources", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d: { available?: Record<string, boolean> } | null) => d?.available && useJobsStore.getState().setSourceAvailability(d.available))
+        .then((d: { available?: Record<string, boolean>; scheduledRuns?: "server" | "browser" } | null) => {
+          if (d?.available) useJobsStore.getState().setSourceAvailability(d.available);
+          if (d?.scheduledRuns) setScheduleOwner(d.scheduledRuns);
+        })
         .catch(() => {});
     }
   });

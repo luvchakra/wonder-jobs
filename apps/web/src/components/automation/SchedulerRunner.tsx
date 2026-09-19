@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { schedulerTick } from "@/services/scheduler";
 
-/** Runs the mock scheduler while the app is open: due schedules fire, reminders surface. */
+/** Ticks the scheduler while the app is open: reminders surface, and due schedules fire on deployments where the server cron is not configured (see services/scheduler.ts). */
 export function SchedulerRunner() {
   useEffect(() => {
     const t0 = setTimeout(() => schedulerTick(), 1500);

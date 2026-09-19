@@ -17,12 +17,24 @@ import { track } from "@/lib/analytics";
 
 const DAY = 86_400_000;
 
+/**
+ * Who fires due schedules. The server cron (`/api/cron/scheduled-runs`) does it for everyone when the
+ * deployment is configured for it, and then this tab must not: two schedulers racing on the same
+ * `nextRunAt` would run the same schedule twice. Reported by /api/jobs/sources at boot; "browser" until
+ * we hear otherwise, so a deployment without the cron still keeps its promise while a tab is open.
+ */
+let owner: "server" | "browser" = "browser";
+export function setScheduleOwner(next: "server" | "browser") {
+  owner = next;
+}
+
 export function schedulerTick(now = Date.now()) {
   fireDueSchedules(now);
   raiseReminders(now);
 }
 
 function fireDueSchedules(now: number) {
+  if (owner === "server") return;
   const ws = useWorkflowStore.getState();
   if (Object.values(ws.runs).some((r) => isActive(r.status))) return; // one run at a time
   const due = Object.values(ws.schedules)

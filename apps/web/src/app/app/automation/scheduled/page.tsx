@@ -45,7 +45,7 @@ export default function ScheduledRunsPage() {
     <div>
       <PageHeader
         title="Scheduled Runs"
-        description="Workflow → Trigger → Schedule → Stages → Conditions → Actions. Silence is a valid outcome: Wonder only notifies you when there's something worth your attention."
+        description="Workflow → Trigger → Schedule → Stages → Conditions → Actions. These run on Wonder's servers, so they fire at their time whether or not you have the app open. Silence is a valid outcome: Wonder only notifies you when there's something worth your attention."
         actions={
           <Button href="/app/automation/scheduled/new" icon={<Plus className="size-4" aria-hidden />}>
             New scheduled run

@@ -28,6 +28,8 @@ export interface StateStore {
   get(tenantId: string, store: StateStoreName): Promise<StateDoc | undefined>;
   getAll(tenantId: string): Promise<StateDocs>;
   put(tenantId: string, store: StateStoreName, state: unknown): Promise<StateDoc>;
+  /** Tenants that have a document for this store. Used by the scheduled-run cron to find work. */
+  listTenants(store: StateStoreName, limit?: number): Promise<string[]>;
   putMany(tenantId: string, docs: Partial<Record<StateStoreName, unknown>>): Promise<SaveResult>;
   remove(tenantId: string, store: StateStoreName): Promise<void>;
 }
@@ -53,6 +55,15 @@ class MemoryStateStore implements StateStore {
     const doc = { state, version: (prev?.version ?? 0) + 1, updatedAt: new Date().toISOString() };
     this.data.set(this.key(t, s), doc);
     return doc;
+  }
+  async listTenants(store: StateStoreName, limit = 200) {
+    const out: string[] = [];
+    for (const key of this.data.keys()) {
+      const [tenant, s] = key.split("::");
+      if (s === store && !out.includes(tenant)) out.push(tenant);
+      if (out.length >= limit) break;
+    }
+    return out;
   }
   async putMany(t: string, docs: Partial<Record<StateStoreName, unknown>>) {
     const out: SaveResult = {};
@@ -89,6 +100,11 @@ class SupabaseStateStore implements StateStore {
       if (isStateStoreName(row.store)) out[row.store] = { state: row.state, version: row.version, updatedAt: row.updated_at };
     }
     return out;
+  }
+  async listTenants(store: StateStoreName, limit = 200) {
+    const { data, error } = await this.sb().from("app_state").select("tenant_id").eq("store", store).order("updated_at", { ascending: false }).limit(limit);
+    if (error) throw new Error(`Could not list tenants: ${error.message}`);
+    return [...new Set((data ?? []).map((r) => (r as { tenant_id: string }).tenant_id))];
   }
   async put(t: string, s: StateStoreName, state: unknown) {
     const res = await this.putMany(t, { [s]: state });

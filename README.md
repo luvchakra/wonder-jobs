@@ -46,6 +46,15 @@ Runs search live public sources through `GET /api/jobs/search` (one request per 
   3. Supabase → Authentication → URL configuration: Site URL = deployment origin; Redirect URLs include `<origin>/auth/callback`.
   Until step 2 is done the button shows "Google sign-in isn't switched on for this deployment yet".
 
+## Scheduled runs
+
+Schedules fire on the server, so a run happens at its time whether or not anyone has the app open.
+
+- **Endpoint**: `GET /api/cron/scheduled-runs`, invoked by Vercel Cron every 15 minutes (`vercel.json`). Each tick asks the database which tenants have a schedule due (`wonderjobs.due_schedule_tenants`, migration `0004`) and fires at most one schedule per tenant.
+- **Setup**: add a `CRON_SECRET` environment variable in Vercel → Settings → Environment Variables (any long random string). Vercel sends it as `Authorization: Bearer …` on scheduled invocations. Without it the endpoint refuses to run — it will not stand open — and the app falls back to firing schedules in the browser while a tab is open. To test by hand: `curl -H "Authorization: Bearer $CRON_SECRET" https://<origin>/api/cron/scheduled-runs`.
+- **What a scheduled run does**: the stages that need nobody present — read the Career DNA, search the enabled sources, deduplicate, analyse, match, check quality, rank — then publishes the catalog, saves strong matches if the automation policy allows, and notifies (or stays silent when the schedule's condition is not met). Preparing materials, reviewing them and handing off to an employer always wait for the candidate; a schedule made only of those stages is skipped rather than half-run.
+- **Times are the candidate's own**: a schedule stores the timezone it was created in and fires at that wall-clock time, across daylight-saving changes.
+
 ## Help center and contact
 
 - `/help` is public: user guide, FAQ and an assistant that answers from the guide and links the matching section (`POST /api/help/ask`; uses the platform model when `WONDERJOBS_AI_KEY` is set). Linked as **Get Help** in the avatar menu.

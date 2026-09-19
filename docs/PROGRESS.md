@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-18 — story "Help centre reachable from everywhere (WJ-093)"._
+_Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094)"._
 
 ## At a glance
 
@@ -26,7 +26,7 @@ _Last updated: 2026-09-18 — story "Help centre reachable from everywhere (WJ-0
 | 5. Matching, quality & explanations | 4 | 0 | 0 | ✅ |
 | 6. Run Wonder (workflow engine) | 10 | 0 | 0 | ✅ |
 | 7. Applications & materials | 6 | 0 | 1 | ✅ |
-| 8. Automation & scheduling | 5 | 1 | 1 | 🟡 server-side scheduler pending |
+| 8. Automation & scheduling | 7 | 0 | 0 | ✅ |
 | 9. AI providers (BYOK + platform) | 8 | 0 | 1 | ✅ |
 | 10. Persistence & sync | 4 | 0 | 0 | ✅ |
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
@@ -112,8 +112,9 @@ _Last updated: 2026-09-18 — story "Help centre reachable from everywhere (WJ-0
 - ✅ Scheduled runs: list, enable/disable, run now, duplicate, delete — WJ-021
 - ✅ Schedule builder and 5 workflow templates — WJ-022, WJ-023
 - ✅ Silent outcome when a schedule's condition is not met — WJ-024
-- 🟡 Client-side scheduler fires due schedules while the app is open
-- ⬜ Server-side cron so schedules run with the app closed
+- ✅ Server-side cron fires due schedules with the app closed: `/api/cron/scheduled-runs` every 15 minutes, one run per tenant per tick, `nextRunAt` advanced before the run so nothing re-fires in a loop — WJ-094
+- ✅ Schedule times evaluated in the schedule's own timezone, DST-aware (unit-tested) — WJ-094
+- ✅ The client-side scheduler stands down when the server owns firing, so the two never race; it still covers deployments with no `CRON_SECRET`
 
 ## 9. AI providers — BYOK and platform (spec §25–27, request #1)
 

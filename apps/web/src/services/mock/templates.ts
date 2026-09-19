@@ -1,6 +1,9 @@
 import type { StageKey } from "@/domain/workflow/stages";
 import type { WorkflowSchedule } from "@/domain/workflow/types";
 
+/** Re-exported so callers keep one import for everything schedule-shaped; the logic lives in the domain. */
+export { nextScheduledRun as nextRunAt } from "@/domain/workflow/schedule";
+
 export interface ScheduleTemplate {
   id: string;
   name: string;
@@ -31,18 +34,4 @@ export function describeSchedule(s: Pick<WorkflowSchedule, "frequency" | "days" 
   const time = t.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
   const when = s.frequency === "daily" ? "Every day" : s.frequency === "weekdays" ? "Every weekday" : s.frequency === "weekly" ? `Every ${s.days.map((d) => DAY_NAMES[d]).join(", ")}` : `Monthly on day ${s.days[0] ?? 1}`;
   return `${when} at ${time}`;
-}
-
-/** Next occurrence in local time (spec §19 — timezone shown; evaluation uses the browser clock in this mock backend). */
-export function nextRunAt(s: Pick<WorkflowSchedule, "frequency" | "days" | "time">, from = new Date()) {
-  const [h, m] = s.time.split(":").map(Number);
-  for (let i = 0; i < 62; i++) {
-    const d = new Date(from);
-    d.setDate(d.getDate() + i);
-    d.setHours(h, m, 0, 0);
-    if (d <= from) continue;
-    const ok = s.frequency === "daily" ? true : s.frequency === "weekdays" ? d.getDay() >= 1 && d.getDay() <= 5 : s.frequency === "weekly" ? s.days.includes(d.getDay()) : d.getDate() === (s.days[0] ?? 1);
-    if (ok) return d.toISOString();
-  }
-  return undefined;
 }
