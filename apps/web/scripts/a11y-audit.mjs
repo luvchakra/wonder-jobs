@@ -42,6 +42,19 @@ const INTERACTIONS = [
       await page.getByRole("button", { name: /paste the text instead/i }).click();
     },
   },
+  {
+    name: "/app/jobs (Why Was This Filtered — some results hidden)",
+    url: "/app/jobs?saved=1",
+    open: async () => {}, // the URL param alone drives the filtered state; nothing to click
+  },
+  {
+    name: "/app/jobs (Why Was This Filtered — zero results)",
+    url: "/app/jobs",
+    open: async (page) => {
+      await page.getByLabel("Search jobs").fill("zzzznonexistentqueryzzzz");
+      await page.waitForTimeout(400); // the search is debounced
+    },
+  },
 ];
 
 // Impacts axe-core reports, worst first. Anything at or above FAIL_AT fails the run.

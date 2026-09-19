@@ -11,7 +11,7 @@ export function EmptyState({ icon, title, body, action, className }: { icon?: Re
   return (
     <div className={cn("flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center", className)}>
       <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">{icon ?? <Inbox className="size-5" aria-hidden />}</div>
-      <h3 className="text-base font-semibold text-ink">{title}</h3>
+      <h2 className="text-base font-semibold text-ink">{title}</h2>
       {body && <p className="mt-1 max-w-sm text-sm text-ink-3">{body}</p>}
       {action && (
         <Button className="mt-5" size="sm" href={action.href} onClick={action.onClick}>

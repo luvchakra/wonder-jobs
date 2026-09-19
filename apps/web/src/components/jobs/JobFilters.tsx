@@ -7,13 +7,14 @@ import { WORK_MODE_LABEL } from "./JobCard";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Button } from "@/components/common/Button";
+import { CLEAR_FILTERS_PATCH } from "./FilteredBreakdown";
 
 const FIT_ORDER = ["strong", "worth_considering", "stretch"] as const;
 
 export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; className?: string }) {
   const [more, setMore] = useState(false);
   const activeCount = filters.workModes.length + filters.sourceIds.length + (filters.minFit ? 1 : 0) + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (filters.onlySaved ? 1 : 0);
-  const clear = () => onChange({ workModes: [], sourceIds: [], minFit: null, freshnessDays: null, minSalary: undefined, onlySaved: false });
+  const clear = () => onChange(CLEAR_FILTERS_PATCH);
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="relative">

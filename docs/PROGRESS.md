@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)” and “Platform AI on any of the three vendors (WJ-100)”._
+_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)” and “Why Was This Filtered (WJ-101)”._
 
 ## At a glance
 
@@ -82,7 +82,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Evidence-based quality signals with confidence language (no "ghost job" claims) — WJ-029
 - ✅ "Why it's a match" and "Sources & signals" tabs on job detail
 - ✅ "Not for me" actually influences future ranking: 3+ same-reason rejections become a bounded, dismissible ranking signal (previously the toast claimed this and nothing read the data) — WJ-099
-- ⬜ "Why Was This Job Filtered" (a job never shown, not one shown and scored low) — not implemented; only "Why This Job" (a shown job's own score) exists today
+- ✅ "Why Was This Filtered": a breakdown panel above Jobs results (and in place of a blank empty state) attributing every hidden catalog job to the specific active filter hiding it, with "Show me anyway" and "Change my preferences" — WJ-101
 
 ## 6. Run Wonder — workflow engine (spec §7, §12–15)
 

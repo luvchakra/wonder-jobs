@@ -12,9 +12,10 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar } from "@/components/jobs/JobFilters";
+import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
+import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { toast } from "@/components/feedback/Toast";
 
-const FIT_RANK: Record<FitLabel, number> = { strong: 3, worth_considering: 2, stretch: 1, low_fit: 0 };
 const PAGE = 24;
 
 function JobsInner() {
@@ -47,34 +48,21 @@ function JobsInner() {
 
   const appByJob = useMemo(() => new Map(Object.values(applications).map((a) => [a.jobId, a])), [applications]);
 
+  // Single source of truth for what's visible and why the rest is hidden — the results list and the
+  // "Why Was This Filtered" breakdown below can never disagree, because they read the same computation.
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, { ...filters, query }, now), [order, jobs, matches, rejected, saved, filters, query, now]);
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const terms = q.split(/\s+/).filter(Boolean);
-    const list = order.filter((id) => {
-      const j = jobs[id];
-      const m = matches[id];
-      if (!j || rejected[id]) return false;
-      if (filters.onlySaved && !saved[id]) return false;
-      if (filters.workModes.length && !filters.workModes.includes(j.workMode)) return false;
-      if (filters.sourceIds.length && !j.sourceIds.some((s) => filters.sourceIds.includes(s))) return false;
-      if (filters.minFit && (!m || FIT_RANK[m.fit] < FIT_RANK[filters.minFit])) return false;
-      if (filters.freshnessDays && now - new Date(j.postedAt).getTime() > filters.freshnessDays * 86_400_000) return false;
-      if (filters.minSalary && (j.salaryMax == null || (j.currency === "INR" ? j.salaryMax : j.salaryMax * 30) < filters.minSalary)) return false;
-      if (terms.length) {
-        const hay = `${j.title} ${j.company} ${j.location} ${j.skills.join(" ")} ${j.tags.join(" ")}`.toLowerCase();
-        if (!terms.every((t) => hay.includes(t))) return false;
-      }
-      return true;
-    });
+    const list = [...filterResult.visibleIds];
     list.sort((a, b) => {
       if (sort === "date") return jobs[b].postedAt.localeCompare(jobs[a].postedAt);
       if (sort === "salary") return (jobs[b].salaryMax ?? 0) - (jobs[a].salaryMax ?? 0);
       return (matches[b]?.score ?? 0) - (matches[a]?.score ?? 0) || jobs[b].postedAt.localeCompare(jobs[a].postedAt);
     });
     return list;
-  }, [order, jobs, matches, rejected, saved, filters, query, sort, now]);
+  }, [filterResult, jobs, matches, sort]);
 
   const visible = results.slice(0, limit);
+  const showAnyway = () => setFilters(CLEAR_FILTERS_PATCH);
 
   return (
     <div>
@@ -89,9 +77,14 @@ function JobsInner() {
       />
       <JobFiltersBar filters={filters} onChange={(p) => { setFilters(p); setLimit(PAGE); }} sort={sort} onSort={setSort} sources={sources} total={results.length} className="mb-5" />
       {results.length === 0 ? (
-        <EmptyState title="No jobs match these filters" body="Try a broader search, or run Wonder to search all sources again." action={{ label: "Run Wonder", href: "/app/runs/new" }} />
+        filterResult.hiddenTotal > 0 ? (
+          <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} variant="empty" />
+        ) : (
+          <EmptyState title="No jobs discovered yet" body="Run Wonder to search your sources." action={{ label: "Run Wonder", href: "/app/runs/new" }} />
+        )
       ) : (
         <>
+          <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} />
           <h2 className="wj-sr-only">Job results</h2>
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (

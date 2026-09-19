@@ -28,7 +28,7 @@ bugs already in production, with tests. Everything else below is scoped but not 
 | 2 | Turn "Ask Wonder" into a real intent-driven agent entry point | BACKLOG | No natural-language agent exists; §8's intent JSON, editable-chip preview and agent actions are unbuilt |
 | 3 | Implement a real candidate learning loop | **PARTIAL** | Negative loop (rejections → ranking) done, WJ-099. Positive loop (saves/applications → preference suggestions, §17/§35's own worked example) not started |
 | 4 | Make "Not for me" actually influence ranking, or remove the claim | **DONE** | WJ-099, `docs/LEARNING_EVALUATION_REPORT.md`, 21 tests |
-| 5 | Explain why jobs were shown AND why filtered | **PARTIAL** | "Why This Job" (shown jobs) already existed pre-mandate. "Why Was This Filtered" (never-shown jobs) does not exist — no UI or data path surfaces jobs excluded before ranking |
+| 5 | Explain why jobs were shown AND why filtered | **DONE** | "Why This Job" (shown jobs) pre-existing. "Why Was This Filtered" (WJ-101): every catalog job hidden by an active filter or "not for me" is attributed to a specific reason, shown as a breakdown with the spec's required "Show me anyway"/"Change my preferences" actions. **Scope note:** covers jobs hidden by the candidate's own filters and rejections — a job the *search stage itself* never discovered (a source's own query missing it) isn't "filtered" in this sense and isn't covered; that's source coverage transparency (Gap #9), a separate concern |
 | 6 | First-class job comparison | BACKLOG | No comparison UI or data model |
 | 7 | Evidence-based application recommendations ("Should I spend time on this?") | BACKLOG | Not built |
 | 8 | Persistent opportunity memory across searches/sources | BACKLOG | No cross-run job identity; each run's catalog replaces the last (`replaceCatalog`) rather than merging into persistent history |
@@ -70,7 +70,7 @@ made, and shouldn't be guessed at in code before it is.
 | 1 — Trust | **PARTIAL** | AI grounding (WJ-098) and truthful external-action states (already true, re-verified) done. "Remove fabricated fallback content" done for the template AI path only, not audited across every other UI copy string in the app |
 | 2 — UX (staged onboarding, Today dashboard, progressive disclosure, mobile) | BACKLOG | Existing onboarding/Home are the pre-mandate implementation, not restructured to §6/§5's staged flow or §4's three-level disclosure |
 | 3 — Wonder Agent | BACKLOG | Not started |
-| 4 — Opportunity Intelligence (Why Filtered, comparison, recommendation, memory) | BACKLOG | Not started |
+| 4 — Opportunity Intelligence (Why Filtered, comparison, recommendation, memory) | **PARTIAL** | Why Filtered done (WJ-101); comparison, recommendation and memory not started |
 | 5 — Learning | **PARTIAL** | Negative/rejection path only (WJ-099) |
 | 6 — Application Intelligence (Application Pack) | BACKLOG | Not started |
 | 7 — Source Intelligence | BACKLOG | Not started |
@@ -110,7 +110,7 @@ default, not an oversight.
 - [x] Tenant isolation passes — pre-existing, unit/integration-tested in prior sessions; not re-run as part of this pass
 - [ ] Full Playwright suite exists and has actually run — does not exist
 - [ ] Golden journeys pass — no Playwright suite to run them in
-- [x] Accessibility passes — `npm run a11y` re-run after this pass's Career DNA and job-detail UI changes (new reason-picker interaction, learned-preferences card): 19 pages + 1 interaction state, 0 violations
+- [x] Accessibility passes — `npm run a11y`: 19 pages + 3 interaction states, 0 violations. Found and fixed a real pre-existing moderate heading-order defect in the shared `EmptyState` component (h3 directly under a page's h1) while adding coverage for WJ-101's new empty-state UI
 - [ ] Mobile/browser smoke passes — no Playwright suite to run it in
 - [x] Production build passes — `npm run build` green this pass
 - [x] No P0 defects remain *among what was tested* — the two fixed items were the P0/P1-grade defects found; nothing else was audited for defects this pass
@@ -127,16 +127,15 @@ default, not an oversight.
 
 ## What a future session should pick up next, in priority order
 
-1. **Why Was This Filtered** (§11) — the natural next step after WJ-098/099, reuses the same
-   `computeMatch`/highlights machinery, and is explicitly required for the "Not for me" story to feel
-   complete (a candidate who marks a role "wrong industry" should be able to ask why a *different* role
-   never showed up at all).
-2. **Playwright infrastructure** (§32) — `playwright.config.ts` + `e2e/` scaffolding, starting with
+1. **Playwright infrastructure** (§32) — `playwright.config.ts` + `e2e/` scaffolding, starting with
    `auth.spec.ts` and `golden-journeys.spec.ts`, is the highest-leverage single addition: it's the only
    way any of this document's other claims can be verified by execution rather than by reading code.
-3. **Employment-history field in Career DNA** — unblocks the resume "Experience" section (the one
+2. **Employment-history field in Career DNA** — unblocks the resume "Experience" section (the one
    remaining gap noted in `docs/AI_GROUNDING_REPORT.md`) and is also the prerequisite for §5.0's full
    structured `experiences[]` extraction model.
-4. **LinkedIn import mechanism decision** — a product/compliance call (which of the spec's four listed
+3. **LinkedIn import mechanism decision** — a product/compliance call (which of the spec's four listed
    mechanisms is actually authorized for this deployment) needs to be made before any LinkedIn code is
    written, not inferred by an implementation session.
+4. **Job comparison** (Gap #6) — the next most tractable Critical Gap: a 2–4-job comparison view can
+   reuse `computeMatch`'s existing per-dimension reasons directly, similar in shape to this pass's Why-
+   Filtered work.
