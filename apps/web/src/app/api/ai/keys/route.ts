@@ -22,7 +22,7 @@ export async function GET() {
   const { tenantId } = session;
   const keys = (await secretStore.list(tenantId)).map(toStatus);
   const platform = platformAI();
-  return NextResponse.json({ keys, platform: platform ? { configured: true, model: platform.model } : { configured: false } }, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json({ keys, platform: platform ? { configured: true, model: platform.model, provider: platform.provider } : { configured: false } }, { headers: { "cache-control": "no-store" } });
 }
 
 export async function POST(req: Request) {

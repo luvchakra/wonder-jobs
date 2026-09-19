@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const platform = platformAI();
     if (!platform) return NextResponse.json({ error: "WonderJobs AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
     try {
-      const result = await getServerProvider("anthropic")!.complete(platform.apiKey, { model: platform.model, system, prompt, maxTokens: maxTokens ?? 2048 });
+      const result = await getServerProvider(platform.provider)!.complete(platform.apiKey, { model: platform.model, system, prompt, maxTokens: maxTokens ?? 2048 });
       return NextResponse.json(result);
     } catch (e) {
       if (e instanceof ServerProviderError) return NextResponse.json({ error: e.message.replace("your API key", "the platform key"), kind: e.kind }, { status: e.status });

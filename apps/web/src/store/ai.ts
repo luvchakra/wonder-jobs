@@ -11,7 +11,7 @@ interface AIState {
   usage: AIUsageRecord[];
   keysLoaded: boolean;
   /** Whether "WonderJobs AI" is backed by a real model on this deployment (null until known). */
-  platform: { configured: boolean; model?: string } | null;
+  platform: { configured: boolean; model?: string; provider?: AIProviderId } | null;
   selectProvider: (id: AIProviderId, model?: string) => void;
   setModel: (model: string) => void;
   setBYOK: (status: BYOKStatus) => void;
@@ -54,7 +54,7 @@ export const useAIStore = create<AIState>()(
         try {
           const res = await fetch("/api/ai/keys", { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = (await res.json()) as { keys: BYOKStatus[]; platform?: { configured: boolean; model?: string } };
+          const data = (await res.json()) as { keys: BYOKStatus[]; platform?: { configured: boolean; model?: string; provider?: AIProviderId } };
           set((s) => ({ keysLoaded: true, platform: data.platform ?? { configured: false }, config: { ...s.config, byok: Object.fromEntries(data.keys.map((k) => [k.provider, k])) } }));
         } catch {
           set({ keysLoaded: true });

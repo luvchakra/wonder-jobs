@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)” and “Honest 'not for me' learning loop (WJ-099)”._
+_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)” and “Platform AI on any of the three vendors (WJ-100)”._
 
 ## At a glance
 
@@ -128,7 +128,8 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)” and �
 ## 9. AI providers — BYOK and platform (spec §25–27, request #1)
 
 - ✅ Provider abstraction; app code never calls a vendor SDK directly — WJ-037
-- ✅ WonderJobs AI used by default for every account (platform key `WONDERJOBS_AI_KEY`, Anthropic, `claude-sonnet-5`); template fallback clearly labelled — WJ-038, WJ-082
+- ✅ WonderJobs AI used by default for every account (platform key `WONDERJOBS_AI_KEY`); template fallback clearly labelled — WJ-038, WJ-082
+- ✅ Platform key runs on any of the three vendors, operator's choice: `WONDERJOBS_AI_PROVIDER=anthropic` (default, `claude-sonnet-5`) / `openai` (`gpt-5-mini`) / `gemini` (`gemini-2.5-flash`) — previously hardcoded to Anthropic in both call sites despite BYOK already supporting all three — WJ-100
 - ✅ Anthropic / OpenAI / Gemini BYOK adapters — WJ-039..041
 - ✅ Keys encrypted at rest (AES-256-GCM), masked on read, per-tenant, revocable — WJ-062
 - ✅ Failure handling with retry / change provider / switch to WonderJobs AI — WJ-042

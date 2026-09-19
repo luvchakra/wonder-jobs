@@ -43,7 +43,7 @@ export default function PrivacyPage() {
             <ul>
               <li>Supabase for authentication and the database, Vercel for hosting.</li>
               <li>Job sources: public company career boards (Greenhouse, Lever, Ashby) and job APIs (Jobicy, Remote OK, Himalayas, Arbeitnow, Remotive, Adzuna). Search terms are sent to them; your identity is not.</li>
-              <li>AI providers: Anthropic, OpenAI, Google or another provider you connect, or the platform&apos;s Anthropic model behind WonderJobs AI.</li>
+              <li>AI providers: Anthropic, OpenAI or Google, whichever you connect your own key to, or the platform&apos;s own model behind WonderJobs AI (Anthropic, OpenAI or Google, depending on the deployment).</li>
             </ul>
           ),
         },

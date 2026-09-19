@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   try {
     const context = hits.map(({ section }) => `## ${section.title} (id: ${section.id})\n${section.body.join("\n")}`).join("\n\n");
     const faqs = HELP_FAQ.filter((f) => hits.some((h) => h.section.id === f.section)).map((f) => `Q: ${f.q}\nA: ${f.a} (id: ${f.section})`).join("\n");
-    const result = await getServerProvider("anthropic")!.complete(platform.apiKey, {
+    const result = await getServerProvider(platform.provider)!.complete(platform.apiKey, {
       model: platform.model,
       system: "You are the WonderJobs help assistant. Answer only from the guide excerpts provided. Be concrete and brief (2–4 sentences). If the guide does not cover it, say so and suggest the closest section. Reply as JSON: {\"answer\": string, \"sectionId\": one of the provided ids}.",
       prompt: `GUIDE EXCERPTS\n${context}\n\nFAQ\n${faqs}\n\nQUESTION\n${question}`,
