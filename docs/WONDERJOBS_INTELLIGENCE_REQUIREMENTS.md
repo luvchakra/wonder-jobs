@@ -110,7 +110,7 @@ default, not an oversight.
 - [x] Tenant isolation passes — pre-existing, unit/integration-tested in prior sessions; not re-run as part of this pass
 - [ ] Full Playwright suite exists and has actually run — does not exist
 - [ ] Golden journeys pass — no Playwright suite to run them in
-- [x] Accessibility passes — `npm run a11y` was green as of the last session that touched UI (see `docs/IMPLEMENTATION_TRACKER.md` WJ-075 and the interaction-state audit fix); not re-run in this pass since no user-facing page layout changed materially beyond the Career DNA/job-detail additions, which is a gap — **should be re-run before this is checked with confidence**
+- [x] Accessibility passes — `npm run a11y` re-run after this pass's Career DNA and job-detail UI changes (new reason-picker interaction, learned-preferences card): 19 pages + 1 interaction state, 0 violations
 - [ ] Mobile/browser smoke passes — no Playwright suite to run it in
 - [x] Production build passes — `npm run build` green this pass
 - [x] No P0 defects remain *among what was tested* — the two fixed items were the P0/P1-grade defects found; nothing else was audited for defects this pass
