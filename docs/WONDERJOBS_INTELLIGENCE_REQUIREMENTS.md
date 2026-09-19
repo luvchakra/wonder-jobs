@@ -35,7 +35,7 @@ bugs already in production, with tests. Everything else below is scoped but not 
 | 9 | Source coverage/freshness/failure transparency | **PARTIAL** | Run evidence already shows per-source counts and "Needs setup"/"Unavailable" (pre-existing). The formal `Source` model (§21: coverage, freshness, errorRate, legalAccessMethod) doesn't exist |
 | 10 | Never claim a simulated external action succeeded | **ALREADY TRUE** | Pre-existing: `WorkflowAction.status` already distinguishes `pending_confirmation`/`confirmed`/`executing`/`succeeded`/`failed`/`skipped_duplicate`; the apply stage is an audited hand-off, never a claimed submission. Re-verified, not changed, this pass |
 | 11 | Application Pack (complete workspace) | BACKLOG | Application preparation exists (resume/cover letter/answers) but not restructured into the 11-part Application Pack §15 describes |
-| 12 | Comprehensive Playwright E2E suite, actually executed | PARTIAL | `apps/web/playwright.config.ts` + `apps/web/e2e/` exist and `auth.spec.ts` (18 tests) has actually run against chromium: 13 passed, 5 honestly skipped, 0 failed — see `docs/TEST_EXECUTION_REPORT.md`. Firefox/WebKit BLOCKED (no binaries in this sandbox). Only `auth.spec.ts` exists; the rest of the golden-journey suite is not started |
+| 12 | Comprehensive Playwright E2E suite, actually executed | PARTIAL | `apps/web/playwright.config.ts` + `apps/web/e2e/` exist; `auth.spec.ts` (18 tests) and `golden-journeys.spec.ts` (7 tests, demo mode) have both actually run against chromium: 20 passed, 5 honestly skipped, 0 failed — see `docs/TEST_EXECUTION_REPORT.md`. Firefox/WebKit BLOCKED (no binaries in this sandbox). Automation, Career DNA editing, BYOK/AI settings and PWA/push flows still have no spec file |
 
 ## Resume Import (§5.0) — status against its own 28 test cases
 
@@ -75,7 +75,7 @@ made, and shouldn't be guessed at in code before it is.
 | 6 — Application Intelligence (Application Pack) | BACKLOG | Not started |
 | 7 — Source Intelligence | BACKLOG | Not started |
 | 8 — Automation (natural-language schedules) | BACKLOG | Existing schedule builder (form-based, pre-mandate) works and is tested; not rebuilt as natural-language |
-| 9 — Playwright | PARTIAL | Infrastructure + `auth.spec.ts` exist and have actually run (chromium); rest of the suite not started |
+| 9 — Playwright | PARTIAL | Infrastructure + `auth.spec.ts` + `golden-journeys.spec.ts` exist and have actually run (chromium); automation/Career-DNA/BYOK/PWA specs not started |
 | 10 — Full regression | N/A until the above exist | `npm run check` (lint/typecheck/unit tests/build) passes as of this pass: 158/158 unit tests, build green |
 
 ## Definition of Done (§41) — checked against what actually exists today
@@ -108,8 +108,8 @@ default, not an oversight.
 - [x] Automation remains policy-controlled — pre-existing, unchanged
 - [x] BYOK behaviour is explicit — pre-existing, unchanged
 - [x] Tenant isolation passes — pre-existing, unit/integration-tested in prior sessions; not re-run as part of this pass
-- [x] Playwright suite exists and has actually run (partial) — `auth.spec.ts` (18 tests) against chromium: 13 passed, 5 honestly skipped, 0 failed. Rest of the suite (golden journeys, jobs, applications, automation) not written yet
-- [ ] Golden journeys pass — `golden-journeys.spec.ts` not written yet
+- [x] Playwright suite exists and has actually run (partial) — `auth.spec.ts` (18 tests) + `golden-journeys.spec.ts` (7 tests) against chromium: 20 passed, 5 honestly skipped, 0 failed. Automation, Career DNA editing, BYOK/AI settings and PWA/push flows not written yet
+- [x] Golden journeys pass (demo mode) — `golden-journeys.spec.ts`: jobs list/detail/match, save, not-for-me, applications routing, run Wonder — 7/7, stable across a repeated run. A real signed-in account's equivalent journeys (non-seeded data) not covered
 - [x] Accessibility passes — `npm run a11y`: 19 pages + 3 interaction states, 0 violations. Found and fixed a real pre-existing moderate heading-order defect in the shared `EmptyState` component (h3 directly under a page's h1) while adding coverage for WJ-101's new empty-state UI
 - [ ] Mobile/browser smoke passes — chromium-only verified; firefox/webkit/Mobile Safari BLOCKED (no binaries in this sandbox), Mobile Chrome not independently run
 - [x] Production build passes — `npm run build` green this pass
@@ -121,16 +121,16 @@ default, not an oversight.
 
 - [x] `docs/WONDERJOBS_INTELLIGENCE_REQUIREMENTS.md` — this file
 - [x] `docs/IMPLEMENTATION_TRACKER.md` — updated (WJ-098, WJ-099)
-- [x] `docs/TEST_EXECUTION_REPORT.md` — produced, covering the real `auth.spec.ts` execution
+- [x] `docs/TEST_EXECUTION_REPORT.md` — produced, covering the real `auth.spec.ts` and `golden-journeys.spec.ts` executions
 - [x] `docs/AI_GROUNDING_REPORT.md` — produced
 - [x] `docs/LEARNING_EVALUATION_REPORT.md` — produced
 
 ## What a future session should pick up next, in priority order
 
-1. **`golden-journeys.spec.ts`** (§32) — now that Playwright infrastructure and `auth.spec.ts` are real
-   and green (`docs/TEST_EXECUTION_REPORT.md`), the next highest-leverage addition is the golden-journey
-   suite: it's the only way this document's other claims (jobs, applications, automation) can be verified
-   by execution rather than by reading code.
+1. **Automation E2E coverage** (§32) — `auth.spec.ts` and `golden-journeys.spec.ts` (demo mode) are now
+   real and green (`docs/TEST_EXECUTION_REPORT.md`); the next highest-leverage addition is a spec for the
+   automation surface (scheduled runs, policy settings) and Career DNA editing with a real (non-seeded)
+   signed-in account, since those still have zero execution-verified coverage.
 2. **Employment-history field in Career DNA** — unblocks the resume "Experience" section (the one
    remaining gap noted in `docs/AI_GROUNDING_REPORT.md`) and is also the prerequisite for §5.0's full
    structured `experiences[]` extraction model.

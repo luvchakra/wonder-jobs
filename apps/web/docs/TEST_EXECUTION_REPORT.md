@@ -1,6 +1,6 @@
-# E2E Test Execution Report — `auth.spec.ts`
+# E2E Test Execution Report — `auth.spec.ts` + `golden-journeys.spec.ts`
 
-This report covers the first real, executed run of WonderJobs' Playwright E2E suite. It follows the "never fake coverage" rule: every result below reflects an actual `npx playwright test` run against a real, running build of the app and a real Supabase project — nothing here is inferred or assumed.
+This report covers the first real, executed runs of WonderJobs' Playwright E2E suite. It follows the "never fake coverage" rule: every result below reflects an actual `npx playwright test` run against a real, running build of the app — nothing here is inferred or assumed.
 
 ## Environment
 
@@ -12,12 +12,12 @@ This report covers the first real, executed run of WonderJobs' Playwright E2E su
 
 ## Summary
 
-| Browser | Result |
-|---|---|
-| chromium | **13 passed, 5 skipped (honestly, with reasons), 0 failed** — run twice in a row for stability, both clean |
-| Mobile Chrome | Not run this pass (same Chromium engine as `chromium`; no separate defects expected, but not independently verified) |
-| firefox | **BLOCKED** — `browserType.launch: Executable doesn't exist at /opt/pw-browsers/firefox-1543/firefox/firefox`. Confirmed by an actual launch attempt, not assumed. |
-| webkit / Mobile Safari | **BLOCKED** — same cause (WebKit binary not vendored in this sandbox). |
+| Browser | `auth.spec.ts` | `golden-journeys.spec.ts` |
+|---|---|---|
+| chromium | **13 passed, 5 skipped (honestly, with reasons), 0 failed** — run twice in a row for stability, both clean | **7 passed, 0 failed** — run twice (once `--repeat-each=2`, 14/14), both clean |
+| Mobile Chrome | Not run this pass (same Chromium engine as `chromium`; no separate defects expected, but not independently verified) | Not run this pass, same reasoning |
+| firefox | **BLOCKED** — `browserType.launch: Executable doesn't exist at /opt/pw-browsers/firefox-1543/firefox/firefox`. Confirmed by an actual launch attempt, not assumed. | Same cause, not independently re-confirmed for this file |
+| webkit / Mobile Safari | **BLOCKED** — same cause (WebKit binary not vendored in this sandbox). | Same cause |
 
 ## By Area
 
@@ -27,6 +27,11 @@ This report covers the first real, executed run of WonderJobs' Playwright E2E su
 | Real account lifecycle (Supabase-backed) | ✅ PASS | AUTH-003b, 007, 013, 016, 017 — real accounts created via Admin API, signed in through the real form, signed out through the real UI |
 | Real sign-up via UI (email confirmation) | ⛔ BLOCKED (honest skip) | AUTH-003 — see "Environmental Blocks" |
 | Magic link / password recovery / Google OAuth / token refresh | ⛔ BLOCKED (honest skip) | AUTH-009, 010/011, 012, 014 — pre-existing, environmental |
+| Demo entry (real click, not prefetch) | ✅ PASS | GJ-001 |
+| Jobs list + job detail + match explanation + save toggle | ✅ PASS | GJ-002, GJ-003 |
+| "Not for me" with a reason, and undo | ✅ PASS | GJ-004 |
+| Applications dashboard + real timeline vs. prepare-flow routing | ✅ PASS | GJ-005, GJ-006 |
+| Run Wonder → lands on the run's own timeline | ✅ PASS | GJ-007 |
 | Firefox / WebKit / Mobile Safari | ⛔ BLOCKED | Missing browser binaries in this sandbox |
 
 ## Defects Found and Fixed
@@ -65,8 +70,16 @@ Getting a real Chromium browser — not just CLI tools — working through this 
 
 Both are gated on `HTTPS_PROXY` being set, so they're a no-op (and harmless) outside this sandbox.
 
+## `golden-journeys.spec.ts` — test-authoring notes (bugs found and fixed on first real execution)
+
+Two bugs surfaced the same way `auth.spec.ts`'s did — by actually running the suite, not by reading the code and assuming it would pass:
+
+- **GJ-006** (`getByRole("link", { name: "Applications" })`) hit a strict-mode violation: the sidebar's own "Applications" nav link and the application detail page's `PageHeader` back link both match. Scoped to `page.locator("#main")` to target only the page's own back link.
+- **GJ-007** (starting a run) is the more interesting one: the test's own target pattern, `/\/app\/runs\/[^/]+$/`, also matches `/app/runs/new` itself — `"new"` satisfies `[^/]+` just like a real run id would. `waitForURL` resolved *before* the click's navigation ever happened, against the page's starting URL, so the very next assertion (`expect(page.url()).not.toMatch(...)`) read a stale URL and failed, even though the click had, in fact, already triggered the real navigation (visible in the failure's own captured DOM snapshot — a real run's workflow timeline, mid-render). Fixed by excluding `"new"` from the pattern (`/\/app\/runs\/(?!new$)[^/]+$/`) so `waitForURL` genuinely waits for the destination to change.
+
 ## Remaining Risks / Not Yet Covered
 
-- Only `auth.spec.ts` has been written and executed. The rest of the golden-journey suite (jobs, applications, automation, onboarding beyond "Skip", career DNA, etc.) does not exist yet.
+- `auth.spec.ts` and `golden-journeys.spec.ts` are the only spec files written and executed. Automation (scheduled runs, policy settings), Career DNA editing, BYOK/AI provider settings, and PWA/push-notification flows have no E2E coverage yet.
 - Firefox, WebKit, and Mobile Safari have never actually been run against this app — only Chromium and Chromium-engine "Mobile Chrome" are verified, and Mobile Chrome itself has not been independently run this pass (same engine, so lower risk, but not zero).
 - AUTH-003's real sign-up-through-UI path (as opposed to account creation via the Admin API) has never been exercised end-to-end in an environment where it's safe to do so.
+- `golden-journeys.spec.ts` covers demo mode only (no real Supabase account); the equivalent journeys for a real signed-in account with genuine, non-seeded Career DNA and job data are not covered.
