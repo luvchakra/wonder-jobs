@@ -26,7 +26,7 @@ _Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094
 | 5. Matching, quality & explanations | 4 | 0 | 0 | ✅ |
 | 6. Run Wonder (workflow engine) | 10 | 0 | 0 | ✅ |
 | 7. Applications & materials | 6 | 0 | 1 | ✅ |
-| 8. Automation & scheduling | 7 | 0 | 0 | ✅ |
+| 8. Automation & scheduling | 7 | 1 | 0 | 🟡 cron cadence capped by the Vercel plan |
 | 9. AI providers (BYOK + platform) | 8 | 0 | 1 | ✅ |
 | 10. Persistence & sync | 4 | 0 | 0 | ✅ |
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
@@ -112,9 +112,9 @@ _Last updated: 2026-09-19 — story "Server-side cron for scheduled runs (WJ-094
 - ✅ Scheduled runs: list, enable/disable, run now, duplicate, delete — WJ-021
 - ✅ Schedule builder and 5 workflow templates — WJ-022, WJ-023
 - ✅ Silent outcome when a schedule's condition is not met — WJ-024
-- ✅ Server-side cron fires due schedules with the app closed: `/api/cron/scheduled-runs` every 15 minutes, one run per tenant per tick, `nextRunAt` advanced before the run so nothing re-fires in a loop — WJ-094
+- ✅ Server-side cron fires due schedules with the app closed: `/api/cron/scheduled-runs`, one run per tenant per tick, `nextRunAt` advanced before the run so nothing re-fires in a loop — WJ-094
 - ✅ Schedule times evaluated in the schedule's own timezone, DST-aware (unit-tested) — WJ-094
-- ✅ The client-side scheduler stands down when the server owns firing, so the two never race; it still covers deployments with no `CRON_SECRET`
+- 🟡 Cadence is capped by the Vercel plan: Hobby allows one cron run a day, so it ships as a daily backstop and the browser still fires schedules on time while a tab is open. `CRON_INTERVAL_MINUTES` ≤ 60 (Pro) hands scheduling to the server outright and the client ticker stands down. Neither can double-fire — one shared `isDue` rule.
 
 ## 9. AI providers — BYOK and platform (spec §25–27, request #1)
 

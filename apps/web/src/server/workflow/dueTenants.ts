@@ -9,6 +9,7 @@
 import { getSupabaseAdmin } from "@/server/supabase";
 import { readClientState } from "@/server/clientState";
 import { stateStore } from "@/server/state";
+import { isDue } from "@/domain/workflow/schedule";
 import type { WorkflowSchedule } from "@/domain/workflow/types";
 
 /** False once `due_schedule_tenants` is known to be missing, so we stop paying for the round trip. */
@@ -33,5 +34,5 @@ export async function listTenantsWithDueSchedules(now: Date, limit = 200): Promi
 }
 
 export function hasDueSchedule(schedules: Record<string, WorkflowSchedule> | undefined, now: Date): boolean {
-  return Object.values(schedules ?? {}).some((s) => s?.enabled && s.trigger === "schedule" && s.nextRunAt && new Date(s.nextRunAt).getTime() <= now.getTime());
+  return Object.values(schedules ?? {}).some((s) => s && isDue(s, now));
 }

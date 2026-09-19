@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { sourceAvailability } from "@/server/jobs/search";
+import { cronOwnsScheduling } from "@/server/workflow/cronCadence";
 
 export const runtime = "nodejs";
 
@@ -12,5 +13,5 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
-  return NextResponse.json({ available: sourceAvailability(), scheduledRuns: process.env.CRON_SECRET ? "server" : "browser" }, { headers: { "cache-control": "private, max-age=300" } });
+  return NextResponse.json({ available: sourceAvailability(), scheduledRuns: cronOwnsScheduling() ? "server" : "browser" }, { headers: { "cache-control": "private, max-age=300" } });
 }

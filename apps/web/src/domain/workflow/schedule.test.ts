@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextScheduledRun } from "./schedule";
+import { isDue, nextScheduledRun } from "./schedule";
 
 const ist = "Asia/Kolkata";
 
@@ -45,5 +45,27 @@ describe("nextScheduledRun", () => {
 
   it("returns undefined when the rule can never fire", () => {
     expect(nextScheduledRun({ frequency: "weekly", days: [], time: "08:00", timezone: ist }, new Date("2026-04-15T02:00:00Z"))).toBeUndefined();
+  });
+});
+
+describe("isDue", () => {
+  const now = new Date("2026-04-15T03:00:00.000Z");
+  const base = { enabled: true, trigger: "schedule" as const, nextRunAt: "2026-04-15T02:30:00.000Z", lastRunAt: undefined };
+
+  it("is due once its time has passed", () => {
+    expect(isDue(base, now)).toBe(true);
+  });
+
+  it("is not due before its time, when disabled, or when it isn't a schedule", () => {
+    expect(isDue({ ...base, nextRunAt: "2026-04-16T02:30:00.000Z" }, now)).toBe(false);
+    expect(isDue({ ...base, enabled: false }, now)).toBe(false);
+    expect(isDue({ ...base, trigger: "manual" }, now)).toBe(false);
+    expect(isDue({ ...base, nextRunAt: undefined }, now)).toBe(false);
+  });
+
+  it("stands down when the schedule already ran today, whoever fired it", () => {
+    // The guard that lets the browser ticker and the server cron coexist without double-firing.
+    expect(isDue({ ...base, lastRunAt: "2026-04-15T02:31:00.000Z" }, now)).toBe(false);
+    expect(isDue({ ...base, lastRunAt: "2026-04-14T02:31:00.000Z" }, now)).toBe(true);
   });
 });

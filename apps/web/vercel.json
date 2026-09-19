@@ -5,5 +5,5 @@
   "outputDirectory": ".next",
   "ignoreCommand": "bash scripts/vercel-should-build.sh",
   "regions": ["bom1"],
-  "crons": [{ "path": "/api/cron/scheduled-runs", "schedule": "*/15 * * * *" }]
+  "crons": [{ "path": "/api/cron/scheduled-runs", "schedule": "0 2 * * *" }]
 }

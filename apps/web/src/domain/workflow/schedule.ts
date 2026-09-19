@@ -92,3 +92,25 @@ export function nextScheduledRun(s: ScheduleShape, from: Date = new Date()): str
   }
   return undefined;
 }
+
+/**
+ * The shortest gap between two legitimate firings of any schedule this product can express is a day
+ * (daily, weekdays, weekly, monthly), so a schedule that ran within this window has already had its
+ * turn. Both the browser's ticker and the server cron check it before firing, which is what lets the
+ * two coexist on deployments where the cron is only a daily backstop: whoever gets there first wins and
+ * the other stands down, however stale its copy of `nextRunAt` happens to be.
+ */
+const ALREADY_RAN_MS = 12 * 60 * 60 * 1000;
+
+export function ranRecently(s: Pick<WorkflowSchedule, "lastRunAt">, now: Date = new Date()): boolean {
+  if (!s.lastRunAt) return false;
+  const at = new Date(s.lastRunAt).getTime();
+  return Number.isFinite(at) && now.getTime() - at < ALREADY_RAN_MS;
+}
+
+/** Is this schedule due to fire right now? The one definition both schedulers use. */
+export function isDue(s: Pick<WorkflowSchedule, "enabled" | "trigger" | "nextRunAt" | "lastRunAt">, now: Date = new Date()): boolean {
+  if (!s.enabled || s.trigger !== "schedule" || !s.nextRunAt) return false;
+  if (new Date(s.nextRunAt).getTime() > now.getTime()) return false;
+  return !ranRecently(s, now);
+}

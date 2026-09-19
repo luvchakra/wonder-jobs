@@ -125,7 +125,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     body: [
       "Scheduled runs repeat a workflow (for example Daily Job Discovery at 8 am). Each schedule has a condition such as 'strong matches found' or 'new jobs found': if the condition is not met the run finishes quietly and you are not notified. Silence is a valid outcome.",
       "The builder lets you set trigger, frequency, conditions, actions, AI provider and model, or start from a template. Duplicate, pause or run any schedule now.",
-      "- Schedules fire on Wonder's servers, so a run happens at its time whether or not you have the app open. Results are waiting for you when you next sign in.",
+      "- Schedules fire on Wonder's servers as well as in your browser, so a run still happens while you're away — with the app open they fire at exactly their time, and when it's closed the server picks them up on its next sweep. Either way the results are waiting when you next sign in, and a schedule never runs twice for the same occurrence.",
       "- Stages that need you — preparing materials, your review, the hand-off to an employer — are never done without you. A scheduled run finds, scores and shortlists; you decide what to do with it.",
     ],
   },
@@ -190,7 +190,7 @@ export const HELP_FAQ: HelpFaq[] = [
   { q: "Is my API key safe?", a: "It is encrypted at rest, only ever used from the server, never returned to the browser or logged, and you can remove it any time.", section: "ai" },
   { q: "How do I reset my password?", a: "Use 'Forgot password?' on the sign-in page; the emailed link opens a page to choose a new one.", section: "account" },
   { q: "What is the demo?", a: "A sample candidate on your device only, for exploring. It never touches your account.", section: "demo" },
-  { q: "Will scheduled runs happen while I'm away?", a: "Yes. Schedules fire on Wonder's servers at their time, and the shortlist and notification are waiting when you next sign in. Anything needing your approval still waits for you.", section: "scheduled-runs" },
+  { q: "Will scheduled runs happen while I'm away?", a: "Yes. Wonder's servers fire schedules too, so a run happens while you're away and the shortlist is waiting when you sign in. With the app open they fire at exactly their time; with it closed the server picks them up on its next sweep. Anything needing your approval still waits for you.", section: "scheduled-runs" },
   { q: "Can I change my automation level later?", a: "Yes, per run and in Automation Settings; high-risk actions always follow your policy.", section: "automation" },
 ];
 

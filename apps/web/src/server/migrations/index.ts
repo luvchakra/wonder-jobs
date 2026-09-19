@@ -181,6 +181,11 @@ as $$
           -- Guard the cast: one malformed timestamp must not fail the query for every other tenant.
           and e.value ->> 'nextRunAt' ~ '^\\d{4}-\\d{2}-\\d{2}T'
           and (e.value ->> 'nextRunAt')::timestamptz <= p_now
+          -- A schedule that already ran today has had its turn, whoever fired it. The browser applies the
+          -- same rule (domain/workflow/schedule.ts), which is what lets the two schedulers coexist.
+          and (e.value ->> 'lastRunAt' is null
+               or e.value ->> 'lastRunAt' !~ '^\\d{4}-\\d{2}-\\d{2}T'
+               or (e.value ->> 'lastRunAt')::timestamptz <= p_now - interval '12 hours')
      )
    order by s.updated_at desc
    limit p_limit;

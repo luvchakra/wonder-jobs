@@ -6,6 +6,7 @@
  * (spec §45). One tick per minute; every decision is idempotent.
  */
 import { conditionMet } from "@/domain/workflow/engine";
+import { isDue } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
 import { useWorkflowStore } from "@/store/workflow";
 import { useApplicationsStore } from "@/store/applications";
@@ -18,10 +19,11 @@ import { track } from "@/lib/analytics";
 const DAY = 86_400_000;
 
 /**
- * Who fires due schedules. The server cron (`/api/cron/scheduled-runs`) does it for everyone when the
- * deployment is configured for it, and then this tab must not: two schedulers racing on the same
- * `nextRunAt` would run the same schedule twice. Reported by /api/jobs/sources at boot; "browser" until
- * we hear otherwise, so a deployment without the cron still keeps its promise while a tab is open.
+ * Who fires due schedules. A cron that runs at least hourly (`/api/cron/scheduled-runs`) owns it for
+ * everyone and this tab stands down; a daily cron — all Vercel's Hobby plan allows — is only a backstop,
+ * so the open tab keeps firing schedules at their proper time. Reported by /api/jobs/sources at boot;
+ * "browser" until we hear otherwise, so a deployment without the cron still keeps its promise while a
+ * tab is open. Whichever fires, `isDue` stops the other repeating a schedule that already ran today.
  */
 let owner: "server" | "browser" = "browser";
 export function setScheduleOwner(next: "server" | "browser") {
@@ -37,8 +39,9 @@ function fireDueSchedules(now: number) {
   if (owner === "server") return;
   const ws = useWorkflowStore.getState();
   if (Object.values(ws.runs).some((r) => isActive(r.status))) return; // one run at a time
+  const at = new Date(now);
   const due = Object.values(ws.schedules)
-    .filter((s) => s.enabled && s.trigger === "schedule" && s.nextRunAt && new Date(s.nextRunAt).getTime() <= now)
+    .filter((s) => isDue(s, at))
     .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
   const s = due[0];
   if (!s) return;

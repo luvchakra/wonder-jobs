@@ -8,7 +8,7 @@
  * timeout can never leave a run re-firing in a loop.
  */
 import { WorkflowEngine, conditionMet } from "@/domain/workflow/engine";
-import { nextScheduledRun } from "@/domain/workflow/schedule";
+import { isDue, nextScheduledRun } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
 import { STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
@@ -48,7 +48,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   const snapshot = await loadTenantSnapshot(tenantId);
 
   const due = Object.values(snapshot.workflow.schedules)
-    .filter((s) => s.enabled && s.trigger === "schedule" && s.nextRunAt && new Date(s.nextRunAt).getTime() <= now.getTime())
+    .filter((s) => isDue(s, now))
     .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
   const schedule = due[0];
   if (!schedule) return undefined;
