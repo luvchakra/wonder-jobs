@@ -57,6 +57,25 @@ Schedules fire on the server, so a run happens at its time whether or not anyone
 - **What a scheduled run does**: the stages that need nobody present — read the Career DNA, search the enabled sources, deduplicate, analyse, match, check quality, rank — then publishes the catalog, saves strong matches if the automation policy allows, and notifies (or stays silent when the schedule's condition is not met). Preparing materials, reviewing them and handing off to an employer always wait for the candidate; a schedule made only of those stages is skipped rather than half-run.
 - **Times are the candidate's own**: a schedule stores the timezone it was created in and fires at that wall-clock time, across daylight-saving changes.
 
+## Push notifications
+
+A scheduled run that finds strong matches can nudge the candidate's phone or desktop, not just leave a
+line in the app.
+
+- **Setup**: run `npm run push:keys` once (from `apps/web`) and add the three variables it prints —
+  `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (a `mailto:` the push service can reach you
+  at, which RFC 8292 requires). Apply migration `0005` for the `wonderjobs.push_subscriptions` table.
+  Without the keys the feature simply doesn't appear — no broken toggle, no empty promise.
+- **Turning it on**: Profile → "Notifications on this device". Permission is only ever requested when
+  the candidate presses the button, and the server sends one real notification immediately so they can
+  see it worked. It is per browser, so each device is turned on separately.
+- **Rotating the keys invalidates every existing subscription** — browsers tie a subscription to the
+  public key it was created with — so candidates would have to turn notifications on again.
+- **iOS**: Safari only allows web push for a site added to the Home Screen. The app says so rather than
+  showing a button that cannot work.
+- No dependency does the encryption: `server/push/webPush.ts` implements RFC 8291 and RFC 8292 on
+  `node:crypto`, and the unit tests check it against RFC 8291's own published test vector.
+
 ## Help center and contact
 
 - `/help` is public: user guide, FAQ and an assistant that answers from the guide and links the matching section (`POST /api/help/ask`; uses the platform model when `WONDERJOBS_AI_KEY` is set). Linked as **Get Help** in the avatar menu.

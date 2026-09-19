@@ -8,6 +8,7 @@ import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
+import { PushNotifications } from "@/components/pwa/PushNotifications";
 import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
@@ -100,6 +101,7 @@ function ProfileInner() {
         </div>
       </Card>
       <CloudSyncCard />
+      <PushNotifications />
       {(plan === "free" || upgrade) && (
         <Card className="mt-4 border-brand-200 bg-brand-50/60">
           <div className="flex items-start gap-3">

@@ -46,3 +46,44 @@ self.addEventListener("fetch", (event) => {
     ),
   );
 });
+
+/**
+ * Push notifications. The payload is written by the server (server/push/subscriptions.ts) and is always
+ * this app's own JSON; anything else is shown as a plain nudge rather than dropped, because a
+ * notification the browser already woke us for should never be silently swallowed.
+ */
+self.addEventListener("push", (event) => {
+  let payload = { title: "WonderJobs", body: "Something new is waiting for you.", url: "/app" };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    const text = event.data && event.data.text();
+    if (text) payload.body = text;
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: payload.tag || "wonderjobs",
+      data: { url: payload.url || "/app" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/app";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      // Reuse an open tab when there is one — nobody wants a new window per notification.
+      for (const client of clients) {
+        if (new URL(client.url).origin === self.location.origin && "focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});

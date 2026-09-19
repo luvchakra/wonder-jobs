@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — story "Import Career DNA from a resume (WJ-095)"._
+_Last updated: 2026-09-19 — story "Push notification delivery (WJ-096)"._
 
 ## At a glance
 
@@ -174,7 +174,8 @@ _Last updated: 2026-09-19 — story "Import Career DNA from a resume (WJ-095)"._
 - ✅ Calendar subscribe feed: signed, cookie-less iCalendar URL that Google/Outlook/Apple Calendar poll — real interviews, follow-ups and scheduled runs, no OAuth app to register — WJ-091
 - ⬜ Two-way calendar sync (writing back to Google/Microsoft) — needs an OAuth client per provider
 - ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API, so nothing renders there rather than faking it), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
-- ⬜ Push notifications (the SW above has no push subscription handling yet; a server-side sender and per-tenant subscription storage are still needed)
+- ✅ Push notifications: RFC 8291/8292 Web Push with no dependency (verified against the RFC's own test vector), per-browser subscriptions in Postgres, opt-in from Profile, delivered by the scheduled-run cron — WJ-096
+- 🟡 Follow-up and interview reminders are still pushed only while a tab is open; the cron sweeps schedules, not application due-dates
 
 ## 14. Quality, accessibility, performance (spec §39–47)
 

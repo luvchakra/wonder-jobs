@@ -14,6 +14,7 @@ import { STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
+import { notifyTenant, type PushPayload } from "@/server/push/subscriptions";
 import { loadTenantSnapshot, saveTenantDocs, type TenantSnapshot } from "./snapshot";
 import { createServerExecutors, isServerStage } from "./serverExecutors";
 
@@ -111,8 +112,11 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   snapshot.workflow.schedules[schedule.id] = { ...snapshot.workflow.schedules[schedule.id], lastRunId: finished.id };
 
   const failed = finished.status === "FAILED" || finished.status === "STOPPED";
-  const notified = failed ? notifyFailure(snapshot, advanced, finished) : notifySuccess(snapshot, advanced, workflow, finished, deferred);
+  const notice = failed ? notifyFailure(snapshot, advanced, finished) : notifySuccess(snapshot, advanced, workflow, finished, deferred);
   await saveTenantDocs(snapshot, { workflow: true, career: true, jobs: outcome.jobsTouched });
+  // The in-app notification is the record and is already saved; the push is only the nudge, so it goes
+  // last and can never cost us the run's results.
+  if (notice) await notifyTenant(tenantId, notice);
 
   return {
     ...base,
@@ -120,7 +124,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
     reason: failed ? (finished.error?.message ?? "the run did not finish") : undefined,
     runId: finished.id,
     strongMatches: finished.summary.strongMatches,
-    notified,
+    notified: Boolean(notice),
   };
 }
 
@@ -139,21 +143,21 @@ function recordRun(snapshot: TenantSnapshot, run: WorkflowRun) {
   snapshot.workflow.runs = Object.fromEntries(ids.map((id) => [id, runs[id]]));
 }
 
-function pushNotification(snapshot: TenantSnapshot, n: Omit<Notification, "id" | "at" | "read">) {
+function pushNotification(snapshot: TenantSnapshot, n: Omit<Notification, "id" | "at" | "read">): PushPayload {
   snapshot.career.notifications = [{ ...n, id: newId("ntf"), at: new Date().toISOString(), read: false }, ...snapshot.career.notifications].slice(0, NOTIFICATION_CAP);
+  return { title: n.title, body: n.body, url: n.href, tag: n.category };
 }
 
-function notifyFailure(snapshot: TenantSnapshot, schedule: WorkflowSchedule, run: WorkflowRun): boolean {
-  pushNotification(snapshot, {
+function notifyFailure(snapshot: TenantSnapshot, schedule: WorkflowSchedule, run: WorkflowRun): PushPayload {
+  return pushNotification(snapshot, {
     category: "scheduled_run_failed",
     title: `“${schedule.name}” didn't finish`,
     body: run.error?.message ?? "The scheduled run stopped before it completed. Nothing was lost — open it to see how far it got.",
     href: `/app/run/${run.id}`,
   });
-  return true;
 }
 
-function notifySuccess(snapshot: TenantSnapshot, schedule: WorkflowSchedule, workflow: Workflow, run: WorkflowRun, deferred: StageKey[]): boolean {
+function notifySuccess(snapshot: TenantSnapshot, schedule: WorkflowSchedule, workflow: Workflow, run: WorkflowRun, deferred: StageKey[]): PushPayload | undefined {
   snapshot.career.activity = [
     { id: newId("act"), at: new Date().toISOString(), kind: "run_completed" as const, title: `“${schedule.name}” ran`, subtitle: `${run.summary.jobsRetained.toLocaleString("en-IN")} opportunities · ${run.summary.strongMatches} strong`, href: `/app/run/${run.id}` },
     ...snapshot.career.activity,
@@ -162,16 +166,15 @@ function notifySuccess(snapshot: TenantSnapshot, schedule: WorkflowSchedule, wor
   // Silence is a valid outcome (spec §18): a schedule that found nothing worth the candidate's attention
   // says nothing at all. The run is still there in history if they go looking.
   const wantsNotice = schedule.actions.includes("notify") && workflow.config.notify !== "never";
-  if (!wantsNotice || run.silent || !conditionMet(run)) return false;
-  if (workflow.config.notify === "strong_matches_only" && run.summary.strongMatches === 0) return false;
+  if (!wantsNotice || run.silent || !conditionMet(run)) return undefined;
+  if (workflow.config.notify === "strong_matches_only" && run.summary.strongMatches === 0) return undefined;
 
   const strong = run.summary.strongMatches;
   const tail = deferred.length ? ` Open Wonder to ${deferred.map((k) => STAGES[k].name.toLowerCase()).join(", ")}.` : "";
-  pushNotification(snapshot, {
+  return pushNotification(snapshot, {
     category: strong > 0 ? "strong_opportunity" : "workflow_completed",
     title: strong > 0 ? `${strong} strong match${strong === 1 ? "" : "es"} from “${schedule.name}”` : `“${schedule.name}” finished`,
     body: `${run.summary.jobsRetained.toLocaleString("en-IN")} opportunities reviewed, ${run.summary.strongMatches} worth your time.${tail}`,
     href: strong > 0 ? "/app/jobs?fit=strong" : `/app/run/${run.id}`,
   });
-  return true;
 }

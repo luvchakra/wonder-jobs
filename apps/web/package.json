@@ -11,7 +11,8 @@
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "db:migrate": "node scripts/db-migrate.mjs",
-    "a11y": "node scripts/a11y-audit.mjs"
+    "a11y": "node scripts/a11y-audit.mjs",
+    "push:keys": "node scripts/push-keys.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
