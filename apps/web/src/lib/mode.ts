@@ -13,9 +13,13 @@ export type ClientMode = { mode: "user"; userId: string } | { mode: "demo" } | {
 
 export function getClientMode(): ClientMode {
   if (typeof document === "undefined") return { mode: "local" };
-  if (readDemoCookie()) return { mode: "demo" };
+  // A real session always wins over a leftover demo cookie: someone who tried the demo before signing
+  // up or signing in keeps that cookie for up to 30 days, and it must never keep overriding their real
+  // account afterwards. This matches proxy.ts's own priority (a verified session is checked before the
+  // demo cookie ever comes up).
   const userId = readUserCookie();
   if (userId) return { mode: "user", userId };
+  if (readDemoCookie()) return { mode: "demo" };
   return authConfigured() ? { mode: "demo" } : { mode: "local" };
 }
 

@@ -62,8 +62,15 @@ export function getSupabaseBrowser(): SupabaseClient | null {
 
 /** Mirror the signed-in user id into the cookie the client namespaces local state by. */
 export function rememberUser(userId: string | null) {
-  if (userId) writeCookie(USER_COOKIE, userId);
-  else deleteCookie(USER_COOKIE);
+  if (userId) {
+    writeCookie(USER_COOKIE, userId);
+    // A real session always wins over demo mode (see getClientMode), but clear the demo cookie outright
+    // rather than just outrank it: leaving it around is how someone who tried the demo before signing up
+    // ends up confused later by any other code that still reads it directly.
+    deleteCookie(DEMO_COOKIE);
+  } else {
+    deleteCookie(USER_COOKIE);
+  }
 }
 
 export function readUserCookie() {
