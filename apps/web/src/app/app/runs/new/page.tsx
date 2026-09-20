@@ -5,6 +5,7 @@ import { Pencil, Info, ChevronDown, ChevronUp } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { getWorkflowService } from "@/services/workflow/service";
+import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { useAIStore } from "@/store/ai";
@@ -33,11 +34,12 @@ export default function RunSetupPage() {
   const [editingGoal, setEditingGoal] = useState(false);
   const [level, setLevel] = useState<AutomationLevel>(defaultLevel);
   const [provider, setProvider] = useState<AIProviderId>(aiConfig.activeProvider);
-  const [query, setQuery] = useState("product manager");
+  // Never a canned role: the boards are asked for this candidate's own headline/goal, or nothing until they type one.
+  const [query, setQuery] = useState(() => defaultSearchQuery(dna));
   const [locations, setLocations] = useState(dna.preferredLocations.join(", "));
   const [sourceIds, setSourceIds] = useState<string[]>(sources.filter((s) => s.enabled).map((s) => s.id));
   const [threshold, setThreshold] = useState(70);
-  const [advanced, setAdvanced] = useState(false);
+  const [advanced, setAdvanced] = useState(() => !defaultSearchQuery(dna));
   const [error, setError] = useState<string | null>(null);
 
   const model = useMemo(() => (provider === aiConfig.activeProvider ? aiConfig.activeModel : AI_PROVIDERS[provider].models.find((m) => m.default)?.id ?? AI_PROVIDERS[provider].models[0].id), [provider, aiConfig]);
@@ -53,7 +55,7 @@ export default function RunSetupPage() {
           automationLevel: level,
           provider: { provider, model, billing: AI_PROVIDERS[provider].billing },
           sourceIds,
-          searchCriteria: { query: query.trim() || "product manager", locations: locations.split(",").map((s) => s.trim()).filter(Boolean), workModes: dna.workModes, minSalary: dna.minSalary },
+          searchCriteria: { query: query.trim(), locations: locations.split(",").map((s) => s.trim()).filter(Boolean), workModes: dna.workModes, minSalary: dna.minSalary },
           minMatchThreshold: threshold,
           maxResults: 50,
           notify: "strong_matches_only",
@@ -132,8 +134,8 @@ export default function RunSetupPage() {
           )}
           {advanced && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Search query" htmlFor="q" hint={query.trim() ? "Optional." : 'Optional — left blank, this defaults to "product manager".'}>
-                <Input id="q" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <Field label="Search query" htmlFor="q" required hint={query.trim() ? "What the job boards are asked for — suggested from your Career DNA, edit freely." : "What the job boards are asked for, e.g. “engineering director” or “product manager”. Add a headline to your Career DNA and Wonder will suggest this next time."}>
+                <Input id="q" value={query} onChange={(e) => setQuery(e.target.value)} required placeholder="e.g. engineering director" />
               </Field>
               <Field label="Locations" htmlFor="loc" hint="Comma-separated">
                 <Input id="loc" value={locations} onChange={(e) => setLocations(e.target.value)} />
@@ -162,11 +164,12 @@ export default function RunSetupPage() {
 
         {error && <ErrorState title="Couldn't start the run" body={error} />}
         <div className="sticky bottom-20 z-10 md:static">
-          <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || sourceIds.length === 0}>
+          <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || !query.trim() || sourceIds.length === 0}>
             Continue
           </Button>
           {!activeRun && !goal.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a career goal to continue.</p>}
-          {!activeRun && goal.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
+          {!activeRun && goal.trim() && !query.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a search query under Search details to continue.</p>}
+          {!activeRun && goal.trim() && query.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
         </div>
       </div>
     </div>
