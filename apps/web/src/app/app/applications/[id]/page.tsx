@@ -1,11 +1,14 @@
 "use client";
 import { use, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, FileText, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, FileText, Trash2 } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
-import { APPLICATION_STATUSES, APPLICATION_STATUS_META, type ApplicationStatus } from "@/domain/applications/types";
+import { APPLICATION_STATUSES, APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
 import { formatDate, formatSalaryRange } from "@/lib/format";
+import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
+import { downloadBytes } from "@/lib/download";
+import { track } from "@/lib/analytics";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -19,6 +22,13 @@ import { FollowUpAction } from "@/components/applications/FollowUpAction";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
+
+const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
+
+function docxFilename(company: string | undefined, label: string): string {
+  const base = [company, label].filter(Boolean).join(" ").replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-");
+  return `${base || label}.docx`;
+}
 
 const EVENT_FOR_STATUS: Partial<Record<ApplicationStatus, { type: "submitted" | "recruiter_response" | "interview" | "outcome"; title: string }>> = {
   submitted: { type: "submitted", title: "Submitted" },
@@ -54,6 +64,18 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   }
   const meta = APPLICATION_STATUS_META[app.status];
   const salary = job ? formatSalaryRange(job.salaryMin, job.salaryMax, job.currency) : null;
+  const downloadableArtifacts = (["resume", "cover_letter"] as ArtifactType[])
+    .map((type) => {
+      const artifact = app.artifacts.find((a) => a.type === type);
+      const current = artifact?.versions.find((v) => v.id === artifact.currentVersionId);
+      return current ? { type: type as "resume" | "cover_letter", content: current.content } : null;
+    })
+    .filter((a): a is { type: "resume" | "cover_letter"; content: string } => a != null);
+
+  const downloadArtifact = (type: "resume" | "cover_letter", content: string) => {
+    downloadBytes(buildDocxBytes(content), docxFilename(job?.company, DOWNLOAD_LABEL[type]), DOCX_MIME);
+    track("artifact_downloaded", { applicationId: app.id, artifact: type });
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -86,6 +108,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 </div>
               </div>
             </div>
+            {downloadableArtifacts.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {downloadableArtifacts.map((a) => (
+                  <Button key={a.type} size="sm" variant="outline" icon={<Download className="size-3.5" aria-hidden />} onClick={() => downloadArtifact(a.type, a.content)}>
+                    Download {DOWNLOAD_LABEL[a.type].toLowerCase()} (.docx)
+                  </Button>
+                ))}
+              </div>
+            )}
             {job && (app.status === "ready_for_review" || app.status === "saved" || app.status === "preparing") && (
               <div className="mt-4 flex flex-wrap gap-2 rounded-[14px] border border-brand-200 bg-brand-50/60 p-3">
                 <div className="min-w-0 flex-1">

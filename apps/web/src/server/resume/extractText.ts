@@ -69,15 +69,15 @@ function tidy(text: string): string {
 
 /* ------------------------------------------------------------------ DOCX */
 
-interface ZipEntry {
+export interface ZipEntry {
   name: string;
   method: number;
   compressedSize: number;
   offset: number;
 }
 
-/** Reads the ZIP central directory — the only reliable way to find where an entry's data starts. */
-function readZipEntries(buf: Buffer): ZipEntry[] {
+/** Reads the ZIP central directory — the only reliable way to find where an entry's data starts. Exported for `lib/zip.ts`'s writer to round-trip test against. */
+export function readZipEntries(buf: Buffer): ZipEntry[] {
   // The end-of-central-directory record is last, after an optional comment of up to 64 KiB.
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 66_000); i--) {
@@ -106,7 +106,7 @@ function readZipEntries(buf: Buffer): ZipEntry[] {
   return entries;
 }
 
-function readZipEntry(buf: Buffer, entry: ZipEntry): Buffer {
+export function readZipEntry(buf: Buffer, entry: ZipEntry): Buffer {
   if (buf.readUInt32LE(entry.offset) !== ZIP_LOCAL_HEADER) throw new UnsupportedResumeError("That DOCX looks damaged. Save it again, or paste the text instead.");
   const nameLen = buf.readUInt16LE(entry.offset + 26);
   const extraLen = buf.readUInt16LE(entry.offset + 28);

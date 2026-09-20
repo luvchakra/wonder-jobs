@@ -25,7 +25,8 @@ export type AnalyticsEvent =
   | "byok_removed"
   | "automation_policy_changed"
   | "resume_imported"
-  | "resume_import_applied";
+  | "resume_import_applied"
+  | "artifact_downloaded";
 
 type Primitive = string | number | boolean | null | undefined;
 const FORBIDDEN = /key|secret|token|resume|cover|answer|reasoning|password/i;

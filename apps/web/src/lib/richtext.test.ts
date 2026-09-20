@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlToMarkdown, markdownToHtml, type DomLikeNode } from "./richtext";
+import { htmlToMarkdown, markdownToHtml, parseMarkdownBlocks, type DomLikeNode } from "./richtext";
 
 describe("markdownToHtml", () => {
   it("renders headings, bold and a bullet list", () => {
@@ -64,5 +64,34 @@ describe("htmlToMarkdown — reading a contentEditable's live DOM back into the 
     // represented here as the same DomLikeNode shape htmlToMarkdown reads, since this test has no real DOM.
     const asTree = root([el("H1", [text("Kunal Chakraborty")]), el("H2", [text("Professional Summary")]), el("P", [text("Accomplished leader with "), el("STRONG", [text("21 years of experience")]), text(".")]), el("H2", [text("Core strengths")]), el("UL", [el("LI", [text("Platform strategy")]), el("LI", [text("Stakeholder alignment")])])]);
     expect(htmlToMarkdown(asTree)).toBe(original);
+  });
+});
+
+describe("parseMarkdownBlocks — the same grammar as markdownToHtml, as structured data for the DOCX writer", () => {
+  it("parses headings, a paragraph with a bold run, and a bullet list", () => {
+    const md = ["# Kunal Chakraborty", "", "## Summary", "", "Accomplished leader with **21 years of experience**.", "", "## Core strengths", "", "- Platform strategy", "- Stakeholder alignment"].join("\n");
+    expect(parseMarkdownBlocks(md)).toEqual([
+      { type: "h1", runs: [{ text: "Kunal Chakraborty" }] },
+      { type: "h2", runs: [{ text: "Summary" }] },
+      { type: "p", runs: [{ text: "Accomplished leader with " }, { text: "21 years of experience", bold: true }, { text: "." }] },
+      { type: "h2", runs: [{ text: "Core strengths" }] },
+      { type: "ul", items: [[{ text: "Platform strategy" }], [{ text: "Stakeholder alignment" }]] },
+    ]);
+  });
+
+  it("parses an h3 and a horizontal rule", () => {
+    expect(parseMarkdownBlocks("### Section")).toEqual([{ type: "h3", runs: [{ text: "Section" }] }]);
+    expect(parseMarkdownBlocks("Above\n\n---\n\nBelow")).toEqual([{ type: "p", runs: [{ text: "Above" }] }, { type: "hr" }, { type: "p", runs: [{ text: "Below" }] }]);
+  });
+
+  it("treats each consecutive plain line as its own paragraph, not one soft-wrapped block", () => {
+    expect(parseMarkdownBlocks("Warm regards,\nKunal Chakraborty")).toEqual([
+      { type: "p", runs: [{ text: "Warm regards," }] },
+      { type: "p", runs: [{ text: "Kunal Chakraborty" }] },
+    ]);
+  });
+
+  it("parses an italic run", () => {
+    expect(parseMarkdownBlocks("This is *emphasized* text.")).toEqual([{ type: "p", runs: [{ text: "This is " }, { text: "emphasized", italic: true }, { text: " text." }] }]);
   });
 });
