@@ -6,8 +6,8 @@ import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { Tabs } from "@/components/common/Tabs";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
-import { WORK_MODE_LABEL, companyColor } from "@/components/jobs/JobCard";
-import type { JobQuality, WorkMode } from "@/domain/jobs/types";
+import { companyColor } from "@/components/jobs/JobCard";
+import { WORK_MODE_LABEL, type JobQuality, type WorkMode } from "@/domain/jobs/types";
 import { cn } from "@/lib/cn";
 
 /** The same six dimensions `computeMatch` always scores a posting on (`services/jobs/matching.ts`) — real, fixed category names, not per-job data, so showing them costs nothing to disclose. Their scores and summaries are genuinely per-candidate and stay blurred until sign-in. */
