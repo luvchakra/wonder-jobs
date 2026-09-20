@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)” and “Screen-by-screen UX audit, in progress (WJ-105)”._
+_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit, in progress (WJ-105)” and “Persistent demo-mode banner (WJ-106)”._
 
 ## At a glance
 
@@ -49,6 +49,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Cookie sessions verified server-side; proxy guards `/app/*` and `/onboarding`; API routes 401 without a session
 - ✅ Per-user state namespaces; sign-out revokes, clears and forgets local copies
 - ✅ Demo mode under the avatar menu (`/demo`, `/demo/exit`, deep links `/demo?next=/app/jobs`)
+- ✅ A persistent demo-mode banner, visible on every `/app/*` screen (not just the avatar menu), with a one-click "Exit demo & sign in" — WJ-106
 - ✅ A real session always wins over a leftover demo cookie — fixed a real bug where trying the demo before signing in kept showing seeded demo data under a real account, since demo mode was checked before the signed-in session and sign-in never cleared it — WJ-103
 - ✅ Forgot password → emailed recovery link → `/reset-password` → signed in (25-check Playwright run, incl. single-use token, expired link, mismatch, old-password rejection) — WJ-079
 - ✅ Password reveal toggle on sign-in, sign-up and reset — WJ-080
