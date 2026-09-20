@@ -466,10 +466,10 @@ export function ContactSection() {
           ) : (
             <form onSubmit={submit} className="rounded-[24px] border border-line bg-surface-2 p-6 md:p-8" noValidate aria-label="Contact form">
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Your name" htmlFor="contact-name">
+                <Field label="Your name" htmlFor="contact-name" required>
                   <Input id="contact-name" name="name" autoComplete="name" value={form.name} onChange={set("name")} required maxLength={120} placeholder="Priya Sharma" />
                 </Field>
-                <Field label="Email" htmlFor="contact-email">
+                <Field label="Email" htmlFor="contact-email" required>
                   <Input id="contact-email" name="email" type="email" inputMode="email" autoComplete="email" value={form.email} onChange={set("email")} required maxLength={200} placeholder="you@example.com" />
                 </Field>
               </div>
@@ -482,7 +482,7 @@ export function ContactSection() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Message" htmlFor="contact-message" className="mt-4">
+              <Field label="Message" htmlFor="contact-message" className="mt-4" required hint="At least 10 characters.">
                 <Textarea id="contact-message" name="message" value={form.message} onChange={set("message")} required minLength={10} maxLength={4000} rows={5} placeholder="Tell us what's on your mind…" />
               </Field>
               {/* Honeypot: hidden from people, tempting for bots. */}

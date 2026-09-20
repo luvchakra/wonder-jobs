@@ -42,7 +42,7 @@ export default function LearningPage() {
                   <Link href="/app/career-dna" className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
                     I have this skill <ArrowRight className="size-3.5" aria-hidden />
                   </Link>
-                  <span className="text-ink-4">Courses: connect a provider</span>
+                  <span className="text-ink-4">Courses: not available yet</span>
                 </div>
               </Card>
             </li>

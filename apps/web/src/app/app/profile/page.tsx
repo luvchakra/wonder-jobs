@@ -33,7 +33,9 @@ const MORE = [
 ];
 
 function CloudSyncCard() {
-  const [backend, setBackend] = useState<"supabase" | "local" | "unknown">("unknown");
+  // "error" is distinct from a confirmed "local" backend: a failed request tells us nothing about how
+  // this deployment is actually configured, so it must never be asserted as a fact about data storage.
+  const [backend, setBackend] = useState<"supabase" | "local" | "unknown" | "error">("unknown");
   const sync = useSyncExternalStore(syncStatus.subscribe, syncStatus.get, () => "idle" as const);
   const mode = useAuthStore((s) => s.mode);
   useEffect(() => {
@@ -41,7 +43,7 @@ function CloudSyncCard() {
     fetch("/api/state/status", { cache: "no-store" })
       .then((r) => r.json())
       .then((d: { backend: "supabase" | "local" }) => setBackend(d.backend))
-      .catch(() => setBackend("local"));
+      .catch(() => setBackend("error"));
   }, [mode]);
   if (mode === "demo") {
     return (
@@ -69,8 +71,14 @@ function CloudSyncCard() {
     <Card className="mt-4 flex items-start gap-3">
       <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${cloud ? "bg-success-100 text-success-600" : "bg-bg-soft text-ink-3"}`}>{cloud ? <Cloud className="size-5" aria-hidden /> : <CloudOff className="size-5" aria-hidden />}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-semibold text-ink">{backend === "unknown" ? "Checking sync…" : cloud ? "Synced to the cloud" : "Stored on this device only"}</p>
-        <p className="text-[12px] text-ink-3">{cloud ? `Your Career DNA, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.` : "Persistence isn't configured on this deployment yet, so data lives in this browser. Provider keys are held in memory only."}</p>
+        <p className="text-[14px] font-semibold text-ink">{backend === "unknown" ? "Checking sync…" : backend === "error" ? "Couldn't check sync status" : cloud ? "Synced to the cloud" : "Stored on this device only"}</p>
+        <p className="text-[12px] text-ink-3">
+          {backend === "error"
+            ? "We couldn't reach the server to check. This doesn't mean anything is wrong — refresh the page to check again."
+            : cloud
+              ? `Your Career DNA, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.`
+              : "Persistence isn't configured on this deployment yet, so data lives in this browser. Provider keys are held in memory only."}
+        </p>
       </div>
     </Card>
   );

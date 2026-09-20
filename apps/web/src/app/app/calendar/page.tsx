@@ -22,6 +22,7 @@ export default function CalendarPage() {
   const schedules = useWorkflowStore((s) => s.schedules);
   const now = useNow();
   const [monthOverride, setMonthOverride] = useState<Date | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const month = monthOverride ?? new Date(new Date(now).getFullYear(), new Date(now).getMonth(), 1);
 
   // Real events: follow-ups and interviews from applications, next scheduled runs.
@@ -79,20 +80,29 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-1" role="grid" aria-label="Month">
             {cells.map((d, i) => {
               if (!d) return <div key={`e${i}`} aria-hidden />;
-              const list = byDay.get(d.toDateString()) ?? [];
-              const isToday = d.toDateString() === todayKey;
+              const dayKey = d.toDateString();
+              const list = byDay.get(dayKey) ?? [];
+              const isToday = dayKey === todayKey;
+              const expanded = expandedDays.has(dayKey);
+              const shown = expanded ? list : list.slice(0, 2);
               return (
                 <div key={d.toISOString()} role="gridcell" className={cn("min-h-[64px] rounded-[10px] border p-1.5 text-[12px] md:min-h-[84px]", isToday ? "border-brand-500 bg-brand-50/50" : "border-line")}>
                   <span className={cn("font-medium", isToday ? "text-brand-700" : "text-ink-2")}>{d.getDate()}</span>
                   <ul className="mt-1 space-y-0.5">
-                    {list.slice(0, 2).map((e) => (
+                    {shown.map((e) => (
                       <li key={e.id}>
                         <Link href={e.href} className={cn("block truncate rounded px-1 py-0.5 text-[10px] font-medium", e.kind === "interview" ? "bg-blue-100 text-blue-600" : e.kind === "follow_up" ? "bg-brand-50 text-brand-700" : "bg-[#fbe8ff] text-pink-500")}>
                           {e.title}
                         </Link>
                       </li>
                     ))}
-                    {list.length > 2 && <li className="text-[10px] text-ink-4">+{list.length - 2} more</li>}
+                    {!expanded && list.length > 2 && (
+                      <li>
+                        <button type="button" onClick={() => setExpandedDays((prev) => new Set(prev).add(dayKey))} className="text-[10px] text-ink-4 hover:text-ink-2 hover:underline">
+                          +{list.length - 2} more
+                        </button>
+                      </li>
+                    )}
                   </ul>
                 </div>
               );
