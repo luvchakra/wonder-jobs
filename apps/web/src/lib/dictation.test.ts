@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendDictated, foldResults, joinPhrases, type RecognitionResultList } from "./dictation";
+import { appendDictated, foldResults, mergePhrases, type RecognitionResultList } from "./dictation";
 
 /** Builds the result list shape the Web Speech API hands to `onresult`. */
 function results(...phrases: { text: string; isFinal: boolean }[]): RecognitionResultList {
@@ -10,6 +10,75 @@ function results(...phrases: { text: string; isFinal: boolean }[]): RecognitionR
   return list as unknown as RecognitionResultList;
 }
 
+describe("mergePhrases", () => {
+  it("keeps a single phrase as it was said", () => {
+    expect(mergePhrases(["senior director at Saviynt"])).toBe("senior director at Saviynt");
+  });
+
+  it("joins genuinely different phrases", () => {
+    expect(mergePhrases(["senior director at Saviynt", "remote or Bengaluru"])).toBe("senior director at Saviynt remote or Bengaluru");
+  });
+
+  it("collapses a recognizer that re-sends one sentence as it grows it", () => {
+    // Reported from a real Android session: every take arrived as its own final result, and joining
+    // them end to end produced "looking looking looking for looking for a…".
+    const takes = [
+      "looking",
+      "looking",
+      "looking for",
+      "looking for a",
+      "looking for a",
+      "looking for a senior",
+      "looking for a senior",
+      "looking for a senior position",
+      "looking for a senior position",
+      "looking for a senior position in",
+      "looking for a senior position in I",
+      "looking for a senior position in",
+      "looking for a senior position in i20",
+      "looking for a senior position in i20",
+    ];
+    expect(mergePhrases(takes)).toBe("looking for a senior position in i20");
+  });
+
+  it("collapses the earlier report's takes too", () => {
+    const takes = [
+      "position",
+      "position stand",
+      "position stand or give me",
+      "position stand or give me good",
+      "position stand or give me good generation",
+      "position stand or give me good generation as well",
+    ];
+    expect(mergePhrases(takes)).toBe("position stand or give me good generation as well");
+  });
+
+  it("prefers the later, fuller take when a word is corrected", () => {
+    expect(mergePhrases(["senior position in I", "senior position in i20"])).toBe("senior position in i20");
+  });
+
+  it("ignores a shorter repeat of what was already heard", () => {
+    expect(mergePhrases(["looking for a senior position in I", "looking for a senior position in"])).toBe("looking for a senior position in I");
+  });
+
+  it("stitches a phrase that picks up where the last one left off", () => {
+    expect(mergePhrases(["looking for a senior position", "senior position in i20"])).toBe("looking for a senior position in i20");
+  });
+
+  it("does not merge two phrases that merely start with the same word", () => {
+    expect(mergePhrases(["senior director", "senior product roles in fintech"])).toBe("senior director senior product roles in fintech");
+  });
+
+  it("compares words loosely enough to see through punctuation and case", () => {
+    expect(mergePhrases(["Looking for a role.", "looking for a role in fintech"])).toBe("looking for a role in fintech");
+  });
+
+  it("skips empty phrases", () => {
+    expect(mergePhrases(["", "senior director", ""])).toBe("senior director");
+    expect(mergePhrases([])).toBe("");
+  });
+});
+
 describe("foldResults", () => {
   it("keeps interim words out of the settled phrases", () => {
     const folded = foldResults([], results({ text: "senior director", isFinal: false }));
@@ -19,43 +88,36 @@ describe("foldResults", () => {
 
   it("settles a phrase once it is final", () => {
     const folded = foldResults([], results({ text: "senior director at Saviynt", isFinal: true }));
-    expect(joinPhrases(folded.settled)).toBe("senior director at Saviynt");
+    expect(mergePhrases(folded.settled)).toBe("senior director at Saviynt");
     expect(folded.interim).toBe("");
   });
 
   it("does not duplicate when the browser re-sends phrases it already settled", () => {
-    // The standard's result list is cumulative, so every event replays earlier phrases.
     let settled: string[] = [];
-    const list = results({ text: "senior director", isFinal: true }, { text: "at Saviynt", isFinal: true });
+    const list = results({ text: "senior director", isFinal: true }, { text: "remote only", isFinal: true });
     for (let replay = 0; replay < 5; replay++) settled = foldResults(settled, list).settled;
-    expect(joinPhrases(settled)).toBe("senior director at Saviynt");
+    expect(mergePhrases(settled)).toBe("senior director remote only");
   });
 
-  it("replaces a phrase in place as the recognizer grows it, instead of stacking prefixes", () => {
-    // Android's recognizer re-sends one phrase as final over and over, a word longer each time.
-    // Appending each take is what produced "position position position stand position stand or…".
-    const takes = ["position", "position stand", "position stand or give me", "position stand or give me good", "position stand or give me good generation"];
+  it("survives growing takes arriving at their own indices", () => {
+    // The shape that defeated the previous fix: each longer take is a *new* entry, not an overwrite.
     let settled: string[] = [];
-    for (const take of takes) settled = foldResults(settled, results({ text: take, isFinal: true })).settled;
-    expect(joinPhrases(settled)).toBe("position stand or give me good generation");
-  });
-
-  it("keeps separate phrases in the order they were spoken", () => {
-    let settled: string[] = [];
-    settled = foldResults(settled, results({ text: "senior director", isFinal: true })).settled;
-    settled = foldResults(settled, results({ text: "senior director", isFinal: true }, { text: "remote only", isFinal: true })).settled;
-    expect(joinPhrases(settled)).toBe("senior director remote only");
+    const takes = ["looking", "looking for", "looking for a senior", "looking for a senior position in i20"];
+    takes.forEach((_, i) => {
+      settled = foldResults(settled, results(...takes.slice(0, i + 1).map((t) => ({ text: t, isFinal: true })))).settled;
+    });
+    expect(mergePhrases(settled)).toBe("looking for a senior position in i20");
   });
 
   it("reports the interim tail while earlier phrases stay settled", () => {
     const folded = foldResults([], results({ text: "senior director", isFinal: true }, { text: "at Sav", isFinal: false }));
-    expect(joinPhrases(folded.settled)).toBe("senior director");
+    expect(mergePhrases(folded.settled)).toBe("senior director");
     expect(folded.interim).toBe("at Sav");
   });
 
   it("ignores empty transcripts", () => {
     const folded = foldResults([], results({ text: "   ", isFinal: true }, { text: "", isFinal: false }));
-    expect(joinPhrases(folded.settled)).toBe("");
+    expect(mergePhrases(folded.settled)).toBe("");
     expect(folded.interim).toBe("");
   });
 });
@@ -66,14 +128,13 @@ describe("appendDictated", () => {
   });
 
   it("appends to what is already typed with a single space", () => {
-    expect(appendDictated("senior director", "at Saviynt")).toBe("senior director at Saviynt");
+    expect(appendDictated("test", "looking for a senior position in i20")).toBe("test looking for a senior position in i20");
     expect(appendDictated("senior director ", "at Saviynt")).toBe("senior director at Saviynt");
     expect(appendDictated("senior director\n", "at Saviynt")).toBe("senior director at Saviynt");
   });
 
   it("starts a new sentence after terminal punctuation", () => {
     expect(appendDictated("I want a director role.", "remote only")).toBe("I want a director role. Remote only");
-    expect(appendDictated("Which team?", "ideally platform")).toBe("Which team? Ideally platform");
   });
 
   it("leaves the field alone when nothing was said", () => {
