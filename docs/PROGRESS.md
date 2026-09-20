@@ -112,6 +112,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Prepare flow: resume, cover letter, screening answers, review — WJ-033..036
 - ✅ Artifact editor: rich-text (rendered, not raw markdown), autosaving as you type, regenerate, compare, restore versions — WJ-118
 - ✅ "Open application page" + "Mark as submitted" + submission reminder
+- ✅ Download the current resume/cover letter as a real .docx, client-side, no dependency — WJ-119
 - ✅ Follow-up / thank-you emails: draft → confirm → execute-once → audit — WJ-064
 - ⬜ Email delivery: a mail provider (the send step is the seam)
 

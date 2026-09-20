@@ -166,3 +166,85 @@ export function htmlToMarkdown(root: DomLikeNode): string {
   flushList();
   return lines.join("\n\n");
 }
+
+/** One inline formatted span. `!bold && !italic` is plain text. */
+export interface MdRun {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+}
+
+export type MdBlock = { type: "h1" | "h2" | "h3" | "p"; runs: MdRun[] } | { type: "ul"; items: MdRun[][] } | { type: "hr" };
+
+function parseInlineRuns(text: string): MdRun[] {
+  const runs: MdRun[] = [];
+  const re = /\*\*(.+?)\*\*|\*([^*\n]+)\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) runs.push({ text: text.slice(last, m.index) });
+    if (m[1] !== undefined) runs.push({ text: m[1], bold: true });
+    else runs.push({ text: m[2] ?? "", italic: true });
+    last = re.lastIndex;
+  }
+  if (last < text.length) runs.push({ text: text.slice(last) });
+  return runs.filter((r) => r.text.length > 0);
+}
+
+/**
+ * Parses stored markdown into structured blocks/runs — the same grammar
+ * `markdownToHtml` renders, but as data instead of HTML, for a consumer
+ * that needs to build something other than HTML (a downloadable DOCX;
+ * see `lib/docx.ts`). Every non-blank plain line becomes its own
+ * paragraph rather than being soft-wrapped into a shared one — simpler,
+ * and reads just as well in a document editor.
+ */
+export function parseMarkdownBlocks(markdown: string): MdBlock[] {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const blocks: MdBlock[] = [];
+  let list: MdRun[][] = [];
+  const flushList = () => {
+    if (list.length) {
+      blocks.push({ type: "ul", items: list });
+      list = [];
+    }
+  };
+  for (const line of lines) {
+    if (/^\s*$/.test(line)) {
+      flushList();
+      continue;
+    }
+    if (/^-{3,}\s*$/.test(line)) {
+      flushList();
+      blocks.push({ type: "hr" });
+      continue;
+    }
+    const h3 = /^###\s+(.*)$/.exec(line);
+    const h2 = /^##\s+(.*)$/.exec(line);
+    const h1 = /^#\s+(.*)$/.exec(line);
+    const li = /^[-*]\s+(.*)$/.exec(line);
+    if (h3) {
+      flushList();
+      blocks.push({ type: "h3", runs: parseInlineRuns(h3[1]) });
+      continue;
+    }
+    if (h2) {
+      flushList();
+      blocks.push({ type: "h2", runs: parseInlineRuns(h2[1]) });
+      continue;
+    }
+    if (h1) {
+      flushList();
+      blocks.push({ type: "h1", runs: parseInlineRuns(h1[1]) });
+      continue;
+    }
+    if (li) {
+      list.push(parseInlineRuns(li[1]));
+      continue;
+    }
+    flushList();
+    blocks.push({ type: "p", runs: parseInlineRuns(line) });
+  }
+  flushList();
+  return blocks;
+}
