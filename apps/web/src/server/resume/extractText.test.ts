@@ -176,6 +176,45 @@ describe("extractPdfText", () => {
   });
 });
 
+/**
+ * The pattern behind the actual reported bug, reproduced directly rather than guessed at: many
+ * résumé/ATS PDF builders position every *word* — the space between two words included — as its own
+ * `BT…ET` text object for exact kerning, and mark a real new line only by re-issuing the page's `cm`
+ * coordinate transform, never by a vertical `Td`. Treating every `Td`/`ET` as a line break (the old
+ * behavior) put one character per line and failed the readability check on a completely normal PDF.
+ */
+function makeWordPerBtPdf(lines: string[][], { compress = true } = {}): Buffer {
+  const esc = (s: string) => s.replace(/([()\\])/g, "\\$1");
+  const lineBlocks = lines.map((words, i) => {
+    const bts = words.map((w) => `BT\n/F1 12 Tf\n1 0 0 -1 0 0 Tm\n0 0 Td (${esc(w)}) Tj\nET`).join("\n");
+    return `q\n.75 0 0 .75 36 ${100 + i * 20} cm\n${bts}\nQ`;
+  });
+  const content = lineBlocks.join("\n");
+  const body = compress ? deflateSync(Buffer.from(content, "latin1")) : Buffer.from(content, "latin1");
+  const head = Buffer.from(`%PDF-1.4\n1 0 obj\n<< /Length ${body.length}${compress ? " /Filter /FlateDecode" : ""} >>\nstream\n`, "latin1");
+  return Buffer.concat([head, body, Buffer.from("\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF", "latin1")]);
+}
+
+describe("extractPdfText — one BT…ET per word (a common résumé/ATS builder convention)", () => {
+  it("joins words on the same cm-bounded line with single spaces, not newlines, and doesn't run them together", () => {
+    const text = extractPdfText(makeWordPerBtPdf([["Priya", "Raman"], ["Senior", "Product", "Manager"]]));
+    const lines = text.split("\n");
+    expect(lines).toEqual(["Priya Raman", "Senior Product Manager"]);
+  });
+
+  it("starts a real new line only when the page's coordinate transform (cm) changes, never mid-line", () => {
+    const text = extractPdfText(makeWordPerBtPdf([["One", "line", "of", "several", "words"]]));
+    expect(text).toBe("One line of several words");
+  });
+
+  it("is reported readable end to end on this pattern, not misdiagnosed as a scan", () => {
+    const lines = PROSE.split("\n").map((l) => l.split(" "));
+    const result = extractResumeText(makeWordPerBtPdf(lines), "resume.pdf");
+    expect(result).toMatchObject({ format: "pdf", readable: true });
+    expect(result.text).toBe(PROSE);
+  });
+});
+
 describe("extractDocxText", () => {
   it("reads paragraphs as lines", () => {
     const text = extractDocxText(makeDocx(["Priya Raman", "Senior Product Manager"]));

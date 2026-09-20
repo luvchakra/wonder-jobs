@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit (WJ-105, WJ-107)”, “Persistent demo-mode banner (WJ-106)”, “Vendor error detail + Gemini default model (WJ-108, WJ-109)”, “Run outcome and next step (WJ-110)”, “Search the candidate's own role, never a canned one (WJ-111)” and “Fixed the PDF resume reader misdiagnosing normal PDFs as scans (WJ-112)”._
+_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit (WJ-105, WJ-107)”, “Persistent demo-mode banner (WJ-106)”, “Vendor error detail + Gemini default model (WJ-108, WJ-109)”, “Run outcome and next step (WJ-110)”, “Search the candidate's own role, never a canned one (WJ-111)” “Fixed the PDF resume reader misdiagnosing normal PDFs as scans (WJ-112)” and “Fixed it again on a real ATS-builder résumé — word-per-object PDFs (WJ-113)”._
 
 ## At a glance
 
@@ -65,6 +65,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ New accounts start empty (no invented history); onboarding gated in the app shell
 - ✅ Import Career DNA from a resume: PDF / Word / pasted text, every suggestion shown with the words it came from, applied only when the candidate ticks it; the file is never stored — WJ-095
 - ✅ Fixed the PDF reader wrongly rejecting normal, text-based resumes as scans: a stream-scanning bug lost every stream after the first (so an embedded font's ToUnicode data was never found), and glyph-code text from a subsetted font wasn't decoded to real characters at all — both fixed and verified against real Chromium-generated PDFs — WJ-112
+- ✅ Fixed the same error recurring on a real ATS-builder résumé: that generator draws every word as its own text object and signals a new line only via the page's coordinate transform, not the vertical move the reader assumed every generator used — now handles both conventions and correctly fills name, headline, experience, level, skills and industries from the user's own CV — WJ-113
 
 ## 4. Job discovery — real sources (spec §8–9, "don't show dummy data")
 
