@@ -1,9 +1,12 @@
 "use client";
+import { useState } from "react";
 import { Check, X } from "lucide-react";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { Badge, type Tone } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
+import { Modal } from "@/components/common/Modal";
+import { toast } from "@/components/feedback/Toast";
 import { formatTime } from "@/lib/format";
 
 const STATUS: Record<WorkflowRun["actions"][number]["status"], { label: string; tone: Tone }> = {
@@ -18,8 +21,24 @@ const STATUS: Record<WorkflowRun["actions"][number]["status"], { label: string; 
 
 /** External actions with confirmation, idempotency and execution history (spec §11). */
 export function ActionApprovalList({ run }: { run: WorkflowRun }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
   if (!run.actions.length) return null;
   const svc = getWorkflowService();
+  const confirmedAction = run.actions.find((a) => a.id === confirming);
+  const approve = (actionId: string) => {
+    try {
+      svc.confirmAction(run.id, actionId);
+    } catch (e) {
+      toast.error("Couldn't approve", e instanceof Error ? e.message : undefined);
+    }
+  };
+  const decline = (actionId: string) => {
+    try {
+      svc.rejectAction(run.id, actionId);
+    } catch (e) {
+      toast.error("Couldn't decline", e instanceof Error ? e.message : undefined);
+    }
+  };
   return (
     <div>
       <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-3">External actions</p>
@@ -37,10 +56,14 @@ export function ActionApprovalList({ run }: { run: WorkflowRun }) {
                 <Badge tone={STATUS[a.status].tone}>{STATUS[a.status].label}</Badge>
                 {a.status === "pending_confirmation" && (
                   <>
-                    <Button size="sm" icon={<Check className="size-3.5" aria-hidden />} onClick={() => svc.confirmAction(run.id, a.id)}>
+                    <Button
+                      size="sm"
+                      icon={<Check className="size-3.5" aria-hidden />}
+                      onClick={() => (a.stageKey === "apply" ? setConfirming(a.id) : approve(a.id))}
+                    >
                       Approve
                     </Button>
-                    <Button size="sm" variant="outline" icon={<X className="size-3.5" aria-hidden />} onClick={() => svc.rejectAction(run.id, a.id)}>
+                    <Button size="sm" variant="outline" icon={<X className="size-3.5" aria-hidden />} onClick={() => decline(a.id)}>
                       Decline
                     </Button>
                   </>
@@ -62,6 +85,29 @@ export function ActionApprovalList({ run }: { run: WorkflowRun }) {
           </li>
         ))}
       </ul>
+      <Modal
+        open={!!confirmedAction}
+        onClose={() => setConfirming(null)}
+        title="Submit this application?"
+        description={confirmedAction ? `“${confirmedAction.label}” submits your application on the employer's site. This can't be undone from here.` : undefined}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirming(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmedAction) approve(confirmedAction.id);
+                setConfirming(null);
+              }}
+            >
+              Submit application
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Decline instead if you want to edit the materials or skip this employer.</p>
+      </Modal>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { WorkflowTimeline } from "@/components/workflow/WorkflowTimeline";
 import { WorkflowControls } from "@/components/workflow/WorkflowControls";
 import { StageDetail } from "@/components/workflow/StageDetail";
 import { RunErrorBanner } from "@/components/workflow/RunErrorBanner";
+import { toast } from "@/components/feedback/Toast";
 import { JobCard } from "@/components/jobs/JobCard";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { STATUS_META, isActive } from "@/domain/workflow/status";
@@ -56,6 +57,13 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
     );
   }
 
+  const act = (fn: () => void) => {
+    try {
+      fn();
+    } catch (e) {
+      toast.error("That didn't work", e instanceof Error ? e.message : undefined);
+    }
+  };
   const duration = run.startedAt ? (run.completedAt ? new Date(run.completedAt).getTime() : now) - new Date(run.startedAt).getTime() : null;
   const providerMeta = AI_PROVIDERS[run.config.provider.provider];
   const live = STATUS_META[run.status].label + (run.currentStage ? ` — ${STAGES[run.currentStage].name}` : "");
@@ -195,15 +203,15 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
               <span className="block truncate text-[12px] text-ink-3">{run.status === "WAITING_FOR_USER" ? "Review, then continue." : run.status === "PAUSED" ? "Resume when you're ready." : "This may take a few minutes."}</span>
             </span>
             {run.status === "WAITING_FOR_USER" ? (
-              <Button size="sm" onClick={() => getWorkflowService().continue(run.id)}>
+              <Button size="sm" onClick={() => act(() => getWorkflowService().continue(run.id))}>
                 Continue
               </Button>
             ) : run.status === "PAUSED" ? (
-              <Button size="sm" onClick={() => getWorkflowService().resume(run.id)}>
+              <Button size="sm" onClick={() => act(() => getWorkflowService().resume(run.id))}>
                 Resume
               </Button>
             ) : (
-              <Button size="sm" variant="outline" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => getWorkflowService().stop(run.id)}>
+              <Button size="sm" variant="outline" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => getWorkflowService().stop(run.id))}>
                 Stop
               </Button>
             )}

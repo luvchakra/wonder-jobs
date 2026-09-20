@@ -14,20 +14,28 @@ export function Sparkbars({ series, className }: { series: number[]; className?:
   );
 }
 
+/** Bolds the metric's own value where it appears in the insight's real body text, instead of
+ *  fabricating a generic "higher in product roles than last month" sentence that doesn't hold
+ *  for every insight (e.g. a reply-time metric has nothing to do with "product roles"). */
+function renderBody(insight: CareerInsight) {
+  const value = insight.metric?.value;
+  const idx = value ? insight.body.indexOf(value) : -1;
+  if (idx < 0 || !value) return insight.body;
+  return (
+    <>
+      {insight.body.slice(0, idx)}
+      <strong className="text-ink">{value}</strong>
+      {insight.body.slice(idx + value.length)}
+    </>
+  );
+}
+
 export function CareerInsightCard({ insight, className }: { insight: CareerInsight; className?: string }) {
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-start gap-4">
         {insight.series && <Sparkbars series={insight.series} className="shrink-0" />}
-        <p className="text-[13px] leading-relaxed text-ink-2">
-          {insight.metric ? (
-            <>
-              Your {insight.metric.label.toLowerCase()} is <strong className="text-ink">{insight.metric.value} higher</strong> in product roles than last month.
-            </>
-          ) : (
-            insight.body
-          )}
-        </p>
+        <p className="text-[13px] leading-relaxed text-ink-2">{renderBody(insight)}</p>
       </div>
       {insight.suggestion && (
         <Link href={insight.suggestion.href} className="flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3 text-[12px] text-ink-2 transition-colors hover:bg-bg-soft">

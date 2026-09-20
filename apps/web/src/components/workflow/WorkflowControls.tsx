@@ -52,7 +52,7 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
           </Button>
         )}
         {run.status === "WAITING_FOR_USER" && (
-          <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.continue(run.id))} title={pendingActions ? "Pending approvals will be recorded as not approved" : undefined}>
+          <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.continue(run.id))}>
             {pendingActions ? `Continue without ${pendingActions} pending` : "Continue"}
           </Button>
         )}
@@ -67,7 +67,7 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
           </>
         )}
         {run.status === "PENDING" && (
-          <Button size="sm" variant="danger" onClick={() => act(() => svc.cancel(run.id))}>
+          <Button size="sm" variant="danger" onClick={() => act(() => svc.cancel(run.id), "Cancelled")}>
             Cancel
           </Button>
         )}
@@ -77,6 +77,9 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
           </Button>
         )}
       </div>
+      {run.status === "WAITING_FOR_USER" && !!pendingActions && (
+        <p className="mt-2 text-[12px] text-warning-600">Continuing now records {pendingActions} pending approval{pendingActions === 1 ? "" : "s"} as not approved — they won&apos;t be submitted.</p>
+      )}
       <Modal
         open={rerunOpen}
         onClose={() => setRerunOpen(false)}
