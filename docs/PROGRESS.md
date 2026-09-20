@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)” and “Mobile nav drawer + parallel CI (WJ-104)”._
+_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)” and “Screen-by-screen UX audit, in progress (WJ-105)”._
 
 ## At a glance
 
@@ -32,7 +32,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
 | 12. Help center & support | 6 | 0 | 0 | ✅ |
 | 13. Secondary product areas | 8 | 3 | 2 | 🟡 early versions |
-| 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
+| 14. Quality, accessibility, performance | 9 | 1 | 1 | 🟡 UX audit (WJ-105) in progress |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
 ## 1. Foundation & design system (spec §2–4)
@@ -202,6 +202,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ `npm run check` (lint, typecheck, tests, build) green before every push — WJ-076
 - ✅ Automated accessibility audit: `npm run a11y` (axe-core, 18 pages, reduced-motion emulated), 0 violations — WJ-075
 - ⬜ Wire `npm run a11y` into CI (it needs a Chromium binary the repo doesn't vendor; run locally with `npx playwright install chromium` first, or reuse an existing install via `PW_CHROMIUM_PATH`)
+- 🟡 Screen-by-screen UX audit for legible required fields and reversible actions — WJ-105. Covered so far: auth, onboarding, career DNA, jobs, run setup, applications, automation and the landing contact form; found and fixed 4 real bugs beyond copy (duplicate interview-prep question, prepare-flow progress bar and Retry, cross-artifact state bleed) plus a `getByLabel` regression from the audit's own required-field markers, caught and fixed via the full E2E suite. Not yet covered: insights, resume-studio, help, the marketing pages beyond the contact form, runs list/detail, `WorkflowControls.tsx`, calendar subscribe/push components.
 
 ## 15. Operations & release
 
