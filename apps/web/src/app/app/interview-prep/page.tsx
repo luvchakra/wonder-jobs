@@ -67,7 +67,7 @@ export default function InterviewPrepPage() {
                 <ol className="mt-1 list-decimal space-y-1 pl-5 text-[13px] text-ink-2">
                   <li>Walk me through a product you shipped end to end.</li>
                   <li>How do you decide what not to build?</li>
-                  <li>{job?.requirements[1] ? `Tell us about your ${job.requirements[1].toLowerCase()}.` : "What would you do in your first 90 days?"}</li>
+                  <li>{job?.requirements[1] ? `Tell us about your ${job.requirements[1].toLowerCase()}.` : "Tell us about a time you disagreed with a decision and what you did."}</li>
                   <li>What would you do in your first 90 days at {job?.company}?</li>
                 </ol>
                 <Link href={`/app/applications/${a.id}`} className="mt-4 inline-block text-[13px] font-medium text-brand-600 hover:underline">

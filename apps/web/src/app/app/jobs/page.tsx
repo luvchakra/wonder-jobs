@@ -1,7 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Bookmark } from "lucide-react";
 import type { FitLabel } from "@/domain/jobs/types";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
@@ -14,7 +13,6 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
-import { toast } from "@/components/feedback/Toast";
 
 const PAGE = 24;
 
@@ -66,15 +64,7 @@ function JobsInner() {
 
   return (
     <div>
-      <PageHeader
-        title="Jobs"
-        description="Every opportunity Wonder has found, ranked by how well it fits your Career DNA."
-        actions={
-          <Button variant="outline" icon={<Bookmark className="size-4" aria-hidden />} onClick={() => toast.success("Search saved", "Wonder will use these filters in your next scheduled run.")}>
-            Save search
-          </Button>
-        }
-      />
+      <PageHeader title="Jobs" description="Every opportunity Wonder has found, ranked by how well it fits your Career DNA." />
       <JobFiltersBar filters={filters} onChange={(p) => { setFilters(p); setLimit(PAGE); }} sort={sort} onSort={setSort} sources={sources} total={results.length} className="mb-5" />
       {results.length === 0 ? (
         filterResult.hiddenTotal > 0 ? (

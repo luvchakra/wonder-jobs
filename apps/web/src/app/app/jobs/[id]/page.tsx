@@ -68,8 +68,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         await navigator.clipboard.writeText(url);
         toast.success("Link copied");
       }
-    } catch {
-      /* user cancelled */
+    } catch (err) {
+      // Only a real cancellation is silent; anything else (permission denied, clipboard write failure)
+      // needs to say something, or clicking Share can look like it simply did nothing.
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      toast.error("Couldn't share this", "Copy the page's URL from your browser instead.");
     }
   };
 
@@ -230,24 +233,27 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </Card>
           )}
 
-          {tab === "sources" && quality && (
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[15px] font-semibold text-ink">Hiring signals</h2>
-                <JobQualityBadge quality={quality} />
-              </div>
-              <p className="mt-2 text-[14px] text-ink-2">{quality.summary}</p>
-              <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">
-                {quality.signals.map((s) => (
-                  <li key={s.key} className="flex items-center justify-between gap-3 p-3 text-[13px]">
-                    <span className="text-ink-2">{s.label}</span>
-                    <span className={cn("font-medium", s.sentiment === "positive" ? "text-success-600" : s.sentiment === "caution" ? "text-warning-600" : "text-ink")}>{s.value}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-[12px] text-ink-4">Signals are observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
-            </Card>
-          )}
+          {tab === "sources" &&
+            (quality ? (
+              <Card>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[15px] font-semibold text-ink">Hiring signals</h2>
+                  <JobQualityBadge quality={quality} />
+                </div>
+                <p className="mt-2 text-[14px] text-ink-2">{quality.summary}</p>
+                <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">
+                  {quality.signals.map((s) => (
+                    <li key={s.key} className="flex items-center justify-between gap-3 p-3 text-[13px]">
+                      <span className="text-ink-2">{s.label}</span>
+                      <span className={cn("font-medium", s.sentiment === "positive" ? "text-success-600" : s.sentiment === "caution" ? "text-warning-600" : "text-ink")}>{s.value}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[12px] text-ink-4">Signals are observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
+              </Card>
+            ) : (
+              <EmptyState title="No hiring signals collected yet" body="Wonder collects signals like repost frequency and posting age as it re-discovers this listing over time." />
+            ))}
         </div>
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -255,6 +261,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             <Button size="lg" full onClick={prepare}>
               {application && application.status !== "saved" ? "Open application" : "Prepare Application"}
             </Button>
+            {!application && !saved && <p className="text-center text-[11px] text-ink-4">Also saves this job to your list.</p>}
             <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
