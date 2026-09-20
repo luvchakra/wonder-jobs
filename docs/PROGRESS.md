@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)” and “Playwright E2E infrastructure + auth.spec.ts, actually executed”._
+_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)” and “Mobile nav drawer + parallel CI (WJ-104)”._
 
 ## At a glance
 
@@ -49,6 +49,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Cookie sessions verified server-side; proxy guards `/app/*` and `/onboarding`; API routes 401 without a session
 - ✅ Per-user state namespaces; sign-out revokes, clears and forgets local copies
 - ✅ Demo mode under the avatar menu (`/demo`, `/demo/exit`, deep links `/demo?next=/app/jobs`)
+- ✅ A real session always wins over a leftover demo cookie — fixed a real bug where trying the demo before signing in kept showing seeded demo data under a real account, since demo mode was checked before the signed-in session and sign-in never cleared it — WJ-103
 - ✅ Forgot password → emailed recovery link → `/reset-password` → signed in (25-check Playwright run, incl. single-use token, expired link, mismatch, old-password rejection) — WJ-079
 - ✅ Password reveal toggle on sign-in, sign-up and reset — WJ-080
 - ✅ "Continue with Google" on sign-in and sign-up (OAuth via Supabase, friendly message until the provider is enabled) — WJ-081
@@ -177,6 +178,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Insights, Learning, Resume Studio, Interview Prep pages exist and organise real data
 - ✅ Global command field, keyboard navigation, dialogs
 - ✅ Mobile dashboard (spec §6) and run status card
+- ✅ Mobile nav drawer: hamburger (top left of TopBar) or the bottom bar's "More" tab opens the same full menu the desktop Sidebar shows (Calendar, Career DNA, Insights, Automation, Resources — not just the 4 bottom-bar shortcuts), closed by default, closes on navigating, Escape or backdrop tap — WJ-104
 - ✅ Upgrade / Pro records interest only (no billing connected) — stated in the UI
 - 🟡 Resume Studio: organises materials; deeper AI coaching planned
 - 🟡 Interview Prep: prep packs; mock-interview AI planned
@@ -207,6 +209,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Environment documented (`.env.example`, README)
 - ✅ Migrations applied to the production project via `/api/admin/migrate`
 - ✅ CLAUDE.md working rules (start from latest `main`, run `check`, update trackers)
+- ✅ `.github/workflows/ci.yml`: lint/typecheck/unit-tests/build run as 4 parallel jobs (not one sequential job) on every push/PR, so CI/merge wall-clock time is roughly the slowest single check rather than their sum. The Playwright suite and accessibility audit are deliberately not in automatic CI (too slow to gate every push, and E2E needs real Supabase credentials) — run them on demand with `npm run verify` (everything), `npm run e2e`, or `npm run a11y` — WJ-104
 - ✅ Production verified after each push (auth, demo, sources, per-user state)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
