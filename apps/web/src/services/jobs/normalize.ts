@@ -240,7 +240,7 @@ export function queryTerms(query: string): string[] {
   return [...new Set(query.toLowerCase().replace(/[^a-z0-9+#./ -]/g, " ").split(/[\s,/]+/).filter((w) => w.length > 1 && !STOP.has(w)))].slice(0, 8);
 }
 
-const SENIORITY_WORDS = new Set(["senior", "junior", "lead", "principal", "staff", "director", "head", "vp", "intern", "entry", "mid"]);
+const SENIORITY_WORDS = new Set(["senior", "junior", "lead", "principal", "staff", "director", "head", "vp", "svp", "evp", "chief", "intern", "entry", "mid"]);
 const INDUSTRY_WORDS = new Set(["fintech", "ecommerce", "e-commerce", "healthcare", "healthtech", "edtech", "education", "gaming", "media", "mobility", "travel", "telecom", "consumer", "saas", "b2b", "b2c", "startup", "startups", "enterprise", "crypto", "web3", "insurtech"]);
 
 /** The core phrase to send to a source's own search box (drops seniority and industry qualifiers). */
@@ -322,6 +322,13 @@ export function stripSelfReference(text: string): string {
   return text.replace(/^\s*(?:i\s*am|i['’]?m|iam)\b\s*(?:an?\s+)?/i, "");
 }
 
+/** A headline sometimes leads with a meta-label ("Target: Senior Director / SVP — …") rather than
+ *  the role itself — the label names the *field*, not part of the title, and searching for it
+ *  literally finds nothing (no real posting is titled "Target …"). Strip it before the role is read. */
+export function stripHeadlineLabel(text: string): string {
+  return text.replace(/^\s*(?:target|goal|objective|seeking|desired\s*role|looking\s*for|open\s*to|career\s*goal)\s*[:\-–—]\s*/i, "");
+}
+
 /**
  * The search the boards are asked for when the candidate hasn't typed one: their own headline
  * ("Product Manager · Consumer & Fintech" → "product manager"), else their goal ("iam senior
@@ -330,7 +337,7 @@ export function stripSelfReference(text: string): string {
  * is nothing to derive from: the product then asks rather than substituting a canned role.
  */
 export function defaultSearchQuery(dna: { headline: string; careerGoal: string }): string {
-  for (const source of [dna.headline, stripSelfReference(dna.careerGoal)]) {
+  for (const source of [stripHeadlineLabel(dna.headline), stripSelfReference(dna.careerGoal)]) {
     const terms = queryTerms(source).filter((t) => !INDUSTRY_WORDS.has(t)).slice(0, 4);
     if (terms.length) return terms.join(" ");
   }
