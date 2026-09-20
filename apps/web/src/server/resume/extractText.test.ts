@@ -64,6 +64,65 @@ describe("detectFormat", () => {
   });
 });
 
+/**
+ * What most real-world PDFs actually look like: a word processor, design tool or "Print to PDF"
+ * embeds a subsetted font and assigns each glyph an arbitrary internal code, unrelated to its real
+ * character — recorded only in the font's own `/ToUnicode` CMap, in a separate stream object.
+ */
+function makeCidPdf(lines: string[], { compress = true } = {}): Buffer {
+  const chars = [...new Set(lines.join("\n").split(""))];
+  const codeOf = new Map(chars.map((c, i) => [c, i + 10])); // codes bear no relation to the real character
+  const hex4 = (n: number) => n.toString(16).padStart(4, "0");
+  const draw = lines.map((l) => `<${[...l].map((c) => hex4(codeOf.get(c)!)).join("")}> Tj T*`).join("\n");
+  const content = `BT /F1 12 Tf 14 TL 72 720 Td\n${draw}\nET`;
+  const contentBody = compress ? deflateSync(Buffer.from(content, "latin1")) : Buffer.from(content, "latin1");
+  const contentObj = Buffer.concat([
+    Buffer.from(`1 0 obj\n<< /Length ${contentBody.length}${compress ? " /Filter /FlateDecode" : ""} >>\nstream\n`, "latin1"),
+    contentBody,
+    Buffer.from("\nendstream\nendobj\n", "latin1"),
+  ]);
+
+  const bfchar = chars.map((c) => `<${hex4(codeOf.get(c)!)}> <${hex4(c.charCodeAt(0))}>`).join("\n");
+  const cmapText = `/CIDInit /ProcSet findresource begin\n1 beginbfchar\n${bfchar}\nendbfchar\nend`;
+  const cmapBody = compress ? deflateSync(Buffer.from(cmapText, "latin1")) : Buffer.from(cmapText, "latin1");
+  const cmapObj = Buffer.concat([
+    Buffer.from(`2 0 obj\n<< /Length ${cmapBody.length}${compress ? " /Filter /FlateDecode" : ""} >>\nstream\n`, "latin1"),
+    cmapBody,
+    Buffer.from("\nendstream\nendobj\n", "latin1"),
+  ]);
+
+  return Buffer.concat([Buffer.from("%PDF-1.4\n", "latin1"), contentObj, cmapObj, Buffer.from("trailer\n<< /Root 1 0 R >>\n%%EOF", "latin1")]);
+}
+
+describe("extractPdfText — subsetted fonts with a ToUnicode CMap (the common real-world case)", () => {
+  it("reads text drawn in arbitrary glyph codes via the font's ToUnicode CMap", () => {
+    const text = extractPdfText(makeCidPdf(PROSE.split("\n")));
+    expect(text).toContain("Priya Raman");
+    expect(text).toContain("Senior Product Manager");
+    // The glyph codes themselves must never leak into the output.
+    expect(text).not.toMatch(/[\u0000-\u0009]/);
+  });
+
+  it("reads it uncompressed too", () => {
+    expect(extractPdfText(makeCidPdf(["Priya Raman"], { compress: false }))).toContain("Priya Raman");
+  });
+
+  it("is reported as readable end to end, not misdiagnosed as a scan", () => {
+    const long = [PROSE, PROSE].join("\n");
+    expect(extractResumeText(makeCidPdf(long.split("\n")), "resume.pdf")).toMatchObject({ format: "pdf", readable: true });
+  });
+
+  it("leaves an unrelated plain hex string (no matching glyph code, even hex length) to the ordinary heuristic", () => {
+    // A CMap exists in the file (for one font) but a second, uncoded font's hex string has no entry in
+    // it, and its length happens to be a multiple of 4 too — the zero-hits fallback must still apply.
+    const plainHex = Buffer.from("Product Manager", "latin1").toString("hex"); // 16 chars -> 32 hex digits
+    const plainHexContent = Buffer.from(`BT /F2 12 Tf 14 TL 72 600 Td\n<${plainHex}> Tj T*\nET`, "latin1");
+    const plainHexObj = Buffer.concat([Buffer.from(`3 0 obj\n<< /Length ${plainHexContent.length} >>\nstream\n`, "latin1"), plainHexContent, Buffer.from("\nendstream\nendobj\n", "latin1")]);
+    const withUnrelatedHex = Buffer.concat([makeCidPdf(["Priya Raman"]), plainHexObj]);
+    expect(extractPdfText(withUnrelatedHex)).toContain("Product Manager");
+  });
+});
+
 describe("extractPdfText", () => {
   it("reads a compressed content stream", () => {
     const text = extractPdfText(makePdf(PROSE.split("\n")));
@@ -88,6 +147,32 @@ describe("extractPdfText", () => {
     const good = makePdf(["Priya Raman"]);
     const broken = Buffer.from("1 0 obj\n<< /Filter /FlateDecode >>\nstream\nnot-actually-deflate\nendstream\n", "latin1");
     expect(extractPdfText(Buffer.concat([good, broken, good]))).toContain("Priya Raman");
+  });
+
+  it("reads every stream in a multi-stream PDF, not just the first — 'endstream' contains 'stream' as a substring, which previously made scanning re-match inside it and lose every later stream", () => {
+    const first = makePdf(["Priya Raman"]);
+    const second = Buffer.from(
+      makePdf(["Senior Product Manager"])
+        .toString("latin1")
+        .replace("%PDF-1.4\n", ""),
+      "latin1",
+    );
+    const text = extractPdfText(Buffer.concat([first, second]));
+    expect(text).toContain("Priya Raman");
+    expect(text).toContain("Senior Product Manager");
+  });
+
+  it("skips the embedded font program and any image — their binary bytes can coincidentally match a text token and pollute otherwise-clean output enough to fail the readability check", () => {
+    // Real generators (Chromium, LibreOffice, Word) always embed the font they used; its stream dict
+    // always carries /Length1 (the PDF spec's marker for a font program) and its bytes are arbitrary
+    // binary that can accidentally look like parenthesized PDF strings to the token scanner.
+    const fontBytes = Buffer.from(Array.from({ length: 400 }, (_, i) => (i * 37) % 256));
+    const fontObj = Buffer.concat([Buffer.from(`3 0 obj\n<< /Length1 900 /Length ${fontBytes.length} >>\nstream\n`, "latin1"), fontBytes, Buffer.from("\nendstream\nendobj\n", "latin1")]);
+    const imageBytes = Buffer.from(Array.from({ length: 300 }, (_, i) => (i * 53) % 256));
+    const imageObj = Buffer.concat([Buffer.from(`4 0 obj\n<< /Type /XObject /Subtype /Image /Length ${imageBytes.length} >>\nstream\n`, "latin1"), imageBytes, Buffer.from("\nendstream\nendobj\n", "latin1")]);
+    const text = extractPdfText(Buffer.concat([makePdf(PROSE.split("\n")), fontObj, imageObj]));
+    expect(text.trim()).toBe(PROSE);
+    expect(looksReadable(text)).toBe(true);
   });
 });
 
