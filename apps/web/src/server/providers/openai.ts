@@ -15,7 +15,10 @@ export const openaiAdapter: ServerProviderAdapter = {
     } catch {
       throw new ServerProviderError("openai", "network", "Could not reach OpenAI. Check connectivity and retry.");
     }
-    if (!res.ok) throw classifyStatus("openai", res.status, "OpenAI");
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      throw classifyStatus("openai", res.status, "OpenAI", detail?.error?.message);
+    }
     const data = (await res.json()) as { model?: string; choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
     const text = data.choices?.[0]?.message?.content?.trim();
     if (!text) throw new ServerProviderError("openai", "invalid_response", "OpenAI returned an empty response.");
