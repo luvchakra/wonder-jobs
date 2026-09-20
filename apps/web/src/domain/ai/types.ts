@@ -54,7 +54,7 @@ export const AI_PROVIDERS: Record<AIProviderId, AIProviderMeta> = {
     billing: "byok",
     models: [
       { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", default: true },
-      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
     ],
     keyPrefixHint: "AIza",
     keyPlaceholder: "AIza…",
