@@ -7,7 +7,7 @@ export type PlatformVendor = "anthropic" | "openai" | "gemini";
 const DEFAULT_MODEL: Record<PlatformVendor, string> = {
   anthropic: "claude-sonnet-5",
   openai: "gpt-5-mini",
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.6-flash",
 };
 
 function platformVendor(): PlatformVendor {

@@ -59,7 +59,7 @@ describe("platformAI — openai and gemini support", () => {
     clearEnv();
     process.env.WONDERJOBS_AI_PROVIDER = "gemini";
     process.env.WONDERJOBS_AI_KEY = "AIza-test";
-    expect(platformAI()).toEqual({ apiKey: "AIza-test", model: "gemini-2.5-flash", provider: "gemini" });
+    expect(platformAI()).toEqual({ apiKey: "AIza-test", model: "gemini-3.6-flash", provider: "gemini" });
   });
 
   it("falls back to GEMINI_API_KEY for the gemini vendor", () => {
