@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Bookmark, MapPin } from "lucide-react";
-import type { CanonicalJob, JobMatch, JobQuality } from "@/domain/jobs/types";
+import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { COMPANIES } from "@/services/mock/catalog";
 import { cn } from "@/lib/cn";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
@@ -13,8 +13,6 @@ import { JobQualityBadge } from "./JobQualityBadge";
 export function companyColor(name: string) {
   return COMPANIES.find((c) => c.name === name)?.color;
 }
-
-export const WORK_MODE_LABEL = { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" } as const;
 
 export function JobCard({ job, match, quality, saved, onToggleSave, compact = false, className, status }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; compact?: boolean; className?: string; status?: string }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);

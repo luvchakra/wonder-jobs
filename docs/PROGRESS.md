@@ -167,6 +167,8 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Contact email notifications: `CONTACT_NOTIFY_EMAILS` (comma-separated) + optional `RESEND_API_KEY`; logged instead of sent when no key — WJ-089
 - ✅ Footer with Product / Resources / Company / Account columns and a legal row, every link real — WJ-054
 - ✅ About, Privacy, Terms, Security, Cookies pages — WJ-086
+- ✅ Browser-extension section + `/extension` install page — WJ-120
+- ✅ Link previews: branded 1200×630 `opengraph-image`, `metadataBase` for absolute URLs, per-page og:title, and a shared job link that previews the real role — WJ-121
 - ✅ Nav links to Screens, Help and Contact
 - ✅ Landing visual QA at desktop and mobile — WJ-071
 - ✅ Demo links wherever a screen has a demo counterpart

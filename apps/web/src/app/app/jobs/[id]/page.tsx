@@ -6,6 +6,7 @@ import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock,
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
+import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { COMPANIES, JOB_SOURCES } from "@/services/mock/catalog";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -18,7 +19,7 @@ import { EmptyState } from "@/components/common/States";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { MatchBadge, FitLabel } from "@/components/jobs/MatchBadge";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
-import { WORK_MODE_LABEL, companyColor } from "@/components/jobs/JobCard";
+import { companyColor } from "@/components/jobs/JobCard";
 import { toast } from "@/components/feedback/Toast";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { cn } from "@/lib/cn";

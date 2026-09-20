@@ -1,9 +1,8 @@
 "use client";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
-import { FIT_META } from "@/domain/jobs/types";
+import { FIT_META, WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
-import { WORK_MODE_LABEL } from "./JobCard";
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Button } from "@/components/common/Button";

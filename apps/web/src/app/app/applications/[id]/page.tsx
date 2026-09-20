@@ -5,6 +5,7 @@ import { CheckCircle2, Download, ExternalLink, FileText, Puzzle, Trash2 } from "
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
+import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { formatDate, formatSalaryRange } from "@/lib/format";
 import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
 import { downloadBytes } from "@/lib/download";
@@ -17,7 +18,7 @@ import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/States";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { companyColor, WORK_MODE_LABEL } from "@/components/jobs/JobCard";
+import { companyColor } from "@/components/jobs/JobCard";
 import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
 import { FollowUpAction } from "@/components/applications/FollowUpAction";
 import { toast } from "@/components/feedback/Toast";
