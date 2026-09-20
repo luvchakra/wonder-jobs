@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { ParallaxHero } from "@/components/landing/ParallaxHero";
-import { AgentSection, FeatureGrid, FinalCTA, JourneySection, MarketingFooter, PersonaSection, ProviderSection, SourceLogoStrip } from "@/components/landing/Sections";
+import { AgentSection, ExtensionSection, FeatureGrid, FinalCTA, JourneySection, MarketingFooter, PersonaSection, ProviderSection, SourceLogoStrip } from "@/components/landing/Sections";
 import { ContactSection, ShowcaseSection } from "@/components/landing/Showcase";
 
 export const metadata: Metadata = {
@@ -24,6 +24,7 @@ export default function LandingPage() {
         <FeatureGrid />
         <ShowcaseSection />
         <PersonaSection />
+        <ExtensionSection />
         <ProviderSection />
         <FinalCTA />
         <ContactSection />

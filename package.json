@@ -18,6 +18,7 @@
     "check": "npm run check -w @wonder/web",
     "e2e": "npm run e2e -w @wonder/web",
     "verify": "npm run verify -w @wonder/web",
-    "db:migrate": "npm run db:migrate -w @wonder/web"
+    "db:migrate": "npm run db:migrate -w @wonder/web",
+    "pack:extension": "node scripts/pack-extension.mjs"
   }
 }

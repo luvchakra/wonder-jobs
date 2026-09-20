@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>WonderJobs Autofill</title>
+  </head>
+  <body>
+    <header>
+      <img src="../icons/icon-48.png" alt="" width="28" height="28" />
+      <div>
+        <h1>WonderJobs Autofill</h1>
+        <p id="status" class="muted">Checking…</p>
+      </div>
+    </header>
+
+    <section id="connected" hidden>
+      <dl>
+        <div><dt>Name</dt><dd id="name">—</dd></div>
+        <div><dt>Email</dt><dd id="email">—</dd></div>
+      </dl>
+      <button id="fill" class="primary">Fill the form on this tab</button>
+      <p class="muted">Works on Greenhouse, Lever and Ashby application pages. Nothing is ever submitted for you.</p>
+    </section>
+
+    <section id="disconnected" hidden>
+      <p>Sign in to WonderJobs in this browser and the extension connects itself — no password, no key to paste.</p>
+      <a class="primary" id="open" href="https://jobs.wonderapps.biz/app" target="_blank" rel="noreferrer">Open WonderJobs</a>
+      <button id="retry" class="ghost">Check again</button>
+    </section>
+
+    <footer>
+      <a href="https://jobs.wonderapps.biz/extension" target="_blank" rel="noreferrer">How it works</a>
+      <button id="disconnect" class="ghost" hidden>Disconnect</button>
+    </footer>
+    <script src="popup.js"></script>
+  </body>
+</html>

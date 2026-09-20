@@ -113,6 +113,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Artifact editor: rich-text (rendered, not raw markdown), autosaving as you type, regenerate, compare, restore versions — WJ-118
 - ✅ "Open application page" + "Mark as submitted" + submission reminder
 - ✅ Download the current resume/cover letter as a real .docx, client-side, no dependency — WJ-119
+- ✅ Chrome extension that fills employers' application forms (Greenhouse/Lever/Ashby + generic) with the prepared materials; install from the landing page, `/extension` or the application page — WJ-120
 - ✅ Follow-up / thank-you emails: draft → confirm → execute-once → audit — WJ-064
 - ⬜ Email delivery: a mail provider (the send step is the seam)
 

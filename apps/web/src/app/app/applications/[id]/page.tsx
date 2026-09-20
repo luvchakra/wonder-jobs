@@ -1,7 +1,7 @@
 "use client";
 import { use, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Download, ExternalLink, FileText, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, FileText, Puzzle, Trash2 } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { APPLICATION_STATUSES, APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
@@ -9,6 +9,7 @@ import { formatDate, formatSalaryRange } from "@/lib/format";
 import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
 import { downloadBytes } from "@/lib/download";
 import { track } from "@/lib/analytics";
+import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -24,6 +25,30 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 
 const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
+
+/** Offers the extension where it's actually useful: right where the candidate is about to go and retype all of this into the employer's form. */
+function ExtensionHint({ hasMaterials }: { hasMaterials: boolean }) {
+  const installed = useExtensionInstalled();
+  if (installed === null) return null;
+  return (
+    <p className="mt-3 flex items-start gap-1.5 border-t border-brand-200/70 pt-2.5 text-[12px] text-ink-3">
+      <Puzzle className="mt-0.5 size-3.5 shrink-0 text-brand-600" aria-hidden />
+      {installed ? (
+        <span>
+          Your browser extension will fill that form{hasMaterials ? " with these materials" : ""} — look for the WonderJobs button on the page.
+        </span>
+      ) : (
+        <span>
+          Don&apos;t retype it all:{" "}
+          <Link href="/extension" className="font-semibold text-brand-600 hover:underline">
+            get the browser extension
+          </Link>{" "}
+          and it fills the employer&apos;s form{hasMaterials ? ", resume attached" : ""}.
+        </span>
+      )}
+    </p>
+  );
+}
 
 function docxFilename(company: string | undefined, label: string): string {
   const base = [company, label].filter(Boolean).join(" ").replace(/[^\w -]+/g, "").trim().replace(/\s+/g, "-");
@@ -118,19 +143,22 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </div>
             )}
             {job && (app.status === "ready_for_review" || app.status === "saved" || app.status === "preparing") && (
-              <div className="mt-4 flex flex-wrap gap-2 rounded-[14px] border border-brand-200 bg-brand-50/60 p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-ink">Submit on {job.company}&apos;s site</p>
-                  <p className="text-[12px] text-ink-3">Wonder prepares everything but never submits for you: employers&apos; forms need your own identity and consent. Apply there, then mark it submitted so Wonder tracks it.</p>
+              <div className="mt-4 rounded-[14px] border border-brand-200 bg-brand-50/60 p-3">
+                <div className="flex flex-wrap gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-ink">Submit on {job.company}&apos;s site</p>
+                    <p className="text-[12px] text-ink-3">Wonder prepares everything but never submits for you: employers&apos; forms need your own identity and consent. Apply there, then mark it submitted so Wonder tracks it.</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button size="sm" href={job.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
+                      Open application page
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setStatus(app.id, "submitted", { type: "submitted", title: "Submitted", detail: "Marked as submitted by you" })}>
+                      Mark as submitted
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button size="sm" href={job.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
-                    Open application page
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setStatus(app.id, "submitted", { type: "submitted", title: "Submitted", detail: "Marked as submitted by you" })}>
-                    Mark as submitted
-                  </Button>
-                </div>
+                <ExtensionHint hasMaterials={downloadableArtifacts.length > 0} />
               </div>
             )}
             <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
