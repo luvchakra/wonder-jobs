@@ -248,3 +248,15 @@ export function parseMarkdownBlocks(markdown: string): MdBlock[] {
   flushList();
   return blocks;
 }
+
+/** Stored markdown as plain text, for somewhere that can't render formatting at all — an employer's plain `<textarea>`. Drops the syntax rather than pasting `**` into someone's cover letter. */
+export function markdownToPlainText(markdown: string): string {
+  return parseMarkdownBlocks(markdown)
+    .map((block) => {
+      if (block.type === "hr") return "";
+      if (block.type === "ul") return block.items.map((runs) => `- ${runs.map((r) => r.text).join("")}`).join("\n");
+      return block.runs.map((r) => r.text).join("");
+    })
+    .filter((line) => line.length > 0)
+    .join("\n\n");
+}

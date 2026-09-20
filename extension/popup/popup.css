@@ -1,0 +1,101 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  width: 300px;
+  margin: 0;
+  padding: 14px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #111827;
+  background: #fff;
+}
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+h1 {
+  margin: 0;
+  font-size: 14px;
+}
+p {
+  margin: 0 0 10px;
+}
+.muted {
+  color: #6b7280;
+  font-size: 12px;
+}
+dl {
+  margin: 0 0 12px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f5f6f8;
+}
+dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+dl div + div {
+  margin-top: 6px;
+}
+dt {
+  color: #6b7280;
+}
+dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.primary,
+.ghost {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.primary {
+  background: #6d4cf5;
+  color: #fff;
+}
+.primary:hover {
+  background: #5b3ae0;
+}
+.ghost {
+  margin-top: 6px;
+  background: transparent;
+  color: #6b7280;
+}
+.ghost:hover {
+  color: #111827;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+footer a {
+  color: #6d4cf5;
+  font-size: 12px;
+  text-decoration: none;
+}
+footer .ghost {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 400;
+}

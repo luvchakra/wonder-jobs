@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlToMarkdown, markdownToHtml, parseMarkdownBlocks, type DomLikeNode } from "./richtext";
+import { htmlToMarkdown, markdownToHtml, markdownToPlainText, parseMarkdownBlocks, type DomLikeNode } from "./richtext";
 
 describe("markdownToHtml", () => {
   it("renders headings, bold and a bullet list", () => {
@@ -93,5 +93,16 @@ describe("parseMarkdownBlocks — the same grammar as markdownToHtml, as structu
 
   it("parses an italic run", () => {
     expect(parseMarkdownBlocks("This is *emphasized* text.")).toEqual([{ type: "p", runs: [{ text: "This is " }, { text: "emphasized", italic: true }, { text: " text." }] }]);
+  });
+});
+
+describe("markdownToPlainText — what goes into an employer's plain textarea", () => {
+  it("drops the markdown syntax, keeps the words and the paragraph breaks", () => {
+    const md = ["Dear Coinbase Hiring Team,", "", "I'm excited to apply. I have **21 years** of experience.", "", "Warm regards,", "Kunal"].join("\n");
+    expect(markdownToPlainText(md)).toBe("Dear Coinbase Hiring Team,\n\nI'm excited to apply. I have 21 years of experience.\n\nWarm regards,\n\nKunal");
+  });
+
+  it("keeps bullets readable and drops rules", () => {
+    expect(markdownToPlainText("## Strengths\n\n- One\n- Two\n\n---")).toBe("Strengths\n\n- One\n- Two");
   });
 });

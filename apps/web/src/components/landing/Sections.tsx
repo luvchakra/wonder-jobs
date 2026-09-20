@@ -334,6 +334,64 @@ export function ProviderSection() {
   );
 }
 
+/* ------------------------------------------------------------- extension */
+export function ExtensionSection() {
+  const fills = [
+    { label: "First name", value: "Kunal" },
+    { label: "Last name", value: "Chakraborty" },
+    { label: "Email", value: "you@example.com" },
+    { label: "Resume / CV", value: "Coinbase-Resume.docx", file: true },
+  ];
+  return (
+    <section id="extension" className="bg-white py-20 md:py-28" aria-labelledby="extension-title">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
+        <ScrollReveal>
+          <p className="wj-eyebrow text-brand-600">Browser extension</p>
+          <h2 id="extension-title" className="mt-3 text-h2 font-semibold tracking-tight">
+            Apply without
+            <br />
+            <span className="wj-gradient-text">retyping yourself.</span>
+          </h2>
+          <p className="mt-5 max-w-md text-[16px] text-ink-2">
+            WonderJobs tailors your resume and cover letter. The extension puts them straight into the employer&apos;s own form on Greenhouse, Lever and Ashby — and never submits anything for you.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Button href="/extension" size="lg" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
+              Get the extension
+            </Button>
+            <span className="text-[13px] text-ink-3">Free · Chrome, Edge &amp; Brave</span>
+          </div>
+        </ScrollReveal>
+        <ScrollReveal delay={90}>
+          <div className="wj-card overflow-hidden p-0">
+            <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-4 py-2.5">
+              <span className="size-2.5 rounded-full bg-danger-600/60" aria-hidden />
+              <span className="size-2.5 rounded-full bg-warning-600/60" aria-hidden />
+              <span className="size-2.5 rounded-full bg-success-600/60" aria-hidden />
+              <span className="ml-2 truncate text-[12px] text-ink-3">boards.greenhouse.io/…/apply</span>
+            </div>
+            <div className="flex flex-col gap-3 p-5">
+              {fills.map((f, i) => (
+                <ScrollReveal key={f.label} delay={140 + i * 80}>
+                  <div className="rounded-[12px] border border-line px-3 py-2">
+                    <p className="text-[11px] font-medium text-ink-3">{f.label}</p>
+                    <p className={cn("mt-0.5 text-[14px] font-medium", f.file ? "text-brand-700" : "text-ink")}>{f.value}</p>
+                  </div>
+                </ScrollReveal>
+              ))}
+              <ScrollReveal delay={480}>
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-success-100 px-3 py-1.5 text-[12px] font-semibold text-success-600">
+                  <Zap className="size-3.5" aria-hidden /> Filled by WonderJobs
+                </p>
+              </ScrollReveal>
+            </div>
+          </div>
+        </ScrollReveal>
+      </div>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------ final CTA */
 export function FinalCTA() {
   return (
@@ -369,6 +427,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Screens", href: "/#screens" },
       { label: "Who it's for", href: "/#personas" },
       { label: "Your AI, your keys", href: "/#ai" },
+      { label: "Browser extension", href: "/extension" },
       { label: "Live demo", href: "/demo" },
       { label: "Pricing", href: "/#cta", badge: "Free" },
     ],
