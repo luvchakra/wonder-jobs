@@ -211,7 +211,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       )}
 
       {isActive(run.status) && (
-        <div className="fixed inset-x-4 bottom-20 z-30 md:hidden">
+        <div className="fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-30 md:hidden">
           <div className="wj-card flex items-center gap-3 p-3 shadow-lg" role="status">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
               <Bot className="size-4" aria-hidden />

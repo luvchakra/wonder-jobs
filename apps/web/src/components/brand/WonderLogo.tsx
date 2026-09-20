@@ -17,7 +17,11 @@ const LOCKUP_SIZE = { width: 1024, height: 240 };
 
 /** The butterfly on its own, sized by height. Decorative by default — give the wrapper the label. */
 export function WonderMark({ className, size = 28, alt = "" }: { className?: string; size?: number; alt?: string }) {
-  return <Image src={MARK.src} alt={alt} aria-hidden={alt ? undefined : true} width={MARK.width} height={MARK.height} style={{ height: size, width: "auto" }} className={cn("select-none", className)} priority unoptimized />;
+  // shrink-0: this image is a flex item wherever it's used (TopBar's mobile header, sidebar rails). Without
+  // it, a tight flex row (e.g. the mobile topbar competing with the search bar's `w-full`) applies the
+  // default flex-shrink:1 to the <img> itself and squashes it well past its aspect-ratio-scaled width —
+  // that's what made the mark look cut off and compressed.
+  return <Image src={MARK.src} alt={alt} aria-hidden={alt ? undefined : true} width={MARK.width} height={MARK.height} style={{ height: size, width: "auto" }} className={cn("select-none shrink-0", className)} priority unoptimized />;
 }
 
 /** Mark + wordmark. `compact` drops the wordmark (collapsed sidebar, small screens). */
@@ -25,11 +29,11 @@ export function WonderLogo({ href = "/", className, compact = false, size = 28, 
   const content = compact ? (
     <WonderMark size={size} />
   ) : (
-    <Image src={LOGO[tone]} alt="WonderJobs" width={LOGO_SIZE.width} height={LOGO_SIZE.height} style={{ height: size, width: "auto" }} className="select-none" priority unoptimized />
+    <Image src={LOGO[tone]} alt="WonderJobs" width={LOGO_SIZE.width} height={LOGO_SIZE.height} style={{ height: size, width: "auto" }} className="select-none shrink-0" priority unoptimized />
   );
-  if (!href) return <span className={cn("inline-flex items-center", className)}>{content}</span>;
+  if (!href) return <span className={cn("inline-flex items-center shrink-0", className)}>{content}</span>;
   return (
-    <Link href={href} className={cn("inline-flex items-center", className)} aria-label="WonderJobs home">
+    <Link href={href} className={cn("inline-flex items-center shrink-0", className)} aria-label="WonderJobs home">
       {content}
     </Link>
   );
@@ -37,5 +41,5 @@ export function WonderLogo({ href = "/", className, compact = false, size = 28, 
 
 /** Full lockup including the "Find. Grow. Belong." tagline — for hero and brand moments, not navigation. */
 export function WonderLockup({ className, size = 96, tone = "light" }: { className?: string; size?: number; tone?: BrandTone }) {
-  return <Image src={LOCKUP[tone]} alt="WonderJobs — Find. Grow. Belong." width={LOCKUP_SIZE.width} height={LOCKUP_SIZE.height} style={{ height: size, width: "auto" }} className={cn("select-none", className)} priority unoptimized />;
+  return <Image src={LOCKUP[tone]} alt="WonderJobs — Find. Grow. Belong." width={LOCKUP_SIZE.width} height={LOCKUP_SIZE.height} style={{ height: size, width: "auto" }} className={cn("select-none shrink-0", className)} priority unoptimized />;
 }
