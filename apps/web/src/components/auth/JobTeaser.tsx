@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Building2, CheckCircle2, Clock, Lock, MapPin, Sparkles, Wallet } from "lucide-react";
+import { Bell, Bookmark, Building2, CheckCircle2, Clock, Lock, MapPin, Send, Sparkles, Wallet } from "lucide-react";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
@@ -9,6 +9,23 @@ import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
 import { WORK_MODE_LABEL, companyColor } from "@/components/jobs/JobCard";
 import type { JobQuality, WorkMode } from "@/domain/jobs/types";
 import { cn } from "@/lib/cn";
+
+/** The same six dimensions `computeMatch` always scores a posting on (`services/jobs/matching.ts`) — real, fixed category names, not per-job data, so showing them costs nothing to disclose. Their scores and summaries are genuinely per-candidate and stay blurred until sign-in. */
+const MATCH_DIMENSIONS: { label: string; barWidth: number }[] = [
+  { label: "Skill alignment", barWidth: 72 },
+  { label: "Seniority alignment", barWidth: 58 },
+  { label: "Industry alignment", barWidth: 84 },
+  { label: "Career-goal alignment", barWidth: 64 },
+  { label: "Location alignment", barWidth: 46 },
+  { label: "Compensation alignment", barWidth: 78 },
+];
+
+const SIGN_IN_BENEFITS = [
+  { icon: Sparkles, label: "Your personalized match score for this role" },
+  { icon: Bookmark, label: "Save it and pick up where you left off" },
+  { icon: Send, label: "Apply, prepared by Wonder" },
+  { icon: Bell, label: "Get matched to similar roles automatically" },
+];
 
 /**
  * Everything a signed-in candidate would see on this job's Overview,
@@ -44,6 +61,7 @@ const COMPANY_SIZE_LABEL = { startup: "Startup", scaleup: "Scale-up", enterprise
 /** Shown above the sign-in form for a shared job link: the real listing, the way a signed-in candidate would see it, minus the one thing that's genuinely personal — a match score — which needs an account to compute. */
 export function JobTeaser({ job }: { job: PublicJobTeaser }) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [expanded, setExpanded] = useState(false);
   return (
     <Card className="mt-8 w-full text-left md:mt-10" padding="md">
       <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
@@ -83,7 +101,10 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
       <div className="mt-3">
         {tab === "overview" && (
           <div>
-            <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2">{job.description}</p>
+            <p className={cn("whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2", !expanded && "line-clamp-[7]")}>{job.description}</p>
+            <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1.5 text-[13px] font-medium text-brand-600 hover:underline">
+              {expanded ? "Show less" : "Show more"}
+            </button>
             {job.requirements.length > 0 && (
               <>
                 <h3 className="mt-4 text-[13px] font-semibold text-ink">Key requirements</h3>
@@ -122,10 +143,24 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
         )}
 
         {tab === "why" && (
-          <div className="flex flex-col items-center gap-2 rounded-[14px] bg-bg-soft px-4 py-6 text-center">
-            <Lock className="size-5 text-ink-3" aria-hidden />
-            <p className="text-[13.5px] font-medium text-ink">This is the one thing that&apos;s personal to you</p>
-            <p className="max-w-sm text-[12.5px] text-ink-3">Sign in and Wonder scores this role against your own Career DNA — skills, seniority, industry and goals — and shows exactly why it is or isn&apos;t a fit. There&apos;s nothing to show here until you do; it&apos;s never guessed.</p>
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3">
+              <Lock className="size-3.5 shrink-0" aria-hidden /> Scored against your own Career DNA — this is the one tab that&apos;s personal to you.
+            </p>
+            <ul className="mt-3 flex flex-col gap-3">
+              {MATCH_DIMENSIONS.map((d) => (
+                <li key={d.label} className="flex gap-3">
+                  <div className="mt-1.5 h-2 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
+                    <div className="h-full rounded-full bg-ink-4/50 blur-[2px]" style={{ width: `${d.barWidth}%` }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-medium text-ink">{d.label}</p>
+                    <div className="mt-1.5 h-3 w-11/12 rounded bg-bg-soft blur-[3px]" aria-hidden />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 max-w-sm text-[12px] text-ink-4">There&apos;s nothing to unblur without your Career DNA — Wonder never guesses a score. Sign in and it computes for real, instantly.</p>
           </div>
         )}
 
@@ -173,9 +208,17 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-[12px] border border-line bg-bg-soft px-3 py-2.5 text-[12px] text-ink-3">
-        <Lock className="size-3.5 shrink-0" aria-hidden />
-        Sign in to save this job, see your match score, and apply.
+      <div className="mt-4 rounded-[12px] border border-line bg-bg-soft p-3">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+          <Lock className="size-3.5 shrink-0" aria-hidden /> What signing in unlocks
+        </p>
+        <ul className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {SIGN_IN_BENEFITS.map((b) => (
+            <li key={b.label} className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+              <b.icon className="size-3.5 shrink-0 text-brand-600" aria-hidden /> {b.label}
+            </li>
+          ))}
+        </ul>
       </div>
     </Card>
   );
