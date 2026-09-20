@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Info, ChevronDown, ChevronUp } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
@@ -16,7 +16,7 @@ import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
 import { DictateButton } from "@/components/common/DictateButton";
-import { appendDictated, useDictation } from "@/lib/dictation";
+import { useDictation } from "@/lib/dictation";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { ProviderSelector } from "@/components/ai/ProviderSelector";
 import { ErrorState } from "@/components/common/States";
@@ -47,7 +47,7 @@ export default function RunSetupPage() {
   const model = useMemo(() => (provider === aiConfig.activeProvider ? aiConfig.activeModel : AI_PROVIDERS[provider].models.find((m) => m.default)?.id ?? AI_PROVIDERS[provider].models[0].id), [provider, aiConfig]);
 
   // Dictation lands in the same editable box as typing — nothing is committed until Save.
-  const dictation = useDictation(useCallback((spoken: string) => setGoal((current) => appendDictated(current, spoken)), []));
+  const dictation = useDictation({ textAtStart: () => goal, onText: setGoal });
   const toggleDictation = () => {
     setEditingGoal(true);
     dictation.toggle();
@@ -101,14 +101,33 @@ export default function RunSetupPage() {
       )}
       <div className="flex flex-col gap-4">
         <Card>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[15px] font-semibold text-ink">
-                Career Goal <span className="text-danger-600">*</span>
-              </h2>
-              {editingGoal ? (
+          {/* Title and controls share one row so the goal itself gets the card's full width — as a
+              sibling column the buttons reserved their width down the whole card and wrapped it early. */}
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[15px] font-semibold text-ink">
+              Career Goal <span className="text-danger-600">*</span>
+            </h2>
+            <div className="-mr-1 flex shrink-0 items-center gap-0.5">
+              {dictation.supported && <DictateButton listening={dictation.listening} onClick={toggleDictation} label="career goal" />}
+              <button type="button" onClick={() => setEditingGoal((v) => !v)} aria-label="Edit career goal" className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
+                <Pencil className="size-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+          <div>
+            {editingGoal ? (
                 <>
-                  <Textarea autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} className="mt-2 min-h-20" aria-label="Career goal" />
+                  <Textarea
+                    autoFocus
+                    value={goal}
+                    onChange={(e) => {
+                      setGoal(e.target.value);
+                      // Typed edits become the new starting point, so later speech follows them.
+                      if (dictation.listening) dictation.rebase(e.target.value);
+                    }}
+                    className="mt-2 min-h-20"
+                    aria-label="Career goal"
+                  />
                   <p aria-live="polite" className="mt-1.5 min-h-4 text-[12px] text-ink-3">
                     {dictation.listening ? (dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the roles you want. Edit anything before you save.") : null}
                   </p>
@@ -130,13 +149,6 @@ export default function RunSetupPage() {
               ) : (
                 <p className="mt-1 text-[14px] text-ink-2">{goal || "Describe the roles you want."}</p>
               )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {dictation.supported && <DictateButton listening={dictation.listening} onClick={toggleDictation} label="career goal" />}
-              <button type="button" onClick={() => setEditingGoal((v) => !v)} aria-label="Edit career goal" className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
-                <Pencil className="size-4" aria-hidden />
-              </button>
-            </div>
           </div>
         </Card>
 
