@@ -5,6 +5,7 @@
  * by Next's data cache so a burst of runs doesn't hammer the sources.
  */
 import type { Job } from "@/domain/jobs/types";
+import { hashKey } from "@/lib/ids";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 
 export interface SearchCriteria {
@@ -182,21 +183,48 @@ interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string
 
 const DETAIL_LIMIT = 12;
 
-async function greenhouseBoard(board: (typeof CAREER_BOARDS)[number], c: SearchCriteria): Promise<RawPosting[]> {
+async function greenhouseJobsList(board: (typeof CAREER_BOARDS)[number]): Promise<GreenhouseJob[]> {
   const list = await getJson<{ jobs: GreenhouseJob[] }>(`https://boards-api.greenhouse.io/v1/boards/${board.slug}/jobs`).catch(() => ({ jobs: [] as GreenhouseJob[] }));
-  const candidates = (list.jobs ?? []).filter((j) => titleHasCoreTerm(j.title, c.query)).slice(0, DETAIL_LIMIT);
+  return list.jobs ?? [];
+}
+
+async function leverJobsList(board: (typeof CAREER_BOARDS)[number]): Promise<LeverJob[]> {
+  const list = await getJson<LeverJob[]>(`https://api.lever.co/v0/postings/${board.slug}?mode=json`).catch(() => [] as LeverJob[]);
+  return Array.isArray(list) ? list : [];
+}
+
+async function ashbyJobsList(board: (typeof CAREER_BOARDS)[number]): Promise<AshbyJob[]> {
+  const list = await getJson<{ jobs: AshbyJob[] }>(`https://api.ashbyhq.com/posting-api/job-board/${board.slug}`).catch(() => ({ jobs: [] as AshbyJob[] }));
+  return list.jobs ?? [];
+}
+
+function rawFromGreenhouse(board: (typeof CAREER_BOARDS)[number], j: GreenhouseJob): RawPosting {
+  return { externalId: `gh:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: j.location?.name ?? "", description: j.content ? htmlToText(j.content) : `${j.title} — ${(j.departments ?? []).map((d) => d.name).join(", ")}`, tags: (j.departments ?? []).map((d) => d.name), postedAt: j.first_published ?? j.updated_at, applyUrl: j.absolute_url, employerSite: true, applyPath: "employer_site" as const };
+}
+
+function rawFromLever(board: (typeof CAREER_BOARDS)[number], j: LeverJob): RawPosting {
+  return { externalId: `lv:${board.slug}:${j.id}`, title: j.text, company: board.company, companyDomain: board.domain, location: [j.categories?.location, j.workplaceType === "remote" ? "Remote" : ""].filter(Boolean).join(" · "), remote: j.workplaceType === "remote", description: [j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `${l.text}\n${htmlToText(l.content)}`)].join("\n\n"), tags: [j.categories?.team, j.categories?.department, j.categories?.commitment].filter((t): t is string => !!t), postedAt: j.createdAt, applyUrl: j.applyUrl || j.hostedUrl, employerSite: true, applyPath: "employer_site" as const };
+}
+
+function rawFromAshby(board: (typeof CAREER_BOARDS)[number], j: AshbyJob): RawPosting {
+  return { externalId: `ab:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: [j.location, j.isRemote ? "Remote" : "", j.workplaceType ?? ""].filter(Boolean).join(" · "), remote: !!j.isRemote, description: j.descriptionPlain || htmlToText(j.descriptionHtml ?? ""), tags: [j.department, j.team].filter((t): t is string => !!t), postedAt: j.publishedAt, applyUrl: j.applyUrl || j.jobUrl, employerSite: true, applyPath: "employer_site" as const };
+}
+
+async function greenhouseBoard(board: (typeof CAREER_BOARDS)[number], c: SearchCriteria): Promise<RawPosting[]> {
+  const jobs = await greenhouseJobsList(board);
+  const candidates = jobs.filter((j) => titleHasCoreTerm(j.title, c.query)).slice(0, DETAIL_LIMIT);
   const detailed = await Promise.all(candidates.map((j) => getJson<GreenhouseJob>(`https://boards-api.greenhouse.io/v1/boards/${board.slug}/jobs/${j.id}`).catch(() => j)));
-  return detailed.map((j) => ({ externalId: `gh:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: j.location?.name ?? "", description: j.content ? htmlToText(j.content) : `${j.title} — ${(j.departments ?? []).map((d) => d.name).join(", ")}`, tags: (j.departments ?? []).map((d) => d.name), postedAt: j.first_published ?? j.updated_at, applyUrl: j.absolute_url, employerSite: true, applyPath: "employer_site" as const }));
+  return detailed.map((j) => rawFromGreenhouse(board, j));
 }
 
 async function leverBoard(board: (typeof CAREER_BOARDS)[number], c: SearchCriteria): Promise<RawPosting[]> {
-  const list = await getJson<LeverJob[]>(`https://api.lever.co/v0/postings/${board.slug}?mode=json`).catch(() => [] as LeverJob[]);
-  return (Array.isArray(list) ? list : []).filter((j) => titleHasCoreTerm(j.text, c.query)).slice(0, 40).map((j) => ({ externalId: `lv:${board.slug}:${j.id}`, title: j.text, company: board.company, companyDomain: board.domain, location: [j.categories?.location, j.workplaceType === "remote" ? "Remote" : ""].filter(Boolean).join(" · "), remote: j.workplaceType === "remote", description: [j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `${l.text}\n${htmlToText(l.content)}`)].join("\n\n"), tags: [j.categories?.team, j.categories?.department, j.categories?.commitment].filter((t): t is string => !!t), postedAt: j.createdAt, applyUrl: j.applyUrl || j.hostedUrl, employerSite: true, applyPath: "employer_site" as const }));
+  const jobs = await leverJobsList(board);
+  return jobs.filter((j) => titleHasCoreTerm(j.text, c.query)).slice(0, 40).map((j) => rawFromLever(board, j));
 }
 
 async function ashbyBoard(board: (typeof CAREER_BOARDS)[number], c: SearchCriteria): Promise<RawPosting[]> {
-  const list = await getJson<{ jobs: AshbyJob[] }>(`https://api.ashbyhq.com/posting-api/job-board/${board.slug}`).catch(() => ({ jobs: [] as AshbyJob[] }));
-  return (list.jobs ?? []).filter((j) => titleHasCoreTerm(j.title, c.query)).slice(0, 40).map((j) => ({ externalId: `ab:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: [j.location, j.isRemote ? "Remote" : "", j.workplaceType ?? ""].filter(Boolean).join(" · "), remote: !!j.isRemote, description: j.descriptionPlain || htmlToText(j.descriptionHtml ?? ""), tags: [j.department, j.team].filter((t): t is string => !!t), postedAt: j.publishedAt, applyUrl: j.applyUrl || j.jobUrl, employerSite: true, applyPath: "employer_site" as const }));
+  const jobs = await ashbyJobsList(board);
+  return jobs.filter((j) => titleHasCoreTerm(j.title, c.query)).slice(0, 40).map((j) => rawFromAshby(board, j));
 }
 
 const careers: SourceFetcher = {
@@ -209,3 +237,31 @@ const careers: SourceFetcher = {
 };
 
 export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn };
+
+/**
+ * Re-derives one specific career-site posting from its job id's hash suffix,
+ * scanning each board's full list (not the query-time `DETAIL_LIMIT` slice)
+ * so an older posting can still be found by direct link. Returns null when
+ * the posting is gone from the source, never a guess.
+ */
+export async function findCareerRawPosting(hash: string): Promise<RawPosting | null> {
+  for (const board of CAREER_BOARDS) {
+    if (board.ats === "greenhouse") {
+      const jobs = await greenhouseJobsList(board);
+      const match = jobs.find((j) => hashKey(`careers:gh:${board.slug}:${j.id}`) === hash);
+      if (!match) continue;
+      const detailed = await getJson<GreenhouseJob>(`https://boards-api.greenhouse.io/v1/boards/${board.slug}/jobs/${match.id}`).catch(() => match);
+      return rawFromGreenhouse(board, detailed);
+    }
+    if (board.ats === "lever") {
+      const jobs = await leverJobsList(board);
+      const match = jobs.find((j) => hashKey(`careers:lv:${board.slug}:${j.id}`) === hash);
+      if (match) return rawFromLever(board, match);
+      continue;
+    }
+    const jobs = await ashbyJobsList(board);
+    const match = jobs.find((j) => hashKey(`careers:ab:${board.slug}:${j.id}`) === hash);
+    if (match) return rawFromAshby(board, match);
+  }
+  return null;
+}

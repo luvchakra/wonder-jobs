@@ -77,6 +77,7 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Jobs list with debounced search, filters, sort, paging — WJ-025..027
 - ✅ Save / not-for-me, reflected everywhere — WJ-030
 - ✅ Free-text job search from the global command field
+- ✅ Shared job links (`/app/jobs/<id>`) work signed-out: `/sign-in`/`/sign-up` show a real, non-fabricated teaser of that specific job (re-derived from its id via `server/jobs/lookup.ts`, no public jobs store) with the rest blurred behind a sign-in prompt — WJ-115
 - ⬜ Adzuna keys on the deployment (operator step)
 - ⬜ LinkedIn / Indeed / Naukri / Glassdoor: no public APIs; not claimed, not searched
 

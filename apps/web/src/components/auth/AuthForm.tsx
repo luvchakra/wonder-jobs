@@ -9,6 +9,7 @@ import { Button } from "@/components/common/Button";
 import { Input, Field } from "@/components/common/Input";
 import { PasswordInput } from "./PasswordInput";
 import { GoogleButton } from "./GoogleButton";
+import { JobTeaser, type PublicJobTeaser } from "./JobTeaser";
 import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
 import { friendlyAuthError } from "@/lib/auth/friendly";
 import { track } from "@/lib/analytics";
@@ -25,7 +26,7 @@ function safeNext(raw: string | null, fallback: string) {
 }
 
 /** Sign-in / sign-up (spec §5.1 "Get Started" / "Already have an account? Sign in"). Email + password, or a magic link. */
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; jobTeaser?: PublicJobTeaser | null }) {
   const params = useSearchParams();
   const next = safeNext(params.get("next"), mode === "sign-up" ? "/onboarding" : "/app");
   const [name, setName] = useState("");
@@ -101,21 +102,31 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:items-center md:gap-16 md:px-10">
         <div className="md:flex-1">
           <WonderLogo href="/" tone="dark" size={34} />
-          <h1 className="mt-10 text-[36px] font-semibold leading-[1.05] tracking-tight md:mt-14 md:text-[48px]">
-            A smarter
-            <br />
-            way to your
-            <br />
-            next opportunity
-          </h1>
-          <p className="mt-3 text-[15px] text-white/80">We search. We analyze. You move forward.</p>
-          <ul className="mt-6 hidden flex-col gap-2.5 md:flex" aria-label="What Wonder does">
-            {FEATURES.map((f) => (
-              <li key={f.label} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[13px] font-medium backdrop-blur">
-                <f.icon className="size-4 text-brand-200" aria-hidden /> {f.label}
-              </li>
-            ))}
-          </ul>
+          {jobTeaser ? (
+            <>
+              <h1 className="mt-10 text-[28px] font-semibold leading-[1.15] tracking-tight md:mt-14 md:text-[34px]">Someone shared a job with you on Wonder</h1>
+              <p className="mt-2 text-[15px] text-white/80">Sign in (or create a free account) to see the full listing and apply.</p>
+              <JobTeaser job={jobTeaser} />
+            </>
+          ) : (
+            <>
+              <h1 className="mt-10 text-[36px] font-semibold leading-[1.05] tracking-tight md:mt-14 md:text-[48px]">
+                A smarter
+                <br />
+                way to your
+                <br />
+                next opportunity
+              </h1>
+              <p className="mt-3 text-[15px] text-white/80">We search. We analyze. You move forward.</p>
+              <ul className="mt-6 hidden flex-col gap-2.5 md:flex" aria-label="What Wonder does">
+                {FEATURES.map((f) => (
+                  <li key={f.label} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[13px] font-medium backdrop-blur">
+                    <f.icon className="size-4 text-brand-200" aria-hidden /> {f.label}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
 
         <div className="mt-8 w-full rounded-[24px] bg-white p-6 text-ink shadow-xl md:mt-0 md:w-[420px] md:p-8">
@@ -182,7 +193,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             ) : (
               <>
                 New here?{" "}
-                <Link href="/sign-up" className="font-semibold text-brand-600 hover:underline">
+                <Link href={`/sign-up${params.get("next") ? `?next=${encodeURIComponent(params.get("next")!)}` : ""}`} className="font-semibold text-brand-600 hover:underline">
                   Create an account
                 </Link>
               </>
