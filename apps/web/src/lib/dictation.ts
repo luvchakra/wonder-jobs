@@ -58,20 +58,76 @@ const ERROR_MESSAGE: Record<string, string> = {
   "not-allowed": "Microphone access is blocked. Allow it for this site in your browser, then try again.",
   "service-not-allowed": "Your browser wouldn't start its speech service. Check its microphone permissions.",
   "audio-capture": "No microphone was found.",
-  "no-speech": "Nothing was picked up — start again and speak once the mic is on.",
   network: "Speech-to-text couldn't reach your browser's service. Check your connection.",
-  // A stop the user asked for isn't a failure worth reporting.
-  aborted: "",
 };
+/** Errors that end the session for good, rather than ones a fresh listen can get past. */
+const FATAL = new Set(["not-allowed", "service-not-allowed", "audio-capture", "network"]);
+
+function words(text: string): string[] {
+  return text.split(/\s+/).filter(Boolean);
+}
+/** Compared loosely, so "Position," and "position" count as the same word across two takes. */
+function key(word: string): string {
+  return word.toLowerCase().replace(/[.,!?;:]+$/, "");
+}
+function commonPrefix(a: string[], b: string[]): number {
+  let n = 0;
+  while (n < a.length && n < b.length && key(a[n]) === key(b[n])) n++;
+  return n;
+}
+/** Longest run of words that ends `a` and begins `b`. */
+function overlap(a: string[], b: string[]): number {
+  for (let n = Math.min(a.length, b.length); n > 0; n--) {
+    let same = true;
+    for (let i = 0; i < n; i++) {
+      if (key(a[a.length - n + i]) !== key(b[i])) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return n;
+  }
+  return 0;
+}
+
+/** Most of a phrase agreeing with the one before it means it's another take of the same speech, not new words. */
+const RETAKE_RATIO = 0.6;
+
+/**
+ * Joins the phrases a session produced into what was actually said.
+ *
+ * Recognizers don't hand over one tidy phrase per utterance. Android's in particular re-sends the
+ * same sentence again and again as it grows it word by word — "looking", "looking for", "looking
+ * for a senior" — each as its own final result. Joining those end to end is what filled the field
+ * with "looking looking looking for looking for a…", so a phrase that mostly agrees with the one
+ * before it is treated as a further take of it and replaces it, and one that merely picks up where
+ * the last left off is stitched on at the overlap. Only genuinely new words are appended.
+ */
+export function mergePhrases(phrases: string[]): string {
+  let acc: string[] = [];
+  for (const phrase of phrases) {
+    const next = words(phrase);
+    if (!next.length) continue;
+    if (!acc.length) {
+      acc = next;
+      continue;
+    }
+    const shared = commonPrefix(acc, next);
+    if (shared > 0 && shared / Math.min(acc.length, next.length) >= RETAKE_RATIO) {
+      // Another go at the same words: keep whichever take says more.
+      if (next.length >= acc.length) acc = next;
+      continue;
+    }
+    const tail = overlap(acc, next);
+    acc = tail > 0 ? [...acc, ...next.slice(tail)] : [...acc, ...next];
+  }
+  return acc.join(" ");
+}
 
 /**
  * Folds a result list into the phrases settled so far (held by their index) and the words still
- * being revised.
- *
- * Results are *cumulative*: a browser may re-send phrases it already settled, and Android's
- * recognizer in particular re-sends a settled phrase repeatedly as it grows it word by word. So
- * each phrase is stored at its own index and overwritten in place rather than appended — replaying
- * the same event, or a longer take on the same phrase, can then never stack up duplicates.
+ * being revised. The list is cumulative, so a phrase already seen is overwritten in place rather
+ * than added again; `mergePhrases` then reconciles takes of the same speech across indices.
  */
 export function foldResults(settled: string[], results: RecognitionResultList): { settled: string[]; interim: string } {
   const next = settled.slice();
@@ -84,11 +140,6 @@ export function foldResults(settled: string[], results: RecognitionResultList): 
     else pending.push(text);
   }
   return { settled: next, interim: pending.join(" ") };
-}
-
-/** The dictated phrases as one piece of text. */
-export function joinPhrases(settled: string[]): string {
-  return settled.filter(Boolean).join(" ");
 }
 
 export interface Dictation {
@@ -105,6 +156,9 @@ export interface Dictation {
   rebase: (text: string) => void;
 }
 
+/** Sessions that end without hearing anything before dictation gives up, rather than restarting forever. */
+const MAX_SILENT_SESSIONS = 2;
+
 export function useDictation({ textAtStart, onText }: { textAtStart: () => string; onText: (text: string) => void }): Dictation {
   const supported = useSyncExternalStore(noopSubscribe, isSupported, notOnServer);
   const [listening, setListening] = useState(false);
@@ -112,10 +166,13 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
   const [error, setError] = useState<string | null>(null);
   const recognition = useRef<Recognition | null>(null);
   const settled = useRef<string[]>([]);
-  const seenResults = useRef(0);
   const base = useRef("");
+  const wantListening = useRef(false);
+  const silentSessions = useRef(0);
   const onTextRef = useRef(onText);
   const textAtStartRef = useRef(textAtStart);
+  // A session restarts the next one from its own `onend`, so it reaches itself through this.
+  const openSessionRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     onTextRef.current = onText;
@@ -124,6 +181,7 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
 
   useEffect(
     () => () => {
+      wantListening.current = false;
       recognition.current?.abort();
       recognition.current = null;
     },
@@ -133,58 +191,85 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
   const rebase = useCallback((text: string) => {
     base.current = text;
     settled.current = [];
-    seenResults.current = 0;
   }, []);
 
-  const start = useCallback(() => {
+  /**
+   * One utterance per session, restarted while the candidate still wants to talk. `continuous` is
+   * honoured so unevenly — Android drops out of it into the re-sending behaviour above, other
+   * browsers keep a session open for minutes — that driving the restarts here is the only way the
+   * same thing happens everywhere.
+   */
+  const openSession = useCallback(() => {
     const Ctor = recognitionCtor();
     if (!Ctor || recognition.current) return;
-    setError(null);
-    setInterim("");
-    rebase(textAtStartRef.current());
     const r = new Ctor();
     r.lang = navigator.language || "en-US";
-    r.continuous = true;
+    r.continuous = false;
     r.interimResults = true;
     r.onresult = (event) => {
-      // A shorter list than last time means the browser started a fresh one rather than adding to
-      // it: bank what's already been said before its indices get reused by the next phrase.
-      if (event.results.length < seenResults.current) {
-        base.current = appendDictated(base.current, joinPhrases(settled.current));
-        settled.current = [];
-      }
-      seenResults.current = event.results.length;
       const folded = foldResults(settled.current, event.results);
       settled.current = folded.settled;
       setInterim(folded.interim);
-      const spoken = joinPhrases(folded.settled);
+      const spoken = mergePhrases(folded.settled);
       onTextRef.current(spoken ? appendDictated(base.current, spoken) : base.current);
     };
     r.onerror = (event) => {
-      const message = ERROR_MESSAGE[event.error] ?? `Dictation stopped (${event.error}).`;
-      if (message) setError(message);
+      if (FATAL.has(event.error)) {
+        wantListening.current = false;
+        setError(ERROR_MESSAGE[event.error] ?? `Dictation stopped (${event.error}).`);
+      }
+      // Everything else — a silence, a stop the candidate asked for — is handled by `onend`.
     };
     r.onend = () => {
       recognition.current = null;
-      setListening(false);
+      const spoken = mergePhrases(settled.current);
+      // Bank this utterance so the next session starts from it rather than replacing it.
+      base.current = appendDictated(base.current, spoken);
+      settled.current = [];
       setInterim("");
+      silentSessions.current = spoken ? 0 : silentSessions.current + 1;
+      if (wantListening.current && silentSessions.current < MAX_SILENT_SESSIONS) {
+        openSessionRef.current();
+        return;
+      }
+      if (wantListening.current) setError("Nothing was picked up — start again and speak once the mic is on.");
+      wantListening.current = false;
+      setListening(false);
     };
     recognition.current = r;
     try {
       r.start();
-      setListening(true);
     } catch {
       recognition.current = null;
+      wantListening.current = false;
+      setListening(false);
       setError("Dictation couldn't start. Try again.");
     }
-  }, [rebase]);
+  }, []);
+
+  useEffect(() => {
+    openSessionRef.current = openSession;
+  });
+
+  const start = useCallback(() => {
+    if (recognition.current) return;
+    setError(null);
+    setInterim("");
+    silentSessions.current = 0;
+    rebase(textAtStartRef.current());
+    wantListening.current = true;
+    setListening(true);
+    openSession();
+  }, [openSession, rebase]);
 
   const stop = useCallback(() => {
+    wantListening.current = false;
+    setListening(false);
     recognition.current?.stop();
   }, []);
 
   const toggle = useCallback(() => {
-    if (recognition.current) stop();
+    if (wantListening.current) stop();
     else start();
   }, [start, stop]);
 
