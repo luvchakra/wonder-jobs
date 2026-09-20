@@ -12,7 +12,7 @@ export function DictateButton({ listening, onClick, label, className }: { listen
       aria-label={listening ? `Stop dictating ${label}` : `Dictate ${label}`}
       title={listening ? "Stop dictating" : "Dictate with your voice"}
       className={cn(
-        "relative flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
+        "relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors",
         listening ? "bg-danger-100 text-danger-600" : "text-ink-3 hover:bg-bg-soft hover:text-ink",
         className,
       )}
