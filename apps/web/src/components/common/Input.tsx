@@ -20,14 +20,36 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   );
 });
 
-export function Field({ label, hint, htmlFor, children, className }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode; className?: string }) {
+/** `required` renders a visible `*` next to the label for sighted users — pass it whenever the wrapped
+ *  input actually blocks submission when empty, so a user can tell before they try rather than only
+ *  discovering it from a stuck submit button. The asterisk is a sibling of the `<label>`, not a child of
+ *  it: the wrapped input's own native `required` attribute is what screen readers already announce, and
+ *  keeping the mark out of the label element itself means both its accessible name (aria-hidden already
+ *  excludes it there) and its raw text content stay exactly the label text — `getByLabel`-style exact
+ *  matches key off that raw text, not just the accessible name, so a child asterisk broke them even
+ *  though it was already `aria-hidden`. `error`, when set, replaces `hint` with a validation message in
+ *  the same slot. */
+export function Field({ label, hint, htmlFor, children, className, required, error }: { label: string; hint?: React.ReactNode; htmlFor?: string; children: React.ReactNode; className?: string; required?: boolean; error?: string }) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink-2">
-        {label}
-      </label>
+      <span className="inline-flex items-center">
+        <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink-2">
+          {label}
+        </label>
+        {required && (
+          <span aria-hidden className="ml-0.5 text-[13px] font-medium text-danger-600">
+            *
+          </span>
+        )}
+      </span>
       {children}
-      {hint && <p className="text-xs text-ink-3">{hint}</p>}
+      {error ? (
+        <p role="alert" className="text-xs text-danger-600">
+          {error}
+        </p>
+      ) : (
+        hint && <p className="text-xs text-ink-3">{hint}</p>
+      )}
     </div>
   );
 }

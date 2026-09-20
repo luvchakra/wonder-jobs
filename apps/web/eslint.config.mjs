@@ -21,6 +21,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vercel output-dir workaround copies .next here during builds (see scripts/fix-output-dir.mjs)
     "apps/**",
+    // Playwright's own generated output — minified bundles that produce thousands of false positives
+    // (e.g. its HTML report ships a full trace viewer) if a run leaves them behind before `npm run lint`.
+    "playwright-report/**",
+    "test-results/**",
+    "blob-report/**",
   ]),
 ]);
 

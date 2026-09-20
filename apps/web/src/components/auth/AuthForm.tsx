@@ -10,6 +10,7 @@ import { Input, Field } from "@/components/common/Input";
 import { PasswordInput } from "./PasswordInput";
 import { GoogleButton } from "./GoogleButton";
 import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
+import { friendlyAuthError } from "@/lib/auth/friendly";
 import { track } from "@/lib/analytics";
 
 const FEATURES = [
@@ -21,17 +22,6 @@ const FEATURES = [
 
 function safeNext(raw: string | null, fallback: string) {
   return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : fallback;
-}
-
-function friendly(message: string) {
-  const m = message.toLowerCase();
-  if (m.includes("invalid login credentials")) return "That email and password don't match. Try again or use a magic link.";
-  if (m.includes("email not confirmed")) return "Confirm your email first — check your inbox for the link we sent.";
-  if (m.includes("already registered")) return "There's already an account for this email. Sign in instead.";
-  if (m.includes("password should be")) return "Use at least 8 characters for your password.";
-  if (m.includes("rate limit") || m.includes("too many")) return "Too many attempts. Give it a minute and try again.";
-  if (m.includes("provider is not enabled") || m.includes("unsupported provider")) return "Google sign-in isn't switched on for this deployment yet. Use email and password, or a magic link.";
-  return message;
 }
 
 /** Sign-in / sign-up (spec §5.1 "Get Started" / "Already have an account? Sign in"). Email + password, or a magic link. */
@@ -79,7 +69,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         setError("Signed in, but no session came back. Try again.");
       }
     } catch (err) {
-      setError(friendly(err instanceof Error ? err.message : "Something went wrong"));
+      setError(friendlyAuthError(err instanceof Error ? err.message : "Something went wrong"));
     } finally {
       setBusy(null);
     }
@@ -95,7 +85,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       if (err) throw err;
       setSent("magic");
     } catch (err) {
-      setError(friendly(err instanceof Error ? err.message : "Something went wrong"));
+      setError(friendlyAuthError(err instanceof Error ? err.message : "Something went wrong"));
     } finally {
       setBusy(null);
     }
@@ -148,14 +138,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           ) : (
             <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
               {mode === "sign-up" && (
-                <Field label="Your name" htmlFor="name">
+                <Field label="Your name" htmlFor="name" required>
                   <Input id="name" name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Morgan" required />
                 </Field>
               )}
-              <Field label="Email" htmlFor="email">
+              <Field label="Email" htmlFor="email" required>
                 <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
               </Field>
-              <Field label="Password" htmlFor="password" hint={mode === "sign-up" ? "At least 8 characters." : undefined}>
+              <Field label="Password" htmlFor="password" required hint="At least 8 characters.">
                 <PasswordInput id="password" name="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
                 {mode === "sign-in" && (
                   <Link href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`} className="self-end text-[12px] font-medium text-brand-600 hover:underline">
@@ -177,7 +167,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               <div className="flex items-center gap-3 text-[12px] text-ink-4" aria-hidden>
                 <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
               </div>
-              <GoogleButton next={next} disabled={busy !== null} onError={(m) => setError(friendly(m))} label={mode === "sign-up" ? "Sign up with Google" : "Continue with Google"} />
+              <GoogleButton next={next} disabled={busy !== null} onError={(m) => setError(friendlyAuthError(m))} label={mode === "sign-up" ? "Sign up with Google" : "Continue with Google"} />
             </form>
           )}
 

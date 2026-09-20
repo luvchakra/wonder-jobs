@@ -26,6 +26,26 @@ const FEATURES = [
   { icon: ShieldCheck, label: "Stay in control" },
 ];
 
+/** A visible label for this step's dark hero background — the shared `Field` component is styled for a
+ *  light card, so its label would be unreadable here. Placeholder text alone isn't a label: it vanishes
+ *  the moment someone starts typing, leaving no visible cue what the field is for. The asterisk is a
+ *  sibling of the `<label>`, not a child of it, so the label's own text stays exactly the field name —
+ *  see Field's own comment in components/common/Input.tsx for why a child asterisk breaks that. */
+function FieldLabel({ htmlFor, required, children }: { htmlFor: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <span className="mb-1.5 flex items-center">
+      <label htmlFor={htmlFor} className="text-[12px] font-medium text-white/70">
+        {children}
+      </label>
+      {required && (
+        <span aria-hidden className="ml-0.5 text-[12px] font-medium text-danger-100">
+          *
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Three-step onboarding (spec §5.1): welcome → career goal → automation level. Writes real Career DNA. */
 export function OnboardingFlow() {
   return (
@@ -56,6 +76,7 @@ function Steps() {
   const [years, setYears] = useState<string | null>(null);
   const [skillsText, setSkillsText] = useState<string | null>(null);
   const [industries, setIndustries] = useState<string[] | null>(null);
+  const [confirmingSkip, setConfirmingSkip] = useState(false);
   const goalValue = goal ?? dna.careerGoal;
   const locValue = locations ?? dna.preferredLocations.join(", ");
   const headlineValue = headline ?? dna.headline;
@@ -71,6 +92,18 @@ function Steps() {
       .filter((v, i, a) => a.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === i)
       .slice(0, 25)
       .map((name) => dna.skills.find((s) => s.name.toLowerCase() === name.toLowerCase()) ?? { name, level: 4 as const });
+
+  // Steps 1-2 are the only ones with anything typed to lose; welcome and the automation-level step (a
+  // single, always-changeable choice) don't need the extra click.
+  const hasDraftInput = (step === 1 || step === 2) && [goalValue, locValue, headlineValue, yearsValue, skillsValue].some((v) => v.trim().length > 0);
+  const skip = () => {
+    if (hasDraftInput && !confirmingSkip) {
+      setConfirmingSkip(true);
+      return;
+    }
+    completeOnboarding();
+    router.push(next);
+  };
 
   const finish = () => {
     updateDNA({
@@ -97,24 +130,37 @@ function Steps() {
           {step === 0 ? (
             <WonderLogo href={null} tone="dark" size={34} />
           ) : (
-            <button type="button" onClick={() => setStep((s) => s - 1)} className="inline-flex items-center gap-1 text-sm font-medium text-white/80 hover:text-white">
-              <ArrowLeft className="size-4" aria-hidden /> Back
-            </button>
-          )}
-          <div className="flex items-center gap-4">
-            <Link href="/help" className="text-sm font-medium text-white/70 hover:text-white">
-              Help
-            </Link>
             <button
               type="button"
               onClick={() => {
-                completeOnboarding();
-                router.push(next);
+                setConfirmingSkip(false);
+                setStep((s) => s - 1);
               }}
-              className="text-sm font-medium text-white/80 hover:text-white"
+              className="inline-flex items-center gap-1 text-sm font-medium text-white/80 hover:text-white"
             >
-              Skip
+              <ArrowLeft className="size-4" aria-hidden /> Back
             </button>
+          )}
+          <div className="flex items-center gap-3">
+            {!confirmingSkip && (
+              <Link href="/help" className="text-sm font-medium text-white/70 hover:text-white">
+                Help
+              </Link>
+            )}
+            {confirmingSkip ? (
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <button type="button" onClick={() => setConfirmingSkip(false)} className="text-white/80 hover:text-white">
+                  Cancel
+                </button>
+                <button type="button" onClick={skip} className="text-danger-100 hover:text-white">
+                  Discard &amp; skip
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={skip} className="text-sm font-medium text-white/80 hover:text-white">
+                Skip
+              </button>
+            )}
           </div>
         </div>
 
@@ -144,8 +190,17 @@ function Steps() {
               <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">What are you looking for?</h1>
               <p className="mt-2 text-[14px] text-white/75">Plain language is perfect. This becomes your career goal — Wonder uses it to judge every match.</p>
               <div className="mt-6 flex flex-col gap-4">
-                <Textarea value={goalValue} onChange={(e) => setGoal(e.target.value)} aria-label="Career goal" className="min-h-24 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="e.g. Senior product roles at fintech companies, remote or Bengaluru" disabled={!hydrated} />
-                <Input value={locValue} onChange={(e) => setLocations(e.target.value)} aria-label="Preferred locations" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Preferred locations, comma-separated" disabled={!hydrated} />
+                <div>
+                  <FieldLabel htmlFor="onb-goal" required>
+                    Career goal
+                  </FieldLabel>
+                  <Textarea id="onb-goal" value={goalValue} onChange={(e) => setGoal(e.target.value)} className="min-h-24 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="e.g. Senior product roles at fintech companies, remote or Bengaluru" disabled={!hydrated} required />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="onb-locations">Preferred locations</FieldLabel>
+                  <Input id="onb-locations" value={locValue} onChange={(e) => setLocations(e.target.value)} className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="e.g. Bengaluru, Remote" disabled={!hydrated} />
+                  <p className="mt-1 text-[11px] text-white/50">Optional. Comma-separated — leave blank to see roles anywhere.</p>
+                </div>
               </div>
             </div>
           )}
@@ -172,20 +227,34 @@ function Steps() {
                 />
               </div>
               <div className="mt-4 flex flex-col gap-4">
-                <Input value={headlineValue} onChange={(e) => setHeadline(e.target.value)} aria-label="Headline" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Headline, e.g. Product Manager · Consumer & Fintech" disabled={!hydrated} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Select value={seniorityValue} onChange={(e) => setSeniority(e.target.value as CareerDNA["seniority"])} aria-label="Current level" className="border-white/20 bg-white/10 text-white focus:border-brand-300 focus:ring-brand-500/30" disabled={!hydrated}>
-                    {(["junior", "mid", "senior", "lead", "director"] as const).map((l) => (
-                      <option key={l} value={l} className="text-ink">
-                        {l[0].toUpperCase() + l.slice(1)} level
-                      </option>
-                    ))}
-                  </Select>
-                  <Input value={yearsValue} onChange={(e) => setYears(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" aria-label="Years of experience" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Years of experience" disabled={!hydrated} />
-                </div>
-                <Textarea value={skillsValue} onChange={(e) => setSkillsText(e.target.value)} aria-label="Skills" className="min-h-20 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Your strongest skills, comma-separated: e.g. Product Strategy, SQL, A/B Testing, Roadmapping" disabled={!hydrated} />
                 <div>
-                  <p className="mb-2 text-[12px] font-medium text-white/70">Industries you want</p>
+                  <FieldLabel htmlFor="onb-headline">Headline</FieldLabel>
+                  <Input id="onb-headline" value={headlineValue} onChange={(e) => setHeadline(e.target.value)} className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="e.g. Product Manager · Consumer & Fintech" disabled={!hydrated} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel htmlFor="onb-level">Current level</FieldLabel>
+                    <Select id="onb-level" value={seniorityValue} onChange={(e) => setSeniority(e.target.value as CareerDNA["seniority"])} className="border-white/20 bg-white/10 text-white focus:border-brand-300 focus:ring-brand-500/30" disabled={!hydrated}>
+                      {(["junior", "mid", "senior", "lead", "director"] as const).map((l) => (
+                        <option key={l} value={l} className="text-ink">
+                          {l[0].toUpperCase() + l.slice(1)} level
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="onb-years">Years of experience</FieldLabel>
+                    <Input id="onb-years" value={yearsValue} onChange={(e) => setYears(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="0–50" disabled={!hydrated} />
+                  </div>
+                </div>
+                <div>
+                  <FieldLabel htmlFor="onb-skills" required>
+                    Skills
+                  </FieldLabel>
+                  <Textarea id="onb-skills" value={skillsValue} onChange={(e) => setSkillsText(e.target.value)} className="min-h-20 border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30" placeholder="Your strongest skills, comma-separated: e.g. Product Strategy, SQL, A/B Testing, Roadmapping" disabled={!hydrated} required />
+                </div>
+                <div>
+                  <p className="mb-2 text-[12px] font-medium text-white/70">Industries you want <span className="text-white/50">(optional)</span></p>
                   <div className="flex flex-wrap gap-2">
                     {INDUSTRIES.map((i) => (
                       <Chip key={i} active={industriesValue.includes(i)} onClick={() => setIndustries(industriesValue.includes(i) ? industriesValue.filter((x) => x !== i) : [...industriesValue, i])} className={industriesValue.includes(i) ? "" : "border-white/25 bg-white/10 text-white hover:bg-white/20"}>
@@ -216,10 +285,21 @@ function Steps() {
             ))}
           </div>
           {step < 3 ? (
-            <Button size="xl" full onClick={() => setStep((s) => s + 1)} disabled={(step === 1 && !goalValue.trim()) || (step === 2 && parsedSkills().length === 0)}>
+            <Button
+              size="xl"
+              full
+              onClick={() => {
+                setConfirmingSkip(false);
+                setStep((s) => s + 1);
+              }}
+              disabled={(step === 1 && !goalValue.trim()) || (step === 2 && parsedSkills().length === 0)}
+            >
               {step === 0 ? "Get Started" : "Continue"}
             </Button>
-          ) : (
+          ) : null}
+          {step === 1 && !goalValue.trim() && <p className="mt-3 text-center text-[13px] text-white/60">Add a career goal to continue.</p>}
+          {step === 2 && parsedSkills().length === 0 && <p className="mt-3 text-center text-[13px] text-white/60">Add at least one skill to continue.</p>}
+          {step === 3 && (
             <Button size="xl" full onClick={finish} disabled={!hydrated}>
               Run my first search
             </Button>
