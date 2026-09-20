@@ -106,7 +106,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
           {jobTeaser ? (
             <>
               <h1 className="mt-10 text-[28px] font-semibold leading-[1.15] tracking-tight md:mt-14 md:text-[34px]">Someone shared a job with you on Wonder</h1>
-              <p className="mt-2 max-w-lg text-[15px] text-white/80">Below is the real listing — description, requirements, company and hiring signals, no account needed. The one thing only you can unlock: your personalized match score, save, and apply, once you sign in.</p>
+              <p className="mt-2 max-w-lg text-[15px] text-white/80">Below is the real listing — description, requirements, company and hiring signals, no account needed. Sign in (or create a free account) and unlock your personalized match score, save this job, apply prepared by Wonder, and get matched to similar roles automatically.</p>
               <JobTeaser job={jobTeaser} />
             </>
           ) : (
