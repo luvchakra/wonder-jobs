@@ -112,6 +112,14 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         )}
         {run.silent && <Badge>Quiet outcome</Badge>}
       </div>
+      <p className="-mt-2 mb-4 text-[12px] text-ink-3">
+        Searched <span className="font-medium text-ink-2">“{run.config.searchCriteria.query}”</span>
+        {run.config.searchCriteria.locations.length ? ` in ${run.config.searchCriteria.locations.join(", ")}` : ""} across {run.config.sourceIds.length} live source{run.config.sourceIds.length === 1 ? "" : "s"}
+        {" · "}
+        <Link href="/app/runs/new" className="text-brand-600 hover:underline">
+          change the search
+        </Link>
+      </p>
 
       {run.error && <RunErrorBanner run={run} error={run.error} className="mb-4" />}
       <RunOutcome run={run} onShowResults={() => setTab("results")} className="mb-4" />

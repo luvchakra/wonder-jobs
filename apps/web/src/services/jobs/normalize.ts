@@ -315,3 +315,24 @@ export function remoteOpenTo(job: Pick<Job, "location" | "workMode">, locations:
     return term && term !== "remote" && (jl.includes(term) || (INDIA_PLACES.test(term) && /india/.test(jl)));
   });
 }
+
+/** "I am a senior director" / "I'm …" / the common "iam …" typo at the start of a goal is the candidate
+ *  talking about themselves, not a search term — left in, "iam" reads as identity-and-access-management. */
+export function stripSelfReference(text: string): string {
+  return text.replace(/^\s*(?:i\s*am|i['’]?m|iam)\b\s*(?:an?\s+)?/i, "");
+}
+
+/**
+ * The search the boards are asked for when the candidate hasn't typed one: their own headline
+ * ("Product Manager · Consumer & Fintech" → "product manager"), else their goal ("iam senior
+ * director" → "senior director"). Industry words are dropped — Career DNA scores industry fit
+ * separately — and seniority is kept, because it is what a title search needs. Empty when there
+ * is nothing to derive from: the product then asks rather than substituting a canned role.
+ */
+export function defaultSearchQuery(dna: { headline: string; careerGoal: string }): string {
+  for (const source of [dna.headline, stripSelfReference(dna.careerGoal)]) {
+    const terms = queryTerms(source).filter((t) => !INDUSTRY_WORDS.has(t)).slice(0, 4);
+    if (terms.length) return terms.join(" ");
+  }
+  return "";
+}

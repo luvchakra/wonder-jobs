@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corePhrase, extractRequirements, extractSkills, htmlToText, inferSeniority, matchesLocations, matchesQuery, normalizePosting, parseSalary, queryTerms, remoteOpenTo } from "./normalize";
+import { corePhrase, defaultSearchQuery, extractRequirements, extractSkills, htmlToText, inferSeniority, matchesLocations, matchesQuery, normalizePosting, parseSalary, queryTerms, remoteOpenTo, stripSelfReference } from "./normalize";
 
 describe("normalize", () => {
   it("strips HTML into readable text", () => {
@@ -66,5 +66,27 @@ describe("normalize", () => {
     expect(remoteOpenTo({ location: "Remote (Americas only)", workMode: "remote" }, ["Bengaluru", "Remote"])).toBe(false);
     expect(remoteOpenTo({ location: "Remote (Worldwide)", workMode: "remote" }, ["Bengaluru"])).toBe(true);
     expect(remoteOpenTo({ location: "Remote (India, APAC)", workMode: "remote" }, ["Bengaluru, India"])).toBe(true);
+  });
+});
+
+describe("defaultSearchQuery — the run searches for the candidate's own role, never a canned one", () => {
+  it("prefers the headline, dropping industry qualifiers that Career DNA scores separately", () => {
+    expect(defaultSearchQuery({ headline: "Product Manager · Consumer & Fintech", careerGoal: "Find product management roles" })).toBe("product manager");
+  });
+
+  it("falls back to the goal, and reads a leading 'I am' / 'iam' as the candidate, not as IAM", () => {
+    expect(defaultSearchQuery({ headline: "", careerGoal: "iam senior director" })).toBe("senior director");
+    expect(defaultSearchQuery({ headline: "", careerGoal: "I am a senior director of engineering" })).toBe("senior director engineering");
+    expect(defaultSearchQuery({ headline: "", careerGoal: "I'm looking for product management roles in tech companies" })).toBe("product management");
+  });
+
+  it("keeps a real IAM query when it is not a self-reference", () => {
+    expect(defaultSearchQuery({ headline: "Security engineer, IAM", careerGoal: "" })).toBe("security engineer iam");
+    expect(stripSelfReference("IAM engineer roles")).toBe("engineer roles");
+  });
+
+  it("is empty when there is nothing to derive from, so the product asks instead of inventing", () => {
+    expect(defaultSearchQuery({ headline: "", careerGoal: "" })).toBe("");
+    expect(defaultSearchQuery({ headline: "", careerGoal: "I want a new job" })).toBe("");
   });
 });
