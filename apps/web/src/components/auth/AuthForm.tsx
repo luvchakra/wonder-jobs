@@ -13,6 +13,7 @@ import { JobTeaser, type PublicJobTeaser } from "./JobTeaser";
 import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
 import { friendlyAuthError } from "@/lib/auth/friendly";
 import { track } from "@/lib/analytics";
+import { cn } from "@/lib/cn";
 
 const FEATURES = [
   { icon: Compass, label: "Find the right opportunities" },
@@ -99,13 +100,13 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
     <div className="relative min-h-dvh overflow-hidden bg-ink text-white">
       <HeroScene variant="dusk" className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
-      <main id="main" className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:items-center md:gap-16 md:px-10">
+      <main id="main" className={cn("relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:gap-16 md:px-10", jobTeaser ? "md:items-start md:py-14" : "md:items-center")}>
         <div className="md:flex-1">
           <WonderLogo href="/" tone="dark" size={34} />
           {jobTeaser ? (
             <>
               <h1 className="mt-10 text-[28px] font-semibold leading-[1.15] tracking-tight md:mt-14 md:text-[34px]">Someone shared a job with you on Wonder</h1>
-              <p className="mt-2 text-[15px] text-white/80">Sign in (or create a free account) to see the full listing and apply.</p>
+              <p className="mt-2 max-w-lg text-[15px] text-white/80">Below is the real listing — description, requirements, company and hiring signals, no account needed. The one thing only you can unlock: your personalized match score, save, and apply, once you sign in.</p>
               <JobTeaser job={jobTeaser} />
             </>
           ) : (
@@ -129,7 +130,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
           )}
         </div>
 
-        <div className="mt-8 w-full rounded-[24px] bg-white p-6 text-ink shadow-xl md:mt-0 md:w-[420px] md:p-8">
+        <div className={cn("mt-8 w-full rounded-[24px] bg-white p-6 text-ink shadow-xl md:w-[420px] md:p-8", jobTeaser ? "md:mt-28" : "md:mt-0")}>
           <h2 className="text-[22px] font-semibold tracking-tight">{title}</h2>
           <p className="mt-1 text-sm text-ink-3">{sub}</p>
 

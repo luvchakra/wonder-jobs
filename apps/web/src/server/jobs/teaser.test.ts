@@ -36,28 +36,45 @@ describe("publicJobTeaser — the real, teaser-safe subset shown to an anonymous
     expect(await publicJobTeaser("/app/jobs/careers_abc")).toBeNull();
   });
 
-  it("builds the teaser from the job's own real fields, truncating only the long description", async () => {
+  it("builds the full teaser — everything about the posting itself, not truncated or watered down", async () => {
     findJobByIdMock.mockResolvedValueOnce({
+      id: "careers_abc123",
       sourceId: "careers",
       title: "Senior Product Manager",
       company: "Groww",
+      companyDomain: "groww.in",
       location: "Bengaluru, India",
       workMode: "hybrid",
       salaryMin: 3_000_000,
       salaryMax: 4_000_000,
       currency: "INR",
       postedAt: new Date().toISOString(),
+      observedAt: new Date().toISOString(),
       description: "A".repeat(300),
+      requirements: ["5+ years of product management"],
+      niceToHave: ["Fintech background"],
+      skills: ["SQL", "Product Strategy"],
+      industry: "Fintech",
+      seniority: "senior",
+      applyPath: "employer_site",
+      onEmployerSite: true,
+      repostCount: 0,
     });
     const teaser = await publicJobTeaser("/app/jobs/careers_abc123");
-    expect(teaser).toMatchObject({ title: "Senior Product Manager", company: "Groww", location: "Bengaluru, India", workMode: "hybrid", sourceName: "Company career sites" });
+    expect(teaser).toMatchObject({ title: "Senior Product Manager", company: "Groww", companyDomain: "groww.in", location: "Bengaluru, India", workMode: "hybrid", sourceName: "Company career sites", industry: "Fintech", seniority: "senior" });
     expect(teaser?.salary).toBe("₹30L–40L");
-    expect(teaser?.descriptionPreview).toHaveLength(221);
-    expect(teaser?.descriptionPreview.endsWith("…")).toBe(true);
+    // The full description, not a preview — an anonymous visitor sees the whole real posting.
+    expect(teaser?.description).toHaveLength(300);
+    expect(teaser?.requirements).toEqual(["5+ years of product management"]);
+    expect(teaser?.skills).toEqual(["SQL", "Product Strategy"]);
+    // The hiring-quality signals a signed-in candidate would see too — they're computed from the posting alone.
+    expect(teaser?.quality.signals.length).toBeGreaterThan(0);
+    expect(teaser?.quality.signals.find((s) => s.key === "employer_site")?.value).toBe("Listed on employer site");
   });
 
-  it("leaves a short description untouched", async () => {
+  it("has no salary field when the posting didn't disclose one — never a fabricated figure", async () => {
     findJobByIdMock.mockResolvedValueOnce({
+      id: "remotive_xyz",
       sourceId: "remotive",
       title: "Staff Engineer",
       company: "Acme",
@@ -65,10 +82,17 @@ describe("publicJobTeaser — the real, teaser-safe subset shown to an anonymous
       workMode: "remote",
       currency: "USD",
       postedAt: new Date().toISOString(),
+      observedAt: new Date().toISOString(),
       description: "Build reliable systems for millions of users.",
+      requirements: [],
+      niceToHave: [],
+      skills: [],
+      industry: "Technology",
+      seniority: "mid",
     });
     const teaser = await publicJobTeaser("/app/jobs/remotive_xyz");
-    expect(teaser?.descriptionPreview).toBe("Build reliable systems for millions of users.");
+    expect(teaser?.description).toBe("Build reliable systems for millions of users.");
     expect(teaser?.salary).toBeNull();
+    expect(teaser?.quality.signals.find((s) => s.key === "salary_transparency")?.value).toBe("Salary not provided");
   });
 });
