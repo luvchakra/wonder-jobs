@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { TopBar } from "@/components/navigation/TopBar";
 import { MobileNav } from "@/components/navigation/MobileNav";
+import { MobileSidebarDrawer } from "@/components/navigation/MobileSidebarDrawer";
 import { Toaster } from "@/components/feedback/Toast";
 import { StoreHydrator } from "@/store/StoreHydrator";
 import { useHydration } from "@/store/hydration";
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       <MobileNav />
+      <MobileSidebarDrawer />
       <Toaster />
     </StoreHydrator>
   );

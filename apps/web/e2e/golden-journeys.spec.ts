@@ -115,3 +115,44 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     expect(page.url()).toMatch(runPageUrl);
   });
 });
+
+test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
+  // Forced regardless of the running project's own device preset, so this exercises the actual
+  // mobile layout (hamburger + bottom bar) even under the desktop "chromium" project.
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/demo?next=/app");
+  });
+
+  test("GJ-008 the hamburger opens the full nav drawer, and navigating closes it", async ({ page }) => {
+    const drawer = page.getByRole("dialog", { name: "Menu" });
+    await expect(drawer).toBeHidden();
+
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(drawer).toBeVisible();
+    // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 4 shortcuts.
+    await expect(drawer.getByRole("link", { name: "Calendar" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Career DNA" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Automation Settings" })).toBeVisible();
+
+    await drawer.getByRole("link", { name: "Insights" }).click();
+    await page.waitForURL(/\/app\/insights/);
+    await expect(drawer).toBeHidden();
+  });
+
+  test("GJ-009 the bottom bar's More tab opens the same drawer", async ({ page }) => {
+    const drawer = page.getByRole("dialog", { name: "Menu" });
+    await page.getByRole("button", { name: "More" }).click();
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Resume Studio" })).toBeVisible();
+  });
+
+  test("GJ-010 the drawer is closed by default and the bottom bar has no separate Profile tab", async ({ page }) => {
+    await expect(page.getByRole("dialog", { name: "Menu" })).toBeHidden();
+    // Profile moved out of the bottom bar (More replaced it) — it's still one tap away via the avatar menu.
+    const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
+    await expect(bottomBar.getByRole("link", { name: "Profile" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Profile menu" })).toBeVisible();
+  });
+});

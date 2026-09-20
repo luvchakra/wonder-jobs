@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Menu, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -9,6 +9,7 @@ import { WonderLogo } from "@/components/brand/WonderLogo";
 import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { useUIStore } from "@/store/ui";
+import { IconButton } from "@/components/common/Button";
 import { useHydration } from "@/store/hydration";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
@@ -29,6 +30,7 @@ function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void)
 export function TopBar() {
   const cmd = useUIStore((s) => s.commandOpen);
   const setCmd = useUIStore((s) => s.setCommandOpen);
+  const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen);
   const applications = useApplicationsStore((s) => s.applications);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -63,7 +65,10 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
-      <div className="md:hidden">
+      <div className="flex items-center gap-2 md:hidden">
+        <IconButton label="Open menu" onClick={() => setMobileNavOpen(true)} size="sm">
+          <Menu className="size-5" aria-hidden />
+        </IconButton>
         <WonderLogo href="/app" compact />
       </div>
       <button

@@ -1,0 +1,84 @@
+name: CI
+
+# Deliberately fast, on every push/PR: lint, typecheck, unit tests and the production build run as four
+# independent jobs instead of one sequential `npm run check`, so GitHub Actions schedules them on
+# separate runners at the same time — total wall-clock time is roughly the slowest single job, not the
+# sum of all four. The heavier Playwright E2E suite and the accessibility audit are intentionally NOT
+# run here: they need real time (tens of seconds to minutes) and, for the E2E suite, real Supabase
+# credentials, so they'd slow down every single push/merge for checks that don't need to gate one. Run
+# them on demand instead — from the repo root or apps/web:
+#   npm run verify   # everything: check (lint+typecheck+test+build) + e2e (Playwright) + a11y
+#   npm run e2e      # just the Playwright suite
+#   npm run a11y     # just the accessibility audit
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  # A single required status check for branch protection to point at, so it doesn't need updating every
+  # time a job here is renamed or a new one is added — it just reflects whatever the 4 jobs above did.
+  ci:
+    name: CI
+    if: always()
+    needs: [lint, typecheck, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "One or more required jobs did not pass."
+            exit 1
+          fi
