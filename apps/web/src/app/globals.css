@@ -73,6 +73,12 @@
   --wj-dur-fast: 150ms;
   --wj-dur: 240ms;
   --wj-dur-slow: 480ms;
+
+  /* MobileNav's own height (h-16) plus its safe-area padding — kept as a variable so anything
+     fixed/sticky above it (Toast, the run status card, the review-and-continue footer) can clear
+     it exactly, instead of a guessed pixel offset that overlaps once the safe-area inset grows
+     (e.g. a mobile browser's own bottom toolbar reserving space via viewport-fit=cover). */
+  --wj-mobile-nav-h: calc(4rem + env(safe-area-inset-bottom, 0px));
 }
 
 @theme inline {

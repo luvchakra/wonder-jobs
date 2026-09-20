@@ -163,7 +163,7 @@ export default function RunSetupPage() {
         </Card>
 
         {error && <ErrorState title="Couldn't start the run" body={error} />}
-        <div className="sticky bottom-20 z-10 md:static">
+        <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-10 md:static">
           <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || !query.trim() || sourceIds.length === 0}>
             Continue
           </Button>
