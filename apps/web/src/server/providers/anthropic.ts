@@ -25,9 +25,9 @@ export const anthropicAdapter: ServerProviderAdapter = {
       return { text, model: response.model, inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
     } catch (e) {
       if (e instanceof ServerProviderError) throw e;
-      if (e instanceof Anthropic.AuthenticationError) throw classifyStatus("anthropic", 401, "Anthropic");
-      if (e instanceof Anthropic.RateLimitError) throw classifyStatus("anthropic", 429, "Anthropic");
-      if (e instanceof Anthropic.APIError) throw classifyStatus("anthropic", e.status ?? 500, "Anthropic");
+      if (e instanceof Anthropic.AuthenticationError) throw classifyStatus("anthropic", 401, "Anthropic", e.message);
+      if (e instanceof Anthropic.RateLimitError) throw classifyStatus("anthropic", 429, "Anthropic", e.message);
+      if (e instanceof Anthropic.APIError) throw classifyStatus("anthropic", e.status ?? 500, "Anthropic", e.message);
       if (e instanceof Anthropic.APIConnectionError) throw new ServerProviderError("anthropic", "network", "Could not reach Anthropic. Check connectivity and retry.");
       throw new ServerProviderError("anthropic", "unknown", e instanceof Error ? e.message : "Unknown error");
     }

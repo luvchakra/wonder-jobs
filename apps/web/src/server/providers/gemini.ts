@@ -15,7 +15,10 @@ export const geminiAdapter: ServerProviderAdapter = {
     } catch {
       throw new ServerProviderError("gemini", "network", "Could not reach Gemini. Check connectivity and retry.");
     }
-    if (!res.ok) throw classifyStatus("gemini", res.status, "Gemini");
+    if (!res.ok) {
+      const detail = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      throw classifyStatus("gemini", res.status, "Gemini", detail?.error?.message);
+    }
     const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } };
     const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("").trim();
     if (!text) throw new ServerProviderError("gemini", "invalid_response", "Gemini returned an empty response.");
