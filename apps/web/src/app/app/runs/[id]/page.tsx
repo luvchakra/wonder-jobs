@@ -211,30 +211,48 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       )}
 
       {isActive(run.status) && (
-        <div className="fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-30 md:hidden">
-          <div className="wj-card flex items-center gap-3 p-3 shadow-lg" role="status">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
-              <Bot className="size-4" aria-hidden />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-ink">{run.status === "WAITING_FOR_USER" ? "Wonder needs your input" : run.status === "PAUSED" ? "Paused" : "Wonder is working…"}</span>
-              <span className="block truncate text-[12px] text-ink-3">{run.status === "WAITING_FOR_USER" ? "Review, then continue." : run.status === "PAUSED" ? "Resume when you're ready." : "This may take a few minutes."}</span>
-            </span>
-            {run.status === "WAITING_FOR_USER" ? (
-              <Button size="sm" onClick={() => act(() => getWorkflowService().continue(run.id))}>
+        <>
+          {/* In-flow twin of the fixed card below, same box, invisible: reserves the card's real
+              height (+ a gap) at the bottom of the scrollable content so it clears the card instead
+              of scrolling underneath it. A hardcoded padding guess would drift the moment the card's
+              own content (e.g. this copy) changes height. */}
+          <div aria-hidden className="invisible mt-4 md:hidden">
+            <div className="flex items-center gap-3 p-3">
+              <span className="size-10 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold">Wonder needs your input</span>
+                <span className="block truncate text-[12px]">Review, then continue.</span>
+              </span>
+              <Button size="sm" tabIndex={-1}>
                 Continue
               </Button>
-            ) : run.status === "PAUSED" ? (
-              <Button size="sm" onClick={() => act(() => getWorkflowService().resume(run.id))}>
-                Resume
-              </Button>
-            ) : (
-              <Button size="sm" variant="outline" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => getWorkflowService().stop(run.id))}>
-                Stop
-              </Button>
-            )}
+            </div>
           </div>
-        </div>
+          <div className="fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-30 md:hidden">
+            <div className="wj-card flex items-center gap-3 p-3 shadow-lg" role="status">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+                <Bot className="size-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-ink">{run.status === "WAITING_FOR_USER" ? "Wonder needs your input" : run.status === "PAUSED" ? "Paused" : "Wonder is working…"}</span>
+                <span className="block truncate text-[12px] text-ink-3">{run.status === "WAITING_FOR_USER" ? "Review, then continue." : run.status === "PAUSED" ? "Resume when you're ready." : "This may take a few minutes."}</span>
+              </span>
+              {run.status === "WAITING_FOR_USER" ? (
+                <Button size="sm" onClick={() => act(() => getWorkflowService().continue(run.id))}>
+                  Continue
+                </Button>
+              ) : run.status === "PAUSED" ? (
+                <Button size="sm" onClick={() => act(() => getWorkflowService().resume(run.id))}>
+                  Resume
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => getWorkflowService().stop(run.id))}>
+                  Stop
+                </Button>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
