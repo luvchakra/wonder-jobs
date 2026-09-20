@@ -156,8 +156,20 @@ export interface Dictation {
   rebase: (text: string) => void;
 }
 
-/** Sessions that end without hearing anything before dictation gives up, rather than restarting forever. */
-const MAX_SILENT_SESSIONS = 2;
+/**
+ * How long dictation keeps restarting a session that has heard nothing before it gives up and says
+ * so. Real elapsed time, not a count of sessions: a `continuous: false` session can end within a
+ * second or two of completely normal conditions — mic init latency, the pause before the candidate
+ * starts talking — especially on Android, so counting "N silent sessions" gave up before they'd had
+ * a real chance to speak. Once anything has actually been heard, dictation never gives up on its own
+ * — pauses between sentences are normal, and only an explicit Stop or a fatal error ends it.
+ */
+const SILENCE_TIMEOUT_MS = 12_000;
+
+/** Whether to stop restarting and report failure, given whether anything has ever been heard yet. */
+export function shouldGiveUp(everHeard: boolean, elapsedSinceStartMs: number): boolean {
+  return !everHeard && elapsedSinceStartMs >= SILENCE_TIMEOUT_MS;
+}
 
 export function useDictation({ textAtStart, onText }: { textAtStart: () => string; onText: (text: string) => void }): Dictation {
   const supported = useSyncExternalStore(noopSubscribe, isSupported, notOnServer);
@@ -168,7 +180,8 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
   const settled = useRef<string[]>([]);
   const base = useRef("");
   const wantListening = useRef(false);
-  const silentSessions = useRef(0);
+  const everHeard = useRef(false);
+  const listenStartedAt = useRef(0);
   const onTextRef = useRef(onText);
   const textAtStartRef = useRef(textAtStart);
   // A session restarts the next one from its own `onend`, so it reaches itself through this.
@@ -227,8 +240,8 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
       base.current = appendDictated(base.current, spoken);
       settled.current = [];
       setInterim("");
-      silentSessions.current = spoken ? 0 : silentSessions.current + 1;
-      if (wantListening.current && silentSessions.current < MAX_SILENT_SESSIONS) {
+      if (spoken) everHeard.current = true;
+      if (wantListening.current && !shouldGiveUp(everHeard.current, Date.now() - listenStartedAt.current)) {
         openSessionRef.current();
         return;
       }
@@ -255,7 +268,8 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
     if (recognition.current) return;
     setError(null);
     setInterim("");
-    silentSessions.current = 0;
+    everHeard.current = false;
+    listenStartedAt.current = Date.now();
     rebase(textAtStartRef.current());
     wantListening.current = true;
     setListening(true);

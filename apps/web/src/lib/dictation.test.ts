@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendDictated, foldResults, mergePhrases, type RecognitionResultList } from "./dictation";
+import { appendDictated, foldResults, mergePhrases, shouldGiveUp, type RecognitionResultList } from "./dictation";
 
 /** Builds the result list shape the Web Speech API hands to `onresult`. */
 function results(...phrases: { text: string; isFinal: boolean }[]): RecognitionResultList {
@@ -145,5 +145,27 @@ describe("appendDictated", () => {
     const spoken = "Staff PM, fintech, Bengaluru or remote";
     expect(appendDictated("", spoken)).toBe(spoken);
     expect(appendDictated("Looking for:", spoken)).toBe(`Looking for: ${spoken}`);
+  });
+});
+
+describe("shouldGiveUp", () => {
+  it("does not give up on two quick silent sessions on their own", () => {
+    // The reported regression: continuous:false sessions can each end within a second or two under
+    // entirely normal conditions (mic init, the pause before the candidate starts talking), so a
+    // session-count cap gave up before they'd had a real chance to speak. Two sessions ending after
+    // barely a second of real time must not be enough on their own.
+    expect(shouldGiveUp(false, 1200)).toBe(false);
+    expect(shouldGiveUp(false, 4000)).toBe(false);
+  });
+
+  it("gives up once real time has passed with nothing heard", () => {
+    expect(shouldGiveUp(false, 12_000)).toBe(true);
+    expect(shouldGiveUp(false, 20_000)).toBe(true);
+  });
+
+  it("never gives up once something has actually been heard", () => {
+    // A pause between sentences is normal dictation, not failure — only an explicit Stop ends it.
+    expect(shouldGiveUp(true, 12_000)).toBe(false);
+    expect(shouldGiveUp(true, 60_000)).toBe(false);
   });
 });
