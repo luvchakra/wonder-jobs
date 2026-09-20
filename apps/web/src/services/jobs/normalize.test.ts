@@ -53,6 +53,12 @@ describe("normalize", () => {
     expect(corePhrase("Data scientist")).toBe("data scientist");
   });
 
+  it("reads svp/evp/chief as seniority level, not a required title word — a real reported bug: 'senior director svp iam' matched nothing because titleMatches required the literal substring 'svp' in every posting's title", () => {
+    expect(corePhrase("senior director svp iam")).toBe("iam");
+    expect(corePhrase("evp of engineering")).toBe("engineering");
+    expect(corePhrase("chief product officer")).toBe("product officer");
+  });
+
   it("filters postings by query and location", () => {
     const pm = { title: "Product Manager, Payments", description: "", tags: [], skills: [], location: "Bengaluru, India", workMode: "onsite" as const, country: "IN" };
     const eng = { title: "Backend Engineer", description: "We build distributed storage infrastructure in Go", tags: [], skills: [], location: "Berlin", workMode: "onsite" as const, country: "DE" };
@@ -88,5 +94,11 @@ describe("defaultSearchQuery — the run searches for the candidate's own role, 
   it("is empty when there is nothing to derive from, so the product asks instead of inventing", () => {
     expect(defaultSearchQuery({ headline: "", careerGoal: "" })).toBe("");
     expect(defaultSearchQuery({ headline: "", careerGoal: "I want a new job" })).toBe("");
+  });
+
+  it("strips a headline's own meta-label ('Target:', 'Seeking:', 'Goal:') instead of searching for it literally — a real reported bug: a 'Target: Senior Director / SVP — …' headline searched for the literal word 'target', which returned zero postings on every source since no real job is titled 'Target …'", () => {
+    expect(defaultSearchQuery({ headline: "Target: Senior Director / SVP — IAM & AI Transformation | Digital Identity, Cyber Risk & AI Governance", careerGoal: "" })).toBe("senior director svp iam");
+    expect(defaultSearchQuery({ headline: "Seeking: Head of Data", careerGoal: "" })).toBe("head data");
+    expect(defaultSearchQuery({ headline: "Goal - Staff Engineer, Platform", careerGoal: "" })).toBe("staff engineer platform");
   });
 });
