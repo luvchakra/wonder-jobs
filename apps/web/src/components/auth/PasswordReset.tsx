@@ -80,7 +80,7 @@ export function ForgotPasswordForm() {
         </div>
       ) : (
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
-          <Field label="Email" htmlFor="email">
+          <Field label="Email" htmlFor="email" required>
             <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
           </Field>
           {error && (
@@ -168,10 +168,15 @@ export function ResetPasswordForm() {
         </p>
       ) : (
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
-          <Field label="New password" htmlFor="new-password">
+          {session === "checking" && (
+            <p role="status" className="text-[13px] text-ink-3">
+              Checking your reset link…
+            </p>
+          )}
+          <Field label="New password" htmlFor="new-password" required hint="At least 8 characters.">
             <PasswordInput id="new-password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required autoFocus disabled={session !== "yes"} />
           </Field>
-          <Field label="Confirm new password" htmlFor="confirm-password">
+          <Field label="Confirm new password" htmlFor="confirm-password" required error={confirm && password !== confirm ? "Passwords don't match." : undefined}>
             <PasswordInput id="confirm-password" name="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} minLength={8} required disabled={session !== "yes"} />
           </Field>
           {error && (

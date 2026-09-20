@@ -55,6 +55,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 </option>
               ))}
             </Select>
+            <span className="text-[11px] font-normal text-ink-4">Based on your Career DNA match score.</span>
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Freshness
@@ -70,6 +71,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Minimum salary (₹ lakh)
             <Input type="number" inputMode="numeric" min={0} step={1} value={filters.minSalary ? Math.round(filters.minSalary / 100_000) : ""} onChange={(e) => onChange({ minSalary: e.target.value ? Number(e.target.value) * 100_000 : undefined })} placeholder="e.g. 28" />
+            <span className="text-[11px] font-normal text-ink-4">Roles listed in other currencies are roughly converted (1 USD ≈ ₹30) to compare.</span>
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Sources

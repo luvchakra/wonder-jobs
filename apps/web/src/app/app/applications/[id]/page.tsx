@@ -153,9 +153,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 value={app.status}
                 onChange={(e) => {
                   const next = e.target.value as ApplicationStatus;
+                  const prev = app.status;
                   const ev = EVENT_FOR_STATUS[next];
                   setStatus(app.id, next, ev ? { ...ev, detail: "Updated by you" } : undefined);
-                  toast.success(`Marked ${APPLICATION_STATUS_META[next].label}`);
+                  // Rejected/Withdrawn read as final, unlike the other transitions here — an Undo action
+                  // (rather than a confirm-before dialog) keeps the one-click flow but makes the finality
+                  // reversible, consistent with how Remove application already asks first.
+                  const isFinal = next === "rejected" || next === "withdrawn";
+                  toast.success(`Marked ${APPLICATION_STATUS_META[next].label}`, undefined, isFinal ? { label: "Undo", onClick: () => setStatus(app.id, prev) } : undefined);
                 }}
               >
                 {APPLICATION_STATUSES.map((s) => (
@@ -186,7 +191,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               <p className="mb-3 text-[13px] text-ink-3">No follow-ups scheduled.</p>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <Input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} aria-label="Follow-up date" />
+              <Input type="date" value={fuDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setFuDate(e.target.value)} aria-label="Follow-up date" />
               <Select value={fuKind} onChange={(e) => setFuKind(e.target.value as typeof fuKind)} aria-label="Follow-up type">
                 <option value="follow_up">Follow up</option>
                 <option value="interview">Interview</option>

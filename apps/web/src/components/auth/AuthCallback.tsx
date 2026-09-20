@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
+import { friendlyAuthError } from "@/lib/auth/friendly";
 import { PageLoading } from "@/components/common/States";
 import { Button } from "@/components/common/Button";
 
@@ -15,7 +16,7 @@ export function AuthCallback() {
     const code = params.get("code");
     const rawNext = params.get("next");
     const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app";
-    const fail = (m: string) => setError(m);
+    const fail = (m: string) => setError(friendlyAuthError(m));
     if (!sb) return fail("Sign-in isn't configured on this deployment.");
     if (params.get("error_description")) return fail(params.get("error_description")!.replace(/\+/g, " "));
     const tokenHash = params.get("token_hash");

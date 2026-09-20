@@ -16,6 +16,8 @@
     "typecheck": "npm run typecheck -w @wonder/web",
     "test": "npm run test -w @wonder/web",
     "check": "npm run check -w @wonder/web",
+    "e2e": "npm run e2e -w @wonder/web",
+    "verify": "npm run verify -w @wonder/web",
     "db:migrate": "npm run db:migrate -w @wonder/web"
   }
 }

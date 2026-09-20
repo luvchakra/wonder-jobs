@@ -94,7 +94,7 @@ export default function HomePage() {
       <div className="flex min-w-0 flex-col gap-5">
         <Card padding="none" className="grid grid-cols-2 divide-line md:grid-cols-4 md:divide-x">
           <MetricTile icon={Briefcase} value={strongNew} label="new strong matches" href="/app/jobs?fit=strong" tone="brand" />
-          <MetricTile icon={Mail} value={followUpDue} label="follow-up due" href="/app/applications?tab=submitted" tone="blue" />
+          <MetricTile icon={Mail} value={followUpDue} label={followUpDue === 1 ? "follow-up due within 2 days" : "follow-ups due within 2 days"} href="/app/applications?tab=submitted" tone="blue" />
           <MetricTile icon={CalendarDays} value={interviews} label={interviews === 1 ? "interview tomorrow" : "interviews soon"} href="/app/calendar" tone="pink" />
           <MetricTile icon={TrendingUp} value={appsThisWeek} label="applications this week" href="/app/applications" tone="success" />
         </Card>
@@ -138,8 +138,8 @@ export default function HomePage() {
             <p className="text-[13px] font-semibold text-ink">Hey {firstName}, I&apos;m Wonder</p>
             <p className="text-[12px] text-ink-3">I can search, analyze, prepare and track your job search. What would you like to do?</p>
           </div>
-          <button type="button" onClick={() => openCommand(true)} aria-label="Ask Wonder" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white hover:bg-brand-600">
-            <ArrowRight className="size-4" aria-hidden />
+          <button type="button" onClick={() => openCommand(true)} className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-brand-500 pl-3 pr-2.5 text-[13px] font-medium text-white hover:bg-brand-600">
+            Ask <ArrowRight className="size-4" aria-hidden />
           </button>
         </Card>
         <Card>

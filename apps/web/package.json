@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "e2e": "playwright test",
+    "verify": "npm run check && npm run e2e && npm run a11y",
     "db:migrate": "node scripts/db-migrate.mjs",
     "a11y": "node scripts/a11y-audit.mjs",
     "push:keys": "node scripts/push-keys.mjs"
@@ -28,6 +30,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.3",
     "@types/pg": "^8.23.1",

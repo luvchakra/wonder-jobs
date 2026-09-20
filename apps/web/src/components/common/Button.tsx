@@ -35,7 +35,8 @@ const sizes: Record<Size, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", loading, icon, iconRight, className, children, href, full, ...rest }, ref) {
-  const cls = cn(base, variants[variant], sizes[size], full && "w-full", className);
+  const disabled = !!rest.disabled;
+  const cls = cn(base, variants[variant], sizes[size], full && "w-full", disabled && "opacity-50 pointer-events-none", className);
   const content = (
     <>
       {loading ? <Loader2 className="size-4 wj-animate-spin" aria-hidden /> : icon}
@@ -45,7 +46,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
   if (href) {
     return (
-      <Link href={href} className={cls} aria-disabled={rest.disabled || undefined}>
+      <Link
+        href={href}
+        className={cls}
+        aria-disabled={disabled || undefined}
+        tabIndex={disabled ? -1 : undefined}
+        onClick={disabled ? (e) => e.preventDefault() : undefined}
+      >
         {content}
       </Link>
     );

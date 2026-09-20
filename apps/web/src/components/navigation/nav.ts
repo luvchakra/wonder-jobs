@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Briefcase, Calendar, Dna, FileText, Home, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, User, Zap, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Briefcase, Calendar, Dna, FileText, Home, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, Zap, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -30,12 +30,15 @@ export const RESOURCES_NAV: NavItem[] = [
   { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 
+// The 4 highest-traffic destinations get their own tab; everything else (Calendar, Career DNA, Insights,
+// Automation, Resources) lives one tap away behind "More" (MobileNav's 5th slot), which opens
+// MobileSidebarDrawer — the same full nav the desktop Sidebar shows. Profile isn't repeated here: the
+// TopBar's avatar menu is reachable at every width, mobile included.
 export const MOBILE_NAV: NavItem[] = [
   { href: "/app", label: "Home", icon: Home, exact: true },
   { href: "/app/jobs", label: "Jobs", icon: Briefcase },
   { href: "/app/runs", label: "Runs", icon: Zap },
   { href: "/app/applications", label: "Applications", icon: LayoutList },
-  { href: "/app/profile", label: "Profile", icon: User },
 ];
 
 export function isActivePath(pathname: string, item: NavItem) {

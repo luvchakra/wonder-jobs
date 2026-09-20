@@ -165,6 +165,11 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
                   const file = e.target.files?.[0];
                   e.target.value = "";
                   if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) {
+                    setError(`That file is ${(file.size / (1024 * 1024)).toFixed(1)} MB — the limit is 5 MB. Try a smaller file, or paste the text instead.`);
+                    setShowPaste(true);
+                    return;
+                  }
                   const form = new FormData();
                   form.append("file", file);
                   void send(form);
@@ -187,6 +192,7 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
                   Or paste your resume text
                 </label>
                 <Textarea id="resume-text" className="mt-1 min-h-40" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Paste everything — Wonder picks out what it needs." />
+                <p className="mt-1 text-[12px] text-ink-3">{pasted.trim().length < 80 ? `At least 80 characters (${pasted.trim().length} so far).` : `${pasted.trim().length} characters.`}</p>
                 <Button className="mt-2" loading={busy} disabled={pasted.trim().length < 80} onClick={() => void send(JSON.stringify({ text: pasted }))}>
                   Read this
                 </Button>

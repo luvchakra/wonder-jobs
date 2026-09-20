@@ -27,13 +27,32 @@ export function RunErrorBanner({ run, error, className }: { run: WorkflowRun; er
           },
         };
       case "continue":
-        return { label: "Continue with available results", onClick: () => getWorkflowService().continue(run.id) };
+        return {
+          label: "Continue with available results",
+          onClick: () => {
+            try {
+              getWorkflowService().continue(run.id);
+            } catch (e) {
+              toast.error("Couldn't continue", e instanceof Error ? e.message : undefined);
+            }
+          },
+        };
       case "fix_config":
         return { label: "Fix configuration", href: error.source && error.source !== "wonderjobs" && ["anthropic", "openai", "gemini"].includes(error.source) ? "/app/settings/ai" : "/app/runs/new" };
       case "change_provider":
         return { label: "Change provider", href: "/app/settings/ai" };
       case "stop":
-        return { label: "Stop workflow", variant: "ghost" as const, onClick: () => !["FAILED", "STOPPED", "COMPLETED"].includes(run.status) && getWorkflowService().stop(run.id) };
+        return {
+          label: "Stop workflow",
+          variant: "ghost" as const,
+          onClick: () => {
+            try {
+              if (!["FAILED", "STOPPED", "COMPLETED"].includes(run.status)) getWorkflowService().stop(run.id);
+            } catch (e) {
+              toast.error("Couldn't stop", e instanceof Error ? e.message : undefined);
+            }
+          },
+        };
     }
   });
   return <ErrorState className={className} title={`${CATEGORY_LABEL[error.category]}${error.source ? ` · ${error.source}` : ""}`} body={error.message} actions={actions} />;

@@ -125,7 +125,10 @@ export default function ScheduledRunsPage() {
                         label="Delete"
                         onClick={() => {
                           remove(s.id);
-                          toast.info("Schedule removed");
+                          // No confirm dialog: deleting is fully reversible for a few seconds via Undo,
+                          // and its run history stays intact either way (removeSchedule only drops the
+                          // schedule row, not the workflow or past runs).
+                          toast.info("Schedule removed", "Its run history is kept.", { label: "Undo", onClick: () => upsert(s) });
                         }}
                       >
                         <Trash2 className="size-4" aria-hidden />

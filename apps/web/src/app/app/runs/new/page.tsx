@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Info } from "lucide-react";
+import { Pencil, Info, ChevronDown, ChevronUp } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { getWorkflowService } from "@/services/workflow/service";
@@ -81,7 +81,9 @@ export default function RunSetupPage() {
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="text-[15px] font-semibold text-ink">Career Goal</h2>
+              <h2 className="text-[15px] font-semibold text-ink">
+                Career Goal <span className="text-danger-600">*</span>
+              </h2>
               {editingGoal ? (
                 <Textarea autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} onBlur={() => setEditingGoal(false)} className="mt-2 min-h-20" aria-label="Career goal" />
               ) : (
@@ -118,7 +120,10 @@ export default function RunSetupPage() {
         <Card>
           <button type="button" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced} className="flex w-full items-center justify-between text-left">
             <h2 className="text-[15px] font-semibold text-ink">Search details</h2>
-            <span className="text-[12px] font-medium text-brand-600">{advanced ? "Hide" : "Edit"}</span>
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-600">
+              {advanced ? "Hide" : "Edit"}
+              {advanced ? <ChevronUp className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
+            </span>
           </button>
           {!advanced && (
             <p className="mt-1 text-[13px] text-ink-3">
@@ -127,13 +132,13 @@ export default function RunSetupPage() {
           )}
           {advanced && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Search query" htmlFor="q">
+              <Field label="Search query" htmlFor="q" hint={query.trim() ? "Optional." : 'Optional — left blank, this defaults to "product manager".'}>
                 <Input id="q" value={query} onChange={(e) => setQuery(e.target.value)} />
               </Field>
               <Field label="Locations" htmlFor="loc" hint="Comma-separated">
                 <Input id="loc" value={locations} onChange={(e) => setLocations(e.target.value)} />
               </Field>
-              <Field label={`Minimum match score: ${threshold}`} htmlFor="thr" className="sm:col-span-2">
+              <Field label={`Minimum match score: ${threshold}`} htmlFor="thr" className="sm:col-span-2" hint="How closely a role must match your Career DNA (0–100) to be worth showing. 70 is a good starting point.">
                 <input id="thr" type="range" min={50} max={95} step={5} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="w-full accent-brand-500" />
               </Field>
               <div className="sm:col-span-2">
@@ -160,6 +165,8 @@ export default function RunSetupPage() {
           <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || sourceIds.length === 0}>
             Continue
           </Button>
+          {!activeRun && !goal.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a career goal to continue.</p>}
+          {!activeRun && goal.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
         </div>
       </div>
     </div>

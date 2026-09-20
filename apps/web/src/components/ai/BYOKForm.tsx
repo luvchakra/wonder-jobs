@@ -124,8 +124,25 @@ export function BYOKForm({ provider, status, active, onUse }: { provider: Exclud
             void save();
           }}
         >
-          <Field label="API key" htmlFor={`key-${provider}`} hint={`Create one at ${meta.docsUrl?.replace(/^https?:\/\//, "") ?? "your provider console"}.`}>
-            <Input id={`key-${provider}`} type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} placeholder={meta.keyPlaceholder} />
+          <Field
+            label="API key"
+            htmlFor={`key-${provider}`}
+            required
+            hint={
+              meta.docsUrl ? (
+                <>
+                  Create one at{" "}
+                  <a href={meta.docsUrl} target="_blank" rel="noreferrer" className="font-medium text-brand-600 hover:underline">
+                    {meta.docsUrl.replace(/^https?:\/\//, "")}
+                  </a>
+                  .
+                </>
+              ) : (
+                "Create one from your provider's console."
+              )
+            }
+          >
+            <Input id={`key-${provider}`} type="password" autoComplete="off" spellCheck={false} value={key} onChange={(e) => setKey(e.target.value)} placeholder={meta.keyPlaceholder} required />
           </Field>
           <Field label="Default model" htmlFor={`model-${provider}`}>
             <Select id={`model-${provider}`} value={model} onChange={(e) => setModel(e.target.value)}>
@@ -142,6 +159,7 @@ export function BYOKForm({ provider, status, active, onUse }: { provider: Exclud
             </Button>
             <span className="inline-flex items-center gap-1 text-[11px] text-ink-4">{busy === "save" ? <Loader2 className="size-3 wj-animate-spin" aria-hidden /> : null} Encrypted at rest · never logged · revocable any time</span>
           </div>
+          <p className="text-[11px] text-ink-4">Connecting only saves the key. Use &quot;Test connection&quot; afterward to confirm it actually works.</p>
         </form>
       )}
       {error && (

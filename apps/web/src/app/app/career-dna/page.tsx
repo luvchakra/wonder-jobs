@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
@@ -23,6 +23,15 @@ export default function CareerDNAPage() {
   const dirty = JSON.stringify(draft) !== JSON.stringify(dna);
   const set = <K extends keyof CareerDNA>(k: K, v: CareerDNA[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
+  // Covers a closed tab or reload; an in-app Link click still navigates freely, but the visible "Unsaved
+  // changes" note by Save (below) is the fallback for that case.
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
@@ -31,6 +40,11 @@ export default function CareerDNAPage() {
         actions={
           <>
             <Badge>Updated {formatDate(dna.updatedAt)}</Badge>
+            {dirty && (
+              <span role="status" className="text-[12px] font-medium text-warning-600">
+                Unsaved changes
+              </span>
+            )}
             <ResumeImport onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             <Button
               disabled={!dirty}
@@ -57,8 +71,16 @@ export default function CareerDNAPage() {
             <Field label="Career goal" htmlFor="goal" className="sm:col-span-2" hint="Plain language. Wonder uses this to judge career-goal alignment.">
               <Textarea id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} className="min-h-20" />
             </Field>
-            <Field label="Years of experience" htmlFor="yoe">
-              <Input id="yoe" type="number" min={0} max={50} value={draft.yearsExperience} onChange={(e) => set("yearsExperience", Number(e.target.value))} />
+            <Field label="Years of experience" htmlFor="yoe" hint="0–50">
+              <Input
+                id="yoe"
+                type="number"
+                min={0}
+                max={50}
+                value={draft.yearsExperience}
+                onChange={(e) => set("yearsExperience", Number(e.target.value))}
+                onBlur={(e) => set("yearsExperience", Math.max(0, Math.min(50, Number(e.target.value) || 0)))}
+              />
             </Field>
             <Field label="Current level" htmlFor="level">
               <Select id="level" value={draft.seniority} onChange={(e) => set("seniority", e.target.value as CareerDNA["seniority"])}>
@@ -125,8 +147,8 @@ export default function CareerDNAPage() {
             <Field label="Preferred locations" htmlFor="locs" hint="Comma-separated. Include “Remote” to allow remote roles anywhere.">
               <Input id="locs" value={draft.preferredLocations.join(", ")} onChange={(e) => set("preferredLocations", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} />
             </Field>
-            <Field label="Minimum salary (annual, ₹ lakh)" htmlFor="sal">
-              <Input id="sal" type="number" min={0} value={draft.minSalary ? Math.round(draft.minSalary / 100_000) : ""} onChange={(e) => set("minSalary", e.target.value ? Number(e.target.value) * 100_000 : undefined)} />
+            <Field label="Minimum salary (annual, ₹ lakh)" htmlFor="sal" hint="1 lakh = ₹1,00,000/year. E.g. 28 means ₹28,00,000/year. Leave blank for no minimum.">
+              <Input id="sal" type="number" min={0} placeholder="No minimum" value={draft.minSalary ? Math.round(draft.minSalary / 100_000) : ""} onChange={(e) => set("minSalary", e.target.value ? Number(e.target.value) * 100_000 : undefined)} />
             </Field>
             <div className="sm:col-span-2">
               <p className="mb-2 text-[13px] font-medium text-ink-2">Work modes</p>

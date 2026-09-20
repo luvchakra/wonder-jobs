@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Info } from "lucide-react";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
@@ -24,6 +24,16 @@ function AISettingsInner() {
   const selectProvider = useAIStore((s) => s.selectProvider);
   const setAllowPlatformFallback = useAIStore((s) => s.setAllowPlatformFallback);
   const wantSwitch = params.get("switch") as AIProviderId | null;
+  // "Encrypted at rest" is only true when this deployment has persistent storage configured; without it,
+  // secretStore falls back to an in-memory map (server/secrets.ts) that never survives a restart — the
+  // same distinction Profile's CloudSyncCard already makes, which this page's copy must not contradict.
+  const [backend, setBackend] = useState<"supabase" | "local" | "unknown">("unknown");
+  useEffect(() => {
+    fetch("/api/state/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { backend: "supabase" | "local" }) => setBackend(d.backend))
+      .catch(() => {});
+  }, []);
   const totals = useMemo(() => usage.reduce((acc, u) => ({ tokens: acc.tokens + u.inputTokens + u.outputTokens, cost: acc.cost + (u.costUsd ?? 0), calls: acc.calls + 1 }), { tokens: 0, cost: 0, calls: 0 }), [usage]);
   const byProvider = useMemo(() => {
     const m: Partial<Record<AIProviderId, { tokens: number; cost: number; calls: number }>> = {};
@@ -86,7 +96,11 @@ function AISettingsInner() {
         <h2 id="byok" className="mb-1 text-[15px] font-semibold text-ink">
           Bring your own key
         </h2>
-        <p className="mb-3 text-[12px] text-ink-3">Keys are encrypted at rest, isolated to your account, never logged or shown again after saving, and can be removed any time.</p>
+        <p className="mb-3 text-[12px] text-ink-3">
+          {backend === "local"
+            ? "Keys are encrypted, isolated to your account, never logged or shown again after saving, and can be removed any time — but this deployment has no persistent storage configured, so they're held in memory only and won't survive a server restart."
+            : "Keys are encrypted at rest, isolated to your account, never logged or shown again after saving, and can be removed any time."}
+        </p>
         {!keysLoaded ? (
           <PageLoading rows={2} />
         ) : (

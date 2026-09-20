@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)” and “Why Was This Filtered (WJ-101)”._
+_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit (WJ-105, WJ-107)” and “Persistent demo-mode banner (WJ-106)”._
 
 ## At a glance
 
@@ -32,7 +32,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 | 11. Landing & marketing site | 12 | 0 | 0 | ✅ |
 | 12. Help center & support | 6 | 0 | 0 | ✅ |
 | 13. Secondary product areas | 8 | 3 | 2 | 🟡 early versions |
-| 14. Quality, accessibility, performance | 9 | 0 | 1 | ✅ |
+| 14. Quality, accessibility, performance | 10 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
 ## 1. Foundation & design system (spec §2–4)
@@ -49,6 +49,8 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Cookie sessions verified server-side; proxy guards `/app/*` and `/onboarding`; API routes 401 without a session
 - ✅ Per-user state namespaces; sign-out revokes, clears and forgets local copies
 - ✅ Demo mode under the avatar menu (`/demo`, `/demo/exit`, deep links `/demo?next=/app/jobs`)
+- ✅ A persistent demo-mode banner, visible on every `/app/*` screen (not just the avatar menu), with a one-click "Exit demo & sign in" — WJ-106
+- ✅ A real session always wins over a leftover demo cookie — fixed a real bug where trying the demo before signing in kept showing seeded demo data under a real account, since demo mode was checked before the signed-in session and sign-in never cleared it — WJ-103
 - ✅ Forgot password → emailed recovery link → `/reset-password` → signed in (25-check Playwright run, incl. single-use token, expired link, mismatch, old-password rejection) — WJ-079
 - ✅ Password reveal toggle on sign-in, sign-up and reset — WJ-080
 - ✅ "Continue with Google" on sign-in and sign-up (OAuth via Supabase, friendly message until the provider is enabled) — WJ-081
@@ -177,6 +179,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Insights, Learning, Resume Studio, Interview Prep pages exist and organise real data
 - ✅ Global command field, keyboard navigation, dialogs
 - ✅ Mobile dashboard (spec §6) and run status card
+- ✅ Mobile nav drawer: hamburger (top left of TopBar) or the bottom bar's "More" tab opens the same full menu the desktop Sidebar shows (Calendar, Career DNA, Insights, Automation, Resources — not just the 4 bottom-bar shortcuts), closed by default, closes on navigating, Escape or backdrop tap — WJ-104
 - ✅ Upgrade / Pro records interest only (no billing connected) — stated in the UI
 - 🟡 Resume Studio: organises materials; deeper AI coaching planned
 - 🟡 Interview Prep: prep packs; mock-interview AI planned
@@ -191,6 +194,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 
 - ✅ 40 unit tests (engine, policy, normalizer, migrations, matching, contact notifications) — WJ-072, WJ-073
 - ✅ Playwright end-to-end scripts: auth + demo, full run, review restore, forgot password
+- 🟡 Real `@playwright/test` E2E suite (`apps/web/playwright.config.ts` + `apps/web/e2e/`, distinct from the ad-hoc scripts above): `auth.spec.ts` (18 tests, real Supabase accounts, no mocking) and `golden-journeys.spec.ts` (7 tests, demo mode — jobs, job detail/match, not-for-me, applications, run Wonder) both actually executed against chromium — 20 passed, 5 honestly skipped, 0 failed across both files, stable across repeated runs. Firefox/WebKit BLOCKED (no binaries in this sandbox). Found and fixed a real defect along the way: `GET /demo` was mutating session state (entering demo mode, which bypasses the sign-in requirement) on Next.js's automatic Link-prefetch request, not just on a real visit. See `apps/web/docs/TEST_EXECUTION_REPORT.md`. Automation, Career DNA editing, BYOK/AI settings and PWA/push flows still have no E2E coverage
 - ✅ Security QA of BYOK routes and cross-tenant isolation — WJ-074
 - ✅ Keyboard navigation, reduced motion, screen-reader workflow states — WJ-059..061
 - ✅ Performance pass: local-first hydration, batched sync, React Compiler, `bom1` functions, static id routes — WJ-077
@@ -199,6 +203,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ `npm run check` (lint, typecheck, tests, build) green before every push — WJ-076
 - ✅ Automated accessibility audit: `npm run a11y` (axe-core, 18 pages, reduced-motion emulated), 0 violations — WJ-075
 - ⬜ Wire `npm run a11y` into CI (it needs a Chromium binary the repo doesn't vendor; run locally with `npx playwright install chromium` first, or reuse an existing install via `PW_CHROMIUM_PATH`)
+- ✅ Screen-by-screen UX audit for legible required fields and reversible actions, now covering every screen — WJ-105, WJ-107. Found and fixed real bugs beyond copy: duplicate interview-prep question, prepare-flow progress bar and Retry, cross-artifact state bleed, a `getByLabel` regression from the audit's own required-field markers, a shared `Button` that stayed clickable when `disabled` was combined with `href`, `CareerInsightCard` fabricating a "product roles" comparison for every metric insight, no confirmation before approving a high-risk `apply`-stage external action, and several workflow actions that failed silently with no toast.
 
 ## 15. Operations & release
 
@@ -206,6 +211,7 @@ _Last updated: 2026-09-19 — stories “AI content grounding (WJ-098)”, “Ho
 - ✅ Environment documented (`.env.example`, README)
 - ✅ Migrations applied to the production project via `/api/admin/migrate`
 - ✅ CLAUDE.md working rules (start from latest `main`, run `check`, update trackers)
+- ✅ `.github/workflows/ci.yml`: lint/typecheck/unit-tests/build run as 4 parallel jobs (not one sequential job) on every push/PR, so CI/merge wall-clock time is roughly the slowest single check rather than their sum. The Playwright suite and accessibility audit are deliberately not in automatic CI (too slow to gate every push, and E2E needs real Supabase credentials) — run them on demand with `npm run verify` (everything), `npm run e2e`, or `npm run a11y` — WJ-104
 - ✅ Production verified after each push (auth, demo, sources, per-user state)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

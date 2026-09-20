@@ -88,7 +88,7 @@ function ApplicationsInner() {
         }
       >
         {candidates.length ? (
-          <Field label="Saved job" htmlFor="pick-job">
+          <Field label="Saved job" htmlFor="pick-job" required hint="Only saved jobs you're not already tracking appear here.">
             <Select id="pick-job" value={pickJob} onChange={(e) => setPickJob(e.target.value)}>
               <option value="">Choose a job…</option>
               {candidates.map((id) => (
@@ -97,6 +97,7 @@ function ApplicationsInner() {
                 </option>
               ))}
             </Select>
+            {!pickJob && <p className="mt-1.5 text-xs text-ink-3">Choose a job to continue.</p>}
           </Field>
         ) : (
           <p className="text-sm text-ink-3">

@@ -60,9 +60,15 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
   const preview = useMemo(() => describeSchedule({ frequency, days, time, timezone }), [frequency, days, time, timezone]);
   const toggleStage = (k: StageKey) => setStageKeys((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...STAGE_KEYS].filter((x) => ks.includes(x) || x === k)));
 
+  const [confirmedBroadMatch, setConfirmedBroadMatch] = useState(false);
   const save = () => {
     if (!name.trim()) return toast.error("Give the workflow a name");
     if (!stageKeys.length) return toast.error("Pick at least one stage");
+    if (!query.trim() && !confirmedBroadMatch) {
+      setConfirmedBroadMatch(true);
+      toast.info("No search term set", "This will match almost any role title. Click Save again to continue, or add a search term to narrow it down.");
+      return;
+    }
     const workflow: Workflow = {
       id: wf?.id ?? newId("wf"),
       name: name.trim(),
@@ -113,8 +119,8 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
       <Card>
         <h2 className="mb-3 text-[15px] font-semibold text-ink">Workflow</h2>
         <div className="grid gap-4">
-          <Field label="Workflow name" htmlFor="wf-name">
-            <Input id="wf-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Field label="Workflow name" htmlFor="wf-name" required>
+            <Input id="wf-name" value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
           <Field label="Description" htmlFor="wf-desc">
             <Textarea id="wf-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-20" />
@@ -155,7 +161,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
                 </div>
               )}
               {frequency === "monthly" && (
-                <Field label="Day of month" htmlFor="dom">
+                <Field label="Day of month" htmlFor="dom" hint="1–28, so it runs the same date every month (29–31 don't exist in every month).">
                   <Input id="dom" type="number" min={1} max={28} value={days[0] ?? 1} onChange={(e) => setDays([Math.min(28, Math.max(1, Number(e.target.value)))])} />
                 </Field>
               )}
@@ -201,8 +207,16 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
       <Card>
         <h2 className="mb-3 text-[15px] font-semibold text-ink">Search criteria</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Search query" htmlFor="q">
-            <Input id="q" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. product manager" />
+          <Field label="Search query" htmlFor="q" hint="Optional — leave blank to match almost any role title.">
+            <Input
+              id="q"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setConfirmedBroadMatch(false);
+              }}
+              placeholder="e.g. product manager"
+            />
           </Field>
           <Field label="Locations" htmlFor="loc" hint="Comma-separated">
             <Input id="loc" value={locations} onChange={(e) => setLocations(e.target.value)} />

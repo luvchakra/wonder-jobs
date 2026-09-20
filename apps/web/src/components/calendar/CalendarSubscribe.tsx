@@ -39,8 +39,12 @@ export function CalendarSubscribe() {
 
   const copy = async () => {
     if (!url) return;
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy the link", "Select the text in the field and copy it manually.");
+    }
   };
 
   return (
