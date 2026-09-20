@@ -11,6 +11,8 @@ interface ApplicationsState {
   setStatus: (id: string, status: ApplicationStatus, event?: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
   addEvent: (id: string, event: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
   addVersion: (id: string, type: ArtifactType, version: Omit<ArtifactVersion, "id" | "createdAt">) => ArtifactVersion;
+  /** Autosave: rewrites the *current* version's content in place rather than creating a new version — a version is a deliberate snapshot (a generation or a restore), not every keystroke. */
+  updateVersionContent: (id: string, type: ArtifactType, content: string) => void;
   restoreVersion: (id: string, type: ArtifactType, versionId: string) => void;
   setNextAction: (id: string, nextAction?: string, followUpAt?: string) => void;
   completeFollowUp: (id: string, followUpId: string) => void;
@@ -69,6 +71,24 @@ export const useApplicationsStore = create<ApplicationsState>()(
         });
         return v;
       },
+      updateVersionContent: (id, type, content) =>
+        set((s) => {
+          const a = s.applications[id];
+          if (!a) return s;
+          return {
+            applications: {
+              ...s.applications,
+              [id]: {
+                ...a,
+                artifacts: a.artifacts.map((x) => {
+                  if (x.type !== type) return x;
+                  const versions = x.versions.map((v) => (v.id === x.currentVersionId ? { ...v, content, provenance: v.provenance === "AI_GENERATED" ? "USER_MODIFIED" : v.provenance } : v));
+                  return { ...x, versions };
+                }),
+              },
+            },
+          };
+        }),
       restoreVersion: (id, type, versionId) =>
         set((s) => {
           const a = s.applications[id];
