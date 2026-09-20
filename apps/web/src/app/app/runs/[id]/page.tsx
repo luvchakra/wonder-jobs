@@ -19,10 +19,12 @@ import { WorkflowTimeline } from "@/components/workflow/WorkflowTimeline";
 import { WorkflowControls } from "@/components/workflow/WorkflowControls";
 import { StageDetail } from "@/components/workflow/StageDetail";
 import { RunErrorBanner } from "@/components/workflow/RunErrorBanner";
+import { RunOutcome } from "@/components/workflow/RunOutcome";
 import { toast } from "@/components/feedback/Toast";
 import { JobCard } from "@/components/jobs/JobCard";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { STATUS_META, isActive } from "@/domain/workflow/status";
+import { resolveRunValue } from "@/domain/workflow/resolve";
 import { Bot, Square } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { getWorkflowService } from "@/services/workflow/service";
@@ -47,6 +49,9 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
   const rankedIds = useMemo(() => ((run?.outputs.rank?.data.rankedJobIds as string[] | undefined) ?? []).filter((jid) => jobs[jid]).slice(0, 12), [run?.outputs.rank, jobs]);
   const preparedIds = ((run?.outputs.prepare?.data.applicationIds as string[] | undefined) ?? []).filter((aid) => applications[aid]);
+  const rankStatus = run?.stages.find((s) => s.key === "rank")?.status;
+  const rankDone = rankStatus === "COMPLETED" || rankStatus === "COMPLETED_WITH_WARNINGS";
+  const minMatch = run ? (resolveRunValue(run, "minMatchThreshold").value as number | undefined) ?? run.config.minMatchThreshold : 0;
 
   if (!run) {
     return (
@@ -109,6 +114,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       </div>
 
       {run.error && <RunErrorBanner run={run} error={run.error} className="mb-4" />}
+      <RunOutcome run={run} onShowResults={() => setTab("results")} className="mb-4" />
 
       <Tabs value={tab} onChange={setTab} label="Run sections" items={[{ value: "progress", label: "Progress" }, { value: "results", label: "Results" }, { value: "logs", label: "Logs", count: run.events.length }]} className="mb-4" />
 
@@ -149,7 +155,11 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
                 ))}
               </div>
             ) : (
-              <EmptyState title="No shortlist yet" body={run.status === "RUNNING" ? "Results appear once ranking completes." : "This run didn't reach the ranking stage."} />
+              <EmptyState
+                title={rankDone ? "Nothing made the shortlist" : "No shortlist yet"}
+                body={run.status === "RUNNING" ? "Results appear once ranking completes." : rankDone ? `None of the ${formatNumber(run.summary.jobsRetained || run.summary.jobsDiscovered)} jobs scored above your minimum match of ${minMatch}.` : "This run didn't reach the ranking stage."}
+                action={rankDone ? { label: "Browse all jobs", href: "/app/jobs" } : undefined}
+              />
             )}
           </section>
           <section>
@@ -172,7 +182,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
                 })}
               </ul>
             ) : (
-              <EmptyState title="Nothing prepared in this run" body="Application materials are prepared for strong matches when the run reaches that stage." />
+              <EmptyState title="Nothing prepared in this run" body="Materials are prepared for the top of the shortlist once a run reaches that stage. You can still prepare any shortlisted role yourself from its page." />
             )}
           </section>
         </div>
