@@ -16,6 +16,7 @@ export function ArtifactEditor({ type, artifact, onSave, onRegenerate, onRestore
   const current = artifact?.versions.find((v) => v.id === artifact.currentVersionId);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [compareId, setCompareId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const compare = artifact?.versions.find((v) => v.id === compareId);
@@ -47,6 +48,7 @@ export function ArtifactEditor({ type, artifact, onSave, onRegenerate, onRestore
               onClick={() => {
                 setDraft(current.content);
                 setEditing(true);
+                setConfirmingCancel(false);
               }}
               disabled={disabled}
             >
@@ -60,13 +62,41 @@ export function ArtifactEditor({ type, artifact, onSave, onRegenerate, onRestore
                 onClick={() => {
                   onSave(draft);
                   setEditing(false);
+                  setConfirmingCancel(false);
                 }}
               >
                 Save version
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                Cancel
-              </Button>
+              {confirmingCancel ? (
+                <>
+                  <span className="self-center text-[12px] text-ink-3">Discard your edits?</span>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmingCancel(false)}>
+                    Keep editing
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-danger-600"
+                    onClick={() => {
+                      setEditing(false);
+                      setConfirmingCancel(false);
+                    }}
+                  >
+                    Discard
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (draft !== current.content) setConfirmingCancel(true);
+                    else setEditing(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
             </>
           )}
           <Button size="sm" variant="outline" icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={onRegenerate} loading={regenerating} disabled={disabled || editing}>
@@ -127,7 +157,7 @@ export function ArtifactEditor({ type, artifact, onSave, onRegenerate, onRestore
       ) : (
         <pre className="whitespace-pre-wrap rounded-[14px] bg-surface-2 p-4 font-sans text-[13px] leading-relaxed text-ink-2">{current.content}</pre>
       )}
-      <p className="mt-3 text-[12px] text-ink-4">You can edit this at any time and rerun this step with your changes.</p>
+      <p className="mt-3 text-[12px] text-ink-4">Regenerating creates a new version — your current one stays available under Versions. You can edit this at any time and rerun this step with your changes.</p>
     </div>
   );
 }

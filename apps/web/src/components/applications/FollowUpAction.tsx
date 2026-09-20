@@ -105,7 +105,7 @@ export function FollowUpAction({ application, job }: { application: Application;
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-[15px] font-semibold text-ink">Reach out</h2>
-        <Badge tone={policy === "off" ? "neutral" : policy === "automatic" ? "warning" : "info"}>{policy === "off" ? "Off" : policy === "automatic" ? "Allowed" : "Ask me"}</Badge>
+        <Badge tone={policy === "off" ? "neutral" : policy === "automatic" ? "warning" : "info"}>{policy === "off" ? "Off" : policy === "automatic" ? "Automatic (still needs your click here)" : "Ask me"}</Badge>
       </div>
       {policy === "off" ? (
         <p className="text-[13px] text-ink-3">

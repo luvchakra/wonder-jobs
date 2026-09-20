@@ -58,10 +58,10 @@ export const AUTOMATION_LEVELS = ["assist", "guided", "autonomous", "continuous"
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
 
 export const AUTOMATION_LEVEL_META: Record<AutomationLevel, { label: string; description: string; recommended?: boolean }> = {
-  assist: { label: "Assist", description: "AI helps, you decide everything" },
-  guided: { label: "Guided Automation", description: "AI handles routine steps, asks when needed", recommended: true },
-  autonomous: { label: "Autonomous", description: "AI runs with your permissions" },
-  continuous: { label: "Continuous Agent", description: "Runs on schedule, learns and improves" },
+  assist: { label: "Assist", description: "Every action — even generating a resume — asks first. Nothing runs on its own." },
+  guided: { label: "Guided Automation", description: "Low- and medium-risk steps (search, ranking, drafting) run on their own; anything that submits, messages or emails an employer still always asks first.", recommended: true },
+  autonomous: { label: "Autonomous", description: "Same as Guided, plus: any action you've set to \"Automatic\" in Automation Settings — including submitting applications or sending email — now runs without asking." },
+  continuous: { label: "Continuous Agent", description: "Same as Autonomous, and Wonder also runs on your schedule in the background (Automation → Scheduled Runs) instead of only when you start a run." },
 };
 
 /**

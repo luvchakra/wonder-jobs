@@ -44,7 +44,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const [tab, setTab] = useState<Tab>("resume");
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState<{ step: number; total: number } | null>(null);
-  const [error, setError] = useState<{ message: string; provider: string } | null>(null);
+  const [error, setError] = useState<{ message: string; provider: string; type: ArtifactType } | null>(null);
   const [approved, setApproved] = useState(false);
 
   if (!app || !job) {
@@ -78,9 +78,12 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
       const svc = ai();
       const input = { job, dna };
       let content = "";
-      // Real steps: each awaits the provider; progress reflects work done, not a timer.
+      // The single call to the provider below is the real work; every step up to it fires immediately
+      // beforehand so none is ever skipped over (previously steps jumped 2 → 4, visually implying step 3
+      // ran and finished without ever showing as active).
       setProgress({ step: 1, total: STEPS.length });
       setProgress({ step: 2, total: STEPS.length });
+      setProgress({ step: 3, total: STEPS.length });
       if (type === "resume") content = await svc.generateResume(input);
       else if (type === "cover_letter") content = await svc.generateCoverLetter(input);
       else content = await svc.generateScreeningAnswers(input);
@@ -91,7 +94,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
       toast.success(`${type === "resume" ? "Resume" : type === "cover_letter" ? "Cover letter" : "Answers"} ready`, "Review and edit before you continue.");
     } catch (e) {
       const provider = e instanceof ProviderError ? e.provider : aiConfig.activeProvider;
-      setError({ message: e instanceof Error ? e.message : "Generation failed.", provider });
+      setError({ message: e instanceof Error ? e.message : "Generation failed.", provider, type });
     } finally {
       setBusy((b) => ({ ...b, [type]: false }));
       setTimeout(() => setProgress(null), 600);
@@ -115,10 +118,10 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
           {error && (
             <ErrorState
               className="mb-4"
-              title={`${error.provider === "wonderjobs" ? "WonderJobs AI" : error.provider} couldn't complete the request`}
+              title={`${error.provider === "wonderjobs" ? "WonderJobs AI" : error.provider} couldn't complete your ${error.type === "resume" ? "resume" : error.type === "cover_letter" ? "cover letter" : "screening answers"}`}
               body={error.message}
               actions={[
-                { label: "Retry", variant: "primary", onClick: () => generate(tab === "review" ? "resume" : tab) },
+                { label: "Retry", variant: "primary", onClick: () => generate(error.type) },
                 { label: "Change provider", href: "/app/settings/ai" },
                 ...(error.provider !== "wonderjobs" ? [{ label: "Use WonderJobs AI (included in plan)", href: "/app/settings/ai?switch=wonderjobs" }] : []),
               ]}
@@ -145,7 +148,12 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               </div>
             )}
             {tab !== "review" ? (
+              // key={tab} forces a fresh instance per artifact type: without it, switching tabs mid-edit
+              // reused the same component (same position, same element type), leaving stale draft text
+              // and edit mode active — a "Save version" click right after switching would then attribute
+              // the previous artifact's edited text to whichever type the tab just changed to.
               <ArtifactEditor
+                key={tab}
                 type={tab}
                 artifact={artifact(tab)}
                 regenerating={!!busy[tab]}

@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 const GROUPS: { title: string; blurb: string; risk: "low" | "medium" | "high" }[] = [
   { title: "Routine work", blurb: "Low risk. Nothing leaves your account.", risk: "low" },
   { title: "Drafting", blurb: "Medium risk. Wonder writes; you review before anything is used.", risk: "medium" },
-  { title: "Actions with outside effects", blurb: "High risk. Contacting employers or changing your profile. Ask me is the default.", risk: "high" },
+  { title: "Actions with outside effects", blurb: "High risk. Contacting employers or changing your profile. Ask me is the default. Setting one to Automatic only takes effect at the Autonomous or Continuous automation level (above) — at Assist or Guided, it still always asks.", risk: "high" },
 ];
 
 /** The boundary of what Wonder may do without asking (spec §12). */
