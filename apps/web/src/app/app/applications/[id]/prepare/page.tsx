@@ -32,6 +32,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const router = useRouter();
   const app = useApplicationsStore((s) => s.applications[id]);
   const addVersion = useApplicationsStore((s) => s.addVersion);
+  const updateVersionContent = useApplicationsStore((s) => s.updateVersionContent);
   const restoreVersion = useApplicationsStore((s) => s.restoreVersion);
   const setStatus = useApplicationsStore((s) => s.setStatus);
   const setNextAction = useApplicationsStore((s) => s.setNextAction);
@@ -158,10 +159,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                 artifact={artifact(tab)}
                 regenerating={!!busy[tab]}
                 onRegenerate={() => generate(tab)}
-                onSave={(content) => {
-                  addVersion(app.id, tab, { provenance: "USER_MODIFIED", content, note: "Edited by you" });
-                  toast.success("Saved as a new version");
-                }}
+                onSave={(content) => updateVersionContent(app.id, tab, content)}
                 onRestore={(vid) => {
                   restoreVersion(app.id, tab, vid);
                   toast.success("Version restored");
