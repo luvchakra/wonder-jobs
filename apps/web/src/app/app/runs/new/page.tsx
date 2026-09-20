@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Info, ChevronDown, ChevronUp } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
@@ -15,6 +15,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
+import { DictateButton } from "@/components/common/DictateButton";
+import { appendDictated, useDictation } from "@/lib/dictation";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { ProviderSelector } from "@/components/ai/ProviderSelector";
 import { ErrorState } from "@/components/common/States";
@@ -43,6 +45,24 @@ export default function RunSetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   const model = useMemo(() => (provider === aiConfig.activeProvider ? aiConfig.activeModel : AI_PROVIDERS[provider].models.find((m) => m.default)?.id ?? AI_PROVIDERS[provider].models[0].id), [provider, aiConfig]);
+
+  // Dictation lands in the same editable box as typing — nothing is committed until Save.
+  const dictation = useDictation(useCallback((spoken: string) => setGoal((current) => appendDictated(current, spoken)), []));
+  const toggleDictation = () => {
+    setEditingGoal(true);
+    dictation.toggle();
+  };
+  const saveGoal = () => {
+    dictation.stop();
+    updateDNA({ careerGoal: goal.trim() });
+    setEditingGoal(false);
+    toast.success("Career goal saved", "It's part of your Career DNA now.");
+  };
+  const cancelGoalEdit = () => {
+    dictation.stop();
+    setGoal(dna.careerGoal);
+    setEditingGoal(false);
+  };
 
   const start = () => {
     setError(null);
@@ -87,14 +107,36 @@ export default function RunSetupPage() {
                 Career Goal <span className="text-danger-600">*</span>
               </h2>
               {editingGoal ? (
-                <Textarea autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} onBlur={() => setEditingGoal(false)} className="mt-2 min-h-20" aria-label="Career goal" />
+                <>
+                  <Textarea autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} className="mt-2 min-h-20" aria-label="Career goal" />
+                  <p aria-live="polite" className="mt-1.5 min-h-4 text-[12px] text-ink-3">
+                    {dictation.listening ? (dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the roles you want. Edit anything before you save.") : null}
+                  </p>
+                  {dictation.error && (
+                    <p role="alert" className="mt-1 text-[12px] text-danger-600">
+                      {dictation.error}
+                    </p>
+                  )}
+                  {!dictation.supported && <p className="mt-1 text-[12px] text-ink-3">Dictation isn&apos;t available in this browser — type your goal instead.</p>}
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <Button size="sm" onClick={saveGoal} disabled={!goal.trim()}>
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelGoalEdit}>
+                      Cancel
+                    </Button>
+                  </div>
+                </>
               ) : (
                 <p className="mt-1 text-[14px] text-ink-2">{goal || "Describe the roles you want."}</p>
               )}
             </div>
-            <button type="button" onClick={() => setEditingGoal((v) => !v)} aria-label="Edit career goal" className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
-              <Pencil className="size-4" aria-hidden />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {dictation.supported && <DictateButton listening={dictation.listening} onClick={toggleDictation} label="career goal" />}
+              <button type="button" onClick={() => setEditingGoal((v) => !v)} aria-label="Edit career goal" className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
+                <Pencil className="size-4" aria-hidden />
+              </button>
+            </div>
           </div>
         </Card>
 
