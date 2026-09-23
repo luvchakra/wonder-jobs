@@ -36,7 +36,7 @@ export default function CareerDNAPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Career DNA"
-        description="What Wonder knows about you. Every match, ranking and draft starts here — and you can change any of it."
+        description="Your Career Profile — what Wonder knows about you. Every match, ranking and draft starts here, and you can change any of it."
         actions={
           <>
             <Badge>Updated {formatDate(dna.updatedAt)}</Badge>
@@ -45,7 +45,6 @@ export default function CareerDNAPage() {
                 Unsaved changes
               </span>
             )}
-            <ResumeImport onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             <Button
               disabled={!dirty}
               onClick={() => {
@@ -60,7 +59,7 @@ export default function CareerDNAPage() {
       />
       <div className="flex flex-col gap-4">
         <Card>
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Goal</h2>
+          <h2 className="mb-3 text-[15px] font-semibold text-ink">Career direction</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="name">
               <Input id="name" value={draft.name} onChange={(e) => set("name", e.target.value)} />
@@ -71,6 +70,12 @@ export default function CareerDNAPage() {
             <Field label="Career goal" htmlFor="goal" className="sm:col-span-2" hint="Plain language. Wonder uses this to judge career-goal alignment.">
               <Textarea id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} className="min-h-20" />
             </Field>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-[15px] font-semibold text-ink">Experience</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Years of experience" htmlFor="yoe" hint="0–50">
               <Input
                 id="yoe"
@@ -92,6 +97,7 @@ export default function CareerDNAPage() {
               </Select>
             </Field>
           </div>
+          <p className="mt-3 text-[12px] text-ink-3">Wonder doesn&apos;t hold a field-by-field employment history yet — skills, level and years are what it scores experience against today.</p>
         </Card>
 
         <Card>
@@ -174,7 +180,23 @@ export default function CareerDNAPage() {
             </Field>
           </div>
         </Card>
+
+        <Card>
+          <h2 className="mb-1 text-[15px] font-semibold text-ink">Resume</h2>
+          <p className="mb-3 text-[12px] text-ink-3">Pull fields from a resume to fill in the sections above. Every suggestion shows the words it came from, and nothing is applied until you tick it. The file itself is never stored.</p>
+          <ResumeImport onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+        </Card>
+
         <LearnedPreferences />
+
+        <Card>
+          <h2 className="mb-1 text-[15px] font-semibold text-ink">Sources</h2>
+          <p className="text-[12px] text-ink-3">
+            Career DNA is built from what you type here and what you choose to bring in from a resume — last changed {formatDate(dna.updatedAt)}. Wonder doesn&apos;t track which individual field came from which source.
+          </p>
+          <p className="mt-2 text-[12px] text-ink-3">LinkedIn isn&apos;t connected — it has no public API to import from, so nothing here comes from there.</p>
+        </Card>
+
         <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career DNA unless you allow it in Automation Settings.</p>
       </div>
     </div>
