@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Play, Search, Sparkles, Timer } from "lucide-react";
+import { ArrowRight, Calendar, Play, Search, Sparkles, Timer } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { Input } from "@/components/common/Input";
-import { AUTOMATION_NAV, PRIMARY_NAV, RESOURCES_NAV } from "./nav";
+import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV } from "./nav";
 import { cn } from "@/lib/cn";
 
 interface Command {
@@ -26,7 +26,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       { id: "run", label: "Run Wonder", hint: "Find, analyze, prepare, track", href: "/app/runs/new", icon: Play, group: "Actions" },
       { id: "search", label: "Search jobs", hint: "Jobs matching your Career DNA", href: "/app/jobs", icon: Search, group: "Actions" },
       { id: "schedule", label: "Create a scheduled run", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
-      ...[...PRIMARY_NAV, ...AUTOMATION_NAV, ...RESOURCES_NAV, { href: "/app/settings/ai", label: "AI provider & keys", icon: Sparkles }].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
+      ...[...PRIMARY_NAV, ...WONDER_NAV, ...CAREER_NAV, ...RESOURCES_NAV, { href: "/app/settings/ai", label: "AI provider & keys", icon: Sparkles }, { href: "/app/calendar", label: "Calendar", icon: Calendar }].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
     ],
     [],
   );

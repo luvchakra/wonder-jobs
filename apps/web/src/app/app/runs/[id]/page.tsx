@@ -56,7 +56,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   if (!run) {
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader back={{ href: "/app/runs", label: "Runs" }} title="Run not found" />
+        <PageHeader back={{ href: "/app/runs", label: "Wonder" }} title="Run not found" />
         <EmptyState title="This run isn't available" body="It may have been removed from history." action={{ label: "Back to runs", href: "/app/runs" }} />
       </div>
     );
@@ -76,7 +76,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        back={{ href: "/app/runs", label: "Runs" }}
+        back={{ href: "/app/runs", label: "Wonder" }}
         eyebrow={`Wonder Run · ${shortId(run.id)}`}
         title={run.workflowName}
         description={run.status === "RUNNING" ? "Finding the best opportunities for you…" : run.status === "WAITING_FOR_USER" ? "Wonder is waiting for you." : undefined}

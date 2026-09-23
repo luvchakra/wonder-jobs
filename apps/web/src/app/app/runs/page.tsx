@@ -20,8 +20,8 @@ export default function RunsPage() {
   return (
     <div>
       <PageHeader
-        title="Runs"
-        description="Every Wonder run is an execution record: what ran, what it found, what it did."
+        title="Wonder"
+        description="Every run is an execution record: what ran, what it found, what it did."
         actions={
           <>
             <Button variant="outline" href="/app/automation/scheduled" icon={<Timer className="size-4" aria-hidden />}>
