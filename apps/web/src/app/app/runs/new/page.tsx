@@ -99,7 +99,7 @@ export default function RunSetupPage() {
           actions={[{ label: "Open active run", href: `/app/runs/${activeRun.id}`, variant: "primary" }]}
         />
       )}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pb-44 md:pb-0">
         <Card>
           {/* Title and controls share one row so the goal itself gets the card's full width — as a
               sibling column the buttons reserved their width down the whole card and wrapped it early. */}
@@ -217,14 +217,18 @@ export default function RunSetupPage() {
         </Card>
 
         {error && <ErrorState title="Couldn't start the run" body={error} />}
-        <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-10 md:static">
-          <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || !query.trim() || sourceIds.length === 0}>
-            Continue
-          </Button>
-          {!activeRun && !goal.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a career goal to continue.</p>}
-          {!activeRun && goal.trim() && !query.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a search query under Search details to continue.</p>}
-          {!activeRun && goal.trim() && query.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
-        </div>
+      </div>
+      {/* A genuinely fixed bar, not `sticky` inside the scrolling card stack — sticky here let the
+          button paint over the AI Provider/Search details cards near the end of the page once its
+          natural position was within one viewport of the bottom. `pb-44` above reserves real space
+          so scrolled content never ends up underneath this bar on mobile. */}
+      <div className="fixed inset-x-0 bottom-[var(--wj-mobile-nav-h)] z-10 bg-bg px-4 pb-4 pt-3 md:static md:bg-transparent md:p-0">
+        <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || !query.trim() || sourceIds.length === 0}>
+          Continue
+        </Button>
+        {!activeRun && !goal.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a career goal to continue.</p>}
+        {!activeRun && goal.trim() && !query.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a search query under Search details to continue.</p>}
+        {!activeRun && goal.trim() && query.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
       </div>
     </div>
   );
