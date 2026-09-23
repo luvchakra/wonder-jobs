@@ -66,7 +66,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
     if (!stageKeys.length) return toast.error("Pick at least one stage");
     if (!query.trim() && !confirmedBroadMatch) {
       setConfirmedBroadMatch(true);
-      toast.info("No search term set", "This will match almost any role title. Click Save again to continue, or add a search term to narrow it down.");
+      toast.warning("No search term set", "This will match almost any role title. Click Save again to continue, or add a search term to narrow it down.");
       return;
     }
     const workflow: Workflow = {
