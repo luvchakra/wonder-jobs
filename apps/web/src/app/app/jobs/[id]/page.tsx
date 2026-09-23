@@ -214,7 +214,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <div>
                   <h2 className="text-[15px] font-semibold text-ink">{job.company}</h2>
                   <p className="text-[13px] text-ink-3">
-                    {job.industry} · {company?.size === "enterprise" ? "Large company" : company?.size === "scaleup" ? "Scale-up" : "Startup"} · HQ {company?.hq ?? job.location}
+                    {job.industry} · {company ? (company.size === "enterprise" ? "Large company" : company.size === "scaleup" ? "Scale-up" : "Startup") : "Company size not listed"} · HQ {company?.hq ?? job.location}
                   </p>
                 </div>
               </div>

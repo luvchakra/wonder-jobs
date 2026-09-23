@@ -58,7 +58,7 @@ export function seedApplications(): Application[] {
       nextAction: "Follow up with recruiter",
       followUpAt: ahead(1 * DAY),
       events: [
-        { id: "ev1", applicationId: "app_google", type: "discovered", at: ago(3 * DAY), title: "Job discovered", detail: "Found on LinkedIn and Naukri" },
+        { id: "ev1", applicationId: "app_google", type: "discovered", at: ago(3 * DAY), title: "Job discovered", detail: "Found on Jobicy and the company career site" },
         { id: "ev2", applicationId: "app_google", type: "prepared", at: ago(2 * DAY + 5 * HOUR), title: "Application prepared", detail: "Resume tailored, cover letter drafted" },
         { id: "ev3", applicationId: "app_google", type: "submitted", at: ago(2 * DAY), title: "Submitted", detail: "Via employer career site" },
       ],

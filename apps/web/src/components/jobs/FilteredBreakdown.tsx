@@ -21,6 +21,10 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "sou
 export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty" }) {
   if (result.hiddenTotal === 0) return null;
   const reasons = REASON_ORDER.filter((r) => result.hiddenByReason[r]).sort((a, b) => (result.hiddenByReason[b] ?? 0) - (result.hiddenByReason[a] ?? 0));
+  // "Show me anyway" clears every preference filter but never un-hides a job marked "not for me" —
+  // that needs its own explicit undo (spec: never silently reverse a candidate's own rejection). Say
+  // so whenever rejections are part of what's hidden, so the button's effect is never a surprise.
+  const showAnywayNote = result.hiddenByReason.rejected ? `Won't bring back the ${result.hiddenByReason.rejected} job${result.hiddenByReason.rejected === 1 ? "" : "s"} you marked not for me — undo that from the job itself.` : "";
 
   if (variant === "empty") {
     return (
@@ -49,6 +53,7 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }:
             Change my preferences
           </Button>
         </div>
+        {showAnywayNote && <p className="mt-2 max-w-sm text-[12px] text-ink-4">{showAnywayNote}</p>}
       </div>
     );
   }
@@ -64,8 +69,8 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }:
           </span>
         ))}
       </span>
-      <span className="ml-auto flex gap-2">
-        <button type="button" onClick={onShowAnyway} className="font-medium text-brand-600 hover:underline">
+      <span className="ml-auto flex items-center gap-2">
+        <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="font-medium text-brand-600 hover:underline">
           Show me anyway
         </button>
         <Link href="/app/career-dna" className="font-medium text-brand-600 hover:underline">
