@@ -153,13 +153,13 @@ function notifyFailure(snapshot: TenantSnapshot, schedule: WorkflowSchedule, run
     category: "scheduled_run_failed",
     title: `“${schedule.name}” didn't finish`,
     body: run.error?.message ?? "The scheduled run stopped before it completed. Nothing was lost — open it to see how far it got.",
-    href: `/app/run/${run.id}`,
+    href: `/app/runs/${run.id}`,
   });
 }
 
 function notifySuccess(snapshot: TenantSnapshot, schedule: WorkflowSchedule, workflow: Workflow, run: WorkflowRun, deferred: StageKey[]): PushPayload | undefined {
   snapshot.career.activity = [
-    { id: newId("act"), at: new Date().toISOString(), kind: "run_completed" as const, title: `“${schedule.name}” ran`, subtitle: `${run.summary.jobsRetained.toLocaleString("en-IN")} opportunities · ${run.summary.strongMatches} strong`, href: `/app/run/${run.id}` },
+    { id: newId("act"), at: new Date().toISOString(), kind: "run_completed" as const, title: `“${schedule.name}” ran`, subtitle: `${run.summary.jobsRetained.toLocaleString("en-IN")} opportunities · ${run.summary.strongMatches} strong`, href: `/app/runs/${run.id}` },
     ...snapshot.career.activity,
   ].slice(0, ACTIVITY_CAP);
 
@@ -175,6 +175,6 @@ function notifySuccess(snapshot: TenantSnapshot, schedule: WorkflowSchedule, wor
     category: strong > 0 ? "strong_opportunity" : "workflow_completed",
     title: strong > 0 ? `${strong} strong match${strong === 1 ? "" : "es"} from “${schedule.name}”` : `“${schedule.name}” finished`,
     body: `${run.summary.jobsRetained.toLocaleString("en-IN")} opportunities reviewed, ${run.summary.strongMatches} worth your time.${tail}`,
-    href: strong > 0 ? "/app/jobs?fit=strong" : `/app/run/${run.id}`,
+    href: strong > 0 ? "/app/jobs?fit=strong" : `/app/runs/${run.id}`,
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Mail, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { Check, Copy, Mail, RefreshCw, Send, ShieldCheck } from "lucide-react";
 import type { Application } from "@/domain/applications/types";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { CAPABILITY_META } from "@/domain/automation/policy";
@@ -40,6 +40,7 @@ export function FollowUpAction({ application, job }: { application: Application;
   const [busy, setBusy] = useState<"draft" | "send" | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const mine = useMemo(() => Object.values(actions).filter((a) => a.applicationId === application.id && a.type === "send_email").sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [actions, application.id]);
   const pendingFollowUp = application.followUps.find((f) => !f.done && (f.kind === kind || (kind === "follow_up" && f.kind === "follow_up")));
@@ -66,6 +67,20 @@ export function FollowUpAction({ application, job }: { application: Application;
     }
   };
 
+  const copyDraft = async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy", "Select and copy the text manually instead.");
+    }
+  };
+
+  // Wonder has no real recruiter/employer email address to send to — Career DNA and job postings
+  // don't carry one — and has no mail provider wired into this flow. So this is a hand-off exactly
+  // like the apply stage: Wonder drafts, the candidate sends it themselves (their own email client),
+  // then marks it here so the timeline and idempotency ledger reflect what actually happened.
   const send = async () => {
     setConfirm(false);
     setBusy("send");
@@ -74,18 +89,17 @@ export function FollowUpAction({ application, job }: { application: Application;
     auditAction({ actionId: action.id, actionType: "send_email", event: "confirmed", detail: "Confirmed by user" });
     updateAction(action.id, { status: "executing", attempts: 1 }, { event: "executing", detail: "attempt 1" });
     try {
-      // Mock delivery. A real mail provider plugs in here; the ledger semantics stay the same.
       await new Promise((r) => setTimeout(r, 700));
       updateAction(action.id, { status: "succeeded", executedAt: new Date().toISOString() }, { event: "succeeded" });
       auditAction({ actionId: action.id, actionType: "send_email", event: "succeeded" });
-      addEvent(application.id, { type: "follow_up", title: kind === "thank_you" ? "Thank-you note sent" : "Follow-up sent", detail: "Sent with your approval" });
+      addEvent(application.id, { type: "follow_up", title: kind === "thank_you" ? "Thank-you note marked as sent" : "Follow-up marked as sent", detail: "You sent it yourself; Wonder recorded it" });
       if (pendingFollowUp) completeFollowUp(application.id, pendingFollowUp.id);
-      toast.success("Sent", "Recorded on the application timeline.");
+      toast.success("Marked as sent", "Recorded on the application timeline.");
       setDraft("");
     } catch (e) {
-      updateAction(action.id, { status: "failed", error: e instanceof Error ? e.message : "Send failed" }, { event: "failed", detail: e instanceof Error ? e.message : undefined });
+      updateAction(action.id, { status: "failed", error: e instanceof Error ? e.message : "Couldn't record this" }, { event: "failed", detail: e instanceof Error ? e.message : undefined });
       auditAction({ actionId: action.id, actionType: "send_email", event: "failed", detail: e instanceof Error ? e.message : undefined });
-      toast.error("Couldn't send", "You can retry from the history below.");
+      toast.error("Couldn't record this", "You can retry from the history below.");
     } finally {
       setBusy(null);
     }
@@ -97,7 +111,7 @@ export function FollowUpAction({ application, job }: { application: Application;
     updateAction(id, { status: "executing", attempts: a.attempts + 1, error: undefined }, { event: "executing", detail: `attempt ${a.attempts + 1}` });
     await new Promise((r) => setTimeout(r, 700));
     updateAction(id, { status: "succeeded", executedAt: new Date().toISOString() }, { event: "succeeded" });
-    addEvent(application.id, { type: "follow_up", title: "Follow-up sent", detail: "Sent after retry" });
+    addEvent(application.id, { type: "follow_up", title: "Follow-up marked as sent", detail: "Recorded after retry" });
   };
 
   const meta = CAPABILITY_META.send_email;
@@ -119,10 +133,10 @@ export function FollowUpAction({ application, job }: { application: Application;
         <>
           <Segmented<"follow_up" | "thank_you"> label="Email type" size="sm" value={kind} onChange={setKind} options={[{ value: "follow_up", label: "Follow up" }, { value: "thank_you", label: "Thank you" }]} className="mb-3" />
           {alreadySent ? (
-            <p className="rounded-[12px] bg-success-100 px-3 py-2 text-[13px] text-success-600">Already sent {alreadySent.executedAt ? `${formatDate(alreadySent.executedAt)} ${formatTime(alreadySent.executedAt)}` : ""}. Wonder won&apos;t send the same message twice.</p>
+            <p className="rounded-[12px] bg-success-100 px-3 py-2 text-[13px] text-success-600">Marked as sent {alreadySent.executedAt ? `${formatDate(alreadySent.executedAt)} ${formatTime(alreadySent.executedAt)}` : ""}. Wonder won&apos;t ask you to send the same message twice.</p>
           ) : (
             <>
-              {draft ? <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-40 text-[13px]" aria-label="Email draft" /> : <p className="text-[13px] text-ink-3">Wonder can draft a {kind === "thank_you" ? "thank-you note" : "follow-up"} for {job?.company ?? "the employer"}. You review it, then decide.</p>}
+              {draft ? <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-40 text-[13px]" aria-label="Email draft" /> : <p className="text-[13px] text-ink-3">Wonder can draft a {kind === "thank_you" ? "thank-you note" : "follow-up"} for {job?.company ?? "the employer"}. Wonder doesn&apos;t have {job?.company ?? "the employer"}&apos;s email address and can&apos;t send it — you copy it into your own email and send it yourself.</p>}
               {error && (
                 <p role="alert" className="mt-2 text-[13px] text-danger-600">
                   {error}
@@ -132,14 +146,19 @@ export function FollowUpAction({ application, job }: { application: Application;
                 <Button size="sm" variant="outline" icon={draft ? <RefreshCw className="size-3.5" aria-hidden /> : <Mail className="size-3.5" aria-hidden />} onClick={generate} loading={busy === "draft"} disabled={!!busy || !job}>
                   {draft ? "Regenerate" : "Draft with Wonder"}
                 </Button>
+                {draft && (
+                  <Button size="sm" variant="outline" icon={copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />} onClick={copyDraft}>
+                    {copied ? "Copied" : "Copy"}
+                  </Button>
+                )}
                 <Button size="sm" icon={<Send className="size-3.5" aria-hidden />} onClick={() => setConfirm(true)} disabled={!draft.trim() || !!busy} loading={busy === "send"}>
-                  Send…
+                  Mark as sent…
                 </Button>
               </div>
             </>
           )}
           <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-ink-4">
-            <ShieldCheck className="size-3" aria-hidden /> {meta.description} Every send is confirmed by you and recorded.
+            <ShieldCheck className="size-3" aria-hidden /> {meta.description} Wonder never sends on your behalf; every entry here is something you sent yourself.
           </p>
         </>
       )}
@@ -176,15 +195,15 @@ export function FollowUpAction({ application, job }: { application: Application;
       <Modal
         open={confirm}
         onClose={() => setConfirm(false)}
-        title={`Send this ${kind === "thank_you" ? "thank-you note" : "follow-up"}?`}
-        description={`It will be sent to ${job?.company ?? "the employer"} on your behalf and recorded on the timeline. This can't be unsent.`}
+        title={`Mark this ${kind === "thank_you" ? "thank-you note" : "follow-up"} as sent?`}
+        description={`Copy the message below and send it yourself to ${job?.company ?? "the employer"} — Wonder has no address to send it to and doesn't send email on your behalf. Marking it here just records it on your timeline, and can't be un-recorded.`}
         footer={
           <>
             <Button variant="outline" onClick={() => setConfirm(false)}>
               Not yet
             </Button>
             <Button icon={<Send className="size-4" aria-hidden />} onClick={send}>
-              Send now
+              Mark as sent
             </Button>
           </>
         }

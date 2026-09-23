@@ -88,8 +88,10 @@ export function ActionApprovalList({ run }: { run: WorkflowRun }) {
       <Modal
         open={!!confirmedAction}
         onClose={() => setConfirming(null)}
-        title="Submit this application?"
-        description={confirmedAction ? `“${confirmedAction.label}” submits your application on the employer's site. This can't be undone from here.` : undefined}
+        title="Continue to the employer's site?"
+        // The action's own label already says exactly what happens (a hand-off, never a submission) —
+        // this modal must never say anything different from that label.
+        description={confirmedAction ? `${confirmedAction.label}. Wonder never submits on your behalf — you submit there yourself, then come back and mark it as submitted.` : undefined}
         footer={
           <>
             <Button variant="outline" onClick={() => setConfirming(null)}>
@@ -101,7 +103,7 @@ export function ActionApprovalList({ run }: { run: WorkflowRun }) {
                 setConfirming(null);
               }}
             >
-              Submit application
+              Continue to Employer
             </Button>
           </>
         }
