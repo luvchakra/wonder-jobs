@@ -1,20 +1,20 @@
 "use client";
 import Link from "next/link";
-import { Bookmark, MapPin } from "lucide-react";
+import { Bookmark, MapPin, ThumbsDown } from "lucide-react";
 import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { COMPANIES } from "@/services/mock/catalog";
 import { cn } from "@/lib/cn";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
-import { MatchBadge } from "./MatchBadge";
+import { FitLabel } from "./MatchBadge";
 import { JobQualityBadge } from "./JobQualityBadge";
 
 export function companyColor(name: string) {
   return COMPANIES.find((c) => c.name === name)?.color;
 }
 
-export function JobCard({ job, match, quality, saved, onToggleSave, compact = false, className, status }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; compact?: boolean; className?: string; status?: string }) {
+export function JobCard({ job, match, quality, saved, onToggleSave, onReject, compact = false, className, status }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
@@ -28,6 +28,19 @@ export function JobCard({ job, match, quality, saved, onToggleSave, compact = fa
           </h3>
           <p className="truncate text-[13px] text-ink-3">{job.company}</p>
         </div>
+        {onReject && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onReject();
+            }}
+            aria-label="Not for me"
+            className="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-bg-soft hover:text-danger-600"
+          >
+            <ThumbsDown className="size-4" aria-hidden />
+          </button>
+        )}
         {onToggleSave && (
           <button
             type="button"
@@ -37,7 +50,7 @@ export function JobCard({ job, match, quality, saved, onToggleSave, compact = fa
             }}
             aria-pressed={saved}
             aria-label={saved ? "Remove from saved" : "Save job"}
-            className={cn("relative z-10 flex size-9 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-4")}
+            className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-4")}
           >
             <Bookmark className="size-[18px]" fill={saved ? "currentColor" : "none"} aria-hidden />
           </button>
@@ -57,7 +70,7 @@ export function JobCard({ job, match, quality, saved, onToggleSave, compact = fa
         )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {match && <MatchBadge match={match} />}
+        {match && <FitLabel fit={match.fit} score={match.score} />}
         {!compact && quality && quality.confidence !== "moderate" && <JobQualityBadge quality={quality} />}
         {(compact ? job.tags.slice(0, 2) : [...match?.highlights.slice(0, 2) ?? [], ...job.tags.slice(0, 1)]).map((t) => (
           <Badge key={t}>{t}</Badge>

@@ -12,7 +12,9 @@ const FIT_ORDER = ["strong", "worth_considering", "stretch"] as const;
 
 export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; className?: string }) {
   const [more, setMore] = useState(false);
-  const activeCount = filters.workModes.length + filters.sourceIds.length + (filters.minFit ? 1 : 0) + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (filters.onlySaved ? 1 : 0);
+  // Fit is now primarily set by the For You/All Jobs/Saved tabs above, and onlySaved by the Saved tab —
+  // neither is counted here, so this badge only reflects what a candidate actually changed inside Refine.
+  const activeCount = filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0);
   const clear = () => onChange(CLEAR_FILTERS_PATCH);
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -32,11 +34,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             {WORK_MODE_LABEL[m]}
           </Chip>
         ))}
-        <Chip active={filters.onlySaved} onClick={() => onChange({ onlySaved: !filters.onlySaved })}>
-          Saved
-        </Chip>
         <Button size="sm" variant={more ? "secondary" : "outline"} icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((v) => !v)} aria-expanded={more}>
-          Filters{activeCount ? ` · ${activeCount}` : ""}
+          Refine{activeCount ? ` · ${activeCount}` : ""}
         </Button>
         <span className="ml-auto text-[13px] text-ink-3">
           {total.toLocaleString("en-IN")} opportunit{total === 1 ? "y" : "ies"}

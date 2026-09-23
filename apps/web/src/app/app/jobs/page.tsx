@@ -8,13 +8,22 @@ import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/common/Button";
+import { Segmented } from "@/components/common/Input";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
+import { toast } from "@/components/feedback/Toast";
 
 const PAGE = 24;
+
+type ViewTab = "for_you" | "all" | "saved";
+const VIEW_TABS: { value: ViewTab; label: string }[] = [
+  { value: "for_you", label: "For You" },
+  { value: "all", label: "All Jobs" },
+  { value: "saved", label: "Saved" },
+];
 
 function JobsInner() {
   const params = useSearchParams();
@@ -26,6 +35,8 @@ function JobsInner() {
   const rejected = useJobsStore((s) => s.rejected);
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
+  const reject = useJobsStore((s) => s.reject);
+  const unreject = useJobsStore((s) => s.unreject);
   const filters = useJobsStore((s) => s.filters);
   const setFilters = useJobsStore((s) => s.setFilters);
   const sort = useJobsStore((s) => s.sort);
@@ -36,13 +47,28 @@ function JobsInner() {
   const [limit, setLimit] = useState(PAGE);
   const query = useDebounced(filters.query, 250);
 
-  // Deep links: /app/jobs?fit=strong, ?saved=1
+  // Deep links: /app/jobs?fit=strong, ?saved=1 — same as before. With neither given, land on the
+  // "For You" view (Wonder's own picks) rather than an unfiltered catalog dump.
   useEffect(() => {
     const fit = params.get("fit") as FitLabel | null;
     const onlySaved = params.get("saved") === "1";
     const q = params.get("q");
     if (fit || onlySaved || q) setFilters({ ...(fit || onlySaved ? { minFit: fit ?? null, onlySaved } : {}), ...(q != null ? { query: q } : {}) });
-  }, [params, setFilters]);
+    else setFilters({ minFit: "worth_considering" });
+    // Only ever apply this once, from the URL the page was opened with — not on every filter change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Primary views (spec: "keep advanced filters behind Refine") — presets over the same filters
+  // Refine and the deep links above already use, so results and "Why Was This Filtered" can never
+  // disagree about what a tab means.
+  const activeTab: ViewTab = filters.onlySaved ? "saved" : filters.minFit === "worth_considering" ? "for_you" : "all";
+  const selectTab = (tab: ViewTab) => {
+    setLimit(PAGE);
+    if (tab === "saved") setFilters({ onlySaved: true });
+    else if (tab === "for_you") setFilters({ onlySaved: false, minFit: "worth_considering" });
+    else setFilters({ onlySaved: false, minFit: null });
+  };
 
   const appByJob = useMemo(() => new Map(Object.values(applications).map((a) => [a.jobId, a])), [applications]);
 
@@ -65,6 +91,7 @@ function JobsInner() {
   return (
     <div>
       <PageHeader title="Jobs" description="Every opportunity Wonder has found, ranked by how well it fits your Career DNA." />
+      <Segmented<ViewTab> label="View" value={activeTab} onChange={selectTab} options={VIEW_TABS} className="mb-4" />
       <JobFiltersBar filters={filters} onChange={(p) => { setFilters(p); setLimit(PAGE); }} sort={sort} onSort={setSort} sources={sources} total={results.length} className="mb-5" />
       {results.length === 0 ? (
         filterResult.hiddenTotal > 0 ? (
@@ -79,7 +106,18 @@ function JobsInner() {
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
               <li key={id}>
-                <JobCard job={jobs[id]} match={matches[id]} quality={quality[id]} saved={!!saved[id]} onToggleSave={() => (saved[id] ? unsave(id) : save(id))} status={appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined} />
+                <JobCard
+                  job={jobs[id]}
+                  match={matches[id]}
+                  quality={quality[id]}
+                  saved={!!saved[id]}
+                  onToggleSave={() => (saved[id] ? unsave(id) : save(id))}
+                  onReject={() => {
+                    reject(id);
+                    toast.info("Marked not for me", "Wonder won't show this job again. Once you mark a few similar roles, it starts ranking that pattern lower too.", { label: "Undo", onClick: () => unreject(id) });
+                  }}
+                  status={appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
+                />
               </li>
             ))}
           </ul>

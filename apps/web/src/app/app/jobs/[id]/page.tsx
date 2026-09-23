@@ -128,7 +128,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {match && <MatchBadge match={match} />}
+              {match && <MatchBadge match={match} showLabel />}
               {match?.highlights.map((h) => (
                 <Badge key={h} tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
                   {h}
