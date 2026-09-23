@@ -35,6 +35,12 @@ _Last updated: 2026-09-23 — added "UX Simplification — Phase 1 baseline audi
 | 14. Quality, accessibility, performance | 10 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
 
+## UX Simplification — Phase 2: Core Candidate Experience (in progress, 2026-09-23)
+
+- ✅ **2.1 Home/Today redesign.** Home now answers "what deserves my attention today?" instead of showing a feature-dump dashboard: Opportunities (real strong/worth-considering jobs not yet acted on), Applications (real follow-ups due, interviews soon, ready-for-review, employer responses), Career (real profile gaps — missing goal/skills, an unreviewed learned signal), and Wonder activity (the active run, or the most recent finished run's own real summary line — never an invented count). Sections only render when they have content; the empty state only claims Wonder "is monitoring" when a schedule is actually enabled. Shared between desktop and mobile via one pure, unit-tested function (`domain/career/attention.ts`) so the two views can never disagree.
+- ⬜ 2.2 Goal-oriented onboarding, 2.3 Find Jobs (For You/All Jobs/Saved + Refine), 2.4 Application Pack, 2.5 Applications timeline-first view, 2.6 Career Profile unification, 2.7 acceptance — not started yet.
+- **Scope note:** the Phase 2 spec assumes "supported LinkedIn data" feeding onboarding and the Career Profile. Phase 1's audit confirmed LinkedIn has no public API and no integration exists anywhere in the codebase — this is deliberate and disclosed (see `docs/UX_BASELINE_AUDIT.md` §7), not a gap. Career Profile unification proceeds with Resume import + manual entry only; the LinkedIn UI slots (Current/Suggested/Why/Evidence) are omitted rather than faked, per the project's real-data-only rule and this spec's own "never fabricate candidate facts" instruction.
+
 ## UX Simplification — Phase 1 baseline audit (2026-09-23)
 
 - ✅ **Step 1 (baseline audit + capability map) complete.** `docs/UX_BASELINE_AUDIT.md` inventories all 25 requested capability areas against the actual `main` branch (verified in code, not inferred from this tracker or the spec); `docs/UX_CAPABILITY_MAP.md` gives every capability a Keep/Relocate/Replace disposition against a new 5-item primary nav (Home/Find Jobs/Applications/Career/Wonder); `docs/UX_SIMPLIFICATION_DECISIONS.md` documents the target experience architecture, progressive-disclosure mapping, and the decisions needed to reconcile audit findings with it. Screen migration (Step 2) has not started.
