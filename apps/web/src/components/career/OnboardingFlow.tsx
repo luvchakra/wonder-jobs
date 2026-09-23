@@ -2,7 +2,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Compass, FileEdit, Sparkles, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Search, LayoutList, Zap, ArrowLeft, TrendingUp, Check } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { Chip, Select } from "@/components/common/Input";
@@ -19,12 +19,18 @@ import { useAutomationStore } from "@/store/automation";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 
-const FEATURES = [
-  { icon: Compass, label: "Find the right opportunities" },
-  { icon: FileEdit, label: "Tailor your applications" },
-  { icon: Sparkles, label: "Save time with AI" },
-  { icon: ShieldCheck, label: "Stay in control" },
-];
+/** The candidate's own answer to "what do you want Wonder to help with" — never assumed. It
+ * personalizes where onboarding sends them next (when nothing more specific was already asked
+ * for via `?next=`), not what fields onboarding collects. */
+const GOALS = [
+  { id: "find_role", label: "Find my next role", body: "Search real postings and see what actually fits.", icon: Search, next: "/app/jobs" },
+  { id: "improve_profile", label: "Improve my career profile", body: "Build out your Career DNA so matches get sharper.", icon: TrendingUp, next: "/app/career-dna" },
+  { id: "prepare_application", label: "Prepare an application", body: "Get a tailored resume and cover letter ready.", icon: LayoutList, next: "/app/jobs" },
+  { id: "track_applications", label: "Track my applications", body: "Keep every application, follow-up and reply in one place.", icon: Check, next: "/app/applications" },
+  { id: "let_wonder_work", label: "Let Wonder work for me", body: "Search, analyze, prepare and track — start to finish.", icon: Zap, next: "/app/runs/new" },
+] as const;
+
+type GoalId = (typeof GOALS)[number]["id"];
 
 /** A visible label for this step's dark hero background — the shared `Field` component is styled for a
  *  light card, so its label would be unreadable here. Placeholder text alone isn't a label: it vanishes
@@ -46,7 +52,9 @@ function FieldLabel({ htmlFor, required, children }: { htmlFor: string; required
   );
 }
 
-/** Three-step onboarding (spec §5.1): welcome → career goal → automation level. Writes real Career DNA. */
+/** Goal-oriented onboarding: what do you want help with → career goal → about you → automation level.
+ * Writes real Career DNA; nothing is invented, and the post-onboarding destination follows the
+ * candidate's own stated goal rather than a hardcoded default. */
 export function OnboardingFlow() {
   return (
     <StoreHydrator>
@@ -61,13 +69,17 @@ function Steps() {
   const router = useRouter();
   const params = useSearchParams();
   const rawNext = params.get("next");
-  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app/runs/new";
+  // An explicit `?next=` (e.g. a shared link the candidate was sent to before signing up) always wins.
+  // Otherwise, go where the candidate themselves said they wanted — never a hardcoded default.
+  const explicitNext = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
   const hydrated = useHydration((s) => s.hydrated);
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);
   const completeOnboarding = useCareerStore((s) => s.completeOnboarding);
   const setDefaultLevel = useAutomationStore((s) => s.setDefaultLevel);
   const [step, setStep] = useState(0);
+  const [primaryGoal, setPrimaryGoal] = useState<GoalId | null>(null);
+  const next = explicitNext ?? GOALS.find((g) => g.id === primaryGoal)?.next ?? "/app/runs/new";
   const [goal, setGoal] = useState<string | null>(null);
   const [locations, setLocations] = useState<string | null>(null);
   const [level, setLevel] = useState<AutomationLevel>("guided");
@@ -117,7 +129,7 @@ function Steps() {
     });
     setDefaultLevel(level);
     completeOnboarding();
-    track("onboarding_completed", { level });
+    track("onboarding_completed", { level, goal: primaryGoal ?? undefined });
     router.push(next);
   };
 
@@ -167,21 +179,34 @@ function Steps() {
         <div className="mt-12 flex-1 md:mt-14" aria-live="polite">
           {step === 0 && (
             <div className="wj-animate-fade-up">
-              <h1 className="text-[40px] font-semibold leading-[1.05] tracking-tight md:text-[52px]">
-                A smarter
-                <br />
-                way to your
-                <br />
-                next opportunity
-              </h1>
-              <p className="mt-3 text-[15px] text-white/80">We search. We analyze. You move forward.</p>
-              <ul className="mt-7 flex flex-col gap-2.5" aria-label="What Wonder does">
-                {FEATURES.map((f) => (
-                  <li key={f.label} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[13px] font-medium backdrop-blur">
-                    <f.icon className="size-4 text-brand-200" aria-hidden /> {f.label}
-                  </li>
-                ))}
-              </ul>
+              <h1 className="text-[32px] font-semibold leading-tight tracking-tight md:text-[40px]">What would you like Wonder to help you with?</h1>
+              <p className="mt-2 text-[14px] text-white/75">Pick what matters most right now — you can do everything else too, this just decides where we start.</p>
+              <div className="mt-6 flex flex-col gap-2.5" role="radiogroup" aria-label="What would you like Wonder to help you with?">
+                {GOALS.map((g) => {
+                  const active = primaryGoal === g.id;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setPrimaryGoal(g.id)}
+                      className={cn(
+                        "flex items-start gap-3 rounded-[16px] border px-4 py-3 text-left backdrop-blur transition-colors",
+                        active ? "border-brand-300 bg-white/20" : "border-white/20 bg-white/10 hover:bg-white/15",
+                      )}
+                    >
+                      <span className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full", active ? "bg-brand-300 text-ink" : "bg-white/15 text-brand-200")}>
+                        <g.icon className="size-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold text-white">{g.label}</span>
+                        <span className="block text-[12.5px] text-white/70">{g.body}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
           {step === 1 && (
@@ -292,11 +317,12 @@ function Steps() {
                 setConfirmingSkip(false);
                 setStep((s) => s + 1);
               }}
-              disabled={(step === 1 && !goalValue.trim()) || (step === 2 && parsedSkills().length === 0)}
+              disabled={(step === 0 && !primaryGoal) || (step === 1 && !goalValue.trim()) || (step === 2 && parsedSkills().length === 0)}
             >
               {step === 0 ? "Get Started" : "Continue"}
             </Button>
           ) : null}
+          {step === 0 && !primaryGoal && <p className="mt-3 text-center text-[13px] text-white/60">Choose one to continue — you&apos;re not locked in.</p>}
           {step === 1 && !goalValue.trim() && <p className="mt-3 text-center text-[13px] text-white/60">Add a career goal to continue.</p>}
           {step === 2 && parsedSkills().length === 0 && <p className="mt-3 text-center text-[13px] text-white/60">Add at least one skill to continue.</p>}
           {step === 3 && (
