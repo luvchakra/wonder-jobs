@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyJobFilters, type FilterReason } from "./filterExplain";
+import { applyJobFilters, explainJobVisibility, type FilterReason } from "./filterExplain";
 import { DEFAULT_FILTERS } from "@/store/jobs";
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
 
@@ -154,5 +154,35 @@ describe("applyJobFilters", () => {
     const r = applyJobFilters(["a", "ghost-id"], jobs, matches, {}, {}, DEFAULT_FILTERS, NOW);
     expect(r.totalCatalog).toBe(1);
     expect(r.visibleIds).toEqual(["a"]);
+  });
+});
+
+describe("explainJobVisibility — Ask Wonder's 'why isn't this showing' for one specific job", () => {
+  it("says a job isn't in the catalog at all, distinct from being filtered out", () => {
+    const r = explainJobVisibility(undefined, {}, {}, {}, DEFAULT_FILTERS, NOW);
+    expect(r).toEqual({ inCatalog: false, visible: false, reason: null });
+  });
+
+  it("says a visible job is visible, with no reason", () => {
+    const j = job("a");
+    const r = explainJobVisibility(j, { a: match("a") }, {}, {}, DEFAULT_FILTERS, NOW);
+    expect(r).toEqual({ inCatalog: true, visible: true, reason: null });
+  });
+
+  it("gives the same reason applyJobFilters would count it under, so the two can never disagree", () => {
+    const j = job("a", { workMode: "onsite" });
+    const filters: JobFilters = { ...DEFAULT_FILTERS, workModes: ["remote"] };
+    const matches = { a: match("a") };
+    const single = explainJobVisibility(j, matches, {}, {}, filters, NOW);
+    expect(single).toEqual({ inCatalog: true, visible: false, reason: "work_mode" });
+    const bulk = applyJobFilters(["a"], { a: j }, matches, {}, {}, filters, NOW);
+    expect(bulk.hiddenByReason).toEqual({ work_mode: 1 });
+  });
+
+  it("prioritizes 'rejected' over every other failing filter, matching applyJobFilters", () => {
+    const j = job("a", { workMode: "onsite" });
+    const filters: JobFilters = { ...DEFAULT_FILTERS, workModes: ["remote"] };
+    const r = explainJobVisibility(j, { a: match("a") }, { a: NOW.toString() }, {}, filters, NOW);
+    expect(r.reason).toBe("rejected");
   });
 });
