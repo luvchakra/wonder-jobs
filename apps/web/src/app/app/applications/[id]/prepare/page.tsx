@@ -2,7 +2,9 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Lightbulb, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Lightbulb, Loader2 } from "lucide-react";
+import { MISSING_CANDIDATE_FIELDS } from "@/domain/career/missingFields";
+import { FitLabel } from "@/components/jobs/MatchBadge";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
@@ -105,14 +107,31 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const allReady = (["resume", "cover_letter", "answers"] as ArtifactType[]).every((t) => artifact(t));
   const finish = () => {
     setStatus(app.id, "ready_for_review", { type: "prepared", title: "Application prepared", detail: "Reviewed and approved by you" });
-    setNextAction(app.id, "Submit when you're ready");
-    toast.success("Application ready", "Wonder will only submit it with your approval.");
+    setNextAction(app.id, "Submit on the employer's site, then mark as submitted");
+    // The hand-off itself: Wonder opens the employer's page with materials ready. It never submits
+    // on the candidate's behalf — that's the candidate's own next click, on the employer's own site.
+    window.open(job.applyUrl, "_blank", "noopener,noreferrer");
+    toast.success("Opened the employer's application page", "Submit there with your materials ready, then come back and mark this application as submitted.");
     router.push(`/app/applications/${app.id}`);
   };
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader back={{ href: `/app/applications/${app.id}`, label: "Application" }} title="Prepare Application" description={`Wonder will tailor your application for ${job.title} at ${job.company}.`} actions={<Badge tone={APPLICATION_STATUS_META[app.status].tone}>{APPLICATION_STATUS_META[app.status].label}</Badge>} />
+      <PageHeader
+        back={{ href: `/app/applications/${app.id}`, label: "Application" }}
+        title="Application Pack"
+        description={`Everything to apply for ${job.title} at ${job.company}, in one place.`}
+        actions={
+          <>
+            {allReady && tab !== "review" && (
+              <Button size="sm" variant="outline" onClick={() => setTab("review")}>
+                Review Application
+              </Button>
+            )}
+            <Badge tone={APPLICATION_STATUS_META[app.status].tone}>{APPLICATION_STATUS_META[app.status].label}</Badge>
+          </>
+        }
+      />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
           <Tabs value={tab} onChange={setTab} label="Materials" items={[{ value: "resume", label: "Resume" }, { value: "cover_letter", label: "Cover Letter" }, { value: "answers", label: "Answers" }, { value: "review", label: "Review" }]} className="mb-4" />
@@ -190,7 +209,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                   <input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} className="mt-0.5 size-4 accent-brand-500" />
                   I&apos;ve reviewed these materials. They&apos;re accurate and I&apos;m happy to use them for this application.
                 </label>
-                <p className="mt-3 text-[12px] text-ink-4">Approving here marks the application ready. Submitting to {job.company} is a separate, explicit step that follows your Automation Settings.</p>
+                <p className="mt-3 text-[12px] text-ink-4">&ldquo;Continue to Employer&rdquo; opens {job.company}&apos;s own application page with these materials ready. Wonder never submits on your behalf — you submit there, then come back and mark it as submitted.</p>
               </div>
             )}
           </Card>
@@ -205,8 +224,8 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                 </Button>
               </>
             ) : (
-              <Button size="lg" onClick={finish} disabled={!approved || !allReady}>
-                Mark ready for submission
+              <Button size="lg" onClick={finish} disabled={!approved || !allReady} iconRight={<ExternalLink className="size-4" aria-hidden />}>
+                Continue to Employer
               </Button>
             )}
           </div>
@@ -216,10 +235,41 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Target role</p>
             <p className="mt-1 text-[14px] font-semibold text-ink">{job.title}</p>
             <p className="text-[13px] text-ink-3">{job.company}</p>
-            {match && <p className="mt-2 text-[12px] text-ink-3">Match {match.score}% · {match.highlights.join(" · ")}</p>}
             <Link href={`/app/jobs/${job.id}`} className="mt-2 inline-block text-[13px] font-medium text-brand-600 hover:underline">
               View job
             </Link>
+          </Card>
+          {match && (
+            <Card>
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Fit summary</p>
+              <div className="mt-1.5">
+                <FitLabel fit={match.fit} score={match.score} />
+              </div>
+              <ul className="mt-2.5 flex flex-col gap-1.5 text-[13px] text-ink-2">
+                {match.reasons
+                  .slice()
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 2)
+                  .map((r) => (
+                    <li key={r.dimension} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success-600" aria-hidden /> {r.summary}
+                    </li>
+                  ))}
+              </ul>
+              <Link href={`/app/jobs/${job.id}`} className="mt-2 inline-block text-[12px] font-medium text-brand-600 hover:underline">
+                See full match breakdown
+              </Link>
+            </Card>
+          )}
+          <Card>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Missing candidate information</p>
+            <ul className="mt-2 flex flex-col gap-1.5 text-[13px] text-ink-2">
+              {!dna.name.trim() && <li>Your name (add it to Career DNA)</li>}
+              {MISSING_CANDIDATE_FIELDS.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[12px] text-ink-4">Wonder doesn&apos;t collect these yet, so {job.company}&apos;s form will ask you to fill them in yourself.</p>
           </Card>
           <Card>
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Key requirements</p>

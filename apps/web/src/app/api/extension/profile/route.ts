@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { CareerDNA } from "@/domain/career/types";
+import { MISSING_CANDIDATE_FIELDS } from "@/domain/career/missingFields";
 import { readClientState } from "@/server/clientState";
 import { tenantFromAuthHeader } from "@/server/extensionToken";
 import { rateLimit } from "@/server/rateLimit";
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
   const fullName = dna?.name?.trim() ?? "";
   const email = await accountEmail(tenantId);
   // Career DNA has no field for any of these yet, so they can never be filled — say so instead of guessing.
-  const missing = ["Phone number", "LinkedIn profile", "Location / address"];
+  const missing = [...MISSING_CANDIDATE_FIELDS];
   if (!fullName) missing.unshift("Your name (add it to Career DNA)");
   if (!email) missing.unshift("Email");
 
