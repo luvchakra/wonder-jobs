@@ -8,6 +8,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 
 | ID | Area | Requirement | Status | Notes |
 |---|---|---|---|---|
+| WJ-122 | UX | UX Simplification Phase 1 — baseline audit + capability map | DONE (Step 1 only) | `docs/UX_BASELINE_AUDIT.md`, `docs/UX_CAPABILITY_MAP.md`, `docs/UX_SIMPLIFICATION_DECISIONS.md` — verified against `main`@`cc7ef05`, not this tracker's prior claims. Surfaced real defects to fix independent of the redesign (misleading "submits your application"/"can't be unsent" copy on hand-off-only actions, a fabricated "Startup" company-size fallback, the WJ-115/116 job-teaser flow being unreachable in practice despite passing unit tests). Screen migration (Step 2) not started. |
 | WJ-001 | Foundation | Inspect existing architecture and identify reusable components | DONE | Repo was a fresh `create-next-app` shell; nothing to reuse. Restructured into an `apps/web` npm workspace to match the connected Vercel project's Root Directory. |
 | WJ-002 | Foundation | Establish WonderJobs design tokens | DONE | `src/app/globals.css` — color/radius/shadow/motion tokens mapped into Tailwind v4 `@theme`. |
 | WJ-003 | Foundation | Responsive layout system | DONE | Mobile-first Tailwind; AppShell verified at 390/768/1024/1280/1440. |

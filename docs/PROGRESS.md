@@ -13,7 +13,7 @@ before it is verified in a browser or by a test.
 
 Legend: ✅ done · 🟡 in progress / partial · ⬜ backlog · ⛔ blocked on something outside the repo
 
-_Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit (WJ-105, WJ-107)”, “Persistent demo-mode banner (WJ-106)”, “Vendor error detail + Gemini default model (WJ-108, WJ-109)”, “Run outcome and next step (WJ-110)”, “Search the candidate's own role, never a canned one (WJ-111)”, “Fixed the PDF resume reader misdiagnosing normal PDFs as scans (WJ-112)”, “Fixed it again on a real ATS-builder résumé — word-per-object PDFs (WJ-113)” and “Fixed the search query a real imported CV produced — a headline label and an unrecognised seniority word both starved it of results (WJ-114)”._
+_Last updated: 2026-09-23 — added "UX Simplification — Phase 1 baseline audit" (see below); previous entries below cover stories “AI content grounding (WJ-098)”, “Honest 'not for me' learning loop (WJ-099)”, “Platform AI on any of the three vendors (WJ-100)”, “Why Was This Filtered (WJ-101)”, “Playwright E2E infrastructure + auth.spec.ts and golden-journeys.spec.ts, actually executed (WJ-102)”, “Demo mode no longer overrides a real signed-in session (WJ-103)”, “Mobile nav drawer + parallel CI (WJ-104)”, “Screen-by-screen UX audit (WJ-105, WJ-107)”, “Persistent demo-mode banner (WJ-106)”, “Vendor error detail + Gemini default model (WJ-108, WJ-109)”, “Run outcome and next step (WJ-110)”, “Search the candidate's own role, never a canned one (WJ-111)”, “Fixed the PDF resume reader misdiagnosing normal PDFs as scans (WJ-112)”, “Fixed it again on a real ATS-builder résumé — word-per-object PDFs (WJ-113)” and “Fixed the search query a real imported CV produced — a headline label and an unrecognised seniority word both starved it of results (WJ-114)”._
 
 ## At a glance
 
@@ -34,6 +34,12 @@ _Last updated: 2026-09-20 — stories “AI content grounding (WJ-098)”, “Ho
 | 13. Secondary product areas | 8 | 3 | 2 | 🟡 early versions |
 | 14. Quality, accessibility, performance | 10 | 0 | 1 | ✅ |
 | 15. Operations & release | 5 | 0 | 2 | 🟡 |
+
+## UX Simplification — Phase 1 baseline audit (2026-09-23)
+
+- ✅ **Step 1 (baseline audit + capability map) complete.** `docs/UX_BASELINE_AUDIT.md` inventories all 25 requested capability areas against the actual `main` branch (verified in code, not inferred from this tracker or the spec); `docs/UX_CAPABILITY_MAP.md` gives every capability a Keep/Relocate/Replace disposition against a new 5-item primary nav (Home/Find Jobs/Applications/Career/Wonder); `docs/UX_SIMPLIFICATION_DECISIONS.md` documents the target experience architecture, progressive-disclosure mapping, and the decisions needed to reconcile audit findings with it. Screen migration (Step 2) has not started.
+- The audit surfaced several **real defects independent of the redesign**, most notably: misleading confirmation-modal copy claiming the `apply` stage "submits your application" when it structurally never does (pure hand-off — confirmed safe, just mis-described); a mocked follow-up-email "send" whose confirmation copy claims real delivery; the job-detail Company tab fabricating "Startup" for real companies not in the demo catalog (a real-data-only rule violation); and the signed-out job-teaser flow (previously logged as done, WJ-115/116) being fully built and tested but structurally unreachable from a real shared link. Full list in the baseline audit's "Consolidated list of verified defects" section.
+- These are tracked for follow-up, not yet fixed — see the open questions at the end of `docs/UX_SIMPLIFICATION_DECISIONS.md` for sequencing.
 
 ## 1. Foundation & design system (spec §2–4)
 
