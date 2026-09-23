@@ -32,6 +32,36 @@ export interface ApplicationAttentionItem {
   dueAt?: string;
 }
 
+/**
+ * What a candidate needs to act on across their applications — real due follow-ups, upcoming
+ * interviews, materials ready for review, and recent employer responses. Shared by Home and the
+ * Applications page so "needs attention" can never mean two different things in two places.
+ */
+export function computeApplicationAttention(applications: Record<string, Application>, now: number): ApplicationAttentionItem[] {
+  const items: ApplicationAttentionItem[] = [];
+  for (const app of Object.values(applications)) {
+    for (const f of app.followUps) {
+      if (f.done) continue;
+      const due = new Date(f.dueAt).getTime();
+      if (f.kind === "follow_up" && due - now < 2 * DAY_MS) {
+        items.push({ applicationId: app.id, jobId: app.jobId, reason: due < now ? "follow_up_overdue" : "follow_up_due", label: due < now ? "Follow-up overdue" : "Follow-up due soon", dueAt: f.dueAt });
+      }
+      if (f.kind === "interview" && due - now < 2 * DAY_MS) {
+        items.push({ applicationId: app.id, jobId: app.jobId, reason: "interview_soon", label: "Interview coming up", dueAt: f.dueAt });
+      }
+    }
+    if (app.status === "ready_for_review") {
+      items.push({ applicationId: app.id, jobId: app.jobId, reason: "ready_for_review", label: "Materials ready for your review" });
+    }
+    const lastEvent = app.events[app.events.length - 1];
+    if (lastEvent && (lastEvent.type === "recruiter_response" || lastEvent.type === "outcome") && now - new Date(lastEvent.at).getTime() < 5 * DAY_MS) {
+      items.push({ applicationId: app.id, jobId: app.jobId, reason: "employer_response", label: lastEvent.title });
+    }
+  }
+  items.sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
+  return items;
+}
+
 export interface CareerActionItem {
   id: string;
   label: string;
@@ -79,27 +109,7 @@ export function computeHomeAttention(params: {
     .sort((a, b) => matches[b].score - matches[a].score)
     .slice(0, 6);
 
-  const applicationAttention: ApplicationAttentionItem[] = [];
-  for (const app of Object.values(applications)) {
-    for (const f of app.followUps) {
-      if (f.done) continue;
-      const due = new Date(f.dueAt).getTime();
-      if (f.kind === "follow_up" && due - now < 2 * DAY_MS) {
-        applicationAttention.push({ applicationId: app.id, jobId: app.jobId, reason: due < now ? "follow_up_overdue" : "follow_up_due", label: due < now ? "Follow-up overdue" : "Follow-up due soon", dueAt: f.dueAt });
-      }
-      if (f.kind === "interview" && due - now < 2 * DAY_MS) {
-        applicationAttention.push({ applicationId: app.id, jobId: app.jobId, reason: "interview_soon", label: "Interview coming up", dueAt: f.dueAt });
-      }
-    }
-    if (app.status === "ready_for_review") {
-      applicationAttention.push({ applicationId: app.id, jobId: app.jobId, reason: "ready_for_review", label: "Materials ready for your review" });
-    }
-    const lastEvent = app.events[app.events.length - 1];
-    if (lastEvent && (lastEvent.type === "recruiter_response" || lastEvent.type === "outcome") && now - new Date(lastEvent.at).getTime() < 5 * DAY_MS) {
-      applicationAttention.push({ applicationId: app.id, jobId: app.jobId, reason: "employer_response", label: lastEvent.title });
-    }
-  }
-  applicationAttention.sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
+  const applicationAttention = computeApplicationAttention(applications, now);
 
   const careerActions: CareerActionItem[] = [];
   if (!dna.careerGoal.trim()) careerActions.push({ id: "goal", label: "Add your career goal so Wonder knows what to search for", href: "/app/career-dna" });
