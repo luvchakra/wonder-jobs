@@ -77,8 +77,15 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await page.goto("/demo?next=/app/applications");
   });
 
-  test("GJ-005 the applications dashboard is pre-seeded across every stage", async ({ page }) => {
+  test("GJ-005 the applications dashboard defaults to a timeline, pre-seeded across every stage, with the tab/list view still available", async ({ page }) => {
     await expect(page).toHaveURL(/\/app\/applications/);
+    // Default view: a real pipeline (Preparing/Applied/Interview/Outcome), not a tab-switching list.
+    await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Preparing" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Interview" })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Application status" })).not.toBeVisible();
+    // Switching to List brings back the tab-based view for power users.
+    await page.getByRole("radio", { name: "List" }).click();
     await expect(page.getByRole("tablist", { name: "Application status" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^All/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^Interview/ })).toBeVisible();
