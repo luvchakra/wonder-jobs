@@ -33,7 +33,7 @@ Every capability listed in the spec's §32 (plus the engine operations it names 
 | Stage provenance | `StageDetail` inputs/overrides | All | "See how Wonder worked" | Hide | Artifact provenance stays visible in the Pack. |
 | AI provider abstraction / platform AI / BYOK | `/app/settings/ai`, run setup provider card | All | AI settings; run-level provider moves under "More options" on Find and is always named on the run's Advanced panel | Move | No silent provider/billing switch: fallback still toasts and is recorded. |
 | Usage transparency | `/app/settings/ai` | All | Same | Keep | |
-| Privacy / security / authorization | `server/*`, `proxy.ts` | — | Unchanged | Keep | No server code touched by this program. |
+| Privacy / security / authorization | `server/*`, `proxy.ts` | — | Unchanged | Keep | No auth, tenant-filter, secret, migration or route-guard code touched. Server-side changes on this branch are user-visible copy only ("scheduled run" → "scheduled search", "Career DNA" → "Career Profile", the rank stage's evidence label "Strong on the shortlist"), a notification/activity link fixed from the non-existent `/app/run/:id` to `/app/runs/:id`, and the extension's missing-fields list now reusing `MISSING_CANDIDATE_FIELDS` so it can't drift from the Application Pack. |
 | Notifications | Top bar bell, push | Progress | Same | Keep | |
 | Calendar | `/app/calendar` | Progress | Home "Upcoming → View all", command palette | Keep | |
 | PWA | Avatar menu | — | Same | Keep | |

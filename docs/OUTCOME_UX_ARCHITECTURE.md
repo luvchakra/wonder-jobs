@@ -41,8 +41,8 @@ The stage→outcome mapping (spec §31) is a single `Record<StageKey, Outcome>` 
 ## Find
 
 1. **Entry** — "What are you looking for?" A single natural-language box, prefilled from the Career Profile goal when there is one, with example chips. `deriveSearchIntent()` extracts only what's actually in the text (role phrase → query, "in X, Y or Z" → locations, "remote" → work mode) and shows each derived value with its origin before anything runs. If no role can be derived, the page asks — it never substitutes a placeholder. "How much should Wonder handle?" (4 plain-language choices) sits below; sources, match threshold and AI provider are under "More options".
-2. **Execution** — "Wonder is finding opportunities": five plain-language steps mapped from real stage status (searching the market, checking relevance, removing duplicates, comparing with your profile, prioritizing), a real "N opportunities found so far" from the search stage's own count, and Pause / Stop. No step is shown as done unless its stage is.
-3. **Result** — "Your search is ready": real totals by fit (strong / worth considering / other) and "new since your last search" only when there is a previous completed search to compare to. Primary "See what deserves your attention", secondary "Explore all results".
+2. **Execution** — "Wonder is finding opportunities": six plain-language steps mapped from real stage status (`FIND_STEPS`: understanding your career goals, searching the market, removing duplicates, checking relevant roles, comparing opportunities with your career profile, prioritizing what deserves your attention), then the Apply steps when the search prepares packs (`APPLY_STEPS`). A real "N opportunities found so far" from the search stage's own count, and Pause / Stop. No step is shown as done unless every stage behind it is.
+3. **Result** — "Your search is ready": real totals by fit (strong / worth considering / other) from the match stage, and "new since your last search" only when there is a previous completed search to compare to. Primary "See what deserves your attention", secondary "Explore all results". The headline and the breakdown use the same strong count (every strong fit found); the engine's capped shortlist count is shown separately as "Strong on the shortlist" under "See how Wonder worked" — an e2e journey (ADVANCED-002) asserts the two views agree.
 4. **Intervention** — "Wonder needs your input" with the stage's real waiting reason and Continue.
 5. **Pause / stop / rerun** — "Wonder is paused. [Continue]"; "Search stopped. Everything already found is still available. [Search again]"; "Recheck these opportunities" = `rerunFrom('match')`, reusing search results.
 
@@ -52,7 +52,7 @@ Job cards: fit label (never a bare score), **Why Wonder surfaced this** (top evi
 
 ## Apply
 
-The Application Pack stays the one preparation concept, with an "Application ready" summary at the top: what Wonder actually prepared (only artifacts that exist), what's still missing, and anything to check first — then "The final action is yours."
+The Application Pack stays the one preparation concept, with an "Application ready" summary at the top (`domain/applications/pack.ts`): what is actually prepared — an item counts only when a version of it is stored, with who wrote the current version (AI-generated draft / Edited by you / Written by you) — the candidate information Wonder doesn't collect, things to consider from the match and posting signals, and "The final action is yours." The five staged "Analyzing… Optimizing…" steps that used to wrap a single provider request were replaced by one honest drafting status.
 
 ## Progress
 
@@ -64,7 +64,20 @@ On the run page, a single disclosure reveals the existing `WorkflowTimeline` + `
 
 ## Wonder (intent → action → result)
 
-Extends the existing deterministic router (`domain/wonder/*`) — still no model call, no free-text reply. New intents: "What should I focus on today?" (Home attention), "Search again with Director roles" (opens Find prefilled), "Show my application progress", "Show only roles where I match the seniority" (filters to jobs whose seniority reason is a same-level match), "Prepare the strongest two" (opens the top two not-yet-prepared strong matches' packs — never auto-submits).
+Extends the existing deterministic router (`domain/wonder/*`) — still no model call, no free-text reply; each answer is resolved against the candidate's own data before it's shown. The spec's minimum set is covered:
+
+| Intent | Example | Action |
+|---|---|---|
+| Find jobs | "Find me IAM jobs" | Opens Find prefilled with only the typed words ("IAM jobs"). |
+| Search again | "Search again with Director roles" | Same; with no subject, opens Find, which prefills from the Career Profile goal or asks. |
+| Change search preferences | "Change my location preferences" | Career Profile. |
+| Explain a job | "Why is the Razorpay role a good match?" | `/app/jobs/:id?tab=why`, with the top real reasons in the hint. |
+| Explain a filtering decision | "Why didn't you show the … job?" | The real filter reason; the job page offers Show it anyway / Change preference. |
+| Prepare applications | "Prepare the strongest two" | Names the two best strong matches without a pack and opens the strong-match list, where each has a Prepare button. It never prepares or sends anything by itself. |
+| Summarize today's priorities | "What should I focus on today?" | Applications needing attention + strong matches posted this week, from real data; Home. |
+| Show application progress | "Show my application progress" | Active / interviews this week / follow-ups due / employer replies; Applications. |
+
+Not built: "Show only roles where I match the seniority" — the Jobs page has no seniority filter to route to, and inventing a one-off filter only reachable from Ask Wonder would be a hidden capability. Recorded in `OUTCOME_UX_FINAL_AUDIT.md`.
 
 ## Invariants
 
