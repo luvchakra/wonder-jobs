@@ -9,6 +9,8 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
+import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
+import { historyOf } from "@/domain/career/history";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
@@ -97,7 +99,13 @@ export default function CareerDNAPage() {
               </Select>
             </Field>
           </div>
-          <p className="mt-3 text-[12px] text-ink-3">Wonder doesn&apos;t hold a field-by-field employment history yet — skills, level and years are what it scores experience against today.</p>
+          <p className="mt-3 text-[12px] text-ink-3">Skills, level and years are what matching scores experience against. Your work history below is what résumés are built from.</p>
+        </Card>
+
+        <Card>
+          <h2 className="mb-1 text-[15px] font-semibold text-ink">Work history, education and contact</h2>
+          <p className="mb-4 text-[12px] text-ink-3">The facts every résumé template renders. Wonder never adds an employer, date, qualification or number you didn&apos;t enter here.</p>
+          <CareerHistoryEditor key={dna.updatedAt} value={historyOf(draft)} onChange={(h) => set("history", h)} />
         </Card>
 
         <Card>
@@ -192,7 +200,7 @@ export default function CareerDNAPage() {
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Sources</h2>
           <p className="text-[12px] text-ink-3">
-            Career Profile is built from what you type here and what you choose to bring in from a resume — last changed {formatDate(dna.updatedAt)}. Wonder doesn&apos;t track which individual field came from which source.
+            Career Profile is built from what you type here and what you choose to bring in from a resume — last changed {formatDate(dna.updatedAt)}. Work-history entries show where each came from; the other fields aren&apos;t tracked individually.
           </p>
           <p className="mt-2 text-[12px] text-ink-3">LinkedIn isn&apos;t connected — it has no public API to import from, so nothing here comes from there.</p>
         </Card>

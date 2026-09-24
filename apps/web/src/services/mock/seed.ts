@@ -37,6 +37,45 @@ export const SEED_DNA: CareerDNA = {
   currency: "INR",
   strengths: ["Turning ambiguous problems into crisp roadmaps", "Data-informed prioritization", "Cross-functional influence"],
   growthAreas: ["Platform / API products", "People management"],
+  // Demo only: a synthetic history so the résumé templates have something to render. Never shown to a real account.
+  history: {
+    contact: { email: "alex.morgan@example.com", phone: "+91 90000 00000", location: "Bengaluru, India", linkedinUrl: "https://www.linkedin.com/in/example-alex-morgan" },
+    summary: "Product manager with five years in consumer fintech and e-commerce. Turns ambiguous problems into clear roadmaps, runs disciplined experiments and works closely with engineering and design.",
+    experience: [
+      {
+        id: "exp_demo_1",
+        employer: "Northwind Payments (sample)",
+        title: "Product Manager, Consumer Payments",
+        location: "Bengaluru, India",
+        startDate: "2022-04",
+        current: true,
+        bullets: [
+          { id: "b_d1", text: "Own the roadmap for the consumer payments app across onboarding, payments and rewards", provenance: "USER_PROVIDED" },
+          { id: "b_d2", text: "Run weekly A/B tests with the growth team and share results in a monthly review", provenance: "USER_PROVIDED" },
+          { id: "b_d3", text: "Wrote PRDs and ran quarterly planning with engineering, design and compliance", provenance: "USER_PROVIDED" },
+        ],
+        provenance: "USER_PROVIDED",
+      },
+      {
+        id: "exp_demo_2",
+        employer: "Contoso Retail (sample)",
+        title: "Associate Product Manager",
+        location: "Mumbai, India",
+        startDate: "2020-01",
+        endDate: "2022-03",
+        bullets: [
+          { id: "b_d4", text: "Shipped the new checkout flow with the payments and logistics teams", provenance: "USER_PROVIDED" },
+          { id: "b_d5", text: "Built the SQL dashboards the product team used for weekly metrics reviews", provenance: "USER_PROVIDED" },
+        ],
+        provenance: "USER_PROVIDED",
+      },
+    ],
+    education: [{ id: "edu_demo_1", institution: "Sample Institute of Technology", degree: "B.Tech.", field: "Computer Science", location: "Pune, India", startDate: "2015", endDate: "2019", provenance: "USER_PROVIDED" }],
+    certifications: [{ id: "cert_demo_1", name: "Product Analytics Certification (sample)", issuer: "Example Academy", issueDate: "2023-06", provenance: "USER_PROVIDED" }],
+    projects: [],
+    publications: [],
+    researchInterests: [],
+  },
   updatedAt: ago(12 * DAY),
 };
 
