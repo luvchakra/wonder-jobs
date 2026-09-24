@@ -86,7 +86,7 @@ export default function AddSourcePage() {
     <>
       <PageTitle title="Add a job source" subtitle="A source serves candidates only after a real, validated connection — detection alone never activates anything." />
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <Card padding="sm" className="h-fit">
+        <Card padding="sm" className="h-fit min-w-0">
           <ol className="flex gap-2 overflow-x-auto lg:flex-col" aria-label="Steps">
             {steps.map((s, i) => (
               <li key={s.key} aria-current={s.key === step ? "step" : undefined} className={cn("flex shrink-0 items-center gap-2 rounded-[10px] px-2 py-1.5 text-[13px]", s.key === step ? "bg-brand-50 font-medium text-brand-700" : i < at ? "text-ink-2" : "text-ink-4")}>

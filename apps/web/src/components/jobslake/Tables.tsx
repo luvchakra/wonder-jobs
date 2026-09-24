@@ -32,6 +32,7 @@ export function RunsTable({ runs, showSource }: { runs: (SourceRun & { relevant?
           <span className="text-[12px] text-ink-3">
             {showSource ? `${relativeTime(r.startedAt)} · ` : ""}
             {r.trigger} · {num(r.retrieved)} jobs · {num(r.valid)} valid · {ms(r.durationMs)}
+            {r.relevant != null ? ` · ${r.relevant} / ${r.strong ?? 0} relevant / strong` : ""}
           </span>
           {r.message && <span className="text-[12px] text-ink-4">{r.message}</span>}
         </div>

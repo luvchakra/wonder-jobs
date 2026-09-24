@@ -73,7 +73,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "sources",
     title: "Job sources",
     summary: "Where postings come from, and what each source can and cannot do.",
-    keywords: ["sources", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "career sites", "greenhouse", "lever", "ashby", "where do jobs come from"],
+    keywords: ["sources", "jobslake", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "career sites", "greenhouse", "lever", "ashby", "where do jobs come from"],
     body: [
       "Wonder searches real, public job feeds server-side and reads every posting itself. Nothing is invented.",
       "- Company career sites — public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely (Stripe, Airbnb, Figma, GitLab, Databricks, Coinbase, Groww, CRED, Meesho, Notion, Linear, Ramp, Supabase, Replit, OpenAI, Zapier and more). Applications go straight to the employer.",
@@ -81,6 +81,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Arbeitnow — Europe-focused, off by default. Remotive — its public feed exposes only a handful of listings, off by default.",
       "- Adzuna India — India-wide postings across boards; needs free developer keys on the server and shows 'needs setup' until then.",
       "LinkedIn, Indeed, Naukri, Foundit and Glassdoor do not offer public job APIs, so Wonder does not search them and does not claim to. Turn sources on or off under Find opportunities → More options.",
+      "All of these are searched together through JobsLake, WonderJobs' job-data layer: one search asks every source you have switched on, and the same role posted on several sources becomes one job. Open a job → Sources & signals → “Where this job was found” to see every listing, which one WonderJobs shows (the employer's own site when there is one) and which source each key field came from; “Check … now” re-reads the original listing. A search's “See how Wonder worked” shows how many sources answered and what each returned.",
     ],
   },
   {
@@ -177,7 +178,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     keywords: ["roadmap", "backlog", "coming", "limitation", "not supported", "missing", "future", "planned", "billing", "pro", "email delivery", "scheduler"],
     body: [
       "- Email delivery for follow-ups is drafted and audited but not sent; a mail provider is planned.",
-      "- More sources: Adzuna India needs keys today; Naukri-style boards have no public API. Employer boards are added by name; ask for one.",
+      "- More sources: the platform team adds employer boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable), official APIs, feeds and MCP sources through JobsLake, each activated only after a real test. Adzuna India needs keys; LinkedIn, Indeed and Naukri stay off until a partnership exists.",
       "- Pro plan and billing are not connected; Upgrade records interest only.",
       "- Resume Studio, Interview Prep and Learning are early: they organise your materials and prep, with deeper AI coaching planned.",
       "- A Google, Microsoft or Apple calendar sync is planned; today the calendar is built from your follow-ups, interviews and schedules.",

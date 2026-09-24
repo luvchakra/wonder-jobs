@@ -50,37 +50,41 @@ export default function JobsLakeOverview() {
             </Link>
           }
         >
-          <ResponsiveTable
-            rows={live}
-            rowKey={(r) => r.id}
-            empty="No active sources."
-            columns={[
-              {
-                header: "Source",
-                cell: (r) => (
-                  <Link href={`/platform/jobs-lake/sources/${r.id}`} className="inline-flex items-center gap-2 font-medium text-ink hover:underline">
+          {!s.data ? (
+            <Loading rows={2} />
+          ) : (
+            <ResponsiveTable
+              rows={live}
+              rowKey={(r) => r.id}
+              empty="No active sources."
+              columns={[
+                {
+                  header: "Source",
+                  cell: (r) => (
+                    <Link href={`/platform/jobs-lake/sources/${r.id}`} className="inline-flex items-center gap-2 font-medium text-ink hover:underline">
+                      {r.name} <AccessBadge label={r.accessLabel} />
+                    </Link>
+                  ),
+                },
+                { header: "Status", cell: (r) => (r.available ? <HealthChip state={r.health?.state} /> : <span className="text-warning-600">Needs setup</span>) },
+                { header: "Success", cell: (r) => pct(r.health?.successRate), className: "tabular-nums" },
+                { header: "Latency p50", cell: (r) => ms(r.health?.p50LatencyMs), className: "tabular-nums" },
+                { header: "Last run", cell: (r) => (r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "Never") },
+                { header: "Retrieved (7 d)", cell: (r) => num(r.health?.retrieved ?? null), className: "tabular-nums text-right" },
+              ]}
+              card={(r) => (
+                <div className="flex items-center justify-between gap-2">
+                  <Link href={`/platform/jobs-lake/sources/${r.id}`} className="min-w-0 font-medium text-ink">
                     {r.name} <AccessBadge label={r.accessLabel} />
+                    <span className="mt-0.5 block text-[12px] font-normal text-ink-3">
+                      {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)} · {r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "never run"}
+                    </span>
                   </Link>
-                ),
-              },
-              { header: "Status", cell: (r) => (r.available ? <HealthChip state={r.health?.state} /> : <span className="text-warning-600">Needs setup</span>) },
-              { header: "Success", cell: (r) => pct(r.health?.successRate), className: "tabular-nums" },
-              { header: "Latency p50", cell: (r) => ms(r.health?.p50LatencyMs), className: "tabular-nums" },
-              { header: "Last run", cell: (r) => (r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "Never") },
-              { header: "Retrieved (7 d)", cell: (r) => num(r.health?.retrieved ?? null), className: "tabular-nums text-right" },
-            ]}
-            card={(r) => (
-              <div className="flex items-center justify-between gap-2">
-                <Link href={`/platform/jobs-lake/sources/${r.id}`} className="min-w-0 font-medium text-ink">
-                  {r.name} <AccessBadge label={r.accessLabel} />
-                  <span className="mt-0.5 block text-[12px] font-normal text-ink-3">
-                    {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)} · {r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "never run"}
-                  </span>
-                </Link>
-                {r.available ? <HealthChip state={r.health?.state} /> : <span className="text-[12px] text-warning-600">Needs setup</span>}
-              </div>
-            )}
-          />
+                  {r.available ? <HealthChip state={r.health?.state} /> : <span className="text-[12px] text-warning-600">Needs setup</span>}
+                </div>
+              )}
+            />
+          )}
         </Panel>
 
         <div className="flex flex-col gap-4">

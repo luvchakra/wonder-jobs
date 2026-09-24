@@ -1,5 +1,36 @@
 # Test Execution Report
 
+## JobsLake (2026-09-25) — `e2e/jobslake.spec.ts`
+
+Run against a production build in local-admin mode (Supabase unset, `JOBSLAKE_LOCAL_ADMIN=1`, `JOBSLAKE_MCP_ENABLED=1` with a token), `next start -p 3211`, `PLAYWRIGHT_BASE_URL=http://localhost:3211 npx playwright test e2e/jobslake.spec.ts --project=chromium --project="Mobile Chrome"`. Every source is real: the built-in boards and feeds, Spotify's Lever board, and Remotive's public JSON API.
+
+**23 passed, 17 skipped, 0 failed** (~44 s).
+
+| Spec ID | Asserts | chromium | Mobile Chrome |
+|---|---|---|---|
+| WJ-JL-013 | Portal opens with real counts | PASS | PASS |
+| WJ-JL-014 | Registry shows access labels; LinkedIn is Do not use | PASS | n/a (desktop table) |
+| WJ-JL-016/018/019 | Detect a Lever board → configure → real test → activate | PASS | PASS |
+| WJ-JL-015/017/024 | Add a JSON API source; live mapping preview; missing required field fails validation, then passes when mapped; test runs | PASS | PASS |
+| WJ-JL-023 | Invalid URL and partnership portal refused; partnership activation 403 | PASS | PASS |
+| WJ-JL-025 | Metadata, localhost, http and private-IP endpoints refused before storing; wizard shows why | PASS | PASS |
+| WJ-JL-026/027 | Credential masked in UI; absent from create/read/list/audit responses and page HTML | PASS | PASS |
+| WJ-JL-021/039 | Playground runs a real search; Fast plans shallow, Maximum coverage deep and wider | PASS | PASS |
+| WJ-JL-020/022 | Health from runs; relevant/strong contribution reported via telemetry shows on Runs | PASS | PASS |
+| WJ-JL-030 | source.created and source.paused appear in the source's audit tab | PASS | PASS |
+| WJ-JL-032 | Source configuration usable on a phone, no horizontal scroll | n/a | PASS |
+| WJ-JL-028/035/036/037 | REST results are valid canonical opportunities with provenance; needs-setup source doesn't fail others; ATS record canonical over aggregators | PASS | n/a (API, once) |
+| WJ-JL-004 | Stream: search_started … one source_completed per planned source … search_completed | PASS | n/a |
+| WJ-JL-029 | MCP `search_jobs` has the REST response's schema | PASS | n/a |
+| WJ-JL-001…012, 031, 033, 034 | Signed-in candidate journeys (request to JobsLake, stream, merge, sources on job detail, why/filtered, failure, stop/rerun, mobile, reduced motion, live status) | BLOCKED | BLOCKED |
+| WJ-JL-038/039/040 | Warm + live coexist; mode depth; scheduled search uses JobsLake | unit tests (`core.test.ts`, `scheduledRun.test.ts`) | |
+
+BLOCKED means not run, not failed: only signed-in accounts search through JobsLake (demo/local mode uses sample data by design), so those journeys need a disposable, pre-confirmed Supabase account on the production project, created and deleted by `e2e/fixtures/auth.ts`.
+
+Defects the run found and fixed before this result: the Overview showed "No active sources." while its data was loading; the Add Source step list made the mobile page scroll sideways; mobile run cards omitted the relevant/strong counts.
+
+Unit/API: `npx vitest run` — all green, including `src/app/api/jobs-lake/api.test.ts` (access, fail-closed allowlist, credentials, SSRF, activation rules, audit, v1 search/stream, MCP = REST), `src/server/jobslake/core.test.ts`, `src/services/jobs/jobsLake.integration.test.ts` (stream parsing, search stage, fallback). Live smoke against real boards: `JOBSLAKE_LIVE=1 npx vitest run src/server/jobslake/live.smoke`.
+
 ## Outcome-based UX (2026-09-24) — `e2e/outcome-journeys.spec.ts` + regression of `e2e/golden-journeys.spec.ts`
 
 Run against a production build (`npm run check`'s `next build`, then `next start -p 3211`), `PLAYWRIGHT_BASE_URL=http://localhost:3211 npx playwright test e2e/golden-journeys.spec.ts e2e/outcome-journeys.spec.ts --project=chromium --project="Mobile Chrome"`.
