@@ -201,7 +201,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-ink-3">Run Wonder to compute a match for this role.</p>
+                <p className="mt-2 text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
               )}
               <p className="mt-4 text-[12px] text-ink-4">Match scores estimate alignment with your Career DNA. They are a guide, not a verdict.</p>
             </Card>

@@ -1,91 +1,81 @@
 "use client";
-import Link from "next/link";
-import { Play, Square } from "lucide-react";
+import { Search, Square } from "lucide-react";
 import type { WorkflowRun } from "@/domain/workflow/types";
-import { STAGES } from "@/domain/workflow/stages";
+import { describeRun } from "@/domain/experience/orchestrator";
+import { CANDIDATE_STATUS_LABEL } from "@/domain/experience/outcomes";
 import { getWorkflowService } from "@/services/workflow/service";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { RunStatusPill } from "./RunStatusPill";
-import { WorkflowTimeline } from "./WorkflowTimeline";
+import { Badge } from "@/components/common/Badge";
 import { toast } from "@/components/feedback/Toast";
 
+/**
+ * Home's view of Wonder's current work, in outcome terms: what it's doing, what it's found so far,
+ * and the one control that matters now. The stage timeline lives on the search page's "See how
+ * Wonder worked", not here.
+ */
 export function ActiveRunCard({ run, className }: { run?: WorkflowRun; className?: string }) {
   if (!run) {
     return (
       <Card className={className}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-            <Play className="size-5" aria-hidden />
+            <Search className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-semibold text-ink">No active run</h2>
-            <p className="text-[13px] text-ink-3">Tell Wonder what you want. It searches, analyzes and prepares — you stay in control.</p>
+            <h2 className="text-[17px] font-semibold text-ink">Find opportunities</h2>
+            <p className="text-[13px] text-ink-3">Tell Wonder what you&apos;re looking for. It searches, compares and prepares — you decide.</p>
           </div>
-          <Button href="/app/runs/new" icon={<Play className="size-4" aria-hidden />}>
-            Run Wonder
+          <Button href="/app/runs/new" icon={<Search className="size-4" aria-hidden />}>
+            Find opportunities
           </Button>
         </div>
       </Card>
     );
   }
-  const current = run.currentStage ? STAGES[run.currentStage] : undefined;
-  const subtitle =
-    run.status === "WAITING_FOR_USER"
-      ? run.stages.find((s) => s.key === run.currentStage)?.waitingReason ?? "Wonder needs your input."
-      : run.status === "PAUSED"
-        ? "Paused — resume whenever you're ready."
-        : run.status === "STOPPING"
-          ? "Stopping safely. Completed work is preserved."
-          : current
-            ? `Searching across ${run.config.sourceIds.length} sources, analyzing opportunities and finding your best matches…`
-            : "Preparing…";
+  const e = describeRun(run);
+  const step = [...e.progress.findSteps, ...e.progress.applySteps].find((s) => s.state === "active" || s.state === "waiting");
+  const done = e.progress.findSteps.filter((s) => s.state === "done").length;
   return (
     <Card className={className}>
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-brand-500 text-brand-600">
-          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
-            <path d="M5 12l4 4L19 6" />
-          </svg>
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+          <Search className="size-4" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[17px] font-semibold text-ink">Your Active Run</h2>
-            <RunStatusPill status={run.status} />
+            <h2 className="text-[17px] font-semibold text-ink">{e.title}</h2>
+            <Badge tone={run.status === "WAITING_FOR_USER" ? "info" : run.status === "PAUSED" ? "warning" : "brand"}>{CANDIDATE_STATUS_LABEL[run.status]}</Badge>
           </div>
-          <p className="mt-1 text-[14px] font-medium text-ink">
-            <Link href={`/app/runs/${run.id}`} className="hover:underline">
-              {run.workflowName}
-            </Link>
-          </p>
-          <p className="text-[13px] text-ink-3">{subtitle}</p>
+          <p className="mt-1 text-[13px] text-ink-2">{e.summary}</p>
+          {step && run.status === "RUNNING" && (
+            <p className="mt-1 text-[12px] text-ink-3" aria-live="polite">
+              {step.label} · step {Math.min(done + 1, e.progress.findSteps.length)} of {e.progress.findSteps.length}
+            </p>
+          )}
         </div>
-        <div className="flex shrink-0 gap-2">
-          {run.status === "WAITING_FOR_USER" ? (
-            <Button size="sm" href={`/app/runs/${run.id}`}>
-              Review
-            </Button>
-          ) : (
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Button size="sm" href={`/app/runs/${run.id}`} variant={run.status === "WAITING_FOR_USER" || run.status === "PAUSED" ? "primary" : "outline"}>
+            {run.status === "WAITING_FOR_USER" ? "Review" : run.status === "PAUSED" ? "Continue" : "See progress"}
+          </Button>
+          {run.status === "RUNNING" && (
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               icon={<Square className="size-3.5" aria-hidden />}
-              disabled={run.status === "STOPPING"}
               onClick={() => {
-                getWorkflowService().stop(run.id);
-                toast.info("Stopping run", "Wonder is finishing the current step safely.");
+                try {
+                  getWorkflowService().stop(run.id);
+                  toast.info("Stopping", "Wonder is finishing the current step. Everything found so far is kept.");
+                } catch (err) {
+                  toast.error("Couldn't stop", err instanceof Error ? err.message : undefined);
+                }
               }}
             >
               Stop
             </Button>
           )}
         </div>
-      </div>
-      <div className="mt-5 hidden md:block">
-        <WorkflowTimeline run={run} variant="horizontal" limit={7} />
-      </div>
-      <div className="mt-4 md:hidden">
-        <WorkflowTimeline run={run} variant="vertical" limit={7} />
       </div>
     </Card>
   );

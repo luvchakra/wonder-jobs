@@ -37,9 +37,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const now = useNow();
   const commands = useMemo<Command[]>(
     () => [
-      { id: "run", label: "Run Wonder", hint: "Find, analyze, prepare, track", href: "/app/runs/new", icon: Play, group: "Actions" },
+      { id: "run", label: "Find opportunities", hint: "Tell Wonder what you're looking for", href: "/app/runs/new", icon: Play, group: "Actions" },
       { id: "search", label: "Search jobs", hint: "Jobs matching your Career DNA", href: "/app/jobs", icon: Search, group: "Actions" },
-      { id: "schedule", label: "Create a scheduled run", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
+      { id: "schedule", label: "Set up a scheduled search", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
       ...[...PRIMARY_NAV, ...WONDER_NAV, ...CAREER_NAV, ...RESOURCES_NAV, { href: "/app/settings/ai", label: "AI provider & keys", icon: Sparkles }, { href: "/app/calendar", label: "Calendar", icon: Calendar }].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
     ],
     [],

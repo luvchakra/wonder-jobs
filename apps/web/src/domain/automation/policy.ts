@@ -60,14 +60,15 @@ export function defaultPolicy(): AutomationPolicy {
 export const AUTOMATION_LEVELS = ["assist", "guided", "autonomous", "continuous"] as const;
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
 
-// User-facing question: "How much should Wonder do for you?" Each label answers it in the
-// candidate's own words; the underlying level id (assist/guided/autonomous/continuous) is unchanged
-// so nothing about capability gating (resolveCapability below) or persisted state moves.
-export const AUTOMATION_LEVEL_META: Record<AutomationLevel, { label: string; description: string; recommended?: boolean }> = {
-  assist: { label: "Assist me", description: "Wonder suggests, you decide. Every action — even generating a resume — asks first. Nothing runs on its own." },
-  guided: { label: "Work with me", description: "Wonder performs low-risk work on its own (search, ranking, drafting) and asks before anything riskier — a recruiter message, a hand-off to an employer, marking an email sent.", recommended: true },
-  autonomous: { label: "Work independently", description: "Same as Work with me, plus: any action you've set to \"Automatic\" in Automation Settings now runs without asking each time — including preparing and handing off applications. Wonder still never submits to an employer, messages a recruiter or sends an email itself; those stay a real click from you." },
-  continuous: { label: "Keep working", description: "Same as Work independently, and Wonder also runs on your schedule in the background (Wonder → Scheduled Runs) instead of only when you start a run." },
+// User-facing question: "How much should Wonder handle?" (outcome spec §21). `short` is the one-line
+// answer shown on the choice cards; `description` is the precise version shown for the selected
+// level. The level ids (assist/guided/autonomous/continuous) are internal and unchanged, so
+// capability gating (resolveCapability below) and persisted state don't move.
+export const AUTOMATION_LEVEL_META: Record<AutomationLevel, { label: string; short: string; description: string; recommended?: boolean }> = {
+  assist: { label: "Help me", short: "Finds opportunities and asks before important actions.", description: "Wonder finds opportunities and asks before doing anything else — even drafting a resume. Nothing runs on its own." },
+  guided: { label: "Work with me", short: "Searches and prepares things, then asks when your decision matters.", description: "Wonder does low-risk work on its own (searching, comparing, drafting) and asks before anything that matters — a recruiter message, a hand-off to an employer, marking an email sent.", recommended: true },
+  autonomous: { label: "Work independently", short: "Works within your rules.", description: "Same as Work with me, plus: anything you've set to \"Automatic\" in What Wonder can do runs without asking each time — including preparing and handing off applications. Wonder still never submits to an employer, messages a recruiter or sends an email itself; the final action is always yours." },
+  continuous: { label: "Keep watch", short: "Keeps looking and tells you only when something is worth your attention.", description: "Same as Work independently, and Wonder also searches on your schedule (Wonder → Scheduled searches), telling you only when something is worth your attention." },
 };
 
 /**

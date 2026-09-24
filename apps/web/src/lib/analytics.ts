@@ -26,7 +26,26 @@ export type AnalyticsEvent =
   | "automation_policy_changed"
   | "resume_imported"
   | "resume_import_applied"
-  | "artifact_downloaded";
+  | "artifact_downloaded"
+  // Outcome-level events (outcome spec §46). Same rule: ids, counts and enum values only.
+  | "find_started"
+  | "find_completed"
+  | "opportunity_viewed"
+  | "opportunity_saved"
+  | "opportunity_rejected"
+  | "why_viewed"
+  | "why_filtered_viewed"
+  | "comparison_started"
+  | "application_pack_started"
+  | "application_pack_completed"
+  | "application_reviewed"
+  | "external_handoff_started"
+  | "progress_action_clicked"
+  | "wonder_intent_submitted"
+  | "wonder_action_completed"
+  | "wonder_intervention_requested"
+  | "search_schedule_created"
+  | "search_schedule_triggered";
 
 type Primitive = string | number | boolean | null | undefined;
 const FORBIDDEN = /key|secret|token|resume|cover|answer|reasoning|password/i;

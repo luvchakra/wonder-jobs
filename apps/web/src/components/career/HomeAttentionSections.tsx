@@ -37,9 +37,9 @@ export function HomeAttentionSections({
         body={
           attention.isMonitoring
             ? "Wonder is monitoring your active searches. Come back when a new match, a follow-up or a reply needs you."
-            : "Nothing is scheduled to search on its own yet. Run Wonder now, or set up a scheduled run so it keeps looking for you."
+            : "Nothing is scheduled to search on its own yet. Find opportunities now, or set up a scheduled search so Wonder keeps looking for you."
         }
-        action={{ label: "Run Wonder", href: "/app/runs/new" }}
+        action={{ label: "Find opportunities", href: "/app/runs/new" }}
       />
     );
   }

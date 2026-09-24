@@ -97,7 +97,7 @@ function JobsInner() {
         filterResult.hiddenTotal > 0 ? (
           <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} variant="empty" />
         ) : (
-          <EmptyState title="No jobs discovered yet" body="Run Wonder to search your sources." action={{ label: "Run Wonder", href: "/app/runs/new" }} />
+          <EmptyState title="No jobs discovered yet" body="Tell Wonder what you're looking for and it will search your sources." action={{ label: "Find opportunities", href: "/app/runs/new" }} />
         )
       ) : (
         <>

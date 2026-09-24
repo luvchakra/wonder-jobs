@@ -65,12 +65,23 @@ export function describeRun(run: WorkflowRun, previous?: WorkflowRun): Experienc
   const base = { outcome, progress, transparency };
   const working = outcome === "apply" ? "Wonder is preparing your applications" : outcome === "progress" ? "Wonder is updating your applications" : "Wonder is finding opportunities";
   const found = progress.foundSoFar != null ? `${plural(progress.foundSoFar, "opportunity", "opportunities")} found so far.` : `Searching ${plural(progress.sourceCount, "source")}.`;
+  const match = run.stages.find((s) => s.key === "match");
+  const strong = match && (match.status === "COMPLETED" || match.status === "COMPLETED_WITH_WARNINGS") ? match.counts.strong : undefined;
+  const retained = run.summary.jobsRetained || progress.foundSoFar || 0;
+  const workingSummary =
+    outcome === "apply"
+      ? `Found ${plural(retained, "opportunity", "opportunities")}${strong != null ? `, ${strong.toLocaleString("en-IN")} strong` : ""}. Now preparing application packs for your top matches.`
+      : outcome === "progress"
+        ? "Updating your applications with what happened in this search."
+        : outcome === "decide"
+          ? `${found} Comparing them with your Career Profile.`
+          : found;
 
   switch (run.status) {
     case "PENDING":
       return { ...base, state: "starting", eyebrow: "Getting ready", title: "Wonder is getting ready", summary: "Your search starts in a moment.", tone: "info", nextActions: [] };
     case "RUNNING":
-      return { ...base, state: "working", eyebrow: "Working", title: working, summary: found, tone: "info", nextActions: [{ label: "Pause", kind: "pause" }, { label: "Stop", kind: "stop" }] };
+      return { ...base, state: "working", eyebrow: "Working", title: working, summary: workingSummary, tone: "info", nextActions: [{ label: "Pause", kind: "pause" }, { label: "Stop", kind: "stop" }] };
     case "STOPPING":
       return { ...base, state: "stopping", eyebrow: "Stopping", title: "Stopping safely", summary: "Wonder is finishing the current step. Everything already found stays available.", tone: "info", nextActions: [] };
     case "PAUSED":
@@ -82,6 +93,19 @@ export function describeRun(run: WorkflowRun, previous?: WorkflowRun): Experienc
       return { ...base, state: "needs_you", eyebrow: "Your input", title: "Wonder needs your input", summary: reason, tone: "info", needsUser: { reason, pendingApprovals }, nextActions: [{ label: "Continue", kind: "continue", primary: true }, { label: "Stop", kind: "stop" }] };
     }
     case "FAILED":
+      // The engine fails the search stage when nothing matched — that's an empty result the candidate
+      // can act on, not a breakdown, so it says so plainly and offers to change the search.
+      if (run.summary.jobsDiscovered === 0 && run.error?.category === "user_action_required") {
+        return {
+          ...base,
+          state: "failed",
+          eyebrow: "Nothing found",
+          title: "No jobs matched this search",
+          summary: `None of the ${plural(run.config.sourceIds.length, "source")} had jobs for “${run.config.searchCriteria.query}”${run.config.searchCriteria.locations.length ? ` in ${run.config.searchCriteria.locations.join(", ")}` : ""}. Try a broader role, other locations or more sources.`,
+          tone: "warning",
+          nextActions: [{ label: "Change the search", kind: "search_again", href: "/app/runs/new", primary: true }],
+        };
+      }
       return {
         ...base,
         state: "failed",

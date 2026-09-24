@@ -79,7 +79,7 @@ export function MobileHome({
               <Sparkles className="size-5" aria-hidden />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[18px] font-semibold">Run Wonder</p>
+              <p className="text-[18px] font-semibold">Find opportunities</p>
               <p className="text-[13px] text-white/85">Find, Analyze, Prepare, Track. All in one go.</p>
             </div>
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-600">

@@ -1,16 +1,19 @@
 "use client";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Pencil, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
+import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { useAIStore } from "@/store/ai";
 import { useJobsStore } from "@/store/jobs";
 import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
+import { track } from "@/lib/analytics";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -19,12 +22,23 @@ import { DictateButton } from "@/components/common/DictateButton";
 import { useDictation } from "@/lib/dictation";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { ProviderSelector } from "@/components/ai/ProviderSelector";
-import { ErrorState } from "@/components/common/States";
+import { ErrorState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import Link from "next/link";
 
-export default function RunSetupPage() {
+// Phrasing examples only — they fill the box, they're never run or saved on their own.
+const EXAMPLES = ["Product roles in AI startups", "Engineering leadership roles", "Remote roles in cybersecurity", "Director roles in fintech"];
+
+type Origin = "your words" | "your Career Profile" | "you edited";
+
+/**
+ * Find (outcome spec §5): one plain-language box — "What are you looking for?" — and Wonder
+ * derives the search from it. Every derived value is shown with where it came from before anything
+ * runs; when no role can be read from the words or the Career Profile, the page asks rather than
+ * substituting one. Sources, match threshold and AI provider stay available under "More options".
+ */
+function FindInner() {
   const router = useRouter();
+  const params = useSearchParams();
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);
   const defaultLevel = useAutomationStore((s) => s.defaultLevel);
@@ -32,174 +46,181 @@ export default function RunSetupPage() {
   const sources = useJobsStore((s) => s.sources);
   const activeRun = useWorkflowStore(selectActiveRun);
 
-  const [goal, setGoal] = useState(dna.careerGoal);
-  const [editingGoal, setEditingGoal] = useState(false);
+  const [request, setRequest] = useState(() => params.get("q") ?? dna.careerGoal);
   const [level, setLevel] = useState<AutomationLevel>(defaultLevel);
   const [provider, setProvider] = useState<AIProviderId>(aiConfig.activeProvider);
-  // Never a canned role: the boards are asked for this candidate's own headline/goal, or nothing until they type one.
-  const [query, setQuery] = useState(() => defaultSearchQuery(dna));
-  const [locations, setLocations] = useState(dna.preferredLocations.join(", "));
+  const [queryEdit, setQueryEdit] = useState<string | null>(null);
+  const [locationsEdit, setLocationsEdit] = useState<string | null>(null);
   const [sourceIds, setSourceIds] = useState<string[]>(sources.filter((s) => s.enabled).map((s) => s.id));
   const [threshold, setThreshold] = useState(70);
-  const [advanced, setAdvanced] = useState(() => !defaultSearchQuery(dna));
+  const [more, setMore] = useState(false);
+  const [saveAsGoal, setSaveAsGoal] = useState(() => !dna.careerGoal.trim());
   const [error, setError] = useState<string | null>(null);
 
+  const intent = useMemo(() => deriveSearchIntent(request), [request]);
+  const profileQuery = useMemo(() => defaultSearchQuery(dna), [dna]);
+  const query: { value: string; origin: Origin } = queryEdit != null ? { value: queryEdit.trim(), origin: "you edited" } : intent.query ? { value: intent.query, origin: "your words" } : { value: profileQuery, origin: "your Career Profile" };
+  const locations: { value: string[]; origin: Origin } =
+    locationsEdit != null
+      ? { value: locationsEdit.split(",").map((s) => s.trim()).filter(Boolean), origin: "you edited" }
+      : intent.locations.length
+        ? { value: intent.locations, origin: "your words" }
+        : { value: dna.preferredLocations, origin: "your Career Profile" };
+  const workModes = intent.workModes.length ? intent.workModes : dna.workModes;
+  const goalChanged = request.trim() !== dna.careerGoal.trim();
   const model = useMemo(() => (provider === aiConfig.activeProvider ? aiConfig.activeModel : AI_PROVIDERS[provider].models.find((m) => m.default)?.id ?? AI_PROVIDERS[provider].models[0].id), [provider, aiConfig]);
 
-  // Dictation lands in the same editable box as typing — nothing is committed until Save.
-  const dictation = useDictation({ textAtStart: () => goal, onText: setGoal });
-  const toggleDictation = () => {
-    setEditingGoal(true);
-    dictation.toggle();
-  };
-  const saveGoal = () => {
-    dictation.stop();
-    updateDNA({ careerGoal: goal.trim() });
-    setEditingGoal(false);
-    toast.success("Career goal saved", "It's part of your Career DNA now.");
-  };
-  const cancelGoalEdit = () => {
-    dictation.stop();
-    setGoal(dna.careerGoal);
-    setEditingGoal(false);
-  };
+  const dictation = useDictation({ textAtStart: () => request, onText: setRequest });
+
+  const blocker = activeRun ? null : !request.trim() ? "Tell Wonder what you're looking for." : !query.value ? "Wonder couldn't tell which roles to search for — name a role (e.g. “product manager”), or set it under More options." : sourceIds.length === 0 ? "Pick at least one source under More options." : null;
 
   const start = () => {
     setError(null);
     try {
-      if (goal.trim() !== dna.careerGoal) updateDNA({ careerGoal: goal.trim() });
+      // Only saved to the Career Profile when the candidate ticked it — never silently.
+      if (saveAsGoal && goalChanged) updateDNA({ careerGoal: request.trim() });
       const run = getWorkflowService().startRun({
-        workflowName: `Job Search — ${goal.trim().replace(/^find /i, "").slice(0, 40)}`,
+        workflowName: `Search — ${request.trim().replace(/^(find|search for)\s+/i, "").slice(0, 48)}`,
         config: {
-          careerGoal: goal.trim(),
+          careerGoal: request.trim(),
           automationLevel: level,
           provider: { provider, model, billing: AI_PROVIDERS[provider].billing },
           sourceIds,
-          searchCriteria: { query: query.trim(), locations: locations.split(",").map((s) => s.trim()).filter(Boolean), workModes: dna.workModes, minSalary: dna.minSalary },
+          searchCriteria: { query: query.value, locations: locations.value, workModes, minSalary: dna.minSalary },
           minMatchThreshold: threshold,
           maxResults: 50,
           notify: "strong_matches_only",
         },
       });
-      toast.success("Wonder is on it", "You can pause, stop or step in at any time.");
+      track("find_started", { level, sources: sourceIds.length, locations: locations.value.length, derivedFromWords: query.origin === "your words" });
+      toast.success("Wonder is finding opportunities", "You can pause or stop at any time.");
       router.push(`/app/runs/${run.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start the run.");
+      setError(e instanceof Error ? e.message : "Couldn't start the search.");
     }
   };
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader back={{ href: "/app", label: "Home" }} title="Run Wonder" description="Tell us what you're looking for. Wonder will take care of the rest." />
+      <PageHeader back={{ href: "/app", label: "Home" }} title="Find opportunities with Wonder" description="Tell Wonder what you're looking for in your own words. Wonder handles the rest." />
       {activeRun && (
         <ErrorState
           className="mb-5"
-          title="A run is already active"
-          body={`“${activeRun.workflowName}” is ${activeRun.status.toLowerCase().replace(/_/g, " ")}. Stop it or wait for it to finish before starting another.`}
-          actions={[{ label: "Open active run", href: `/app/runs/${activeRun.id}`, variant: "primary" }]}
+          title="Wonder is already working on a search"
+          body={`“${activeRun.workflowName.replace(/^(Search|Job Search) — /, "")}” is still going. Stop it or wait for it to finish before starting another.`}
+          actions={[{ label: "See progress", href: `/app/runs/${activeRun.id}`, variant: "primary" }]}
         />
       )}
       <div className="flex flex-col gap-4 pb-44 md:pb-0">
         <Card>
-          {/* Title and controls share one row so the goal itself gets the card's full width — as a
-              sibling column the buttons reserved their width down the whole card and wrapped it early. */}
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-[15px] font-semibold text-ink">
-              Career Goal <span className="text-danger-600">*</span>
-            </h2>
-            <div className="-mr-1 flex shrink-0 items-center gap-0.5">
-              {dictation.supported && <DictateButton listening={dictation.listening} onClick={toggleDictation} label="career goal" />}
-              <button type="button" onClick={() => setEditingGoal((v) => !v)} aria-label="Edit career goal" className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
-                <Pencil className="size-4" aria-hidden />
-              </button>
-            </div>
+            <label htmlFor="find-request" className="text-[15px] font-semibold text-ink">
+              What are you looking for?
+            </label>
+            {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
-          <div>
-            {editingGoal ? (
-                <>
-                  <Textarea
-                    autoFocus
-                    value={goal}
-                    onChange={(e) => {
-                      setGoal(e.target.value);
-                      // Typed edits become the new starting point, so later speech follows them.
-                      if (dictation.listening) dictation.rebase(e.target.value);
-                    }}
-                    className="mt-2 min-h-20"
-                    aria-label="Career goal"
-                  />
-                  <p aria-live="polite" className="mt-1.5 min-h-4 text-[12px] text-ink-3">
-                    {dictation.listening ? (dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the roles you want. Edit anything before you save.") : null}
-                  </p>
-                  {dictation.error && (
-                    <p role="alert" className="mt-1 text-[12px] text-danger-600">
-                      {dictation.error}
-                    </p>
-                  )}
-                  {!dictation.supported && <p className="mt-1 text-[12px] text-ink-3">Dictation isn&apos;t available in this browser — type your goal instead.</p>}
-                  <div className="mt-2.5 flex items-center gap-2">
-                    <Button size="sm" onClick={saveGoal} disabled={!goal.trim()}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={cancelGoalEdit}>
-                      Cancel
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="mt-1 text-[14px] text-ink-2">{goal || "Describe the roles you want."}</p>
-              )}
+          <div className="relative mt-2">
+            <Textarea
+              id="find-request"
+              value={request}
+              onChange={(e) => {
+                setRequest(e.target.value);
+                if (dictation.listening) dictation.rebase(e.target.value);
+              }}
+              className="min-h-24 pr-12"
+              placeholder="e.g. Senior Director or VP roles in IAM and Identity Security in Mumbai, Singapore or remote, preferably fintech"
+            />
+            <button type="button" onClick={start} disabled={!!activeRun || !!blocker} aria-label="Find opportunities" className="absolute bottom-3 right-3 flex size-9 items-center justify-center rounded-[10px] bg-brand-500 text-white transition-opacity disabled:opacity-40">
+              <ArrowRight className="size-4" aria-hidden />
+            </button>
           </div>
-        </Card>
-
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-ink">Automation Level</h2>
-            <Link href="/app/automation/settings" className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-600 hover:underline">
-              <Info className="size-3.5" aria-hidden /> What&apos;s this?
-            </Link>
-          </div>
-          <AutomationLevelSelector value={level} onChange={setLevel} />
-          <p className="mt-3 text-[12px] text-ink-3">Whatever you choose, high-risk actions like submitting an application always follow your Automation Settings.</p>
-        </Card>
-
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold text-ink">AI Provider</h2>
-            <Link href="/app/settings/ai" className="text-[12px] font-medium text-brand-600 hover:underline">
-              Learn more
-            </Link>
-          </div>
-          <ProviderSelector config={aiConfig} value={provider} onChange={setProvider} />
-        </Card>
-
-        <Card>
-          <button type="button" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced} className="flex w-full items-center justify-between text-left">
-            <h2 className="text-[15px] font-semibold text-ink">Search details</h2>
-            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-600">
-              {advanced ? "Hide" : "Edit"}
-              {advanced ? <ChevronUp className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
-            </span>
-          </button>
-          {!advanced && (
-            <p className="mt-1 text-[13px] text-ink-3">
-              “{query}” in {locations || "any location"} · {sourceIds.length} of {sources.length} sources · min match {threshold}
+          {dictation.listening && <p aria-live="polite" className="mt-1.5 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — describe the roles you want."}</p>}
+          {dictation.error && (
+            <p role="alert" className="mt-1 text-[12px] text-danger-600">
+              {dictation.error}
             </p>
           )}
-          {advanced && (
+
+          <p className="mt-4 text-[12px] font-medium text-ink-3">Try an example</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {EXAMPLES.map((ex) => (
+              <Chip key={ex} onClick={() => setRequest(ex)}>
+                {ex}
+              </Chip>
+            ))}
+          </div>
+
+          {request.trim() && (
+            <div className="mt-5 rounded-[14px] bg-surface-2 p-3.5" aria-live="polite">
+              <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-3">
+                <Sparkles className="size-3.5" aria-hidden /> Wonder will search for
+              </p>
+              <dl className="mt-2 grid gap-1.5 text-[13px]">
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-ink-3">Roles</dt>
+                  <dd className="font-medium text-ink">{query.value ? `“${query.value}”` : "— not clear yet"}</dd>
+                  {query.value && <dd className="text-ink-4">from {query.origin}</dd>}
+                </div>
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-ink-3">Where</dt>
+                  <dd className="font-medium text-ink">{locations.value.length ? locations.value.join(", ") : "Anywhere"}</dd>
+                  {locations.value.length > 0 && <dd className="text-ink-4">from {locations.origin}</dd>}
+                </div>
+                {intent.industries.length > 0 && (
+                  <div className="flex flex-wrap gap-x-2">
+                    <dt className="text-ink-3">Industry preference</dt>
+                    <dd className="font-medium text-ink">{intent.industries.join(", ")}</dd>
+                    <dd className="text-ink-4">weighed in each match, not a filter</dd>
+                  </div>
+                )}
+              </dl>
+              {goalChanged && (
+                <label className="mt-3 flex items-start gap-2 text-[12px] text-ink-2">
+                  <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand-600)]" checked={saveAsGoal} onChange={(e) => setSaveAsGoal(e.target.checked)} />
+                  <span>Also save this as my career goal in my Career Profile</span>
+                </label>
+              )}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[15px] font-semibold text-ink">How much should Wonder handle?</h2>
+            <Link href="/app/automation/settings" className="text-[12px] font-medium text-brand-600 hover:underline">
+              What Wonder can do
+            </Link>
+          </div>
+          <AutomationLevelSelector value={level} onChange={setLevel} layout="grid" />
+        </Card>
+
+        <Card>
+          <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} className="flex w-full items-center justify-between text-left">
+            <h2 className="text-[15px] font-semibold text-ink">More options</h2>
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-600">
+              {more ? "Hide" : "Show"}
+              {more ? <ChevronUp className="size-3.5" aria-hidden /> : <ChevronDown className="size-3.5" aria-hidden />}
+            </span>
+          </button>
+          {!more && (
+            <p className="mt-1 text-[13px] text-ink-3">
+              {sourceIds.length} of {sources.length} sources · minimum match {threshold} · {AI_PROVIDERS[provider].name}
+            </p>
+          )}
+          {more && (
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Search query" htmlFor="q" required hint={query.trim() ? "What the job boards are asked for — suggested from your Career DNA, edit freely." : "What the job boards are asked for, e.g. “engineering director” or “product manager”. Add a headline to your Career DNA and Wonder will suggest this next time."}>
-                <Input id="q" value={query} onChange={(e) => setQuery(e.target.value)} required placeholder="e.g. engineering director" />
+              <Field label="Search terms" htmlFor="q" hint="What the job boards are asked for. Edit to override what Wonder read from your words.">
+                <Input id="q" value={queryEdit ?? query.value} onChange={(e) => setQueryEdit(e.target.value)} placeholder="e.g. engineering director" />
               </Field>
               <Field label="Locations" htmlFor="loc" hint="Comma-separated">
-                <Input id="loc" value={locations} onChange={(e) => setLocations(e.target.value)} />
+                <Input id="loc" value={locationsEdit ?? locations.value.join(", ")} onChange={(e) => setLocationsEdit(e.target.value)} />
               </Field>
-              <Field label={`Minimum match score: ${threshold}`} htmlFor="thr" className="sm:col-span-2" hint="How closely a role must match your Career DNA (0–100) to be worth showing. 70 is a good starting point.">
+              <Field label={`Minimum match: ${threshold}`} htmlFor="thr" className="sm:col-span-2" hint="How closely a role must fit your Career Profile (0–100) to make the shortlist. 70 is a good start.">
                 <input id="thr" type="range" min={50} max={95} step={5} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="w-full accent-brand-500" />
               </Field>
               <div className="sm:col-span-2">
                 <p className="mb-2 text-[13px] font-medium text-ink-2">Sources</p>
-                <p className="mb-2 text-[12px] text-ink-3">Live public job feeds and company career pages. Wonder reads each posting and scores it against your Career DNA.</p>
+                <p className="mb-2 text-[12px] text-ink-3">Live public job feeds and company career pages.</p>
                 <div className="flex flex-wrap gap-2">
                   {sources.map((s) => {
                     const blocked = s.requiresSetup && s.available === false;
@@ -212,24 +233,31 @@ export default function RunSetupPage() {
                   })}
                 </div>
               </div>
+              <div className="sm:col-span-2">
+                <p className="mb-2 text-[13px] font-medium text-ink-2">AI provider</p>
+                <ProviderSelector config={aiConfig} value={provider} onChange={setProvider} />
+              </div>
             </div>
           )}
         </Card>
 
-        {error && <ErrorState title="Couldn't start the run" body={error} />}
+        {error && <ErrorState title="Couldn't start the search" body={error} />}
       </div>
-      {/* A genuinely fixed bar, not `sticky` inside the scrolling card stack — sticky here let the
-          button paint over the AI Provider/Search details cards near the end of the page once its
-          natural position was within one viewport of the bottom. `pb-44` above reserves real space
-          so scrolled content never ends up underneath this bar on mobile. */}
-      <div className="fixed inset-x-0 bottom-[var(--wj-mobile-nav-h)] z-10 bg-bg px-4 pb-4 pt-3 md:static md:bg-transparent md:p-0">
-        <Button size="xl" full onClick={start} disabled={!!activeRun || !goal.trim() || !query.trim() || sourceIds.length === 0}>
-          Continue
+      {/* Fixed (not sticky) so it never paints over the cards above; `pb-44` reserves its space on mobile. */}
+      <div className="fixed inset-x-0 bottom-[var(--wj-mobile-nav-h)] z-10 bg-bg px-4 pb-4 pt-3 md:static md:mt-4 md:bg-transparent md:p-0">
+        <Button size="xl" full onClick={start} disabled={!!activeRun || !!blocker}>
+          Find opportunities
         </Button>
-        {!activeRun && !goal.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a career goal to continue.</p>}
-        {!activeRun && goal.trim() && !query.trim() && <p className="mt-2 text-center text-[12px] text-ink-3">Add a search query under Search details to continue.</p>}
-        {!activeRun && goal.trim() && query.trim() && sourceIds.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">Pick at least one source under Search details to continue.</p>}
+        {blocker && <p className="mt-2 text-center text-[12px] text-ink-3">{blocker}</p>}
       </div>
     </div>
+  );
+}
+
+export default function FindPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <FindInner />
+    </Suspense>
   );
 }

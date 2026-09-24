@@ -1,5 +1,5 @@
 "use client";
-import { Search, Play } from "lucide-react";
+import { Search } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
@@ -51,11 +51,11 @@ export default function HomePage() {
             <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-ink">What deserves your attention today?</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button href="/app/runs/new" icon={<Play className="size-4" aria-hidden />}>
-              Run Wonder
+            <Button href="/app/runs/new" icon={<Search className="size-4" aria-hidden />}>
+              Find opportunities
             </Button>
             <Button href="/app/jobs" variant="outline" icon={<Search className="size-4" aria-hidden />}>
-              Search Jobs
+              Browse jobs
             </Button>
           </div>
         </div>

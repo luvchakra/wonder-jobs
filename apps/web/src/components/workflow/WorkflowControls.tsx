@@ -11,8 +11,12 @@ import { Select, Field } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 
-/** Pause / Resume / Stop / Restart current stage / Rerun from stage (spec §9). */
-export function WorkflowControls({ run, className }: { run: WorkflowRun; className?: string }) {
+/**
+ * Pause / Resume / Stop / Restart current stage / Rerun from stage (spec §9). `advanced` renders only
+ * the stage-level controls, for "See how Wonder worked" — the candidate-facing pause/continue/stop
+ * live on the run's outcome card, so they're never shown twice.
+ */
+export function WorkflowControls({ run, className, advanced = false }: { run: WorkflowRun; className?: string; advanced?: boolean }) {
   const router = useRouter();
   const svc = getWorkflowService();
   const [rerunOpen, setRerunOpen] = useState(false);
@@ -41,17 +45,17 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
   return (
     <div className={className}>
       <div className="flex flex-wrap gap-2">
-        {run.status === "RUNNING" && (
+        {!advanced && run.status === "RUNNING" && (
           <Button size="sm" variant="outline" icon={<Pause className="size-3.5" aria-hidden />} onClick={() => act(() => svc.pause(run.id), "Paused")}>
             Pause
           </Button>
         )}
-        {run.status === "PAUSED" && (
+        {!advanced && run.status === "PAUSED" && (
           <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.resume(run.id), "Resumed")}>
             Resume
           </Button>
         )}
-        {run.status === "WAITING_FOR_USER" && (
+        {!advanced && run.status === "WAITING_FOR_USER" && (
           <Button size="sm" icon={<Play className="size-3.5" aria-hidden />} onClick={() => act(() => svc.continue(run.id))}>
             {pendingActions ? `Continue without ${pendingActions} pending` : "Continue"}
           </Button>
@@ -61,12 +65,14 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
             <Button size="sm" variant="outline" icon={<RotateCcw className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => svc.restartStage(run.id), "Restarting the current stage")}>
               Restart stage
             </Button>
-            <Button size="sm" variant="danger" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => svc.stop(run.id), "Stopping — finishing the current step safely")}>
-              Stop
-            </Button>
+            {!advanced && (
+              <Button size="sm" variant="danger" icon={<Square className="size-3.5" aria-hidden />} disabled={run.status === "STOPPING"} onClick={() => act(() => svc.stop(run.id), "Stopping — finishing the current step safely")}>
+                Stop
+              </Button>
+            )}
           </>
         )}
-        {run.status === "PENDING" && (
+        {!advanced && run.status === "PENDING" && (
           <Button size="sm" variant="danger" onClick={() => act(() => svc.cancel(run.id), "Cancelled")}>
             Cancel
           </Button>
@@ -77,7 +83,7 @@ export function WorkflowControls({ run, className }: { run: WorkflowRun; classNa
           </Button>
         )}
       </div>
-      {run.status === "WAITING_FOR_USER" && !!pendingActions && (
+      {!advanced && run.status === "WAITING_FOR_USER" && !!pendingActions && (
         <p className="mt-2 text-[12px] text-warning-600">Continuing now records {pendingActions} pending approval{pendingActions === 1 ? "" : "s"} as not approved — they won&apos;t be submitted.</p>
       )}
       <Modal

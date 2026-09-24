@@ -120,6 +120,13 @@ describe("describeRun — every state answers what Wonder did, what it needs, an
     expect(e.nextActions.map((a) => a.kind)).toEqual(["pause", "stop"]);
   });
 
+  it("while preparing: says what was found and that packs are being prepared, from real counts", () => {
+    const r = run({ status: "RUNNING", currentStage: "prepare", summary: { ...emptySummary(), jobsDiscovered: 247, jobsRetained: 162 }, stages: [...FIND.slice(0, 4).map((k) => stage(k)), stage("match", "COMPLETED", { strong: 97 }), stage("quality"), stage("rank"), stage("prepare", "RUNNING")] });
+    const e = describeRun(r);
+    expect(e.title).toBe("Wonder is preparing your applications");
+    expect(e.summary).toBe("Found 162 opportunities, 97 strong. Now preparing application packs for your top matches.");
+  });
+
   it("while waiting: says Wonder needs your input and passes the stage's own reason through verbatim", () => {
     const r = run({ status: "WAITING_FOR_USER", currentStage: "review", stages: [stage("review", "WAITING_FOR_USER", {}, { waitingReason: "3 application packs are ready for your review." })] });
     const e = describeRun(r);
@@ -151,6 +158,14 @@ describe("describeRun — every state answers what Wonder did, what it needs, an
     expect(e.state).toBe("stopped");
     expect(e.summary).toBe("Everything already found is still available.");
     expect(e.breakdown).toBeUndefined();
+  });
+
+  it("when nothing matched: an empty result with a way forward, not a breakdown", () => {
+    const e = describeRun(run({ status: "FAILED", error: { category: "user_action_required", message: "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] } }));
+    expect(e.title).toBe("No jobs matched this search");
+    expect(e.summary).toBe("None of the 3 sources had jobs for “iam director” in Mumbai. Try a broader role, other locations or more sources.");
+    expect(e.tone).toBe("warning");
+    expect(e.nextActions[0]).toMatchObject({ label: "Change the search", primary: true });
   });
 
   it("when failed: names the real error and keeps what was found", () => {
