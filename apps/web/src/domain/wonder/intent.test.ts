@@ -59,3 +59,44 @@ describe("parseWonderIntent — deterministic, no model call", () => {
     expect(parseWonderIntent("remote React roles").type).toBe("search_jobs");
   });
 });
+
+describe("parseWonderIntent — outcome intents (outcome spec §40)", () => {
+  it("recognizes today's priorities without stealing the attention question", () => {
+    expect(parseWonderIntent("What should I focus on today?").type).toBe("today_priorities");
+    expect(parseWonderIntent("summarize today's priorities").type).toBe("today_priorities");
+    expect(parseWonderIntent("what needs my attention today").type).toBe("applications_attention");
+  });
+
+  it("recognizes application progress", () => {
+    expect(parseWonderIntent("Show my application progress").type).toBe("application_progress");
+    expect(parseWonderIntent("how are my applications going").type).toBe("application_progress");
+    expect(parseWonderIntent("show my applications").type).toBe("application_progress");
+  });
+
+  it("recognizes search again and keeps only the candidate's own words as the subject", () => {
+    expect(parseWonderIntent("Search again with Director roles")).toEqual({ type: "find_opportunities", subject: "Director roles" });
+    expect(parseWonderIntent("find me jobs in fintech")).toEqual({ type: "find_opportunities", subject: "fintech" });
+    expect(parseWonderIntent("search again")).toEqual({ type: "find_opportunities", subject: "" });
+  });
+
+  it("recurring phrasing still wins over a one-off search", () => {
+    expect(parseWonderIntent("search for backend engineer roles every day").type).toBe("create_schedule");
+  });
+
+  it("recognizes changing search preferences", () => {
+    expect(parseWonderIntent("change my location preferences").type).toBe("change_preferences");
+    expect(parseWonderIntent("update my salary").type).toBe("change_preferences");
+  });
+
+  it("recognizes explain-a-job and extracts the job subject", () => {
+    expect(parseWonderIntent("Why is the Razorpay role a good match?")).toEqual({ type: "explain_job", subject: "the Razorpay role" });
+    expect(parseWonderIntent("explain the Google job")).toEqual({ type: "explain_job", subject: "the Google job" });
+    expect(parseWonderIntent("why isn't the Google PM role showing").type).toBe("explain_why_not_shown");
+  });
+
+  it("recognizes prepare-the-strongest without confusing it with a named job", () => {
+    expect(parseWonderIntent("Prepare the strongest two").type).toBe("prepare_strongest");
+    expect(parseWonderIntent("prepare applications for my top matches").type).toBe("prepare_strongest");
+    expect(parseWonderIntent("prepare an application for Stripe").type).toBe("prepare_application");
+  });
+});

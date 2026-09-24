@@ -9,7 +9,20 @@
  * phrase means and what's left of the phrase once the intent words are stripped out.
  */
 
-export type WonderIntentType = "missing_skills" | "applications_attention" | "career_headline" | "create_schedule" | "explain_why_not_shown" | "prepare_application" | "search_jobs";
+export type WonderIntentType =
+  | "today_priorities"
+  | "application_progress"
+  | "missing_skills"
+  | "applications_attention"
+  | "career_headline"
+  | "create_schedule"
+  | "change_preferences"
+  | "find_opportunities"
+  | "explain_why_not_shown"
+  | "explain_job"
+  | "prepare_strongest"
+  | "prepare_application"
+  | "search_jobs";
 
 export interface WonderIntent {
   type: WonderIntentType;
@@ -25,6 +38,14 @@ interface Rule {
 }
 
 const RULES: Rule[] = [
+  {
+    type: "today_priorities",
+    test: /\b(focus on|priorit(?:y|ies|ise|ize)|what should i (?:do|work on))\b/i,
+  },
+  {
+    type: "application_progress",
+    test: /\bapplications?\b.*\b(progress|status|going|stand)\b|\b(progress|status)\b.*\bapplications?\b|^show (?:me )?my applications?\b/i,
+  },
   {
     type: "career_headline",
     test: /\b(linkedin|headline)\b.*\b(improve|update|fix|rewrite|write|better)\b|\b(improve|update|fix|rewrite|write|better)\b.*\b(linkedin|headline)\b/i,
@@ -46,9 +67,27 @@ const RULES: Rule[] = [
     ],
   },
   {
+    type: "change_preferences",
+    test: /\b(change|update|edit|adjust)\b.*\b(preferences?|locations?|salary|pay|work mode|industr(?:y|ies)|seniority)\b/i,
+  },
+  {
+    type: "find_opportunities",
+    test: /^(?:search again|run (?:the |my )?search again|new search|find (?:me )?(?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b/i,
+    strip: [/^(?:search again|run (?:the |my )?search again|new search|find (?:me )?(?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b\s*(?:with|for|in|as|:)?\s*/i],
+  },
+  {
     type: "explain_why_not_shown",
     test: /\bwhy\b.*\b(isn'?t|is not|can'?t|cannot|wasn'?t|not)\b.*\b(show(?:ing)?|see|find|filtered|hidden)\b/i,
     strip: [/^why\s+(?:isn'?t|is not|can'?t|cannot|wasn'?t|not)\s+(?:i\s+)?(?:see|find)?\s*/i, /\s+(?:show(?:ing)?|shown|filtered|hidden)\??$/i],
+  },
+  {
+    type: "explain_job",
+    test: /^explain\b|\bwhy\b.*\b(good|strong|great|recommended|surfaced|suggested)\b|\bwhy (?:does|did|is|was)\b.*\b(match|fit)\b/i,
+    strip: [/^(?:explain|why (?:is|was|does|did))\s+/i, /\s+(?:(?:a|such a)\s+)?(?:good|strong|great)?\s*(?:match|fit|recommended|surfaced|suggested)(?:\s+for me)?\??$/i, /\?$/],
+  },
+  {
+    type: "prepare_strongest",
+    test: /\b(prepare|draft|start)\b.*\b(strongest|top|best)\b/i,
   },
   {
     type: "prepare_application",

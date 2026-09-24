@@ -7,7 +7,8 @@
 import type { CareerDNA } from "@/domain/career/types";
 import type { Application } from "@/domain/applications/types";
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
-import { computeApplicationAttention } from "@/domain/career/attention";
+import { computeApplicationAttention, computeProgressSummary } from "@/domain/career/attention";
+import { describeDecision } from "@/domain/jobs/decision";
 import { explainJobVisibility, FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
 import { computeMissingSkills, findJobBySubject } from "./insights";
 import { parseWonderIntent } from "./intent";
@@ -38,9 +39,83 @@ function lookFrequencyFor(raw: string): "daily" | "weekly" | "keep_watch" {
   return "daily";
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+
+/** Strong matches the candidate hasn't rejected or started a pack for, best first. */
+function openStrongMatches(ctx: WonderContext): CanonicalJob[] {
+  const withPack = new Set(Object.values(ctx.applications).map((a) => a.jobId));
+  return ctx.jobsOrder
+    .map((id) => ctx.jobs[id])
+    .filter((j): j is CanonicalJob => !!j && ctx.matches[j.id]?.fit === "strong" && !ctx.rejected[j.id] && !withPack.has(j.id))
+    .sort((a, b) => ctx.matches[b.id].score - ctx.matches[a.id].score);
+}
+
 export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderAction | null {
   const intent = parseWonderIntent(raw);
   switch (intent.type) {
+    case "today_priorities": {
+      const attention = computeApplicationAttention(ctx.applications, ctx.now);
+      // Only strong matches posted in the last week count as today's work — the whole catalog of
+      // strong matches is real but isn't a priority list.
+      const strong = openStrongMatches(ctx).filter((j) => ctx.now - Date.parse(j.postedAt) <= 7 * 86_400_000).length;
+      const parts = [...(attention.length ? [`${plural(attention.length, "application needs", "applications need")} you`] : []), ...(strong ? [`${plural(strong, "new strong match", "new strong matches")} this week`] : [])];
+      return {
+        id: "wonder-today",
+        label: parts.length ? `Today: ${parts.join(" · ")}` : "Nothing needs your attention today",
+        hint: attention.length ? attention.slice(0, 2).map((i) => i.label).join(" · ") : parts.length ? undefined : "Start a search when you're ready.",
+        href: "/app",
+      };
+    }
+    case "application_progress": {
+      const p = computeProgressSummary(ctx.applications, ctx.now);
+      const parts = [
+        ...(p.active ? [plural(p.active, "application active", "applications active")] : []),
+        ...(p.interviewsThisWeek ? [plural(p.interviewsThisWeek, "interview this week", "interviews this week")] : []),
+        ...(p.followUpsDue ? [plural(p.followUpsDue, "follow-up due", "follow-ups due")] : []),
+        ...(p.employerReplies ? [plural(p.employerReplies, "employer replied", "employers replied")] : []),
+      ];
+      return { id: "wonder-progress", label: parts.length ? parts.join(" · ") : "No active applications yet", href: "/app/applications" };
+    }
+    case "change_preferences":
+      return {
+        id: "wonder-preferences",
+        label: "Change your search preferences",
+        hint: "Locations, work modes, pay, seniority and industries live in your Career Profile — your next search uses them.",
+        href: "/app/career-dna",
+      };
+    case "find_opportunities": {
+      const q = intent.subject;
+      return {
+        id: "wonder-find",
+        label: q ? `Find opportunities: “${q}”` : "Search again",
+        hint: "You'll see exactly what Wonder will search for before it starts.",
+        href: q ? `/app/runs/new?q=${encodeURIComponent(q)}` : "/app/runs/new",
+      };
+    }
+    case "explain_job": {
+      const job = findJobBySubject(ctx.jobsOrder, ctx.jobs, intent.subject);
+      if (!job) return null;
+      const d = describeDecision(job, ctx.matches[job.id], undefined);
+      return {
+        id: "wonder-explain",
+        label: `Why Wonder surfaced ${job.title} · ${job.company}`,
+        hint: d.why.length ? d.why.slice(0, 2).join(" · ") : "See how it lines up with your Career Profile.",
+        href: `/app/jobs/${job.id}?tab=why`,
+      };
+    }
+    case "prepare_strongest": {
+      const open = openStrongMatches(ctx);
+      if (!open.length) return { id: "wonder-prepare-top", label: "No strong matches without a pack right now", hint: "Every strong match already has an Application Pack, or none were found yet.", href: "/app/applications" };
+      const asked = /\b(\d)\b/.exec(raw)?.[1] ?? Object.keys(NUMBER_WORDS).find((w) => new RegExp(`\\b${w}\\b`, "i").test(raw));
+      const top = asked ? open.slice(0, Number(asked) || NUMBER_WORDS[asked as string]) : open;
+      return {
+        id: "wonder-prepare-top",
+        label: `Prepare packs for ${top.length === 1 ? "your strongest match" : `your ${top.length} strongest matches`}`,
+        hint: `${top.map((j) => `${j.title} · ${j.company}`).join(" · ")} — Wonder prepares; nothing is sent to an employer.`,
+        href: "/app/jobs?fit=strong",
+      };
+    }
     case "career_headline":
       return {
         id: "wonder-headline",

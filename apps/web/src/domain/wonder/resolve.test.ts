@@ -106,3 +106,55 @@ describe("resolveWonderQuery", () => {
     expect(r).toBeNull();
   });
 });
+
+describe("resolveWonderQuery — outcome intents", () => {
+  const app = (id: string, jobId: string, status: Application["status"]): Application => ({ id, jobId, status, createdAt: new Date(NOW).toISOString(), artifacts: [], events: [], followUps: [], submissionKey: `submit:${jobId}:me` });
+  const strongCtx = () =>
+    baseCtx({
+      jobsOrder: ["a", "b", "c", "d"],
+      jobs: { a: job("a", { company: "Alpha" }), b: job("b", { company: "Beta" }), c: job("c", { company: "Gamma" }), d: job("d", { company: "Delta" }) },
+      matches: { a: { ...match("a"), score: 70 }, b: { ...match("b"), score: 90 }, c: { ...match("c"), score: 85 }, d: match("d", "worth_considering") },
+    });
+
+  it("today's priorities counts only real open strong matches and applications", () => {
+    const empty = resolveWonderQuery("What should I focus on today?", baseCtx());
+    expect(empty?.label).toBe("Nothing needs your attention today");
+    const r = resolveWonderQuery("What should I focus on today?", { ...strongCtx(), applications: { x: app("x", "a", "preparing") } });
+    expect(r?.label).toContain("2 new strong matches this week");
+    expect(r?.href).toBe("/app");
+  });
+
+  it("application progress says so when there is nothing active — never an invented count", () => {
+    expect(resolveWonderQuery("Show my application progress", baseCtx())?.label).toBe("No active applications yet");
+    const r = resolveWonderQuery("Show my application progress", baseCtx({ applications: { x: app("x", "a", "submitted"), y: app("y", "b", "interview") } }));
+    expect(r?.label).toBe("2 applications active");
+    expect(r?.href).toBe("/app/applications");
+  });
+
+  it("search again carries only the candidate's words to the Find entry", () => {
+    expect(resolveWonderQuery("Search again with Director roles", baseCtx())?.href).toBe("/app/runs/new?q=Director%20roles");
+    // No subject → the Find entry, which prefills from Career Profile or asks; never a placeholder query.
+    expect(resolveWonderQuery("search again", baseCtx())?.href).toBe("/app/runs/new");
+  });
+
+  it("explain a job opens its Why tab with the real reasons", () => {
+    const ctx = baseCtx({ jobsOrder: ["a"], jobs: { a: job("a", { company: "Razorpay" }) }, matches: { a: { ...match("a"), reasons: [{ dimension: "skills", label: "Skills", score: 0.9, summary: "" }] } } });
+    const r = resolveWonderQuery("Why is the Razorpay role a good match?", ctx);
+    expect(r?.href).toBe("/app/jobs/a?tab=why");
+    expect(r?.hint).toBe("Strong overlap with your skills");
+    expect(resolveWonderQuery("explain the Nowhere job", ctx)).toBeNull();
+  });
+
+  it("prepare the strongest two picks the two best open strong matches and never claims to send anything", () => {
+    const r = resolveWonderQuery("Prepare the strongest two", strongCtx());
+    expect(r?.label).toBe("Prepare packs for your 2 strongest matches");
+    expect(r?.hint).toMatch(/^Product Manager · Beta · Product Manager · Gamma/);
+    expect(r?.hint).toMatch(/nothing is sent to an employer/);
+    const none = resolveWonderQuery("Prepare the strongest two", baseCtx());
+    expect(none?.label).toMatch(/No strong matches/);
+  });
+
+  it("change preferences points at Career Profile", () => {
+    expect(resolveWonderQuery("change my location preferences", baseCtx())?.href).toBe("/app/career-dna");
+  });
+});

@@ -1,6 +1,7 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock, Wallet } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
@@ -40,7 +41,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const unsave = useJobsStore((s) => s.unsave);
   const application = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === id));
   const openPack = usePrepareApplication();
-  const [tab, setTab] = useState<Tab>("overview");
+  // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
+  const requestedTab = useSearchParams().get("tab");
+  const [tab, setTab] = useState<Tab>(requestedTab === "why" || requestedTab === "company" || requestedTab === "sources" ? requestedTab : "overview");
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!job) return;

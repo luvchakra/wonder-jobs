@@ -10,6 +10,7 @@ import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
 import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV } from "./nav";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 
 interface Command {
@@ -70,8 +71,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     onClose();
   };
   const go = (c: Command) => {
+    // Only the action id is recorded — never the typed text (analytics carries no free text).
+    if (c.id.startsWith("wonder-")) track("wonder_intent_submitted", { intent: c.id });
     close();
     router.push(c.href);
+    if (c.id.startsWith("wonder-")) track("wonder_action_completed", { intent: c.id, action: "navigate" });
   };
   return (
     <Modal open={open} onClose={close} title="Ask Wonder" description="Search jobs, ask a real question about your search or applications, or jump to a page.">
@@ -89,9 +93,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
             setIdx((i) => Math.max(0, i - 1));
-          } else if (e.key === "Enter" && filtered[idx]) go(filtered[idx]);
+          } else if (e.key === "Enter" && filtered[idx]) {
+            // Without this the same keypress lands on the trigger button that regains focus when the
+            // dialog closes, and reopens the palette.
+            e.preventDefault();
+            go(filtered[idx]);
+          }
         }}
-        placeholder="e.g. “why isn't the Stripe job showing”, or search jobs…"
+        placeholder="e.g. “What should I focus on today?” or “Search again with Director roles”"
         aria-label="Command"
         role="combobox"
         aria-expanded="true"
