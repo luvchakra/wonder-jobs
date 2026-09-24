@@ -138,11 +138,11 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   const score = Math.round(Math.max(20, Math.min(openTo === false ? 74 : 96, raw * 100 - learned.points)));
 
   const reasons: AlignmentReason[] = [
-    { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of ${job.skills.length} listed skills match your Career DNA (${overlap.slice(0, 3).join(", ")}).` : "Few of the listed skills appear in your Career DNA." },
+    { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of your skills appear in this posting (${overlap.slice(0, 3).join(", ")}).` : "Few of your skills appear in this posting." },
     { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? "Same level as your current role." : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above your current role." : "Below your current level." },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
     { dimension: "career_goal", label: "Career-goal alignment", score: goalScore, summary: goalHits ? "The role title matches your stated career goal." : "The role is adjacent to your stated goal." },
-    { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career DNA to sharpen this." : `${job.location} is outside your preferred locations.` },
+    { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career Profile to sharpen this." : `${job.location} is outside your preferred locations.` },
     { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
   ];
 

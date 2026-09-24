@@ -9,12 +9,18 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { FitLabel } from "./MatchBadge";
 import { JobQualityBadge } from "./JobQualityBadge";
+import { JobDecision } from "./JobDecision";
+import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
 export function companyColor(name: string) {
   return COMPANIES.find((c) => c.name === name)?.color;
 }
 
-export function JobCard({ job, match, quality, saved, onToggleSave, onReject, compact = false, className, status }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string }) {
+/**
+ * `decision` adds the outcome view (outcome spec §9): why Wonder surfaced it, things to consider,
+ * and the next suggestion, with Prepare and Compare actions when their handlers are given.
+ */
+export function JobCard({ job, match, quality, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
@@ -77,7 +83,25 @@ export function JobCard({ job, match, quality, saved, onToggleSave, onReject, co
         ))}
         {status && <Badge tone="info">{status}</Badge>}
       </div>
-      <p className="mt-3 text-[12px] text-ink-4">{relativeTime(job.postedAt)}</p>
+      {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12px] text-ink-4">{relativeTime(job.postedAt)}</p>
+        {(onPrepare || onToggleCompare) && (
+          <div className="relative z-10 flex items-center gap-2">
+            {onToggleCompare && (
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 text-[12px] font-medium text-ink-3 hover:bg-bg-soft">
+                <input type="checkbox" className="size-3.5 accent-[var(--color-brand-600)]" checked={!!compareSelected} onChange={onToggleCompare} aria-label={`Compare ${job.title} at ${job.company}`} />
+                Compare
+              </label>
+            )}
+            {onPrepare && decision && decision.next.kind !== "track" && decision.next.kind !== "skip" && (
+              <button type="button" onClick={onPrepare} aria-label={`${decision.next.kind === "review_pack" ? "Review" : decision.next.kind === "continue_pack" ? "Continue" : "Prepare"} the application for ${job.title} at ${job.company}`} className="rounded-full bg-brand-50 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-100">
+                {decision.next.kind === "review_pack" ? "Review" : decision.next.kind === "continue_pack" ? "Continue" : "Prepare"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </article>
   );
 }

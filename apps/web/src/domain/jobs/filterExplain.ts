@@ -102,3 +102,19 @@ export function explainJobVisibility(
   const reason = firstFailedReason(job, matches[job.id], rejected[job.id], !!saved[job.id], filters, terms, now);
   return { inCatalog: true, visible: !reason, reason };
 }
+
+/**
+ * The two ways out of "why isn't this showing?" (outcome spec §11), per reason: show it anyway
+ * (clear just that filter, or undo the rejection) or go change the preference behind it. Only the
+ * one filter responsible is cleared — never every preference at once.
+ */
+export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFilters> | "unreject"; preference: { label: string; href: string } }> = {
+  rejected: { showAnyway: "unreject", preference: { label: "Review what Wonder learned", href: "/app/career-dna" } },
+  not_saved: { showAnyway: { onlySaved: false }, preference: { label: "See all jobs", href: "/app/jobs" } },
+  work_mode: { showAnyway: { workModes: [] }, preference: { label: "Change work modes", href: "/app/career-dna" } },
+  source: { showAnyway: { sourceIds: [] }, preference: { label: "Change sources", href: "/app/jobs" } },
+  min_fit: { showAnyway: { minFit: null }, preference: { label: "Change minimum fit", href: "/app/jobs" } },
+  freshness: { showAnyway: { freshnessDays: null }, preference: { label: "Change how recent", href: "/app/jobs" } },
+  min_salary: { showAnyway: { minSalary: undefined }, preference: { label: "Change minimum salary", href: "/app/career-dna" } },
+  search_text: { showAnyway: { query: "" }, preference: { label: "Change the search", href: "/app/jobs" } },
+};

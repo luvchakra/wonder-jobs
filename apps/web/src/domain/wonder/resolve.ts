@@ -76,7 +76,8 @@ export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderActio
       const result = explainJobVisibility(job, ctx.matches, ctx.rejected, ctx.saved, ctx.filters, ctx.now);
       if (!result.inCatalog) return { id: "wonder-why", label: `"${intent.subject || raw}" isn't in your current search results`, hint: "It may not have been discovered yet, or it's from an earlier run. Try a new search.", href: `/app/jobs?q=${encodeURIComponent(intent.subject)}` };
       if (result.visible) return { id: "wonder-why", label: `${job!.title} · ${job!.company} is already visible`, hint: "It isn't hidden by any of your active filters.", href: `/app/jobs/${job!.id}` };
-      return { id: "wonder-why", label: `Hidden because it's ${FILTER_REASON_LABEL[result.reason!]}`, hint: `${job!.title} · ${job!.company}`, href: "/app/jobs" };
+      // The job page shows the same reason with "Show it anyway" / "Change preference".
+      return { id: "wonder-why", label: `Hidden because it's ${FILTER_REASON_LABEL[result.reason!]}`, hint: `${job!.title} · ${job!.company} — open it to show it anyway or change the preference`, href: `/app/jobs/${job!.id}` };
     }
     case "prepare_application": {
       const job = findJobBySubject(ctx.jobsOrder, ctx.jobs, intent.subject);

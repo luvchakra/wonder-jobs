@@ -1,6 +1,5 @@
 "use client";
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock, Wallet } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
@@ -22,13 +21,16 @@ import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
 import { companyColor } from "@/components/jobs/JobCard";
 import { toast } from "@/components/feedback/Toast";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
+import { JobDecision } from "@/components/jobs/JobDecision";
+import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
+import { describeDecision } from "@/domain/jobs/decision";
+import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { cn } from "@/lib/cn";
 
 type Tab = "overview" | "why" | "company" | "sources";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
   const job = useJobsStore((s) => s.jobs[id]);
   const match = useJobsStore((s) => s.matches[id]);
   const quality = useJobsStore((s) => s.quality[id]);
@@ -37,11 +39,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
   const application = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === id));
-  const createApp = useApplicationsStore((s) => s.create);
+  const openPack = usePrepareApplication();
   const [tab, setTab] = useState<Tab>("overview");
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
-    if (job) track("job_viewed", { jobId: job.id, fit: match?.fit });
+    if (!job) return;
+    track("job_viewed", { jobId: job.id, fit: match?.fit });
+    track("opportunity_viewed", { jobId: job.id, fit: match?.fit });
   }, [job, match?.fit]);
 
   if (!job) {
@@ -56,11 +60,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   const sources = job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid)).filter(Boolean);
 
-  const prepare = () => {
-    const app = application ?? createApp(job.id, "saved");
-    if (!saved) save(job.id);
-    router.push(`/app/applications/${app.id}/prepare`);
-  };
+  const prepare = () => openPack(job.id);
+  const decision = describeDecision(job, match, quality, application);
   const share = async () => {
     const url = `${window.location.origin}/app/jobs/${job.id}`;
     try {
@@ -93,6 +94,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           </>
         }
       />
+      <HiddenJobNotice job={job} className="mb-4" />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <Card className="mb-4">
@@ -140,7 +142,28 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </div>
           </Card>
 
-          <Tabs value={tab} onChange={setTab} label="Job sections" items={[{ value: "overview", label: "Overview" }, { value: "why", label: "Why it's a match" }, { value: "company", label: "Company" }, { value: "sources", label: "Sources & signals" }]} className="mb-4" />
+          {(decision.why.length > 0 || decision.consider.length > 0) && (
+            <Card className="mb-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[15px] font-semibold text-ink">Wonder&apos;s take</h2>
+                <span className="text-[13px] text-ink-3">
+                  Next: <span className="font-medium text-ink-2">{decision.next.label}</span>
+                </span>
+              </div>
+              <JobDecision decision={decision} variant="detail" />
+            </Card>
+          )}
+
+          <Tabs
+            value={tab}
+            onChange={(t) => {
+              if (t === "why") track("why_viewed", { jobId: job.id, surface: "job_detail" });
+              setTab(t);
+            }}
+            label="Job sections"
+            items={[{ value: "overview", label: "Overview" }, { value: "why", label: "Why it fits" }, { value: "company", label: "Company" }, { value: "sources", label: "Sources & signals" }]}
+            className="mb-4"
+          />
 
           {tab === "overview" && (
             <Card>
@@ -203,7 +226,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               ) : (
                 <p className="mt-2 text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
               )}
-              <p className="mt-4 text-[12px] text-ink-4">Match scores estimate alignment with your Career DNA. They are a guide, not a verdict.</p>
+              <p className="mt-4 text-[12px] text-ink-4">Each line is how this posting compares with your Career Profile. It&apos;s a guide, not a verdict — you decide.</p>
             </Card>
           )}
 
@@ -260,14 +283,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <Card className="flex flex-col gap-2">
             <Button size="lg" full onClick={prepare}>
-              {application && application.status !== "saved" ? "Open application" : "Prepare Application"}
+              {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
             </Button>
             {!application && !saved && <p className="text-center text-[11px] text-ink-4">Also saves this job to your list.</p>}
             <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
             </a>
-            <p className="mt-2 text-[12px] text-ink-4">Wonder never submits an application without your approval.</p>
+            <p className="mt-2 text-[12px] text-ink-4">Wonder prepares; it never submits an application. The final action is always yours.</p>
           </Card>
           {application && (
             <Card className="mt-3">

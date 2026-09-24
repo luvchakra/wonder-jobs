@@ -86,6 +86,7 @@ describe("resolveWonderQuery", () => {
     const ctx = baseCtx({ jobsOrder: ["a"], jobs, matches: { a: match("a") }, filters });
     const r = resolveWonderQuery("why isn't the backend engineer role showing", ctx);
     expect(r?.label).toMatch(/a different work mode/);
+    expect(r?.href).toBe("/app/jobs/a");
   });
 
   it("says a job isn't in the results at all when it can't find it, rather than guessing", () => {

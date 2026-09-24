@@ -45,8 +45,8 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
-    await page.getByRole("tab", { name: /Why it's a match/i }).click();
-    await expect(page.getByText(/Run Wonder to compute a match/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
+    await page.getByRole("tab", { name: /Why it fits/i }).click();
+    await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
 
     await saveBtn.click();
     await expect(saveBtn).toHaveText("Save");
