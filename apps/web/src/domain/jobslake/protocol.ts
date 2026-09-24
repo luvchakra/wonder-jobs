@@ -87,6 +87,8 @@ export interface SourceRecord {
    * jobs, applications and the browser extension keep resolving after the move to JobsLake.
    */
   legacyJobId: string;
+  /** The WonderJobs source id that posting belongs to (`careers`, `remotive`, or a platform-managed JobsLake source id). */
+  legacySourceId: string;
   /** True for the record the canonical fields were taken from. */
   canonical: boolean;
 }

@@ -18,6 +18,7 @@ import { getClientMode } from "@/lib/mode";
 import { getSupabaseBrowser } from "@/lib/auth/browser";
 import { WonderJobsAIProvider } from "@/services/ai/service";
 import { SchedulerRunner } from "@/components/automation/SchedulerRunner";
+import { setJobsLakeCapability } from "@/services/jobs/jobsLakeMode";
 
 const STORES = {
   "wj.career": useCareerStore,
@@ -71,8 +72,9 @@ function finishBoot() {
       void bootstrapIdentity();
       void fetch("/api/jobs/sources", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d: { available?: Record<string, boolean>; scheduledRuns?: "server" | "browser" } | null) => {
+        .then((d: { available?: Record<string, boolean>; scheduledRuns?: "server" | "browser"; jobsLake?: { search: boolean; streaming: boolean } } | null) => {
           if (d?.available) useJobsStore.getState().setSourceAvailability(d.available);
+          if (d?.jobsLake) setJobsLakeCapability(d.jobsLake);
           if (d?.scheduledRuns) setScheduleOwner(d.scheduledRuns);
         })
         .catch(() => {});

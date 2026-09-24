@@ -3,7 +3,7 @@
  * data (mock sources, deterministic AI) and reports progress through the
  * engine context — the UI only ever renders engine state.
  */
-import type { StageExecutor } from "@/domain/workflow/engine";
+import { RestartSignal, StopSignal, type StageContext, type StageExecutor } from "@/domain/workflow/engine";
 import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
@@ -14,6 +14,11 @@ import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { track } from "@/lib/analytics";
+import { getClientMode } from "@/lib/mode";
+import type { SearchEvent, SearchResponse, SourceSearchStatus } from "@/domain/jobslake/protocol";
+import { breadthEvidence, contributionBySource, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import { JobsLakeError, reportContribution, searchJobs, searchJobsStream } from "@/services/jobs/jobsLakeClient";
+import { jobsLakeCapability, setJobsLakeCapability } from "@/services/jobs/jobsLakeMode";
 
 export interface ExecutorDeps {
   ai: (runId: string) => AIService;
@@ -46,10 +51,30 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
     search: async (ctx) => {
       const sourceIds = ctx.run.config.sourceIds.length ? ctx.run.config.sourceIds : useJobsStore.getState().sources.filter((s) => s.enabled).map((s) => s.id);
       const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && sourceIds.includes(s.id));
+      ctx.setProgress(0, null);
+      // Signed in: search through JobsLake — one request, every source, deduplicated with provenance.
+      // If JobsLake is off or doesn't answer, the direct per-source path below runs instead, and says so.
+      if (getClientMode().mode === "user" && jobsLakeCapability().search && enabled.length) {
+        const lake = await searchWithJobsLake(ctx, enabled.map((s) => s.id));
+        if (lake) {
+          lakeCache.set(ctx.run.id, lake);
+          rawCache.delete(ctx.run.id);
+          const m = lake.response.metadata;
+          const discovered = m.retrieved + m.warm;
+          ctx.setProgress(discovered, discovered);
+          if (!lake.jobs.length) {
+            const failed = lake.response.sources.filter((x) => x.outcome === "timeout" || x.outcome === "unavailable").map((x) => x.sourceName);
+            const allFailed = failed.length > 0 && m.sourcesSucceeded === 0;
+            ctx.fail({ category: allFailed ? "recoverable" : "user_action_required", message: allFailed ? `All sources failed (${failed.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
+          }
+          const perSource = Object.fromEntries(lake.response.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved]));
+          return { data: { jobIds: lake.jobs.map((j) => j.id), perSource, searchedWith: "JobsLake", requestId: lake.response.requestId }, counts: { discovered, sources: m.sourcesSucceeded } };
+        }
+      }
+      lakeCache.delete(ctx.run.id);
       const discovered: Job[] = [];
       const perSource: Record<string, number> = {};
       const failures: string[] = [];
-      ctx.setProgress(0, null);
       for (const src of enabled) {
         const adapter = getSourceAdapter(src.id);
         if (!adapter) continue;
@@ -85,6 +110,24 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
     },
 
     dedupe: async (ctx) => {
+      const lake = lakeCache.get(ctx.run.id);
+      if (lake) {
+        // JobsLake already merged cross-posted duplicates (by apply URL, identity and content), keeping every sighting.
+        const m = lake.response.metadata;
+        canonicalCache.set(ctx.run.id, lake.jobs);
+        ctx.setProgress(lake.jobs.length, lake.jobs.length);
+        ctx.setCounts({ unique: lake.jobs.length, duplicates: m.duplicates });
+        ctx.addEvidence({ label: "Unique opportunities", value: lake.jobs.length.toLocaleString("en-IN"), tone: "success" });
+        ctx.addEvidence({ label: "Cross-posted duplicates merged", value: m.duplicates.toLocaleString("en-IN") });
+        const multi = lake.jobs.filter((j) => (j.lake?.sightings.length ?? 0) > 1).length;
+        if (multi) ctx.addEvidence({ label: "Found on more than one source", value: multi.toLocaleString("en-IN"), tone: "info" });
+        const invalid = m.unique - m.live;
+        if (invalid > 0) ctx.addEvidence({ label: "Left out: incomplete postings", value: invalid.toLocaleString("en-IN"), tone: "warning" });
+        const cut = m.live + m.warm - lake.jobs.length;
+        if (cut > 0) ctx.addEvidence({ label: "Left out: beyond the first " + lake.jobs.length.toLocaleString("en-IN"), value: cut.toLocaleString("en-IN"), tone: "info" });
+        await ctx.checkpoint();
+        return { provenance: "SYSTEM_DERIVED", data: { jobIds: lake.jobs.map((j) => j.id) }, counts: { unique: lake.jobs.length, duplicates: m.duplicates } };
+      }
       const raw = rawCache.get(ctx.run.id) ?? [];
       const out: CanonicalJob[] = [];
       let processed = 0;
@@ -148,6 +191,8 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         await ctx.checkpoint();
       }
       matchCache.set(ctx.run.id, matches);
+      const lake = lakeCache.get(ctx.run.id);
+      if (lake) reportContribution(lake.response.requestId, contributionBySource(jobs, Object.fromEntries(matches.map((m) => [m.jobId, m.fit]))));
       const strong = matches.filter((m) => m.fit === "strong").length;
       const worth = matches.filter((m) => m.fit === "worth_considering").length;
       ctx.setCounts({ matched: matches.length, strong, worth_considering: worth });
@@ -398,6 +443,7 @@ function providerName(id: string) {
 
 // Per-run working memory for large intermediate results (not persisted).
 const rawCache = new Map<string, Job[]>();
+const lakeCache = new Map<string, { response: SearchResponse; jobs: CanonicalJob[] }>();
 const canonicalCache = new Map<string, CanonicalJob[]>();
 const matchCache = new Map<string, JobMatch[]>();
 const qualityCache = new Map<string, JobQuality[]>();
@@ -405,7 +451,7 @@ const rankedCache = new Map<string, string[]>();
 
 /** Rehydrate working memory for a rerun from the parent run's caches, when available. */
 export function inheritCaches(parentRunId: string, childRunId: string) {
-  for (const cache of [rawCache, canonicalCache, matchCache, qualityCache, rankedCache] as Map<string, unknown>[]) {
+  for (const cache of [rawCache, lakeCache, canonicalCache, matchCache, qualityCache, rankedCache] as Map<string, unknown>[]) {
     const v = cache.get(parentRunId);
     if (v !== undefined) cache.set(childRunId, v);
   }
@@ -428,4 +474,69 @@ export function seedCachesFromCatalog(runId: string) {
       .slice(0, 50)
       .map((m) => m.jobId),
   );
+}
+
+/* ------------------------------------------------------------- JobsLake */
+
+function warnFor(ctx: StageContext, s: SourceSearchStatus) {
+  if (s.outcome === "needs_setup") ctx.warn(`${s.sourceName} isn't configured on this deployment yet, so it was skipped.`);
+  else if (s.outcome === "timeout" || s.outcome === "unavailable") ctx.warn(`${s.sourceName}: ${s.message ?? "temporarily unavailable"}.`);
+}
+
+/**
+ * The search stage through JobsLake: streamed when the deployment allows it, so each source's
+ * evidence appears the moment that source answers. Returns null when JobsLake is off or failed — the
+ * caller then searches each source directly, and the evidence says which path ran.
+ */
+async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promise<{ response: SearchResponse; jobs: CanonicalJob[] } | null> {
+  const req = searchRequestFor(ctx.run.config.searchCriteria, sourceIds, "balanced", 500);
+  const abort = new AbortController();
+  let control: unknown = null;
+  const onEvent = async (e: SearchEvent) => {
+    try {
+      await ctx.checkpoint();
+    } catch (sig) {
+      control = sig;
+      abort.abort();
+      throw sig;
+    }
+    if (e.type === "search_started") ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${e.plannedSources.length} sources planned`, tone: "info" });
+    else if (e.type === "jobs_retrieved") {
+      ctx.setProgress(e.totalRetrieved, null);
+      ctx.setCounts({ discovered: e.totalRetrieved });
+    } else if (e.type === "source_completed") {
+      const ev = sourceEvidence(e.status);
+      if (ev) ctx.addEvidence(ev);
+      warnFor(ctx, e.status);
+    }
+  };
+  const attempt = async (): Promise<SearchResponse> => {
+    if (jobsLakeCapability().streaming) {
+      try {
+        return await searchJobsStream(req, onEvent, abort.signal);
+      } catch (e) {
+        // Streaming alone may be switched off; the plain search still answers.
+        if (!(e instanceof JobsLakeError && e.body?.code === "FEATURE_DISABLED")) throw e;
+        setJobsLakeCapability({ streaming: false });
+      }
+    }
+    const r = await searchJobs(req, abort.signal);
+    await onEvent({ type: "search_started", requestId: r.requestId, plannedSources: r.sources.map((x) => ({ id: x.sourceId, name: x.sourceName })), searchMode: r.searchMode });
+    for (const status of r.sources) await onEvent({ type: "source_completed", status });
+    return r;
+  };
+  let response: SearchResponse;
+  try {
+    response = await attempt();
+  } catch (e) {
+    if (control) throw control;
+    if (e instanceof StopSignal || e instanceof RestartSignal) throw e;
+    const disabled = e instanceof JobsLakeError && e.body?.code === "FEATURE_DISABLED";
+    if (disabled) setJobsLakeCapability({ search: false });
+    ctx.addEvidence({ label: "JobsLake", value: disabled ? "Off — searched each source directly" : "Didn't answer — searched each source directly", tone: disabled ? "info" : "warning" });
+    if (!disabled) ctx.warn(`JobsLake didn't answer (${e instanceof Error ? e.message : "unknown error"}), so Wonder searched each source directly.`);
+    return null;
+  }
+  for (const ev of breadthEvidence(response.metadata)) ctx.addEvidence(ev);
+  return { response, jobs: response.results.map(toCanonicalJob) };
 }

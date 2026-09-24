@@ -23,6 +23,7 @@ import { companyColor } from "@/components/jobs/JobCard";
 import { toast } from "@/components/feedback/Toast";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { JobDecision } from "@/components/jobs/JobDecision";
+import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
 import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
 import { describeDecision } from "@/domain/jobs/decision";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
@@ -61,7 +62,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   }
   const company = COMPANIES.find((c) => c.name === job.company);
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
-  const sources = job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid)).filter(Boolean);
+  // JobsLake's sightings when present (they include sources WonderJobs has no entry for); otherwise the known sources.
+  const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
 
   const prepare = () => openPack(job.id);
   const decision = describeDecision(job, match, quality, application);
@@ -127,7 +129,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <div className="mt-2 flex flex-wrap gap-1.5 text-[12px] text-ink-3">
                   <span>Source{sources.length > 1 ? "s" : ""}:</span>
                   {sources.map((s) => (
-                    <Badge key={s!.id}>{s!.name}</Badge>
+                    <Badge key={s.id}>{s.name}</Badge>
                   ))}
                 </div>
               </div>
@@ -262,6 +264,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </Card>
           )}
 
+          {tab === "sources" && job.lake && (
+            <div className="mb-4">
+              <JobSourcesCard lake={job.lake} />
+            </div>
+          )}
           {tab === "sources" &&
             (quality ? (
               <Card>

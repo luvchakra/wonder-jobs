@@ -182,6 +182,7 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
     url: o.job.applyUrl,
     observedAt: o.job.observedAt,
     legacyJobId: o.job.id,
+    legacySourceId: o.job.sourceId,
     canonical: i === 0,
   }));
   const lastObservedAt = ranked.reduce((m, o) => (o.job.observedAt > m ? o.job.observedAt : m), top.job.observedAt);
