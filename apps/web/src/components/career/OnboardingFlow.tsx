@@ -24,7 +24,7 @@ import { cn } from "@/lib/cn";
  * for via `?next=`), not what fields onboarding collects. */
 const GOALS = [
   { id: "find_role", label: "Find my next role", body: "Search real postings and see what actually fits.", icon: Search, next: "/app/jobs" },
-  { id: "improve_profile", label: "Improve my career profile", body: "Build out your Career DNA so matches get sharper.", icon: TrendingUp, next: "/app/career-dna" },
+  { id: "improve_profile", label: "Improve my career profile", body: "Build out your Career Profile so matches get sharper.", icon: TrendingUp, next: "/app/career-dna" },
   { id: "prepare_application", label: "Prepare an application", body: "Get a tailored resume and cover letter ready.", icon: LayoutList, next: "/app/jobs" },
   { id: "track_applications", label: "Track my applications", body: "Keep every application, follow-up and reply in one place.", icon: Check, next: "/app/applications" },
   { id: "let_wonder_work", label: "Let Wonder work for me", body: "Search, analyze, prepare and track — start to finish.", icon: Zap, next: "/app/runs/new" },
@@ -233,7 +233,7 @@ function Steps() {
             <div className="wj-animate-fade-up">
               <p className="wj-eyebrow text-brand-200">Step 2 of 3</p>
               <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-tight">A little about you</h1>
-              <p className="mt-2 text-[14px] text-white/75">This is your Career DNA. Wonder scores every real posting against it, so the more honest, the better the matches. You can refine it any time.</p>
+              <p className="mt-2 text-[14px] text-white/75">This is your Career Profile. Wonder scores every real posting against it, so the more honest, the better the matches. You can refine it any time.</p>
               <div className="mt-5">
                 <ResumeImport
                   tone="dark"

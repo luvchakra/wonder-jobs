@@ -22,7 +22,7 @@ export default function ExtensionPage() {
             <>
               <ul>
                 <li>
-                  <strong>Name and email</strong> — from your Career DNA and your account.
+                  <strong>Name and email</strong> — from your Career Profile and your account.
                 </li>
                 <li>
                   <strong>Resume</strong> — the version you prepared for that specific posting, attached as a real <code>.docx</code>.

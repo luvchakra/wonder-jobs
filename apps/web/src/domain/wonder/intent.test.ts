@@ -75,8 +75,10 @@ describe("parseWonderIntent — outcome intents (outcome spec §40)", () => {
 
   it("recognizes search again and keeps only the candidate's own words as the subject", () => {
     expect(parseWonderIntent("Search again with Director roles")).toEqual({ type: "find_opportunities", subject: "Director roles" });
-    expect(parseWonderIntent("find me jobs in fintech")).toEqual({ type: "find_opportunities", subject: "fintech" });
+    expect(parseWonderIntent("find me jobs in fintech")).toEqual({ type: "find_opportunities", subject: "jobs in fintech" });
+    expect(parseWonderIntent("find new roles in fintech")).toEqual({ type: "find_opportunities", subject: "fintech" });
     expect(parseWonderIntent("search again")).toEqual({ type: "find_opportunities", subject: "" });
+    expect(parseWonderIntent("Find me IAM jobs")).toEqual({ type: "find_opportunities", subject: "IAM jobs" });
   });
 
   it("recurring phrasing still wins over a one-off search", () => {
@@ -92,6 +94,11 @@ describe("parseWonderIntent — outcome intents (outcome spec §40)", () => {
     expect(parseWonderIntent("Why is the Razorpay role a good match?")).toEqual({ type: "explain_job", subject: "the Razorpay role" });
     expect(parseWonderIntent("explain the Google job")).toEqual({ type: "explain_job", subject: "the Google job" });
     expect(parseWonderIntent("why isn't the Google PM role showing").type).toBe("explain_why_not_shown");
+  });
+
+  it("recognizes “why didn't you show …” as a filtering question", () => {
+    expect(parseWonderIntent("Why didn't you show the Razorpay job?")).toEqual({ type: "explain_why_not_shown", subject: "the Razorpay job" });
+    expect(parseWonderIntent("why don't I see the Stripe role")).toEqual({ type: "explain_why_not_shown", subject: "the Stripe role" });
   });
 
   it("recognizes prepare-the-strongest without confusing it with a named job", () => {

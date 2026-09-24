@@ -145,7 +145,7 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
         {tab === "why" && (
           <div>
             <p className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3">
-              <Lock className="size-3.5 shrink-0" aria-hidden /> Scored against your own Career DNA — this is the one tab that&apos;s personal to you.
+              <Lock className="size-3.5 shrink-0" aria-hidden /> Scored against your own Career Profile — this is the one tab that&apos;s personal to you.
             </p>
             <ul className="mt-3 flex flex-col gap-3">
               {MATCH_DIMENSIONS.map((d) => (
@@ -160,7 +160,7 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 max-w-sm text-[12px] text-ink-4">There&apos;s nothing to unblur without your Career DNA — Wonder never guesses a score. Sign in and it computes for real, instantly.</p>
+            <p className="mt-4 max-w-sm text-[12px] text-ink-4">There&apos;s nothing to unblur without your Career Profile — Wonder never guesses a score. Sign in and it computes for real, instantly.</p>
           </div>
         )}
 

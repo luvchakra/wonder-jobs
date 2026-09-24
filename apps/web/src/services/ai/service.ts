@@ -142,8 +142,8 @@ export class TemplateAIService implements AIService {
     // product used by millions" for every candidate, regardless of what they'd actually entered.
     const matched = job.skills.filter((s) => dna.skills.some((d) => d.name.toLowerCase() === s.toLowerCase()));
     const industryPhrase = dna.industries.length ? dna.industries.slice(0, 2).join(" and ").toLowerCase() : "[your industries]";
-    const strengthLines = dna.strengths.length ? dna.strengths.map((s) => `- ${s}`) : ["- [Add a strength to your Career DNA]"];
-    const skillLine = [...matched, ...dna.skills.filter((s) => s.level >= 4).map((s) => s.name)].filter((v, i, a) => a.indexOf(v) === i).slice(0, 8).join(" · ") || "[Add skills to your Career DNA]";
+    const strengthLines = dna.strengths.length ? dna.strengths.map((s) => `- ${s}`) : ["- [Add a strength to your Career Profile]"];
+    const skillLine = [...matched, ...dna.skills.filter((s) => s.level >= 4).map((s) => s.name)].filter((v, i, a) => a.indexOf(v) === i).slice(0, 8).join(" · ") || "[Add skills to your Career Profile]";
     const text = [
       `# ${dna.name || "[Your name]"}`,
       `${dna.headline || "[Your headline]"}`,
@@ -169,7 +169,7 @@ export class TemplateAIService implements AIService {
     // never-claimed one ("consumer") invented to fill out the sentence. Both are fixed below.
     const primaryIndustry = dna.industries[0] ? dna.industries[0].toLowerCase() : "[your industry]";
     const secondIndustry = dna.industries[1]?.toLowerCase();
-    const strength0 = dna.strengths[0] ?? "[a strength from your Career DNA]";
+    const strength0 = dna.strengths[0] ?? "[a strength from your Career Profile]";
     const strength1 = dna.strengths[1];
     const text = [
       `Dear ${job.company} Hiring Team,`,
@@ -193,7 +193,7 @@ export class TemplateAIService implements AIService {
     // outcomes and employment specifics aren't in the domain model, so they're marked for the candidate
     // to fill in rather than guessed.
     const industryMatch = dna.industries.some((i) => i.toLowerCase() === job.industry.toLowerCase());
-    const shippedAnswer = dna.strengths[0] ? `${dna.strengths[0]}. [Add the specific role and outcome before submitting.]` : "[Describe a project you shipped end to end, including your role and the outcome — Wonder doesn't have this in your Career DNA yet.]";
+    const shippedAnswer = dna.strengths[0] ? `${dna.strengths[0]}. [Add the specific role and outcome before submitting.]` : "[Describe a project you shipped end to end, including your role and the outcome — Wonder doesn't have this in your Career Profile yet.]";
     const text = [
       `Q: Why ${job.company}?`,
       `A: ${job.company} operates in ${job.industry.toLowerCase()}${industryMatch ? ", which is one of my target industries" : ""}. The ${job.title} scope matches my goal${dna.careerGoal ? `: ${dna.careerGoal.toLowerCase()}` : " of growing in this direction"}.`,

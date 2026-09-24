@@ -37,7 +37,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   search_jobs: { key: "search_jobs", label: "Search jobs", description: "Query connected job sources for new opportunities.", risk: "low", external: false, default: "automatic" },
   deduplicate: { key: "deduplicate", label: "Deduplicate", description: "Collapse the same role posted on several platforms.", risk: "low", external: false, default: "automatic" },
   analyze_jobs: { key: "analyze_jobs", label: "Analyze jobs", description: "Read postings and extract requirements, seniority and signals.", risk: "low", external: false, default: "automatic" },
-  rank_opportunities: { key: "rank_opportunities", label: "Rank opportunities", description: "Order matches by fit with your Career DNA and goals.", risk: "low", external: false, default: "automatic" },
+  rank_opportunities: { key: "rank_opportunities", label: "Rank opportunities", description: "Order matches by fit with your Career Profile and goals.", risk: "low", external: false, default: "automatic" },
   generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "automatic" },
   generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "automatic" },
   save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "automatic" },
@@ -47,7 +47,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   send_recruiter_message: { key: "send_recruiter_message", label: "Draft a recruiter message", description: "Draft a message for you to send a recruiter yourself.", risk: "high", external: true, default: "ask" },
   submit_application: { key: "submit_application", label: "Hand off application", description: "Open a prepared application on the employer's own site, ready for you to submit.", risk: "high", external: true, default: "ask" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
-  change_career_dna: { key: "change_career_dna", label: "Change Career DNA", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
+  change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },
 };
 

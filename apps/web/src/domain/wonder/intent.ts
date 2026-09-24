@@ -72,13 +72,13 @@ const RULES: Rule[] = [
   },
   {
     type: "find_opportunities",
-    test: /^(?:search again|run (?:the |my )?search again|new search|find (?:me )?(?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b/i,
-    strip: [/^(?:search again|run (?:the |my )?search again|new search|find (?:me )?(?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b\s*(?:with|for|in|as|:)?\s*/i],
+    test: /^(?:search again|run (?:the |my )?search again|new search|find me|find (?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b/i,
+    strip: [/^(?:search again|run (?:the |my )?search again|new search|find me(?: (?:new|more))?|find (?:new |more )?(?:jobs|roles|opportunities)|look for|search for)\b\s*(?:with|for|in|as|:)?\s*/i],
   },
   {
     type: "explain_why_not_shown",
-    test: /\bwhy\b.*\b(isn'?t|is not|can'?t|cannot|wasn'?t|not)\b.*\b(show(?:ing)?|see|find|filtered|hidden)\b/i,
-    strip: [/^why\s+(?:isn'?t|is not|can'?t|cannot|wasn'?t|not)\s+(?:i\s+)?(?:see|find)?\s*/i, /\s+(?:show(?:ing)?|shown|filtered|hidden)\??$/i],
+    test: /\bwhy\b.*\b(isn'?t|is not|can'?t|cannot|wasn'?t|didn'?t|did not|don'?t|not)\b.*\b(show(?:ing|n)?|see|find|filtered|hidden)\b/i,
+    strip: [/^why\s+(?:isn'?t|is not|can'?t|cannot|wasn'?t|didn'?t|did not|don'?t|not)\s+(?:i\s+|you\s+|wonder\s+)?(?:see|find|show(?:ing)?)?\s*(?:me\s+)?/i, /(?:\s+(?:show(?:ing)?|shown|filtered|hidden))?(?:\s+(?:to\s+)?me)?\s*\??$/i],
   },
   {
     type: "explain_job",

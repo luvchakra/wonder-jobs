@@ -136,7 +136,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
             <Select id="trigger" value={trigger} onChange={(e) => setTrigger(e.target.value as WorkflowSchedule["trigger"])}>
               <option value="schedule">On a schedule</option>
               <option value="manual">Manual only</option>
-              <option value="event">When my Career DNA changes</option>
+              <option value="event">When my Career Profile changes</option>
             </Select>
           </Field>
           {trigger === "schedule" && (

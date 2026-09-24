@@ -53,7 +53,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 </option>
               ))}
             </Select>
-            <span className="text-[11px] font-normal text-ink-4">Based on your Career DNA match score.</span>
+            <span className="text-[11px] font-normal text-ink-4">Based on your Career Profile match score.</span>
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Freshness

@@ -154,7 +154,7 @@ export function seedInsights(): CareerInsight[] {
 
 export function seedNotifications(): Notification[] {
   return [
-    { id: "n1", at: ago(2 * HOUR), category: "strong_opportunity", title: "3 new strong matches", body: "Google, Microsoft and Razorpay posted roles that fit your Career DNA.", href: "/app/jobs?fit=strong", read: false },
+    { id: "n1", at: ago(2 * HOUR), category: "strong_opportunity", title: "3 new strong matches", body: "Google, Microsoft and Razorpay posted roles that fit your Career Profile.", href: "/app/jobs?fit=strong", read: false },
     { id: "n2", at: ago(1 * DAY), category: "interview_upcoming", title: "Interview tomorrow at 10:00 AM", body: "Amazon — Product Manager, Growth. Wonder prepared a prep sheet.", href: "/app/applications/app_amazon", read: false },
     { id: "n3", at: ago(1 * DAY), category: "follow_up_due", title: "Follow-up due tomorrow", body: "Google — Product Manager. Draft is ready for your review.", href: "/app/applications/app_google", read: true },
   ];

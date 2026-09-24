@@ -35,7 +35,7 @@ export default function CareerDNAPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Career DNA"
+        title="Career Profile"
         description="Your Career Profile — what Wonder knows about you. Every match, ranking and draft starts here, and you can change any of it."
         actions={
           <>
@@ -49,7 +49,7 @@ export default function CareerDNAPage() {
               disabled={!dirty}
               onClick={() => {
                 updateDNA(draft);
-                toast.success("Career DNA updated", "Your next run will use these values.");
+                toast.success("Career Profile updated", "Your next run will use these values.");
               }}
             >
               Save changes
@@ -192,12 +192,12 @@ export default function CareerDNAPage() {
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Sources</h2>
           <p className="text-[12px] text-ink-3">
-            Career DNA is built from what you type here and what you choose to bring in from a resume — last changed {formatDate(dna.updatedAt)}. Wonder doesn&apos;t track which individual field came from which source.
+            Career Profile is built from what you type here and what you choose to bring in from a resume — last changed {formatDate(dna.updatedAt)}. Wonder doesn&apos;t track which individual field came from which source.
           </p>
           <p className="mt-2 text-[12px] text-ink-3">LinkedIn isn&apos;t connected — it has no public API to import from, so nothing here comes from there.</p>
         </Card>
 
-        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career DNA unless you allow it in What Wonder can do.</p>
+        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career Profile unless you allow it in What Wonder can do.</p>
       </div>
     </div>
   );

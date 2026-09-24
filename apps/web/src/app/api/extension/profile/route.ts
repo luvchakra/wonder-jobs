@@ -55,7 +55,7 @@ export async function GET(req: Request) {
   const email = await accountEmail(tenantId);
   // Career DNA has no field for any of these yet, so they can never be filled — say so instead of guessing.
   const missing = [...MISSING_CANDIDATE_FIELDS];
-  if (!fullName) missing.unshift("Your name (add it to Career DNA)");
+  if (!fullName) missing.unshift("Your name (add it to Career Profile)");
   if (!email) missing.unshift("Email");
 
   const profile: AutofillProfile = { fullName, ...splitName(fullName), email, headline: dna?.headline?.trim() ?? "", missing };

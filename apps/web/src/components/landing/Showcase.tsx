@@ -61,7 +61,7 @@ function DesktopHome() {
       <aside className="border-r border-line bg-surface-2 p-3">
         <p className="text-[11px] font-semibold text-ink">WonderJobs</p>
         <ul className="mt-3 space-y-1.5 text-ink-3">
-          {["Home", "Jobs", "Applications", "Runs", "Automation", "Career DNA"].map((i, n) => (
+          {["Home", "Jobs", "Applications", "Runs", "Automation", "Career"].map((i, n) => (
             <li key={i} className={cn("rounded-[6px] px-2 py-1", n === 0 && "bg-brand-50 font-semibold text-brand-700")}>
               {i}
             </li>
@@ -318,7 +318,7 @@ function PhoneApplication() {
 
 const SCREENS: Screen[] = [
   { id: "home", label: "Home", title: "One glance, everything that matters", body: "Strong matches, follow-ups and interviews, ranked by what needs you first. Wonder keeps working in the background.", demo: "/demo?next=/app", desktop: <DesktopHome />, phone: <PhoneHome /> },
-  { id: "jobs", label: "Jobs", title: "Every source, every role, scored for you", body: "Real postings from company boards and job APIs, de-duplicated and matched against your Career DNA with a reason for every score.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
+  { id: "jobs", label: "Jobs", title: "Every source, every role, scored for you", body: "Real postings from company boards and job APIs, de-duplicated and matched against your Career Profile with a reason for every score.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
   { id: "runs", label: "Runs", title: "Watch Wonder work, step by step", body: "Each run is a transparent pipeline: search, de-duplicate, analyze, match, prepare. Pause, stop or take over at any stage.", demo: "/demo?next=/app/runs", desktop: <DesktopRun />, phone: <PhoneRun /> },
   { id: "applications", label: "Applications", title: "Drafts you approve. Never sent behind your back.", body: "Tailored resumes and cover letters wait for your review. Submissions, follow-ups and interviews stay on one timeline.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];

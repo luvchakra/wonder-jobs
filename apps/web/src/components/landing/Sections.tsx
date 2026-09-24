@@ -87,7 +87,7 @@ export function AgentSection() {
 /* ----------------------------------------------------------- journey */
 const JOURNEY = [
   { key: "search", t: "Search", s: "Across platforms", body: "Wonder scans every connected source and collapses duplicates, so you see each role once.", stat: "1,842 → 1,124 unique" },
-  { key: "analyze", t: "Analyze", s: "Understand & match", body: "Every posting is read for skills, seniority, location and pay — then scored against your Career DNA.", stat: "94% match · Strong Opportunity" },
+  { key: "analyze", t: "Analyze", s: "Understand & match", body: "Every posting is read for skills, seniority, location and pay — then scored against your Career Profile.", stat: "94% match · Strong Opportunity" },
   { key: "prepare", t: "Prepare", s: "Tailor your application", body: "Resume, cover letter and screening answers, drafted for the role and left for you to edit.", stat: "3 applications ready for review" },
   { key: "track", t: "Track", s: "Keep everything in one place", body: "Submissions, follow-ups and interviews on one timeline — and Wonder learns what works.", stat: "Interview rate 3.2× higher" },
 ];
@@ -191,7 +191,7 @@ function StageCard({ index, stat, title }: { index: number; stat: string; title:
 
 /* ------------------------------------------------------------ features */
 const FEATURES = [
-  { icon: Dna, t: "Career DNA", s: "A deeper understanding of you", href: "/app/career-dna" },
+  { icon: Dna, t: "Career Profile", s: "A deeper understanding of you", href: "/app/career-dna" },
   { icon: Zap, t: "Wonder Runs", s: "On-demand or scheduled automation", href: "/app/runs" },
   { icon: Target, t: "AI-Powered Matching", s: "Find opportunities that actually fit", href: "/app/jobs" },
   { icon: FileText, t: "Application Prep", s: "Tailored resumes, answers and more", href: "/app/applications" },

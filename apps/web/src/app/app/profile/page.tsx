@@ -20,7 +20,7 @@ import { signOutEverywhere } from "@/lib/auth/browser";
 import { Cloud, CloudOff, FlaskConical } from "lucide-react";
 
 const MORE = [
-  { href: "/app/career-dna", label: "Career DNA", icon: Dna },
+  { href: "/app/career-dna", label: "Career Profile", icon: Dna },
   { href: "/app/calendar", label: "Calendar", icon: Calendar },
   { href: "/app/insights", label: "Insights", icon: BarChart3 },
   { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
@@ -76,7 +76,7 @@ function CloudSyncCard() {
           {backend === "error"
             ? "We couldn't reach the server to check. This doesn't mean anything is wrong — refresh the page to check again."
             : cloud
-              ? `Your Career DNA, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.`
+              ? `Your Career Profile, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.`
               : "Persistence isn't configured on this deployment yet, so data lives in this browser. Provider keys are held in memory only."}
         </p>
       </div>

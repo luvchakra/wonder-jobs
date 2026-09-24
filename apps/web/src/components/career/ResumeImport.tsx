@@ -89,7 +89,7 @@ export function ResumeImport({ current, onApply, tone = "light", label = "Import
     if (!draft) return;
     onApply(buildImportPatch(draft, current, chosen));
     track("resume_import_applied", { fields: chosen.size });
-    toast.success("Career DNA filled in", "Check it over and save when it looks right.");
+    toast.success("Career Profile filled in", "Check it over and save when it looks right.");
     setOpen(false);
     reset();
   };

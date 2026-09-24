@@ -125,8 +125,8 @@ export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderActio
       };
     case "missing_skills": {
       const list = computeMissingSkills(ctx.dna, Object.values(ctx.jobs), ctx.matches);
-      if (!list.length) return { id: "wonder-skills", label: "No skill gaps found in your current matches", hint: "Every skill your strong and worth-considering matches ask for is already in your Career DNA.", href: "/app/career-dna" };
-      return { id: "wonder-skills", label: "Skills your matches ask for that aren't in your Career DNA yet", hint: list.map((s) => s.name).join(", "), href: "/app/career-dna" };
+      if (!list.length) return { id: "wonder-skills", label: "No skill gaps found in your current matches", hint: "Every skill your strong and worth-considering matches ask for is already in your Career Profile.", href: "/app/career-dna" };
+      return { id: "wonder-skills", label: "Skills your matches ask for that aren't in your Career Profile yet", hint: list.map((s) => s.name).join(", "), href: "/app/career-dna" };
     }
     case "applications_attention": {
       const items = computeApplicationAttention(ctx.applications, ctx.now);

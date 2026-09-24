@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   const draft = parseResume(text.slice(0, MAX_TEXT));
   const filled = Object.keys(draft.evidence).length;
   if (!filled) {
-    return NextResponse.json({ error: "Wonder couldn't recognise anything to fill in from that. Check it's the right file, or fill your Career DNA in directly." }, { status: 422 });
+    return NextResponse.json({ error: "Wonder couldn't recognise anything to fill in from that. Check it's the right file, or fill your Career Profile in directly." }, { status: 422 });
   }
   return NextResponse.json({ ok: true, format, filename, draft, characters: text.length }, { headers: { "cache-control": "no-store" } });
 }
