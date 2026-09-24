@@ -104,8 +104,8 @@ export const EventsSchema = z.object({ events: z.array(HelperEventSchema).min(1)
 export const FillPlanSchema = z.object({ host: str(253), fieldIds: z.array(str(200)).max(300).optional(), clicked: z.boolean() }).strict();
 
 export const InterventionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("approve"), value: str(5000) }),
-  z.object({ action: z.literal("edit"), value: str(5000) }),
+  z.object({ action: z.literal("approve"), value: str(5000), origin: z.enum(["ai", "ai_edited"]).optional() }),
+  z.object({ action: z.literal("edit"), value: str(5000), origin: z.enum(["ai", "ai_edited"]).optional() }),
   z.object({ action: z.literal("choose") }),
   z.object({ action: z.literal("skip") }),
   z.object({ action: z.literal("answered_on_portal") }),

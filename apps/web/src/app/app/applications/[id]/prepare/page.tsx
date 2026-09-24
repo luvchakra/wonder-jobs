@@ -274,7 +274,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                     }} className="mt-0.5 size-4 accent-brand-500" />
                   I&apos;ve reviewed these materials. They&apos;re accurate and I&apos;m happy to use them for this application.
                 </label>
-                <p className="mt-3 text-[12px] text-ink-4">&ldquo;Continue to Employer&rdquo; opens {job.company}&apos;s own application page with these materials ready. Wonder never submits on your behalf — you submit there, then come back and mark it as submitted.</p>
+                <p className="mt-3 text-[12px] text-ink-4">&ldquo;Continue to Employer&rdquo; opens {job.company}&apos;s own application page with these materials ready. Wonder never submits on your behalf — you submit there, then come back and mark it as submitted. &ldquo;Apply with Wonder&rdquo; also fills the employer&apos;s form with these materials in your browser, and stops for anything only you should answer.</p>
               </div>
             )}
           </Card>
@@ -289,9 +289,14 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                 </Button>
               </>
             ) : (
-              <Button size="lg" onClick={finish} disabled={!approved || !allReady} iconRight={<ExternalLink className="size-4" aria-hidden />}>
-                Continue to Employer
-              </Button>
+              <>
+                <Button size="lg" variant="outline" href={`/app/jobs/${job.id}/apply`} disabled={!approved || !app.artifacts.some((a) => a.type === "resume")}>
+                  Apply with Wonder
+                </Button>
+                <Button size="lg" onClick={finish} disabled={!approved || !allReady} iconRight={<ExternalLink className="size-4" aria-hidden />}>
+                  Continue to Employer
+                </Button>
+              </>
             )}
           </div>
         </div>

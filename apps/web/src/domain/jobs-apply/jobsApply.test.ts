@@ -468,3 +468,13 @@ describe("readiness and duplicates (APPLY-002/006, §57, §104–§106)", () => 
     expect(findDuplicate(job, [app({ status: "preparing" })], {})).toBeNull();
   });
 });
+
+describe("AI provenance on approved answers (CLAUDE.md: every AI artifact keeps its provenance)", () => {
+  it("an AI draft approved as-is stays AI_GENERATED; edited becomes USER_MODIFIED; typed is USER_PROVIDED", () => {
+    const base = S.recordInspection(fresh(), greenhouseForm(), NOW);
+    expect(S.resolveIntervention(base, "iv_why", { action: "approve", value: "AI text", origin: "ai" }, NOW).approvedAnswers.why.provenance).toBe("AI_GENERATED");
+    expect(S.resolveIntervention(base, "iv_why", { action: "edit", value: "AI text, edited", origin: "ai_edited" }, NOW).approvedAnswers.why.provenance).toBe("USER_MODIFIED");
+    const noSuggestion: JobsApplySession = { ...base, interventions: base.interventions.map((i) => (i.id === "iv_why" ? { ...i, suggestion: undefined } : i)) };
+    expect(S.resolveIntervention(noSuggestion, "iv_why", { action: "edit", value: "My own words" }, NOW).approvedAnswers.why.provenance).toBe("USER_PROVIDED");
+  });
+});

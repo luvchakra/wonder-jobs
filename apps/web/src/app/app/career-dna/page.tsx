@@ -10,6 +10,7 @@ import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
+import { RememberedAnswers } from "@/components/career/RememberedAnswers";
 import { historyOf } from "@/domain/career/history";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
@@ -107,6 +108,8 @@ export default function CareerDNAPage() {
           <p className="mb-4 text-[12px] text-ink-3">The facts every résumé template renders. Wonder never adds an employer, date, qualification or number you didn&apos;t enter here.</p>
           <CareerHistoryEditor key={dna.updatedAt} value={historyOf(draft)} onChange={(h) => set("history", h)} />
         </Card>
+
+        <RememberedAnswers />
 
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Skills</h2>

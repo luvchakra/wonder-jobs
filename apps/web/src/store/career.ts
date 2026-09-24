@@ -7,6 +7,7 @@ import { EMPTY_DNA } from "@/domain/career/types";
 import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from "@/domain/career/learning";
 import { newId } from "@/lib/ids";
 import { MAX_SAVED_RESUMES, type SavedResume } from "@/domain/resume/saved";
+import type { MemoryKey, RememberedAnswer } from "@/domain/jobs-apply/types";
 
 interface CareerState {
   dna: CareerDNA;
@@ -39,6 +40,10 @@ interface CareerState {
   setResumeTemplate: (id: string) => void;
   /** Generated résumés, newest first; each a snapshot with its template version. */
   savedResumes: SavedResume[];
+  /** Answers the candidate gave on application forms, with when they last confirmed them (JobsApply §83–§85). Offered, never filled on their own. */
+  answerMemory: RememberedAnswer[];
+  rememberAnswer: (key: MemoryKey, value: string) => void;
+  forgetAnswer: (key: MemoryKey) => void;
   saveResume: (r: Omit<SavedResume, "id" | "createdAt">) => SavedResume;
   deleteResume: (id: string) => void;
   completeOnboarding: () => void;
@@ -86,6 +91,10 @@ export const useCareerStore = create<CareerState>()(
       resumeTemplateId: undefined,
       setResumeTemplate: (id) => set({ resumeTemplateId: id }),
       savedResumes: [],
+      answerMemory: [],
+      rememberAnswer: (key, value) =>
+        set((s) => ({ answerMemory: [...(s.answerMemory ?? []).filter((m) => m.key !== key), { key, value: value.trim().slice(0, 500), confirmedAt: new Date().toISOString(), source: "USER_PROVIDED" as const }] })),
+      forgetAnswer: (key) => set((s) => ({ answerMemory: (s.answerMemory ?? []).filter((m) => m.key !== key) })),
       saveResume: (r) => {
         const saved: SavedResume = { ...r, id: newId("res"), createdAt: new Date().toISOString() };
         set((s) => ({ savedResumes: [saved, ...s.savedResumes].slice(0, MAX_SAVED_RESUMES) }));

@@ -45,7 +45,18 @@ export type AnalyticsEvent =
   | "wonder_action_completed"
   | "wonder_intervention_requested"
   | "search_schedule_created"
-  | "search_schedule_triggered";
+  | "search_schedule_triggered"
+  // JobsApply (spec §86). Categories and counts only — never a field value.
+  | "jobsapply_started"
+  | "jobsapply_destination_opened"
+  | "jobsapply_helper_paired"
+  | "jobsapply_intervention_resolved"
+  | "jobsapply_answer_drafted"
+  | "jobsapply_stopped"
+  | "jobsapply_candidate_submitted"
+  | "jobsapply_submission_unknown"
+  | "jobsapply_guided_used"
+  | "jobsapply_pack_exported";
 
 type Primitive = string | number | boolean | null | undefined;
 const FORBIDDEN = /key|secret|token|resume|cover|answer|reasoning|password/i;

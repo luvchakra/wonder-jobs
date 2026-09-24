@@ -219,7 +219,8 @@ function dedupeInterventions(items: InterventionItem[]): InterventionItem[] {
   return [...seen.values()];
 }
 
-export type Resolution = { action: "approve" | "edit"; value: string } | { action: "choose" } | { action: "skip" } | { action: "answered_on_portal" };
+/** `origin` says the text came from Wonder's AI (drafted in the browser), so it's never recorded as the candidate's own words. */
+export type Resolution = { action: "approve" | "edit"; value: string; origin?: "ai" | "ai_edited" } | { action: "choose" } | { action: "skip" } | { action: "answered_on_portal" };
 
 /**
  * The candidate resolved a "Needs you" item (§23, §51–§52). Human-only items can only be marked as
@@ -243,7 +244,7 @@ export function resolveIntervention(s: JobsApplySession, itemId: string, r: Reso
     // Approving a suggestion unchanged keeps whose words it was (an AI draft stays labelled AI-generated);
     // editing an AI draft makes it the candidate's edit; anything typed from scratch is the candidate's own.
     const sp = item.suggestion?.provenance;
-    const provenance = r.action === "approve" && unchanged ? (sp === "AI_GENERATED" || sp === "AI_SUGGESTED" ? "AI_GENERATED" : sp === "USER_MODIFIED" ? "USER_MODIFIED" : "USER_CONFIRMED") : fromAi ? "USER_MODIFIED" : "USER_PROVIDED";
+    const provenance = r.origin === "ai" ? "AI_GENERATED" : r.origin === "ai_edited" ? "USER_MODIFIED" : r.action === "approve" && unchanged ? (sp === "AI_GENERATED" || sp === "AI_SUGGESTED" ? "AI_GENERATED" : sp === "USER_MODIFIED" ? "USER_MODIFIED" : "USER_CONFIRMED") : fromAi ? "USER_MODIFIED" : "USER_PROVIDED";
     approved = { ...approved, [item.fieldId]: { value, provenance, at: now } };
     resolution = r.action === "approve" ? "approved" : "edited";
   } else if (r.action === "choose") {

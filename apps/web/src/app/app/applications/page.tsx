@@ -76,6 +76,9 @@ function ApplicationsInner() {
         actions={
           <>
             <Segmented<ViewMode> label="View" value={view} onChange={setView} options={[{ value: "timeline", label: "Timeline" }, { value: "list", label: "List" }]} size="sm" />
+            <Button variant="outline" href="/app/applications/apply">
+              Applying with Wonder
+            </Button>
             <Button icon={<Plus className="size-4" aria-hidden />} onClick={() => setAdding(true)}>
               Add
             </Button>

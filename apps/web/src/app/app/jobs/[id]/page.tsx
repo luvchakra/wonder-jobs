@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock, Wallet } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
+import { useCareerStore } from "@/store/career";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { COMPANIES, JOB_SOURCES } from "@/services/mock/catalog";
@@ -42,6 +43,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const unsave = useJobsStore((s) => s.unsave);
   const application = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === id));
   const openPack = usePrepareApplication();
+  const hasSavedResume = useCareerStore((s) => s.savedResumes.length > 0);
+  // Apply with Wonder needs a résumé to put in the form: this job's tailored one, or any template résumé.
+  const canApply = !!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume;
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [tab, setTab] = useState<Tab>(requestedTab === "why" || requestedTab === "company" || requestedTab === "sources" ? requestedTab : "overview");
@@ -294,15 +298,34 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <Card className="flex flex-col gap-2">
-            <Button size="lg" full onClick={prepare}>
-              {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
-            </Button>
+            {canApply ? (
+              <>
+                <Button size="lg" full href={`/app/jobs/${job.id}/apply`}>
+                  Apply with Wonder
+                </Button>
+                <Button variant="outline" full onClick={prepare}>
+                  Open application pack
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="lg" full onClick={prepare}>
+                  {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
+                </Button>
+                <Button variant="outline" full disabled aria-describedby="wj-apply-needs-resume">
+                  Apply with Wonder
+                </Button>
+                <p id="wj-apply-needs-resume" className="text-center text-[11px] text-ink-4">
+                  Prepare a résumé first — Apply with Wonder uses it to fill the employer&apos;s form.
+                </p>
+              </>
+            )}
             {!application && !saved && <p className="text-center text-[11px] text-ink-4">Also saves this job to your list.</p>}
             <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
             </a>
-            <p className="mt-2 text-[12px] text-ink-4">Wonder prepares; it never submits an application. The final action is always yours.</p>
+            <p className="mt-2 text-[12px] text-ink-4">Wonder prepares and fills; it never submits an application. The final action is always yours, on the employer&apos;s site.</p>
           </Card>
           {application && (
             <Card className="mt-3">
