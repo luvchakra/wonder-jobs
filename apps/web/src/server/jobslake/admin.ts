@@ -11,7 +11,7 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { ATS_META, detectSource, type AtsPlatform, type Detection } from "@/domain/jobslake/detect";
-import { applyMapping, type MappingResult } from "@/domain/jobslake/mapping";
+import type { MappingResult } from "@/domain/jobslake/mapping";
 import { PROTOCOL_VERSION, type SearchRequest, type SourceStatus } from "@/domain/jobslake/protocol";
 import { checkDestination } from "@/domain/jobslake/ssrf";
 import { audit, search, testSource } from "./core";
@@ -321,13 +321,6 @@ export async function previewSource(id: string, mappingRaw: unknown, actor: stri
   } catch (e) {
     return err(502, "SOURCE_UNAVAILABLE", e instanceof Error ? e.message.slice(0, 200) : "The source didn't answer.", { sourceId: id });
   }
-}
-
-/** Re-apply a mapping to an already-fetched sample, without another request (the editor's instant feedback). */
-export function mapSample(sample: unknown, mappingRaw: unknown): Result<MappingResult> {
-  const m = Mapping.safeParse(mappingRaw);
-  if (!m.success) return err(400, "INVALID_REQUEST", "Invalid mapping.");
-  return ok(applyMapping(sample, m.data));
 }
 
 /* ---------------------------------------------------------- playground */

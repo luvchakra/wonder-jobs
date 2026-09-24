@@ -209,7 +209,7 @@ export async function overviewView(): Promise<OverviewView> {
     },
     pool: { opportunities: opps.length, employerVerified: q.employerVerified, multiSource: q.multiSource },
     alerts,
-    recentRuns: runs.slice(0, 20),
+    recentRuns: runs.slice(0, 10),
   };
 }
 

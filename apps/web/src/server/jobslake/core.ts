@@ -210,6 +210,9 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
 
 /* ------------------------------------------------------------------ test */
 
+/** Share of a test's records that must pass the protocol validator for the source to pass. */
+export const MIN_VALID_SHARE = 0.9;
+
 /**
  * Admin Test (spec §26 step 3): a real fetch through the source's connector, validated against the
  * protocol. Only checks that actually ran are reported — nothing is ticked for show.
@@ -232,8 +235,13 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
     const canon = canonicalize(r.jobs.map((job) => ({ source: src, job })));
     const invalid = canon.opportunities.map((o) => ({ o, issues: validateOpportunity(o) })).filter((x) => x.issues.length);
     const validCount = canon.opportunities.length - invalid.length;
-    checks.push({ label: "Protocol v1 validation", ok: canon.opportunities.length > 0 && invalid.length === 0, detail: invalid.length ? `${invalid.length} of ${canon.opportunities.length} failed: ${[...new Set(invalid.flatMap((x) => x.issues.map((i) => `${i.field} ${i.problem}`)))].slice(0, 3).join("; ")}` : `${validCount} of ${canon.opportunities.length} valid` });
-    checks.push({ label: "Apply URLs", ok: canon.opportunities.every((o) => o.quality.validApplyUrl), detail: `${canon.opportunities.filter((o) => o.quality.validApplyUrl).length} valid` });
+    // Records that fail validation are never served — search drops them — so a few don't block a
+    // source (spec §26: "1,842 discovered, 1,799 valid"). A source whose records mostly fail does.
+    const reasons = [...new Set(invalid.flatMap((x) => x.issues.map((i) => `${i.field} ${i.problem}`)))].slice(0, 3).join("; ");
+    const validShare = canon.opportunities.length ? validCount / canon.opportunities.length : 0;
+    checks.push({ label: "Protocol v1 validation", ok: validCount > 0 && validShare >= MIN_VALID_SHARE, detail: invalid.length ? `${validCount} of ${canon.opportunities.length} valid; ${invalid.length} left out (${reasons})${validShare >= MIN_VALID_SHARE ? "" : ` — at least ${MIN_VALID_SHARE * 100}% must be valid`}` : `${validCount} of ${canon.opportunities.length} valid` });
+    const urlOk = canon.opportunities.filter((o) => o.quality.validApplyUrl).length;
+    checks.push({ label: "Apply URLs", ok: urlOk > 0 && urlOk / canon.opportunities.length >= MIN_VALID_SHARE, detail: `${urlOk} of ${canon.opportunities.length} valid` });
     // Potential duplicates: postings the warm pool already holds from another source.
     const pool = await store.listOpportunities({ limit: 5000 });
     const poolUrls = new Set(pool.filter((o) => !o.sourceRecords.some((x) => x.sourceId === src.id)).map((o) => normalizeUrl(o.canonicalApplyUrl)));

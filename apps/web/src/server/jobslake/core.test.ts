@@ -106,6 +106,20 @@ describe("JobsLake core search", () => {
     expect((await jobsLakeStore().listAudit())[0]).toMatchObject({ action: "source.test_passed", sourceId: "greenhouse", actor: "admin@example.com" });
   });
 
+  it("a few invalid records are left out, not fatal; a source whose records mostly fail can't pass", async () => {
+    const good = (n: number) => job({ id: `careers_${n}`, externalId: `gh:acme:${n}`, title: `Role number ${n}`, applyUrl: `https://boards.greenhouse.io/acme/jobs/${n}` });
+    connector.mockResolvedValueOnce({ jobs: [...Array.from({ length: 19 }, (_, i) => good(i)), job({ id: "careers_x", externalId: "gh:acme:x", title: "No description", description: "", applyUrl: "https://boards.greenhouse.io/acme/jobs/x" })], warnings: [] });
+    const few = await testSource(BUILTIN_SOURCES[0], "admin@example.com");
+    expect(few.ok).toBe(true);
+    expect(few.valid).toBe(19);
+    expect(few.checks.find((c) => c.label === "Protocol v1 validation")?.detail).toMatch(/19 of 20 valid; 1 left out \(description missing\)/);
+
+    connector.mockResolvedValueOnce({ jobs: Array.from({ length: 10 }, (_, i) => job({ id: `careers_${i}`, externalId: `gh:acme:${i}`, title: `Role ${i}`, description: i < 5 ? "" : LONG, applyUrl: `https://boards.greenhouse.io/acme/jobs/${i}` })), warnings: [] });
+    const many = await testSource(BUILTIN_SOURCES[0], "admin@example.com");
+    expect(many.ok).toBe(false);
+    expect(many.checks.find((c) => c.label === "Protocol v1 validation")?.detail).toMatch(/at least 90% must be valid/);
+  });
+
   it("a failing test says why and can't pass", async () => {
     connector.mockRejectedValue(new NeedsSetupError("The API credential is missing."));
     const r = await testSource(BUILTIN_SOURCES[0], "admin@example.com");
