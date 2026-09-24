@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, Dna, FileText, Search, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Dna, FileText, GitCompareArrows, MessageCircleQuestion, Search, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
@@ -12,6 +12,7 @@ import { HeroScene } from "./HeroScene";
 import { FloatingDashboardCard } from "./ParallaxHero";
 import { PhoneRunCard } from "./PhoneRunCard";
 import { cn } from "@/lib/cn";
+import { useSectionParallax } from "./useSectionParallax";
 
 /* --------------------------------------------------------------- sources */
 export function SourceLogoStrip() {
@@ -41,9 +42,9 @@ export function SourceLogoStrip() {
 const AGENT_POINTS = [
   { icon: Radar, t: "Search everywhere", s: "One search. A bigger world of opportunities." },
   { icon: Target, t: "Find better matches", s: "Less noise. More of what matters." },
-  { icon: Zap, t: "Automate the repetitive work", s: "Save time. Stay focused." },
-  { icon: Eye, t: "Get clear, unbiased insights", s: "Understand why a job fits." },
-  { icon: ShieldCheck, t: "Stay in control", s: "Review, adjust, or take over — anytime." },
+  { icon: Zap, t: "Prepare in minutes", s: "An Application Pack for your strongest matches." },
+  { icon: Eye, t: "See the why", s: "Every match explains itself — and so does every hidden one." },
+  { icon: ShieldCheck, t: "Stay in control", s: "Wonder prepares. The final action is always yours." },
 ];
 
 export function AgentSection() {
@@ -86,15 +87,16 @@ export function AgentSection() {
 
 /* ----------------------------------------------------------- journey */
 const JOURNEY = [
-  { key: "search", t: "Search", s: "Across platforms", body: "Wonder scans every connected source and collapses duplicates, so you see each role once.", stat: "1,842 → 1,124 unique" },
-  { key: "analyze", t: "Analyze", s: "Understand & match", body: "Every posting is read for skills, seniority, location and pay — then scored against your Career Profile.", stat: "94% match · Strong Opportunity" },
-  { key: "prepare", t: "Prepare", s: "Tailor your application", body: "Resume, cover letter and screening answers, drafted for the role and left for you to edit.", stat: "3 applications ready for review" },
-  { key: "track", t: "Track", s: "Keep everything in one place", body: "Submissions, follow-ups and interviews on one timeline — and Wonder learns what works.", stat: "Interview rate 3.2× higher" },
+  { key: "find", t: "Find", s: "Tell Wonder what you want", body: "Describe the roles you want in your own words. Wonder shows what it understood, searches live sources and removes duplicates — you see real progress, never a spinner pretending." },
+  { key: "decide", t: "Decide", s: "Know where to spend your time", body: "Every opportunity says why Wonder surfaced it, what to weigh and what to do next. Compare a few side by side — Wonder points out differences, you pick." },
+  { key: "apply", t: "Apply", s: "Your Application Pack, ready", body: "Tailored résumé, cover letter and screening answers in one pack, each labelled as an AI draft or your edit. Wonder opens the employer's page; the final click is yours." },
+  { key: "progress", t: "Progress", s: "Keep everything moving", body: "Applications, follow-ups, interviews and replies on one timeline — and Wonder can keep watch for new roles, speaking up only when it matters." },
 ];
 
 export function JourneySection() {
   const [active, setActive] = useState(0);
   const refs = useRef<(HTMLElement | null)[]>([]);
+  const parallax = useSectionParallax<HTMLElement>();
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
@@ -106,26 +108,30 @@ export function JourneySection() {
     return () => io.disconnect();
   }, []);
   return (
-    <section id="how-it-works" className="relative overflow-hidden bg-[#0e1030] py-20 text-white md:py-28" aria-labelledby="journey-title">
+    <section ref={parallax} id="how-it-works" className="relative overflow-hidden bg-[#0e1030] py-20 text-white md:py-28" aria-labelledby="journey-title">
       <div className="absolute inset-0" aria-hidden>
-        <HeroScene variant="dusk" id="journey" className="h-full w-full opacity-70" />
+        <div data-depth="0.8" className="absolute inset-0 will-change-transform">
+          <HeroScene variant="dusk" id="journey" className="h-full w-full opacity-70" />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-[#0e1030] via-[#0e1030]/40 to-[#0e1030]" />
       </div>
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal className="max-w-xl">
-          <p className="wj-eyebrow text-brand-200">From search to success</p>
+          <p className="wj-eyebrow text-brand-200">Find → Decide → Apply → Progress</p>
           <h2 id="journey-title" className="mt-3 text-h2 font-semibold">
-            A smoother journey to what&apos;s <span className="wj-gradient-text">next.</span>
+            Tell Wonder what you want. <span className="wj-gradient-text">It does the rest.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-white/75">Wonder runs the entire job-search process — from discovery to application prep — so you can focus on what really matters: your future.</p>
+          <p className="mt-4 text-[16px] text-white/75">No setup wizard and no workflow to babysit. Wonder searches, compares and prepares — then tells you what matters, so you can decide.</p>
         </ScrollReveal>
-        <p className="wj-handwritten mt-6 text-[20px] text-white/80 md:absolute md:right-16 md:top-0 md:rotate-[-6deg]">Same you. Bigger possibilities.</p>
+        <p data-depth="-0.6" className="wj-handwritten mt-6 text-[20px] text-white/80 will-change-transform md:absolute md:right-16 md:top-0 md:rotate-[-6deg]">
+          Same you. Bigger possibilities.
+        </p>
 
         <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <ol className="relative space-y-10 lg:space-y-24" aria-label="Journey stages">
-            <svg className="absolute left-5 top-6 hidden h-[calc(100%-3rem)] w-px lg:block" aria-hidden>
-              <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.25)" strokeDasharray="4 6" />
-            </svg>
+          <ol className="relative space-y-10 lg:space-y-24" aria-label="How WonderJobs works">
+            <span className="absolute left-5 top-6 hidden h-[calc(100%-3rem)] w-px bg-white/15 lg:block" aria-hidden>
+              <span className="block w-full wj-gradient-bg transition-[height] duration-500" style={{ height: `${(active / (JOURNEY.length - 1)) * 100}%` }} />
+            </span>
             {JOURNEY.map((j, i) => (
               <li
                 key={j.key}
@@ -135,8 +141,8 @@ export function JourneySection() {
                 }}
                 className="relative flex gap-5"
               >
-                <span className={cn("relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border text-[13px] font-bold transition-colors duration-300", active >= i ? "border-brand-400 bg-brand-500 text-white" : "border-white/30 bg-white/5 text-white/60")}>{i + 1}</span>
-                <button type="button" onClick={() => setActive(i)} className="text-left">
+                <span className={cn("relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border text-[13px] font-bold transition-all duration-300", active >= i ? "border-brand-400 bg-brand-500 text-white" : "border-white/30 bg-[#0e1030] text-white/60", active === i && "scale-110 shadow-[0_0_0_6px_rgba(109,76,245,0.25)]")}>{i + 1}</span>
+                <button type="button" onClick={() => setActive(i)} aria-pressed={active === i} className="text-left">
                   <span className={cn("block text-[22px] font-semibold transition-colors", active === i ? "text-white" : "text-white/70")}>{j.t}</span>
                   <span className="block text-[13px] text-brand-200">{j.s}</span>
                   <span className={cn("mt-2 block max-w-sm text-[14px] transition-opacity duration-300", active === i ? "text-white/80 opacity-100" : "text-white/60 opacity-70")}>{j.body}</span>
@@ -145,10 +151,10 @@ export function JourneySection() {
             ))}
           </ol>
           <div className="lg:sticky lg:top-28 lg:self-start">
-            <div className="relative mx-auto h-[380px] max-w-md" aria-live="polite">
+            <div className="relative mx-auto h-[400px] max-w-md">
               {JOURNEY.map((j, i) => (
-                <div key={j.key} className={cn("absolute inset-0 transition-all duration-500", active === i ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0")} aria-hidden={active !== i}>
-                  <StageCard index={i} stat={j.stat} title={j.t} />
+                <div key={j.key} className={cn("absolute inset-0 transition-all duration-500", active === i ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-4 scale-[0.98] opacity-0")} aria-hidden={active !== i}>
+                  <OutcomeCard step={j.key} title={j.t} />
                 </div>
               ))}
             </div>
@@ -159,43 +165,116 @@ export function JourneySection() {
   );
 }
 
-function StageCard({ index, stat, title }: { index: number; stat: string; title: string }) {
-  const icons = [Search, BarChart3, FileText, Sparkles];
-  const Icon = icons[index];
+/** A faithful miniature of what the product shows at each outcome — same words the app uses. */
+function OutcomeCard({ step, title }: { step: string; title: string }) {
+  const icon = { find: Search, decide: Target, apply: FileText, progress: BarChart3 }[step] ?? Sparkles;
+  const Icon = icon;
   return (
-    <div className="wj-glass h-full rounded-[28px] p-6 text-ink">
+    <div className="wj-glass flex h-full flex-col rounded-[28px] p-6 text-ink">
       <div className="flex items-center gap-3">
-        <span className="flex size-11 items-center justify-center rounded-[14px] bg-brand-500 text-white">
+        <span className="flex size-11 items-center justify-center rounded-[14px] wj-gradient-bg text-white">
           <Icon className="size-5" aria-hidden />
         </span>
         <div>
-          <p className="text-[12px] text-ink-3">Stage {index + 1}</p>
+          <p className="text-[12px] text-ink-3">What you see</p>
           <p className="text-[18px] font-semibold">{title}</p>
         </div>
       </div>
-      <div className="mt-5 rounded-[18px] bg-white/80 p-4">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Live example</p>
-        <p className="mt-1 text-[20px] font-semibold tracking-tight">{stat}</p>
-        <div className="mt-4 space-y-2">
-          {[92, 68, 44].map((w, i) => (
-            <div key={i} className="h-2 rounded-full bg-bg-soft">
-              <div className="h-2 rounded-full bg-brand-400" style={{ width: `${Math.max(20, w - index * 8)}%` }} />
+      <div className="mt-5 flex-1 rounded-[18px] bg-white/85 p-4 text-[13px]">
+        {step === "find" && (
+          <>
+            <p className="font-semibold text-ink">“Senior product roles in Bengaluru or remote, preferably fintech”</p>
+            <dl className="mt-3 space-y-1 text-[12px]">
+              <div className="flex gap-2"><dt className="text-ink-3">Roles</dt><dd className="font-medium">“senior product”</dd><dd className="text-ink-4">from your words</dd></div>
+              <div className="flex gap-2"><dt className="text-ink-3">Where</dt><dd className="font-medium">Bengaluru, Remote</dd></div>
+              <div className="flex gap-2"><dt className="text-ink-3">Industry</dt><dd className="font-medium">Fintech</dd><dd className="text-ink-4">weighed, not a filter</dd></div>
+            </dl>
+            <ul className="mt-4 space-y-1.5">
+              {["Searching the market — 412 found", "Removing duplicates — done", "Comparing with your career profile…"].map((s, i) => (
+                <li key={s} className="flex items-center gap-2">
+                  <span className={cn("size-2 rounded-full", i < 2 ? "bg-brand-500" : "bg-brand-300 wj-animate-pulse-dot")} />
+                  <span className={i < 2 ? "text-ink" : "text-ink-2"}>{s}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {step === "decide" && (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold text-ink">Senior Product Manager, Payments</p>
+                <p className="text-[12px] text-ink-3">Cobalt Pay · Bengaluru · Hybrid</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-success-100 px-2 py-0.5 text-[11px] font-semibold text-success-600">Strong</span>
             </div>
-          ))}
-        </div>
+            <p className="mt-3 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">Why Wonder surfaced this</p>
+            <ul className="mt-1 space-y-1 text-[12.5px] text-ink-2">
+              <li>✓ Strong overlap with your skills</li>
+              <li>✓ Fintech is one of your target industries</li>
+            </ul>
+            <p className="mt-2 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">Things to consider</p>
+            <p className="mt-1 text-[12.5px] text-ink-2">⚠ Compensation isn&apos;t disclosed</p>
+            <p className="mt-3 rounded-[10px] bg-brand-50 px-2.5 py-1.5 text-[12px] text-brand-700">Wonder&apos;s next suggestion: Prepare an application</p>
+          </>
+        )}
+        {step === "apply" && (
+          <>
+            <p className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
+              <CheckCircle2 className="size-4 text-success-600" aria-hidden /> Application ready
+            </p>
+            <ul className="mt-3 space-y-1.5 text-[12.5px]">
+              {[
+                ["Tailored résumé", "Edited by you"],
+                ["Cover letter", "AI-generated draft"],
+                ["Screening answers", "AI-generated draft"],
+              ].map(([t, s]) => (
+                <li key={t} className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-ink">{t}</span>
+                  <span className="text-ink-3">{s}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 rounded-[10px] bg-surface-2 px-2.5 py-2 text-[12px] text-ink-2">
+              <strong className="text-ink">The final action is yours.</strong> Wonder opens the employer&apos;s page; it never submits for you.
+            </p>
+          </>
+        )}
+        {step === "progress" && (
+          <>
+            <p className="font-semibold text-ink">Your progress</p>
+            <ul className="mt-2 grid grid-cols-2 gap-2">
+              {[
+                ["3", "applications active"],
+                ["1", "interview this week"],
+                ["1", "follow-up due"],
+                ["1", "employer replied"],
+              ].map(([n, l]) => (
+                <li key={l} className="rounded-[10px] border border-line bg-white px-2.5 py-2">
+                  <span className="block text-[17px] font-semibold text-ink">{n}</span>
+                  <span className="block text-[11px] text-ink-3">{l}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-success-100/60 px-2.5 py-2 text-[12px] text-ink-2">
+              <Radar className="size-3.5 text-success-600" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
+            </p>
+          </>
+        )}
       </div>
-      <p className="mt-5 text-[13px] text-ink-3">Every stage shows progress, counts and evidence. Never hidden reasoning.</p>
+      <p className="mt-4 text-[12px] text-ink-3">Illustrative example. Every number in your account comes from real postings and your own applications.</p>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ features */
 const FEATURES = [
-  { icon: Dna, t: "Career Profile", s: "A deeper understanding of you", href: "/app/career-dna" },
-  { icon: Zap, t: "Wonder Runs", s: "On-demand or scheduled automation", href: "/app/runs" },
-  { icon: Target, t: "AI-Powered Matching", s: "Find opportunities that actually fit", href: "/app/jobs" },
-  { icon: FileText, t: "Application Prep", s: "Tailored resumes, answers and more", href: "/app/applications" },
-  { icon: BarChart3, t: "Track & Learn", s: "Turn activity into insights", href: "/app/insights" },
+  { icon: Search, t: "Find opportunities", s: "Say what you want in your own words. Wonder shows what it understood before it searches.", href: "/demo?next=/app/runs/new" },
+  { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/demo?next=/app" },
+  { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
+  { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },
+  { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
+  { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/demo?next=/app/career-dna" },
 ];
 
 export function FeatureGrid() {
@@ -215,15 +294,19 @@ export function FeatureGrid() {
             Try it in the demo <ArrowRight className="size-4" aria-hidden />
           </a>
         </ScrollReveal>
-        <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
-            <ScrollReveal as="li" key={f.t} delay={i * 60}>
-              <Link href={f.href} className="wj-elevate flex h-full flex-col rounded-[22px] border border-line bg-surface-2 p-5">
-                <span className="flex size-10 items-center justify-center rounded-[12px] bg-brand-50 text-brand-600">
+            <ScrollReveal as="li" key={f.t} delay={(i % 3) * 70}>
+              <Link href={f.href} className="wj-elevate group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-line bg-surface-2 p-6">
+                <span className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-brand-100/60 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" aria-hidden />
+                <span className="relative flex size-11 items-center justify-center rounded-[13px] bg-brand-50 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105">
                   <f.icon className="size-5" aria-hidden />
                 </span>
-                <span className="mt-4 text-[16px] font-semibold text-ink">{f.t}</span>
-                <span className="mt-1 text-[13px] text-ink-3">{f.s}</span>
+                <span className="relative mt-4 text-[17px] font-semibold text-ink">{f.t}</span>
+                <span className="relative mt-1.5 flex-1 text-[14px] leading-relaxed text-ink-3">{f.s}</span>
+                <span className="relative mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-600">
+                  See it in the demo <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
+                </span>
               </Link>
             </ScrollReveal>
           ))}
@@ -423,6 +506,8 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
     title: "Product",
     links: [
       { label: "How it works", href: "/#how-it-works" },
+      { label: "Ask Wonder", href: "/#ask-wonder" },
+      { label: "You stay in control", href: "/#control" },
       { label: "Features", href: "/#features" },
       { label: "Screens", href: "/#screens" },
       { label: "Who it's for", href: "/#personas" },
@@ -479,7 +564,7 @@ export function MarketingFooter() {
         <div className="col-span-2">
           <WonderLogo />
           <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Belong.</p>
-          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">An AI job-search agent that searches real sources, explains every match and prepares applications you approve. It never applies on your behalf.</p>
+          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">Tell Wonder what you want. It searches real sources, explains every match and prepares applications you approve. It never applies on your behalf.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href="/sign-up" size="sm" className="rounded-full">
               Get started free

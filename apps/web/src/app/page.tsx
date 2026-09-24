@@ -3,10 +3,11 @@ import { MarketingNav } from "@/components/landing/MarketingNav";
 import { ParallaxHero } from "@/components/landing/ParallaxHero";
 import { AgentSection, ExtensionSection, FeatureGrid, FinalCTA, JourneySection, MarketingFooter, PersonaSection, ProviderSection, SourceLogoStrip } from "@/components/landing/Sections";
 import { ContactSection, ShowcaseSection } from "@/components/landing/Showcase";
+import { AskWonderSection, ControlSection } from "@/components/landing/OutcomeSections";
 
 export const metadata: Metadata = {
   title: "WonderJobs — Your next opportunity is out there. Wonder finds it.",
-  description: "WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.",
+  description: "Tell Wonder what you're looking for in your own words. It searches real job sources, explains every match and prepares your applications — you make the final call.",
 };
 
 export default function LandingPage() {
@@ -21,8 +22,10 @@ export default function LandingPage() {
         <SourceLogoStrip />
         <AgentSection />
         <JourneySection />
+        <AskWonderSection />
         <FeatureGrid />
         <ShowcaseSection />
+        <ControlSection />
         <PersonaSection />
         <ExtensionSection />
         <ProviderSection />

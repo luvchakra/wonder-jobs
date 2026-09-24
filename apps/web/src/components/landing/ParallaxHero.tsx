@@ -1,14 +1,15 @@
 "use client";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, Play, CheckCircle2, Bookmark, CalendarDays, Mail, Briefcase } from "lucide-react";
 import { HeroScene } from "./HeroScene";
+import { useTyped } from "./OutcomeSections";
 import { Button } from "@/components/common/Button";
 import { useLowPowerHint, useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
 type Layer = "sky" | "clouds" | "far" | "mid" | "near" | "ground" | "figure";
 /** Scroll factor per layer: 0 = fixed to page, 1 = moves with the page. Depth increases toward the viewer. */
-const FACTORS: Record<Layer | "ui" | "copy", number> = { sky: 0.05, clouds: 0.12, far: 0.18, mid: 0.28, near: 0.4, ground: 0.5, figure: 0.46, ui: -0.12, copy: 0.15 };
+const FACTORS: Record<Layer | "ui" | "copy" | "pill" | "toast", number> = { sky: 0.05, clouds: 0.12, far: 0.18, mid: 0.28, near: 0.4, ground: 0.5, figure: 0.46, ui: -0.12, copy: 0.15, pill: -0.22, toast: -0.3 };
 
 /**
  * Real scroll-linked parallax (spec §28): each SVG layer is translated on a
@@ -70,7 +71,7 @@ export function ParallaxHero() {
       <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pb-24 pt-32 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:pt-40">
         <div data-parallax={FACTORS.copy} data-fade="1" className="will-change-transform">
           <p className="wj-eyebrow wj-hero-in text-brand-700" style={{ "--wj-i": 0 } as CSSProperties}>
-            A brighter tomorrow, faster
+            Your AI career agent
           </p>
           <h1 id="hero-title" className="wj-hero-in mt-4 text-display font-semibold text-ink" style={{ "--wj-i": 1 } as CSSProperties}>
             Your next opportunity is out there.
@@ -78,7 +79,7 @@ export function ParallaxHero() {
             <span className="wj-gradient-text">Wonder finds it.</span>
           </h1>
           <p className="wj-hero-in mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2" style={{ "--wj-i": 2 } as CSSProperties}>
-            WonderJobs is your AI job-search agent. It scans the market, finds opportunities that actually fit you, and helps you take the next step — with less effort and more clarity.
+            Tell Wonder what you&apos;re looking for, in your own words. It searches real job sources, explains every match and prepares your applications — you make the final call.
           </p>
           <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
@@ -89,12 +90,16 @@ export function ParallaxHero() {
             </Button>
           </div>
           <ul className="wj-hero-in mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know" style={{ "--wj-i": 4 } as CSSProperties}>
-            {["No credit card required", "Free plan available", "Built for people who want better opportunities"].map((t) => (
+            {["No credit card required", "Free plan available", "Never applies on your behalf"].map((t) => (
               <li key={t} className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="size-3.5 text-brand-500" aria-hidden /> {t}
               </li>
             ))}
           </ul>
+          {/* Phones don't get the floating desktop scene, so show what starting a search looks like instead. */}
+          <div className="wj-hero-in mt-8 md:hidden" style={{ "--wj-i": 5 } as CSSProperties}>
+            <FindPill />
+          </div>
         </div>
 
         <div className="wj-hero-in relative hidden min-h-[420px] md:block" style={{ "--wj-i": 3 } as CSSProperties}>
@@ -107,15 +112,57 @@ export function ParallaxHero() {
             <li>More control</li>
             <li className="font-semibold text-ink">A brighter you</li>
           </ul>
-          {/* Floating product UI */}
+          {/* Floating product UI — three layers at different depths so the scene reads in 3D on scroll. */}
+          <div data-parallax={FACTORS.pill} className="absolute left-10 top-14 z-10 w-[330px] will-change-transform">
+            <div className="wj-float-slow">
+              <FindPill />
+            </div>
+          </div>
           <div data-parallax={FACTORS.ui} className="absolute bottom-0 left-6 w-[360px] will-change-transform">
             <div className="wj-float">
               <FloatingDashboardCard />
             </div>
           </div>
+          <div data-parallax={FACTORS.toast} className="absolute -right-2 bottom-24 w-[210px] will-change-transform lg:right-4">
+            <div className="wj-float-slow" style={{ "--wj-float-rot": "2deg", animationDelay: "-3s" } as CSSProperties}>
+              <div className="wj-glass rounded-[16px] p-3 shadow-lg">
+                <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
+                  <CheckCircle2 className="size-4 text-success-600" aria-hidden /> Application ready
+                </p>
+                <p className="mt-0.5 text-[11px] text-ink-3">Résumé · cover letter · answers</p>
+                <p className="mt-1.5 text-[10.5px] font-medium text-brand-700">The final action is yours</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/** The Find entry in miniature: the candidate's own words, typed out, and what Wonder read from them. */
+function FindPill() {
+  const [go, setGo] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGo(true), 1100);
+    return () => clearTimeout(t);
+  }, []);
+  const { shown, done } = useTyped("Senior product roles in Bengaluru or remote", go, 42);
+  return (
+    <div className="wj-glass rounded-[18px] p-3 shadow-lg" aria-label="Example: telling Wonder what you're looking for">
+      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">What are you looking for?</p>
+      <p className="mt-1 min-h-[20px] text-[13.5px] font-medium text-ink">
+        {shown}
+        <span className={cn("ml-px inline-block h-[1em] w-[2px] translate-y-[2px] bg-brand-500", !done && "wj-animate-pulse-dot")} aria-hidden />
+      </p>
+      <div className={cn("mt-2 flex flex-wrap gap-1.5 transition-all duration-500", done ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0")}>
+        {["Roles: senior product", "Bengaluru", "Remote"].map((c) => (
+          <span key={c} className="rounded-full bg-brand-50 px-2 py-0.5 text-[10.5px] font-medium text-brand-700">
+            {c}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -157,7 +204,10 @@ export function FloatingDashboardCard({ className }: { className?: string }) {
           </li>
         ))}
       </ul>
-      <a href="/demo" className="mt-4 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600">
+      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-ink-3">
+        <span className="size-1.5 rounded-full bg-success-600 wj-animate-pulse-dot" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
+      </p>
+      <a href="/demo" className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600">
         Open the demo <ArrowRight className="size-3.5" aria-hidden />
       </a>
     </div>
