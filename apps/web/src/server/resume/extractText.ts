@@ -184,6 +184,8 @@ function isCMapStream(text: string): boolean {
 export function extractPdfText(buf: Buffer): string {
   const raw = buf.toString("latin1");
   const bodies: { obj: number | null; text: string }[] = [];
+  // Every stream a font dictionary points at as its program (/FontFile, /FontFile2, /FontFile3).
+  const fontPrograms = new Set([...raw.matchAll(/\/FontFile[23]?\s+(\d+)\s+\d+\s+R/g)].map((m) => Number(m[1])));
   const re = /stream\r?\n?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw))) {
@@ -202,7 +204,11 @@ export function extractPdfText(buf: Buffer): string {
     // bytes can still coincidentally match the Tj/TJ token pattern below and inject garbage into
     // otherwise perfectly good extracted text. A real generated resume always has at least one of
     // these (Chromium/LibreOffice/Word all embed the font they used), so skip both up front.
-    if (/\/Length1\b/.test(dict) || /\/Subtype\s*\/Image\b/.test(dict)) continue;
+    // FontFile3 programs (CFF/OpenType — what pdf-lib and many design tools embed) carry no /Length1,
+    // so they're recognized by their subtype, or by being some font's /FontFile* target.
+    if (/\/Length1\b/.test(dict) || /\/Subtype\s*\/(Image|OpenType|Type1C|CIDFontType0C)\b/.test(dict)) continue;
+    const objHere = dictStart >= 0 ? raw.slice(Math.max(0, dictStart - 40), dictStart).match(/(\d+)\s+\d+\s+obj\s*$/) : null;
+    if (objHere && fontPrograms.has(Number(objHere[1]))) continue;
     try {
       const slice = buf.subarray(start, end);
       const body = /\/FlateDecode/.test(dict) ? inflate(slice) : slice;
