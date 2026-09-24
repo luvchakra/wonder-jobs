@@ -96,15 +96,36 @@ function keysFor(j: Job): string[] {
 
 /* ------------------------------------------------------------ union-find */
 
+/**
+ * A source never lists one posting twice under two ids, so two observations from the same source
+ * with different source job ids are different postings — e.g. the same title opened for two teams.
+ * Merging only ever joins observations from different sources (or the same record seen twice).
+ */
 function groupObservations(obs: Observation[]): Observation[][] {
   const parent = obs.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
-  const firstByKey = new Map<string, number>();
+  // Per group root: sourceId → the one source job id that group holds for it.
+  const ids = obs.map((o) => new Map([[o.source.id, o.job.externalId]]));
+  const union = (a: number, b: number) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra === rb) return;
+    for (const [src, id] of ids[rb]) {
+      const mine = ids[ra].get(src);
+      if (mine !== undefined && mine !== id) return; // would merge two postings of one source
+    }
+    for (const [src, id] of ids[rb]) ids[ra].set(src, id);
+    parent[rb] = ra;
+  };
+  const byKey = new Map<string, number[]>();
   obs.forEach((o, i) => {
     for (const k of keysFor(o.job)) {
-      const seen = firstByKey.get(k);
-      if (seen === undefined) firstByKey.set(k, i);
-      else parent[find(i)] = find(seen);
+      const seen = byKey.get(k);
+      if (!seen) byKey.set(k, [i]);
+      else {
+        for (const j of seen) union(j, i);
+        seen.push(i);
+      }
     }
   });
   const groups = new Map<number, Observation[]>();
@@ -202,4 +223,21 @@ export function canonicalize(obs: Observation[], now = Date.now()): Canonicalize
   const groups = groupObservations(obs);
   const opportunities = groups.map((g) => merge(g, now));
   return { opportunities, normalized: obs.length, duplicates: obs.length - opportunities.length };
+}
+
+/**
+ * Warm pool + live retrieval (spec §67): live results win; a warm opportunity is added only when no
+ * live result is the same posting (same id or same normalized apply URL). Returns how many of each.
+ */
+export function mergeWithWarm(live: CanonicalOpportunity[], warm: CanonicalOpportunity[]): { results: CanonicalOpportunity[]; live: number; warm: number } {
+  const ids = new Set(live.map((o) => o.id));
+  const urls = new Set(live.map((o) => normalizeUrl(o.canonicalApplyUrl)).filter((u): u is string => !!u));
+  const extra = warm.filter((o) => {
+    const u = normalizeUrl(o.canonicalApplyUrl);
+    if (ids.has(o.id) || (u && urls.has(u))) return false;
+    ids.add(o.id);
+    if (u) urls.add(u);
+    return true;
+  });
+  return { results: [...live, ...extra], live: live.length, warm: extra.length };
 }

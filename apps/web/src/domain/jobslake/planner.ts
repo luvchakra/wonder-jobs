@@ -3,7 +3,7 @@
  * deeply — and a plain reason for each choice, so the admin can see why a source was or wasn't
  * asked. Deterministic: the same inputs always produce the same plan.
  */
-import type { SearchMode, SearchRequest, SourceStatus } from "./protocol";
+import { STATUS_LABEL, type SearchMode, type SearchRequest, type SourceStatus } from "./protocol";
 import type { SourceHealth } from "./health";
 
 export type Depth = "shallow" | "normal" | "deep";
@@ -60,7 +60,9 @@ export function locationScope(locations: string[]) {
 
 function geographyFit(src: PlannableSource, scope: ReturnType<typeof locationScope>) {
   if (scope.anywhere || src.geography.includes("global")) return true;
-  if (src.geography.includes("remote")) return scope.remote;
+  // Remote roles are reachable from anywhere — WonderJobs' own location matcher accepts them for any
+  // search and lets scoring weigh region restrictions — so remote boards fit every search.
+  if (src.geography.includes("remote")) return true;
   return src.geography.some((g) => scope.countries.includes(g)) || (scope.countries.length === 0 && !scope.remote);
 }
 
@@ -79,7 +81,7 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
   for (const s of sources) {
     if (req.sourceIds && req.sourceIds.length && !req.sourceIds.includes(s.id)) continue;
     if (s.status !== "active" && s.status !== "degraded") {
-      skipped.push({ id: s.id, name: s.name, reason: `Status is ${s.status.replace("_", " ")}` });
+      skipped.push({ id: s.id, name: s.name, reason: `Status is ${STATUS_LABEL[s.status]}` });
       continue;
     }
     if (!s.available) {

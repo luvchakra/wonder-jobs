@@ -84,6 +84,17 @@ describe("canonicalize — dedupe and provenance", () => {
     expect(locationFamily("Remote - EMEA")).toBe("remote");
   });
 
+  it("never merges two postings from the same source — the same title opened twice is two jobs", () => {
+    const r = canonicalize([
+      { source: ats, job: job({ id: "c1", externalId: "gh:acme:1", applyUrl: "https://boards.greenhouse.io/acme/jobs/1" }) },
+      { source: ats, job: job({ id: "c2", externalId: "gh:acme:2", applyUrl: "https://boards.greenhouse.io/acme/jobs/2" }) },
+      // An aggregator copy of posting 1 still merges with it.
+      { source: agg, job: job({ id: "a1", sourceId: "adzuna", externalId: "9", applyUrl: "https://boards.greenhouse.io/acme/jobs/1" }) },
+    ]);
+    expect(r.opportunities).toHaveLength(2);
+    expect(r.opportunities.map((o) => o.sourceRecords.map((x) => x.sourceJobId).sort())).toEqual([["9", "gh:acme:1"], ["gh:acme:2"]]);
+  });
+
   it("does not merge different jobs that merely share an employer", () => {
     const r = canonicalize([
       { source: ats, job: job({ id: "1" }) },
@@ -207,7 +218,7 @@ describe("health and alerts — only from real runs", () => {
 
 describe("source planner", () => {
   const S = (id: string, geography: string[], over: Partial<PlannableSource> = {}): PlannableSource => ({ id, name: id, status: "active", available: true, geography, ...over });
-  const sources = [S("gh", ["global"]), S("lv", ["global"]), S("ab", ["global"]), S("adz", ["IN"]), S("rok", ["remote"]), S("sr", ["global"]), S("paused", ["global"], { status: "paused" }), S("nokey", ["IN"], { available: false })];
+  const sources = [S("gh", ["global"]), S("lv", ["global"]), S("ab", ["global"]), S("adz", ["IN"]), S("rok", ["remote"]), S("de", ["DE"]), S("paused", ["global"], { status: "paused" }), S("nokey", ["IN"], { available: false })];
   const req = (mode: "fast" | "balanced" | "maximum_coverage", locations = ["Bengaluru"]) => ({ searchMode: mode, query: { text: "iam", locations } });
 
   it("fast mode uses the strongest few in one wave; maximum coverage adds a discovery wave", () => {
@@ -216,7 +227,7 @@ describe("source planner", () => {
     expect(fast.waves[0]).toHaveLength(4);
     expect(fast.depth).toBe("shallow");
     const max = planSearch(req("maximum_coverage"), sources, {});
-    expect(max.waves.at(-1)!.map((p) => p.id)).toEqual(["rok"]);
+    expect(max.waves.at(-1)!.map((p) => p.id)).toEqual(["de"]);
     expect(max.depth).toBe("deep");
     expect(max.useWarmPool).toBe(false);
   });
@@ -227,11 +238,23 @@ describe("source planner", () => {
     expect(planned).not.toContain("paused");
     expect(planned).not.toContain("nokey");
     expect(p.skipped.find((s) => s.id === "nokey")?.reason).toMatch(/credentials/);
-    expect(p.skipped.find((s) => s.id === "rok")?.reason).toMatch(/Outside your locations/);
+    expect(p.skipped.find((s) => s.id === "de")?.reason).toMatch(/Outside your locations/);
   });
 
-  it("includes remote boards when the candidate accepts remote, and respects their own source choices", () => {
-    expect(planSearch(req("balanced", ["Bengaluru", "Remote"]), sources, {}).waves.flat().map((x) => x.id)).toContain("rok");
+  it("includes remote boards for any location (remote roles are reachable from anywhere), and respects the candidate's own source choices", () => {
+    expect(planSearch(req("balanced", ["Bengaluru"]), sources, {}).waves.flat().map((x) => x.id)).toContain("rok");
     expect(planSearch({ ...req("balanced"), sourceIds: ["gh"] }, sources, {}).waves.flat().map((x) => x.id)).toEqual(["gh"]);
+  });
+});
+
+describe("warm pool + live results (WJ-JL-038)", () => {
+  it("coexist: live wins, warm fills in, the same posting never appears twice", async () => {
+    const { mergeWithWarm } = await import("./canonical");
+    const live = canonicalize([{ source: ats, job: job({ id: "careers_1" }) }]).opportunities;
+    const warmSame = canonicalize([{ source: agg, job: job({ id: "adzuna_1", title: "Staff Engineer", applyUrl: "https://boards.greenhouse.io/acme/jobs/1" }) }]).opportunities;
+    const warmNew = canonicalize([{ source: ats, job: job({ id: "careers_2", title: "Product Designer", applyUrl: "https://boards.greenhouse.io/acme/jobs/2", description: "Design things for people. ".repeat(20) }) }]).opportunities;
+    const r = mergeWithWarm(live, [...warmSame, ...warmNew]);
+    expect(r).toMatchObject({ live: 1, warm: 1 });
+    expect(r.results.map((o) => o.title)).toEqual(["Senior Director, Identity Security", "Product Designer"]);
   });
 });
