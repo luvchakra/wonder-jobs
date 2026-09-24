@@ -59,8 +59,8 @@ export async function listSources(): Promise<SourceRecord[]> {
   const byId = new Map(stored.map((s) => [s.id, s]));
   const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].map((b) => {
     const o = byId.get(b.id);
-    // Built-ins keep their definition from code; only the admin's status/limits choices persist.
-    return o ? { ...b, status: b.config.kind === "partnership" ? b.status : o.status, statusReason: o.statusReason ?? b.statusReason, limits: o.limits ?? b.limits, updatedAt: o.updatedAt } : b;
+    // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
+    return o ? { ...b, status: b.config.kind === "partnership" ? b.status : o.status, statusReason: o.statusReason ?? b.statusReason, limits: o.limits ?? b.limits, updatedAt: o.updatedAt, lastTest: o.lastTest, activatedAt: o.activatedAt } : b;
   });
   const added = stored.filter((s) => !s.builtin);
   return [...builtins, ...added];

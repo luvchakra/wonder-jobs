@@ -165,8 +165,11 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     }
   }
 
+  // Report sources in plan order, not in whatever order they happened to finish.
+  const order = new Map(planned.map((p, i) => [p.id, i]));
+  statuses.sort((a, b) => (order.get(a.sourceId) ?? 0) - (order.get(b.sourceId) ?? 0));
   const canon = canonicalize(observations);
-  const valid = canon.opportunities.filter((o) => validateOpportunity(o).length === 0);
+  const valid =canon.opportunities.filter((o) => validateOpportunity(o).length === 0);
   // Duplicates per source = its records that another, stronger source's record represents.
   for (const run of runs) run.duplicates = canon.opportunities.reduce((n, o) => n + o.sourceRecords.filter((r) => r.sourceId === run.sourceId && !r.canonical).length, 0);
   await store.recordRuns(runs);
