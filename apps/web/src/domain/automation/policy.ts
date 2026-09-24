@@ -15,6 +15,7 @@ export const CAPABILITIES = [
   "save_jobs",
   "send_recruiter_message",
   "submit_application",
+  "fill_application",
   "send_email",
   "change_career_dna",
   "change_search_preferences",
@@ -46,6 +47,10 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // real hand-off: Wonder prepares everything and opens/queues it for the candidate's own action.
   send_recruiter_message: { key: "send_recruiter_message", label: "Draft a recruiter message", description: "Draft a message for you to send a recruiter yourself.", risk: "high", external: true, default: "ask" },
   submit_application: { key: "submit_application", label: "Hand off application", description: "Open a prepared application on the employer's own site, ready for you to submit.", risk: "high", external: true, default: "ask" },
+  // Filling puts the candidate's own facts into an employer's form in the candidate's own browser. It never
+  // submits (no code path clicks Submit); "Ask" means the helper waits for "Fill N fields", "Off" means guided
+  // copy-and-paste only. Medium risk: values are the candidate's own, and nothing leaves until they submit.
+  fill_application: { key: "fill_application", label: "Fill application forms", description: "Put your own profile details, résumé and approved answers into an employer's form in your browser. You review and submit.", risk: "medium", external: false, default: "ask" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },

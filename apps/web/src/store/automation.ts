@@ -25,6 +25,17 @@ export const useAutomationStore = create<AutomationState>()(
       setDefaultLevel: (l) => set({ defaultLevel: l }),
       resetPolicy: () => set({ policy: defaultPolicy() }),
     }),
-    { name: "wj.automation", storage: createRemoteStorage(), skipHydration: true, version: 1 },
+    {
+      name: "wj.automation",
+      storage: createRemoteStorage(),
+      skipHydration: true,
+      version: 1,
+      // A capability added after the policy was saved (e.g. fill_application) takes its default, which is
+      // never more permissive than "ask" for anything medium or high risk.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AutomationState>;
+        return { ...current, ...p, policy: { ...defaultPolicy(), ...(p.policy ?? {}) } };
+      },
+    },
   ),
 );
