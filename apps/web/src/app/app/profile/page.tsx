@@ -14,7 +14,7 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import { syncStatus } from "@/store/remoteStorage";
+import { flushRemote, syncStatus } from "@/store/remoteStorage";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
 import { Cloud, CloudOff, FlaskConical } from "lucide-react";
@@ -147,6 +147,10 @@ function ProfileInner() {
               <button
                 type="button"
                 onClick={async () => {
+                  // Send any still-debounced write (e.g. just-completed onboarding) while the session is
+                  // still valid — signOutEverywhere wipes this account's local copy immediately after, so
+                  // anything not yet on the server by then never arrives.
+                  await flushRemote(false);
                   await signOutEverywhere(userId);
                   // Full reload on purpose: drops every in-memory store before another account can sign in.
                   // eslint-disable-next-line @next/next/no-location-assign-relative-destination

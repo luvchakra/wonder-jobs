@@ -256,12 +256,17 @@ async function pushNow(keepalive: boolean) {
   }
 }
 
-/** Flush everything pending to the server now (used on pagehide with keepalive). */
+/**
+ * Flush everything pending to the server now. Returns the in-flight request so a caller that needs the
+ * write to have actually landed before doing something else (e.g. signing out, which invalidates the
+ * session a moment later) can `await` it — `pagehide`/`visibilitychange` fire it with `keepalive` and
+ * don't wait, since the page is already going away.
+ */
 export function flushRemote(keepalive = true) {
   serializePending();
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = null;
-  void pushNow(keepalive);
+  return pushNow(keepalive);
 }
 
 function bindFlushListeners() {

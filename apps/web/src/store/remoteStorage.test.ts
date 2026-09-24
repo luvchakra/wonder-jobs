@@ -98,6 +98,28 @@ describe("remoteStorage", () => {
     expect(pendingWrites()).toEqual([]);
   });
 
+  it("flushRemote's promise resolves only once the write actually lands, so a caller can await it before doing something irreversible", async () => {
+    // Regression for a real bug: signOutEverywhere wiped this account's local storage and revoked its
+    // session right after a store write (e.g. completeOnboarding), with no way to know the still-debounced
+    // write had reached the server first. If a caller wipes state right after calling flushRemote without
+    // awaiting it, the write is lost — this proves the returned promise only settles once the PUT resolves.
+    const career = createRemoteStorage<{ onboarded: boolean }>();
+    career.setItem("wj.career", { state: { onboarded: true }, version: 1 });
+    const flushed = flushRemote(false);
+    let resolved = false;
+    void flushed.then(() => {
+      resolved = true;
+    });
+    // The PUT hasn't gone out yet (still inside the SERIALIZE_MS debounce that flushRemote's own
+    // synchronous serializePending() call skips ahead of, but the fetch itself is still an async microtask).
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    await flushed;
+    expect(resolved).toBe(true);
+    expect(calls.some((c) => c.method === "PUT" && JSON.parse(c.body!).docs["wj.career"]?.state?.onboarded === true)).toBe(true);
+  });
+
   it("migrates local-only stores up when the server has nothing yet", async () => {
     vi.stubGlobal("fetch", fakeFetch(calls, {}));
     localStorage.setItem("wj.automation", JSON.stringify({ state: { policy: {} }, version: 1 }));
