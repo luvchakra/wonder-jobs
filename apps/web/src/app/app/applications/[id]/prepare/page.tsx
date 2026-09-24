@@ -2,8 +2,10 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, ExternalLink, Lightbulb, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, Lightbulb, Loader2 } from "lucide-react";
 import { MISSING_CANDIDATE_FIELDS } from "@/domain/career/missingFields";
+import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
+import { describeDecision } from "@/domain/jobs/decision";
 import { FitLabel } from "@/components/jobs/MatchBadge";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
@@ -24,10 +26,8 @@ import { Badge } from "@/components/common/Badge";
 import { EmptyState, ErrorState } from "@/components/common/States";
 import { ArtifactEditor } from "@/components/applications/ArtifactEditor";
 import { toast } from "@/components/feedback/Toast";
-import { cn } from "@/lib/cn";
 
 type Tab = ArtifactType | "review";
-const STEPS = ["Analyzing job requirements", "Matching your skills and experience", "Optimizing content", "Highlighting relevant achievements", "Finalizing tailored materials"];
 
 export default function PrepareApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -40,13 +40,13 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const setNextAction = useApplicationsStore((s) => s.setNextAction);
   const job = useJobsStore((s) => (app ? s.jobs[app.jobId] : undefined));
   const match = useJobsStore((s) => (app ? s.matches[app.jobId] : undefined));
+  const quality = useJobsStore((s) => (app ? s.quality[app.jobId] : undefined));
   const dna = useCareerStore((s) => s.dna);
   const aiConfig = useAIStore((s) => s.config);
   const recordUsage = useAIStore((s) => s.recordUsage);
   const policy = useAutomationStore((s) => s.policy);
   const [tab, setTab] = useState<Tab>("resume");
   const [busy, setBusy] = useState<Record<string, boolean>>({});
-  const [progress, setProgress] = useState<{ step: number; total: number } | null>(null);
   const [error, setError] = useState<{ message: string; provider: string; type: ArtifactType } | null>(null);
   const [approved, setApproved] = useState(false);
 
@@ -81,31 +81,32 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
       const svc = ai();
       const input = { job, dna };
       let content = "";
-      // The single call to the provider below is the real work; every step up to it fires immediately
-      // beforehand so none is ever skipped over (previously steps jumped 2 → 4, visually implying step 3
-      // ran and finished without ever showing as active).
-      setProgress({ step: 1, total: STEPS.length });
-      setProgress({ step: 2, total: STEPS.length });
-      setProgress({ step: 3, total: STEPS.length });
+      // One provider request is the whole job, so the UI shows one honest "drafting…" state for it
+      // rather than a list of sub-steps that never actually ran separately.
       if (type === "resume") content = await svc.generateResume(input);
       else if (type === "cover_letter") content = await svc.generateCoverLetter(input);
       else content = await svc.generateScreeningAnswers(input);
-      setProgress({ step: 4, total: STEPS.length });
       addVersion(app.id, type, { provenance: "AI_GENERATED", content, note: `Generated with ${aiConfig.activeProvider === "wonderjobs" ? "WonderJobs AI" : aiConfig.activeModel}` });
-      setProgress({ step: 5, total: STEPS.length });
       track("application_preparation_completed", { applicationId: app.id, artifact: type });
+      const latest = useApplicationsStore.getState().applications[app.id];
+      if (latest && describeApplicationPack(latest).ready) track("application_pack_completed", { applicationId: app.id });
       toast.success(`${type === "resume" ? "Resume" : type === "cover_letter" ? "Cover letter" : "Answers"} ready`, "Review and edit before you continue.");
     } catch (e) {
       const provider = e instanceof ProviderError ? e.provider : aiConfig.activeProvider;
       setError({ message: e instanceof Error ? e.message : "Generation failed.", provider, type });
     } finally {
       setBusy((b) => ({ ...b, [type]: false }));
-      setTimeout(() => setProgress(null), 600);
     }
   };
 
-  const allReady = (["resume", "cover_letter", "answers"] as ArtifactType[]).every((t) => artifact(t));
+  const pack = describeApplicationPack(app);
+  const allReady = pack.ready;
+  const concerns = describeDecision(job, match, quality).consider;
+  const missingInfo = [...(!dna.name.trim() ? ["Your name"] : []), ...MISSING_CANDIDATE_FIELDS];
+  const generating = (Object.keys(busy) as ArtifactType[]).find((t) => busy[t]);
+  const providerName = aiConfig.activeProvider === "wonderjobs" ? "WonderJobs AI" : aiConfig.activeModel;
   const finish = () => {
+    track("external_handoff_started", { applicationId: app.id });
     setStatus(app.id, "ready_for_review", { type: "prepared", title: "Application prepared", detail: "Reviewed and approved by you" });
     setNextAction(app.id, "Submit on the employer's site, then mark as submitted");
     // The hand-off itself: Wonder opens the employer's page with materials ready. It never submits
@@ -123,15 +124,72 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
         description={`Everything to apply for ${job.title} at ${job.company}, in one place.`}
         actions={
           <>
-            {allReady && tab !== "review" && (
-              <Button size="sm" variant="outline" onClick={() => setTab("review")}>
-                Review Application
-              </Button>
-            )}
             <Badge tone={APPLICATION_STATUS_META[app.status].tone}>{APPLICATION_STATUS_META[app.status].label}</Badge>
           </>
         }
       />
+      <Card className="mb-5" aria-labelledby="wj-pack-summary">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="wj-pack-summary" className="flex items-center gap-2 text-[18px] font-semibold text-ink">
+              {pack.ready && <CheckCircle2 className="size-5 text-success-600" aria-hidden />}
+              {pack.title}
+            </h2>
+            <p className="text-[13px] text-ink-3">
+              {job.title} · {job.company}
+            </p>
+          </div>
+          {pack.ready ? (
+            tab !== "review" && (
+              <Button size="sm" onClick={() => setTab("review")}>
+                Review and continue
+              </Button>
+            )
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setTab(pack.items.find((i) => !i.ready)!.type)}>
+              Prepare the {PACK_ITEM_LABEL[pack.items.find((i) => !i.ready)!.type].toLowerCase()}
+            </Button>
+          )}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Prepared</p>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {pack.items.map((i) => (
+                <li key={i.type} className="flex items-start gap-2 text-[13px]">
+                  {i.ready ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden /> : <span className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong" aria-hidden />}
+                  <span>
+                    <span className={i.ready ? "font-medium text-ink" : "text-ink-3"}>{i.label}</span>
+                    <span className="block text-[12px] text-ink-4">{i.source ?? "Not prepared yet"}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Missing information</p>
+            <p className="mt-2 text-[13px] text-ink-2">{missingInfo.join(", ")}</p>
+            <p className="mt-1 text-[12px] text-ink-4">Wonder doesn&apos;t collect these yet, so {job.company}&apos;s form will ask for them.</p>
+          </div>
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Things to consider</p>
+            {concerns.length ? (
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {concerns.map((c) => (
+                  <li key={c} className="flex items-start gap-2 text-[13px] text-ink-2">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-600" aria-hidden /> {c}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-[13px] text-ink-3">Nothing stood out in the match or the posting.</p>
+            )}
+          </div>
+        </div>
+        <p className="mt-4 rounded-[12px] bg-surface-2 p-3 text-[13px] text-ink-2">
+          <strong className="text-ink">The final action is yours.</strong> Wonder opens {job.company}&apos;s own application page with these materials ready. It never submits an application for you.
+        </p>
+      </Card>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
           <Tabs value={tab} onChange={setTab} label="Materials" items={[{ value: "resume", label: "Resume" }, { value: "cover_letter", label: "Cover Letter" }, { value: "answers", label: "Answers" }, { value: "review", label: "Review" }]} className="mb-4" />
@@ -148,23 +206,9 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
             />
           )}
           <Card>
-            {progress && (
-              <div className="mb-5 rounded-[14px] border border-line bg-surface-2 p-4" role="status" aria-live="polite">
-                <div className="mb-3 flex items-center gap-2 text-[14px] font-medium text-ink">
-                  <Loader2 className="size-4 wj-animate-spin text-brand-600" aria-hidden /> Tailoring your {tab === "review" ? "materials" : tab.replace("_", " ")}…
-                </div>
-                <ol className="flex flex-col gap-1.5">
-                  {STEPS.map((s, i) => {
-                    const done = i + 1 < progress.step;
-                    const active = i + 1 === progress.step;
-                    return (
-                      <li key={s} className={cn("flex items-center gap-2 text-[13px]", done ? "text-ink" : active ? "text-brand-700" : "text-ink-4")}>
-                        {done ? <CheckCircle2 className="size-4 text-success-600" aria-hidden /> : active ? <Loader2 className="size-4 wj-animate-spin" aria-hidden /> : <span className="size-4 rounded-full border border-line-strong" aria-hidden />}
-                        {s}
-                      </li>
-                    );
-                  })}
-                </ol>
+            {generating && (
+              <div className="mb-5 flex items-center gap-2 rounded-[14px] border border-line bg-surface-2 p-4 text-[14px] font-medium text-ink" role="status" aria-live="polite">
+                <Loader2 className="size-4 wj-animate-spin text-brand-600" aria-hidden /> Drafting your {PACK_ITEM_LABEL[generating].toLowerCase()} with {providerName}…
               </div>
             )}
             {tab !== "review" ? (
@@ -206,7 +250,13 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                   })}
                 </ul>
                 <label className="mt-4 flex items-start gap-3 rounded-[12px] bg-surface-2 p-3 text-[13px] text-ink-2">
-                  <input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} className="mt-0.5 size-4 accent-brand-500" />
+                  <input
+                    type="checkbox"
+                    checked={approved}
+                    onChange={(e) => {
+                      setApproved(e.target.checked);
+                      if (e.target.checked) track("application_reviewed", { applicationId: app.id });
+                    }} className="mt-0.5 size-4 accent-brand-500" />
                   I&apos;ve reviewed these materials. They&apos;re accurate and I&apos;m happy to use them for this application.
                 </label>
                 <p className="mt-3 text-[12px] text-ink-4">&ldquo;Continue to Employer&rdquo; opens {job.company}&apos;s own application page with these materials ready. Wonder never submits on your behalf — you submit there, then come back and mark it as submitted.</p>
@@ -261,16 +311,6 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               </Link>
             </Card>
           )}
-          <Card>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Missing candidate information</p>
-            <ul className="mt-2 flex flex-col gap-1.5 text-[13px] text-ink-2">
-              {!dna.name.trim() && <li>Your name (add it to Career DNA)</li>}
-              {MISSING_CANDIDATE_FIELDS.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[12px] text-ink-4">Wonder doesn&apos;t collect these yet, so {job.company}&apos;s form will ask you to fill them in yourself.</p>
-          </Card>
           <Card>
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Key requirements</p>
             <ul className="mt-2 flex flex-col gap-1.5 text-[13px] text-ink-2">

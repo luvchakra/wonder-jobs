@@ -40,6 +40,12 @@ export const SEED_DNA: CareerDNA = {
   updatedAt: ago(12 * DAY),
 };
 
+const DEMO_PACK_TEXT = {
+  resume: "ALEX MORGAN — Product Manager\n\nSample demo résumé tailored for Senior Product Manager, Platform at Razorpay.\n\n• Led roadmap for a consumer payments product used by millions of customers\n• Ran A/B tests that lifted activation\n• Partnered with engineering and design on quarterly planning",
+  cover_letter: "Dear Razorpay hiring team,\n\nThis is a sample demo cover letter. I'm excited about the Senior Product Manager, Platform role and the chance to bring my payments and experimentation experience to your platform team.\n\nBest,\nAlex Morgan",
+  answers: "Why Razorpay? (sample demo answer)\nI've built consumer fintech products and want to work on the platform that powers them.",
+} as const;
+
 export function seedApplications(): Application[] {
   const mk = (id: string, jobId: string, status: Application["status"], createdDaysAgo: number, extra: Partial<Application> = {}): Application => ({
     id,
@@ -90,6 +96,15 @@ export function seedApplications(): Application[] {
     mk("app_airbnb", "job_airbnb_pm", "saved", 7, { nextAction: "Prepare application", events: [{ id: "ev11", applicationId: "app_airbnb", type: "saved", at: ago(7 * DAY), title: "Saved" }] }),
     mk("app_razorpay", "job_razorpay_spm", "ready_for_review", 1, {
       nextAction: "Review tailored materials",
+      // Demo only: a "ready for review" pack must actually contain materials, or the Application Pack
+      // summary (correctly) reports nothing prepared while Home says materials are ready.
+      artifacts: (["resume", "cover_letter", "answers"] as const).map((type) => ({
+        id: `art_razorpay_${type}`,
+        applicationId: "app_razorpay",
+        type,
+        currentVersionId: `ver_razorpay_${type}`,
+        versions: [{ id: `ver_razorpay_${type}`, createdAt: ago(20 * HOUR), provenance: "AI_GENERATED" as const, note: "Sample demo draft", content: DEMO_PACK_TEXT[type] }],
+      })),
       events: [
         { id: "ev12", applicationId: "app_razorpay", type: "discovered", at: ago(1 * DAY), title: "Job discovered" },
         { id: "ev13", applicationId: "app_razorpay", type: "prepared", at: ago(20 * HOUR), title: "Application prepared" },
