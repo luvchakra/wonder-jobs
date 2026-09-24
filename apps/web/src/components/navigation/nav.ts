@@ -21,8 +21,8 @@ export const PRIMARY_NAV: NavItem[] = [
 // Scheduling and automation policy are Wonder's own advanced controls — one tap from the "Wonder"
 // primary item, not a separate top-level destination.
 export const WONDER_NAV: NavItem[] = [
-  { href: "/app/automation/scheduled", label: "Scheduled Runs", icon: Timer },
-  { href: "/app/automation/settings", label: "Automation Settings", icon: Settings2 },
+  { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+  { href: "/app/automation/settings", label: "What Wonder can do", icon: Settings2 },
 ];
 
 // Everything that helps a candidate improve their profile, grouped under "Career" rather than each

@@ -106,9 +106,9 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     await page.goto("/demo?next=/app/runs/new");
     await expect(page).toHaveURL(/\/app\/runs\/new/);
 
-    const continueBtn = page.getByRole("button", { name: "Continue" });
+    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
     // A demo seed run may already be "active" (services/mock/runs.ts), which disables this page's own
-    // submit button and offers "Open active run" instead — either outcome proves runs are real and
+    // submit button and offers "See progress" instead — either outcome proves runs are real and
     // reachable, so this test follows whichever the seed actually produced rather than assuming one.
     // The target pattern excludes "new" itself: `[^/]+` alone would also match the page we start on,
     // resolving `waitForURL` instantly without ever waiting for the real navigation the click triggers.
@@ -116,7 +116,7 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     if (await continueBtn.isEnabled().catch(() => false)) {
       await continueBtn.click();
     } else {
-      await page.getByRole("link", { name: "Open active run" }).click();
+      await page.getByRole("link", { name: "See progress" }).click();
     }
     await page.waitForURL(runPageUrl, { timeout: 20_000 });
     expect(page.url()).toMatch(runPageUrl);
@@ -140,7 +140,7 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await expect(drawer).toBeVisible();
     // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 5 primary destinations.
     await expect(drawer.getByRole("link", { name: "Career", exact: true })).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Automation Settings" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "What Wonder can do" })).toBeVisible();
     await expect(drawer.getByRole("link", { name: "Help & Guide" })).toBeVisible();
 
     await drawer.getByRole("link", { name: "Insights" }).click();
@@ -154,7 +154,7 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(bottomBar.getByRole("button", { name: "More" })).toHaveCount(0);
-    // Scheduled Runs/Automation Settings/Insights/Resume Studio/etc. are still one tap away via the
+    // Scheduled searches/What Wonder can do/Insights/Resume Studio/etc. are still one tap away via the
     // hamburger's drawer (GJ-008), not lost — just not duplicated as a 6th bottom-bar tab.
     await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
   });
@@ -237,9 +237,9 @@ test.describe("Golden journey — Ask Wonder (demo mode)", () => {
 test.describe("Golden journey — automation (demo mode)", () => {
   test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }) => {
     await page.goto("/demo?next=/app/automation/settings");
-    await expect(page.getByRole("heading", { name: "Automation Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What Wonder can do" })).toBeVisible();
     // Phase 3.2 relabeling — plain language, not internal jargon.
-    for (const label of ["Assist me", "Work with me", "Work independently", "Keep working"]) {
+    for (const label of ["Help me", "Work with me", "Work independently", "Keep watch"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
     const genResume = page.getByRole("radiogroup", { name: "Generate resume permission" });
@@ -255,34 +255,29 @@ test.describe("Golden journey — automation (demo mode)", () => {
 });
 
 test.describe("Golden journey — manual intervention (demo mode)", () => {
-  test("GJ-016 a running run can be paused mid-flight and resumed without losing progress", async ({ page }) => {
+  test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
     await page.goto("/demo?next=/app/runs/new");
-    const continueBtn = page.getByRole("button", { name: "Continue" });
+    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
     if (await continueBtn.isEnabled().catch(() => false)) await continueBtn.click();
-    else await page.getByRole("link", { name: "Open active run" }).click();
+    else await page.getByRole("link", { name: "See progress" }).click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
 
-    // On mobile widths a second, identical control also lives in a live-region status bar
-    // (components/workflow/StageDetail.tsx) — same real action, so `.first()` is correct here, not a
-    // workaround for a bug.
-    const pauseBtn = page.getByRole("button", { name: "Pause" }).first();
-    // The engine chunks work (services/workflow/executors.ts) specifically so pause stays responsive —
-    // give it a real window to be running before asserting the button is there to click.
+    // Pause/Continue live on the outcome card; the mobile status bar has its own labelled twin
+    // ("Continue the search"), so scoping to the card keeps this one real control per action.
+    const card = page.locator("section[aria-labelledby='run-experience-title']");
+    const pauseBtn = card.getByRole("button", { name: "Pause", exact: true });
+    // The engine chunks work (services/workflow/executors.ts) specifically so pause stays responsive.
     await expect(pauseBtn).toBeVisible({ timeout: 15_000 });
     await pauseBtn.click();
-    await expect(page.getByText("Paused", { exact: true }).first()).toBeVisible({ timeout: 5_000 });
-    const progressBefore = await page.locator("[role='progressbar']").first().getAttribute("aria-valuenow").catch(() => null);
+    await expect(card.getByRole("heading", { name: "Wonder is paused" })).toBeVisible({ timeout: 5_000 });
+    const doneWhilePaused = await card.locator("li", { hasText: "— done" }).count();
 
-    const resumeBtn = page.getByRole("button", { name: "Resume" }).first();
-    await expect(resumeBtn).toBeVisible();
-    await resumeBtn.click();
-    // Resuming continues from where it left off — progress never resets to 0.
-    if (progressBefore != null) {
-      await expect(async () => {
-        const now = await page.locator("[role='progressbar']").first().getAttribute("aria-valuenow");
-        expect(Number(now ?? 0)).toBeGreaterThanOrEqual(Number(progressBefore));
-      }).toPass({ timeout: 5_000 });
-    }
+    await card.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(card.getByRole("heading", { name: "Wonder is paused" })).toHaveCount(0);
+    // Continuing picks up where it left off — no step that was done goes back to not done.
+    await expect(async () => {
+      expect(await card.locator("li", { hasText: "— done" }).count()).toBeGreaterThanOrEqual(doneWhilePaused);
+    }).toPass({ timeout: 5_000 });
   });
 });
 

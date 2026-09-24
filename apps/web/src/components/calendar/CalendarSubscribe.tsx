@@ -52,7 +52,7 @@ export function CalendarSubscribe() {
       <Button variant="outline" icon={<CalendarPlus className="size-4" aria-hidden />} onClick={load}>
         Subscribe
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Subscribe from your calendar app" description="A live feed of your real interviews, follow-ups and scheduled runs — no export, no re-copying.">
+      <Modal open={open} onClose={() => setOpen(false)} title="Subscribe from your calendar app" description="A live feed of your real interviews, follow-ups and scheduled searches — no export, no re-copying.">
         <div className="flex items-center gap-2">
           <Input readOnly value={busy ? "Creating your link…" : (url ?? "")} onFocus={(e) => e.currentTarget.select()} aria-label="Calendar feed URL" />
           <Button variant="outline" icon={<Copy className="size-4" aria-hidden />} disabled={!url} onClick={copy}>

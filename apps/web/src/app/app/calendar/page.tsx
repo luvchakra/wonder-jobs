@@ -53,7 +53,7 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <PageHeader title="Calendar" description="Interviews, follow-ups and scheduled runs — everything with a date, in one place." actions={<CalendarSubscribe />} />
+      <PageHeader title="Calendar" description="Interviews, follow-ups and scheduled searches — everything with a date, in one place." actions={<CalendarSubscribe />} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
           <div className="mb-4 flex items-center justify-between">

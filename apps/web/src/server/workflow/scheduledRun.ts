@@ -152,7 +152,7 @@ function notifyFailure(snapshot: TenantSnapshot, schedule: WorkflowSchedule, run
   return pushNotification(snapshot, {
     category: "scheduled_run_failed",
     title: `“${schedule.name}” didn't finish`,
-    body: run.error?.message ?? "The scheduled run stopped before it completed. Nothing was lost — open it to see how far it got.",
+    body: run.error?.message ?? "The scheduled search stopped before it completed. Nothing was lost — open it to see how far it got.",
     href: `/app/runs/${run.id}`,
   });
 }

@@ -50,6 +50,8 @@ export function deriveSearchIntent(raw: string): SearchIntent {
     const pieces = clause.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/i).map((p) => p.trim().replace(/[.!?]+$/, "")).filter(Boolean);
     if (!pieces.some((p) => KNOWN_PLACES.test(p) || MODE_WORDS[p.toLowerCase()])) continue;
     for (const piece of pieces) {
+      // "in fintech, Bengaluru or remote": the industry word is a preference, not a place.
+      if (INDUSTRY_WORDS.has(piece.toLowerCase())) continue;
       const mode = MODE_WORDS[piece.toLowerCase()];
       if (mode) workModes.add(mode);
       if (mode === "remote") locations.push("Remote");

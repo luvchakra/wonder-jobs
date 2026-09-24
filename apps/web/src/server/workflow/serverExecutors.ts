@@ -89,7 +89,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
         // so is what puts it in front of the candidate. The next tick is the retry.
         ctx.fail({
           category: "fatal",
-          message: failures.length ? `Every source failed (${failures.join(", ")}). The next scheduled run will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
+          message: failures.length ? `Every source failed (${failures.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
           actions: ["retry", "fix_config", "stop"],
         });
       }

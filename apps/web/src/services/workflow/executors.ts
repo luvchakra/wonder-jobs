@@ -294,7 +294,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const jobs = useJobsStore.getState().jobs;
       const decision = ctx.policy("submit_application");
       if (decision === "skip") {
-        ctx.addEvidence({ label: "Skipped", value: "Submitting applications is turned off in Automation Settings." });
+        ctx.addEvidence({ label: "Skipped", value: "Submitting applications is turned off in What Wonder can do." });
         return { data: { submittedApplicationIds: [], handedOffApplicationIds: [] } };
       }
       // Wonder never submits on an employer's site on the candidate's behalf: employers' forms need the

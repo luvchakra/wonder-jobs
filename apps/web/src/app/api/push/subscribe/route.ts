@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
   const delivery = await notifyTenant(session.tenantId, {
     title: "Notifications are on",
-    body: "Wonder will let you know when a scheduled run finds something worth your time.",
+    body: "Wonder will let you know when a scheduled search finds something worth your time.",
     url: "/app",
     tag: "wj-test",
   });

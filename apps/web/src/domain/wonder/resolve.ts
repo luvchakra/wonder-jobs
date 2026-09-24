@@ -31,11 +31,11 @@ export interface WonderContext {
   now: number;
 }
 
-/** Picks the closest existing schedule template by the frequency word the candidate actually used — never invents a new cadence. */
-function scheduleTemplateFor(raw: string): string {
-  if (/month/i.test(raw)) return "career_progress";
-  if (/week/i.test(raw)) return "weekly_review";
-  return "daily_discovery";
+/** The candidate's own frequency word picks the simple chooser's option — never an invented cadence. */
+function lookFrequencyFor(raw: string): "daily" | "weekly" | "keep_watch" {
+  if (/week/i.test(raw)) return "weekly";
+  if (/keep (?:searching|looking|watch)|automatically|recurring/i.test(raw)) return "keep_watch";
+  return "daily";
 }
 
 export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderAction | null {
@@ -63,13 +63,12 @@ export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderActio
       };
     }
     case "create_schedule": {
-      const templateId = scheduleTemplateFor(raw);
       const q = intent.subject;
       return {
         id: "wonder-schedule",
-        label: q ? `Set up a recurring search for "${q}"` : "Set up a recurring search",
-        hint: "You choose the frequency and confirm before anything runs.",
-        href: `/app/automation/scheduled/new?template=${templateId}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+        label: q ? `Keep looking for "${q}"` : "Keep Wonder looking",
+        hint: "You choose how often and confirm before anything is scheduled.",
+        href: `/app/automation/scheduled/new?often=${lookFrequencyFor(raw)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
       };
     }
     case "explain_why_not_shown": {

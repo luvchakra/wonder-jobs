@@ -32,6 +32,13 @@ describe("deriveSearchIntent — a plain-language request becomes a search, with
     expect(i.industries).toEqual(["startups"]);
   });
 
+  it("never turns an industry word inside a place clause into a location", () => {
+    const i = deriveSearchIntent("Director roles in fintech, Bengaluru or remote");
+    expect(i.locations).toEqual(["Bengaluru", "Remote"]);
+    expect(i.industries).toEqual(["fintech"]);
+    expect(i.query).toBe("director");
+  });
+
   it("picks up a work mode mentioned outside a place clause", () => {
     const i = deriveSearchIntent("remote product manager jobs");
     expect(i.query).toBe("product manager");

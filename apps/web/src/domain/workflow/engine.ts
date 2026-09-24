@@ -435,7 +435,7 @@ export class WorkflowEngine {
     if (def.capabilities.length && decisions.every((d) => d === "skip")) {
       stage.status = "CANCELLED";
       stage.evidence.push({ label: "Skipped", value: "Turned off in your automation settings", tone: "neutral" });
-      this.push(run, "stage_completed", `${def.name} skipped (turned off in Automation Settings).`, stage.key);
+      this.push(run, "stage_completed", `${def.name} skipped — turned off in “What Wonder can do”.`, stage.key);
       return;
     }
 

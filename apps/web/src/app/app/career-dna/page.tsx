@@ -197,7 +197,7 @@ export default function CareerDNAPage() {
           <p className="mt-2 text-[12px] text-ink-3">LinkedIn isn&apos;t connected — it has no public API to import from, so nothing here comes from there.</p>
         </Card>
 
-        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career DNA unless you allow it in Automation Settings.</p>
+        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career DNA unless you allow it in What Wonder can do.</p>
       </div>
     </div>
   );

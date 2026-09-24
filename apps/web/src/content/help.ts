@@ -113,20 +113,20 @@ export const HELP_SECTIONS: HelpSection[] = [
     keywords: ["automation", "level", "assist", "guided", "autonomous", "continuous", "policy", "permission", "ask me", "risk", "capability"],
     body: [
       "Choose a level per run: Assist (AI helps, you decide everything), Guided (routine steps run, Wonder asks when needed), Autonomous (runs with your standing permissions), Continuous (runs on a schedule and learns).",
-      "Automation Settings set a rule per capability: search jobs, deduplicate, analyze, rank, save jobs, generate resume and cover letter, submit application, send recruiter message, change search preferences. Each is Automatic, Ask me, or Off.",
+      "What Wonder can do set a rule per capability: search jobs, deduplicate, analyze, rank, save jobs, generate resume and cover letter, submit application, send recruiter message, change search preferences. Each is Automatic, Ask me, or Off.",
       "- Low-risk work (reading and scoring) can run unattended. Medium-risk work (drafting) can run unattended but is always reviewable. High-risk work with external side effects (anything that reaches an employer) always follows your policy and is audited.",
       "- Whatever the level, nothing is ever sent to an employer without your approval.",
     ],
   },
   {
     id: "scheduled-runs",
-    title: "Scheduled runs",
+    title: "Scheduled searches",
     summary: "Daily discovery, conditions for notifying you, and the builder.",
     keywords: ["schedule", "scheduled", "daily", "weekly", "cron", "automatic run", "builder", "template", "notify", "silent"],
     body: [
-      "Scheduled runs repeat a workflow (for example Daily Job Discovery at 8 am). Each schedule has a condition such as 'strong matches found' or 'new jobs found': if the condition is not met the run finishes quietly and you are not notified. Silence is a valid outcome.",
+      "Scheduled searches repeat a workflow (for example Daily Job Discovery at 8 am). Each schedule has a condition such as 'strong matches found' or 'new jobs found': if the condition is not met the run finishes quietly and you are not notified. Silence is a valid outcome.",
       "The builder lets you set trigger, frequency, conditions, actions, AI provider and model, or start from a template. Duplicate, pause or run any schedule now.",
-      "- Turn on notifications in Profile to get a nudge on your phone or desktop when a scheduled run finds strong matches. It's per browser, permission is only asked when you press the button, and everything still appears in the app either way.",
+      "- Turn on notifications in Profile to get a nudge on your phone or desktop when a scheduled search finds strong matches. It's per browser, permission is only asked when you press the button, and everything still appears in the app either way.",
       "- Schedules fire on Wonder's servers as well as in your browser, so a run still happens while you're away — with the app open they fire at exactly their time, and when it's closed the server picks them up on its next sweep. Either way the results are waiting when you next sign in, and a schedule never runs twice for the same occurrence.",
       "- Stages that need you — preparing materials, your review, the hand-off to an employer — are never done without you. A scheduled run finds, scores and shortlists; you decide what to do with it.",
     ],
@@ -193,9 +193,9 @@ export const HELP_FAQ: HelpFaq[] = [
   { q: "Is my API key safe?", a: "It is encrypted at rest, only ever used from the server, never returned to the browser or logged, and you can remove it any time.", section: "ai" },
   { q: "How do I reset my password?", a: "Use 'Forgot password?' on the sign-in page; the emailed link opens a page to choose a new one.", section: "account" },
   { q: "What is the demo?", a: "A sample candidate on your device only, for exploring. It never touches your account.", section: "demo" },
-  { q: "Will scheduled runs happen while I'm away?", a: "Yes. Wonder's servers fire schedules too, so a run happens while you're away and the shortlist is waiting when you sign in. With the app open they fire at exactly their time; with it closed the server picks them up on its next sweep. Anything needing your approval still waits for you.", section: "scheduled-runs" },
-  { q: "Can Wonder notify me on my phone?", a: "Yes — Profile → 'Notifications on this device'. You'll get a nudge when a scheduled run finds strong matches. It's per browser, so turn it on wherever you want it. On iPhone, add WonderJobs to your Home Screen first; that's Safari's rule, not ours.", section: "scheduled-runs" },
-  { q: "Can I change my automation level later?", a: "Yes, per run and in Automation Settings; high-risk actions always follow your policy.", section: "automation" },
+  { q: "Will scheduled searches happen while I'm away?", a: "Yes. Wonder's servers fire schedules too, so a run happens while you're away and the shortlist is waiting when you sign in. With the app open they fire at exactly their time; with it closed the server picks them up on its next sweep. Anything needing your approval still waits for you.", section: "scheduled-runs" },
+  { q: "Can Wonder notify me on my phone?", a: "Yes — Profile → 'Notifications on this device'. You'll get a nudge when a scheduled search finds strong matches. It's per browser, so turn it on wherever you want it. On iPhone, add WonderJobs to your Home Screen first; that's Safari's rule, not ours.", section: "scheduled-runs" },
+  { q: "Can I change my automation level later?", a: "Yes, per run and in What Wonder can do; high-risk actions always follow your policy.", section: "automation" },
 ];
 
 /** Deterministic retrieval: the sections that best match a question, best first. */

@@ -76,7 +76,7 @@ describe("resolveWonderQuery", () => {
 
   it("resolves a scheduling request into the closest real template with the candidate's own search text", () => {
     const r = resolveWonderQuery("search for backend engineer roles weekly", baseCtx());
-    expect(r?.href).toContain("template=weekly_review");
+    expect(r?.href).toContain("often=weekly");
     expect(r?.href).toContain(encodeURIComponent("backend engineer roles"));
   });
 
