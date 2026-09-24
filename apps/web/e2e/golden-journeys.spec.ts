@@ -215,7 +215,8 @@ test.describe("Golden journey — application preparation (demo mode)", () => {
     await page.getByRole("button", { name: "Generate resume" }).click();
     // WonderJobsAI is a deterministic local template (no network, no billing) — real generation, fast.
     await expect(page.getByText("No resume yet")).toHaveCount(0, { timeout: 10_000 });
-    await expect(page.getByText("AI-generated")).toBeVisible();
+    // Exact: the pack summary above also says "AI-generated draft" for the same version.
+    await expect(page.getByText("AI-generated", { exact: true })).toBeVisible();
   });
 });
 

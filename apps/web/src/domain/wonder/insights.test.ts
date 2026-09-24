@@ -82,6 +82,16 @@ describe("findJobBySubject — real catalog lookup, no fuzzy AI matching", () =>
     expect(findJobBySubject(["a"], jobs, "stripe")?.id).toBe("a");
   });
 
+  it("prefers the most specific title, not the first shorter title the question happens to contain", () => {
+    const jobs = { a: job("a", { title: "Product Manager", company: "Google" }), b: job("b", { title: "Senior Product Manager, Platform", company: "Razorpay" }) };
+    expect(findJobBySubject(["a", "b"], jobs, "the Senior Product Manager, Platform role")?.id).toBe("b");
+  });
+
+  it("a named company wins over a title match", () => {
+    const jobs = { a: job("a", { title: "Product Manager", company: "Google" }), b: job("b", { title: "Senior Product Manager", company: "Zerodha" }) };
+    expect(findJobBySubject(["a", "b"], jobs, "the Zerodha product manager job")?.id).toBe("b");
+  });
+
   it("returns undefined for an empty subject or no match, never a guess", () => {
     const jobs = { a: job("a", { company: "Acme" }) };
     expect(findJobBySubject(["a"], jobs, "")).toBeUndefined();

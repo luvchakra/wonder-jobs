@@ -42,7 +42,12 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   const handedOff = run.actions.filter((a) => a.status === "succeeded").length;
   const declined = run.actions.filter((a) => a.status === "rejected").length;
   const query = run.config.searchCriteria.query.trim();
-  const quiet = run.silent ? "Quiet outcome: the schedule's condition wasn't met, so you weren't notified. " : "";
+  const cond = run.config.scheduleCondition;
+  const quiet = run.silent
+    ? cond && cond.key === "strong_matches" && cond.value === 0
+      ? "Quiet outcome: no strong match made the shortlist, so the schedule's condition wasn't met and you weren't notified. "
+      : "Quiet outcome: the schedule's condition wasn't met, so you weren't notified. "
+    : "";
 
   if (run.status === "STOPPED" || run.status === "CANCELLED") {
     const actions: OutcomeAction[] = [];
@@ -109,7 +114,10 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   }
 
   if (!preparesMaterials) {
-    const strong = s.strongMatches;
+    // Every strong fit this search found (the match stage), which is what "See what deserves your
+    // attention" lists — not only the ones that made the capped shortlist (`summary.strongMatches`),
+    // so the headline never disagrees with the breakdown or the list it links to.
+    const strong = run.stages.find((x) => x.key === "match")?.counts.strong ?? s.strongMatches;
     const total = s.jobsRetained || s.jobsDiscovered;
     return {
       tone: strong > 0 ? "success" : "info",

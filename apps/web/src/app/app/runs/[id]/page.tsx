@@ -209,7 +209,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
               {[
                 ["Jobs discovered", run.summary.jobsDiscovered],
                 ["Unique opportunities", run.summary.jobsRetained],
-                ["Strong matches", run.summary.strongMatches],
+                ["Strong on the shortlist", run.summary.strongMatches],
                 ["Applications prepared", run.summary.applicationsPrepared],
               ].map(([l, v]) => (
                 <div key={l} className="p-4">

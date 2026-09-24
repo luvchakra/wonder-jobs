@@ -31,16 +31,30 @@ export function computeMissingSkills(dna: Pick<CareerDNA, "skills">, jobs: Canon
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Finds the candidate's own job by a title/company substring — real catalog lookup, never fuzzy AI matching. A whole-word boundary keeps a short company name (e.g. "Co") from matching an unrelated word that merely contains those letters (e.g. "company"). */
+/**
+ * Finds the candidate's own job by a title/company substring — real catalog lookup, never fuzzy AI
+ * matching. The most specific match wins: a named company beats a title, and a longer title beats a
+ * shorter one it contains, so "the Senior Product Manager, Platform role" finds that role rather than
+ * the first plain "Product Manager" in the catalog. A whole-word boundary keeps a short company name
+ * (e.g. "Co") from matching an unrelated word that merely contains those letters (e.g. "company").
+ */
 export function findJobBySubject(order: string[], jobs: Record<string, CanonicalJob>, subject: string): CanonicalJob | undefined {
   const q = subject.trim().toLowerCase();
   if (!q) return undefined;
+  let best: CanonicalJob | undefined;
+  let bestScore = 0;
   for (const id of order) {
     const job = jobs[id];
     if (!job) continue;
     const title = job.title.toLowerCase();
     const company = job.company.toLowerCase();
-    if (title.includes(q) || q.includes(title) || new RegExp(`\\b${escapeRegExp(company)}\\b`).test(q)) return job;
+    const companyHit = new RegExp(`\\b${escapeRegExp(company)}\\b`).test(q);
+    const titleHit = q.includes(title) ? title.length : title.includes(q) ? q.length : 0;
+    const score = (companyHit ? 1000 : 0) + titleHit;
+    if (score > bestScore) {
+      best = job;
+      bestScore = score;
+    }
   }
-  return undefined;
+  return best;
 }

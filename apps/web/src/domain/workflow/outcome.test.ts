@@ -125,6 +125,22 @@ describe("describeOutcome", () => {
     expect(o.body).toMatch(/^Quiet outcome: the schedule's condition wasn't met/);
   });
 
+  it("the quiet line names the shortlist when the condition is “any strong match”", () => {
+    const keys: StageKey[] = ["profile", "search", "dedupe", "understand", "match", "quality", "rank"];
+    const r = run({ keys, silent: true, trigger: "schedule", summary: { ...emptySummary(), jobsDiscovered: 900, jobsRetained: 600 } });
+    r.config.scheduleCondition = { key: "strong_matches", op: ">", value: 0 };
+    r.stages[6].counts = { strong_matches: 0, worth_considering: 12 };
+    expect(describeOutcome(r)!.body).toMatch(/^Quiet outcome: no strong match made the shortlist/);
+  });
+
+  it("the headline counts every strong fit found, matching the breakdown — not only the capped shortlist", () => {
+    const keys: StageKey[] = ["profile", "search", "dedupe", "understand", "match", "quality", "rank"];
+    const r = run({ keys, summary: { ...emptySummary(), jobsDiscovered: 900, jobsRetained: 742, strongMatches: 50 } });
+    r.stages[4].counts = { matched: 742, strong: 484, worth_considering: 180 };
+    r.stages[6].counts = { ranked: 50, strong_matches: 50 };
+    expect(describeOutcome(r)!.title).toBe("484 strong opportunities worth your attention");
+  });
+
   it("a stopped search says everything found is still available, without naming engine stages", () => {
     const r = run({ status: "STOPPED", currentStage: "understand", summary: { ...emptySummary(), jobsDiscovered: 80, jobsRetained: 75 } });
     const o = describeOutcome(r)!;

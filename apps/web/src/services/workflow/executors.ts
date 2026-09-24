@@ -206,7 +206,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       ctx.setProgress(ranked.length, ranked.length);
       ctx.setCounts({ ranked: ranked.length, strong_matches: strong.length, saved });
       ctx.addEvidence({ label: "Shortlist", value: `${ranked.length} roles above ${threshold}` });
-      ctx.addEvidence({ label: "Strong matches", value: String(strong.length), tone: "success" });
+      ctx.addEvidence({ label: "Strong on the shortlist", value: String(strong.length), tone: "success" });
       if (saved) ctx.addEvidence({ label: "Saved automatically", value: String(saved), tone: "info" });
       rankedCache.set(ctx.run.id, ranked.map((m) => m.jobId));
       return { data: { rankedJobIds: ranked.map((m) => m.jobId), strongMatches: strong.length, savedCount: saved }, counts: { ranked: ranked.length, strong_matches: strong.length } };
