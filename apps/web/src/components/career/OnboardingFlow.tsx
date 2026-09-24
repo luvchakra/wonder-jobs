@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Search, LayoutList, Zap, ArrowLeft, TrendingUp, Check } from "lucide-react";
 import type { AutomationLevel } from "@/domain/automation/policy";
-import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
+import { EMPTY_DNA, INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { Chip, Select } from "@/components/common/Input";
 import { HeroScene } from "@/components/landing/HeroScene";
 import { WonderLogo } from "@/components/brand/WonderLogo";
@@ -238,6 +238,16 @@ function Steps() {
                 <ResumeImport
                   tone="dark"
                   label="Fill this in from my resume"
+                  current={{
+                    name: dna.name,
+                    headline: headlineValue,
+                    // The empty profile's level is a placeholder, not something the candidate chose.
+                    seniority: seniority ?? (dna.updatedAt !== EMPTY_DNA.updatedAt ? dna.seniority : undefined),
+                    yearsExperience: Number(yearsValue) || undefined,
+                    skills: skillsValue.split(",").map((n) => n.trim()).filter(Boolean).map((name) => dna.skills.find((s) => s.name.toLowerCase() === name.toLowerCase()) ?? { name, level: 3 as const }),
+                    industries: industriesValue,
+                    preferredLocations: locValue.split(",").map((l) => l.trim()).filter(Boolean),
+                  }}
                   onApply={(patch) => {
                     // Straight into the fields on screen, not into the store: this is still a draft the
                     // candidate is editing, and nothing is saved until they finish onboarding.
@@ -246,7 +256,7 @@ function Steps() {
                     if (patch.yearsExperience !== undefined) setYears(String(patch.yearsExperience));
                     if (patch.skills?.length) setSkillsText(patch.skills.map((s) => s.name).join(", "));
                     if (patch.industries?.length) setIndustries(patch.industries.filter((i) => INDUSTRIES.includes(i)));
-                    if (patch.preferredLocations?.length && !locations) setLocations(patch.preferredLocations.join(", "));
+                    if (patch.preferredLocations?.length) setLocations(patch.preferredLocations.join(", "));
                     if (patch.name) updateDNA({ name: patch.name });
                   }}
                 />

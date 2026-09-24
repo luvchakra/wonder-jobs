@@ -184,7 +184,7 @@ export default function CareerDNAPage() {
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Resume</h2>
           <p className="mb-3 text-[12px] text-ink-3">Pull fields from a resume to fill in the sections above. Every suggestion shows the words it came from, and nothing is applied until you tick it. The file itself is never stored.</p>
-          <ResumeImport onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+          <ResumeImport current={draft} onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
         </Card>
 
         <LearnedPreferences />
