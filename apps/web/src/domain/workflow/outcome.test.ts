@@ -100,17 +100,20 @@ describe("describeOutcome", () => {
     const o = describeOutcome(run())!;
     expect(o.tone).toBe("warning");
     expect(o.title).toBe("No jobs came back for “senior director”");
-    expect(o.actions).toEqual([{ label: "Change the search and run again", href: "/app/runs/new", primary: true }]);
+    expect(o.actions).toEqual([{ label: "Change the search", href: "/app/runs/new", primary: true }]);
   });
 
-  it("a discovery-only workflow (no prepare stage) explains nothing was prepared and links strong matches", () => {
+  it("a discovery-only search leads with what deserves attention, never with stage names", () => {
     const keys: StageKey[] = ["profile", "search", "dedupe", "understand", "match", "quality", "rank"];
     const r = run({ keys, summary: { ...emptySummary(), jobsDiscovered: 1842, jobsRetained: 1124, strongMatches: 3 } });
     r.stages[6].counts = { strong_matches: 3, worth_considering: 90 };
     const o = describeOutcome(r)!;
-    expect(o.title).toBe("3 strong matches among 93 shortlisted roles");
-    expect(o.body).toContain("This workflow stops at ranking");
-    expect(o.actions[0]).toMatchObject({ href: "/app/jobs?fit=strong", primary: true });
+    expect(o.eyebrow).toBe("Your search is ready");
+    expect(o.title).toBe("3 strong opportunities worth your attention");
+    expect(o.body).toContain("Wonder found 1,124 opportunities");
+    expect(o.body).not.toMatch(/ranking|stage|workflow/i);
+    expect(o.actions[0]).toMatchObject({ label: "See what deserves your attention", href: "/app/jobs?fit=strong", primary: true });
+    expect(o.actions[1]).toMatchObject({ label: "Explore all results", href: "/app/jobs" });
   });
 
   it("a quiet scheduled run says why there was no notification", () => {
@@ -118,16 +121,17 @@ describe("describeOutcome", () => {
     const r = run({ keys, silent: true, trigger: "schedule", summary: { ...emptySummary(), jobsDiscovered: 900, jobsRetained: 600 } });
     r.stages[6].counts = { strong_matches: 0, worth_considering: 12 };
     const o = describeOutcome(r)!;
-    expect(o.title).toBe("No strong matches, but 12 roles worth a look");
+    expect(o.title).toBe("No strong fits, but 12 roles worth a look");
     expect(o.body).toMatch(/^Quiet outcome: the schedule's condition wasn't met/);
   });
 
-  it("a stopped run names the stage it stopped in and keeps what was found", () => {
+  it("a stopped search says everything found is still available, without naming engine stages", () => {
     const r = run({ status: "STOPPED", currentStage: "understand", summary: { ...emptySummary(), jobsDiscovered: 80, jobsRetained: 75 } });
     const o = describeOutcome(r)!;
-    expect(o.eyebrow).toBe("Run stopped");
-    expect(o.title).toBe("Stopped during “Understanding opportunities”");
-    expect(o.actions).toEqual([{ label: "Run again", href: "/app/runs/new", primary: true }]);
+    expect(o.eyebrow).toBe("Search stopped");
+    expect(o.title).toBe("Search stopped");
+    expect(o.body).toBe("Everything already found is still available.");
+    expect(o.actions).toEqual([{ label: "Search again", href: "/app/runs/new", primary: true }]);
     const withShortlist = run({ status: "STOPPED", currentStage: "prepare", outputs: { rank: { stageKey: "rank", data: { rankedJobIds: ["a", "b"], strongMatches: 1 }, provenance: "AI_GENERATED", producedAt: "" } } });
     expect(describeOutcome(withShortlist)!.actions[0]).toMatchObject({ label: "See what was found", showResults: true, primary: true });
   });

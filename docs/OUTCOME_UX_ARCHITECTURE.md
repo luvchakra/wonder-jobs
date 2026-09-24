@@ -9,7 +9,8 @@ Screens (Home · Jobs · Applications · Career · Wonder)
 domain/experience/   ← Experience Orchestrator (pure, unit-tested)
   outcomes.ts         stage → outcome metadata (config, not logic)
   find.ts             Find progress + result summary from a real WorkflowRun
-  searchIntent.ts     natural-language request → search config, with per-field provenance
+  (services/jobs/searchIntent.ts — natural-language request → search config, per-field origin;
+   lives beside the normalizer it reuses, since domain/ never imports services/)
   orchestrator.ts     describeRun(): { outcome, summary, nextActions, needsUser, transparency }
         │  delegates, never duplicates
         ▼
