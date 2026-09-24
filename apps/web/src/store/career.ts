@@ -6,6 +6,7 @@ import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem
 import { EMPTY_DNA } from "@/domain/career/types";
 import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from "@/domain/career/learning";
 import { newId } from "@/lib/ids";
+import { MAX_SAVED_RESUMES, type SavedResume } from "@/domain/resume/saved";
 
 interface CareerState {
   dna: CareerDNA;
@@ -33,6 +34,13 @@ interface CareerState {
   /** Turns a signal off and remembers not to suggest it again. */
   dismissLearnedSignal: (id: string) => void;
   updateDNA: (patch: Partial<CareerDNA>) => void;
+  /** The résumé template the candidate chose (presentation only — never changes a fact). */
+  resumeTemplateId?: string;
+  setResumeTemplate: (id: string) => void;
+  /** Generated résumés, newest first; each a snapshot with its template version. */
+  savedResumes: SavedResume[];
+  saveResume: (r: Omit<SavedResume, "id" | "createdAt">) => SavedResume;
+  deleteResume: (id: string) => void;
   completeOnboarding: () => void;
   addActivity: (item: Omit<ActivityItem, "id" | "at">) => void;
   addUpcoming: (item: Omit<UpcomingItem, "id">) => void;
@@ -75,6 +83,15 @@ export const useCareerStore = create<CareerState>()(
           return { dismissedSignals, learnedSignals: s.learnedSignals.filter((sig) => sig.id !== id) };
         }),
       updateDNA: (patch) => set((s) => ({ dna: { ...s.dna, ...patch, updatedAt: new Date().toISOString() } })),
+      resumeTemplateId: undefined,
+      setResumeTemplate: (id) => set({ resumeTemplateId: id }),
+      savedResumes: [],
+      saveResume: (r) => {
+        const saved: SavedResume = { ...r, id: newId("res"), createdAt: new Date().toISOString() };
+        set((s) => ({ savedResumes: [saved, ...s.savedResumes].slice(0, MAX_SAVED_RESUMES) }));
+        return saved;
+      },
+      deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id) })),
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),

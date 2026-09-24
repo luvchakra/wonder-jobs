@@ -216,6 +216,15 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               // reused the same component (same position, same element type), leaving stale draft text
               // and edit mode active — a "Save version" click right after switching would then attribute
               // the previous artifact's edited text to whichever type the tab just changed to.
+              <>
+              {tab === "resume" && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-line bg-surface-2 p-3 text-[13px]">
+                  <span className="text-ink-2">Want a designed, ATS-friendly PDF or Word file for this role? It&apos;s built from your Career Profile, ordered for this job.</span>
+                  <Button size="sm" variant="outline" href={`/app/resume-studio?job=${encodeURIComponent(app.jobId)}&app=${encodeURIComponent(app.id)}`}>
+                    Choose a résumé template
+                  </Button>
+                </div>
+              )}
               <ArtifactEditor
                 key={tab}
                 type={tab}
@@ -228,6 +237,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                   toast.success("Version restored");
                 }}
               />
+              </>
             ) : (
               <div>
                 <h2 className="text-[15px] font-semibold text-ink">Review before you continue</h2>

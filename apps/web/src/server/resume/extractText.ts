@@ -145,9 +145,8 @@ export function extractDocxText(buf: Buffer): string {
  * CMap is the only place the real character is recorded; without reading it, glyph codes come back as
  * unprintable control characters or the wrong letters entirely, `looksReadable` correctly calls that
  * unreadable, and a perfectly normal text PDF gets misreported as a scan. `CMap` decodes glyph code →
- * real character; it is built once from every ToUnicode stream in the file (a resume rarely has more
- * than a couple of embedded fonts, so codes never collide across them in practice) and threaded through
- * both string forms a content stream can use.
+ * real character. Each font's own map is used for the text drawn in it (`fontCMaps`); a merged map of
+ * every ToUnicode stream is the fallback when a font can't be resolved.
  */
 type CMap = Map<number, string>;
 
@@ -184,7 +183,7 @@ function isCMapStream(text: string): boolean {
 /** Inflate every stream that carries one; ToUnicode streams build the glyph map, the rest draw text. */
 export function extractPdfText(buf: Buffer): string {
   const raw = buf.toString("latin1");
-  const bodies: string[] = [];
+  const bodies: { obj: number | null; text: string }[] = [];
   const re = /stream\r?\n?/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw))) {
@@ -207,21 +206,57 @@ export function extractPdfText(buf: Buffer): string {
     try {
       const slice = buf.subarray(start, end);
       const body = /\/FlateDecode/.test(dict) ? inflate(slice) : slice;
-      bodies.push(body.toString("latin1"));
+      const objMatch = dictStart >= 0 ? raw.slice(Math.max(0, dictStart - 40), dictStart).match(/(\d+)\s+\d+\s+obj\s*$/) : null;
+      bodies.push({ obj: objMatch ? Number(objMatch[1]) : null, text: body.toString("latin1") });
     } catch {
       // an encrypted stream, or a filter we don't read — skip it, keep the rest
     }
   }
   const cmap: CMap = new Map();
-  for (const body of bodies) if (isCMapStream(body)) parseToUnicodeCMap(body, cmap);
+  const cmapByObj = new Map<number, CMap>();
+  for (const body of bodies) {
+    if (!isCMapStream(body.text)) continue;
+    parseToUnicodeCMap(body.text, cmap);
+    if (body.obj != null) {
+      const own: CMap = new Map();
+      parseToUnicodeCMap(body.text, own);
+      cmapByObj.set(body.obj, own);
+    }
+  }
+  const fonts = fontCMaps(raw, cmapByObj);
   const parts: string[] = [];
   for (const body of bodies) {
-    if (isCMapStream(body)) continue;
+    if (isCMapStream(body.text)) continue;
     // Only content streams draw text; anything else has no Tj/TJ and contributes nothing.
-    const text = readContentStream(body, cmap);
+    const text = readContentStream(body.text, cmap, fonts);
     if (text.trim()) parts.push(text);
   }
   return tidy(parts.join("\n"));
+}
+
+/**
+ * Resource name (as used by `/F1 10 Tf`) → that font's own ToUnicode map. With several embedded
+ * fonts the same glyph code means a different character in each, so decoding by the merged map alone
+ * can swap letters; this lets the content reader switch maps at every `Tf`. Where a name can't be
+ * resolved the merged map is still used.
+ */
+function fontCMaps(raw: string, cmapByObj: Map<number, CMap>): Map<string, CMap> {
+  const fontObjToCMap = new Map<number, CMap>();
+  for (const m of raw.matchAll(/(\d+)\s+\d+\s+obj\b([\s\S]*?)(?:\bstream\b|\bendobj\b)/g)) {
+    const tu = m[2].match(/\/ToUnicode\s+(\d+)\s+\d+\s+R/);
+    if (tu && /\/Type\s*\/Font\b/.test(m[2])) {
+      const c = cmapByObj.get(Number(tu[1]));
+      if (c) fontObjToCMap.set(Number(m[1]), c);
+    }
+  }
+  const byName = new Map<string, CMap>();
+  for (const block of raw.matchAll(/\/Font\s*<<([^>]*)>>/g)) {
+    for (const [, name, obj] of block[1].matchAll(/\/([^\s/<>[\]()]+)\s+(\d+)\s+\d+\s+R/g)) {
+      const c = fontObjToCMap.get(Number(obj));
+      if (c) byName.set(name, c);
+    }
+  }
+  return byName;
 }
 
 function inflate(slice: Buffer): Buffer {
@@ -245,14 +280,16 @@ function inflate(slice: Buffer): Buffer {
  * same way, since it's never observed to fire mid-word. Anything else that starts a new `BT` gets a
  * plain space, not a break, so word-per-object generators don't run every word together.
  */
-function readContentStream(content: string, cmap: CMap): string {
+function readContentStream(content: string, merged: CMap, fonts: Map<string, CMap> = new Map()): string {
   let out = "";
   let pending: string[] = [];
-  const re = /\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]*>|\bTJ\b|\bTj\b|T\*|\bBT\b|(?:-?\d*\.?\d+\s+){5}-?\d*\.?\d+\s+cm\b/g;
+  let cmap = merged;
+  const re = /\/([^\s/<>[\]()]+)\s+-?\d*\.?\d+\s+Tf\b|\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]*>|\bTJ\b|\bTj\b|T\*|\bBT\b|(?:-?\d*\.?\d+\s+){5}-?\d*\.?\d+\s+cm\b/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     const tok = m[0];
-    if (tok.startsWith("(")) pending.push(decodePdfString(tok.slice(1, -1), cmap));
+    if (m[1] !== undefined) cmap = fonts.get(m[1]) ?? merged;
+    else if (tok.startsWith("(")) pending.push(decodePdfString(tok.slice(1, -1), cmap));
     else if (tok.startsWith("<")) pending.push(decodeHexString(tok.slice(1, -1), cmap));
     else if (tok === "Tj" || tok === "TJ") {
       out += pending.join("");
