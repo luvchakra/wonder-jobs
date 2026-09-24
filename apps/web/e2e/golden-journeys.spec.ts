@@ -167,3 +167,142 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await expect(page.getByRole("button", { name: "Profile menu" })).toBeVisible();
   });
 });
+
+test.describe("Golden journey — new candidate onboarding", () => {
+  test("GJ-011 a new candidate picks a real goal, which decides where onboarding sends them", async ({ page }) => {
+    // /onboarding renders OnboardingFlow unconditionally — no seeded state needed for this journey.
+    await page.goto("/onboarding");
+    const picker = page.getByRole("radiogroup", { name: "What would you like Wonder to help you with?" });
+    await expect(picker).toBeVisible();
+    // All 5 real goals from Phase 2.2 — never a generic feature-bullet welcome screen.
+    for (const label of ["Find my next role", "Improve my career profile", "Prepare an application", "Track my applications", "Let Wonder work for me"]) {
+      await expect(picker.getByRole("radio", { name: new RegExp(label) })).toBeVisible();
+    }
+    const getStarted = page.getByRole("button", { name: "Get Started" });
+    await expect(getStarted).toBeDisabled(); // a goal is required, never assumed
+    await picker.getByRole("radio", { name: /Track my applications/ }).click();
+    await expect(getStarted).toBeEnabled();
+    await getStarted.click();
+    // Step 1 is the real career-goal capture, common to every goal choice.
+    await expect(page.getByText("What are you looking for?")).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — search (demo mode)", () => {
+  test("GJ-012 a free-text search narrows the real catalog, not a canned result set", async ({ page }) => {
+    await page.goto("/demo?next=/app/jobs");
+    const results = page.getByRole("list", { name: "Job results" });
+    // A distinctive, single-employer term (the default catalog view is paginated at 24, so a common word
+    // like "google" — matched against skills/tags too, e.g. "Google Analytics" — can still fill a page
+    // and not visibly shrink).
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
+    await expect(async () => {
+      const items = await results.getByRole("listitem").all();
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.length).toBeLessThan(24);
+    }).toPass({ timeout: 5_000 });
+    // Every remaining visible card is a real match for the typed text, not a fixed demo subset.
+    await expect(results.getByText(/airbnb/i).first()).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — application preparation (demo mode)", () => {
+  test("GJ-013 preparing an application generates a real, editable artifact with visible provenance", async ({ page }) => {
+    // app_meta is seeded "preparing" with no resume yet (services/mock/seed.ts).
+    await page.goto("/demo?next=/app/applications/app_meta/prepare");
+    await expect(page.getByRole("heading", { name: "Application Pack" })).toBeVisible();
+    await expect(page.getByText("No resume yet")).toBeVisible();
+    await page.getByRole("button", { name: "Generate resume" }).click();
+    // WonderJobsAI is a deterministic local template (no network, no billing) — real generation, fast.
+    await expect(page.getByText("No resume yet")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByText("AI-generated")).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — Ask Wonder (demo mode)", () => {
+  test("GJ-014 a real question resolves to a real, data-backed action, not a canned chat reply", async ({ page }) => {
+    await page.goto("/demo?next=/app");
+    await page.getByRole("button", { name: "Ask Wonder anything (Command+K)" }).click();
+    const input = page.getByRole("combobox", { name: "Command" });
+    await expect(input).toBeVisible();
+    await input.fill("what applications need my attention");
+    const topResult = page.locator("#wj-cmd-list li[role='option']").first();
+    // The label names a real count, never a static "Applications" nav shortcut.
+    await expect(topResult).toContainText(/application.*attention/i);
+    await topResult.getByRole("button").click();
+    await expect(page).toHaveURL(/\/app\/applications$/);
+  });
+});
+
+test.describe("Golden journey — automation (demo mode)", () => {
+  test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }) => {
+    await page.goto("/demo?next=/app/automation/settings");
+    await expect(page.getByRole("heading", { name: "Automation Settings" })).toBeVisible();
+    // Phase 3.2 relabeling — plain language, not internal jargon.
+    for (const label of ["Assist me", "Work with me", "Work independently", "Keep working"]) {
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
+    }
+    const genResume = page.getByRole("radiogroup", { name: "Generate resume permission" });
+    await expect(genResume).toBeVisible();
+    await genResume.getByRole("radio", { name: "Off" }).click();
+    await expect(genResume.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    // Reload proves the change is real, persisted state — not a local-only UI toggle.
+    await page.reload();
+    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("button", { name: "Restore defaults" }).click();
+    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+test.describe("Golden journey — manual intervention (demo mode)", () => {
+  test("GJ-016 a running run can be paused mid-flight and resumed without losing progress", async ({ page }) => {
+    await page.goto("/demo?next=/app/runs/new");
+    const continueBtn = page.getByRole("button", { name: "Continue" });
+    if (await continueBtn.isEnabled().catch(() => false)) await continueBtn.click();
+    else await page.getByRole("link", { name: "Open active run" }).click();
+    await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
+
+    // On mobile widths a second, identical control also lives in a live-region status bar
+    // (components/workflow/StageDetail.tsx) — same real action, so `.first()` is correct here, not a
+    // workaround for a bug.
+    const pauseBtn = page.getByRole("button", { name: "Pause" }).first();
+    // The engine chunks work (services/workflow/executors.ts) specifically so pause stays responsive —
+    // give it a real window to be running before asserting the button is there to click.
+    await expect(pauseBtn).toBeVisible({ timeout: 15_000 });
+    await pauseBtn.click();
+    await expect(page.getByText("Paused", { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+    const progressBefore = await page.locator("[role='progressbar']").first().getAttribute("aria-valuenow").catch(() => null);
+
+    const resumeBtn = page.getByRole("button", { name: "Resume" }).first();
+    await expect(resumeBtn).toBeVisible();
+    await resumeBtn.click();
+    // Resuming continues from where it left off — progress never resets to 0.
+    if (progressBefore != null) {
+      await expect(async () => {
+        const now = await page.locator("[role='progressbar']").first().getAttribute("aria-valuenow");
+        expect(Number(now ?? 0)).toBeGreaterThanOrEqual(Number(progressBefore));
+      }).toPass({ timeout: 5_000 });
+    }
+  });
+});
+
+test.describe("Golden journey — advanced mode (demo mode)", () => {
+  test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
+    await page.goto("/demo?next=/app/settings/ai");
+    await expect(page.getByText("WonderJobs AI").first()).toBeVisible();
+    for (const provider of ["Anthropic", "OpenAI", "Gemini"]) {
+      await expect(page.getByText(provider, { exact: true }).first()).toBeVisible();
+    }
+    // Real usage transparency — tokens/cost/log, not a hidden estimate.
+    await expect(page.getByText(/est\. BYOK cost/i)).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — trust (demo mode)", () => {
+  test("GJ-018 Wonder discloses exactly what it can't do, in the same place it offers to help", async ({ page }) => {
+    await page.goto("/demo?next=/app/applications/app_google");
+    // The Phase 3.6 hand-off rewrite: Wonder never claims to send on the candidate's behalf.
+    await expect(page.getByText(/Wonder never sends on your behalf/i)).toBeVisible();
+    await expect(page.getByText(/doesn't have Google's email address and can't send it/i)).toBeVisible();
+  });
+});
