@@ -22,7 +22,7 @@ export default function ExtensionPage() {
             <>
               <ul>
                 <li>
-                  <strong>Name and email</strong> — from your Career Profile and your account.
+                  <strong>Name, email, phone, LinkedIn and location</strong> — from your Career Profile (and your account email).
                 </li>
                 <li>
                   <strong>Resume</strong> — the version you prepared for that specific posting, attached as a real <code>.docx</code>.
@@ -32,8 +32,12 @@ export default function ExtensionPage() {
                 </li>
               </ul>
               <p>
-                Phone number, LinkedIn URL and location are deliberately left blank: WonderJobs has no field for them yet, so there is nothing real to put there. The extension lists them so you know what is still yours to type — it never invents a value to look
-                complete.
+                Anything your Career Profile doesn&apos;t hold is left blank and listed, so you know what is still yours to type — the helper never invents a value to look complete. Work authorization, sponsorship, salary, legal and demographic questions are
+                always yours to answer.
+              </p>
+              <p>
+                With <strong>Apply with Wonder</strong> (start it from a job in WonderJobs), the helper reads the whole form, fills what matches your approved details, highlights what needs you, and stops for sign-in, verification challenges or an unexpected
+                site. It never submits — you press the employer&apos;s submit button, then confirm in WonderJobs.
               </p>
             </>
           ),
@@ -43,8 +47,8 @@ export default function ExtensionPage() {
           title: "Where it works",
           body: (
             <>
-              <p>Greenhouse, Lever and Ashby application forms are recognised field by field — the same company career sites WonderJobs searches. On other sites it falls back to reading each field&apos;s visible label, which handles the obvious ones.</p>
-              <p>It only ever acts when you click it, and only on the page you are looking at.</p>
+              <p>Greenhouse, Lever, Ashby and Workday application forms run the helper automatically. On an employer&apos;s own careers site, it asks you to allow that one site first — it never requests access to every website.</p>
+              <p>It reads fields by their labels, so unfamiliar forms still get the obvious fields. It only fills after you choose Fill (or, if you turned it on, when an Apply with Wonder form opens), and only on the page you are looking at.</p>
             </>
           ),
         },

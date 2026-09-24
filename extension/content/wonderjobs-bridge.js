@@ -28,3 +28,23 @@
 window.addEventListener("wonderjobs:extension-ping", () => {
   window.dispatchEvent(new CustomEvent("wonderjobs:extension-pong", { detail: { version: chrome.runtime.getManifest().version } }));
 });
+
+/**
+ * Apply with Wonder pairing. The page asks with a session id only; this script fetches the
+ * session-scoped helper token itself, with the candidate's own cookie, and hands it straight to the
+ * service worker. The token never passes through the page's own scripts or any URL.
+ */
+window.addEventListener("wonderjobs:jobsapply-pair", async (event) => {
+  const sessionId = event?.detail?.sessionId;
+  const reply = (ok, reason) => window.dispatchEvent(new CustomEvent("wonderjobs:jobsapply-paired", { detail: { sessionId, ok, reason } }));
+  if (typeof sessionId !== "string" || !/^jas_[\w-]{6,40}$/.test(sessionId)) return reply(false, "Not a session id.");
+  try {
+    const res = await fetch(`${location.origin}/api/jobs-apply/sessions/${encodeURIComponent(sessionId)}/token`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}", cache: "no-store" });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.token) return reply(false, body?.error?.message ?? "WonderJobs refused the connection.");
+    const r = await chrome.runtime.sendMessage({ type: "jobsApplyPair", payload: { origin: location.origin, sessionId, token: body.token, expiresAt: body.expiresAt, destination: body.destination } });
+    reply(!!r?.ok, r?.ok ? undefined : "The helper couldn't store the connection.");
+  } catch {
+    reply(false, "WonderJobs couldn't be reached.");
+  }
+});

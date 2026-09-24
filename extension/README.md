@@ -1,32 +1,67 @@
-# WonderJobs Autofill (Chrome extension)
+# WonderJobs helper (Chrome extension)
 
-Fills an employer's application form with the materials the candidate already
-prepared in WonderJobs. It never submits anything — the candidate reviews the
-form and clicks Apply themselves.
+The browser half of **Apply with Wonder** (JobsApply). It fills an employer's
+application form with what the candidate approved in WonderJobs, stops for
+questions only the candidate should answer, and never submits anything — the
+candidate reviews the form and presses the employer's submit button themselves.
+There is no code in the extension that clicks, submits or sends a key press;
+`apps/web/src/server/jobsApply/extension.test.ts` scans every script for it.
+
+## Apply with Wonder (session mode)
+
+1. The candidate starts Apply with Wonder on a job. The web page asks the
+   bridge to pair with the session id only; the bridge fetches a
+   **session-scoped** token (`POST /api/jobs-apply/sessions/:id/token`, cookie
+   auth) and hands it to the service worker. The token binds tenant + session +
+   a nonce, lasts 30 minutes, and is revoked the moment the candidate presses
+   Stop or Cancel (the nonce rotates).
+2. On the employer's page the content script reads the form's **structure** —
+   labels, types, options, whether a field has something in it. It never reads
+   a password, one-time-code or payment field; it only notices that one exists
+   (sign-in, verification, payment → pause/stop).
+3. WonderJobs classifies and maps the fields (`domain/jobs-apply`), and returns
+   values only for fields the helper may fill: safe fields matched with high
+   confidence to the candidate's own profile, the selected résumé, and answers
+   the candidate approved. Sensitive and legal questions are never filled.
+4. The helper fills when the candidate clicks **Fill N fields** (or on
+   detection, where their "Fill application forms" policy is Automatic and they
+   chose "Work more independently"), highlights what needs them, and reports
+   results. An unexpected domain pauses; Stop stops.
+5. When the candidate presses the employer's submit button and a confirmation
+   page appears, the helper reports it as evidence. Only the candidate's "Yes,
+   application submitted" in WonderJobs marks it submitted.
+
+Only the service worker holds tokens, and it only calls
+`/api/jobs-apply/extension/{session,inspect,fill-plan,events,file}`.
+
+## Without a session
+
+The original "Fill with WonderJobs" button remains on supported boards.
 
 ## What it fills, and what it deliberately doesn't
 
 | Field | Where it comes from |
 | --- | --- |
-| First / last / full name | Career DNA `name` |
-| Email | The WonderJobs account's own email address |
+| First / last / full name | Career Profile `name` |
+| Email | Career Profile email, else the WonderJobs account's own email address |
+| Phone, LinkedIn | Career Profile contact details, when present |
 | Resume (file upload) | The prepared resume for *that posting*, generated as a real `.docx` |
 | Cover letter (textarea or file) | The prepared cover letter for that posting |
 
-Phone number, LinkedIn URL and location are **not** filled: Career DNA has no
-field for them, so there is nothing real to fill them with. The extension says
-so in its panel rather than guessing — same rule as the rest of the product
-(see `CLAUDE.md`, "Real data only").
+Anything the Career Profile doesn't hold is **not** filled; the panel lists it
+rather than guessing — same rule as the rest of the product (see `CLAUDE.md`,
+"Real data only").
 
 If the page isn't a posting WonderJobs has an application for, only the base
 profile is filled and the panel says why.
 
 ## Supported sites
 
-Known field names for **Greenhouse**, **Lever** and **Ashby**, then a generic
-pass that reads each field's visible label, so an unfamiliar form still gets
-the obvious fields. Applying the generic pass to arbitrary sites requires the
-optional `https://*/*` permission, which Chrome asks for separately.
+Runs automatically on **Greenhouse**, **Lever**, **Ashby** and **Workday**
+(`*.myworkdayjobs.com`). On an employer's own careers site that's part of an
+Apply with Wonder session, the popup offers **Allow on this site**, which
+requests that one origin from the optional `https://*/*` permission — never
+all sites at once.
 
 ## How it connects (no password, no key to paste)
 

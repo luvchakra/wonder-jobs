@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "WonderJobs Autofill",
-  "version": "0.1.0",
-  "description": "Fills an employer's application form with the materials you already prepared in WonderJobs — your resume, cover letter and profile.",
+  "name": "WonderJobs helper",
+  "version": "0.2.0",
+  "description": "Apply with Wonder: fills an employer's application form with the details and résumé you approved in WonderJobs, stops for questions only you should answer, and never submits for you.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "WonderJobs Autofill",
+    "default_title": "WonderJobs helper",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -21,7 +21,11 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "scripting", "activeTab"],
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://jobs.wonderapps.biz/*",
     "http://localhost:3000/*",
@@ -29,13 +33,21 @@
     "https://job-boards.greenhouse.io/*",
     "https://*.greenhouse.io/*",
     "https://jobs.lever.co/*",
-    "https://jobs.ashbyhq.com/*"
+    "https://jobs.ashbyhq.com/*",
+    "https://*.myworkdayjobs.com/*"
   ],
-  "optional_host_permissions": ["https://*/*"],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://jobs.wonderapps.biz/*", "http://localhost:3000/*"],
-      "js": ["content/wonderjobs-bridge.js"],
+      "matches": [
+        "https://jobs.wonderapps.biz/*",
+        "http://localhost:3000/*"
+      ],
+      "js": [
+        "content/wonderjobs-bridge.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -44,9 +56,12 @@
         "https://job-boards.greenhouse.io/*",
         "https://*.greenhouse.io/*",
         "https://jobs.lever.co/*",
-        "https://jobs.ashbyhq.com/*"
+        "https://jobs.ashbyhq.com/*",
+        "https://*.myworkdayjobs.com/*"
       ],
-      "js": ["content/autofill.js"],
+      "js": [
+        "content/autofill.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     }

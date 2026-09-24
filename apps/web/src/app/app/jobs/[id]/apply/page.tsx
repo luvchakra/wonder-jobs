@@ -122,6 +122,14 @@ export default function ApplyWithWonderPage({ params }: { params: Promise<{ id: 
     return () => clearInterval(t);
   }, [sessionId, live]);
 
+  // Helper tokens last 30 minutes; while this page is open, keep the pairing fresh.
+  const helperMode = !!view && view.session.mode !== "guided" && !view.session.stopped;
+  useEffect(() => {
+    if (!sessionId || !live || !helperMode || helperInstalled !== true) return;
+    const t = setInterval(() => void pairHelper(sessionId), 20 * 60_000);
+    return () => clearInterval(t);
+  }, [sessionId, live, helperMode, helperInstalled]);
+
   const openEmployer = useCallback(() => {
     if (!view) return;
     // Return to the tab the candidate is filling rather than reloading it (which would lose their input).
