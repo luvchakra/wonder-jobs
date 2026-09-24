@@ -33,7 +33,7 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     await expect(page).toHaveURL(/\/app\/jobs/);
     const results = page.getByRole("list", { name: "Job results" });
     await expect(results).toBeVisible();
-    expect(await results.getByRole("listitem").count()).toBeGreaterThan(10);
+    expect(await results.locator(":scope > li").count()).toBeGreaterThan(10);
 
     await page.goto("/app/jobs/job_google_pm");
     await expect(page.getByRole("heading", { name: "Product Manager", level: 1 })).toBeVisible();
@@ -197,7 +197,8 @@ test.describe("Golden journey — search (demo mode)", () => {
     // and not visibly shrink).
     await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
     await expect(async () => {
-      const items = await results.getByRole("listitem").all();
+      // Top-level results only: each card now carries its own "why" lists, which are list items too.
+      const items = await results.locator(":scope > li").all();
       expect(items.length).toBeGreaterThan(0);
       expect(items.length).toBeLessThan(24);
     }).toPass({ timeout: 5_000 });
@@ -227,10 +228,10 @@ test.describe("Golden journey — Ask Wonder (demo mode)", () => {
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
     await input.fill("what applications need my attention");
-    const topResult = page.locator("#wj-cmd-list li[role='option']").first();
+    const topResult = page.locator("#wj-cmd-list [role='option']").first();
     // The label names a real count, never a static "Applications" nav shortcut.
     await expect(topResult).toContainText(/application.*attention/i);
-    await topResult.getByRole("button").click();
+    await topResult.click();
     await expect(page).toHaveURL(/\/app\/applications$/);
   });
 });

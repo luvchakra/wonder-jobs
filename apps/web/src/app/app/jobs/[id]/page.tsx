@@ -188,7 +188,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Nice to have</h3>
                   <ul className="mt-1 flex flex-wrap gap-1.5">
                     {job.niceToHave.map((n) => (
-                      <Badge key={n}>{n}</Badge>
+                      <li key={n}>
+                        <Badge>{n}</Badge>
+                      </li>
                     ))}
                   </ul>
                 </>
@@ -196,9 +198,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Skills</h3>
               <ul className="mt-1 flex flex-wrap gap-1.5">
                 {job.skills.map((s) => (
-                  <Badge key={s} tone="brand">
-                    {s}
-                  </Badge>
+                  <li key={s}>
+                    <Badge tone="brand">{s}</Badge>
+                  </li>
                 ))}
               </ul>
             </Card>

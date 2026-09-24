@@ -65,7 +65,7 @@ test.describe("FIND", () => {
     await driveToResult(card);
     await card.getByRole("link", { name: /Strong opportunities/ }).click();
     await expect(page).toHaveURL(/\/app\/jobs\?fit=strong/);
-    await expect(page.getByRole("list", { name: "Job results" }).getByRole("listitem").first()).toBeVisible();
+    await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
   });
 
   test("FIND-002 natural language → Wonder shows the intent it derived before searching", async ({ page }) => {
@@ -116,7 +116,7 @@ test.describe("FIND", () => {
 test.describe("DECIDE", () => {
   test("DECIDE-001 an opportunity says why Wonder surfaced it", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
-    const first = page.getByRole("list", { name: "Job results" }).getByRole("listitem").first();
+    const first = page.getByRole("list", { name: "Job results" }).locator(":scope > li").first();
     await expect(first.getByText("Why Wonder surfaced this")).toBeVisible();
     await page.goto("/app/jobs/job_google_pm?tab=why");
     await expect(page.getByRole("tab", { name: "Why it fits" })).toHaveAttribute("aria-selected", "true");
@@ -312,7 +312,7 @@ test.describe("AUTOMATION", () => {
     const row = await createKeepWatch(page, "Designer roles");
     await row.getByRole("button", { name: "Run now" }).click();
     await page.waitForURL(RUN_URL);
-    await expect(page.getByText("Scheduled search").first()).toBeVisible();
+    await expect(page.getByText(/^Scheduled search ·/)).toBeVisible();
     await expect(page.locator("#run-experience-title")).not.toHaveText(/finding|getting ready/i, { timeout: 30_000 });
   });
 

@@ -107,35 +107,37 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         aria-controls="wj-cmd-list"
         aria-activedescendant={filtered[idx] ? `cmd-${filtered[idx].id}` : undefined}
       />
-      <ul id="wj-cmd-list" role="listbox" className="mt-3 max-h-80 overflow-y-auto">
+      {/* A listbox of grouped options, driven from the combobox (arrow keys + Enter): options are
+          the clickable rows themselves — no nested buttons or bare list items, which assistive tech
+          can't reconcile with the listbox role. */}
+      <div id="wj-cmd-list" role="listbox" aria-label="Results" className="mt-3 max-h-80 overflow-y-auto">
         {(["Actions", "Go to"] as const).map((group) => {
           const items = filtered.filter((c) => c.group === group);
           if (!items.length) return null;
           return (
-            <li key={group}>
-              <p className="wj-eyebrow px-3 pb-1 pt-3 text-[11px]">{group}</p>
-              <ul>
-                {items.map((c) => {
-                  const i = filtered.indexOf(c);
-                  const Icon = c.icon;
-                  return (
-                    <li key={c.id} id={`cmd-${c.id}`} role="option" aria-selected={i === idx}>
-                      <button type="button" onMouseEnter={() => setIdx(i)} onClick={() => go(c)} className={cn("flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm", i === idx ? "bg-brand-50 text-brand-700" : "text-ink-2 hover:bg-bg-soft")}>
-                        <Icon className="size-4 shrink-0" aria-hidden />
-                        <span className="flex-1">
-                          <span className="font-medium text-ink">{c.label}</span>
-                          {c.hint && <span className="ml-2 text-xs text-ink-3">{c.hint}</span>}
-                        </span>
-                        <ArrowRight className="size-4 text-ink-4" aria-hidden />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
+            <div key={group} role="group" aria-labelledby={`wj-cmd-group-${group}`}>
+              <p id={`wj-cmd-group-${group}`} className="wj-eyebrow px-3 pb-1 pt-3 text-[11px]">
+                {group}
+              </p>
+              {items.map((c) => {
+                const i = filtered.indexOf(c);
+                const Icon = c.icon;
+                const active = i === idx;
+                return (
+                  <div key={c.id} id={`cmd-${c.id}`} role="option" aria-selected={active} onMouseEnter={() => setIdx(i)} onClick={() => go(c)} className={cn("flex w-full cursor-pointer items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-sm", active ? "bg-brand-50 text-brand-700" : "text-ink-2 hover:bg-bg-soft")}>
+                    <Icon className="size-4 shrink-0" aria-hidden />
+                    <span className="flex-1">
+                      <span className="font-medium text-ink">{c.label}</span>
+                      {c.hint && <span className={cn("ml-2 text-xs", active ? "text-ink-2" : "text-ink-3")}>{c.hint}</span>}
+                    </span>
+                    <ArrowRight className="size-4 text-ink-4" aria-hidden />
+                  </div>
+                );
+              })}
+            </div>
           );
         })}
-      </ul>
+      </div>
     </Modal>
   );
 }

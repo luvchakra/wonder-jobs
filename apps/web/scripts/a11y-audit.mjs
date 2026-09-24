@@ -24,7 +24,24 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url)) + "/..";
 const AXE_SOURCE = readFileSync(new URL("../../../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
 
 const PUBLIC_PAGES = ["/", "/sign-in", "/sign-up", "/forgot-password", "/help", "/about", "/privacy", "/terms", "/security", "/cookies"];
-const DEMO_PAGES = ["/app", "/app/jobs", "/app/runs", "/app/applications", "/app/automation/settings", "/app/automation/scheduled", "/app/career-dna", "/app/settings/ai", "/app/profile"];
+const DEMO_PAGES = [
+  "/app",
+  "/app/jobs",
+  "/app/runs",
+  "/app/applications",
+  "/app/automation/settings",
+  "/app/automation/scheduled",
+  "/app/career-dna",
+  "/app/settings/ai",
+  "/app/profile",
+  // Outcome UX screens: Find entry, a finished search, Decide (job, compare), Apply (pack), simple scheduling.
+  "/app/runs/new",
+  "/app/runs/run_seed_today",
+  "/app/jobs/job_google_pm",
+  "/app/jobs/compare?ids=job_google_pm,job_microsoft_spm",
+  "/app/applications/app_razorpay/prepare",
+  "/app/automation/scheduled/new",
+];
 
 /**
  * Screens that only exist after an interaction. A dialog is exactly where accessibility tends to break
@@ -40,6 +57,22 @@ const INTERACTIONS = [
       await page.getByRole("dialog").waitFor({ state: "visible", timeout: 5_000 });
       // The paste panel is part of the same dialog and is worth auditing with it.
       await page.getByRole("button", { name: /paste the text instead/i }).click();
+    },
+  },
+  {
+    name: "/app/runs/run_seed_today (See how Wonder worked, expanded)",
+    url: "/app/runs/run_seed_today",
+    open: async (page) => {
+      await page.getByRole("button", { name: /see how wonder worked/i }).click();
+      await page.locator("#how-wonder-worked-panel").waitFor({ state: "visible", timeout: 5_000 });
+    },
+  },
+  {
+    name: "/app (Ask Wonder dialog with an answer)",
+    url: "/app",
+    open: async (page) => {
+      await page.getByRole("button", { name: /ask wonder anything/i }).click();
+      await page.getByRole("combobox", { name: "Command" }).fill("What should I focus on today?");
     },
   },
   {
