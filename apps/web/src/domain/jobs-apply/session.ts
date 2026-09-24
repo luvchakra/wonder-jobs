@@ -75,8 +75,9 @@ export function createSession(input: {
 /** The candidate chose Start: the hand-off opens the employer's page (§4, §66). */
 export function start(s: JobsApplySession, now: string, nonce: string): JobsApplySession {
   assertActive(s);
-  let n: JobsApplySession = { ...s, stopped: false, failure: undefined, tokenNonce: nonce };
-  if (n.status === "READY" || n.status === "PREFLIGHT" || n.status === "DRAFT") n = to(to(n, "STARTING", "candidate"), "OPENING", "candidate");
+  let n: JobsApplySession = { ...s, tokenNonce: nonce };
+  if (n.status === "READY" || n.status === "PREFLIGHT" || n.status === "DRAFT") n = to(to({ ...n, stopped: false, failure: undefined }, "STARTING", "candidate"), "OPENING", "candidate");
+  else if (n.status === "PAUSED" || n.stopped) n = audit(resume(n, now, true), now, "SESSION_RESUMED", "candidate");
   else n = audit(n, now, "SESSION_RESUMED", "candidate");
   return audit(n, now, "DESTINATION_OPENED", "candidate", undefined, n.destination.domain);
 }

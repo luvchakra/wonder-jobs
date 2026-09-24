@@ -3,7 +3,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ExternalLink, Lightbulb, Loader2 } from "lucide-react";
-import { MISSING_CANDIDATE_FIELDS } from "@/domain/career/missingFields";
+import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
 import { describeDecision } from "@/domain/jobs/decision";
 import { FitLabel } from "@/components/jobs/MatchBadge";
@@ -102,7 +102,8 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const pack = describeApplicationPack(app);
   const allReady = pack.ready;
   const concerns = describeDecision(job, match, quality).consider;
-  const missingInfo = [...(!dna.name.trim() ? ["Your name"] : []), ...MISSING_CANDIDATE_FIELDS];
+  // What the employer's form will ask for that the Career Profile doesn't hold (email falls back to the sign-in address).
+  const missingInfo = missingProfileFields(buildApplicationProfile(dna)).filter((m) => m !== "Email");
   const generating = (Object.keys(busy) as ArtifactType[]).find((t) => busy[t]);
   const providerName = aiConfig.activeProvider === "wonderjobs" ? "WonderJobs AI" : aiConfig.activeModel;
   const finish = () => {
@@ -168,8 +169,12 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
           </div>
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Missing information</p>
-            <p className="mt-2 text-[13px] text-ink-2">{missingInfo.join(", ")}</p>
-            <p className="mt-1 text-[12px] text-ink-4">Wonder doesn&apos;t collect these yet, so {job.company}&apos;s form will ask for them.</p>
+            <p className="mt-2 text-[13px] text-ink-2">{missingInfo.length ? missingInfo.join(", ") : "Nothing — your Career Profile has the usual contact details."}</p>
+            {missingInfo.length > 0 && (
+              <p className="mt-1 text-[12px] text-ink-4">
+                Not in your <Link href="/app/career-dna" className="font-medium text-brand-600 hover:underline">Career Profile</Link>, so {job.company}&apos;s form will ask you for them.
+              </p>
+            )}
           </div>
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Things to consider</p>

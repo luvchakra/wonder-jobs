@@ -21,6 +21,17 @@ export function fillDecision(policy: Partial<AutomationPolicy> | undefined, leve
   return resolveCapability("fill_application", policy as AutomationPolicy, level);
 }
 
+/**
+ * The candidate's per-application choice (§12 "How much should Wonder do?") can only narrow the policy,
+ * never widen it: "Guide me" never fills, "Fill forms for me" always waits for the click, and
+ * "Work more independently" fills on detection only where the policy itself says "run".
+ */
+export function effectiveFill(decision: FillDecision, mode: "guided" | "assisted" | "fill"): FillDecision {
+  if (decision === "skip" || mode === "guided") return "skip";
+  if (mode === "assisted") return "ask";
+  return decision;
+}
+
 /** Opening the employer's page is the existing hand-off capability (`submit_application`, "Hand off application"). */
 export function handoffDecision(policy: Partial<AutomationPolicy> | undefined, level: AutomationLevel | undefined): FillDecision {
   if (!policy || !level || !policy.submit_application) return "ask";

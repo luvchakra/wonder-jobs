@@ -11,6 +11,14 @@ import { getSupabaseAdmin, touchTenant } from "./supabase";
 
 export const STATE_STORES = ["wj.career", "wj.jobs", "wj.applications", "wj.automation", "wj.ai", "wj.workflow", "wj.actions", "wj.ui"] as const;
 export type StateStoreName = (typeof STATE_STORES)[number];
+/**
+ * Documents only server routes write (JobsApply sessions: helper-reported evidence and the audit trail).
+ * Never accepted by `/api/state` and never returned by `getAll`, so the browser can neither overwrite
+ * nor bulk-read them; they're reached only through their own tenant-checked routes.
+ */
+export const SERVER_STORES = ["wj.jobsapply"] as const;
+export type ServerStoreName = (typeof SERVER_STORES)[number];
+export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;
 /** A batched save may carry every store at once. */
 export const MAX_BATCH_BYTES = 6_000_000;
@@ -22,16 +30,16 @@ export interface StateDoc {
 }
 
 export type StateDocs = Partial<Record<StateStoreName, StateDoc>>;
-export type SaveResult = Partial<Record<StateStoreName, { version: number; updatedAt: string }>>;
+export type SaveResult = Partial<Record<AnyStoreName, { version: number; updatedAt: string }>>;
 
 export interface StateStore {
-  get(tenantId: string, store: StateStoreName): Promise<StateDoc | undefined>;
+  get(tenantId: string, store: AnyStoreName): Promise<StateDoc | undefined>;
   getAll(tenantId: string): Promise<StateDocs>;
-  put(tenantId: string, store: StateStoreName, state: unknown): Promise<StateDoc>;
+  put(tenantId: string, store: AnyStoreName, state: unknown): Promise<StateDoc>;
   /** Tenants that have a document for this store. Used by the scheduled-run cron to find work. */
-  listTenants(store: StateStoreName, limit?: number): Promise<string[]>;
-  putMany(tenantId: string, docs: Partial<Record<StateStoreName, unknown>>): Promise<SaveResult>;
-  remove(tenantId: string, store: StateStoreName): Promise<void>;
+  listTenants(store: AnyStoreName, limit?: number): Promise<string[]>;
+  putMany(tenantId: string, docs: Partial<Record<AnyStoreName, unknown>>): Promise<SaveResult>;
+  remove(tenantId: string, store: AnyStoreName): Promise<void>;
 }
 
 class MemoryStateStore implements StateStore {
@@ -39,7 +47,7 @@ class MemoryStateStore implements StateStore {
   private key(t: string, s: string) {
     return `${t}::${s}`;
   }
-  async get(t: string, s: StateStoreName) {
+  async get(t: string, s: AnyStoreName) {
     return this.data.get(this.key(t, s));
   }
   async getAll(t: string) {
@@ -50,13 +58,13 @@ class MemoryStateStore implements StateStore {
     }
     return out;
   }
-  async put(t: string, s: StateStoreName, state: unknown) {
+  async put(t: string, s: AnyStoreName, state: unknown) {
     const prev = this.data.get(this.key(t, s));
     const doc = { state, version: (prev?.version ?? 0) + 1, updatedAt: new Date().toISOString() };
     this.data.set(this.key(t, s), doc);
     return doc;
   }
-  async listTenants(store: StateStoreName, limit = 200) {
+  async listTenants(store: AnyStoreName, limit = 200) {
     const out: string[] = [];
     for (const key of this.data.keys()) {
       const [tenant, s] = key.split("::");
@@ -65,15 +73,15 @@ class MemoryStateStore implements StateStore {
     }
     return out;
   }
-  async putMany(t: string, docs: Partial<Record<StateStoreName, unknown>>) {
+  async putMany(t: string, docs: Partial<Record<AnyStoreName, unknown>>) {
     const out: SaveResult = {};
-    for (const [s, state] of Object.entries(docs) as [StateStoreName, unknown][]) {
+    for (const [s, state] of Object.entries(docs) as [AnyStoreName, unknown][]) {
       const doc = await this.put(t, s, state);
       out[s] = { version: doc.version, updatedAt: doc.updatedAt };
     }
     return out;
   }
-  async remove(t: string, s: StateStoreName) {
+  async remove(t: string, s: AnyStoreName) {
     this.data.delete(this.key(t, s));
   }
 }
@@ -87,7 +95,7 @@ class SupabaseStateStore implements StateStore {
     if (!sb) throw new Error("Supabase is not configured");
     return sb;
   }
-  async get(t: string, s: StateStoreName) {
+  async get(t: string, s: AnyStoreName) {
     const { data, error } = await this.sb().from("app_state").select("state, version, updated_at").eq("tenant_id", t).eq("store", s).maybeSingle();
     if (error) throw new Error(`Could not load ${s}: ${error.message}`);
     return data ? { state: data.state, version: data.version as number, updatedAt: data.updated_at as string } : undefined;
@@ -101,18 +109,18 @@ class SupabaseStateStore implements StateStore {
     }
     return out;
   }
-  async listTenants(store: StateStoreName, limit = 200) {
+  async listTenants(store: AnyStoreName, limit = 200) {
     const { data, error } = await this.sb().from("app_state").select("tenant_id").eq("store", store).order("updated_at", { ascending: false }).limit(limit);
     if (error) throw new Error(`Could not list tenants: ${error.message}`);
     return [...new Set((data ?? []).map((r) => (r as { tenant_id: string }).tenant_id))];
   }
-  async put(t: string, s: StateStoreName, state: unknown) {
+  async put(t: string, s: AnyStoreName, state: unknown) {
     const res = await this.putMany(t, { [s]: state });
     const r = res[s];
     if (!r) throw new Error(`Could not save ${s}`);
     return { state, version: r.version, updatedAt: r.updatedAt };
   }
-  async putMany(t: string, docs: Partial<Record<StateStoreName, unknown>>) {
+  async putMany(t: string, docs: Partial<Record<AnyStoreName, unknown>>) {
     if (this.rpcAvailable) {
       const { data, error } = await this.sb().rpc("put_state", { p_tenant: t, p_docs: docs });
       if (!error) return (data ?? {}) as SaveResult;
@@ -122,7 +130,7 @@ class SupabaseStateStore implements StateStore {
     }
     await touchTenant(t);
     const out: SaveResult = {};
-    for (const [s, state] of Object.entries(docs) as [StateStoreName, unknown][]) {
+    for (const [s, state] of Object.entries(docs) as [AnyStoreName, unknown][]) {
       const prev = await this.get(t, s);
       const doc = { version: (prev?.version ?? 0) + 1, updatedAt: new Date().toISOString() };
       const { error } = await this.sb().from("app_state").upsert({ tenant_id: t, store: s, state, version: doc.version, updated_at: doc.updatedAt }, { onConflict: "tenant_id,store" });
@@ -131,7 +139,7 @@ class SupabaseStateStore implements StateStore {
     }
     return out;
   }
-  async remove(t: string, s: StateStoreName) {
+  async remove(t: string, s: AnyStoreName) {
     const { error } = await this.sb().from("app_state").delete().eq("tenant_id", t).eq("store", s);
     if (error) throw new Error(`Could not remove ${s}: ${error.message}`);
   }
