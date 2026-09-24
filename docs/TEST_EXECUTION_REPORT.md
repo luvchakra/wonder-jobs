@@ -43,7 +43,11 @@ Golden journeys GJ-001..GJ-018: 36/36 PASS in the same run. Three were updated f
 
 Defects the outcome journeys found and that were fixed before this run: a result headline counting only the capped shortlist's strong matches while the breakdown under it counted every strong fit; Ask Wonder resolving a specific job title to the first shorter title it contained; the palette re-opening itself after Enter. Accessibility (`npm run a11y`, 25 pages + 5 interaction states, now including every outcome screen): no serious/critical violations, after fixing two pre-existing ones it surfaced (Ask Wonder listbox structure/contrast; job skill badges directly inside `<ul>`).
 
-Browser matrix unchanged: firefox, webkit and Mobile Safari are BLOCKED (not vendored in this sandbox). `auth.spec.ts`'s real-account block is BLOCKED (no Supabase credentials here).
+Browser matrix unchanged: firefox, webkit and Mobile Safari are BLOCKED (not vendored in this sandbox).
+
+`auth.spec.ts`'s real-account block ran once Supabase credentials became available, against the real project (`https://tybkklggpifpsmsidhok.supabase.co`), single-worker: **13/13 PASS**, 5 skipped (the suite's own documented environmental limits: real email delivery, OAuth, clock control). Each test's account was a disposable, pre-confirmed (`email_confirm: true`, never actually emailed) user created via the Supabase admin API and deleted — along with its `app_state`/`action_audit` rows — immediately after; no real tenant data was read or modified, and a post-run listUsers check confirmed no test accounts remained.
+
+This run found a real bug: **AUTH-007** (sign out, sign back in, same account) failed because a build without the fix let `signOutEverywhere()` wipe local storage and revoke the session before a debounced write — `completeOnboarding()`, made moments earlier in the same test — reached the server. `flushRemote()` was fire-and-forget; it now returns its request, and both sign-out call sites (`TopBar`, `/app/profile`) await it first. Re-run after the fix: 13/13 pass. This class of regression — losing state at the exact moment of sign-out — has no demo-mode equivalent, since no golden or outcome journey signs out; it was only reachable through this real-account suite.
 
 ---
 

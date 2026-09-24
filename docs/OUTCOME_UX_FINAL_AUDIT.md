@@ -15,7 +15,7 @@ Every answer below is checked against code and executed tests, not intent. Where
 | E2E — golden + outcome journeys | `npx playwright test e2e/golden-journeys.spec.ts e2e/outcome-journeys.spec.ts --project=chromium --project="Mobile Chrome"` against the production build | PASS — 96/96 (48 tests × 2 projects: 18 golden + 30 outcome journeys), ~2.1 min |
 | Accessibility | `npm run a11y` (axe-core) against the production build — 25 pages + 5 interaction states, now including every outcome screen | PASS — no serious/critical violations (remaining notes are moderate: the demo banner outside a landmark) |
 | E2E — firefox / webkit / Mobile Safari | — | BLOCKED: this sandbox vendors Chromium only (see `TEST_EXECUTION_REPORT.md`) |
-| E2E — real-account auth/onboarding (`auth.spec.ts` account block) | — | BLOCKED: no Supabase credentials in this environment. Onboarding's resume-import change is covered by unit tests (`domain/career/resumeImport.test.ts`) and a browser check on both Career Profile and demo; it still needs the real-account run before release. |
+| E2E — real-account auth/onboarding (`auth.spec.ts` account block) | Supabase credentials added mid-review; run against the real project | PASS — 13/13 runnable tests (5 remain the suite's own documented skips: real email, OAuth, clock control). Found and fixed a real bug this way: **WJ-146** — sign-out could lose a just-completed onboarding write; see below. |
 
 ## §51 council questions
 
@@ -89,6 +89,7 @@ Yes.
   - GJ-013 matches the exact provenance badge.
   - GJ-014 clicks the listbox option directly.
 - **Fixed on the way:** scheduled-run notifications linked to the non-existent `/app/run/:id`.
+- **Fixed against the real account lifecycle (WJ-146):** signing out could lose a write made moments earlier — `completeOnboarding()`'s state was still inside `remoteStorage`'s debounce window when sign-out wiped local storage and revoked the session, so it never reached the server; the next sign-in re-onboarded the same account. `flushRemote()` is now awaited before sign-out. This is exactly the class of regression only a real-account run catches — no demo-mode journey exercises sign-out at all.
 
 ## §52 Definition of Done
 
@@ -125,12 +126,12 @@ Yes.
 | Build passes | ✅ | `npm run check` |
 | Typecheck passes | ✅ | `npm run check` |
 | Tests pass | ✅ | 408 unit tests |
-| Playwright golden journeys pass | ✅ | 96/96 (chromium + Mobile Chrome). Firefox/WebKit BLOCKED |
+| Playwright golden journeys pass | ✅ | 96/96 (chromium + Mobile Chrome). Real-account `auth.spec.ts`: 13/13. Firefox/WebKit BLOCKED |
 | Final audit document exists | ✅ | This file |
 
 ## Not done / follow-ups
 
 - **"Show only roles where I match the seniority"** (spec §40's example list) was not built. The Jobs page has no seniority filter, and a filter reachable only from Ask Wonder would be a hidden capability. The eight minimum intents are all covered.
-- **Real-account E2E** (`auth.spec.ts` account block) and **Firefox/WebKit** are BLOCKED in this sandbox and need a run with Supabase credentials and those browsers before release.
+- **Firefox/WebKit** are BLOCKED in this sandbox (not vendored) and still need a run before release. **Real-account E2E** (`auth.spec.ts` account block) is no longer blocked — it ran against the real project (WJ-146) using disposable, pre-confirmed accounts created and deleted via the admin API; no real email was sent and no real tenant data was touched.
 - **Scheduled-search rows** on `/app/automation/scheduled` still list internal stage names and the workflow id ("simple_search"). That's acceptable on a management page, but candidate-facing wording there is a good next polish.
 - **Résumé skill parsing** can match a shorter known skill inside a longer one already in the profile (for example "Testing" from "A/B Testing"). The conflict view shows these as additions the candidate can untick. The parser itself is unchanged by this program.
