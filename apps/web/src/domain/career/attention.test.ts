@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeHomeAttention, describeRunActivity } from "./attention";
+import { computeHomeAttention, computeProgressSummary, describeRunActivity, nextScheduledSearch } from "./attention";
 import { emptySummary } from "@/domain/workflow/engine";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import type { Application } from "@/domain/applications/types";
@@ -230,5 +230,37 @@ describe("computeHomeAttention — isMonitoring", () => {
     expect(computeHomeAttention(p).isMonitoring).toBe(true);
     p.schedules = { sch_1: { ...schedule, enabled: false } };
     expect(computeHomeAttention(p).isMonitoring).toBe(false);
+  });
+});
+
+describe("computeProgressSummary — what is moving forward, from real application state", () => {
+  const DAY = 86_400_000;
+  const iso = (ms: number) => new Date(NOW + ms).toISOString();
+  it("counts active applications, this week's interviews, due follow-ups and recent employer replies", () => {
+    const apps: Record<string, Application> = {
+      a: app({ id: "a", status: "submitted", followUps: [{ id: "f1", applicationId: "a", dueAt: iso(DAY), kind: "follow_up", note: "", done: false }] }),
+      b: app({ id: "b", status: "interview", followUps: [{ id: "f2", applicationId: "b", dueAt: iso(3 * DAY), kind: "interview", note: "", done: false }], events: [{ id: "e1", applicationId: "b", type: "recruiter_response", at: iso(-DAY), title: "Recruiter replied" }] }),
+      c: app({ id: "c", status: "preparing" }),
+      d: app({ id: "d", status: "rejected", events: [{ id: "e2", applicationId: "d", type: "outcome", at: iso(-10 * DAY), title: "Rejected" }] }),
+    };
+    expect(computeProgressSummary(apps, NOW)).toEqual({ active: 2, interviewsThisWeek: 1, followUpsDue: 1, employerReplies: 1 });
+  });
+
+  it("ignores done follow-ups and interviews beyond this week", () => {
+    const apps: Record<string, Application> = {
+      a: app({ id: "a", status: "submitted", followUps: [{ id: "f1", applicationId: "a", dueAt: iso(DAY), kind: "follow_up", note: "", done: true }, { id: "f2", applicationId: "a", dueAt: iso(9 * DAY), kind: "interview", note: "", done: false }] }),
+    };
+    expect(computeProgressSummary(apps, NOW)).toEqual({ active: 1, interviewsThisWeek: 0, followUpsDue: 0, employerReplies: 0 });
+  });
+});
+
+describe("nextScheduledSearch — never claims Wonder is working without a real enabled schedule", () => {
+  const sch = (over: Partial<WorkflowSchedule>): WorkflowSchedule => ({ id: "s", workflowId: "w", name: "Daily", description: "", enabled: true, trigger: "schedule", frequency: "daily", days: [], time: "08:00", timezone: "UTC", condition: { key: "always", op: ">", value: 0 }, actions: [], createdAt: "", ...over });
+  it("picks the soonest enabled, time-triggered schedule", () => {
+    const r = nextScheduledSearch({ a: sch({ id: "a", nextRunAt: "2026-09-25T08:00:00Z" }), b: sch({ id: "b", nextRunAt: "2026-09-24T08:00:00Z" }), c: sch({ id: "c", enabled: false, nextRunAt: "2026-09-23T13:00:00Z" }), d: sch({ id: "d", trigger: "manual" }) });
+    expect(r?.id).toBe("b");
+  });
+  it("returns nothing when no schedule is enabled", () => {
+    expect(nextScheduledSearch({ a: sch({ enabled: false, nextRunAt: "2026-09-24T08:00:00Z" }) })).toBeUndefined();
   });
 });

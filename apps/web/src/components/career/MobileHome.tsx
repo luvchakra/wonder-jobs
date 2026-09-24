@@ -7,6 +7,7 @@ import type { CanonicalJob, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { AUTOMATION_LEVEL_META, type AutomationLevel } from "@/domain/automation/policy";
 import { greeting } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
+import { ProgressAndWatch } from "./ProgressAndWatch";
 import { ActiveRunCard } from "@/components/workflow/ActiveRunCard";
 import { HomeAttentionSections } from "./HomeAttentionSections";
 import { useUIStore } from "@/store/ui";
@@ -45,11 +46,6 @@ export function MobileHome({
 }) {
   const openCommand = useUIStore((s) => s.setCommandOpen);
   const firstName = name.split(" ")[0];
-  const chips: { label: string; on: boolean }[] = [
-    { label: "Automated", on: level === "autonomous" || level === "continuous" },
-    { label: "Guided", on: level === "guided" },
-    { label: "You're in control", on: true },
-  ];
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between">
@@ -80,20 +76,15 @@ export function MobileHome({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[18px] font-semibold">Find opportunities</p>
-              <p className="text-[13px] text-white/85">Find, Analyze, Prepare, Track. All in one go.</p>
+              <p className="text-[13px] text-white/85">Tell Wonder what you want. It searches, compares and prepares — you decide.</p>
             </div>
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-600">
               <ArrowRight className="size-4" aria-hidden />
             </span>
           </div>
-          <ul className="mt-4 flex flex-wrap gap-2" aria-label="Automation state">
-            {chips.map((c) => (
-              <li key={c.label} className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium", c.on ? "bg-white/25 text-white" : "bg-white/10 text-white/60")}>
-                <span className={cn("size-1.5 rounded-full", c.on ? "bg-white" : "bg-white/40")} aria-hidden /> {c.label}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-[11px] text-white/70">Default level: {AUTOMATION_LEVEL_META[level].label}</p>
+          <p className="mt-4 text-[12px] text-white/85">
+            <span className="font-semibold text-white">{AUTOMATION_LEVEL_META[level].label}:</span> {AUTOMATION_LEVEL_META[level].short}
+          </p>
         </Link>
       )}
 
@@ -111,6 +102,7 @@ export function MobileHome({
       </ul>
 
       {!activeRun && attention.recentRunLine && <p className="px-1 text-[13px] text-ink-3">{attention.recentRunLine}</p>}
+      <ProgressAndWatch />
 
       <HomeAttentionSections attention={attention} jobs={jobs} matches={matches} quality={quality} saved={saved} onToggleSave={onToggleSave} />
     </div>

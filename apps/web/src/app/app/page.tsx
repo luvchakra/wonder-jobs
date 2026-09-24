@@ -13,6 +13,7 @@ import { AIProviderCard } from "@/components/ai/AIProviderCard";
 import { ActiveRunCard } from "@/components/workflow/ActiveRunCard";
 import { HomeAttentionSections } from "@/components/career/HomeAttentionSections";
 import { MobileHome } from "@/components/career/MobileHome";
+import { ProgressAndWatch } from "@/components/career/ProgressAndWatch";
 import { useAutomationStore } from "@/store/automation";
 import Link from "next/link";
 
@@ -66,6 +67,7 @@ export default function HomePage() {
             <ActiveRunCard run={activeRun} />
             {!activeRun && attention.recentRunLine && <p className="mt-2 px-1 text-[13px] text-ink-3">{attention.recentRunLine}</p>}
           </section>
+          <ProgressAndWatch />
 
           <HomeAttentionSections attention={attention} jobs={jobs} matches={matches} quality={quality} saved={saved} onToggleSave={(id) => (saved[id] ? unsave(id) : save(id))} />
         </div>

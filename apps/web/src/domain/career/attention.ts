@@ -129,3 +129,39 @@ export function computeHomeAttention(params: {
 
   return { opportunities, applicationAttention, careerActions, recentRunLine, hasActiveRun, isMonitoring, hasAnythingToShow };
 }
+
+export interface ProgressSummary {
+  /** Applications with an employer and not concluded (submitted, under review, interviewing, unknown). */
+  active: number;
+  interviewsThisWeek: number;
+  followUpsDue: number;
+  /** Applications whose latest event is an employer reply or outcome from the last 7 days. */
+  employerReplies: number;
+}
+
+/** "What is moving forward?" (outcome spec §17) — counted from real application state only. */
+export function computeProgressSummary(applications: Record<string, Application>, now: number): ProgressSummary {
+  let active = 0;
+  let interviewsThisWeek = 0;
+  let followUpsDue = 0;
+  let employerReplies = 0;
+  for (const app of Object.values(applications)) {
+    if (["submitted", "under_review", "interview", "unknown"].includes(app.status)) active++;
+    for (const f of app.followUps) {
+      if (f.done) continue;
+      const due = new Date(f.dueAt).getTime();
+      if (f.kind === "interview" && due >= now - DAY_MS && due - now < 7 * DAY_MS) interviewsThisWeek++;
+      if (f.kind === "follow_up" && due - now < 2 * DAY_MS) followUpsDue++;
+    }
+    const last = app.events[app.events.length - 1];
+    if (last && (last.type === "recruiter_response" || last.type === "outcome") && now - new Date(last.at).getTime() < 7 * DAY_MS) employerReplies++;
+  }
+  return { active, interviewsThisWeek, followUpsDue, employerReplies };
+}
+
+/** The soonest enabled, time-triggered scheduled search — the only basis for saying "Wonder is working". */
+export function nextScheduledSearch(schedules: Record<string, WorkflowSchedule>): WorkflowSchedule | undefined {
+  return Object.values(schedules)
+    .filter((s) => s.enabled && s.trigger === "schedule" && s.nextRunAt)
+    .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!))[0];
+}
