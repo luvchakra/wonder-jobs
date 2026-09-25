@@ -93,6 +93,14 @@ describe("canonicalize — dedupe and provenance", () => {
     ]);
     expect(r.opportunities).toHaveLength(2);
     expect(r.opportunities.map((o) => o.sourceRecords.map((x) => x.sourceJobId).sort())).toEqual([["9", "gh:acme:1"], ["gh:acme:2"]]);
+    // Two jobs, two identities: the warm pool upserts by id, and one batch can't hold the same id twice.
+    expect(new Set(r.opportunities.map((o) => o.id)).size).toBe(2);
+    // Stable across searches, whichever order the source returned them in.
+    const again = canonicalize([
+      { source: ats, job: job({ id: "c2", externalId: "gh:acme:2", applyUrl: "https://boards.greenhouse.io/acme/jobs/2" }) },
+      { source: ats, job: job({ id: "c1", externalId: "gh:acme:1", applyUrl: "https://boards.greenhouse.io/acme/jobs/1" }) },
+    ]);
+    expect(again.opportunities.map((o) => o.id).sort()).toEqual(r.opportunities.map((o) => o.id).sort());
   });
 
   it("does not merge different jobs that merely share an employer", () => {

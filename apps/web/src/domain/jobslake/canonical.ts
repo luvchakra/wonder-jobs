@@ -223,6 +223,16 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
 export function canonicalize(obs: Observation[], now = Date.now()): CanonicalizeResult {
   const groups = groupObservations(obs);
   const opportunities = groups.map((g) => merge(g, now));
+  // Postings one source keeps apart (same title, employer and place, different requisitions) share the
+  // descriptive key the id is built from; give each of those its own id from its canonical source record,
+  // so it's stable whichever order the source listed them in.
+  const seen = new Map<string, number>();
+  for (const o of opportunities) seen.set(o.id, (seen.get(o.id) ?? 0) + 1);
+  for (const o of opportunities) {
+    if (seen.get(o.id)! < 2) continue;
+    const rec = o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0];
+    o.id = `${o.id}_${fnv(`${rec.sourceId}:${rec.sourceJobId}`)}`;
+  }
   return { opportunities, normalized: obs.length, duplicates: obs.length - opportunities.length };
 }
 

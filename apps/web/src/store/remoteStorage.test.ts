@@ -144,4 +144,31 @@ describe("remoteStorage", () => {
     expect(JSON.parse(put!.body!).docs["wj.ui"]).toEqual({ state: { offlineEdit: true }, version: 1 });
     expect(JSON.parse(localStorage.getItem("wj.sync.dirty")!)).toEqual([]);
   });
+
+  it("a write made while the page's first GET is still in flight is never replaced by that GET's older copy", async () => {
+    // The GET was issued at page start (before this write); it answers only after the write has been pushed
+    // and its dirty mark cleared — so its copy of wj.career predates the write and must not win.
+    let answer!: (r: Response) => void;
+    const slowGet = new Promise<Response>((r) => (answer = r));
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({ url, method, body: typeof init?.body === "string" ? init.body : undefined });
+      if (method === "GET") return slowGet;
+      return new Response(JSON.stringify({ saved: {} }), { status: 200 });
+    });
+    localStorage.setItem("wj.career", JSON.stringify({ state: { savedResumes: [] }, version: 1 }));
+    const changed: string[] = [];
+    onRemoteChange((n) => changed.push(n));
+    const career = createRemoteStorage<{ savedResumes: string[] }>();
+    career.getItem("wj.career");
+    career.setItem("wj.career", { state: { savedResumes: ["r1"] }, version: 1 });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem("wj.sync.dirty")!)).toEqual([]);
+    answer(new Response(JSON.stringify({ docs: { "wj.career": { state: { state: { savedResumes: [] }, version: 1 }, version: 1, updatedAt: "2026-01-01T00:00:00Z" } } }), { status: 200 }));
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(changed).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("wj.career")!)).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+    expect(career.getItem("wj.career")).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+  });
 });

@@ -293,5 +293,7 @@ _Last updated: 2026-09-25 — JobsApply ("Apply with Wonder") is built: Wonder f
 - ✅ CLAUDE.md working rules (start from latest `main`, run `check`, update trackers)
 - ✅ `.github/workflows/ci.yml`: lint/typecheck/unit-tests/build run as 4 parallel jobs (not one sequential job) on every push/PR, so CI/merge wall-clock time is roughly the slowest single check rather than their sum. The Playwright suite and accessibility audit are deliberately not in automatic CI (too slow to gate every push, and E2E needs real Supabase credentials) — run them on demand with `npm run verify` (everything), `npm run e2e`, or `npm run a11y` — WJ-104
 - ✅ Production verified after each push (auth, demo, sources, per-user state)
+- ✅ Production walk-through with disposable real accounts (`e2e/real-account.spec.ts`, WJ-162): migration 0007, cron secret, admin allowlist, site URL and VAPID keys configured; two defects it found fixed (JobsLake id collision failing searches, a sync race dropping a just-saved résumé — WJ-161)
+- ⬜ Operator-side: Resend API key + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

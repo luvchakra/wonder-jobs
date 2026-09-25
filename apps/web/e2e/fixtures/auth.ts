@@ -42,20 +42,29 @@ export async function createTestAccount(tag = "auth"): Promise<TestAccount> {
 }
 
 /** Removes the auth user and whatever product state it wrote, so a test run leaves nothing behind in
- *  the shared project beyond a moment's row that was always going to be deleted. Best-effort: a cleanup
- *  failure must never fail the test it's cleaning up after. */
+ *  the shared project. Access tokens stay valid until they expire, so a page closing after the user is
+ *  gone can still flush one last state write; a second sweep catches it. Best-effort: a cleanup failure
+ *  must never fail the test it's cleaning up after. */
 export async function deleteTestAccount(id: string): Promise<void> {
   const admin = adminClient();
   if (!admin) return;
   await admin.auth.admin.deleteUser(id).catch(() => {});
-  await admin.schema("wonderjobs").from("app_state").delete().eq("tenant_id", id).then(
-    () => {},
-    () => {},
-  );
-  await admin.schema("wonderjobs").from("action_audit").delete().eq("tenant_id", id).then(
-    () => {},
-    () => {},
-  );
+  const sweep = async () => {
+    const db = admin.schema("wonderjobs");
+    for (const table of ["app_state", "action_audit", "push_subscriptions", "ai_provider_secrets"]) {
+      await db.from(table).delete().eq("tenant_id", id).then(
+        () => {},
+        () => {},
+      );
+    }
+    await db.from("tenants").delete().eq("id", id).then(
+      () => {},
+      () => {},
+    );
+  };
+  await sweep();
+  await new Promise((r) => setTimeout(r, 2_000));
+  await sweep();
 }
 
 /** Drives the real sign-in form (not an API shortcut) so the assertion is about the actual UI candidates use. */
