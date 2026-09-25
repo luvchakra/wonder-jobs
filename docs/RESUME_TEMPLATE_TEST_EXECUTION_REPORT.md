@@ -81,11 +81,57 @@ Allowed ranges in the tests: ATS 2–3, Extreme 2–4, Sparse 1, International 1
 
 ## Known limitations / warnings
 
-- **DOCX page count** isn't measured by a word processor here. It is estimated by the same paginator, and the DOCX is checked structurally and by re-extraction (TPL-030 says so).
+- **DOCX page count** is now measured. LibreOffice Writer renders every DOCX, with Gelasio standing in for Georgia's metrics and Liberation Sans for Arial's, and all 64 files paginate exactly as their PDFs (rendering QA pass below). Word itself isn't run here.
 - **DOCX fonts.** DOCX uses Arial/Georgia (spec §41 approved list). The PDF embeds Inter, Source Serif 4 or IBM Plex Sans, subset, OFL. The two formats therefore look alike but are not pixel-identical.
 - **Layout.** All eight templates are single-column this release (reading order, ATS). The metadata keeps `columns: 2` for a later version.
 - **Out of scope.** No AI rewriting inside templates: the document is the candidate's own facts, and a target job only reorders them. AI-drafted application résumés (Markdown) are unchanged and listed under "Tailored drafts".
 - **Signed-in accounts.** The gallery and generation run the same code for signed-in accounts. The Playwright journeys use demo mode, because a real-account run needs a disposable Supabase user (same approval as the JobsLake candidate journeys).
+
+## Rendering QA pass (2026-09-25, WJ-164)
+
+This pass asked whether the rendered résumés look right, not only whether they are structurally valid.
+
+**Method.** `src/domain/resume/renderAll.qa.test.ts` renders every template for 8 profiles to real PDF and DOCX files:
+- the five fixtures;
+- the demo candidate;
+- a realistic mid-career engineer;
+- pasted text with typed bullet markers, smart quotes, long URLs and an emoji.
+
+That is 64 of each. Then:
+- `scripts/resume-qa-audit.py` reads each PDF back with PyMuPDF. It checks for text overlapping text, text near the page edge, fonts not embedded, "?" glyphs, and experience facts missing from the extracted text.
+- Every page was rasterized and looked at.
+- The DOCX files were rendered in LibreOffice Writer.
+- The in-app SVG preview was screenshotted and pixel-diffed against the PDF.
+
+**Found and fixed** (a regression test for each is in `templates.test.ts` → "rendering quality"):
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | An emoji printed as “?” in 7 templates; validation passed | Characters no résumé font has are left out (PDF, preview and DOCX), reported as a warning, and the spaces around them close up. |
+| 2 | Bullets typed or pasted with their own marker printed twice (“• • Grew…”, “• - Ran…”) | The candidate's list marker is stripped when the document is built; a leading minus (“-5% cost”) is kept. |
+| 3 | A near-empty last page: one bullet alone on page 2 (Classic ATS), Education + Certifications alone on page 2 (Modern Minimal) | Fit-to-page: when the last page is under a third full, spacing tightens in steps down to 70% of the design's gaps until the page is saved. Type sizes, margins and content never change; DOCX uses the same result. |
+| 4 | Career Shift printed its five Selected Achievements a second time, word for word, under Experience | Those bullets aren't repeated under Experience. Achievements take at most two per role and never a role's last bullet, so every role keeps its own detail. |
+| 5 | A long right-hand detail (a location with time zones) squeezed the job title into a narrow column over three lines | Right-hand text wider than 42% of the line moves to its own right-aligned line. |
+| 6 | Contact lines wrapped with one item alone on the last line; “·” separators were nearly invisible | Contact items are balanced across the lines they need; dot separators use the muted text colour. |
+| 7 | Inline and grouped skill lists broke inside a skill (“Access / Management”) | Lists pack whole items (PDF, preview; non-breaking spaces in DOCX). |
+| 8 | The two-column skills list filled row-first and ran to 20 rows with many skills | Columns fill downward in the candidate's order, three across when every skill fits. |
+| 9 | Chips, columns and inline lists showed skills in group order, discarding a target job's relevance order | The document keeps the candidate's ordered list; only Technical's grouped layout groups. |
+| 10 | Certification issuer bold in the PDF, regular in the DOCX | Name semibold, issuer regular, in both. |
+| 11 | Technical grouping put PostgreSQL, Redis, gRPC, “Zero-Trust …”, C/C++ and Access Management under “Other” | Grouping rules extended. |
+| 12 | A paragraph could end on one lone word | No-runt rule: a word moves down from the line above when it fits. |
+| 13 | DOCX: dates bold; every line ~15% taller than the PDF (Word “auto” spacing multiplies the font's own leading), so 8 of 16 checked DOCX files ran a page longer than the PDF | Right-hand text is never bold. Each style's line spacing is “at least” the PDF's line height. The project link sits on the title line, sizes match, and a linked certification name keeps the text colour. |
+| 14 | In-app preview drifted up to ~1.5 pt right of the PDF on long lines at Modern Minimal's 9.4 pt body | Every preview text run is pinned to its laid-out width with SVG `textLength`. |
+
+**Results after the fixes:**
+- 64/64 PDFs: no overflow, overlap, out-of-bounds text, orphan heading or empty page (engine diagnostics). The independent PyMuPDF audit also finds none.
+- Every fact extracts as text.
+- The engineer profile, which fits a page, is 1 page in all 8 templates (3 were 2 pages before).
+- 64/64 DOCX files paginate exactly like their PDFs in LibreOffice Writer.
+- Preview vs PDF (demo candidate, page 1, 1190 px): 5 templates pixel-identical; the rest differ on ≤ 1.3% of inked pixels, which is antialiasing on one heading. Modern Minimal was at 25% before the `textLength` fix.
+- Unit: 315 résumé tests pass (11 new).
+- Playwright `resume-templates.spec.ts`: all pass. Two visual baselines were updated on purpose: Modern Minimal (three skill columns) and Career Shift (achievements no longer repeated).
+
+**Saved résumés.** These are engine corrections, not design changes: no template's type, colours, margins or section order changed, so template ids stay `-v1`. Résumés saved before this change re-render with the corrections (for example, one page instead of two). Their "N pages" label in My resumes shows the count stored when they were saved.
 
 ## Files
 
@@ -97,5 +143,5 @@ Allowed ranges in the tests: ATS 2–3, Extreme 2–4, Sparse 1, International 1
   - `src/components/career/CareerHistoryEditor.tsx`;
   - Career Profile and Application Pack links.
 - Fonts: `public/fonts/resume/*` (OFL licences included); `scripts/resume-fonts.py`.
-- Tests: `src/domain/resume/templates.test.ts`, `e2e/resume-templates.spec.ts` (+ snapshots).
+- Tests: `src/domain/resume/templates.test.ts`, `e2e/resume-templates.spec.ts` (+ snapshots); QA harness `src/domain/resume/renderAll.qa.test.ts` + `scripts/resume-qa-audit.py`.
 - Extractor fixes: `src/server/resume/extractText.ts`.

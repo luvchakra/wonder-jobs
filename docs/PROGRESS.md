@@ -49,7 +49,8 @@ _Last updated: 2026-09-25 — JobsApply ("Apply with Wonder") is built: Wonder f
 - ✅ **Career history** (WJ-153): roles, education, certifications, projects, publications and contact details in the Career Profile, each with provenance.
 - ✅ **Document, templates, layout, renderers** (WJ-153): ResumeDocument from the profile only; eight versioned templates; deterministic pagination; SVG preview = PDF; DOCX.
 - ✅ **Résumé Studio** (WJ-154): gallery, recommendation, preview, generation with validation gate, PDF/DOCX, My resumes, job-specific version from the Application Pack.
-- ✅ **Tests** (WJ-155): 304 unit + 30 Playwright + 9 visual baselines; DOCX→PDF rendering BLOCKED (no LibreOffice here).
+- ✅ **Tests** (WJ-155): 304 unit + 30 Playwright + 9 visual baselines.
+- ✅ **Rendering QA pass** (WJ-164): all 8 templates × 8 profiles rendered to PDF and DOCX, then read back, rasterized and reviewed. 14 defects fixed, including an emoji printed as "?", doubled bullets, near-empty last pages, Career Shift repeating its achievements, squeezed titles and DOCX spacing. Now: 64/64 clean PDFs, DOCX paginates like the PDF in 64/64, preview matches the PDF to the pixel; 11 regression tests.
 - ⬜ Backlog: two-column layouts, importing roles from an uploaded résumé, Letter page size preference.
 
 ## JobsLake — platform job acquisition (built, 2026-09-25; production rollout pending)

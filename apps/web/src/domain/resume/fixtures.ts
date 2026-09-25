@@ -109,3 +109,58 @@ export const LINK_FIXTURE: CareerDNA = {
 };
 
 export const FIXTURES = { ats: ATS_FIXTURE, extreme: EXTREME_FIXTURE, sparse: SPARSE_FIXTURE, international: INTERNATIONAL_FIXTURE, links: LINK_FIXTURE };
+
+const u = (text: string, i: number): CareerBullet => ({ id: `q${i}`, text, provenance: "USER_PROVIDED" });
+
+/** A realistic mid-career engineer: every common section at typical lengths — about one full page. */
+export const REALISTIC_FIXTURE: CareerDNA = {
+  ...base,
+  name: "Priya Raghunathan",
+  headline: "Senior Software Engineer · Distributed Systems",
+  yearsExperience: 9,
+  seniority: "senior",
+  skills: ["Go", "Java", "Python", "Kubernetes", "AWS", "Terraform", "Kafka", "PostgreSQL", "gRPC", "System Design", "Observability", "Mentoring"].map((name, i) => ({ name, level: (5 - (i % 3)) as 3 | 4 | 5 })),
+  strengths: ["Designs systems that stay simple under load", "Raises the bar through reviews and mentoring"],
+  history: {
+    contact: { email: "priya.r@example.com", phone: "+91 98450 12345", location: "Bengaluru, India", linkedinUrl: "https://www.linkedin.com/in/example-priya", websiteUrl: "https://priya.example.dev" },
+    summary: "Senior engineer with nine years building payment and messaging platforms. Designs services that handle millions of requests a day, cuts cloud spend without cutting reliability, and mentors engineers into owners.",
+    experience: [
+      { id: "e1", employer: "Example Payments Pvt. Ltd.", title: "Senior Software Engineer, Platform", location: "Bengaluru, India", startDate: "2021-06", current: true, bullets: [u("Led the redesign of the ledger service in Go, cutting p99 latency from 480 ms to 120 ms at 15k requests per second", 1), u("Moved 40+ services to Kubernetes with Terraform modules the whole org now uses", 2), u("Introduced SLOs and error budgets; paged incidents fell by half over two quarters", 3), u("Mentored six engineers; three now lead their own services", 4)], provenance: "USER_PROVIDED" },
+      { id: "e2", employer: "Sample Messaging Co.", title: "Software Engineer II", location: "Hyderabad, India", startDate: "2018-02", endDate: "2021-05", summary: "Core team for the notification platform (SMS, email and push).", bullets: [u("Built the Kafka-based delivery pipeline sending 30M messages a day with exactly-once semantics per recipient", 5), u("Wrote the retry and back-pressure design adopted by three other teams", 6), u("Cut AWS cost by 28% by right-sizing clusters and moving cold data to S3", 7)], provenance: "USER_PROVIDED" },
+      { id: "e3", employer: "Demo Software Labs", title: "Software Engineer", location: "Chennai, India", startDate: "2015-07", endDate: "2018-01", bullets: [u("Developed REST APIs in Java/Spring for the merchant dashboard", 8), u("Added integration tests that caught regressions before release; release rollbacks dropped to zero", 9)], provenance: "USER_PROVIDED" },
+    ],
+    education: [{ id: "ed1", institution: "Example National Institute of Technology", degree: "B.E.", field: "Computer Science and Engineering", location: "Tiruchirappalli, India", startDate: "2011", endDate: "2015", honors: ["Gold medal", "Dean's list 2013–2015"], provenance: "USER_PROVIDED" }],
+    certifications: [
+      { id: "c1", name: "AWS Certified Solutions Architect – Professional", issuer: "Amazon Web Services", issueDate: "2022-09", expiryDate: "2025-09", credentialId: "AWS-PSA-12345", url: "https://verify.example.com/aws", provenance: "USER_PROVIDED" },
+      { id: "c2", name: "Certified Kubernetes Administrator (CKA)", issuer: "The Linux Foundation", issueDate: "2020-11", provenance: "USER_PROVIDED" },
+    ],
+    projects: [
+      { id: "p1", name: "tracekit", description: "Open-source Go library for adding OpenTelemetry tracing to gRPC services in two lines.", technologies: ["Go", "OpenTelemetry", "gRPC"], url: "https://github.com/example/tracekit", bullets: [u("1.2k GitHub stars; used in production by several companies", 10)], provenance: "USER_PROVIDED" },
+    ],
+    publications: [],
+    researchInterests: [],
+  },
+};
+
+/**
+ * What people actually type or paste: their own bullet markers, smart quotes, long URLs and e-mail
+ * addresses, odd dashes, an emoji. Kept out of FIXTURES because the emoji is meant to be reported.
+ */
+export const PASTED_FIXTURE: CareerDNA = {
+  ...base,
+  name: "Dana O’Connor-Smith",
+  headline: "Marketing Lead — Growth & Brand",
+  history: {
+    contact: { email: "dana.oconnor.smith.marketing@example-long-domain-name.com", phone: "(022) 4000-1234", location: "Pune, Maharashtra, India", linkedinUrl: "https://www.linkedin.com/in/dana-oconnor-smith-growth-marketing-lead-1234567890/", portfolioUrl: "https://portfolio.example.com/dana/work/case-studies" },
+    summary: "“Growth marketer” with 8+ years — B2C & B2B — who’s run $2M/yr budgets, 40% YoY growth, and teams of 5–12. Loves data 📈 and good copy.",
+    experience: [
+      { id: "x1", employer: "Example Brands", title: "Marketing Lead", location: "Pune", startDate: "2020-03", current: true, bullets: [u("• Grew organic sign-ups 3× in 18 months (from 12k to 36k/month)", 1), u("- Ran paid campaigns across Google, Meta & LinkedIn with a ₹1.5 Cr annual budget", 2), u("Launched the referral program: https://www.example.com/referral-program-launch-announcement-2021-q3-details", 3), u("Built a 5-person team; hired a content lead, a designer & 3 performance marketers", 4)], provenance: "USER_PROVIDED" },
+      { id: "x2", employer: "Sample Agency", title: "Senior Associate", startDate: "2016-06", endDate: "2020-02", bullets: [u("Managed 10+ client accounts; retention 95%", 5)], provenance: "USER_PROVIDED" },
+    ],
+    education: [{ id: "y1", institution: "Example University", degree: "MBA", field: "Marketing", endDate: "2016", provenance: "USER_PROVIDED" }],
+    certifications: [],
+    projects: [],
+    publications: [],
+    researchInterests: [],
+  },
+};
