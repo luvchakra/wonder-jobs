@@ -41,24 +41,37 @@ export interface TextSegment {
   font: FontKey;
 }
 
-/** Splits text into runs drawable by one font; characters no font has become "?" and are reported. */
+/** Invisible joiners and emoji presentation selectors: nothing to draw, never worth reporting. */
+const INVISIBLE = /[\u200B-\u200D\u2060\uFE0E\uFE0F]/gu;
+
+/** Whether some résumé font can draw this character (the template's own, or Inter as fallback). */
+function printable(ch: string, key: FontKey) {
+  const cp = ch.codePointAt(0)!;
+  return hasGlyph(key, cp) || hasGlyph(fallbackKey(key), cp);
+}
+
+/**
+ * The text as it can be printed in this font: characters no résumé font has (emoji, pictographs) are
+ * left out — never drawn as "?" — and reported, and the spaces around them close up.
+ */
+export function printableText(text: string, key: FontKey, missing?: Set<string>): string {
+  let out = "";
+  for (const ch of text.replace(INVISIBLE, "")) {
+    if (/\s/.test(ch) || printable(ch, key)) out += ch;
+    else missing?.add(ch);
+  }
+  return out.length === text.length ? out : out.replace(/[ \t]{2,}/g, " ").replace(/ ([.,;:!?)])/g, "$1").trim();
+}
+
+/** Splits text into runs drawable by one font; a character no font has is left out and reported. */
 export function segment(text: string, key: FontKey, missing?: Set<string>): TextSegment[] {
   const out: TextSegment[] = [];
   const fb = fallbackKey(key);
-  for (const ch of text) {
-    const cp = ch.codePointAt(0)!;
-    let k: FontKey = key;
-    let c = ch;
-    if (!hasGlyph(key, cp)) {
-      if (hasGlyph(fb, cp)) k = fb;
-      else {
-        missing?.add(ch);
-        c = "?";
-      }
-    }
+  for (const ch of printableText(text, key, missing)) {
+    const k: FontKey = hasGlyph(key, ch.codePointAt(0)!) ? key : fb;
     const last = out[out.length - 1];
-    if (last && last.font === k) last.text += c;
-    else out.push({ text: c, font: k });
+    if (last && last.font === k) last.text += ch;
+    else out.push({ text: ch, font: k });
   }
   return out;
 }
@@ -79,7 +92,7 @@ export function ascent(key: FontKey, size: number) {
 
 /** Greedy word wrap; a word wider than the line (a long URL, a 100-character employer) is broken by character. */
 export function wrap(text: string, key: FontKey, size: number, width: number): string[] {
-  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  const words = printableText(text, key).replace(/\s+/g, " ").trim().split(" ");
   const lines: string[] = [];
   let cur = "";
   const fits = (s: string) => widthOf(s, key, size) <= width + 0.01;

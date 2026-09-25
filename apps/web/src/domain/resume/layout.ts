@@ -8,7 +8,7 @@
  * Diagnostics report any overflow, overlap, out-of-bounds content, orphaned heading or empty page.
  */
 import { formatMonth, formatRange } from "@/domain/career/history";
-import { ascent, fontKey, segment, widthOf, wrap, type FontKey, type TextSegment, type Weight } from "./fonts";
+import { ascent, fontKey, printableText, segment, widthOf, wrap, type FontKey, type TextSegment, type Weight } from "./fonts";
 import { FONT_METRICS } from "./fontMetrics.generated";
 import type { ResumeBullet, ResumeDocument, ResumeSection } from "./document";
 import type { FontFamilyKey, ResumeTemplate, TemplateDesign } from "./templates";
@@ -63,6 +63,8 @@ interface Ctx {
   right: number;
   width: number;
   missing: Set<string>;
+  /** Evidence ids of bullets already shown in Selected Achievements — not repeated under Experience. */
+  shownBullets: Set<string>;
 }
 
 function lineHeight(ctx: Ctx, size: number) {
@@ -83,6 +85,7 @@ const F = (ctx: Ctx, which: keyof TemplateDesign["fonts"], w: Weight) => fontKey
 
 /** Wrapped paragraph → one row per line. */
 function paragraphRows(ctx: Ctx, s: string, key: FontKey, size: number, color: string, indent = 0, firstLinePrefix?: { text: string; key: FontKey }): Row[] {
+  s = printableText(s, key);
   const lh = lineHeight(ctx, size);
   const width = ctx.width - indent;
   const prefixW = firstLinePrefix ? widthOf(firstLinePrefix.text, firstLinePrefix.key, size) : 0;
@@ -94,6 +97,16 @@ function paragraphRows(ctx: Ctx, s: string, key: FontKey, size: number, color: s
     const rest = s.replace(/\s+/g, " ").trim().slice(head.length).trim();
     lines = [head, ...(rest ? wrap(rest, key, size, width) : [])];
   } else lines = wrap(s, key, size, width);
+  // No runt: a paragraph never ends on one lone word when the line above can spare one.
+  const n = lines.length;
+  if (n >= 2 && !lines[n - 1].includes(" ") && lines[n - 2].split(" ").length >= 4 && !(n === 2 && prefixW)) {
+    const prev = lines[n - 2].split(" ");
+    const moved = `${prev.pop()} ${lines[n - 1]}`;
+    if (widthOf(moved, key, size) <= width) {
+      lines[n - 2] = prev.join(" ");
+      lines[n - 1] = moved;
+    }
+  }
   return lines.map((line, i) => ({
     h: lh,
     draw: (top) => {
@@ -105,6 +118,58 @@ function paragraphRows(ctx: Ctx, s: string, key: FontKey, size: number, color: s
       }
       if (line) items.push(text(ctx, line, key, size, x, top, lh, color));
       return items;
+    },
+  }));
+}
+
+/**
+ * Lines of whole items joined by `sep` ("Go · Java · Kubernetes"): an item never breaks across lines
+ * unless it alone is wider than a line. `firstWidth` is the room on the first line (after a label).
+ */
+function itemLines(items: string[], sep: string, key: FontKey, size: number, width: number, firstWidth = width): string[] {
+  const lines: string[] = [];
+  let cur = "";
+  const room = () => (lines.length ? width : firstWidth);
+  for (const raw of items) {
+    const it = printableText(raw, key);
+    if (!it) continue;
+    const tryLine = cur ? `${cur}${sep}${it}` : it;
+    // Room is checked with the separator that would end this line, so it never pokes past the margin.
+    if (widthOf(`${tryLine}${sep.trimEnd()}`, key, size) <= room() + 0.01) {
+      cur = tryLine;
+      continue;
+    }
+    if (cur) {
+      // Keep the separator at the end of the line, so the list still reads as one list.
+      lines.push(`${cur}${sep.trimEnd()}`);
+      cur = "";
+    }
+    if (widthOf(it, key, size) <= room() + 0.01) cur = it;
+    else {
+      const parts = wrap(it, key, size, room());
+      lines.push(...parts.slice(0, -1));
+      cur = parts[parts.length - 1];
+    }
+  }
+  if (cur || !lines.length) lines.push(cur);
+  return lines;
+}
+
+/** Rows for a list of whole items (inline skills, a skill group after its label). */
+function listRows(ctx: Ctx, items: string[], sep: string, key: FontKey, size: number, color: string, label?: { text: string; key: FontKey }): Row[] {
+  const lh = lineHeight(ctx, size);
+  const labelW = label ? widthOf(label.text, label.key, size) : 0;
+  return itemLines(items, sep, key, size, ctx.width, ctx.width - labelW).map((line, i) => ({
+    h: lh,
+    draw: (top) => {
+      const out: DrawItem[] = [];
+      let x = ctx.left;
+      if (i === 0 && label) {
+        out.push(text(ctx, label.text, label.key, size, x, top, lh, color));
+        x += labelW;
+      }
+      if (line) out.push(text(ctx, line, key, size, x, top, lh, color));
+      return out;
     },
   }));
 }
@@ -123,16 +188,27 @@ function bulletBlock(ctx: Ctx, b: ResumeBullet | string, label: string, spaceBef
 function splitRows(ctx: Ctx, leftText: string, leftKey: FontKey, leftSize: number, leftColor: string, rightText: string | undefined, rightKey: FontKey, rightSize: number, rightColor: string, link?: string): Row[] {
   const lh = lineHeight(ctx, Math.max(leftSize, rightSize));
   const rw = rightText ? widthOf(rightText, rightKey, rightSize) : 0;
-  const avail = ctx.width - (rw ? rw + 12 : 0);
+  // A long right-hand text (a location with a time zone, a long date note) gets its own line rather
+  // than squeezing the title into a narrow column.
+  const ownLine = rw > ctx.width * 0.42;
+  const avail = ctx.width - (rw && !ownLine ? rw + 12 : 0);
   const lines = wrap(leftText, leftKey, leftSize, avail);
-  return lines.map((line, i) => ({
+  const rows: Row[] = lines.map((line, i) => ({
     h: lh,
     draw: (top) => {
       const items: DrawItem[] = [text(ctx, line, leftKey, leftSize, ctx.left, top, lh, leftColor, { link: i === 0 ? link : undefined })];
-      if (i === 0 && rightText) items.push(text(ctx, rightText, rightKey, rightSize, ctx.right - rw, top, lh, rightColor));
+      if (i === 0 && rightText && !ownLine) items.push(text(ctx, rightText, rightKey, rightSize, ctx.right - rw, top, lh, rightColor));
       return items;
     },
   }));
+  if (rightText && ownLine) {
+    const rlh = lineHeight(ctx, rightSize);
+    for (const line of wrap(rightText, rightKey, rightSize, ctx.width)) {
+      const w = widthOf(line, rightKey, rightSize);
+      rows.push({ h: rlh, draw: (top) => [text(ctx, line, rightKey, rightSize, ctx.right - w, top, rlh, rightColor)] });
+    }
+  }
+  return rows;
 }
 
 function chipsRows(ctx: Ctx, items: string[]): Row[] {
@@ -171,29 +247,36 @@ function chipsRows(ctx: Ctx, items: string[]): Row[] {
   }));
 }
 
+/**
+ * A bulleted list in columns, filled down each column (so it reads in the candidate's order). Three
+ * columns when every item fits one, otherwise two.
+ */
 function columnRows(ctx: Ctx, items: string[]): Row[] {
   const d = ctx.d;
   const size = d.size.body;
   const key = F(ctx, "body", 400);
   const lh = lineHeight(ctx, size);
-  const colW = (ctx.width - 14) / 2;
-  const cell = (s: string) => wrap(s, key, size, colW - d.space.bulletIndent);
+  const gutter = 14;
+  const colWidth = (n: number) => (ctx.width - gutter * (n - 1)) / n;
+  const fits = (n: number) => items.every((it) => widthOf(it, key, size) <= colWidth(n) - d.space.bulletIndent);
+  const cols = items.length >= 9 && fits(3) ? 3 : 2;
+  const colW = colWidth(cols);
+  const perCol = Math.ceil(items.length / cols);
+  const cell = (s: string | undefined) => (s ? wrap(s, key, size, colW - d.space.bulletIndent) : []);
   const rows: Row[] = [];
-  for (let i = 0; i < items.length; i += 2) {
-    const a = cell(items[i]);
-    const b = items[i + 1] ? cell(items[i + 1]) : [];
-    const n = Math.max(a.length, b.length);
+  for (let r = 0; r < perCol; r++) {
+    const cells = Array.from({ length: cols }, (_, c) => cell(items[c * perCol + r]));
+    const n = Math.max(...cells.map((x) => x.length));
     rows.push({
       h: n * lh,
       draw: (top) => {
         const out: DrawItem[] = [];
-        const col = (lines: string[], x0: number) => {
+        cells.forEach((lines, c) => {
           if (!lines.length) return;
-          out.push(text(ctx, "•", key, size, x0 + d.space.bulletIndent - 8, top, lh, d.theme.primary));
+          const x0 = ctx.left + c * (colW + gutter);
+          out.push(text(ctx, "•", key, size, x0 + d.space.bulletIndent - 8, top, lh, d.theme.primary === "#000000" ? d.theme.text : d.theme.primary));
           lines.forEach((l, j) => out.push(text(ctx, l, key, size, x0 + d.space.bulletIndent, top + j * lh, lh, d.theme.text)));
-        };
-        col(a, ctx.left);
-        col(b, ctx.left + colW + 14);
+        });
         return out;
       },
     });
@@ -214,6 +297,40 @@ function contactItems(doc: ResumeDocument): { text: string; link?: string }[] {
     h.portfolioUrl ? { text: bare(h.portfolioUrl), link: h.portfolioUrl } : null,
     h.websiteUrl ? { text: bare(h.websiteUrl), link: h.websiteUrl } : null,
   ].filter((x): x is { text: string; link?: string } => !!x);
+}
+
+/**
+ * Contact items split over as few lines as greedy wrapping needs, but evened out — never one lonely
+ * item on the last line — and never breaking an item. Order is kept.
+ */
+function balanceContacts<T extends { w: number }>(items: T[], sepW: number, width: number): T[][] {
+  const lineW = (xs: T[]) => xs.reduce((n, x, i) => n + x.w + (i ? sepW : 0), 0);
+  let n = 1;
+  for (let i = 0, w = 0; i < items.length; i++) {
+    const add = (w ? sepW : 0) + items[i].w;
+    if (w && w + add > width) {
+      n++;
+      w = items[i].w;
+    } else w += add;
+  }
+  if (n === 1) return [items];
+  // Few items (≤ 6): try every way to cut them into n lines; keep the one whose longest line is shortest.
+  let best: T[][] | null = null;
+  let bestMax = Infinity;
+  const cut = (start: number, left: number, acc: T[][]) => {
+    if (left === 1) {
+      const lines = [...acc, items.slice(start)];
+      const max = Math.max(...lines.map(lineW));
+      if (max <= width + 0.01 && max < bestMax) {
+        best = lines;
+        bestMax = max;
+      }
+      return;
+    }
+    for (let end = start + 1; end <= items.length - (left - 1); end++) cut(end, left - 1, [...acc, items.slice(start, end)]);
+  };
+  cut(0, n, []);
+  return best ?? [items];
 }
 
 function headerBlock(ctx: Ctx, doc: ResumeDocument, tpl: ResumeTemplate): Block {
@@ -247,18 +364,7 @@ function headerBlock(ctx: Ctx, doc: ResumeDocument, tpl: ResumeTemplate): Block 
     const lh = lineHeight(ctx, size);
     const sep = d.header === "left" || d.header === "left-accent" ? "   |   " : "   ·   ";
     const sepW = widthOf(sep, key, size);
-    const lines: { text: string; link?: string }[][] = [[]];
-    let w = 0;
-    for (const c of contacts) {
-      const cw = widthOf(c.text, key, size);
-      const add = (lines[lines.length - 1].length ? sepW : 0) + cw;
-      if (w > 0 && w + add > ctx.width) {
-        lines.push([]);
-        w = 0;
-      }
-      w += (lines[lines.length - 1].length ? sepW : 0) + cw;
-      lines[lines.length - 1].push(c);
-    }
+    const lines = balanceContacts(contacts.map((c) => ({ ...c, w: widthOf(c.text, key, size) })), sepW, ctx.width);
     rows.push({ h: 5, draw: () => [] });
     for (const line of lines) {
       const total = line.reduce((n, c, i) => n + widthOf(c.text, key, size) + (i ? sepW : 0), 0);
@@ -269,7 +375,8 @@ function headerBlock(ctx: Ctx, doc: ResumeDocument, tpl: ResumeTemplate): Block 
           let x = place(total);
           line.forEach((c, i) => {
             if (i) {
-              out.push(text(ctx, sep, key, size, x, top, lh, d.theme.border));
+              // A middle dot in the pale rule colour all but disappears; bars are drawn as light rules.
+              out.push(text(ctx, sep, key, size, x, top, lh, sep.includes("|") ? d.theme.border : d.theme.muted));
               x += sepW;
             }
             // Links stay in the text colour (never colour-only) — the underline-free link is also in the PDF annotation.
@@ -293,6 +400,27 @@ function headerBlock(ctx: Ctx, doc: ResumeDocument, tpl: ResumeTemplate): Block 
     },
   };
   return { kind: "header", label: "header", rows: [...rows, decor], spaceBefore: 0, unbreakable: true };
+}
+
+/**
+ * Continues the last line of `rows` with more text in another weight (a certification's issuer after
+ * its name), wrapping onto new lines when it doesn't fit. `reserve` keeps room for a right-hand date.
+ */
+function appendToLastLine(ctx: Ctx, rows: Row[], extra: string, key: FontKey, size: number, color: string, reserve: number) {
+  const last = rows[rows.length - 1];
+  const lh = last.h;
+  let used = 0;
+  last.draw(0).forEach((it) => {
+    if (it.kind === "text" && it.x < ctx.left + ctx.width / 2) used = Math.max(used, it.x + it.width - ctx.left);
+  });
+  const room = ctx.width - used - reserve;
+  const firstFit = wrap(extra.trim(), key, size, room)[0] ?? "";
+  if (room > 40 && widthOf(` ${firstFit}`, key, size) <= room) {
+    const rest = extra.trim().slice(firstFit.length).trim();
+    const prev = last.draw;
+    rows[rows.length - 1] = { h: lh, draw: (top) => [...prev(top), text(ctx, ` ${firstFit}`, key, size, ctx.left + used, top, lh, color)] };
+    if (rest) rows.push(...paragraphRows(ctx, rest, key, size, color));
+  } else rows.push(...paragraphRows(ctx, extra.trim(), key, size, color));
 }
 
 /* ------------------------------------------------------------ sections */
@@ -352,18 +480,19 @@ function sectionBlocks(ctx: Ctx, s: ResumeSection, title: string): Block[] {
       push({ kind: "text", label: title, rows: chipsRows(ctx, s.items), spaceBefore: 0 });
       break;
     case "skills": {
-      const all = s.groups.flatMap((g) => g.skills);
+      const all = s.ordered ?? s.groups.flatMap((g) => g.skills);
       if (d.skills === "chips") push({ kind: "text", label: title, rows: chipsRows(ctx, all), spaceBefore: 0 });
       else if (d.skills === "columns") push({ kind: "text", label: title, rows: columnRows(ctx, all), spaceBefore: 0 });
-      else if (d.skills === "inline") push({ kind: "text", label: title, rows: paragraphRows(ctx, all.join("  ·  "), body, d.size.body, d.theme.text), spaceBefore: 0 });
+      else if (d.skills === "inline") push({ kind: "text", label: title, rows: listRows(ctx, all, "  ·  ", body, d.size.body, d.theme.text), spaceBefore: 0 });
       else
         s.groups.forEach((g, i) =>
-          push({ kind: "text", label: `${title}: ${g.name}`, rows: paragraphRows(ctx, g.skills.join(", "), body, d.size.body, d.theme.text, 0, { text: `${g.name}: `, key: semi }), spaceBefore: i ? d.space.bullet : 0 }),
+          push({ kind: "text", label: `${title}: ${g.name}`, rows: listRows(ctx, g.skills, ", ", body, d.size.body, d.theme.text, { text: `${g.name}: `, key: semi }), spaceBefore: i ? d.space.bullet : 0 }),
         );
       break;
     }
     case "experience":
-      s.items.forEach((e) => {
+      s.items.forEach((orig) => {
+        const e = ctx.shownBullets.size ? { ...orig, bullets: orig.bullets.filter((b) => !b.evidenceIds.some((id) => ctx.shownBullets.has(id))) } : orig;
         const dates = formatRange(e.startDate, e.endDate, e.current);
         const headRows =
           d.entry === "company-first"
@@ -387,8 +516,8 @@ function sectionBlocks(ctx: Ctx, s: ResumeSection, title: string): Block[] {
     case "certifications":
       s.items.forEach((c, i) => {
         const date = [formatMonth(c.issueDate), c.expiryDate ? `expires ${formatMonth(c.expiryDate)}` : ""].filter(Boolean).join(" · ");
-        const left = [c.name, c.issuer].filter(Boolean).join(" — ");
-        const rows = splitRows(ctx, left, semi, d.size.body, d.theme.text, date || undefined, body, d.size.small, d.theme.muted, c.url);
+        const rows = splitRows(ctx, c.name, semi, d.size.body, d.theme.text, date || undefined, body, d.size.small, d.theme.muted, c.url);
+        if (c.issuer) appendToLastLine(ctx, rows, ` — ${c.issuer}`, body, d.size.body, d.theme.text, date && widthOf(date, body, d.size.small) <= ctx.width * 0.42 && rows.length === 1 ? widthOf(date, body, d.size.small) + 12 : 0);
         if (c.credentialId) rows.push(...paragraphRows(ctx, `Credential ID ${c.credentialId}`, body, d.size.small, d.theme.muted));
         push({ kind: "entry", label: c.name, rows, spaceBefore: i ? d.space.bullet + 1 : 0, unbreakable: true });
       });
@@ -430,10 +559,73 @@ function totalH(b: Block) {
   return b.rows.reduce((n, r) => n + r.h, 0);
 }
 
+/** Every string in the document, for reporting characters no résumé font can print. */
+function documentText(doc: ResumeDocument): string[] {
+  const out: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.entries(v).forEach(([k, x]) => k !== "metadata" && k !== "evidenceIds" && walk(x));
+  };
+  walk(doc.header);
+  walk(doc.sections);
+  return out;
+}
+
+/**
+ * Tighter spacing for the same design (never smaller type): vertical gaps scaled by `k`, line height
+ * eased toward 1.25. Used only to pull a nearly empty last page back.
+ */
+function tightened(tpl: ResumeTemplate, k: number): ResumeTemplate {
+  const d = tpl.design;
+  const sp = d.space;
+  return {
+    ...tpl,
+    design: {
+      ...d,
+      lineHeight: Math.max(1.25, d.lineHeight - (1 - k) * 0.35),
+      space: { ...sp, section: sp.section * k, afterHeading: sp.afterHeading * k, entry: sp.entry * k, bullet: sp.bullet * k, header: sp.header * k },
+    },
+  };
+}
+
+/** How far the last page is filled, as a share of the printable height. */
+const lastPageFill = (l: ResumeLayout & { lastY: number }, tpl: ResumeTemplate) => {
+  const m = tpl.design.page.margin;
+  return (l.lastY - m.top) / (A4.height - m.top - m.bottom);
+};
+
+/**
+ * The template as it should be laid out for this document. When the content spills a little onto a
+ * last page (under a third of it — a lone bullet, the last section or two), spacing is tightened in
+ * small steps, down to 70% of the design's gaps, and the first variant that saves that page is used.
+ * Type sizes, margins and content never change. DOCX uses the same result, so both formats agree.
+ */
+export function fittedTemplate(doc: ResumeDocument, tpl: ResumeTemplate): ResumeTemplate {
+  const base = layoutWith(doc, tpl);
+  if (base.pages.length < 2 || lastPageFill(base, tpl) >= 0.33) return tpl;
+  for (const k of [0.9, 0.8, 0.7]) {
+    const t = tightened(tpl, k);
+    if (layoutWith(doc, t).pages.length < base.pages.length) return t;
+  }
+  return tpl;
+}
+
 export function layoutResume(doc: ResumeDocument, tpl: ResumeTemplate): ResumeLayout {
+  const { lastY: _lastY, ...layout } = layoutWith(doc, fittedTemplate(doc, tpl));
+  void _lastY;
+  return layout;
+}
+
+function layoutWith(doc: ResumeDocument, tpl: ResumeTemplate): ResumeLayout & { lastY: number } {
   const d = tpl.design;
   const m = d.page.margin;
-  const ctx: Ctx = { d, left: m.left, right: A4.width - m.right, width: A4.width - m.left - m.right, missing: new Set() };
+  // Career Shift leads with Selected Achievements; those bullets aren't printed a second time under Experience.
+  const showsBoth = d.sections.some((x) => x.type === "selected_achievements") && d.sections.some((x) => x.type === "experience");
+  const achievements = showsBoth ? doc.sections.find((x) => x.type === "selected_achievements") : undefined;
+  const shownBullets = new Set(achievements?.type === "selected_achievements" ? achievements.items.flatMap((b) => b.evidenceIds) : []);
+  const ctx: Ctx = { d, left: m.left, right: A4.width - m.right, width: A4.width - m.left - m.right, missing: new Set(), shownBullets };
+  for (const t of documentText(doc)) printableText(t, "inter-400", ctx.missing);
   const top = m.top;
   const bottom = A4.height - m.bottom;
   const pageH = bottom - top;
@@ -535,7 +727,7 @@ export function layoutResume(doc: ResumeDocument, tpl: ResumeTemplate): ResumeLa
     const last = p.blocks[p.blocks.length - 1];
     if (last?.kind === "heading" && pi < pages.length - 1) diag.orphanHeadings.push(`p${pi + 1}: ${last.label}`);
   });
-  return { width: A4.width, height: A4.height, pages: pages.map((p) => ({ items: p.items })), diagnostics: diag };
+  return { width: A4.width, height: A4.height, pages: pages.map((p) => ({ items: p.items })), diagnostics: diag, lastY: y };
 }
 
 export function fontsUsed(layout: ResumeLayout): FontKey[] {

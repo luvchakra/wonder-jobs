@@ -7,6 +7,8 @@
 import { formatMonth, formatRange } from "@/domain/career/history";
 import type { ResumeDocument } from "@/domain/resume/document";
 import type { ResumeTemplate } from "@/domain/resume/templates";
+import { fittedTemplate } from "@/domain/resume/layout";
+import { printableText } from "@/domain/resume/fonts";
 import { writeZip } from "@/lib/zip";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -29,7 +31,9 @@ class Builder {
   constructor(private t: ResumeTemplate) {}
 
   run(r: Run): string {
-    const pr = [r.bold ? "<w:b/>" : "", r.caps ? "<w:caps/>" : "", r.color ? `<w:color w:val="${hex(r.color)}"/>` : "", r.size ? `<w:sz w:val="${half(r.size)}"/><w:szCs w:val="${half(r.size)}"/>` : ""].join("");
+    // Characters no résumé font has (emoji) are left out here too, so the DOCX says what the PDF says.
+    r = { ...r, text: printableText(r.text, "inter-400") };
+    const pr = [r.bold ? "<w:b/>" : r.bold === false ? '<w:b w:val="0"/>' : "", r.caps ? "<w:caps/>" : "", r.color ? `<w:color w:val="${hex(r.color)}"/>` : "", r.size ? `<w:sz w:val="${half(r.size)}"/><w:szCs w:val="${half(r.size)}"/>` : ""].join("");
     const xml = `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ""}<w:t xml:space="preserve">${esc(r.text)}</w:t></w:r>`;
     if (!r.link) return xml;
     this.links.push(r.link);
@@ -51,12 +55,13 @@ class Builder {
   }
 
   /** Left text and a right-aligned date on one line (the right tab stop). */
-  split(style: string, left: Run[], right: string | undefined, keepNext: boolean) {
+  split(style: string, left: Run[], right: string | undefined, keepNext: boolean, rightLink?: string) {
     const d = this.t.design;
     const runs = [...left];
     const tab = `<w:r><w:tab/></w:r>`;
+    // The right-hand text is never bold, whatever the paragraph style (dates beside an entry title).
     this.body.push(
-      `<w:p><w:pPr><w:pStyle w:val="${style}"/>${keepNext ? "<w:keepNext/>" : ""}<w:tabs><w:tab w:val="right" w:pos="${twip(595.28 - d.page.margin.left - d.page.margin.right)}"/></w:tabs></w:pPr>${runs.map((r) => this.run(r)).join("")}${right ? `${tab}${this.run({ text: right, color: d.theme.muted, size: d.size.small })}` : ""}</w:p>`,
+      `<w:p><w:pPr><w:pStyle w:val="${style}"/>${keepNext ? "<w:keepNext/>" : ""}<w:tabs><w:tab w:val="right" w:pos="${twip(595.28 - d.page.margin.left - d.page.margin.right)}"/></w:tabs></w:pPr>${runs.map((r) => this.run(r)).join("")}${right ? `${tab}${this.run({ text: right, color: d.theme.muted, size: d.size.small, bold: false, link: rightLink })}` : ""}</w:p>`,
     );
   }
 }
@@ -65,20 +70,22 @@ function stylesXml(t: ResumeTemplate): string {
   const d = t.design;
   const f = d.docxFont;
   const font = (name: string) => `<w:rFonts w:ascii="${name}" w:hAnsi="${name}" w:cs="${name}"/>`;
-  const line = Math.round(240 * d.lineHeight);
+  // "At least" the line height the PDF uses for each style's size. ("Auto" multiplies the font's own
+  // leading, about 1.15, and made every line ~15% taller than the PDF.)
+  const line = twip(d.size.body * d.lineHeight);
   const rule = d.sectionHeading === "rule" ? `<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="${hex(d.theme.border)}"/></w:pBdr>` : "";
   const bar = d.sectionHeading === "bar" ? `<w:pBdr><w:left w:val="single" w:sz="18" w:space="4" w:color="${hex(d.theme.primary)}"/></w:pBdr>` : "";
   const headingColor = d.sectionHeading === "plain" ? d.theme.text : d.theme.primary;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:docDefaults><w:rPrDefault><w:rPr>${font(f.body)}<w:color w:val="${hex(d.theme.text)}"/><w:sz w:val="${half(d.size.body)}"/><w:szCs w:val="${half(d.size.body)}"/><w:lang w:val="en-IN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="${line}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:docDefaults><w:rPrDefault><w:rPr>${font(f.body)}<w:color w:val="${hex(d.theme.text)}"/><w:sz w:val="${half(d.size.body)}"/><w:szCs w:val="${half(d.size.body)}"/><w:lang w:val="en-IN"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="${line}" w:lineRule="atLeast"/></w:pPr></w:pPrDefault></w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
-<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="40"/></w:pPr><w:rPr>${font(d.fonts.name === "serif" ? "Georgia" : f.heading)}<w:b/><w:sz w:val="${half(d.size.name)}"/>${d.nameCase === "upper" ? "<w:caps/>" : ""}</w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="60"/></w:pPr><w:rPr><w:b/><w:color w:val="${hex(d.theme.muted)}"/><w:sz w:val="${half(d.size.headline)}"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Contact"><w:name w:val="Contact"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="${twip(d.space.header)}"/></w:pPr><w:rPr><w:color w:val="${hex(d.theme.muted)}"/><w:sz w:val="${half(d.size.contact)}"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/>${rule}${bar}<w:spacing w:before="${twip(d.space.section)}" w:after="${twip(d.space.afterHeading)}"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr>${font(f.heading)}<w:b/>${d.sectionCase === "upper" ? "<w:caps/>" : ""}<w:color w:val="${hex(headingColor)}"/><w:sz w:val="${half(d.size.section)}"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${twip(d.space.entry)}"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="${half(d.size.entryTitle)}"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="EntryDetail"><w:name w:val="Entry Detail"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="30"/></w:pPr><w:rPr><w:color w:val="${hex(d.theme.muted)}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="40" w:line="${twip(d.size.name * 1.18)}" w:lineRule="atLeast"/></w:pPr><w:rPr>${font(d.fonts.name === "serif" ? "Georgia" : f.heading)}<w:b/><w:sz w:val="${half(d.size.name)}"/>${d.nameCase === "upper" ? "<w:caps/>" : ""}</w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="60" w:line="${twip(d.size.headline * d.lineHeight)}" w:lineRule="atLeast"/></w:pPr><w:rPr><w:b/><w:color w:val="${hex(d.theme.muted)}"/><w:sz w:val="${half(d.size.headline)}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Contact"><w:name w:val="Contact"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="${twip(d.space.header)}" w:line="${twip(d.size.contact * d.lineHeight)}" w:lineRule="atLeast"/></w:pPr><w:rPr><w:color w:val="${hex(d.theme.muted)}"/><w:sz w:val="${half(d.size.contact)}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/>${rule}${bar}<w:spacing w:before="${twip(d.space.section)}" w:after="${twip(d.space.afterHeading)}" w:line="${twip(d.size.section * 1.3)}" w:lineRule="atLeast"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr>${font(f.heading)}<w:b/>${d.sectionCase === "upper" ? "<w:caps/>" : ""}<w:color w:val="${hex(headingColor)}"/><w:sz w:val="${half(d.size.section)}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${twip(d.space.entry)}" w:line="${twip(d.size.entryTitle * d.lineHeight)}" w:lineRule="atLeast"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="${half(d.size.entryTitle)}"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="EntryDetail"><w:name w:val="Entry Detail"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:after="0"/></w:pPr><w:rPr><w:color w:val="${hex(d.theme.muted)}"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="${twip(d.space.bullet)}"/><w:ind w:left="${twip(d.space.bulletIndent + 4)}" w:hanging="${twip(d.space.bulletIndent)}"/></w:pPr></w:style>
 <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="${hex(d.theme.muted)}"/></w:rPr></w:style>
 </w:styles>`;
@@ -90,8 +97,15 @@ const NUMBERING = (color: string) => `<?xml version="1.0" encoding="UTF-8" stand
 <w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>
 </w:numbering>`;
 
-export function buildResumeDocx(doc: ResumeDocument, t: ResumeTemplate): Uint8Array<ArrayBuffer> {
+/** A list item Word must not break inside ("Stakeholder Management" stays on one line). */
+const keepTogether = (s: string) => s.replace(/ /g, "\u00a0");
+
+export function buildResumeDocx(doc: ResumeDocument, template: ResumeTemplate): Uint8Array<ArrayBuffer> {
+  // The same spacing the PDF was laid out with (tightened only to save a nearly empty last page).
+  const t = fittedTemplate(doc, template);
   const d = t.design;
+  const achievements = d.sections.some((x) => x.type === "selected_achievements") && d.sections.some((x) => x.type === "experience") ? doc.sections.find((x) => x.type === "selected_achievements") : undefined;
+  const shownBullets = new Set(achievements?.type === "selected_achievements" ? achievements.items.flatMap((x) => x.evidenceIds) : []);
   const b = new Builder(t);
   const center = d.header === "centered" || (d.header === "band" && t.family !== "creative");
   const shade = d.header === "band" ? d.theme.tint : undefined;
@@ -126,14 +140,15 @@ export function buildResumeDocx(doc: ResumeDocument, t: ResumeTemplate): Uint8Ar
         break;
       case "transferable_skills":
       case "research_interests":
-        b.p("Normal", [{ text: s.items.join("  ·  ") }]);
+        b.p("Normal", [{ text: s.items.map(keepTogether).join("  ·  ") }]);
         break;
       case "skills":
-        if (d.skills === "grouped") s.groups.forEach((g) => b.p("Normal", [{ text: `${g.name}: `, bold: true }, { text: g.skills.join(", ") }]));
-        else b.p("Normal", [{ text: s.groups.flatMap((g) => g.skills).join("  ·  ") }]);
+        if (d.skills === "grouped") s.groups.forEach((g) => b.p("Normal", [{ text: `${g.name}: `, bold: true }, { text: g.skills.map(keepTogether).join(", ") }]));
+        else b.p("Normal", [{ text: (s.ordered ?? s.groups.flatMap((g) => g.skills)).map(keepTogether).join("  ·  ") }]);
         break;
       case "experience":
-        for (const e of s.items) {
+        for (const orig of s.items) {
+          const e = { ...orig, bullets: orig.bullets.filter((x) => !x.evidenceIds.some((id) => shownBullets.has(id))) };
           const dates = formatRange(e.startDate, e.endDate, e.current);
           if (d.entry === "company-first") {
             b.split("Heading2", [{ text: e.employer, bold: true }], dates, true);
@@ -151,22 +166,24 @@ export function buildResumeDocx(doc: ResumeDocument, t: ResumeTemplate): Uint8Ar
           const detail = [[e.degree, e.field].filter(Boolean).join(", "), e.location].filter(Boolean).join("  ·  ");
           b.split("Heading2", [{ text: e.institution, bold: true }], formatRange(e.startDate, e.endDate) || undefined, !!detail);
           if (detail) b.p("EntryDetail", [{ text: detail }]);
-          if (e.honors?.length) b.p("EntryDetail", [{ text: e.honors.join(", ") }]);
+          if (e.honors?.length) b.p("EntryDetail", [{ text: e.honors.join(", "), size: d.size.small }]);
         }
         break;
       case "certifications":
         for (const c of s.items) {
           const date = [formatMonth(c.issueDate), c.expiryDate ? `expires ${formatMonth(c.expiryDate)}` : ""].filter(Boolean).join(" · ");
-          b.split("Normal", [{ text: c.name, bold: true, link: c.url }, ...(c.issuer ? [{ text: ` — ${c.issuer}` }] : [])], date || undefined, false);
-          if (c.credentialId) b.p("EntryDetail", [{ text: `Credential ID ${c.credentialId}` }]);
+          // A linked name keeps the text colour, as in the PDF (the link is still there).
+          b.split("Normal", [{ text: c.name, bold: true, link: c.url, color: d.theme.text }, ...(c.issuer ? [{ text: ` — ${c.issuer}` }] : [])], date || undefined, false);
+          if (c.credentialId) b.p("EntryDetail", [{ text: `Credential ID ${c.credentialId}`, size: d.size.small }]);
         }
         break;
       case "projects":
         for (const p of s.items) {
-          b.split("Heading2", [{ text: p.name, bold: true }], undefined, !!(p.description || p.technologies?.length || p.bullets?.length));
-          if (p.url) b.p("EntryDetail", [{ text: p.url.replace(/^https?:\/\/(www\.)?/i, ""), link: p.url }], { keepNext: !!p.description });
+          // The link's host sits on the right of the title line, as in the PDF.
+          const host = p.url ? p.url.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "") : undefined;
+          b.split("Heading2", [{ text: p.name, bold: true }], host, !!(p.description || p.technologies?.length || p.bullets?.length), p.url);
           if (p.description) b.p("Normal", [{ text: p.description }]);
-          if (p.technologies?.length) b.p("EntryDetail", [{ text: "Technologies: ", bold: true }, { text: p.technologies.join(", ") }]);
+          if (p.technologies?.length) b.p("EntryDetail", [{ text: "Technologies: ", bold: true, size: d.size.small }, { text: p.technologies.join(", "), size: d.size.small }]);
           (p.bullets ?? []).forEach((x) => bullet(x.text));
         }
         break;

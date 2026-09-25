@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { buildResumeDocument, factsOf, type ResumeDocument } from "./document";
-import { FIXTURES } from "./fixtures";
-import { layoutResume, type DrawItem, type ResumeLayout } from "./layout";
+import { buildResumeDocument, factsOf, groupSkills, stripListMarker, type ResumeDocument } from "./document";
+import { FIXTURES, PASTED_FIXTURE, REALISTIC_FIXTURE } from "./fixtures";
+import { fittedTemplate, layoutResume, type DrawItem, type ResumeLayout } from "./layout";
 import { recommendTemplate } from "./recommend";
 import { getTemplate, RESUME_TEMPLATES, STANDARD_HEADINGS, type ResumeTemplate } from "./templates";
 import { validateResume } from "./validate";
@@ -78,8 +78,8 @@ describe.each(RESUME_TEMPLATES.map((t) => [t.id, t] as const))("%s", (_id, t) =>
   });
   it("TPL-011 bullets stay aligned", () => {
     const xs = new Set(texts(lay.ats).filter((i) => str(i) === "•").map((i) => i.x.toFixed(2)));
-    // Strengths/achievements bullets and column bullets share one indent per column.
-    expect(xs.size).toBeLessThanOrEqual(2);
+    // Every bullet list shares one indent per column: body lists use the first; skill columns (up to three) add theirs.
+    expect(xs.size).toBeLessThanOrEqual(t.design.skills === "columns" ? 3 : 1);
   });
   it("TPL-012 dates align to the right margin", () => {
     const right = 595.28 - t.design.page.margin.right;
@@ -280,5 +280,146 @@ describe("recommendation (spec §5, §68)", () => {
   });
   it("research and publications → Academic", () => {
     expect(recommendTemplate(FIXTURES.ats).templateId).toBe("academic-v1");
+  });
+});
+
+/**
+ * Rendering defects found by rendering every template for every fixture and reading the PDFs back
+ * (2026-09 résumé QA). Each test failed before its fix.
+ */
+describe("rendering quality (résumé QA)", () => {
+  const realistic = buildResumeDocument(REALISTIC_FIXTURE, { now: "2026-09-25T00:00:00.000Z" });
+  const pasted = buildResumeDocument(PASTED_FIXTURE, { now: "2026-09-25T00:00:00.000Z" });
+  const all = (l: ResumeLayout) => texts(l).map(str);
+
+  it("a character no résumé font has (an emoji) is left out and reported — never printed as “?”", () => {
+    for (const t of RESUME_TEMPLATES) {
+      const l = layoutResume(pasted, t);
+      expect(all(l).join("\n"), t.id).not.toContain("?");
+      expect(l.diagnostics.missingGlyphs, t.id).toEqual(["📈"]);
+      expect(validateResume(pasted, t, l.diagnostics).issues.map((i) => i.message).join(" "), t.id).toContain("📈");
+    }
+    const summary = pasted.sections.find((s) => s.type === "summary");
+    const shown = all(layoutResume(pasted, getTemplate("executive-v1")!)).join(" ");
+    expect(summary?.type === "summary" && summary.text).toContain("📈"); // the document keeps what they wrote
+    expect(shown).toContain("Loves data and good copy.");
+  });
+
+  it("a list marker the candidate typed is not printed as a second bullet; a leading minus sign is kept", () => {
+    expect(stripListMarker("• Grew organic sign-ups")).toBe("Grew organic sign-ups");
+    expect(stripListMarker("- Ran paid campaigns")).toBe("Ran paid campaigns");
+    expect(stripListMarker("-5% cloud cost")).toBe("-5% cloud cost");
+    expect(stripListMarker("1.2k GitHub stars")).toBe("1.2k GitHub stars");
+    const exp = pasted.sections.find((s) => s.type === "experience");
+    const bullets = exp?.type === "experience" ? exp.items.flatMap((e) => e.bullets.map((b) => b.text)) : [];
+    expect(bullets.some((b) => /^[•\-–—*]/.test(b))).toBe(false);
+    expect(bullets[0]).toBe("Grew organic sign-ups 3× in 18 months (from 12k to 36k/month)");
+  });
+
+  it("content that only just spills over is pulled back onto one page — spacing tightens, type never shrinks", () => {
+    for (const t of RESUME_TEMPLATES) {
+      const l = layoutResume(realistic, t);
+      expect(l.pages.length, t.id).toBe(1);
+      expect(fittedTemplate(realistic, t).design.size, t.id).toEqual(t.design.size);
+      expect(fittedTemplate(realistic, t).design.page, t.id).toEqual(t.design.page);
+      expect(l.diagnostics.overflowElements.length + l.diagnostics.outOfBoundsElements.length + l.diagnostics.overlappingElements.length, t.id).toBe(0);
+    }
+    // A résumé that fills its pages keeps the design's own spacing.
+    expect(fittedTemplate(docs.ats, getTemplate("executive-v1")!)).toBe(getTemplate("executive-v1"));
+  });
+
+  it("Career Shift doesn't print a Selected Achievement a second time under Experience, and every role keeps detail", () => {
+    const t = getTemplate("career-shift-v1")!;
+    // (The ATS fixture repeats bullet wording across roles on purpose, so only the realistic profile can
+    // be checked for repeated lines; both check the achievement count.)
+    const lines = all(layoutResume(realistic, t)).filter((x) => x.length > 30);
+    expect(new Set(lines).size, "a line is printed twice").toBe(lines.length);
+    for (const d of [realistic, docs.ats]) {
+      const ach = d.sections.find((s) => s.type === "selected_achievements");
+      const roles = ach?.type === "selected_achievements" ? ach.items.map((b) => b.evidenceIds[0]) : [];
+      expect(roles.length).toBe(5);
+    }
+    // Every role keeps at least one bullet of its own — including a small profile (the demo's 3 + 2 bullets).
+    const demo = buildResumeDocument(SEED_DNA, { now: "2026-09-25T00:00:00.000Z" });
+    for (const d of [realistic, demo, docs.ats]) {
+      const exp = d.sections.find((s) => s.type === "experience");
+      const shown = new Set(d.sections.flatMap((s) => (s.type === "selected_achievements" ? s.items.flatMap((b) => b.evidenceIds) : [])));
+      for (const e of exp?.type === "experience" ? exp.items : []) if (e.bullets.length) expect(e.bullets.filter((b) => !shown.has(b.evidenceIds[0])).length, e.employer).toBeGreaterThan(0);
+    }
+    const ach = realistic.sections.find((s) => s.type === "selected_achievements");
+    // The DOCX follows the same rule.
+    const docxText = extractDocxText(Buffer.from(buildResumeDocx(realistic, t)));
+    const first = ach?.type === "selected_achievements" ? ach.items[0].text : "";
+    expect(docxText.split(first.slice(0, 40)).length - 1).toBe(1);
+  });
+
+  it("a long right-hand detail gets its own line instead of squeezing the title", () => {
+    const loc = "Thiruvananthapuram, Kerala, India / Remote across APAC time zones";
+    for (const t of RESUME_TEMPLATES.filter((x) => x.design.entry === "company-first")) {
+      const items = texts(layoutResume(docs.extreme, t), 0);
+      const at = items.find((i) => str(i) === loc)!;
+      expect(at, t.id).toBeTruthy();
+      expect(items.filter((i) => Math.abs(i.y - at.y) < 0.5).length, t.id).toBe(1);
+      const title = items.find((i) => str(i).startsWith("Senior Director, Global Identity"))!;
+      expect(title.width, t.id).toBeGreaterThan((595.28 - t.design.page.margin.left - t.design.page.margin.right) * 0.6);
+    }
+  });
+
+  it("contact lines are balanced — no single item left alone on the last line — and dot separators are visible", () => {
+    const t = getTemplate("classic-ats-v1")!;
+    const l = layoutResume(realistic, t);
+    const firstHeading = Math.min(...texts(l, 0).filter((i) => i.role === "heading").map((i) => i.y));
+    const contact = texts(l, 0).filter((i) => i.y < firstHeading && i.size === t.design.size.contact && !/^\s*·\s*$/.test(str(i)));
+    const byLine = new Map<string, number>();
+    for (const i of contact) byLine.set(i.y.toFixed(1), (byLine.get(i.y.toFixed(1)) ?? 0) + 1);
+    expect(byLine.size).toBe(2);
+    expect(Math.min(...byLine.values())).toBeGreaterThanOrEqual(2);
+    const dots = texts(l, 0).filter((i) => str(i).trim() === "·");
+    for (const d of dots) expect(d.color).toBe(t.design.theme.muted);
+  });
+
+  it("an inline or grouped skill list never breaks inside a skill", () => {
+    for (const id of ["classic-ats-v1", "academic-v1", "technical-v1"]) {
+      const t = getTemplate(id)!;
+      for (const d of [docs.international, docs.extreme]) {
+        const skills = d.sections.find((s) => s.type === "skills");
+        const names = skills?.type === "skills" ? skills.groups.flatMap((g) => g.skills) : [];
+        const lines = all(layoutResume(d, t));
+        for (const n of names) if (!n.includes(" ") || n.length < 40) expect(lines.some((x) => x.includes(n)), `${id}: ${n}`).toBe(true);
+      }
+    }
+  });
+
+  it("skill columns read down each column in the candidate's order, three across when every skill fits", () => {
+    const t = getTemplate("modern-minimal-v1")!;
+    const skills = realistic.sections.find((s) => s.type === "skills");
+    const ordered = skills?.type === "skills" ? skills.ordered! : [];
+    const items = texts(layoutResume(realistic, t), 0);
+    const pos = (n: string) => items.find((i) => str(i) === n)!;
+    expect(pos(ordered[1]).x).toBeCloseTo(pos(ordered[0]).x, 1);
+    expect(pos(ordered[1]).y).toBeGreaterThan(pos(ordered[0]).y);
+    expect(new Set(ordered.map((n) => pos(n).x.toFixed(1))).size).toBe(3);
+  });
+
+  it("chips, columns and inline lists keep the candidate's skill order — for a target job, the most relevant first", () => {
+    const tailored = buildResumeDocument(REALISTIC_FIXTURE, { target: { id: "j", title: "Platform Engineer", company: "Acme", description: "Kafka and PostgreSQL platform", skills: ["Kafka", "PostgreSQL"] } });
+    const chips = texts(layoutResume(tailored, getTemplate("executive-v1")!), 0).map(str);
+    const firstSkill = chips.find((x) => REALISTIC_FIXTURE.skills.some((s) => s.name === x));
+    expect(["Kafka", "PostgreSQL"]).toContain(firstSkill);
+  });
+
+  it("a certification's issuer is set in the regular weight, as in the DOCX", () => {
+    const t = getTemplate("executive-v1")!;
+    const items = texts(layoutResume(realistic, t));
+    const issuer = items.find((i) => str(i).includes("Amazon Web Services"))!;
+    const name = items.find((i) => str(i) === "AWS Certified Solutions Architect – Professional")!;
+    expect(issuer.segments[0].font).toBe("inter-400");
+    expect(name.segments[0].font).toBe("inter-600");
+    expect(Math.abs(issuer.y - name.y)).toBeLessThan(0.5);
+  });
+
+  it("technical skills land in the group an engineer expects", () => {
+    const g = Object.fromEntries(groupSkills(["PostgreSQL", "Zero-Trust Network Access", "C/C++", "gRPC", "Redis", "Helm", "Mentoring"]).map((x) => [x.name, x.skills]));
+    expect(g).toEqual({ Languages: ["C/C++"], Cloud: ["Helm"], Security: ["Zero-Trust Network Access"], Frameworks: ["gRPC"], Data: ["PostgreSQL", "Redis"], Other: ["Mentoring"] });
   });
 });

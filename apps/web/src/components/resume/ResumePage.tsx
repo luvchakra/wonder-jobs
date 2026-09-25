@@ -23,7 +23,9 @@ export const ResumePage = memo(function ResumePage({ layout, page, index, label,
         if (it.kind === "rect") return <rect key={i} x={it.x} y={it.y} width={it.w} height={it.h} rx={it.radius} fill={it.fill ?? "none"} stroke={it.stroke} strokeWidth={it.stroke ? 0.6 : undefined} />;
         if (it.kind === "line") return <line key={i} x1={it.x1} y1={it.y1} x2={it.x2} y2={it.y2} stroke={it.color} strokeWidth={it.width} />;
         const t = (
-          <text key={i} x={it.x} y={it.y} fontSize={it.size} fill={it.color} style={{ whiteSpace: "pre" }}>
+          // textLength pins each run to the width the layout measured, so the browser's own text shaping
+          // can't drift from the PDF at any zoom or font size.
+          <text key={i} x={it.x} y={it.y} fontSize={it.size} fill={it.color} style={{ whiteSpace: "pre" }} textLength={it.width > 0 ? it.width : undefined} lengthAdjust="spacing">
             {it.segments.map((s, j) => (
               <tspan key={j} fontFamily={`wj-${s.font}`}>
                 {s.text}
