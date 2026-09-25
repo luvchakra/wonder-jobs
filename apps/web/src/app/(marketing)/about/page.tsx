@@ -17,7 +17,7 @@ export default function AboutPage() {
           body: (
             <>
               <p>Most job seekers spend their evenings re-typing the same details into the same forms, scanning the same boards, and guessing whether a role is worth it. Wonder searches real sources, removes duplicates, reads each posting for skills, seniority, location and pay, and explains how well it fits your Career Profile.</p>
-              <p>When something is worth pursuing, Wonder drafts a tailored resume, cover letter and screening answers, then hands the application to you. You review, edit and submit. Wonder never applies on your behalf.</p>
+              <p>When something is worth pursuing, Wonder drafts a tailored resume, cover letter and screening answers, lays your resume out in one of eight ATS-friendly templates, and can fill the employer&apos;s application form in your browser. It stops for anything only you should answer, and you review and submit. Wonder never submits on your behalf.</p>
             </>
           ),
         },

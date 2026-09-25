@@ -79,7 +79,7 @@ export function ParallaxHero() {
             <span className="wj-gradient-text">Wonder finds it.</span>
           </h1>
           <p className="wj-hero-in mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2" style={{ "--wj-i": 2 } as CSSProperties}>
-            Tell Wonder what you&apos;re looking for, in your own words. It searches real job sources, explains every match and prepares your applications — you make the final call.
+            Tell Wonder what you&apos;re looking for, in your own words. It searches real job sources, explains every match, builds your résumé and fills the employer&apos;s form — you make the final call.
           </p>
           <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
@@ -90,7 +90,7 @@ export function ParallaxHero() {
             </Button>
           </div>
           <ul className="wj-hero-in mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know" style={{ "--wj-i": 4 } as CSSProperties}>
-            {["No credit card required", "Free plan available", "Never applies on your behalf"].map((t) => (
+            {["No credit card required", "Free plan available", "Never submits on your behalf"].map((t) => (
               <li key={t} className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="size-3.5 text-brand-500" aria-hidden /> {t}
               </li>

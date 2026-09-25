@@ -340,7 +340,7 @@ const SCREENS: Screen[] = [
   { id: "home", label: "Home", title: "What deserves your attention today", body: "Strong matches, follow-ups and interviews, ranked by what needs you first — plus your progress, and when Wonder looks next.", demo: "/demo?next=/app", desktop: <DesktopHome />, phone: <PhoneHome /> },
   { id: "find", label: "Find", title: "Real progress, in plain words", body: "Wonder shows what it's doing and what it has found so far. Pause or stop any time — everything already found stays. When it needs you, it says why.", demo: "/demo?next=/app/runs/new", desktop: <DesktopFind />, phone: <PhoneFind /> },
   { id: "jobs", label: "Decide", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile. Each card says why Wonder surfaced it and what to weigh.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Wonder opens the employer's page — submitting is always yours.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Apply with Wonder fills the employer's form and leaves what's yours to answer — submitting is always yours.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
