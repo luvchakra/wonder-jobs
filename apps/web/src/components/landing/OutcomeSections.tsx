@@ -171,6 +171,7 @@ const LEVELS: AutomationLevel[] = ["assist", "guided", "autonomous", "continuous
 const GATE_ROWS: { label: string; capability: Capability }[] = [
   { label: "Search and compare jobs", capability: "search_jobs" },
   { label: "Draft a tailored résumé", capability: "generate_resume" },
+  { label: "Fill the employer's application form", capability: "fill_application" },
   { label: "Open the employer's application page", capability: "submit_application" },
 ];
 const GATE_TEXT = { run: "On its own", ask: "Asks you first", skip: "Off" } as const;
@@ -295,7 +296,7 @@ export function ControlSection() {
               <ul className="space-y-3 rounded-[28px] border border-white/10 bg-white/[0.06] p-6 text-[14px] text-white/80 backdrop-blur">
                 {[
                   { icon: Radar, t: "Quiet by default", s: "Keep watch only speaks up when something is worth your attention." },
-                  { icon: ShieldCheck, t: "Nothing without you", s: "Handing off to an employer is always your click, on their site." },
+                  { icon: ShieldCheck, t: "Nothing without you", s: "Wonder can fill a form; submitting it is always your click, on the employer's site." },
                   { icon: Sparkles, t: "See how Wonder worked", s: "Sources, evidence and every step — one click away when you want it." },
                 ].map((r) => (
                   <li key={r.t} className="flex items-start gap-3">

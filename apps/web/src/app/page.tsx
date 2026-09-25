@@ -7,7 +7,7 @@ import { AskWonderSection, ControlSection } from "@/components/landing/OutcomeSe
 
 export const metadata: Metadata = {
   title: "WonderJobs — Your next opportunity is out there. Wonder finds it.",
-  description: "Tell Wonder what you're looking for in your own words. It searches real job sources, explains every match and prepares your applications — you make the final call.",
+  description: "Tell Wonder what you're looking for in your own words. It searches real job sources, explains every match, builds your résumé from ATS-friendly templates and fills the employer's form — you review and submit.",
 };
 
 export default function LandingPage() {

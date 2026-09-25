@@ -242,6 +242,7 @@ _Last updated: 2026-09-25 — JobsApply ("Apply with Wonder") is built: Wonder f
 - ✅ Nav links to Screens, Help and Contact
 - ✅ Landing visual QA at desktop and mobile — WJ-071
 - ✅ Demo links wherever a screen has a demo counterpart
+- ✅ Landing brought up to date with what shipped (WJ-163): JobsLake employer boards in the source strip, résumé templates, Apply with Wonder (fills the form, leaves what's yours, you submit), Keep watch; control table adds "Fill the employer's application form" from the real policy gate; marketing nav collapses to the menu below 1024px
 
 ## 12. Help center & support (request #5)
 

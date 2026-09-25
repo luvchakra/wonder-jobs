@@ -10,6 +10,7 @@ const LINKS = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#ask-wonder", label: "Ask Wonder" },
   { href: "#features", label: "Features" },
+  { href: "#extension", label: "Apply" },
   { href: "#control", label: "Control" },
   { href: "#ai", label: "Your AI" },
   { href: "/help", label: "Help" },
@@ -29,14 +30,14 @@ export function MarketingNav() {
     <header className={cn("fixed inset-x-0 top-0 z-50 transition-colors", scrolled || open ? "bg-white/80 shadow-xs backdrop-blur-md" : "bg-transparent")}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <WonderLogo />
-        <nav aria-label="Marketing" className="hidden items-center gap-7 md:flex">
+        <nav aria-label="Marketing" className="hidden items-center gap-5 lg:flex xl:gap-7">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink">
+            <a key={l.href} href={l.href} className="whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink">
               {l.label}
             </a>
           ))}
         </nav>
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <Button href="/sign-in" variant="ghost" size="sm">
             Sign in
           </Button>
@@ -44,12 +45,12 @@ export function MarketingNav() {
             Get Started
           </Button>
         </div>
-        <button type="button" className="flex size-10 items-center justify-center rounded-full text-ink md:hidden" aria-expanded={open} aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen((v) => !v)}>
+        <button type="button" className="flex size-10 items-center justify-center rounded-full text-ink lg:hidden" aria-expanded={open} aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen((v) => !v)}>
           {open ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
         </button>
       </div>
       {open && (
-        <div className="border-t border-line bg-white/95 px-4 pb-5 pt-2 md:hidden">
+        <div className="border-t border-line bg-white/95 px-4 pb-5 pt-2 lg:hidden">
           <nav aria-label="Marketing" className="flex flex-col">
             {LINKS.map((l) => (
               <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="py-3 text-[15px] font-medium text-ink-2">

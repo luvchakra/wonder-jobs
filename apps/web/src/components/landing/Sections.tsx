@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, Dna, FileText, GitCompareArrows, MessageCircleQuestion, Search, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
@@ -15,22 +15,25 @@ import { cn } from "@/lib/cn";
 import { useSectionParallax } from "./useSectionParallax";
 
 /* --------------------------------------------------------------- sources */
+/** Employer boards JobsLake reads directly (its built-in ATS sources), then the open feeds. */
+const EMPLOYER_BOARDS = ["Greenhouse", "Lever", "Ashby"];
+
 export function SourceLogoStrip() {
-  const sources = JOB_SOURCES.filter((s) => s.integrated);
+  const sources = [...EMPLOYER_BOARDS, ...JOB_SOURCES.filter((s) => s.integrated && s.id !== "careers").map((s) => s.name)];
   return (
     <section className="bg-white py-14" aria-labelledby="sources-title">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal>
           <p id="sources-title" className="wj-eyebrow text-center">
-            Jobs from top platforms. All in one place.
+            Live jobs from employers&apos; own boards and open job feeds. De-duplicated, all in one place.
           </p>
           <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4" aria-label="Connected job sources">
-            {sources.map((s) => (
-              <li key={s.id} className="text-[20px] font-semibold tracking-tight text-ink-3" style={{ fontFamily: "var(--font-sans)" }}>
-                {s.name}
+            {sources.map((name) => (
+              <li key={name} className="text-[20px] font-semibold tracking-tight text-ink-3" style={{ fontFamily: "var(--font-sans)" }}>
+                {name}
               </li>
             ))}
-            <li className="text-[13px] text-ink-4">+ more via source adapters</li>
+            <li className="text-[13px] text-ink-4">+ company career sites, added only after a real test</li>
           </ul>
         </ScrollReveal>
       </div>
@@ -42,7 +45,8 @@ export function SourceLogoStrip() {
 const AGENT_POINTS = [
   { icon: Radar, t: "Search everywhere", s: "One search. A bigger world of opportunities." },
   { icon: Target, t: "Find better matches", s: "Less noise. More of what matters." },
-  { icon: Zap, t: "Prepare in minutes", s: "An Application Pack for your strongest matches." },
+  { icon: Zap, t: "Prepare in minutes", s: "An Application Pack and a résumé from eight ATS-friendly templates." },
+  { icon: MousePointerClick, t: "Apply without retyping", s: "Wonder fills the employer's form. You answer what's yours and press submit." },
   { icon: Eye, t: "See the why", s: "Every match explains itself — and so does every hidden one." },
   { icon: ShieldCheck, t: "Stay in control", s: "Wonder prepares. The final action is always yours." },
 ];
@@ -89,7 +93,7 @@ export function AgentSection() {
 const JOURNEY = [
   { key: "find", t: "Find", s: "Tell Wonder what you want", body: "Describe the roles you want in your own words. Wonder shows what it understood, searches live sources and removes duplicates — you see real progress, never a spinner pretending." },
   { key: "decide", t: "Decide", s: "Know where to spend your time", body: "Every opportunity says why Wonder surfaced it, what to weigh and what to do next. Compare a few side by side — Wonder points out differences, you pick." },
-  { key: "apply", t: "Apply", s: "Your Application Pack, ready", body: "Tailored résumé, cover letter and screening answers in one pack, each labelled as an AI draft or your edit. Wonder opens the employer's page; the final click is yours." },
+  { key: "apply", t: "Apply", s: "Your Application Pack, ready", body: "Tailored résumé, cover letter and screening answers in one pack, each labelled as an AI draft or your edit. Apply with Wonder fills the employer's form and stops for anything only you should answer; the submit click is yours." },
   { key: "progress", t: "Progress", s: "Keep everything moving", body: "Applications, follow-ups, interviews and replies on one timeline — and Wonder can keep watch for new roles, speaking up only when it matters." },
 ];
 
@@ -236,7 +240,7 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
               ))}
             </ul>
             <p className="mt-4 rounded-[10px] bg-surface-2 px-2.5 py-2 text-[12px] text-ink-2">
-              <strong className="text-ink">The final action is yours.</strong> Wonder opens the employer&apos;s page; it never submits for you.
+              <strong className="text-ink">The final action is yours.</strong> Wonder fills the employer&apos;s form with these; it never submits for you.
             </p>
           </>
         )}
@@ -274,7 +278,10 @@ const FEATURES = [
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },
   { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
+  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/demo?next=/app/resume-studio" },
+  { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/demo?next=/app/jobs/job_razorpay_spm/apply" },
   { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/demo?next=/app/career-dna" },
+  { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/demo?next=/app/automation/scheduled" },
 ];
 
 export function FeatureGrid() {
@@ -420,27 +427,34 @@ export function ProviderSection() {
 /* ------------------------------------------------------------- extension */
 export function ExtensionSection() {
   const fills = [
-    { label: "First name", value: "Kunal" },
-    { label: "Last name", value: "Chakraborty" },
-    { label: "Email", value: "you@example.com" },
-    { label: "Resume / CV", value: "Coinbase-Resume.docx", file: true },
+    { label: "First name", value: "Alex" },
+    { label: "Last name", value: "Morgan" },
+    { label: "Email", value: "alex.morgan@example.com" },
+    { label: "Resume / CV", value: "Alex_Morgan_Resume.pdf", file: true },
   ];
   return (
     <section id="extension" className="bg-white py-20 md:py-28" aria-labelledby="extension-title">
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 sm:px-6 lg:grid-cols-2">
         <ScrollReveal>
-          <p className="wj-eyebrow text-brand-600">Browser extension</p>
+          <p className="wj-eyebrow text-brand-600">Apply with Wonder</p>
           <h2 id="extension-title" className="mt-3 text-h2 font-semibold tracking-tight">
             Apply without
             <br />
             <span className="wj-gradient-text">retyping yourself.</span>
           </h2>
           <p className="mt-5 max-w-md text-[16px] text-ink-2">
-            WonderJobs tailors your resume and cover letter. The extension puts them straight into the employer&apos;s own form on Greenhouse, Lever and Ashby — and never submits anything for you.
+            Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit.
           </p>
+          <ul className="mt-5 space-y-2 text-[14px] text-ink-2">
+            {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderJobs", "No helper? “Guide me” gives you copy buttons and downloads instead"].map((t) => (
+              <li key={t} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden /> {t}
+              </li>
+            ))}
+          </ul>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button href="/extension" size="lg" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
-              Get the extension
+              Get the browser helper
             </Button>
             <span className="text-[13px] text-ink-3">Free · Chrome, Edge &amp; Brave</span>
           </div>
@@ -462,9 +476,17 @@ export function ExtensionSection() {
                   </div>
                 </ScrollReveal>
               ))}
-              <ScrollReveal delay={480}>
+              <ScrollReveal delay={460}>
+                <div className="rounded-[12px] border border-dashed border-warning-600/50 bg-warning-100/40 px-3 py-2">
+                  <p className="text-[11px] font-medium text-ink-3">Are you legally authorized to work in this country?</p>
+                  <p className="mt-0.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-warning-600">
+                    <Hand className="size-3.5" aria-hidden /> Left for you to answer
+                  </p>
+                </div>
+              </ScrollReveal>
+              <ScrollReveal delay={540}>
                 <p className="inline-flex items-center gap-1.5 rounded-full bg-success-100 px-3 py-1.5 text-[12px] font-semibold text-success-600">
-                  <Zap className="size-3.5" aria-hidden /> Filled by WonderJobs
+                  <Zap className="size-3.5" aria-hidden /> 4 fields filled · you review and submit
                 </p>
               </ScrollReveal>
             </div>
@@ -512,7 +534,9 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Screens", href: "/#screens" },
       { label: "Who it's for", href: "/#personas" },
       { label: "Your AI, your keys", href: "/#ai" },
-      { label: "Browser extension", href: "/extension" },
+      { label: "Résumé templates", href: "/#features" },
+      { label: "Apply with Wonder", href: "/#extension" },
+      { label: "Browser helper", href: "/extension" },
       { label: "Live demo", href: "/demo" },
       { label: "Pricing", href: "/#cta", badge: "Free" },
     ],
@@ -564,7 +588,7 @@ export function MarketingFooter() {
         <div className="col-span-2">
           <WonderLogo />
           <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Belong.</p>
-          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">Tell Wonder what you want. It searches real sources, explains every match and prepares applications you approve. It never applies on your behalf.</p>
+          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">Tell Wonder what you want. It searches real sources, explains every match, builds your résumé and fills the employer&apos;s form. It never submits on your behalf.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href="/sign-up" size="sm" className="rounded-full">
               Get started free
