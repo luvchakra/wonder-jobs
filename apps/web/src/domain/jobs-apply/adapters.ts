@@ -50,3 +50,19 @@ export const ADAPTER_STATUS_LABEL: Record<AdapterStatus, string> = {
   DO_NOT_AUTOMATE: "Do not automate",
   UNKNOWN: "Unknown",
 };
+
+/** §78 Domain policies: what the helper may do where. Anything not listed is the generic reader, candidate-controlled. */
+export interface DomainPolicy {
+  domain: string;
+  status: AdapterStatus;
+  allowed: string[];
+  note: string;
+  lastReview: string;
+}
+
+export const DOMAIN_POLICIES: DomainPolicy[] = [
+  ...ADAPTERS.filter((a) => a.provider !== "generic").map((a) => ({ domain: a.provider === "workday" ? "*.myworkdayjobs.com" : a.provider === "greenhouse" ? "*.greenhouse.io" : a.provider === "lever" ? "jobs.lever.co" : a.provider === "ashby" ? "jobs.ashbyhq.com" : a.provider === "smartrecruiters" ? "*.smartrecruiters.com" : "*.workable.com", status: a.status, allowed: ["read form structure", "fill approved fields", "attach selected résumé", "detect confirmation"], note: a.limitations[0], lastReview: "2026-09-25" })),
+  { domain: "linkedin.com", status: "USER_ASSISTED_ONLY", allowed: ["guided mode"], note: "LinkedIn's own apply flow; Wonder offers the Application Pack and doesn't fill it.", lastReview: "2026-09-25" },
+  { domain: "indeed.com", status: "USER_ASSISTED_ONLY", allowed: ["guided mode"], note: "Job-board apply flow; Wonder offers the Application Pack and doesn't fill it.", lastReview: "2026-09-25" },
+  { domain: "Any other employer site", status: "SUPPORTED_WITH_LIMITATIONS", allowed: ["read form structure", "fill approved fields", "attach selected résumé"], note: "Only after the candidate allows that one site in the helper.", lastReview: "2026-09-25" },
+];

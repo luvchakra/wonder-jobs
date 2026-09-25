@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="wonderjobs-ats" content="lever"><title>Staff Engineer · Example (mock Lever)</title>
+<style>body{font:14px system-ui;margin:24px;max-width:720px} li{list-style:none;margin:10px 0} label{display:block} input,textarea{width:100%;padding:6px}</style></head>
+<body>
+<h2>Staff Engineer</h2>
+<form data-confirmation="LV-777001">
+  <ul>
+    <li><label>Full name<span>✱</span><input name="name" type="text" required></label></li>
+    <li><label>Email<span>✱</span><input name="email" type="email" required></label></li>
+    <li><label>Phone<input name="phone" type="text"></label></li>
+    <li><label>Current company<input name="org" type="text"></label></li>
+    <li><label>LinkedIn URL<input name="urls[LinkedIn]" type="text"></label></li>
+    <li><label>Resume/CV ✱<input name="resume" type="file" required></label></li>
+    <li><fieldset><legend>Will you now or in the future require visa sponsorship? ✱</legend>
+      <label><input type="radio" name="cards[sponsor]" value="yes" required> Yes</label>
+      <label><input type="radio" name="cards[sponsor]" value="no"> No</label></fieldset></li>
+    <li><label>Additional information<textarea name="comments"></textarea></label></li>
+  </ul>
+  <button type="submit">Submit application</button>
+</form>
+<script src="/__portal/_submit.js"></script>
+</body></html>

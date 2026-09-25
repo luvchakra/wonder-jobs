@@ -111,6 +111,21 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: "apply-with-wonder",
+    title: "Apply with Wonder",
+    summary: "Wonder fills the employer's form with your approved details; you answer what only you can, review, and submit.",
+    keywords: ["apply", "apply with wonder", "jobsapply", "autofill", "fill", "extension", "helper", "submit", "guided", "application form", "captcha", "sign in", "password"],
+    body: [
+      "Open a job and choose Apply with Wonder. Pick how: the browser helper fills the form for you, Guide me puts every value and document one click from your clipboard, or download the Application Pack.",
+      "- The helper fills only what comes from you: your Career Profile details, the résumé you chose, and answers you approved. It shows what it filled and what needs you.",
+      "- Work authorization, sponsorship, salary, legal and equal-opportunity questions are always yours — Wonder never answers them. Salary and notice period can be remembered for next time; Wonder still asks you to confirm.",
+      "- Wonder can draft answers to open questions from your Career Profile, labelled as AI drafts; it asks you for any number rather than inventing one.",
+      "- You sign in on the employer's own site. WonderJobs never asks for, sees or stores your portal password, and the helper never gets past a verification challenge — it waits for you.",
+      "- Wonder never submits. You press the employer's submit button, then tell Wonder “Yes, application submitted”; only that adds it to Applications as submitted.",
+      "- If the page moves to an unexpected site or asks for payment, Wonder stops and says why. Stop in the helper or in WonderJobs halts it at any time.",
+    ],
+  },
+  {
     id: "resume-templates",
     title: "Résumé templates",
     summary: "Eight ATS-friendly designs, rendered from your own Career Profile, downloadable as PDF and Word.",
@@ -196,11 +211,14 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Pro plan and billing are not connected; Upgrade records interest only.",
       "- Interview Prep and Learning are early: they organise your prep, with deeper AI coaching planned. Résumé templates have no two-column or photo layouts yet, and don't import roles from a résumé file — add them under Career Profile.",
       "- A Google, Microsoft or Apple calendar sync is planned; today the calendar is built from your follow-ups, interviews and schedules.",
+      "- Apply with Wonder: the browser helper isn't on the Chrome Web Store yet (install it from the Extension page), and no employer's application API is connected — Wonder helps in your browser instead. Wonder will not submit applications for you; that stays your decision.",
     ],
   },
 ];
 
 export const HELP_FAQ: HelpFaq[] = [
+  { q: "Does Apply with Wonder submit applications for me?", a: "No. Wonder fills what it can from your own approved details and stops for anything only you should answer. You review and press the employer's submit button, then confirm in WonderJobs.", section: "apply-with-wonder" },
+  { q: "Do I have to give WonderJobs my job-portal password?", a: "No. You sign in on the employer's own site. The helper never reads password or verification-code fields, and WonderJobs never stores portal credentials.", section: "apply-with-wonder" },
   { q: "Where do the jobs come from? Are they real?", a: "Yes. Signed-in runs search live public feeds and company career boards, read each posting and score it. Only the demo uses generated sample data.", section: "sources" },
   { q: "Why doesn't Wonder search LinkedIn, Naukri or Indeed?", a: "They don't provide public job APIs. Wonder only claims sources it actually reads; employer boards and open feeds are searched instead.", section: "sources" },
   { q: "Why does a great-looking remote job show as 'Worth Considering' rather than 'Strong'?", a: "The employer restricts hiring to a region you are not in. Wonder never marks a role strong when you could not be hired for it.", section: "jobs" },

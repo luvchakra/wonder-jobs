@@ -127,6 +127,8 @@ function remap(s: JobsApplySession, now: number): JobsApplySession {
  */
 export function recordInspection(s: JobsApplySession, form: ApplicationForm, now: string): JobsApplySession {
   assertActive(s);
+  // Only the candidate lifts these: a stop, an unexpected destination, a payment request.
+  if (s.stopped || s.failure === "DOMAIN_CHANGED" || s.failure === "PAYMENT_REQUESTED" || s.failure === "USER_CANCELLED") return s;
   const host = hostOf(form.url) ?? "";
   let n: JobsApplySession = { ...s };
   const fieldsOnPage = form.fields.filter((f) => f.type !== "password" && f.type !== "otp");
@@ -153,7 +155,8 @@ export function recordInspection(s: JobsApplySession, form: ApplicationForm, now
     n = { ...n, failure: "FORM_NOT_FOUND" };
     return audit(n, now, "FORM_ANALYZED", "helper", "No application fields found on this page", host);
   }
-  const wasAuth = s.status === "AUTHENTICATION_REQUIRED";
+  const lastAuth = [...s.audit].reverse().find((a) => a.event === "AUTH_REQUIRED" || a.event === "AUTH_COMPLETED");
+  const wasAuth = lastAuth?.event === "AUTH_REQUIRED";
   const step = form.step || 1;
   n.formFields = [...s.formFields.filter((f) => (f.step ?? 1) !== step), ...fieldsOnPage.map((f) => ({ ...f, step }))];
   n = remap({ ...n, failure: undefined }, Date.parse(now));

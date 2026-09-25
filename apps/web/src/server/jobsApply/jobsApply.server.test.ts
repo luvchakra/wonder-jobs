@@ -260,3 +260,19 @@ describe("JobsApply server", () => {
     expect(schemas.PackSchema.safeParse({ ...p, resume: { ...p.resume, filename: "../../etc/passwd" } }).success).toBe(false);
   });
 });
+
+describe("JobsApply admin overview", () => {
+  it("aggregates counts and categories only — no tenant ids, jobs or values", async () => {
+    const admin = await import("./admin");
+    const t = tenant();
+    const { token: tok } = await started(t);
+    await svc.helperInspect(await helper(tok), form());
+    await svc.helperEvents(await helper(tok), { events: [{ type: "FIELD_RESULTS", results: [{ fieldId: "first_name", ok: true }] }] });
+    const o = await admin.applyOverview();
+    expect(o.sessions).toBeGreaterThan(0);
+    expect(o.adapters.find((a) => a.id === "greenhouse")?.fieldsFilled).toBeGreaterThan(0);
+    expect(o.interventionCategories.WORK_AUTHORIZATION).toBeGreaterThan(0);
+    const json = JSON.stringify(o);
+    for (const leak of [t, "Priya", "priya@example.com", "Senior Director", "Example", "jas_"]) expect(json).not.toContain(leak);
+  });
+});

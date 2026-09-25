@@ -478,3 +478,22 @@ describe("AI provenance on approved answers (CLAUDE.md: every AI artifact keeps 
     expect(S.resolveIntervention(noSuggestion, "iv_why", { action: "edit", value: "My own words" }, NOW).approvedAnswers.why.provenance).toBe("USER_PROVIDED");
   });
 });
+
+describe("pauses only the candidate can lift", () => {
+  it("a page read never lifts a domain, payment or stop pause", () => {
+    const base = S.recordInspection(fresh(), greenhouseForm(), NOW);
+    const moved = S.recordNavigation(base, "https://elsewhere.example.net/x", NOW);
+    expect(S.recordInspection(moved, greenhouseForm(), NOW)).toBe(moved);
+    const stopped = S.stop(base, NOW, "n5");
+    expect(S.recordInspection(stopped, greenhouseForm(), NOW)).toBe(stopped);
+    const blocked = S.recordInspection(base, greenhouseForm({ signals: ["payment"] }), NOW);
+    expect(S.recordInspection(blocked, greenhouseForm(), NOW).status).toBe("BLOCKED");
+  });
+  it("signing in is recorded once the form appears, even after a verification pause", () => {
+    let s = S.recordInspection(fresh(), { url: "https://boards.greenhouse.io/login", adapter: "generic", step: 1, signals: ["login_form"], fields: [{ id: "p", label: "Password", type: "password", required: true }] }, NOW);
+    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"] }), NOW);
+    s = S.resume(s, NOW);
+    s = S.recordInspection(s, greenhouseForm(), NOW);
+    expect(s.audit.filter((a) => a.event === "AUTH_COMPLETED")).toHaveLength(1);
+  });
+});

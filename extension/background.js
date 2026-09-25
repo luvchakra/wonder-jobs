@@ -90,6 +90,23 @@ async function writeSessions(all) {
 
 const hostMatches = (host, domain) => host === domain || host.endsWith(`.${domain}`);
 
+/**
+ * Tabs that are part of a session. A page the application redirects to on an unrelated host still
+ * belongs to the session, so the helper can report the move and pause (§72) — it never reads or
+ * fills that page.
+ */
+const TABS_KEY = "wj.jobsapply.tabs";
+async function tabSession(tabId) {
+  const stored = await chrome.storage.session.get(TABS_KEY).catch(() => ({}));
+  return (stored[TABS_KEY] ?? {})[tabId] ?? null;
+}
+async function bindTab(tabId, sessionId) {
+  const stored = await chrome.storage.session.get(TABS_KEY).catch(() => ({}));
+  const all = stored[TABS_KEY] ?? {};
+  all[tabId] = sessionId;
+  await chrome.storage.session.set({ [TABS_KEY]: all }).catch(() => undefined);
+}
+
 /** The paired session whose destination (or a related / approved host) this page is on. */
 async function sessionFor(url) {
   let host;
@@ -187,9 +204,17 @@ const handlers = {
     }
     return { ok: true };
   },
-  async jobsApplyFor({ url }) {
+  async jobsApplyFor({ url }, sender) {
+    const tabId = sender?.tab?.id;
     const s = await sessionFor(url);
-    return s ? { sessionId: s.sessionId } : null;
+    if (s) {
+      if (tabId != null) await bindTab(tabId, s.sessionId);
+      return { sessionId: s.sessionId };
+    }
+    // Same tab, different host: the application moved somewhere unexpected.
+    const bound = tabId != null ? await tabSession(tabId) : null;
+    if (bound && (await readSessions())[bound]) return { sessionId: bound, offDestination: true };
+    return null;
   },
   jobsApplyCall,
   /** For the popup: is this tab an Apply with Wonder destination, and may the helper run here? */
@@ -207,7 +232,7 @@ const handlers = {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const handler = handlers[message?.type];
   if (!handler) return false;
-  handler(message.payload ?? {})
+  handler(message.payload ?? {}, _sender)
     .then(sendResponse)
     .catch((error) => sendResponse({ error: "failed", detail: String(error?.message ?? error) }));
   return true; // keep the message channel open for the async reply

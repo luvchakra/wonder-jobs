@@ -63,7 +63,9 @@ export function ApplicationReview({ session, progress, onOpen, onConfirm, busy }
           <Info className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden />
           <p className="min-w-0">
             Wonder saw a confirmation page on {seen[seen.length - 1].url?.split("/")[0]}
-            {seen[seen.length - 1].detail ? (
+            {seen[seen.length - 1].kind === "confirmation_number" ? (
+              <> — confirmation number {seen[seen.length - 1].detail}.</>
+            ) : seen[seen.length - 1].detail ? (
               <>
                 : <q className="italic">{seen[seen.length - 1].detail}</q>
               </>

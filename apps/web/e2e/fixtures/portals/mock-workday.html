@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="wonderjobs-ats" content="workday"><title>Apply · Example (mock Workday)</title>
+<style>body{font:14px system-ui;margin:24px;max-width:720px} [data-automation-id=formField]{margin:10px 0} input{width:100%;padding:6px}</style></head>
+<body>
+<div data-automation-id="progressBar" id="progress">Step 1 of 2 — My Information</div>
+<form id="wd" data-confirmation="WD-REQ-4410">
+  <section id="step1">
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="legalNameSection_firstName">Given Name(s)*</label><input id="legalNameSection_firstName" data-automation-id="legalNameSection_firstName" required></div>
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="legalNameSection_lastName">Family Name*</label><input id="legalNameSection_lastName" data-automation-id="legalNameSection_lastName" required></div>
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="email">Email Address*</label><input id="email" type="email" required></div>
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="phone-number">Phone Number</label><input id="phone-number" type="tel"></div>
+    <button type="button" id="next" onclick="document.getElementById('step1').remove();document.getElementById('step2').hidden=false;document.getElementById('progress').textContent='Step 2 of 2 — Documents'">Next</button>
+  </section>
+  <section id="step2" hidden>
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="resumeUpload">Upload Resume*</label><input id="resumeUpload" type="file" required></div>
+    <div data-automation-id="formField"><label data-automation-id="formLabel" for="auth">Are you legally authorized to work in this country?*</label><input id="auth" required></div>
+    <button type="submit">Submit</button>
+  </section>
+</form>
+<script src="/__portal/_submit.js"></script>
+</body></html>

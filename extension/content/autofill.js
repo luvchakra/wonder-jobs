@@ -32,8 +32,13 @@
     if (!el || el.disabled) return false;
     if (el.type === "hidden") return false;
     if (el.closest(`#${PANEL_ID}`)) return false;
-    // A file input is often visually hidden behind a styled button — still fillable, still counts.
-    if (el.type === "file") return true;
+    // A file input is often visually hidden behind a styled button — still fillable, still counts —
+    // but not when the whole section it's in is hidden (a later step the candidate hasn't reached).
+    if (el.type === "file") {
+      if (el.closest("[hidden], [aria-hidden='true']")) return false;
+      const host = el.parentElement;
+      return !host || (typeof host.checkVisibility === "function" ? host.checkVisibility() : host.getClientRects().length > 0);
+    }
     const style = getComputedStyle(el);
     if (style.visibility === "hidden" || style.display === "none") return false;
     const rect = el.getBoundingClientRect();
@@ -316,14 +321,14 @@
 
   /* ------------------------------------------------------ JobsApply session */
 
-  const state = { sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false };
+  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false };
 
   function sigOf(form) {
     return JSON.stringify([form.step, form.signals, form.fields.map((f) => [f.id, f.type, f.hasValue, f.options?.length])]);
   }
 
   async function inspect(force = false) {
-    if (!state.sessionId || state.stopped) return;
+    if (!state.sessionId || state.stopped || state.offDestination) return;
     const form = readForm();
     const sig = sigOf(form);
     if (!force && sig === state.lastSig) return;
@@ -375,8 +380,14 @@
   const CONF_ID = /(?:confirmation|reference|application)\s*(?:number|no\.?|id|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{3,39})/i;
 
   function watchSubmission() {
-    const onSubmitIntent = () => {
-      if (state.submitted || !state.sessionId) return;
+    // Signing in (a form with a password field) is not submitting an application.
+    const isSignIn = (el) => {
+      const form = el?.closest?.("form") ?? (el instanceof HTMLFormElement ? el : null);
+      return !!form?.querySelector("input[type=password]");
+    };
+    const onSubmitIntent = (e) => {
+      if (state.submitted || !state.sessionId || state.offDestination) return;
+      if (isSignIn(e?.target)) return;
       state.submitted = true;
       void sendEvent({ type: "SUBMIT_CLICKED" });
     };
@@ -388,7 +399,7 @@
         const b = e.target instanceof Element ? e.target.closest("button, input[type=submit], [role=button]") : null;
         if (!b || b.closest(`#${PANEL_ID}`)) return;
         const text = clean(b.textContent || b.value || b.getAttribute("aria-label"));
-        if (b.type === "submit" || /^(submit|apply|send)( application| my application| now)?$/i.test(text)) onSubmitIntent();
+        if (b.type === "submit" || /^(submit|apply|send)( application| my application| now)?$/i.test(text)) onSubmitIntent(e);
       },
       true,
     );
@@ -486,6 +497,11 @@
     });
     $("approve")?.addEventListener("click", async () => {
       await sendEvent({ type: "APPROVE_DOMAIN", host: location.hostname });
+      // The candidate vouched for this host: from now on it's part of the application.
+      if (state.offDestination) {
+        state.offDestination = false;
+        watchSubmission();
+      }
       state.lastSig = "";
       await inspect(true);
     });
@@ -507,6 +523,10 @@
     if (nav?.error) return render(nav);
     if (state.view?.stopped) {
       state.stopped = true;
+      return render();
+    }
+    if (state.offDestination) {
+      // Not the application's destination: WonderJobs has paused it; nothing on this page is read.
       return render();
     }
     watchSubmission();
@@ -537,6 +557,30 @@
       }, 700);
     };
     new MutationObserver(later).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style", "hidden", "aria-hidden"] });
+    // Answers approved in WonderJobs, a Stop pressed there, or a policy change: pick them up while the page is open.
+    setInterval(async () => {
+      if (document.visibilityState !== "visible" || state.busy || !state.sessionId || state.stopped) return;
+      const r = await api(state.sessionId, "/api/jobs-apply/extension/session");
+      if (!r || r.error) {
+        if (r?.error === "revoked") {
+          // Stopped or ended from WonderJobs: no more field actions until WonderJobs pairs again.
+          state.stopped = true;
+          render(r);
+        }
+        return;
+      }
+      const before = JSON.stringify([state.view?.progress, state.view?.stopped, state.view?.status, state.view?.fill]);
+      state.view = { ...r.data, plan: undefined };
+      if (r.data.stopped) state.stopped = true;
+      if (JSON.stringify([r.data.progress, r.data.stopped, r.data.status, r.data.fill]) !== before) {
+        highlight(state.view);
+        render();
+        if (r.data.fill === "run" && r.data.progress.fillable > 0 && !state.stopped) {
+          const plan = await api(state.sessionId, "/api/jobs-apply/extension/fill-plan", "POST", { host: location.hostname, clicked: false });
+          if (plan?.data?.allowed && plan.data.fills.length) await applyPlan(plan.data);
+        }
+      }
+    }, 3000);
     document.addEventListener("change", later, true);
     setInterval(() => location.href !== state.lastUrl && later(), 1000);
   }
@@ -624,7 +668,10 @@
 
   async function boot() {
     const s = await ask("jobsApplyFor", { url: location.href });
-    if (s?.sessionId) return startSession(s.sessionId);
+    if (s?.sessionId) {
+      state.offDestination = !!s.offDestination;
+      return startSession(s.sessionId);
+    }
     const hasForm = () => readFormEls().length >= 2;
     if (window.top !== window && !hasForm()) return;
     if (hasForm()) return legacyButton();
@@ -644,8 +691,14 @@
       (state.sessionId ? fillClicked() : legacyRun()).then(() => sendResponse({ ok: true }));
       return true;
     }
-    if (message?.type === "jobsApplyPaired" && message.sessionId && !state.sessionId) {
-      void startSession(message.sessionId);
+    if (message?.type === "jobsApplyPaired" && message.sessionId) {
+      if (!state.sessionId) void startSession(message.sessionId);
+      else if (state.sessionId === message.sessionId) {
+        // Continued from WonderJobs after a stop: re-read the page with the fresh connection.
+        state.stopped = false;
+        state.lastSig = "";
+        void inspect(true);
+      }
     }
     return false;
   });
