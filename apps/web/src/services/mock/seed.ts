@@ -37,8 +37,53 @@ export const SEED_DNA: CareerDNA = {
   currency: "INR",
   strengths: ["Turning ambiguous problems into crisp roadmaps", "Data-informed prioritization", "Cross-functional influence"],
   growthAreas: ["Platform / API products", "People management"],
+  // Demo only: a synthetic history so the résumé templates have something to render. Never shown to a real account.
+  history: {
+    contact: { email: "alex.morgan@example.com", phone: "+91 90000 00000", location: "Bengaluru, India", linkedinUrl: "https://www.linkedin.com/in/example-alex-morgan" },
+    summary: "Product manager with five years in consumer fintech and e-commerce. Turns ambiguous problems into clear roadmaps, runs disciplined experiments and works closely with engineering and design.",
+    experience: [
+      {
+        id: "exp_demo_1",
+        employer: "Northwind Payments (sample)",
+        title: "Product Manager, Consumer Payments",
+        location: "Bengaluru, India",
+        startDate: "2022-04",
+        current: true,
+        bullets: [
+          { id: "b_d1", text: "Own the roadmap for the consumer payments app across onboarding, payments and rewards", provenance: "USER_PROVIDED" },
+          { id: "b_d2", text: "Run weekly A/B tests with the growth team and share results in a monthly review", provenance: "USER_PROVIDED" },
+          { id: "b_d3", text: "Wrote PRDs and ran quarterly planning with engineering, design and compliance", provenance: "USER_PROVIDED" },
+        ],
+        provenance: "USER_PROVIDED",
+      },
+      {
+        id: "exp_demo_2",
+        employer: "Contoso Retail (sample)",
+        title: "Associate Product Manager",
+        location: "Mumbai, India",
+        startDate: "2020-01",
+        endDate: "2022-03",
+        bullets: [
+          { id: "b_d4", text: "Shipped the new checkout flow with the payments and logistics teams", provenance: "USER_PROVIDED" },
+          { id: "b_d5", text: "Built the SQL dashboards the product team used for weekly metrics reviews", provenance: "USER_PROVIDED" },
+        ],
+        provenance: "USER_PROVIDED",
+      },
+    ],
+    education: [{ id: "edu_demo_1", institution: "Sample Institute of Technology", degree: "B.Tech.", field: "Computer Science", location: "Pune, India", startDate: "2015", endDate: "2019", provenance: "USER_PROVIDED" }],
+    certifications: [{ id: "cert_demo_1", name: "Product Analytics Certification (sample)", issuer: "Example Academy", issueDate: "2023-06", provenance: "USER_PROVIDED" }],
+    projects: [],
+    publications: [],
+    researchInterests: [],
+  },
   updatedAt: ago(12 * DAY),
 };
+
+const DEMO_PACK_TEXT = {
+  resume: "ALEX MORGAN — Product Manager\n\nSample demo résumé tailored for Senior Product Manager, Platform at Razorpay.\n\n• Led roadmap for a consumer payments product used by millions of customers\n• Ran A/B tests that lifted activation\n• Partnered with engineering and design on quarterly planning",
+  cover_letter: "Dear Razorpay hiring team,\n\nThis is a sample demo cover letter. I'm excited about the Senior Product Manager, Platform role and the chance to bring my payments and experimentation experience to your platform team.\n\nBest,\nAlex Morgan",
+  answers: "Why Razorpay? (sample demo answer)\nI've built consumer fintech products and want to work on the platform that powers them.",
+} as const;
 
 export function seedApplications(): Application[] {
   const mk = (id: string, jobId: string, status: Application["status"], createdDaysAgo: number, extra: Partial<Application> = {}): Application => ({
@@ -58,7 +103,7 @@ export function seedApplications(): Application[] {
       nextAction: "Follow up with recruiter",
       followUpAt: ahead(1 * DAY),
       events: [
-        { id: "ev1", applicationId: "app_google", type: "discovered", at: ago(3 * DAY), title: "Job discovered", detail: "Found on LinkedIn and Naukri" },
+        { id: "ev1", applicationId: "app_google", type: "discovered", at: ago(3 * DAY), title: "Job discovered", detail: "Found on Jobicy and the company career site" },
         { id: "ev2", applicationId: "app_google", type: "prepared", at: ago(2 * DAY + 5 * HOUR), title: "Application prepared", detail: "Resume tailored, cover letter drafted" },
         { id: "ev3", applicationId: "app_google", type: "submitted", at: ago(2 * DAY), title: "Submitted", detail: "Via employer career site" },
       ],
@@ -90,6 +135,15 @@ export function seedApplications(): Application[] {
     mk("app_airbnb", "job_airbnb_pm", "saved", 7, { nextAction: "Prepare application", events: [{ id: "ev11", applicationId: "app_airbnb", type: "saved", at: ago(7 * DAY), title: "Saved" }] }),
     mk("app_razorpay", "job_razorpay_spm", "ready_for_review", 1, {
       nextAction: "Review tailored materials",
+      // Demo only: a "ready for review" pack must actually contain materials, or the Application Pack
+      // summary (correctly) reports nothing prepared while Home says materials are ready.
+      artifacts: (["resume", "cover_letter", "answers"] as const).map((type) => ({
+        id: `art_razorpay_${type}`,
+        applicationId: "app_razorpay",
+        type,
+        currentVersionId: `ver_razorpay_${type}`,
+        versions: [{ id: `ver_razorpay_${type}`, createdAt: ago(20 * HOUR), provenance: "AI_GENERATED" as const, note: "Sample demo draft", content: DEMO_PACK_TEXT[type] }],
+      })),
       events: [
         { id: "ev12", applicationId: "app_razorpay", type: "discovered", at: ago(1 * DAY), title: "Job discovered" },
         { id: "ev13", applicationId: "app_razorpay", type: "prepared", at: ago(20 * HOUR), title: "Application prepared" },
@@ -139,7 +193,7 @@ export function seedInsights(): CareerInsight[] {
 
 export function seedNotifications(): Notification[] {
   return [
-    { id: "n1", at: ago(2 * HOUR), category: "strong_opportunity", title: "3 new strong matches", body: "Google, Microsoft and Razorpay posted roles that fit your Career DNA.", href: "/app/jobs?fit=strong", read: false },
+    { id: "n1", at: ago(2 * HOUR), category: "strong_opportunity", title: "3 new strong matches", body: "Google, Microsoft and Razorpay posted roles that fit your Career Profile.", href: "/app/jobs?fit=strong", read: false },
     { id: "n2", at: ago(1 * DAY), category: "interview_upcoming", title: "Interview tomorrow at 10:00 AM", body: "Amazon — Product Manager, Growth. Wonder prepared a prep sheet.", href: "/app/applications/app_amazon", read: false },
     { id: "n3", at: ago(1 * DAY), category: "follow_up_due", title: "Follow-up due tomorrow", body: "Google — Product Manager. Draft is ready for your review.", href: "/app/applications/app_google", read: true },
   ];

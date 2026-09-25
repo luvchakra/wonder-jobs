@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="popup.css" />
-    <title>WonderJobs Autofill</title>
+    <title>WonderJobs helper</title>
   </head>
   <body>
     <header>
       <img src="../icons/icon-48.png" alt="" width="28" height="28" />
       <div>
-        <h1>WonderJobs Autofill</h1>
+        <h1>WonderJobs helper</h1>
         <p id="status" class="muted">Checking…</p>
       </div>
     </header>
@@ -19,8 +19,24 @@
         <div><dt>Name</dt><dd id="name">—</dd></div>
         <div><dt>Email</dt><dd id="email">—</dd></div>
       </dl>
+      <section id="site" hidden>
+        <p><strong>This page is part of an application you started with Wonder.</strong></p>
+        <p class="muted">Allow the helper on <span id="site-host"></span> so it can read this form's fields and fill what you approved.</p>
+        <button id="allow" class="primary">Allow on this site</button>
+      </section>
       <button id="fill" class="primary">Fill the form on this tab</button>
-      <p class="muted">Works on Greenhouse, Lever and Ashby application pages. Nothing is ever submitted for you.</p>
+      <details>
+        <summary>What the helper can and can't do</summary>
+        <ul class="muted">
+          <li>✓ Read application form fields (their labels, not your passwords)</li>
+          <li>✓ Fill information you approved in WonderJobs</li>
+          <li>✓ Upload the résumé you selected</li>
+          <li>✓ Highlight questions that need you</li>
+          <li>✕ Submit applications — you always press submit</li>
+          <li>✕ Read unrelated pages or your passwords</li>
+          <li>✕ Get past verification challenges</li>
+        </ul>
+      </details>
     </section>
 
     <section id="disconnected" hidden>

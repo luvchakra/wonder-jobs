@@ -7,6 +7,7 @@ import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
 import { describeSchedule, nextRunAt, SCHEDULE_TEMPLATES, type ScheduleTemplate } from "@/services/mock/templates";
 import { useWorkflowStore } from "@/store/workflow";
+import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
@@ -44,7 +45,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
   const [time, setTime] = useState(sch?.time ?? t.time);
   const [timezone, setTimezone] = useState(sch?.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"));
   const [sourceIds, setSourceIds] = useState<string[]>(wf?.config.sourceIds ?? sources.filter((s) => s.enabled).map((s) => s.id));
-  const [query, setQuery] = useState(wf?.config.searchCriteria.query ?? t.query);
+  const [query, setQuery] = useState(wf?.config.searchCriteria.query ?? (t.query || defaultSearchQuery(dna)));
   const [locations, setLocations] = useState((wf?.config.searchCriteria.locations ?? dna.preferredLocations).join(", "));
   const [threshold, setThreshold] = useState(wf?.config.minMatchThreshold ?? 70);
   const [maxResults, setMaxResults] = useState(wf?.config.maxResults ?? 50);
@@ -66,7 +67,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
     if (!stageKeys.length) return toast.error("Pick at least one stage");
     if (!query.trim() && !confirmedBroadMatch) {
       setConfirmedBroadMatch(true);
-      toast.info("No search term set", "This will match almost any role title. Click Save again to continue, or add a search term to narrow it down.");
+      toast.warning("No search term set", "This will match almost any role title. Click Save again to continue, or add a search term to narrow it down.");
       return;
     }
     const workflow: Workflow = {
@@ -135,7 +136,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
             <Select id="trigger" value={trigger} onChange={(e) => setTrigger(e.target.value as WorkflowSchedule["trigger"])}>
               <option value="schedule">On a schedule</option>
               <option value="manual">Manual only</option>
-              <option value="event">When my Career DNA changes</option>
+              <option value="event">When my Career Profile changes</option>
             </Select>
           </Field>
           {trigger === "schedule" && (
@@ -187,7 +188,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
 
       <Card>
         <h2 className="mb-1 text-[15px] font-semibold text-ink">Stages</h2>
-        <p className="mb-3 text-[12px] text-ink-3">Stages always run in order. External application only runs when you allow it in Automation Settings.</p>
+        <p className="mb-3 text-[12px] text-ink-3">Stages always run in order. External application only runs when you allow it in What Wonder can do.</p>
         <ol className="flex flex-wrap gap-2">
           {STAGE_KEYS.map((k) => {
             const on = stageKeys.includes(k);
@@ -309,7 +310,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
           Cancel
         </Button>
         <Button size="lg" onClick={save}>
-          {sch ? "Save changes" : "Create scheduled run"}
+          {sch ? "Save changes" : "Create scheduled search"}
         </Button>
       </div>
     </div>

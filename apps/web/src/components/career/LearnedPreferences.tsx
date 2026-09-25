@@ -30,9 +30,9 @@ export function LearnedPreferences() {
   return (
     <Card>
       <h2 className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-ink">
-        <Sparkles className="size-4 text-brand-600" aria-hidden /> What Wonder has learned
+        <Sparkles className="size-4 text-brand-600" aria-hidden /> Needs confirmation
       </h2>
-      <p className="mb-3 text-[12px] text-ink-3">From marking roles &ldquo;not for me&rdquo; more than once for the same reason. Each one nudges ranking slightly — it never hides a role outright, and never changes the preferences above without you.</p>
+      <p className="mb-3 text-[12px] text-ink-3">Patterns Wonder noticed from marking roles &ldquo;not for me&rdquo; more than once for the same reason. Each one nudges ranking slightly — it never hides a role outright, and never changes the preferences above without you.</p>
       <ul className="flex flex-col gap-2">
         {signals.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-line bg-surface px-3 py-2.5">

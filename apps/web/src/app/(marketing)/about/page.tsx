@@ -16,7 +16,7 @@ export default function AboutPage() {
           title: "What we're building",
           body: (
             <>
-              <p>Most job seekers spend their evenings re-typing the same details into the same forms, scanning the same boards, and guessing whether a role is worth it. Wonder searches real sources, removes duplicates, reads each posting for skills, seniority, location and pay, and explains how well it fits your Career DNA.</p>
+              <p>Most job seekers spend their evenings re-typing the same details into the same forms, scanning the same boards, and guessing whether a role is worth it. Wonder searches real sources, removes duplicates, reads each posting for skills, seniority, location and pay, and explains how well it fits your Career Profile.</p>
               <p>When something is worth pursuing, Wonder drafts a tailored resume, cover letter and screening answers, then hands the application to you. You review, edit and submit. Wonder never applies on your behalf.</p>
             </>
           ),

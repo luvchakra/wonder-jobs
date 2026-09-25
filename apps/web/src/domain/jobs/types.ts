@@ -55,6 +55,30 @@ export interface CanonicalJob extends Omit<Job, "sourceId" | "externalId"> {
   canonicalKey: string;
   sourceIds: string[];
   duplicateOf: string[];
+  /** Present when JobsLake found the job: where it was seen, which record is canonical, and why. */
+  lake?: JobLakeProvenance;
+}
+
+/** One place a job was seen, as JobsLake recorded it. Display-only; never a job's identity. */
+export interface JobSourceSighting {
+  /** JobsLake source id (e.g. `greenhouse`) — may be one WonderJobs has no entry for. */
+  sourceId: string;
+  sourceName: string;
+  provider: string;
+  /** "API", "Feed", "MCP"… */
+  accessLabel: string;
+  employerSource: boolean;
+  url: string;
+  observedAt: string;
+  canonical: boolean;
+}
+
+export interface JobLakeProvenance {
+  opportunityId: string;
+  sightings: JobSourceSighting[];
+  employerVerified: boolean;
+  /** Which source supplied the title, apply link and posting date. */
+  fieldSources: { field: "title" | "canonicalApplyUrl" | "postedAt" | "compensation"; sourceName: string }[];
 }
 
 export type FitLabel = "strong" | "worth_considering" | "stretch" | "low_fit";

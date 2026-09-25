@@ -24,13 +24,13 @@ const UA = "WonderJobs/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job sea
 const REVALIDATE = 900;
 const MAX_PER_SOURCE = 150;
 
-async function getJson<T>(url: string, init: RequestInit & { revalidate?: number } = {}): Promise<T> {
+export async function getJson<T>(url: string, init: RequestInit & { revalidate?: number } = {}): Promise<T> {
   const res = await fetch(url, { ...init, headers: { accept: "application/json", "user-agent": UA, ...(init.headers ?? {}) }, next: { revalidate: init.revalidate ?? REVALIDATE } });
   if (!res.ok) throw new Error(`${new URL(url).host} responded ${res.status}`);
   return (await res.json()) as T;
 }
 
-function finish(sourceId: string, raws: RawPosting[], criteria: SearchCriteria): Job[] {
+export function finish(sourceId: string, raws: RawPosting[], criteria: SearchCriteria): Job[] {
   const seen = new Set<string>();
   const out: Job[] = [];
   for (const raw of raws) {
@@ -177,9 +177,9 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "ashby", slug: "zapier", company: "Zapier", domain: "zapier.com" },
 ];
 
-interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[] }
-interface LeverJob { id: string; text: string; hostedUrl: string; applyUrl: string; createdAt: number; country?: string; workplaceType?: string; categories?: { location?: string; team?: string; department?: string; commitment?: string }; descriptionPlain?: string; lists?: { text: string; content: string }[] }
-interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string; publishedAt: string; location: string; isRemote?: boolean; workplaceType?: string; department?: string; team?: string; descriptionPlain?: string; descriptionHtml?: string }
+export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[] }
+export interface LeverJob { id: string; text: string; hostedUrl: string; applyUrl: string; createdAt: number; country?: string; workplaceType?: string; categories?: { location?: string; team?: string; department?: string; commitment?: string }; descriptionPlain?: string; lists?: { text: string; content: string }[] }
+export interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string; publishedAt: string; location: string; isRemote?: boolean; workplaceType?: string; department?: string; team?: string; descriptionPlain?: string; descriptionHtml?: string }
 
 const DETAIL_LIMIT = 12;
 
@@ -198,15 +198,15 @@ async function ashbyJobsList(board: (typeof CAREER_BOARDS)[number]): Promise<Ash
   return list.jobs ?? [];
 }
 
-function rawFromGreenhouse(board: (typeof CAREER_BOARDS)[number], j: GreenhouseJob): RawPosting {
+export function rawFromGreenhouse(board: (typeof CAREER_BOARDS)[number], j: GreenhouseJob): RawPosting {
   return { externalId: `gh:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: j.location?.name ?? "", description: j.content ? htmlToText(j.content) : `${j.title} — ${(j.departments ?? []).map((d) => d.name).join(", ")}`, tags: (j.departments ?? []).map((d) => d.name), postedAt: j.first_published ?? j.updated_at, applyUrl: j.absolute_url, employerSite: true, applyPath: "employer_site" as const };
 }
 
-function rawFromLever(board: (typeof CAREER_BOARDS)[number], j: LeverJob): RawPosting {
+export function rawFromLever(board: (typeof CAREER_BOARDS)[number], j: LeverJob): RawPosting {
   return { externalId: `lv:${board.slug}:${j.id}`, title: j.text, company: board.company, companyDomain: board.domain, location: [j.categories?.location, j.workplaceType === "remote" ? "Remote" : ""].filter(Boolean).join(" · "), remote: j.workplaceType === "remote", description: [j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `${l.text}\n${htmlToText(l.content)}`)].join("\n\n"), tags: [j.categories?.team, j.categories?.department, j.categories?.commitment].filter((t): t is string => !!t), postedAt: j.createdAt, applyUrl: j.applyUrl || j.hostedUrl, employerSite: true, applyPath: "employer_site" as const };
 }
 
-function rawFromAshby(board: (typeof CAREER_BOARDS)[number], j: AshbyJob): RawPosting {
+export function rawFromAshby(board: (typeof CAREER_BOARDS)[number], j: AshbyJob): RawPosting {
   return { externalId: `ab:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: [j.location, j.isRemote ? "Remote" : "", j.workplaceType ?? ""].filter(Boolean).join(" · "), remote: !!j.isRemote, description: j.descriptionPlain || htmlToText(j.descriptionHtml ?? ""), tags: [j.department, j.team].filter((t): t is string => !!t), postedAt: j.publishedAt, applyUrl: j.applyUrl || j.jobUrl, employerSite: true, applyPath: "employer_site" as const };
 }
 

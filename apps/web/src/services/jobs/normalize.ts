@@ -240,8 +240,8 @@ export function queryTerms(query: string): string[] {
   return [...new Set(query.toLowerCase().replace(/[^a-z0-9+#./ -]/g, " ").split(/[\s,/]+/).filter((w) => w.length > 1 && !STOP.has(w)))].slice(0, 8);
 }
 
-const SENIORITY_WORDS = new Set(["senior", "junior", "lead", "principal", "staff", "director", "head", "vp", "svp", "evp", "chief", "intern", "entry", "mid"]);
-const INDUSTRY_WORDS = new Set(["fintech", "ecommerce", "e-commerce", "healthcare", "healthtech", "edtech", "education", "gaming", "media", "mobility", "travel", "telecom", "consumer", "saas", "b2b", "b2c", "startup", "startups", "enterprise", "crypto", "web3", "insurtech"]);
+export const SENIORITY_WORDS = new Set(["senior", "junior", "lead", "principal", "staff", "director", "head", "vp", "svp", "evp", "chief", "intern", "entry", "mid"]);
+export const INDUSTRY_WORDS = new Set(["fintech", "ecommerce", "e-commerce", "healthcare", "healthtech", "edtech", "education", "gaming", "media", "mobility", "travel", "telecom", "consumer", "saas", "b2b", "b2c", "startup", "startups", "enterprise", "crypto", "web3", "insurtech"]);
 
 /** The core phrase to send to a source's own search box (drops seniority and industry qualifiers). */
 export function corePhrase(query: string): string {

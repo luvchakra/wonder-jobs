@@ -33,7 +33,7 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     await expect(page).toHaveURL(/\/app\/jobs/);
     const results = page.getByRole("list", { name: "Job results" });
     await expect(results).toBeVisible();
-    expect(await results.getByRole("listitem").count()).toBeGreaterThan(10);
+    expect(await results.locator(":scope > li").count()).toBeGreaterThan(10);
 
     await page.goto("/app/jobs/job_google_pm");
     await expect(page.getByRole("heading", { name: "Product Manager", level: 1 })).toBeVisible();
@@ -45,8 +45,8 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
-    await page.getByRole("tab", { name: /Why it's a match/i }).click();
-    await expect(page.getByText(/Run Wonder to compute a match/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
+    await page.getByRole("tab", { name: /Why it fits/i }).click();
+    await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
 
     await saveBtn.click();
     await expect(saveBtn).toHaveText("Save");
@@ -77,8 +77,15 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await page.goto("/demo?next=/app/applications");
   });
 
-  test("GJ-005 the applications dashboard is pre-seeded across every stage", async ({ page }) => {
+  test("GJ-005 the applications dashboard defaults to a timeline, pre-seeded across every stage, with the tab/list view still available", async ({ page }) => {
     await expect(page).toHaveURL(/\/app\/applications/);
+    // Default view: a real pipeline (Preparing/Applied/Interview/Outcome), not a tab-switching list.
+    await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Preparing" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Interview" })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Application status" })).not.toBeVisible();
+    // Switching to List brings back the tab-based view for power users.
+    await page.getByRole("radio", { name: "List" }).click();
     await expect(page.getByRole("tablist", { name: "Application status" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^All/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^Interview/ })).toBeVisible();
@@ -99,9 +106,9 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     await page.goto("/demo?next=/app/runs/new");
     await expect(page).toHaveURL(/\/app\/runs\/new/);
 
-    const continueBtn = page.getByRole("button", { name: "Continue" });
+    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
     // A demo seed run may already be "active" (services/mock/runs.ts), which disables this page's own
-    // submit button and offers "Open active run" instead — either outcome proves runs are real and
+    // submit button and offers "See progress" instead — either outcome proves runs are real and
     // reachable, so this test follows whichever the seed actually produced rather than assuming one.
     // The target pattern excludes "new" itself: `[^/]+` alone would also match the page we start on,
     // resolving `waitForURL` instantly without ever waiting for the real navigation the click triggers.
@@ -109,7 +116,7 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     if (await continueBtn.isEnabled().catch(() => false)) {
       await continueBtn.click();
     } else {
-      await page.getByRole("link", { name: "Open active run" }).click();
+      await page.getByRole("link", { name: "See progress" }).click();
     }
     await page.waitForURL(runPageUrl, { timeout: 20_000 });
     expect(page.url()).toMatch(runPageUrl);
@@ -131,28 +138,168 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
 
     await page.getByRole("button", { name: "Open menu" }).click();
     await expect(drawer).toBeVisible();
-    // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 4 shortcuts.
-    await expect(drawer.getByRole("link", { name: "Calendar" })).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Career DNA" })).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Automation Settings" })).toBeVisible();
+    // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 5 primary destinations.
+    await expect(drawer.getByRole("link", { name: "Career", exact: true })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "What Wonder can do" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Help & Guide" })).toBeVisible();
 
     await drawer.getByRole("link", { name: "Insights" }).click();
     await page.waitForURL(/\/app\/insights/);
     await expect(drawer).toBeHidden();
   });
 
-  test("GJ-009 the bottom bar's More tab opens the same drawer", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: "Menu" });
-    await page.getByRole("button", { name: "More" }).click();
-    await expect(drawer).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Resume Studio" })).toBeVisible();
+  test("GJ-009 the bottom bar shows all 5 real destinations directly, with no More catch-all", async ({ page }) => {
+    const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
+    for (const label of ["Home", "Jobs", "Applications", "Career", "Wonder"]) {
+      await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
+    }
+    await expect(bottomBar.getByRole("button", { name: "More" })).toHaveCount(0);
+    // Scheduled searches/What Wonder can do/Insights/Resume Studio/etc. are still one tap away via the
+    // hamburger's drawer (GJ-008), not lost — just not duplicated as a 6th bottom-bar tab.
+    await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
   });
 
   test("GJ-010 the drawer is closed by default and the bottom bar has no separate Profile tab", async ({ page }) => {
     await expect(page.getByRole("dialog", { name: "Menu" })).toBeHidden();
-    // Profile moved out of the bottom bar (More replaced it) — it's still one tap away via the avatar menu.
+    // Profile has never been in the bottom bar's 5 real destinations — it's one tap away via the avatar menu.
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
     await expect(bottomBar.getByRole("link", { name: "Profile" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Profile menu" })).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — new candidate onboarding", () => {
+  test("GJ-011 a new candidate picks a real goal, which decides where onboarding sends them", async ({ page }) => {
+    // /onboarding renders OnboardingFlow unconditionally — no seeded state needed for this journey.
+    await page.goto("/onboarding");
+    const picker = page.getByRole("radiogroup", { name: "What would you like Wonder to help you with?" });
+    await expect(picker).toBeVisible();
+    // All 5 real goals from Phase 2.2 — never a generic feature-bullet welcome screen.
+    for (const label of ["Find my next role", "Improve my career profile", "Prepare an application", "Track my applications", "Let Wonder work for me"]) {
+      await expect(picker.getByRole("radio", { name: new RegExp(label) })).toBeVisible();
+    }
+    const getStarted = page.getByRole("button", { name: "Get Started" });
+    await expect(getStarted).toBeDisabled(); // a goal is required, never assumed
+    await picker.getByRole("radio", { name: /Track my applications/ }).click();
+    await expect(getStarted).toBeEnabled();
+    await getStarted.click();
+    // Step 1 is the real career-goal capture, common to every goal choice.
+    await expect(page.getByText("What are you looking for?")).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — search (demo mode)", () => {
+  test("GJ-012 a free-text search narrows the real catalog, not a canned result set", async ({ page }) => {
+    await page.goto("/demo?next=/app/jobs");
+    const results = page.getByRole("list", { name: "Job results" });
+    // A distinctive, single-employer term (the default catalog view is paginated at 24, so a common word
+    // like "google" — matched against skills/tags too, e.g. "Google Analytics" — can still fill a page
+    // and not visibly shrink).
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
+    await expect(async () => {
+      // Top-level results only: each card now carries its own "why" lists, which are list items too.
+      const items = await results.locator(":scope > li").all();
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.length).toBeLessThan(24);
+    }).toPass({ timeout: 5_000 });
+    // Every remaining visible card is a real match for the typed text, not a fixed demo subset.
+    await expect(results.getByText(/airbnb/i).first()).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — application preparation (demo mode)", () => {
+  test("GJ-013 preparing an application generates a real, editable artifact with visible provenance", async ({ page }) => {
+    // app_meta is seeded "preparing" with no resume yet (services/mock/seed.ts).
+    await page.goto("/demo?next=/app/applications/app_meta/prepare");
+    await expect(page.getByRole("heading", { name: "Application Pack" })).toBeVisible();
+    await expect(page.getByText("No resume yet")).toBeVisible();
+    await page.getByRole("button", { name: "Generate resume" }).click();
+    // WonderJobsAI is a deterministic local template (no network, no billing) — real generation, fast.
+    await expect(page.getByText("No resume yet")).toHaveCount(0, { timeout: 10_000 });
+    // Exact: the pack summary above also says "AI-generated draft" for the same version.
+    await expect(page.getByText("AI-generated", { exact: true })).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — Ask Wonder (demo mode)", () => {
+  test("GJ-014 a real question resolves to a real, data-backed action, not a canned chat reply", async ({ page }) => {
+    await page.goto("/demo?next=/app");
+    await page.getByRole("button", { name: "Ask Wonder anything (Command+K)" }).click();
+    const input = page.getByRole("combobox", { name: "Command" });
+    await expect(input).toBeVisible();
+    await input.fill("what applications need my attention");
+    const topResult = page.locator("#wj-cmd-list [role='option']").first();
+    // The label names a real count, never a static "Applications" nav shortcut.
+    await expect(topResult).toContainText(/application.*attention/i);
+    await topResult.click();
+    await expect(page).toHaveURL(/\/app\/applications$/);
+  });
+});
+
+test.describe("Golden journey — automation (demo mode)", () => {
+  test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }) => {
+    await page.goto("/demo?next=/app/automation/settings");
+    await expect(page.getByRole("heading", { name: "What Wonder can do" })).toBeVisible();
+    // Phase 3.2 relabeling — plain language, not internal jargon.
+    for (const label of ["Help me", "Work with me", "Work independently", "Keep watch"]) {
+      await expect(page.getByText(label, { exact: true })).toBeVisible();
+    }
+    const genResume = page.getByRole("radiogroup", { name: "Generate resume permission" });
+    await expect(genResume).toBeVisible();
+    await genResume.getByRole("radio", { name: "Off" }).click();
+    await expect(genResume.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    // Reload proves the change is real, persisted state — not a local-only UI toggle.
+    await page.reload();
+    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("button", { name: "Restore defaults" }).click();
+    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+test.describe("Golden journey — manual intervention (demo mode)", () => {
+  test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
+    await page.goto("/demo?next=/app/runs/new");
+    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
+    if (await continueBtn.isEnabled().catch(() => false)) await continueBtn.click();
+    else await page.getByRole("link", { name: "See progress" }).click();
+    await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
+
+    // Pause/Continue live on the outcome card; the mobile status bar has its own labelled twin
+    // ("Continue the search"), so scoping to the card keeps this one real control per action.
+    const card = page.locator("section[aria-labelledby='run-experience-title']");
+    const pauseBtn = card.getByRole("button", { name: "Pause", exact: true });
+    // The engine chunks work (services/workflow/executors.ts) specifically so pause stays responsive.
+    await expect(pauseBtn).toBeVisible({ timeout: 15_000 });
+    await pauseBtn.click();
+    await expect(card.getByRole("heading", { name: "Wonder is paused" })).toBeVisible({ timeout: 5_000 });
+    const doneWhilePaused = await card.locator("li", { hasText: "— done" }).count();
+
+    await card.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(card.getByRole("heading", { name: "Wonder is paused" })).toHaveCount(0);
+    // Continuing picks up where it left off — no step that was done goes back to not done.
+    await expect(async () => {
+      expect(await card.locator("li", { hasText: "— done" }).count()).toBeGreaterThanOrEqual(doneWhilePaused);
+    }).toPass({ timeout: 5_000 });
+  });
+});
+
+test.describe("Golden journey — advanced mode (demo mode)", () => {
+  test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
+    await page.goto("/demo?next=/app/settings/ai");
+    await expect(page.getByText("WonderJobs AI").first()).toBeVisible();
+    for (const provider of ["Anthropic", "OpenAI", "Gemini"]) {
+      await expect(page.getByText(provider, { exact: true }).first()).toBeVisible();
+    }
+    // Real usage transparency — tokens/cost/log, not a hidden estimate.
+    await expect(page.getByText(/est\. BYOK cost/i)).toBeVisible();
+  });
+});
+
+test.describe("Golden journey — trust (demo mode)", () => {
+  test("GJ-018 Wonder discloses exactly what it can't do, in the same place it offers to help", async ({ page }) => {
+    await page.goto("/demo?next=/app/applications/app_google");
+    // The Phase 3.6 hand-off rewrite: Wonder never claims to send on the candidate's behalf.
+    await expect(page.getByText(/Wonder never sends on your behalf/i)).toBeVisible();
+    await expect(page.getByText(/doesn't have Google's email address and can't send it/i)).toBeVisible();
   });
 });

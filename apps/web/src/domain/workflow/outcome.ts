@@ -1,5 +1,4 @@
 import type { WorkflowRun } from "./types";
-import { STAGES } from "./stages";
 import { isTerminal } from "./status";
 import { resolveRunValue } from "./resolve";
 
@@ -43,18 +42,22 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   const handedOff = run.actions.filter((a) => a.status === "succeeded").length;
   const declined = run.actions.filter((a) => a.status === "rejected").length;
   const query = run.config.searchCriteria.query.trim();
-  const quiet = run.silent ? "Quiet outcome: the schedule's condition wasn't met, so you weren't notified. " : "";
+  const cond = run.config.scheduleCondition;
+  const quiet = run.silent
+    ? cond && cond.key === "strong_matches" && cond.value === 0
+      ? "Quiet outcome: no strong match made the shortlist, so the schedule's condition wasn't met and you weren't notified. "
+      : "Quiet outcome: the schedule's condition wasn't met, so you weren't notified. "
+    : "";
 
   if (run.status === "STOPPED" || run.status === "CANCELLED") {
-    const at = run.stages.find((x) => x.key === run.currentStage) ?? run.stages.find((x) => x.status !== "COMPLETED" && x.status !== "COMPLETED_WITH_WARNINGS");
     const actions: OutcomeAction[] = [];
     if (ranked > 0) actions.push({ label: "See what was found", showResults: true, primary: true });
-    actions.push({ label: "Run again", href: "/app/runs/new", primary: actions.length === 0 });
+    actions.push({ label: "Search again", href: "/app/runs/new", primary: actions.length === 0 });
     return {
       tone: "info",
-      eyebrow: run.status === "CANCELLED" ? "Run cancelled" : "Run stopped",
-      title: run.status === "CANCELLED" ? "Cancelled before it started" : at ? `Stopped during “${STAGES[at.key].name}”` : "Stopped",
-      body: `Everything finished before that point is kept${ranked > 0 ? `, including ${plural(ranked, "shortlisted role")}` : ""}. Use “Rerun from stage” above to pick up where it left off, or start fresh.`,
+      eyebrow: run.status === "CANCELLED" ? "Search cancelled" : "Search stopped",
+      title: run.status === "CANCELLED" ? "Cancelled before it started" : "Search stopped",
+      body: run.status === "CANCELLED" ? "Nothing ran, so nothing changed." : `Everything already found is still available${ranked > 0 ? `, including ${plural(ranked, "shortlisted role")}` : ""}.`,
       actions,
     };
   }
@@ -62,7 +65,7 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   if (handedOff > 0) {
     return {
       tone: "success",
-      eyebrow: "Run complete · your move",
+      eyebrow: "Your move",
       title: `${plural(handedOff, "application")} handed off — finish submitting`,
       body: `${quiet}Wonder opened the employer's application page with your materials ready. Submit there, then mark each application as submitted so Wonder can track replies and follow-ups.${declined ? ` ${plural(declined, "hand-off")} ${declined === 1 ? "was" : "were"} declined and left as prepared.` : ""}`,
       actions: [
@@ -76,9 +79,9 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
     const fitLine = s.strongMatches > 0 ? `${plural(s.strongMatches, "strong match", "strong matches")} among ${plural(ranked, "shortlisted role")}.` : `No role was a strong match, so Wonder prepared the top of the ${plural(ranked, "role")} shortlist instead.`;
     return {
       tone: "success",
-      eyebrow: "Run complete · your move",
+      eyebrow: "Applications ready",
       title: `${plural(preparedIds.length, "application")} ready for your review`,
-      body: `${quiet}${fitLine} Review the tailored resume, cover letter and screening answers, edit anything, then send the ones you like.${declined ? ` ${plural(declined, "hand-off")} ${declined === 1 ? "was" : "were"} declined.` : ""}`,
+      body: `${quiet}${fitLine} Review the tailored resume, cover letter and screening answers and edit anything. Nothing goes to an employer until you continue to their site yourself — the final action is yours.${declined ? ` ${plural(declined, "hand-off")} ${declined === 1 ? "was" : "were"} declined.` : ""}`,
       actions: [
         { label: preparedIds.length === 1 ? "Review the application" : "Review applications", href: preparedIds.length === 1 ? `/app/applications/${preparedIds[0]}/prepare` : "/app/applications?tab=in_progress", primary: true },
         { label: "See the shortlist", showResults: true },
@@ -89,49 +92,53 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   if (s.jobsDiscovered === 0) {
     return {
       tone: "warning",
-      eyebrow: "Run complete · nothing found",
+      eyebrow: "Nothing found",
       title: query ? `No jobs came back for “${query}”` : "No jobs came back from your sources",
-      body: `${quiet}Your sources returned nothing for this search. Open “Searching job sources” in the timeline to see each source's result — some need setup — then broaden the query, locations or work modes and run again.`,
-      actions: [{ label: "Change the search and run again", href: "/app/runs/new", primary: true }],
+      body: `${quiet}Your sources returned nothing for this search. “See how Wonder worked” shows each source's result — some need setup. Try a broader role, more locations or other work modes.`,
+      actions: [{ label: "Change the search", href: "/app/runs/new", primary: true }],
     };
   }
 
   if (ranked === 0) {
     return {
       tone: "warning",
-      eyebrow: "Run complete · no matches",
+      eyebrow: "No strong fits yet",
       title: `${plural(s.jobsRetained || s.jobsDiscovered, "job")} read, none scored above your minimum match of ${threshold}`,
-      body: `${quiet}Nothing was shortlisted or prepared. The jobs are still in your catalog to browse. To get matches next time, lower the minimum match, widen locations or work modes, or update your Career DNA so Wonder scores roles against what you actually do.`,
+      body: `${quiet}Nothing was shortlisted, but every job is still in Jobs to browse. For better fits next time, lower the minimum match, widen locations or work modes, or update your Career Profile so Wonder compares roles with what you actually do.`,
       actions: [
         { label: `Browse all ${plural(s.jobsRetained || s.jobsDiscovered, "job")}`, href: "/app/jobs", primary: true },
-        { label: "Refine Career DNA", href: "/app/career-dna" },
-        { label: "Adjust and run again", href: "/app/runs/new" },
+        { label: "Update Career Profile", href: "/app/career-dna" },
+        { label: "Adjust the search", href: "/app/runs/new" },
       ],
     };
   }
 
   if (!preparesMaterials) {
-    const strong = s.strongMatches;
+    // Every strong fit this search found (the match stage), which is what "See what deserves your
+    // attention" lists — not only the ones that made the capped shortlist (`summary.strongMatches`),
+    // so the headline never disagrees with the breakdown or the list it links to.
+    const strong = run.stages.find((x) => x.key === "match")?.counts.strong ?? s.strongMatches;
+    const total = s.jobsRetained || s.jobsDiscovered;
     return {
       tone: strong > 0 ? "success" : "info",
-      eyebrow: "Run complete · your move",
-      title: strong > 0 ? `${plural(strong, "strong match", "strong matches")} among ${plural(ranked, "shortlisted role")}` : `No strong matches, but ${plural(ranked, "role")} worth a look`,
-      body: `${quiet}This workflow stops at ranking, so nothing was prepared. Open a role to prepare materials yourself, or run Wonder in full to have the top matches prepared for you.`,
+      eyebrow: "Your search is ready",
+      title: strong > 0 ? `${plural(strong, "strong opportunity", "strong opportunities")} worth your attention` : `No strong fits, but ${plural(ranked, "role")} worth a look`,
+      body: `${quiet}Wonder found ${plural(total, "opportunity", "opportunities")} and put the ones that fit you first. Open one to see why it fits, then prepare an Application Pack when you're ready.`,
       actions: [
-        strong > 0 ? { label: "See strong matches", href: "/app/jobs?fit=strong", primary: true } : { label: "Browse the shortlist", showResults: true, primary: true },
-        { label: "Prepare materials with a full run", href: "/app/runs/new" },
+        strong > 0 ? { label: "See what deserves your attention", href: "/app/jobs?fit=strong", primary: true } : { label: "See what deserves your attention", showResults: true, primary: true },
+        { label: "Explore all results", href: "/app/jobs" },
       ],
     };
   }
 
   return {
     tone: "info",
-    eyebrow: "Run complete",
+    eyebrow: "Your search is ready",
     title: `${plural(ranked, "role")} shortlisted, nothing prepared`,
-    body: `${quiet}Open “Preparing application materials” in the timeline to see why. You can still prepare any shortlisted role yourself.`,
+    body: `${quiet}Wonder couldn't prepare application packs this time — “See how Wonder worked” shows why. You can still prepare any shortlisted role yourself.`,
     actions: [
       { label: "See the shortlist", showResults: true, primary: true },
-      { label: "Run again", href: "/app/runs/new" },
+      { label: "Search again", href: "/app/runs/new" },
     ],
   };
 }

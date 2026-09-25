@@ -37,6 +37,26 @@ export interface FilterResult {
   totalCatalog: number;
 }
 
+/**
+ * The one place the per-job filter chain lives — `applyJobFilters` (the results list) and
+ * `explainJobVisibility` (a single job, e.g. for "why isn't X showing") both call this, so they
+ * can never disagree about what's hiding a given job.
+ */
+function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, terms: string[], now: number): FilterReason | null {
+  if (rejected) return "rejected";
+  if (filters.onlySaved && !isSaved) return "not_saved";
+  if (filters.workModes.length && !filters.workModes.includes(job.workMode)) return "work_mode";
+  if (filters.sourceIds.length && !job.sourceIds.some((s) => filters.sourceIds.includes(s))) return "source";
+  if (filters.minFit && (!match || FIT_RANK[match.fit] < FIT_RANK[filters.minFit])) return "min_fit";
+  if (filters.freshnessDays && now - new Date(job.postedAt).getTime() > filters.freshnessDays * DAY) return "freshness";
+  if (filters.minSalary && (job.salaryMax == null || (job.currency === "INR" ? job.salaryMax : job.salaryMax * 30) < filters.minSalary)) return "min_salary";
+  if (terms.length) {
+    const hay = `${job.title} ${job.company} ${job.location} ${job.skills.join(" ")} ${job.tags.join(" ")}`.toLowerCase();
+    if (!terms.every((t) => hay.includes(t))) return "search_text";
+  }
+  return null;
+}
+
 export function applyJobFilters(
   order: string[],
   jobs: Record<string, CanonicalJob>,
@@ -46,59 +66,55 @@ export function applyJobFilters(
   filters: JobFilters,
   now: number,
 ): FilterResult {
-  const q = filters.query.trim().toLowerCase();
-  const terms = q.split(/\s+/).filter(Boolean);
+  const terms = filters.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const visibleIds: string[] = [];
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};
   let totalCatalog = 0;
-  const bump = (reason: FilterReason) => {
-    hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
-  };
 
   for (const id of order) {
     const j = jobs[id];
     if (!j) continue; // not a catalog gap the candidate can act on — the id is simply stale
     totalCatalog++;
-    const m = matches[id];
-
-    if (rejected[id]) {
-      bump("rejected");
-      continue;
-    }
-    if (filters.onlySaved && !saved[id]) {
-      bump("not_saved");
-      continue;
-    }
-    if (filters.workModes.length && !filters.workModes.includes(j.workMode)) {
-      bump("work_mode");
-      continue;
-    }
-    if (filters.sourceIds.length && !j.sourceIds.some((s) => filters.sourceIds.includes(s))) {
-      bump("source");
-      continue;
-    }
-    if (filters.minFit && (!m || FIT_RANK[m.fit] < FIT_RANK[filters.minFit])) {
-      bump("min_fit");
-      continue;
-    }
-    if (filters.freshnessDays && now - new Date(j.postedAt).getTime() > filters.freshnessDays * DAY) {
-      bump("freshness");
-      continue;
-    }
-    if (filters.minSalary && (j.salaryMax == null || (j.currency === "INR" ? j.salaryMax : j.salaryMax * 30) < filters.minSalary)) {
-      bump("min_salary");
-      continue;
-    }
-    if (terms.length) {
-      const hay = `${j.title} ${j.company} ${j.location} ${j.skills.join(" ")} ${j.tags.join(" ")}`.toLowerCase();
-      if (!terms.every((t) => hay.includes(t))) {
-        bump("search_text");
-        continue;
-      }
-    }
-    visibleIds.push(id);
+    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, terms, now);
+    if (reason) hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
+    else visibleIds.push(id);
   }
 
   const hiddenTotal = totalCatalog - visibleIds.length;
   return { visibleIds, hiddenByReason, hiddenTotal, totalCatalog };
 }
+
+/**
+ * "Why isn't this job showing?" for one specific job (Ask Wonder's `explain_why_not_shown`
+ * intent). Distinguishes a job that's genuinely not in the catalog at all from one the
+ * candidate's own active filters are hiding — the two are different honest answers.
+ */
+export function explainJobVisibility(
+  job: CanonicalJob | undefined,
+  matches: Record<string, JobMatch>,
+  rejected: Record<string, string>,
+  saved: Record<string, string>,
+  filters: JobFilters,
+  now: number,
+): { inCatalog: boolean; visible: boolean; reason: FilterReason | null } {
+  if (!job) return { inCatalog: false, visible: false, reason: null };
+  const terms = filters.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const reason = firstFailedReason(job, matches[job.id], rejected[job.id], !!saved[job.id], filters, terms, now);
+  return { inCatalog: true, visible: !reason, reason };
+}
+
+/**
+ * The two ways out of "why isn't this showing?" (outcome spec §11), per reason: show it anyway
+ * (clear just that filter, or undo the rejection) or go change the preference behind it. Only the
+ * one filter responsible is cleared — never every preference at once.
+ */
+export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFilters> | "unreject"; preference: { label: string; href: string } }> = {
+  rejected: { showAnyway: "unreject", preference: { label: "Review what Wonder learned", href: "/app/career-dna" } },
+  not_saved: { showAnyway: { onlySaved: false }, preference: { label: "See all jobs", href: "/app/jobs" } },
+  work_mode: { showAnyway: { workModes: [] }, preference: { label: "Change work modes", href: "/app/career-dna" } },
+  source: { showAnyway: { sourceIds: [] }, preference: { label: "Change sources", href: "/app/jobs" } },
+  min_fit: { showAnyway: { minFit: null }, preference: { label: "Change minimum fit", href: "/app/jobs" } },
+  freshness: { showAnyway: { freshnessDays: null }, preference: { label: "Change how recent", href: "/app/jobs" } },
+  min_salary: { showAnyway: { minSalary: undefined }, preference: { label: "Change minimum salary", href: "/app/career-dna" } },
+  search_text: { showAnyway: { query: "" }, preference: { label: "Change the search", href: "/app/jobs" } },
+};

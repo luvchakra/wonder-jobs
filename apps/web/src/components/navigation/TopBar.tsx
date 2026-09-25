@@ -13,6 +13,7 @@ import { IconButton } from "@/components/common/Button";
 import { useHydration } from "@/store/hydration";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
+import { flushRemote } from "@/store/remoteStorage";
 import { useInstallPrompt } from "@/lib/pwa";
 import { toast } from "@/components/feedback/Toast";
 import { CommandPalette } from "./CommandPalette";
@@ -184,6 +185,10 @@ export function TopBar() {
                   role="menuitem"
                   onClick={async () => {
                     setProfileOpen(false);
+                    // Send any still-debounced write (e.g. just-completed onboarding) while the session
+                    // is still valid — signOutEverywhere wipes this account's local copy immediately
+                    // after, so anything not yet on the server by then never arrives.
+                    await flushRemote(false);
                     await signOutEverywhere(userId);
                     // Full reload on purpose: drops every in-memory store before another account can sign in.
                     // eslint-disable-next-line @next/next/no-location-assign-relative-destination

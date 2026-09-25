@@ -142,7 +142,7 @@ export function PushNotifications() {
         <p className="text-[15px] font-semibold text-ink">Notifications on this device</p>
         {!support.ok && <p className="text-[13px] text-ink-2">{support.why}</p>}
         {support.ok && blocked && !subscribed && <p className="text-[13px] text-ink-2">This browser is blocking notifications for WonderJobs. Allow them in your browser&apos;s site settings, then come back.</p>}
-        {support.ok && !blocked && !subscribed && <p className="text-[13px] text-ink-2">Get a nudge when a scheduled run finds strong matches. Everything still appears in the app either way — this is only the nudge.</p>}
+        {support.ok && !blocked && !subscribed && <p className="text-[13px] text-ink-2">Get a nudge when a scheduled search finds strong matches. Everything still appears in the app either way — this is only the nudge.</p>}
         {subscribed && <p className="text-[13px] text-ink-2">On for this browser. Turn it on separately on each device you use.</p>}
         {support.ok && !blocked && !subscribed && (
           <Button size="sm" className="mt-3" loading={busy} onClick={enable} icon={<Bell className="size-4" aria-hidden />}>

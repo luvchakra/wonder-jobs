@@ -2,27 +2,16 @@
 import { useRef, useState } from "react";
 import { FileUp, Sparkles, Upload, X } from "lucide-react";
 import type { CareerDNA } from "@/domain/career/types";
+import { buildImportPatch, reviewResumeImport, type CurrentProfile, type ImportField, type ResumeImportDraft } from "@/domain/career/resumeImport";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Badge } from "@/components/common/Badge";
 import { Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
+import { cn } from "@/lib/cn";
 
-type Field = "name" | "headline" | "yearsExperience" | "seniority" | "skills" | "industries" | "preferredLocations";
-
-interface Draft {
-  name?: string;
-  headline?: string;
-  yearsExperience?: number;
-  seniority?: CareerDNA["seniority"];
-  skills?: { name: string; level: 1 | 2 | 3 | 4 | 5 }[];
-  industries?: string[];
-  preferredLocations?: string[];
-  evidence: Partial<Record<Field, string>>;
-}
-
-const LABELS: Record<Field, string> = {
+const LABELS: Record<ImportField, string> = {
   name: "Name",
   headline: "Headline",
   yearsExperience: "Years of experience",
@@ -32,41 +21,29 @@ const LABELS: Record<Field, string> = {
   preferredLocations: "Preferred locations",
 };
 
-const ORDER: Field[] = ["name", "headline", "yearsExperience", "seniority", "skills", "industries", "preferredLocations"];
-
-function describe(field: Field, draft: Draft): string {
-  switch (field) {
-    case "skills":
-      return (draft.skills ?? []).map((s) => s.name).join(", ");
-    case "industries":
-      return (draft.industries ?? []).join(", ");
-    case "preferredLocations":
-      return (draft.preferredLocations ?? []).join(", ");
-    case "yearsExperience":
-      return `${draft.yearsExperience} years`;
-    case "seniority":
-      return draft.seniority ? draft.seniority[0].toUpperCase() + draft.seniority.slice(1) : "";
-    default:
-      return String(draft[field] ?? "");
-  }
-}
-
 /**
  * Import a resume to fill in Career DNA.
  *
  * The resume is read on the server and thrown away; what comes back is a suggestion, shown field by
  * field with the words it came from, and nothing is applied until the candidate says so. Anything they
  * untick keeps whatever they already had — importing is never allowed to quietly overwrite work.
+ * `current` is what the profile says right now: a value that differs is shown side by side and
+ * starts unticked, and list fields only ever add what's missing (`domain/career/resumeImport.ts`).
  */
-export function ResumeImport({ onApply, tone = "light", label = "Import from resume" }: { onApply: (patch: Partial<CareerDNA>) => void; tone?: "light" | "dark"; label?: string }) {
+const STATUS_LABEL = { new: "New", same: "Already in your profile", conflict: "Differs from your profile", adds: "Adds to your profile" } as const;
+
+export function ResumeImport({ current, onApply, tone = "light", label = "Import from resume" }: { current: CurrentProfile; onApply: (patch: Partial<CareerDNA>) => void; tone?: "light" | "dark"; label?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [chosen, setChosen] = useState<Set<Field>>(new Set());
+  const [draft, setDraft] = useState<ResumeImportDraft | null>(null);
+  const [chosen, setChosen] = useState<Set<ImportField>>(new Set());
   const [pasted, setPasted] = useState("");
   const [showPaste, setShowPaste] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const review = draft ? reviewResumeImport(draft, current) : [];
+  const actionable = review.filter((r) => r.status !== "same").length;
 
   const reset = () => {
     setDraft(null);
@@ -77,7 +54,7 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
   };
 
   const receive = async (res: Response) => {
-    const data = (await res.json().catch(() => null)) as { draft?: Draft; error?: string } | null;
+    const data = (await res.json().catch(() => null)) as { draft?: ResumeImportDraft; error?: string } | null;
     if (!res.ok || !data?.draft) {
       setError(data?.error ?? "That didn't work. Try a PDF or DOCX, or paste the text instead.");
       // A file we couldn't read is exactly when pasting helps, so open that straight away.
@@ -86,8 +63,9 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
     }
     setError(null);
     setDraft(data.draft);
-    setChosen(new Set(Object.keys(data.draft.evidence) as Field[]));
-    track("resume_imported", { fields: Object.keys(data.draft.evidence).length });
+    const review = reviewResumeImport(data.draft, current);
+    setChosen(new Set(review.filter((r) => r.defaultOn).map((r) => r.field)));
+    track("resume_imported", { fields: Object.keys(data.draft.evidence).length, conflicts: review.filter((r) => r.status === "conflict").length });
   };
 
   const send = async (body: FormData | string) => {
@@ -109,15 +87,9 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
 
   const apply = () => {
     if (!draft) return;
-    const patch: Partial<CareerDNA> = {};
-    for (const field of chosen) {
-      const value = draft[field];
-      if (value === undefined) continue;
-      Object.assign(patch, { [field]: value });
-    }
-    onApply(patch);
+    onApply(buildImportPatch(draft, current, chosen));
     track("resume_import_applied", { fields: chosen.size });
-    toast.success("Career DNA filled in", "Check it over and save when it looks right.");
+    toast.success("Career Profile filled in", "Check it over and save when it looks right.");
     setOpen(false);
     reset();
   };
@@ -142,7 +114,7 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
               <Button variant="ghost" onClick={reset}>
                 Start over
               </Button>
-              <Button onClick={apply} disabled={chosen.size === 0} icon={<Sparkles className="size-4" aria-hidden />}>
+              <Button onClick={apply} disabled={chosen.size === 0 || actionable === 0} icon={<Sparkles className="size-4" aria-hidden />}>
                 Fill in {chosen.size} {chosen.size === 1 ? "field" : "fields"}
               </Button>
             </>
@@ -207,32 +179,56 @@ export function ResumeImport({ onApply, tone = "light", label = "Import from res
 
         {draft && (
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] text-ink-3">Untick anything you&apos;d rather keep as it is.</p>
+            {review.some((r) => r.status === "conflict") ? (
+              <p className="text-[13px] text-ink-2">
+                Some of this differs from your Career Profile. Those fields are unticked, so what you already have stays unless you choose the resume&apos;s version.
+              </p>
+            ) : (
+              <p className="text-[13px] text-ink-3">Untick anything you&apos;d rather keep as it is.</p>
+            )}
             <ul className="flex flex-col gap-2">
-              {ORDER.filter((f) => draft.evidence[f]).map((field) => {
-                const on = chosen.has(field);
+              {review.map((r) => {
+                const on = chosen.has(r.field);
+                const same = r.status === "same";
                 return (
-                  <li key={field}>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-line bg-surface p-3 hover:border-line-strong">
+                  <li key={r.field}>
+                    <label className={cn("flex items-start gap-3 rounded-[14px] border bg-surface p-3", same ? "border-line opacity-75" : "cursor-pointer hover:border-line-strong", r.status === "conflict" ? "border-warning-600/40" : "border-line")}>
                       <input
                         type="checkbox"
                         className="mt-1 size-4 accent-[var(--color-brand-600)]"
                         checked={on}
+                        disabled={same}
                         onChange={() =>
                           setChosen((prev) => {
                             const next = new Set(prev);
-                            if (on) next.delete(field);
-                            else next.add(field);
+                            if (on) next.delete(r.field);
+                            else next.add(r.field);
                             return next;
                           })
                         }
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-[13px] font-semibold text-ink">{LABELS[field]}</span>
-                          <Badge>{describe(field, draft)}</Badge>
+                          <span className="text-[13px] font-semibold text-ink">{LABELS[r.field]}</span>
+                          <Badge tone={r.status === "conflict" ? "warning" : r.status === "same" ? "neutral" : "info"}>{STATUS_LABEL[r.status]}</Badge>
                         </span>
-                        <span className="mt-1 block truncate text-[12px] text-ink-4">From your resume: {draft.evidence[field]}</span>
+                        {r.status === "conflict" ? (
+                          <span className="mt-1 grid grid-cols-1 gap-0.5 text-[13px] sm:grid-cols-2">
+                            <span className="text-ink-2">
+                              <span className="text-ink-4">Your profile:</span> {r.current}
+                            </span>
+                            <span className="text-ink-2">
+                              <span className="text-ink-4">Resume:</span> {r.incoming}
+                            </span>
+                          </span>
+                        ) : r.status === "adds" ? (
+                          <span className="mt-1 block text-[13px] text-ink-2">
+                            Adds {r.incoming} <span className="text-ink-4">— keeps everything you already have</span>
+                          </span>
+                        ) : (
+                          <span className="mt-1 block text-[13px] text-ink-2">{r.status === "same" ? r.current : r.incoming}</span>
+                        )}
+                        <span className="mt-1 block truncate text-[12px] text-ink-4">From your resume: {draft.evidence[r.field]}</span>
                       </span>
                     </label>
                   </li>

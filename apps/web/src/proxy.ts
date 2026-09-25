@@ -61,5 +61,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password"],
+  // /platform is matched only so an admin's session is refreshed there; it isn't in PROTECTED, because
+  // the admin portal answers 404 to anyone who isn't an admin rather than revealing a sign-in page.
+  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*"],
 };

@@ -3,18 +3,18 @@ import { cn } from "@/lib/cn";
 
 /** Small phone frame showing a live run — used in marketing sections. Purely illustrative markup. */
 export function PhoneRunCard({ className, stage = 3 }: { className?: string; stage?: number }) {
-  const steps = ["Searching job sources", "Removing duplicates", "Analyzing opportunities", "Matching to your profile", "Preparing results", "Almost there…"];
-  const sub = ["Scanning 6 platforms", "1,842 → 1,124 unique", "Understanding job requirements", "Finding your best fits", "", ""];
+  const steps = ["Understanding your goals", "Searching the market", "Removing duplicates", "Comparing with your profile", "Prioritizing for you", "Preparing application packs"];
+  const sub = ["From your own words", "412 found", "32 removed", "Finding your best fits", "", ""];
   return (
-    <div className={cn("w-[250px] rounded-[30px] border border-white/60 bg-white p-3 shadow-lg", className)} aria-label="Preview of a Wonder run on mobile">
+    <div className={cn("w-[250px] rounded-[30px] border border-white/60 bg-white p-3 shadow-lg", className)} aria-label="Preview of a Wonder search on mobile">
       <div className="rounded-[22px] bg-surface-2 p-4">
         <div className="flex items-center justify-between">
-          <span className="rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-semibold text-white">Run</span>
+          <span className="rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-semibold text-white">Search</span>
           <span className="inline-flex items-center gap-1 rounded-full bg-success-100 px-2 py-0.5 text-[10px] font-semibold text-success-600">
             <span className="size-1.5 rounded-full bg-success-600" /> Live
           </span>
         </div>
-        <p className="mt-2 text-[15px] font-semibold text-ink">Run Wonder</p>
+        <p className="mt-2 text-[15px] font-semibold leading-tight text-ink">Wonder is finding opportunities</p>
         <ol className="mt-3 space-y-2.5">
           {steps.map((s, i) => {
             const done = i < stage;

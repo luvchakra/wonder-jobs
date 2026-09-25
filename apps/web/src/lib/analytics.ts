@@ -26,7 +26,37 @@ export type AnalyticsEvent =
   | "automation_policy_changed"
   | "resume_imported"
   | "resume_import_applied"
-  | "artifact_downloaded";
+  | "artifact_downloaded"
+  // Outcome-level events (outcome spec §46). Same rule: ids, counts and enum values only.
+  | "find_started"
+  | "find_completed"
+  | "opportunity_viewed"
+  | "opportunity_saved"
+  | "opportunity_rejected"
+  | "why_viewed"
+  | "why_filtered_viewed"
+  | "comparison_started"
+  | "application_pack_started"
+  | "application_pack_completed"
+  | "application_reviewed"
+  | "external_handoff_started"
+  | "progress_action_clicked"
+  | "wonder_intent_submitted"
+  | "wonder_action_completed"
+  | "wonder_intervention_requested"
+  | "search_schedule_created"
+  | "search_schedule_triggered"
+  // JobsApply (spec §86). Categories and counts only — never a field value.
+  | "jobsapply_started"
+  | "jobsapply_destination_opened"
+  | "jobsapply_helper_paired"
+  | "jobsapply_intervention_resolved"
+  | "jobsapply_answer_drafted"
+  | "jobsapply_stopped"
+  | "jobsapply_candidate_submitted"
+  | "jobsapply_submission_unknown"
+  | "jobsapply_guided_used"
+  | "jobsapply_pack_exported";
 
 type Primitive = string | number | boolean | null | undefined;
 const FORBIDDEN = /key|secret|token|resume|cover|answer|reasoning|password/i;

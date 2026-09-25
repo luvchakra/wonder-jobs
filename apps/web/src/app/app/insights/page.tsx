@@ -75,7 +75,7 @@ export default function InsightsPage() {
         </Card>
         <Card>
           <h2 className="mb-2 text-[15px] font-semibold text-ink">Strong matches per run</h2>
-          {runSeries.length ? <Sparkbars series={runSeries} className="h-20" /> : <p className="text-sm text-ink-3">Run Wonder to start a trend.</p>}
+          {runSeries.length ? <Sparkbars series={runSeries} className="h-20" /> : <p className="text-sm text-ink-3">Your first search starts the trend.</p>}
           <p className="mt-2 text-[12px] text-ink-3">Last {runSeries.length} completed runs</p>
         </Card>
         <Card>

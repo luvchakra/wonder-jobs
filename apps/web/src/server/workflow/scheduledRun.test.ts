@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Job } from "@/domain/jobs/types";
 import type { RunConfig, Workflow, WorkflowSchedule } from "@/domain/workflow/types";
 import { EMPTY_DNA } from "@/domain/career/types";
@@ -11,6 +11,13 @@ vi.mock("@/server/jobs/search", () => ({
   SourceNeedsSetupError: class SourceNeedsSetupError extends Error {},
 }));
 
+// JobsLake's core search, in-process. The direct-source tests below run with JobsLake switched off
+// (the path every deployment falls back to); the JobsLake block turns it on and feeds canonical results.
+const lakeSearch = vi.fn();
+vi.mock("@/server/jobslake/core", () => ({ search: (...args: unknown[]) => lakeSearch(...args) }));
+
+import { canonicalize } from "@/domain/jobslake/canonical";
+import { PROTOCOL_VERSION, type SearchResponse } from "@/domain/jobslake/protocol";
 import { stateStore } from "@/server/state";
 import { writeClientState } from "@/server/clientState";
 import { PERSIST_VERSION, type CareerDoc, type JobsDoc, type WorkflowDoc } from "./snapshot";
@@ -110,8 +117,13 @@ async function seed(over: { schedule?: WorkflowSchedule; workflows?: Record<stri
 const later = new Date("2026-04-15T03:00:00.000Z");
 
 describe("runDueSchedules", () => {
+  afterAll(() => {
+    delete process.env.JOBSLAKE_SEARCH_ENABLED;
+  });
   beforeEach(async () => {
     searchSource.mockReset();
+    lakeSearch.mockReset();
+    process.env.JOBSLAKE_SEARCH_ENABLED = "0";
     for (const store of ["wj.workflow", "wj.career", "wj.jobs", "wj.automation"] as const) await stateStore.remove(TENANT, store);
   });
 
@@ -197,5 +209,46 @@ describe("runDueSchedules", () => {
     const report = await runDueSchedules(TENANT, { now: later });
     expect(report?.outcome).toBe("skipped");
     expect(searchSource).not.toHaveBeenCalled();
+  });
+
+  describe("through JobsLake", () => {
+    const remotive = { id: "remotive", name: "Remotive", provider: "Remotive", category: "aggregator" as const, accessStrategy: "official_api" as const, protocolVersion: PROTOCOL_VERSION };
+    function response(jobs: Job[]): SearchResponse {
+      const c = canonicalize(jobs.map((j) => ({ source: remotive, job: j })));
+      return { requestId: "req_test01", protocolVersion: PROTOCOL_VERSION, searchMode: "balanced", results: c.opportunities, sources: [{ sourceId: "remotive", sourceName: "Remotive", outcome: "ok", retrieved: jobs.length, durationMs: 40 }], metadata: { retrieved: jobs.length, normalized: jobs.length, duplicates: c.duplicates, unique: c.opportunities.length, sourcesPlanned: 1, sourcesSucceeded: 1, sourcesFailed: 0, warm: 0, live: c.opportunities.length } };
+    }
+
+    it("searches with JobsLake core, keeps job ids, and records where each job was found", async () => {
+      process.env.JOBSLAKE_SEARCH_ENABLED = "1";
+      lakeSearch.mockResolvedValue({ response: response([job(1), job(2), job(3)]), plan: {} });
+      await seed();
+
+      const report = await runDueSchedules(TENANT, { now: later });
+      expect(report?.outcome).toBe("completed");
+      expect(searchSource).not.toHaveBeenCalled();
+      // Only search terms, places and the candidate's own source choices reach JobsLake.
+      expect(lakeSearch.mock.calls[0][0]).toEqual({ query: { text: "product manager", locations: ["Bengaluru"] }, sourceIds: ["remotive"], searchMode: "balanced", limit: 500 });
+
+      const jobs = (await stateStore.get(TENANT, "wj.jobs"))!.state as { state: JobsDoc };
+      expect([...jobs.state.order].sort()).toEqual(["job-1", "job-2", "job-3"]);
+      expect(jobs.state.jobs["job-1"].lake?.sightings[0]).toMatchObject({ sourceId: "remotive", canonical: true, accessLabel: "API" });
+      const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
+      const search = Object.values(wf.state.runs)[0].stages.find((st) => st.key === "search")!;
+      expect(search.evidence.map((e) => e.label)).toEqual(expect.arrayContaining(["Searched with", "Remotive", "Sources searched"]));
+    });
+
+    it("falls back to searching each source directly when JobsLake fails, and says so", async () => {
+      process.env.JOBSLAKE_SEARCH_ENABLED = "1";
+      lakeSearch.mockRejectedValue(new Error("store offline"));
+      searchSource.mockResolvedValue({ jobs: [job(1), job(2)], cached: false });
+      await seed();
+
+      const report = await runDueSchedules(TENANT, { now: later });
+      expect(report?.outcome).toBe("completed");
+      expect(searchSource).toHaveBeenCalledTimes(1);
+      const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
+      const search = Object.values(wf.state.runs)[0].stages.find((st) => st.key === "search")!;
+      expect(search.evidence.find((e) => e.label === "JobsLake")?.value).toMatch(/searched each source directly/);
+    });
   });
 });

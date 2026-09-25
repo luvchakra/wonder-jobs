@@ -21,12 +21,12 @@ export default function LearningPage() {
   const top = [...gap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   return (
     <div>
-      <PageHeader title="Learning" description="Skills that show up in roles you match well with but aren't in your Career DNA yet. Close the gap, or add the skill if you already have it." />
+      <PageHeader title="Learning" description="Skills that show up in roles you match well with but aren't in your Career Profile yet. Close the gap, or add the skill if you already have it." />
       {top.length === 0 ? (
         <Card className="text-center">
           <BookOpen className="mx-auto size-6 text-brand-600" aria-hidden />
           <p className="mt-2 text-[15px] font-semibold text-ink">No gaps found</p>
-          <p className="text-[13px] text-ink-3">Your Career DNA already covers the skills in your strongest matches.</p>
+          <p className="text-[13px] text-ink-3">Your Career Profile already covers the skills in your strongest matches.</p>
         </Card>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { IconButton } from "@/components/common/Button";
 import { useUIStore } from "@/store/ui";
-import { AUTOMATION_NAV, PRIMARY_NAV, RESOURCES_NAV, isActivePath, type NavItem } from "./nav";
+import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV, isActivePath, type NavItem } from "./nav";
 
 function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate: () => void }) {
   const active = isActivePath(pathname, item);
@@ -100,7 +100,8 @@ export function MobileSidebarDrawer() {
       </div>
       <div className="h-[calc(100%-4rem)] overflow-y-auto px-3 pb-6 wj-scrollbar-none">
         <Group items={PRIMARY_NAV} pathname={pathname} onNavigate={close} />
-        <Group title="Automation" items={AUTOMATION_NAV} pathname={pathname} onNavigate={close} />
+        <Group title="Wonder" items={WONDER_NAV} pathname={pathname} onNavigate={close} />
+        <Group title="Career" items={CAREER_NAV} pathname={pathname} onNavigate={close} />
         <Group title="Resources" items={RESOURCES_NAV} pathname={pathname} onNavigate={close} />
       </div>
     </dialog>

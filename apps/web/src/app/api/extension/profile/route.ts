@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import type { CareerDNA } from "@/domain/career/types";
+import { EMPTY_DNA, type CareerDNA } from "@/domain/career/types";
+import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { readClientState } from "@/server/clientState";
 import { tenantFromAuthHeader } from "@/server/extensionToken";
 import { rateLimit } from "@/server/rateLimit";
@@ -14,16 +15,11 @@ interface AutofillProfile {
   lastName: string;
   email: string;
   headline: string;
+  phone: string;
+  linkedinUrl: string;
+  location: string;
   /** Fields an employer's form commonly asks for that WonderJobs genuinely doesn't hold yet — the extension tells the candidate to fill these by hand rather than guessing. */
   missing: string[];
-}
-
-/** "Priya Raman Iyer" → first "Priya", last "Raman Iyer". A single word is a first name with no surname, not a made-up one. */
-function splitName(fullName: string): { firstName: string; lastName: string } {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: "", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
 async function accountEmail(tenantId: string): Promise<string> {
@@ -37,10 +33,10 @@ async function accountEmail(tenantId: string): Promise<string> {
 /**
  * GET /api/extension/profile — bearer token from `/api/extension/token`.
  *
- * The base profile the extension fills on every application form. Career DNA
- * holds no phone number, address or LinkedIn URL today, so those are reported
- * as `missing` for the candidate to type themselves; the extension never
- * invents them.
+ * The base profile the extension fills on a form that has no JobsApply session:
+ * the candidate's own name, email, phone, LinkedIn and location from Career
+ * Profile. Anything the profile doesn't hold is reported as `missing` for the
+ * candidate to type themselves; the extension never invents it.
  */
 export async function GET(req: Request) {
   const tenantId = tenantFromAuthHeader(req.headers.get("authorization"));
@@ -50,13 +46,9 @@ export async function GET(req: Request) {
 
   const career = await readClientState<{ dna?: CareerDNA }>(tenantId, "wj.career");
   const dna = career?.dna;
-  const fullName = dna?.name?.trim() ?? "";
-  const email = await accountEmail(tenantId);
-  // Career DNA has no field for any of these yet, so they can never be filled — say so instead of guessing.
-  const missing = ["Phone number", "LinkedIn profile", "Location / address"];
-  if (!fullName) missing.unshift("Your name (add it to Career DNA)");
-  if (!email) missing.unshift("Email");
-
-  const profile: AutofillProfile = { fullName, ...splitName(fullName), email, headline: dna?.headline?.trim() ?? "", missing };
+  const p = buildApplicationProfile(dna ?? EMPTY_DNA, { accountEmail: await accountEmail(tenantId) });
+  const missing = missingProfileFields(p).map((m) => (m === "Your name" ? "Your name (add it to Career Profile)" : m));
+  const val = (k: keyof typeof p) => p[k]?.value ?? "";
+  const profile: AutofillProfile = { fullName: val("fullName"), firstName: val("firstName"), lastName: val("lastName"), email: val("email"), headline: dna?.headline?.trim() ?? "", phone: val("phone"), linkedinUrl: val("linkedinUrl"), location: val("location"), missing };
   return NextResponse.json(profile, { headers: { "cache-control": "no-store" } });
 }

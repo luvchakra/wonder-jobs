@@ -9,6 +9,7 @@ import type { RunConfig } from "@/domain/workflow/types";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { getUniverse } from "@/services/mock/universe";
 import { getClientMode } from "@/lib/mode";
+import { matchesQuery } from "./normalize";
 
 export interface SourceSearchPage {
   jobs: Job[];
@@ -64,13 +65,10 @@ export class MockSourceAdapter implements JobSourceAdapter {
     const sleep = opts.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
     const all = getUniverse().bySource[this.source.id] ?? [];
     const q = criteria.query.trim().toLowerCase();
-    const terms = q.split(/\s+/).filter(Boolean);
-    const matches = terms.length
-      ? all.filter((j) => {
-          const hay = `${j.title} ${j.company} ${j.skills.join(" ")} ${j.tags.join(" ")}`.toLowerCase();
-          return terms.some((t) => hay.includes(t)) || /product|manager|pm/.test(q);
-        })
-      : all;
+    // The same matcher the live path uses, so a demo search for "senior director vp iam" doesn't
+    // return every "Senior Product Manager" just because one word ("senior") appears. The sample
+    // universe is product-management heavy, so PM searches still see all of it.
+    const matches = q ? all.filter((j) => /product|manager|\bpm\b/.test(q) || matchesQuery(j, q)) : all;
     const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
     for (let page = 0; page < totalPages; page++) {
       await sleep(90 + (page % 3) * 40);

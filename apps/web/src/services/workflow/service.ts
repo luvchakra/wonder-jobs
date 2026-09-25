@@ -56,15 +56,17 @@ class WorkflowService {
             break;
           case "stage_waiting":
             track("workflow_waiting_for_user", { runId: run.id, stage: e.stageKey });
+            track("wonder_intervention_requested", { runId: run.id, stage: e.stageKey });
             career.notify({ category: "workflow_requires_input", title: "Wonder needs your input", body: e.message, href: `/app/runs/${run.id}` });
             break;
           case "run_completed": {
             if (run.trigger === "schedule") track("scheduled_run_completed", { runId: run.id, silent: !!run.silent });
             const strong = run.summary.strongMatches;
-            career.addActivity({ kind: "run_completed", title: "Job search completed", subtitle: strong ? `${strong} strong match${strong === 1 ? "" : "es"}` : "No new strong matches", href: `/app/runs/${run.id}` });
+            track("find_completed", { runId: run.id, strong, retained: run.summary.jobsRetained, trigger: run.trigger, silent: !!run.silent });
+            career.addActivity({ kind: "run_completed", title: "Search finished", subtitle: strong ? `${strong} strong match${strong === 1 ? "" : "es"}` : "No new strong matches", href: `/app/runs/${run.id}` });
             // Silence is a valid outcome: only notify when there is something worth attention.
             if (!run.silent && (run.config.notify === "always" || (run.config.notify === "strong_matches_only" && strong > 0))) {
-              career.notify({ category: strong ? "strong_opportunity" : "workflow_completed", title: strong ? `${strong} new strong match${strong === 1 ? "" : "es"}` : "Run finished", body: strong ? "Wonder found roles that fit your Career DNA." : "Nothing new worth your attention this time.", href: strong ? "/app/jobs?fit=strong" : `/app/runs/${run.id}` });
+              career.notify({ category: strong ? "strong_opportunity" : "workflow_completed", title: strong ? `${strong} new strong match${strong === 1 ? "" : "es"}` : "Search finished", body: strong ? "Wonder found roles that fit your Career Profile." : "Nothing new worth your attention this time.", href: strong ? "/app/jobs?fit=strong" : `/app/runs/${run.id}` });
             }
             break;
           }

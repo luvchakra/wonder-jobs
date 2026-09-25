@@ -94,7 +94,7 @@ export function ArtifactEditor({ type, artifact, onSave, onRegenerate, onRestore
     return (
       <div className="rounded-[16px] border border-dashed border-line-strong p-6 text-center">
         <p className="text-[14px] font-medium text-ink">No {LABEL[type].toLowerCase()} yet</p>
-        <p className="mt-1 text-[13px] text-ink-3">Wonder can draft one from your Career DNA and this role. You&apos;ll review it before anything is sent.</p>
+        <p className="mt-1 text-[13px] text-ink-3">Wonder can draft one from your Career Profile and this role. You&apos;ll review it before anything is sent.</p>
         <Button className="mt-4" size="sm" onClick={onRegenerate} loading={regenerating} disabled={disabled} icon={<RefreshCw className="size-3.5" aria-hidden />}>
           Generate {LABEL[type].toLowerCase()}
         </Button>

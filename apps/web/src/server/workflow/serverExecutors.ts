@@ -14,6 +14,10 @@ import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
 import { searchSource, SourceNeedsSetupError } from "@/server/jobs/search";
+import { breadthEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import type { SearchResponse } from "@/domain/jobslake/protocol";
+import { search as jobsLakeSearch } from "@/server/jobslake/core";
+import { jobsLakeFlags } from "@/server/jobslake/flags";
 import type { TenantSnapshot } from "./snapshot";
 
 /** The stages a scheduled run can complete without the candidate. Order matters: it is the run order. */
@@ -32,6 +36,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
   // Per-run working memory. Large and intermediate: never persisted, dropped when the run ends.
   const raw: Job[] = [];
   let canonical: CanonicalJob[] = [];
+  let lake: SearchResponse | null = null;
   let matches: JobMatch[] = [];
   let quality: JobQuality[] = [];
 
@@ -61,6 +66,39 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const perSource: Record<string, number> = {};
       const failures: string[] = [];
       ctx.setProgress(0, null);
+      // Through JobsLake when it's on: the same core search the browser's stream uses, called in-process.
+      if (jobsLakeFlags().jobsLakeSearchEnabled && sources.length) {
+        try {
+          const { response } = await jobsLakeSearch(searchRequestFor(criteria, sources.map((s) => s.id), "balanced", 500), { trigger: "search" });
+          lake = response;
+        } catch (e) {
+          ctx.addEvidence({ label: "JobsLake", value: "Didn't answer — searched each source directly", tone: "warning" });
+          ctx.warn(`JobsLake failed (${e instanceof Error ? e.message : String(e)}), so this run searched each source directly.`);
+        }
+      }
+      if (lake) {
+        ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${lake.metadata.sourcesPlanned} sources planned`, tone: "info" });
+        for (const st of lake.sources) {
+          const ev = sourceEvidence(st);
+          if (ev) ctx.addEvidence(ev);
+          if (st.outcome === "needs_setup") ctx.warn(`${st.sourceName} isn't configured on this deployment yet, so it was skipped.`);
+          else if (st.outcome === "timeout" || st.outcome === "unavailable") ctx.warn(`${st.sourceName} is temporarily unavailable: ${st.message ?? st.outcome}`);
+        }
+        for (const ev of breadthEvidence(lake.metadata)) ctx.addEvidence(ev);
+        canonical = lake.results.map(toCanonicalJob);
+        const discovered = lake.metadata.retrieved + lake.metadata.warm;
+        ctx.setProgress(discovered, discovered);
+        ctx.setCounts({ discovered, sources: lake.metadata.sourcesSucceeded });
+        if (!canonical.length) {
+          const failed = lake.sources.filter((x) => x.outcome === "timeout" || x.outcome === "unavailable").map((x) => x.sourceName);
+          ctx.fail({
+            category: "fatal",
+            message: failed.length && !lake.metadata.sourcesSucceeded ? `Every source failed (${failed.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
+            actions: ["retry", "fix_config", "stop"],
+          });
+        }
+        return { data: { jobIds: canonical.map((j) => j.id), perSource: Object.fromEntries(lake.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved])), searchedWith: "JobsLake", requestId: lake.requestId }, counts: { discovered, sources: lake.metadata.sourcesSucceeded } };
+      }
       // Sequential on purpose: sources are third-party APIs and a cron has no reason to burst them.
       for (const src of sources) {
         await ctx.checkpoint();
@@ -89,7 +127,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
         // so is what puts it in front of the candidate. The next tick is the retry.
         ctx.fail({
           category: "fatal",
-          message: failures.length ? `Every source failed (${failures.join(", ")}). The next scheduled run will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
+          message: failures.length ? `Every source failed (${failures.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
           actions: ["retry", "fix_config", "stop"],
         });
       }
@@ -97,6 +135,14 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
     },
 
     dedupe: async (ctx) => {
+      if (lake) {
+        // Already merged by JobsLake, every sighting kept.
+        ctx.setProgress(canonical.length, canonical.length);
+        ctx.setCounts({ unique: canonical.length, duplicates: lake.metadata.duplicates });
+        ctx.addEvidence({ label: "Unique opportunities", value: canonical.length.toLocaleString("en-IN"), tone: "success" });
+        ctx.addEvidence({ label: "Cross-posted duplicates merged", value: lake.metadata.duplicates.toLocaleString("en-IN") });
+        return { provenance: "SYSTEM_DERIVED", data: { jobIds: canonical.map((j) => j.id) }, counts: { unique: canonical.length, duplicates: lake.metadata.duplicates } };
+      }
       canonical = deduplicate(raw);
       const duplicates = raw.length - canonical.length;
       ctx.setProgress(raw.length, raw.length);
@@ -175,7 +221,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       ctx.setProgress(ranked.length, ranked.length);
       ctx.setCounts({ ranked: ranked.length, strong_matches: strong.length, saved });
       ctx.addEvidence({ label: "Shortlist", value: `${ranked.length} roles above ${threshold}` });
-      ctx.addEvidence({ label: "Strong matches", value: String(strong.length), tone: "success" });
+      ctx.addEvidence({ label: "Strong on the shortlist", value: String(strong.length), tone: "success" });
       if (saved) ctx.addEvidence({ label: "Saved automatically", value: String(saved), tone: "info" });
       return { data: { rankedJobIds: ranked.map((m) => m.jobId), strongMatches: strong.length, savedCount: saved }, counts: { ranked: ranked.length, strong_matches: strong.length } };
     },

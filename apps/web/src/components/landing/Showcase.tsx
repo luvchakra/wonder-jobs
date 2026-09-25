@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { ArrowRight, Bot, Briefcase, Check, CheckCircle2, ExternalLink, FileText, Loader2, Mail, MonitorSmartphone, Search, Send, Sparkles, Target } from "lucide-react";
+import { ArrowRight, Bot, Briefcase, Check, CheckCircle2, ExternalLink, FileText, Loader2, Mail, MonitorSmartphone, Radar, Search, Send, Sparkles, Target } from "lucide-react";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
 import { Button } from "@/components/common/Button";
 import { Input, Textarea, Field, Select } from "@/components/common/Input";
@@ -50,9 +50,9 @@ function useDeviceMotion() {
 }
 
 const MATCHES = [
-  { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India" },
-  { t: "Staff Product Designer", c: "Halcyon", fit: 88, tag: "Strong", loc: "Bengaluru · Hybrid" },
-  { t: "Design Lead, Growth", c: "Cobalt Pay", fit: 71, tag: "Worth a look", loc: "Remote · APAC" },
+  { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India", why: "Strong overlap with your skills" },
+  { t: "Staff Product Designer", c: "Halcyon", fit: 88, tag: "Strong", loc: "Bengaluru · Hybrid", why: "Seniority aligns · location works for you" },
+  { t: "Design Lead, Growth", c: "Cobalt Pay", fit: 71, tag: "Worth considering", loc: "Remote · APAC", why: "A step up — a growth move" },
 ];
 
 function DesktopHome() {
@@ -61,7 +61,7 @@ function DesktopHome() {
       <aside className="border-r border-line bg-surface-2 p-3">
         <p className="text-[11px] font-semibold text-ink">WonderJobs</p>
         <ul className="mt-3 space-y-1.5 text-ink-3">
-          {["Home", "Jobs", "Applications", "Runs", "Automation", "Career DNA"].map((i, n) => (
+          {["Home", "Jobs", "Applications", "Career", "Wonder"].map((i, n) => (
             <li key={i} className={cn("rounded-[6px] px-2 py-1", n === 0 && "bg-brand-50 font-semibold text-brand-700")}>
               {i}
             </li>
@@ -87,14 +87,17 @@ function DesktopHome() {
         </div>
         <div className="mt-3 rounded-[10px] border border-line bg-white p-2.5">
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-ink">Run Wonder · Analyzing opportunities</p>
+            <p className="font-semibold text-ink">Wonder is finding opportunities</p>
             <span className="rounded-full bg-success-100 px-1.5 py-0.5 text-[9px] font-semibold text-success-600">Live</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-soft">
             <div className="h-full w-[62%] rounded-full wj-gradient-bg" />
           </div>
-          <p className="mt-1 text-ink-3">1,124 unique roles · 312 analyzed · 3 strong so far</p>
+          <p className="mt-1 text-ink-3">412 found so far · comparing with your career profile</p>
         </div>
+        <p className="mt-2 flex items-center gap-1.5 text-ink-3">
+          <Radar className="size-3 text-success-600" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
+        </p>
       </div>
     </div>
   );
@@ -124,6 +127,7 @@ function DesktopJobs() {
               <span className="block text-ink-3">
                 {m.c} · {m.loc}
               </span>
+              <span className="mt-0.5 block text-[9.5px] text-success-600">✓ {m.why}</span>
             </span>
             <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-semibold", m.fit >= 82 ? "bg-success-100 text-success-600" : "bg-brand-50 text-brand-700")}>
               {m.fit}% · {m.tag}
@@ -135,31 +139,42 @@ function DesktopJobs() {
   );
 }
 
-function DesktopRun() {
-  const stages = ["Search", "Deduplicate", "Analyze", "Match", "Prepare", "Review"];
+function DesktopFind() {
+  const steps: [string, "done" | "active" | "todo", string?][] = [
+    ["Understanding your career goals", "done"],
+    ["Searching the market", "done", "412 found"],
+    ["Removing duplicates", "done", "32 removed"],
+    ["Comparing with your career profile", "active"],
+    ["Prioritizing what deserves your attention", "todo"],
+  ];
   return (
     <div className="p-4 text-[10px]">
-      <div className="flex items-center justify-between">
-        <p className="text-[12px] font-semibold text-ink">Run Wonder · Guided</p>
-        <span className="inline-flex items-center gap-1 rounded-full bg-warning-100 px-2 py-0.5 text-[9px] font-semibold text-warning-600">Waiting for you</span>
-      </div>
-      <ol className="mt-3 flex items-center gap-1">
-        {stages.map((s, i) => (
-          <li key={s} className="flex flex-1 items-center gap-1">
-            <span className={cn("flex size-4 items-center justify-center rounded-full border-2 text-[8px]", i < 4 ? "border-brand-500 bg-brand-500 text-white" : i === 4 ? "border-brand-500 text-brand-600" : "border-line-strong text-ink-4")}>{i < 4 ? <Check className="size-2.5" strokeWidth={4} /> : i === 4 ? <Loader2 className="size-2.5 wj-animate-spin" /> : null}</span>
-            <span className={cn("truncate", i <= 4 ? "text-ink" : "text-ink-4")}>{s}</span>
-            {i < stages.length - 1 && <span className="h-px flex-1 bg-line" />}
-          </li>
-        ))}
-      </ol>
-      <div className="mt-3 rounded-[10px] border border-brand-200 bg-brand-50/60 p-2.5">
-        <p className="font-semibold text-ink">Approve 3 drafted applications?</p>
-        <p className="mt-0.5 text-ink-3">Wonder tailored a resume and cover letter for each. Nothing is sent until you say so.</p>
-        <div className="mt-2 flex gap-1.5">
-          <span className="rounded-[6px] wj-gradient-bg px-2 py-1 text-[9px] font-semibold text-white">Review drafts</span>
-          <span className="rounded-[6px] border border-line bg-white px-2 py-1 text-[9px] font-semibold text-ink">Skip for now</span>
+      <p className="text-ink-3">Search · just now</p>
+      <p className="text-[12px] font-semibold text-ink">“Senior product designer roles, remote or Bengaluru”</p>
+      <div className="mt-3 grid grid-cols-[1fr_1fr] gap-3">
+        <div className="rounded-[10px] border border-line bg-white p-2.5">
+          <p className="text-[11px] font-semibold text-ink">Wonder is finding opportunities</p>
+          <ol className="mt-2 space-y-1.5">
+            {steps.map(([t, st, d]) => (
+              <li key={t} className="flex items-center gap-1.5">
+                <span className={cn("flex size-3.5 shrink-0 items-center justify-center rounded-full border-2", st === "done" ? "border-brand-500 bg-brand-500 text-white" : st === "active" ? "border-brand-500 text-brand-600" : "border-line-strong")}>{st === "done" ? <Check className="size-2" strokeWidth={4} /> : st === "active" ? <Loader2 className="size-2 wj-animate-spin" /> : null}</span>
+                <span className={st === "todo" ? "text-ink-4" : "text-ink"}>{t}</span>
+                {d && <span className="ml-auto text-ink-3">{d}</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="rounded-[10px] border border-brand-200 bg-brand-50/60 p-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-brand-700">Your input</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-ink">Wonder needs your input</p>
+          <p className="mt-0.5 text-ink-3">3 prepared applications are ready. Review them, edit anything you like, then continue.</p>
+          <div className="mt-2 flex gap-1.5">
+            <span className="rounded-[6px] wj-gradient-bg px-2 py-1 text-[9px] font-semibold text-white">Continue</span>
+            <span className="rounded-[6px] border border-line bg-white px-2 py-1 text-[9px] font-semibold text-ink">Stop</span>
+          </div>
         </div>
       </div>
+      <p className="mt-3 text-ink-3">See how Wonder worked ▾ — sources, evidence and every step, one click away.</p>
     </div>
   );
 }
@@ -168,7 +183,7 @@ function DesktopApplications() {
   const rows = [
     ["Northwind Labs", "Senior Product Designer", "Interview · Thu 10:00", "bg-blue-100 text-blue-600"],
     ["Halcyon", "Staff Product Designer", "Submitted · follow up in 3 days", "bg-brand-50 text-brand-700"],
-    ["Cobalt Pay", "Design Lead, Growth", "Draft ready · needs your review", "bg-warning-100 text-warning-600"],
+    ["Cobalt Pay", "Design Lead, Growth", "Application ready · your review", "bg-warning-100 text-warning-600"],
   ];
   return (
     <div className="p-4 text-[10px]">
@@ -201,15 +216,15 @@ function DesktopApplications() {
   );
 }
 
-function PhoneShell({ children, title }: { children: React.ReactNode; title: string }) {
+function PhoneShell({ children, title, tab = 0 }: { children: React.ReactNode; title: string; tab?: number }) {
   return (
     <div className="w-[230px] rounded-[34px] border-[6px] border-ink bg-ink p-1 shadow-xl" aria-label={`Preview of ${title} on mobile`}>
       <div className="relative h-[440px] overflow-hidden rounded-[26px] bg-surface-2">
         <div className="absolute left-1/2 top-2 h-4 w-16 -translate-x-1/2 rounded-full bg-ink" aria-hidden />
         <div className="px-3 pb-3 pt-8 text-[10px]">{children}</div>
         <div className="absolute inset-x-0 bottom-0 flex justify-around border-t border-line bg-white px-2 py-2 text-[8px] text-ink-3">
-          {["Home", "Jobs", "Run", "Apps", "More"].map((n, i) => (
-            <span key={n} className={cn(i === 0 && "font-semibold text-brand-600")}>
+          {["Home", "Jobs", "Apps", "Career", "Wonder"].map((n, i) => (
+            <span key={n} className={cn(i === tab && "font-semibold text-brand-600")}>
               {n}
             </span>
           ))}
@@ -226,9 +241,9 @@ function PhoneHome() {
       <p className="mt-0.5 text-[14px] font-semibold leading-tight text-ink">7 things worth your attention.</p>
       <div className="mt-3 rounded-[12px] wj-gradient-bg p-2.5 text-white">
         <p className="flex items-center gap-1 font-semibold">
-          <Bot className="size-3" aria-hidden /> Run Wonder
+          <Bot className="size-3" aria-hidden /> Find opportunities
         </p>
-        <p className="mt-0.5 text-white/85">Guided · 6 sources · nightly</p>
+        <p className="mt-0.5 text-white/85">Work with me · keeps watch daily</p>
       </div>
       <ul className="mt-3 space-y-1.5">
         {["3 new strong matches", "2 follow-ups due", "1 interview tomorrow"].map((t) => (
@@ -243,7 +258,7 @@ function PhoneHome() {
 
 function PhoneJob() {
   return (
-    <PhoneShell title="a job match">
+    <PhoneShell title="a job match" tab={1}>
       <span className="rounded-full bg-success-100 px-2 py-0.5 text-[9px] font-semibold text-success-600">94% · Strong Opportunity</span>
       <p className="mt-2 text-[13px] font-semibold leading-tight text-ink">Senior Product Designer</p>
       <p className="text-ink-3">Northwind Labs · Remote · India</p>
@@ -269,12 +284,12 @@ function PhoneJob() {
   );
 }
 
-function PhoneRun() {
-  const steps = ["Searching job sources", "Removing duplicates", "Analyzing opportunities", "Matching to your profile", "Preparing results"];
+function PhoneFind() {
+  const steps = ["Searching the market", "Removing duplicates", "Checking relevant roles", "Comparing with your profile", "Prioritizing for you"];
   return (
-    <PhoneShell title="a live run">
-      <p className="text-[13px] font-semibold text-ink">Run Wonder</p>
-      <p className="text-ink-3">Scanning 6 platforms</p>
+    <PhoneShell title="a search in progress" tab={4}>
+      <p className="text-[13px] font-semibold leading-tight text-ink">Wonder is finding opportunities</p>
+      <p className="text-ink-3">412 found so far</p>
       <ol className="mt-3 space-y-2">
         {steps.map((s, i) => (
           <li key={s} className="flex items-center gap-2">
@@ -283,21 +298,26 @@ function PhoneRun() {
           </li>
         ))}
       </ol>
-      <div className="mt-4 rounded-full bg-brand-500 px-3 py-1.5 text-center font-semibold text-white">Wonder is working…</div>
+      <div className="mt-4 flex gap-1.5">
+        <span className="flex-1 rounded-full bg-white px-2 py-1.5 text-center font-semibold text-ink">Pause</span>
+        <span className="flex-1 rounded-full bg-white px-2 py-1.5 text-center font-semibold text-ink">Stop</span>
+      </div>
     </PhoneShell>
   );
 }
 
 function PhoneApplication() {
   return (
-    <PhoneShell title="an application">
-      <p className="text-[13px] font-semibold text-ink">Northwind Labs</p>
-      <p className="text-ink-3">Senior Product Designer</p>
+    <PhoneShell title="an application" tab={2}>
+      <p className="flex items-center gap-1 text-[13px] font-semibold text-ink">
+        <CheckCircle2 className="size-3.5 text-success-600" aria-hidden /> Application ready
+      </p>
+      <p className="text-ink-3">Senior Product Designer · Northwind Labs</p>
       <ol className="mt-3 space-y-2">
         {[
-          ["Drafted", "Tue · resume + cover letter"],
-          ["Reviewed by you", "Tue · 2 edits"],
-          ["Submitted", "Wed · on their careers site"],
+          ["Tailored résumé", "Edited by you"],
+          ["Cover letter", "AI-generated draft"],
+          ["Reviewed by you", "Ready to hand off"],
           ["Interview", "Thu 10:00 · prep pack ready"],
         ].map(([t, s], i) => (
           <li key={t} className="flex gap-2">
@@ -310,17 +330,17 @@ function PhoneApplication() {
         ))}
       </ol>
       <div className="mt-3 flex items-center gap-1.5 rounded-[10px] bg-white px-2.5 py-2 text-ink">
-        <FileText className="size-3 text-brand-600" aria-hidden /> Interview prep pack
+        <FileText className="size-3 text-brand-600" aria-hidden /> The final action is yours
       </div>
     </PhoneShell>
   );
 }
 
 const SCREENS: Screen[] = [
-  { id: "home", label: "Home", title: "One glance, everything that matters", body: "Strong matches, follow-ups and interviews, ranked by what needs you first. Wonder keeps working in the background.", demo: "/demo?next=/app", desktop: <DesktopHome />, phone: <PhoneHome /> },
-  { id: "jobs", label: "Jobs", title: "Every source, every role, scored for you", body: "Real postings from company boards and job APIs, de-duplicated and matched against your Career DNA with a reason for every score.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "runs", label: "Runs", title: "Watch Wonder work, step by step", body: "Each run is a transparent pipeline: search, de-duplicate, analyze, match, prepare. Pause, stop or take over at any stage.", demo: "/demo?next=/app/runs", desktop: <DesktopRun />, phone: <PhoneRun /> },
-  { id: "applications", label: "Applications", title: "Drafts you approve. Never sent behind your back.", body: "Tailored resumes and cover letters wait for your review. Submissions, follow-ups and interviews stay on one timeline.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "home", label: "Home", title: "What deserves your attention today", body: "Strong matches, follow-ups and interviews, ranked by what needs you first — plus your progress, and when Wonder looks next.", demo: "/demo?next=/app", desktop: <DesktopHome />, phone: <PhoneHome /> },
+  { id: "find", label: "Find", title: "Real progress, in plain words", body: "Wonder shows what it's doing and what it has found so far. Pause or stop any time — everything already found stays. When it needs you, it says why.", demo: "/demo?next=/app/runs/new", desktop: <DesktopFind />, phone: <PhoneFind /> },
+  { id: "jobs", label: "Decide", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile. Each card says why Wonder surfaced it and what to weigh.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
+  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Wonder opens the employer's page — submitting is always yours.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
@@ -337,7 +357,7 @@ export function ShowcaseSection() {
           <h2 id="screens-title" className="mt-3 text-h2 font-semibold text-ink">
             The same Wonder, <span className="wj-gradient-text">on every screen.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-ink-2">Run a search from your laptop, approve a draft from the train. Everything syncs to your account.</p>
+          <p className="mt-4 text-[16px] text-ink-2">Start a search from your laptop, review your Application Pack on the train. Everything syncs to your account.</p>
         </ScrollReveal>
 
         <div className="mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Product screens">

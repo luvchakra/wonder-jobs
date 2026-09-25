@@ -8,7 +8,7 @@ import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { useCareerStore } from "@/store/career";
 import { useUIStore } from "@/store/ui";
-import { AUTOMATION_NAV, PRIMARY_NAV, RESOURCES_NAV, isActivePath, type NavItem } from "./nav";
+import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV, isActivePath, type NavItem } from "./nav";
 
 function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = isActivePath(pathname, item);
@@ -60,7 +60,8 @@ export function Sidebar() {
       </div>
       <div className="flex-1 overflow-y-auto pb-4 wj-scrollbar-none">
         <Group items={PRIMARY_NAV} pathname={pathname} collapsed={collapsed} />
-        <Group title="Automation" items={AUTOMATION_NAV} pathname={pathname} collapsed={collapsed} />
+        <Group title="Wonder" items={WONDER_NAV} pathname={pathname} collapsed={collapsed} />
+        <Group title="Career" items={CAREER_NAV} pathname={pathname} collapsed={collapsed} />
         <Group title="Resources" items={RESOURCES_NAV} pathname={pathname} collapsed={collapsed} />
       </div>
       {plan === "free" && !collapsed && (

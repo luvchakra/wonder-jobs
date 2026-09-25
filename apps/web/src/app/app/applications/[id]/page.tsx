@@ -154,7 +154,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       card, and a shrink-0 row with no wrap of its own forced the second button past
                       the edge instead of dropping to its own line. */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button size="sm" href={job.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
+                    <Button size="sm" href={`/app/jobs/${job.id}/apply`}>
+                      Apply with Wonder
+                    </Button>
+                    <Button size="sm" variant="outline" href={job.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
                       Open application page
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setStatus(app.id, "submitted", { type: "submitted", title: "Submitted", detail: "Marked as submitted by you" })}>

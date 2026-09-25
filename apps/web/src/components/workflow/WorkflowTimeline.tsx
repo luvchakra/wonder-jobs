@@ -19,7 +19,9 @@ export function stageStatusLine(stage: WorkflowStageRun): string {
   if (stage.key === "dedupe" && (stage.status === "COMPLETED" || stage.status === "COMPLETED_WITH_WARNINGS")) return `${formatNumber(stage.counts.unique ?? 0)} unique`;
   if (stage.key === "rank" && stage.status !== "RUNNING") return `${formatNumber(stage.counts.strong_matches ?? 0)} strong`;
   if (stage.key === "prepare" && stage.status !== "RUNNING") return `${formatNumber(stage.counts.prepared ?? current)} prepared`;
-  if (stage.key === "apply" && stage.status !== "RUNNING") return `${formatNumber(stage.counts.submitted ?? 0)} submitted`;
+  // The apply stage never submits — it hands off to the employer's site — so it writes
+  // `counts.handed_off`, not `counts.submitted`. Reading the wrong key here always showed "0 submitted".
+  if (stage.key === "apply" && stage.status !== "RUNNING") return `${formatNumber(stage.counts.handed_off ?? 0)} handed off`;
   if (total != null && total > 0) return `${formatNumber(current)} / ${formatNumber(total)}`;
   if (current > 0) return `${formatNumber(current)} ${def.unit ?? ""}`.trim();
   return STATUS_META[stage.status].label;

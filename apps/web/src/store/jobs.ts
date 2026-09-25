@@ -93,6 +93,7 @@ export const useJobsStore = create<JobsState>()(
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
       save: (jobId) => {
         track("job_saved", { jobId });
+        track("opportunity_saved", { jobId, fit: get().matches[jobId]?.fit });
         set((s) => {
           const rejected = { ...s.rejected };
           delete rejected[jobId];
@@ -107,6 +108,7 @@ export const useJobsStore = create<JobsState>()(
         }),
       reject: (jobId, reason) => {
         track("job_rejected", { jobId, reason: reason ?? "none" });
+        track("opportunity_rejected", { jobId, reason: reason ?? "none", fit: get().matches[jobId]?.fit });
         const job = get().jobs[jobId];
         const at = new Date().toISOString();
         set((s) => {

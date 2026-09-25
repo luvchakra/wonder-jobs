@@ -55,6 +55,7 @@ function fireDueSchedules(now: number) {
   ws.upsertSchedule({ ...s, lastRunAt: new Date(now).toISOString(), nextRunAt: next });
   try {
     const run = getWorkflowService().startRun({ workflowId: wf.id, workflowName: wf.name, config: { ...wf.config, scheduleCondition: s.condition }, stageKeys: wf.stageKeys, trigger: "schedule" });
+    track("search_schedule_triggered", { scheduleId: s.id, runId: run.id });
     useWorkflowStore.getState().upsertSchedule({ ...useWorkflowStore.getState().schedules[s.id], lastRunId: run.id });
   } catch (e) {
     useCareerStore.getState().notify({ category: "scheduled_run_failed", title: `“${s.name}” could not start`, body: e instanceof Error ? e.message : "Unknown error", href: "/app/automation/scheduled" });

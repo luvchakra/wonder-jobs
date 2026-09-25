@@ -1,6 +1,6 @@
 "use client";
 import { create } from "zustand";
-import { CheckCircle2, Info, X, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { newId } from "@/lib/ids";
 
@@ -8,7 +8,7 @@ interface Toast {
   id: string;
   title: string;
   body?: string;
-  tone: "success" | "info" | "error";
+  tone: "success" | "info" | "warning" | "error";
   action?: { label: string; onClick: () => void };
 }
 
@@ -31,13 +31,14 @@ export const useToasts = create<ToastState>((set) => ({
 export const toast = {
   success: (title: string, body?: string, action?: Toast["action"]) => useToasts.getState().push({ title, body, tone: "success", action }),
   info: (title: string, body?: string, action?: Toast["action"]) => useToasts.getState().push({ title, body, tone: "info", action }),
+  warning: (title: string, body?: string, action?: Toast["action"]) => useToasts.getState().push({ title, body, tone: "warning", action }),
   error: (title: string, body?: string, action?: Toast["action"]) => useToasts.getState().push({ title, body, tone: "error", action }),
 };
 
 export function Toaster() {
   const toasts = useToasts((s) => s.toasts);
   const dismiss = useToasts((s) => s.dismiss);
-  const icons = { success: <CheckCircle2 className="size-5 text-success-600" aria-hidden />, info: <Info className="size-5 text-info-600" aria-hidden />, error: <XCircle className="size-5 text-danger-600" aria-hidden /> };
+  const icons = { success: <CheckCircle2 className="size-5 text-success-600" aria-hidden />, info: <Info className="size-5 text-info-600" aria-hidden />, warning: <AlertTriangle className="size-5 text-warning-600" aria-hidden />, error: <XCircle className="size-5 text-danger-600" aria-hidden /> };
   return (
     <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-[60] flex flex-col items-center gap-2 md:inset-x-auto md:bottom-6 md:right-6 md:items-end">
       {toasts.map((t) => (

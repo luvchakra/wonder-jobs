@@ -17,7 +17,7 @@ export default function AutomationSettingsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Automation Settings"
+        title="What Wonder can do"
         description="Wonder can automate the repetitive work. You decide what it is allowed to do."
         actions={
           <Button
@@ -48,7 +48,7 @@ export default function AutomationSettingsPage() {
       </Card>
       <Card>
         <h2 className="mb-1 text-[15px] font-semibold text-ink">What Wonder may do</h2>
-        <p className="mb-4 text-[12px] text-ink-3">Changes apply to your next run and to scheduled runs. Runs already in progress keep the policy they started with for the current stage.</p>
+        <p className="mb-4 text-[12px] text-ink-3">Changes apply to your next run and to scheduled searches. Runs already in progress keep the policy they started with for the current stage.</p>
         <AutomationPolicyEditor policy={policy} onChange={setCapability} />
       </Card>
     </div>

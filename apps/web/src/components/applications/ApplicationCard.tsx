@@ -10,9 +10,38 @@ import { Badge } from "@/components/common/Badge";
 import { companyColor } from "@/components/jobs/JobCard";
 import { cn } from "@/lib/cn";
 
-export function ApplicationCard({ application, job, className }: { application: Application; job?: CanonicalJob; className?: string }) {
+/** Materials still being worked on route to the Application Pack; anything past that goes to the
+ * application's own detail/timeline page. */
+export function applicationHref(application: Pick<Application, "id" | "status">) {
+  return application.status === "preparing" || application.status === "ready_for_review" || application.status === "saved" ? `/app/applications/${application.id}/prepare` : `/app/applications/${application.id}`;
+}
+
+export function ApplicationCard({ application, job, compact = false, className }: { application: Application; job?: CanonicalJob; compact?: boolean; className?: string }) {
   const meta = APPLICATION_STATUS_META[application.status];
-  const href = application.status === "preparing" || application.status === "ready_for_review" || application.status === "saved" ? `/app/applications/${application.id}/prepare` : `/app/applications/${application.id}`;
+  const href = applicationHref(application);
+
+  if (compact) {
+    // A narrow pipeline column has no room for the full horizontal row (badge/chevron/next-action
+    // wrap awkwardly at ~280px) — stack company, role and status instead.
+    return (
+      <Link href={href} className={cn("wj-card wj-elevate flex flex-col gap-2 p-3", className)}>
+        <div className="flex items-center gap-2.5">
+          <CompanyLogo name={job?.company ?? "?"} color={job ? companyColor(job.company) : undefined} size={32} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-semibold text-ink">{job?.company ?? "Unknown company"}</span>
+            <span className="block truncate text-[12px] text-ink-3">{job?.title ?? "Role"}</span>
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Badge tone={meta.tone} className="shrink-0">
+            {meta.label}
+          </Badge>
+          <span className="truncate text-[11px] text-ink-4">{application.appliedAt ? relativeTime(application.appliedAt) : relativeTime(application.createdAt)}</span>
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <Link href={href} className={cn("wj-card wj-elevate flex items-center gap-3 p-4", className)}>
       <CompanyLogo name={job?.company ?? "?"} color={job ? companyColor(job.company) : undefined} size={44} />

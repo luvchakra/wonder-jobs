@@ -14,17 +14,17 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import { syncStatus } from "@/store/remoteStorage";
+import { flushRemote, syncStatus } from "@/store/remoteStorage";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
 import { Cloud, CloudOff, FlaskConical } from "lucide-react";
 
 const MORE = [
-  { href: "/app/career-dna", label: "Career DNA", icon: Dna },
+  { href: "/app/career-dna", label: "Career Profile", icon: Dna },
   { href: "/app/calendar", label: "Calendar", icon: Calendar },
   { href: "/app/insights", label: "Insights", icon: BarChart3 },
-  { href: "/app/automation/scheduled", label: "Scheduled Runs", icon: Timer },
-  { href: "/app/automation/settings", label: "Automation Settings", icon: Settings2 },
+  { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+  { href: "/app/automation/settings", label: "What Wonder can do", icon: Settings2 },
   { href: "/app/settings/ai", label: "AI Provider", icon: Sparkles },
   { href: "/app/resume-studio", label: "Resume Studio", icon: FileText },
   { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
@@ -76,7 +76,7 @@ function CloudSyncCard() {
           {backend === "error"
             ? "We couldn't reach the server to check. This doesn't mean anything is wrong — refresh the page to check again."
             : cloud
-              ? `Your Career DNA, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.`
+              ? `Your Career Profile, applications, runs and settings are saved to your account${sync === "syncing" ? " · saving…" : sync === "local" ? " · last save didn't reach the server, retrying on next change" : ""}.`
               : "Persistence isn't configured on this deployment yet, so data lives in this browser. Provider keys are held in memory only."}
         </p>
       </div>
@@ -147,6 +147,10 @@ function ProfileInner() {
               <button
                 type="button"
                 onClick={async () => {
+                  // Send any still-debounced write (e.g. just-completed onboarding) while the session is
+                  // still valid — signOutEverywhere wipes this account's local copy immediately after, so
+                  // anything not yet on the server by then never arrives.
+                  await flushRemote(false);
                   await signOutEverywhere(userId);
                   // Full reload on purpose: drops every in-memory store before another account can sign in.
                   // eslint-disable-next-line @next/next/no-location-assign-relative-destination

@@ -18,7 +18,7 @@ export default function InterviewPrepPage() {
     .sort((x, y) => x.f.dueAt.localeCompare(y.f.dueAt));
   return (
     <div>
-      <PageHeader title="Interview Prep" description="A prep sheet for each upcoming interview, built from the role's requirements and your Career DNA." />
+      <PageHeader title="Interview Prep" description="A prep sheet for each upcoming interview, built from the role's requirements and your Career Profile." />
       {interviews.length === 0 ? (
         <EmptyState icon={<MessagesSquare className="size-5" aria-hidden />} title="No interviews scheduled" body="When an application reaches the interview stage, its prep sheet appears here." action={{ label: "View applications", href: "/app/applications" }} />
       ) : (

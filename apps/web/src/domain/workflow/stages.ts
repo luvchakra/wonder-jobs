@@ -34,7 +34,7 @@ export interface StageDefinition {
 }
 
 export const STAGES: Record<StageKey, StageDefinition> = {
-  profile: { key: "profile", name: "Understanding your profile", activeLabel: "Reading your Career DNA", risk: "low", capabilities: [], unit: "profile" },
+  profile: { key: "profile", name: "Understanding your profile", activeLabel: "Reading your Career Profile", risk: "low", capabilities: [], unit: "profile" },
   search: { key: "search", name: "Searching job sources", activeLabel: "Searching job sources", risk: "low", capabilities: ["search_jobs"], unit: "jobs" },
   dedupe: { key: "dedupe", name: "Removing duplicates", activeLabel: "Removing duplicates", risk: "low", capabilities: ["deduplicate"], unit: "jobs" },
   understand: { key: "understand", name: "Understanding opportunities", activeLabel: "Analyzing opportunities", risk: "low", capabilities: ["analyze_jobs"], unit: "jobs" },

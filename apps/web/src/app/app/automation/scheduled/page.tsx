@@ -44,16 +44,16 @@ export default function ScheduledRunsPage() {
   return (
     <div>
       <PageHeader
-        title="Scheduled Runs"
+        title="Scheduled searches"
         description="Workflow → Trigger → Schedule → Stages → Conditions → Actions. These run on Wonder's servers as well as in your browser, so a run still happens while you're away. Silence is a valid outcome: Wonder only notifies you when there's something worth your attention."
         actions={
           <Button href="/app/automation/scheduled/new" icon={<Plus className="size-4" aria-hidden />}>
-            New scheduled run
+            New scheduled search
           </Button>
         }
       />
       {schedules.length === 0 ? (
-        <EmptyState icon={<Timer className="size-5" aria-hidden />} title="No scheduled runs" body="Start from a template — Daily Job Discovery takes a minute to set up." action={{ label: "Create one", href: "/app/automation/scheduled/new" }} />
+        <EmptyState icon={<Timer className="size-5" aria-hidden />} title="No scheduled searches" body="Start from a template — Daily Job Discovery takes a minute to set up." action={{ label: "Create one", href: "/app/automation/scheduled/new" }} />
       ) : (
         <ul className="flex flex-col gap-3">
           {schedules.map((s) => {

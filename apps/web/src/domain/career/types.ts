@@ -1,3 +1,5 @@
+import type { CareerHistory } from "./history";
+
 export interface CareerDNA {
   name: string;
   headline: string;
@@ -12,6 +14,8 @@ export interface CareerDNA {
   currency: string;
   strengths: string[];
   growthAreas: string[];
+  /** Work history, education and contact details — what a résumé is rendered from. Optional: older profiles have none. */
+  history?: CareerHistory;
   updatedAt: string;
 }
 
