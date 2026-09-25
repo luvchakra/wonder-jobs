@@ -40,7 +40,8 @@ export async function POST(req: Request) {
         // The gate already ran (and spent the rate-limit token), so the search itself skips it.
         const r = await runSearch(caller, parsed.value, { emit: write, signal: req.signal, gateChecked: true });
         if (!r.ok) write({ type: "error", error: r.error });
-      } catch {
+      } catch (e) {
+        console.error(`[jobslake] stream search failed: ${e instanceof Error ? e.message : String(e)}`);
         write({ type: "error", error: { code: "INTERNAL", message: "The search failed unexpectedly.", retryable: true } });
       } finally {
         open = false;

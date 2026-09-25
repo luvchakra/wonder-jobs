@@ -53,6 +53,25 @@ describe("JobsLake core search", () => {
     expect(publicStatus(response.sources.find((s) => s.sourceId === "jobicy")!).message).toBe("Temporarily unavailable");
   });
 
+  it("a failed warm-pool or run-history write is logged, never a failed search — the live results still arrive", async () => {
+    const broken = new __MemoryStore();
+    broken.upsertOpportunities = async () => {
+      throw new Error("JobsLake could not update the warm pool: ON CONFLICT DO UPDATE command cannot affect row a second time");
+    };
+    broken.recordRuns = async () => {
+      throw new Error("JobsLake could not record runs: timeout");
+    };
+    __setJobsLakeStore(broken);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    connector.mockImplementation(async (src: { id: string }) => (src.id === "greenhouse" ? { jobs: [job({})], warnings: [] } : { jobs: [], warnings: [] }));
+    const events: string[] = [];
+    const { response } = await search(req(), { trigger: "search", emit: (e) => events.push(e.type) });
+    expect(response.results).toHaveLength(1);
+    expect(events.at(-1)).toBe("search_completed");
+    expect(log.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([expect.stringContaining("could not update the warm pool"), expect.stringContaining("could not record runs")]));
+    log.mockRestore();
+  });
+
   it("WJ-JL-036/037: the employer's record wins an aggregator conflict, and every source is kept as provenance", async () => {
     connector.mockImplementation(async (src: { id: string }) => {
       if (src.id === "greenhouse") return { jobs: [job({ title: "Senior Director, Identity Security" })], warnings: [] };

@@ -80,6 +80,16 @@ function allowedIds(sources: SourceRecord[], req: SearchRequest): string[] | und
 }
 
 /** Opportunities in the warm pool that fit this search, from sources this search may use. */
+/** Runs a store write/read that a search can do without; logs (no candidate data) and returns undefined on failure. */
+async function bookkeeping<T>(what: string, fn: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error(`[jobslake] could not ${what}: ${e instanceof Error ? e.message : String(e)}`);
+    return undefined;
+  }
+}
+
 async function warmCandidates(req: SearchRequest, allowed: Set<string> | null): Promise<CanonicalOpportunity[]> {
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const pool = await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 3000 });
@@ -172,14 +182,17 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const valid =canon.opportunities.filter((o) => validateOpportunity(o).length === 0);
   // Duplicates per source = its records that another, stronger source's record represents.
   for (const run of runs) run.duplicates = canon.opportunities.reduce((n, o) => n + o.sourceRecords.filter((r) => r.sourceId === run.sourceId && !r.canonical).length, 0);
-  await store.recordRuns(runs);
+  // Run history and the warm pool are bookkeeping around live results the sources already returned:
+  // a failed write is logged for operators, never turned into a failed search for the candidate.
+  await bookkeeping("record runs", () => store.recordRuns(runs));
 
   let results = valid;
   let warmCount = 0;
   if (flags.jobsLakeWarmPoolEnabled) {
-    if (valid.length) await store.upsertOpportunities(valid);
+    if (valid.length) await bookkeeping("update the warm pool", () => store.upsertOpportunities(valid));
     if (plan.useWarmPool) {
-      const merged = mergeWithWarm(valid, await warmCandidates(req, allowed ? new Set(allowed) : null));
+      const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null));
+      const merged = mergeWithWarm(valid, warm ?? []);
       results = merged.results;
       warmCount = merged.warm;
     }

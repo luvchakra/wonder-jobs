@@ -40,6 +40,8 @@ let loadAllPromise: Promise<Record<string, Doc> | null> | null = null;
 let revalidated = false;
 /** Store names that hydrated through this adapter this page load. */
 const known = new Set<string>();
+/** Stores changed on this page. The revalidation GET was issued at page start, so its copy of these is older. */
+const touched = new Set<string>();
 
 function local() {
   try {
@@ -175,7 +177,9 @@ async function revalidate() {
   // Unsynced local edits (e.g. written while offline) win and go up first.
   for (const name of dirty) if (readLocal(localKey(name)) !== null) toPush.add(name);
   for (const [name, doc] of Object.entries(docs)) {
-    if (dirty.has(name)) continue; // local edits win; they go up below
+    // Local edits win; they go up below. That includes edits made on this page while the GET was in flight,
+    // whose dirty mark may already be cleared by their own push — the GET's copy predates them.
+    if (dirty.has(name) || touched.has(name) || pendingSerialize.has(name)) continue;
     const value = JSON.stringify(doc.state);
     serverDocs.set(name, value);
     if (readLocal(localKey(name)) !== value) {
@@ -208,6 +212,7 @@ function serializePending() {
     if (serialized.get(name) === s) continue; // no-op write
     serialized.set(name, s);
     writeLocal(localKey(name), s);
+    touched.add(name);
     changed.push(name);
   }
   if (changed.length && !syncsToServer()) return; // demo: device only
@@ -347,5 +352,6 @@ export function __resetRemoteStorage() {
   loadAllPromise = null;
   revalidated = false;
   known.clear();
+  touched.clear();
   current = "idle";
 }
