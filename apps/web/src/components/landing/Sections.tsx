@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
+import { ArrowRight, BarChart3, CalendarDays, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, LayoutList, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Share2, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
@@ -272,16 +272,20 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
 }
 
 /* ------------------------------------------------------------ features */
-const FEATURES = [
-  { icon: Search, t: "Find opportunities", s: "Say what you want in your own words. Wonder shows what it understood before it searches.", href: "/demo?next=/app/runs/new" },
+/** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
+const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string }[] = [
+  { icon: Search, t: "Find opportunities", s: "Type it or say it, in your own words. Wonder shows what it understood before it searches.", href: "/demo?next=/app/runs/new" },
   { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/demo?next=/app" },
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },
-  { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
+  { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
   { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/demo?next=/app/resume-studio" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/demo?next=/app/jobs/job_razorpay_spm/apply" },
   { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/demo?next=/app/career-dna" },
   { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/demo?next=/app/automation/scheduled" },
+  { icon: LayoutList, t: "Track every application", s: "What needs you comes first — follow-ups due, interviews, replies — then every application from preparing to outcome.", href: "/demo?next=/app/applications" },
+  { icon: Share2, t: "Share a role", s: "Send a job to a friend or mentor. They see the real posting, no account needed.", href: "/demo?next=/app/jobs/job_razorpay_spm" },
+  { icon: CalendarDays, t: "Your calendar and phone", s: "Subscribe from Google, Outlook or Apple Calendar, install WonderJobs like an app, and get nudges for interviews and follow-ups.", href: "/help#calendar", cta: "How it works" },
 ];
 
 export function FeatureGrid() {
@@ -312,7 +316,7 @@ export function FeatureGrid() {
                 <span className="relative mt-4 text-[17px] font-semibold text-ink">{f.t}</span>
                 <span className="relative mt-1.5 flex-1 text-[14px] leading-relaxed text-ink-3">{f.s}</span>
                 <span className="relative mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-600">
-                  See it in the demo <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
+                  {f.cta ?? "See it in the demo"} <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
                 </span>
               </Link>
             </ScrollReveal>
@@ -325,11 +329,11 @@ export function FeatureGrid() {
 
 /* ------------------------------------------------------------ personas */
 const PERSONAS: { key: string; label: string; headline: string; points: string[] }[] = [
-  { key: "seekers", label: "Job Seekers", headline: "Stop doom-scrolling job boards.", points: ["One search across every connected platform", "Strong matches surfaced first, with the reasons why", "Applications tracked from saved to offer"] },
-  { key: "switchers", label: "Career Switchers", headline: "See paths you never considered.", points: ["Matching that values transferable skills, not just titles", "Stretch opportunities flagged honestly", "Materials that translate your experience for a new field"] },
-  { key: "senior", label: "Senior Professionals", headline: "Signal over noise, at your level.", points: ["Seniority-aware ranking and compensation alignment", "Hiring-confidence signals before you invest time", "Quiet scheduled runs — you hear only when it matters"] },
-  { key: "students", label: "Students", headline: "Your first move, minus the chaos.", points: ["Entry-level roles and internships, clearly labelled", "Screening answers drafted for you to make your own", "A timeline that keeps deadlines in view"] },
-  { key: "global", label: "Global Talent", headline: "Find work across borders.", points: ["Remote and relocation-friendly roles in one view", "Locations and currencies handled properly", "Follow-ups timed to the employer's timezone"] },
+  { key: "seekers", label: "Job Seekers", headline: "Stop doom-scrolling job boards.", points: ["One search across every connected job source", "Strong matches surfaced first, with the reasons why", "Applications tracked from saved to offer"] },
+  { key: "switchers", label: "Career Switchers", headline: "See paths you never considered.", points: ["Matching on your skills as they appear in each posting, not just titles", "Stretch opportunities flagged honestly", "A Career Shift résumé template built for changing role, function or industry"] },
+  { key: "senior", label: "Senior Professionals", headline: "Signal over noise, at your level.", points: ["Seniority-aware ranking and compensation alignment", "Hiring-confidence signals before you invest time", "Keep watch — you hear only when a strong match turns up"] },
+  { key: "students", label: "Students", headline: "Your first move, minus the chaos.", points: ["Seniority-aware matching, so entry-level roles aren't buried", "Screening answers drafted for you to make your own", "Follow-ups and interviews on one timeline, and in your own calendar"] },
+  { key: "global", label: "Global Talent", headline: "Find work across borders.", points: ["Remote roles checked for whether they're actually open to your region", "Salaries shown in the posting's own currency", "Résumé templates designed to read cleanly in applicant-tracking systems"] },
 ];
 
 export function PersonaSection() {
@@ -549,6 +553,8 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "FAQ", href: "/help#faq" },
       { label: "Roadmap", href: "/help#roadmap" },
       { label: "Job sources", href: "/help#sources" },
+      { label: "Ask Wonder guide", href: "/help#ask-wonder" },
+      { label: "Calendar & notifications", href: "/help#calendar" },
       { label: "Learning", href: "/app/learning" },
     ],
   },

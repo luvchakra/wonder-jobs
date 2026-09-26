@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { HELP_FAQ, HELP_SECTIONS, searchHelp } from "@/content/help";
+import { HELP_FAQ, HELP_SECTIONS, bestFaq, searchHelp } from "@/content/help";
 import { rateLimit } from "@/server/rateLimit";
 import { platformAI } from "@/server/providers/platform";
 import { getServerProvider } from "@/server/providers";
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const hits = searchHelp(question, 3);
   if (!hits.length) return NextResponse.json({ answer: "I couldn't find that in the guide. Try different words, or browse the sections below.", sectionId: null, sectionTitle: null, source: "guide" });
   const best = hits[0].section;
-  const faq = HELP_FAQ.find((f) => f.section === best.id && f.q.toLowerCase().split(" ").filter((w) => question.toLowerCase().includes(w)).length >= 3);
+  const faq = bestFaq(question, best.id);
   const fallback = { answer: faq ? faq.a : best.summary + " " + best.body[0], sectionId: best.id, sectionTitle: best.title, source: "guide" as const };
 
   const platform = platformAI();
