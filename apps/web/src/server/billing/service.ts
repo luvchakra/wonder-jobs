@@ -3,6 +3,7 @@ import { fromRazorpayEvent, fromStripeEvent } from "@/domain/billing/events";
 import type { BillingEvent, BillingProviderId, Entitlement, PlanPrice, ProviderAvailability, Subscription } from "@/domain/billing/types";
 import { sha256Hex } from "../crypto";
 import { recordServerAudit } from "../audit";
+import { isErased } from "../privacy/records";
 import { BILLING_PROVIDER_IDS, missingBillingEnv, razorpayConfig, stripeConfig } from "./config";
 import { entryFor } from "./ledger";
 import { razorpayCancelAtCycleEnd, razorpayCancelNow, razorpayPlan, razorpaySubscribe, razorpaySubscriptionStatus, verifyRazorpaySignature } from "./razorpay";
@@ -131,6 +132,13 @@ export async function cancelSubscription(tenantId: string): Promise<{ requested:
     throw new BillingError(`Razorpay couldn't cancel the subscription: ${describeProviderError(e, "Razorpay")}`, 502);
   }
   await recordServerAudit(tenantId, { actionId, actionType: "cancel_subscription", event: "succeeded" });
+  // Razorpay accepted it; reflect that now (ledgered as WonderJobs' own event) rather than waiting for a
+  // notice Razorpay may not send for a scheduled cancellation. The daily reconciliation re-checks it.
+  const at = new Date().toISOString();
+  await ingest(
+    { provider: "razorpay", eventId: `wonderjobs:cancel:${sub.subscriptionId}:${at}`, providerType: "wonderjobs.cancel_requested", kind: "subscription_updated", tenantId, subscriptionId: sub.subscriptionId, cancelAtPeriodEnd: sub.status !== "incomplete", status: sub.status === "incomplete" ? "canceled" : undefined, occurredAt: at },
+    sha256Hex(`cancel:${sub.subscriptionId}:${at}`),
+  );
   return { requested: true };
 }
 
@@ -148,8 +156,10 @@ export async function handleWebhook(provider: BillingProviderId, rawBody: string
     const cfg = razorpayConfig();
     if (!cfg) return { status: 503, body: { received: false, error: "Razorpay is not configured" } };
     if (!verifyRazorpaySignature(rawBody, headers.get("x-razorpay-signature"), cfg.webhookSecret)) return { status: 401, body: { received: false, error: "Invalid signature" } };
-    // Razorpay's event id travels in a header; without it, fall back to the body's hash so a redelivery still dedupes.
-    event = fromRazorpayEvent(safeJson(rawBody), headers.get("x-razorpay-event-id") || `body:${sha256Hex(rawBody)}`);
+    // Razorpay's `x-razorpay-event-id` header is NOT covered by its signature, so it can't be the
+    // idempotency key: a captured body replayed under a fresh header id would count as new. The signed
+    // body's hash is the key instead — a genuine redelivery carries the identical body.
+    event = fromRazorpayEvent(safeJson(rawBody), `body:${sha256Hex(rawBody)}`);
   }
   if (!event.eventId) return { status: 400, body: { received: false, error: "Event has no id" } };
   return ingest(event, sha256Hex(rawBody));
@@ -167,12 +177,17 @@ function safeJson(s: string): unknown {
 export async function ingest(event: BillingEvent, payloadSha256: string): Promise<WebhookResult> {
   const store = billingStore();
   const current = event.subscriptionId ? await store.subscription(event.provider, event.subscriptionId) : undefined;
-  const outcome = applyBillingEvent(current, event);
+  // An erased account must not be re-created by a late notice (e.g. the end-of-period cancellation):
+  // the event is still ledgered — it is a financial record — but nothing is saved against the account.
+  const erased = !current && !!event.tenantId && (await isErased(event.tenantId));
+  const outcome = erased ? ({ result: "unchanged", reason: "erased_account" } as const) : applyBillingEvent(current, event);
   const label = outcome.result === "applied" ? "applied" : outcome.reason;
   // Record the tenant we actually resolved (the stored owner wins over event metadata).
   const ledgerEvent = { ...event, tenantId: current?.tenantId ?? event.tenantId };
   const { duplicate } = await store.append(entryFor(ledgerEvent, payloadSha256, label));
-  if (outcome.result === "applied") await store.saveSubscription(outcome.subscription);
+  // A duplicate is re-applied only to repair a crash between the ledger write and the save; once the
+  // stored record already reflects this event, it changes nothing.
+  if (outcome.result === "applied" && !(duplicate && current?.lastEventId === event.eventId)) await store.saveSubscription(outcome.subscription);
   return { status: 200, body: { received: true, duplicate, outcome: label } };
 }
 
@@ -186,14 +201,20 @@ export interface ReconcileReport {
  * Daily control: ask each provider for the live status of every open subscription and
  * correct (and ledger) any drift — a missed or failed webhook can't leave access wrong for long.
  */
-export async function reconcileSubscriptions(limit = 200, now = new Date()): Promise<ReconcileReport> {
+export async function reconcileSubscriptions(limit = 2000, now = new Date(), budgetMs = 60_000): Promise<ReconcileReport> {
   const report: ReconcileReport = { checked: 0, corrected: 0, errors: 0 };
   const store = billingStore();
-  for (const sub of await store.openSubscriptions(limit)) {
-    if (sub.status === "incomplete" && sub.updatedAt === new Date(0).toISOString()) {
-      // Never paid; the provider expires these itself. Nothing to reconcile yet.
-      continue;
-    }
+  const started = Date.now();
+  // Every open subscription, page by page — including Razorpay ones still awaiting their first
+  // confirmation, since a missed activation notice is exactly what this has to catch.
+  const open: Subscription[] = [];
+  for (let offset = 0; open.length < limit; offset += 200) {
+    const page = await store.openSubscriptions(200, offset);
+    open.push(...page);
+    if (page.length < 200) break;
+  }
+  for (const sub of open.slice(0, limit)) {
+    if (Date.now() - started > budgetMs) break;
     report.checked++;
     try {
       const live = await liveStatus(sub);

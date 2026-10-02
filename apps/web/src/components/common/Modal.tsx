@@ -24,9 +24,18 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       e.preventDefault();
       if (dismissible) onClose();
     };
+    // Chrome closes a dialog on a repeated Escape even when `cancel` is prevented; a decision the
+    // candidate must make re-opens itself.
+    const onClosed = () => {
+      if (!dismissible && open && !el.open) el.showModal();
+    };
     el.addEventListener("cancel", onCancel);
-    return () => el.removeEventListener("cancel", onCancel);
-  }, [onClose, dismissible]);
+    el.addEventListener("close", onClosed);
+    return () => {
+      el.removeEventListener("cancel", onCancel);
+      el.removeEventListener("close", onClosed);
+    };
+  }, [onClose, dismissible, open]);
   const widths = { sm: "sm:max-w-md", md: "sm:max-w-lg", lg: "sm:max-w-2xl" };
   return (
     <dialog

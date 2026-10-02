@@ -70,6 +70,27 @@ export async function privacyRequests(tenantId: string): Promise<{ kind: string;
   return data as { kind: string; event: string; detail: string | null; at: string }[];
 }
 
+const erasedCache = new Set<string>();
+/**
+ * Whether this account has been erased. Erasure is permanent, so a positive answer is cached. Used to
+ * stop anything re-creating the account afterwards: a late payment webhook, or another device whose
+ * access token is still valid for up to an hour after the sign-in identity was deleted.
+ */
+export async function isErased(tenantId: string): Promise<boolean> {
+  if (erasedCache.has(tenantId)) return true;
+  const ref = subjectRef(tenantId);
+  const sb = getSupabaseAdmin();
+  let erased: boolean;
+  if (!sb) erased = memRequests().some((r) => r.subjectRef === ref && r.kind === "erasure" && r.event === "completed");
+  else {
+    const { data, error } = await sb.from("privacy_requests").select("id").eq("subject_ref", ref).eq("kind", "erasure").eq("event", "completed").limit(1);
+    if (error) throw new Error(error.message);
+    erased = (data?.length ?? 0) > 0;
+  }
+  if (erased) erasedCache.add(tenantId);
+  return erased;
+}
+
 /** Memory mode only: erasure removes consent rows (Supabase does it by cascade). */
 export function forgetConsentsInMemory(tenantId: string) {
   memConsents().delete(tenantId);
@@ -77,6 +98,7 @@ export function forgetConsentsInMemory(tenantId: string) {
 
 /** Tests. */
 export function resetPrivacyMemory() {
+  erasedCache.clear();
   g.__wjConsents = new Map();
   g.__wjPrivacyRequests = [];
 }

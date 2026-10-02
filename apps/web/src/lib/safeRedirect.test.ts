@@ -7,7 +7,7 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/onboarding", "/x")).toBe("/onboarding");
   });
 
-  it.each(["//evil.com", "/\\evil.com", "/\\/evil.com", "/\t/evil.com", "/\n/evil.com", "https://evil.com", "javascript:alert(1)", "evil.com", "", null, undefined, "/" + "a".repeat(3000)])("rejects %j", (raw) => {
+  it.each(["//evil.com", "/\\evil.com", "/\\/evil.com", "/\t/evil.com", "/\n/evil.com", "https://evil.com", "javascript:alert(1)", "/..//evil.com", "/.//evil.com", "/%2e%2e//evil.com", "/app/..//evil.com", "/./..//evil.com", "evil.com", "", null, undefined, "/" + "a".repeat(3000)])("rejects %j", (raw) => {
     expect(safeNextPath(raw as string)).toBe("/app");
   });
 

@@ -210,3 +210,43 @@ describe("Stripe form encoding", () => {
     expect(formEncode({ a: 1, b: { c: "x y", d: { 0: { e: "f" } } }, skip: undefined })).toBe("a=1&b%5Bc%5D=x%20y&b%5Bd%5D%5B0%5D%5Be%5D=f");
   });
 });
+
+describe("review findings (regressions)", () => {
+  it("dedupes a replayed Razorpay body even under a fresh, unsigned event-id header", async () => {
+    const body = JSON.stringify({ event: "subscription.charged", created_at: now, payload: { subscription: { entity: { id: "sub_R", status: "active", notes: { tenant_id: "t-r" } } }, payment: { entity: { amount: 100, currency: "INR" } } } });
+    await handleWebhook("razorpay", body, razorpayHeaders(body, "evt_original"));
+    const replay = await handleWebhook("razorpay", body, razorpayHeaders(body, "evt_forged_new_id"));
+    expect(replay.body).toMatchObject({ duplicate: true });
+    expect(store._rows()).toHaveLength(1);
+  });
+
+  it("a late webhook for an erased account is ledgered but doesn't re-create the account", async () => {
+    const { recordPrivacyRequest, resetPrivacyMemory } = await import("../privacy/records");
+    resetPrivacyMemory();
+    await recordPrivacyRequest("gone", "erasure", "completed");
+    const body = JSON.stringify({ id: "evt_late", type: "customer.subscription.deleted", created: now, data: { object: { id: "sub_gone", status: "canceled", customer: "cus_gone", metadata: { tenant_id: "gone" } } } });
+    const r = await handleWebhook("stripe", body, stripeHeaders(body));
+    expect(r.body.outcome).toBe("erased_account");
+    expect(await store.subscriptionsForTenant("gone")).toEqual([]);
+    expect(store._rows()).toHaveLength(1);
+    resetPrivacyMemory();
+  });
+
+  it("a Razorpay cancellation shows at once (ledgered as WonderJobs' own event)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "sub_C", status: "active" }))));
+    await store.saveSubscription({ tenantId: "t-c", provider: "razorpay", subscriptionId: "sub_C", status: "active", cancelAtPeriodEnd: false, currentPeriodEnd: "2026-11-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" });
+    await cancelSubscription("t-c");
+    expect(await store.subscription("razorpay", "sub_C")).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
+    expect(store._rows().at(-1)).toMatchObject({ providerType: "wonderjobs.cancel_requested" });
+    expect((await entitlement("t-c")).reason).toContain("Cancelled — Pro until");
+  });
+
+  it("reconciliation checks every open subscription, including one still awaiting its first confirmation", async () => {
+    for (let i = 0; i < 450; i++) await store.saveSubscription({ tenantId: `t${i}`, provider: "stripe", subscriptionId: `sub_${i}`, status: "active", cancelAtPeriodEnd: false, updatedAt: "2026-10-01T00:00:00.000Z" });
+    await store.saveSubscription({ tenantId: "paid-but-missed", provider: "razorpay", subscriptionId: "sub_missed", status: "incomplete", cancelAtPeriodEnd: false, updatedAt: new Date(0).toISOString() });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes("razorpay") ? { status: "active" } : { status: "active", cancel_at_period_end: false, cancel_at: null }))));
+    const r = await reconcileSubscriptions(5000, new Date("2026-10-03T02:00:00.000Z"));
+    expect(r.checked).toBe(451);
+    expect((await entitlement("paid-but-missed")).plan).toBe("pro");
+  });
+});

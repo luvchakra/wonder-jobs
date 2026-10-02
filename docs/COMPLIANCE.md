@@ -16,9 +16,9 @@ this file — if a control here changes, change the copy in `components/landing/
 | Honest unavailable states | Missing env → `needs_setup` (variable names only); provider error → `unavailable` with a fixed description (provider text can quote the key, so it is logged, not shown) | `config.ts::missingBillingEnv`, `stripe.ts::describeProviderError` |
 | Webhook authenticity | Stripe: `t=…,v1=HMAC(secret, t.payload)` with 5-minute replay tolerance. Razorpay: `HMAC(secret, body)`. Constant-time compare (`server/crypto.ts::safeEqual`). Missing secret → 503, never "trust anyway" | `stripe.ts::verifyStripeSignature`, `razorpay.ts::verifyRazorpaySignature` |
 | Entitlement decided by the server only | Plan comes from `billing_subscriptions`, written only by verified webhooks or reconciliation. The checkout redirect changes nothing. The old client-writable `career.plan` field is no longer read | `domain/billing/subscription.ts::entitlementFor`, `service.ts::hasPro`, `store/billing.ts` |
-| Idempotency | Webhook event id (Stripe `evt_…`, Razorpay `x-razorpay-event-id`) is unique in the ledger; a redelivery is acknowledged as a duplicate. Stripe checkout creation sends an `Idempotency-Key` | `append_billing_event`, `service.ts::ingest`, `startCheckout` |
-| Out-of-order and hostile events | Older status changes are ignored (`stale`); an event naming a different tenant than the stored owner is refused (`tenant_mismatch`) and ledgered | `applyBillingEvent` |
-| Cancellation | Stripe: hosted billing portal. Razorpay: cancel at cycle end via API, written to the action audit (requested / succeeded / failed) | `service.ts::cancelSubscription`, `/api/billing/{portal,cancel}` |
+| Idempotency | Stripe: the signed event id (`evt_…`). Razorpay: the SHA-256 of the signed body — its `x-razorpay-event-id` header is not covered by the signature, so a captured body replayed under a fresh id would otherwise count as new. Unique in the ledger; a redelivery is acknowledged and not re-applied once the subscription already reflects it. Stripe checkout creation sends an `Idempotency-Key` | `append_billing_event`, `service.ts::ingest`, `startCheckout` |
+| Out-of-order and hostile events | Any event older than the last applied one is ignored (`stale`) — payments too, so an old invoice can't re-activate a stopped subscription; a failed payment only moves `active` → `past_due`; an event naming a different tenant than the stored owner is refused (`tenant_mismatch`); an event for an erased account is ledgered but never re-creates it (`erased_account`) | `applyBillingEvent` |
+| Cancellation | Stripe: hosted billing portal. Razorpay: cancel at cycle end via API, written to the action audit (requested / succeeded / failed) and reflected at once through a ledgered `wonderjobs.cancel_requested` event; unpaid Razorpay links expire after 7 days | `service.ts::cancelSubscription`, `/api/billing/{portal,cancel}` |
 | Recurring-payment rules (India) | RBI e-mandate / additional factor authentication and UPI AutoPay are handled by Razorpay on its hosted page | Razorpay |
 
 **Operator setup**
@@ -41,7 +41,7 @@ this file — if a control here changes, change the copy in `components/landing/
 | Lawful basis per purpose | Art. 6 | s.6, s.7(a) | Listed in the notice ("Why, and on what basis") | privacy page |
 | Access / portability | Art. 15, 20 | s.11 | Profile → Your data → Download my data: one JSON with app data, server data, key metadata (never ciphertext), audit, contact messages, billing, consents, requests | `/api/privacy/export`, `subjectRights.ts::buildExport` |
 | Correction | Art. 16 | s.12 | In-app editing; anything else via contact form topic "Privacy request" | |
-| Erasure | Art. 17 | s.12 | Profile → Your data → Delete account (typed confirmation). Deletes tenant row (cascades every tenant table), contact messages, Supabase Auth user. Refused while a subscription would keep charging | `/api/privacy/erase`, `subjectRights.ts::eraseAccount` |
+| Erasure | Art. 17 | s.12 | Profile → Your data → Delete account (typed confirmation). Deletes tenant row (cascades every tenant table), contact messages, Supabase Auth user. Refused while a subscription would keep charging. A tombstone (the hashed completed request) stops late webhooks and other devices' still-valid tokens (≤1 h) from re-creating the account: state writes answer 410 | `/api/privacy/erase`, `subjectRights.ts::eraseAccount` |
 | Retention exceptions | Art. 17(3)(b) | s.8(7) | Billing ledger (8 years, no FK so it survives erasure, no profile data) and a hashed request record | migration 0008 |
 | Storage limitation | Art. 5(1)(e) | s.8(7) | Published schedule; contact messages purged after 24 months by the daily cron | `content/privacy.ts::RETENTION`, `server/privacy/retention.ts` |
 | Processors | Art. 28, 30 | s.8(2) | Published list incl. Razorpay, Stripe, Resend, push services | `content/privacy.ts::SUB_PROCESSORS` |
@@ -69,19 +69,19 @@ controls (ITGC) and application controls a SOX 404 audit would test, implemented
 | Completeness & accuracy of financial events | Every verified webhook (including ignored types) is ledgered with amount, currency, provider ids and a SHA-256 of the raw payload |
 | Integrity / non-repudiation | Hash chain (`prev_hash`, `hash`) computed in the database under an advisory lock; `verifyLedgerChain` re-derives it (unit test pins the SQL hash) |
 | Immutability | Triggers refuse UPDATE/DELETE/TRUNCATE on `billing_ledger` and `privacy_requests`, and UPDATE on `action_audit` and `consent_records` — for the service role too |
-| Reconciliation | Daily, in the cron: each open subscription's live status is fetched from the provider; drift is corrected and ledgered (`reconciliation.<status>`) |
+| Reconciliation | Daily, in the cron: every open subscription (paged, including ones awaiting a first confirmation) is checked against the provider's live status; drift is corrected and ledgered (`reconciliation.<status>`) |
 | Segregation of duties | `BILLING_AUDITOR_TOKEN`: read-only verify + CSV export (`/api/admin/billing-ledger`), separate from deploy, migration (service-role key) and cron secrets |
 | Change management | All changes through PRs with CI (lint, typecheck, tests, build, dependency audit); schema only via versioned migrations whose registry is test-checked against the SQL |
 | Access control | Service-role key server-side only; no anon/authenticated grants on any table; ledger function `execute` granted to `service_role` only |
-| Retention | 8 years (Companies Act 2013 s.128; CGST Act s.36) |
+| Retention | At least 8 years (Companies Act 2013 s.128; CGST Act s.36). Not deleted automatically afterwards yet (the table refuses deletes) — see gaps |
 | PCI DSS | Out of scope beyond SAQ A: hosted payment pages only |
 
 ## 4. IT security
 
 | Area | Change | Code |
 |---|---|---|
-| Open redirect | `?next=` resolved against a fixed origin; `/\evil.com`, tab/newline tricks, absolute URLs rejected — applied in the proxy, auth form, auth callback, onboarding, demo enter/exit | `lib/safeRedirect.ts` (+ tests) |
-| Security headers | CSP, HSTS (2y), X-Frame-Options DENY + `frame-ancestors 'none'`, nosniff, Referrer-Policy, Permissions-Policy (mic self only), COOP, no `X-Powered-By` | `next.config.ts` |
+| Open redirect | `?next=` resolved against a fixed origin; `/\evil.com`, `/..//evil.com` dot-segment collapse, tab/newline tricks, absolute URLs rejected — applied in the proxy, auth form, auth callback, onboarding, demo enter/exit | `lib/safeRedirect.ts` (+ tests) |
+| Security headers | CSP (Vercel preview toolbar allowed), HSTS (2y), X-Frame-Options DENY + `frame-ancestors 'none'`, nosniff, Referrer-Policy, Permissions-Policy (mic self only), COOP `same-origin-allow-popups` (keeps the apply flow's handle on the employer tab), no `X-Powered-By` | `next.config.ts` |
 | CSRF | Proxy refuses cookie-authenticated API mutations whose `Origin` isn't this host or whose `Sec-Fetch-Site` is cross-site; bearer and server-to-server calls pass | `lib/csrf.ts`, `proxy.ts` |
 | Decompression bombs | 16 MB per inflated entry, 48 MB total per PDF; content-length checked before reading uploads | `server/resume/extractText.ts`, `api/career/import-resume` |
 | Rate limiter memory | Idle sweep + LRU cap of 50k keys | `server/rateLimit.ts` |
@@ -93,6 +93,9 @@ controls (ITGC) and application controls a SOX 404 audit would test, implemented
 | Disclosure | RFC 9116 `/.well-known/security.txt`; "Report a security issue" contact topic | |
 
 ## 5. Known gaps (not done)
+
+- Billing ledger and privacy-request records are kept at least 8 years but nothing deletes them afterwards (deletion would need a controlled, audited exception to the append-only trigger).
+- The privacy-notice gate is enforced in the browser; the API doesn't refuse requests from an account that hasn't accepted the current version.
 
 - Session cookie is JS-readable by design of the Supabase browser client; CSP still allows `'unsafe-inline'` scripts (nonce-based CSP would force dynamic rendering of every page).
 - Rate limits are per instance (no shared store).

@@ -123,7 +123,7 @@ export function YourDataCard() {
       >
         <div className="space-y-3 text-[13.5px] text-ink-2">
           <p>Deleted straight away: your sign-in, Career Profile, jobs, applications, run history, settings, saved AI keys, notification devices, contact messages linked to this account and the record of what Wonder did for you.</p>
-          <p>Kept, because the law requires it: payment records (amounts, dates, provider ids and your account id — no profile data) for 8 years, and a one-way hash showing that an erasure was requested and completed.</p>
+          <p>Kept, because the law requires it: payment records (amounts, dates, provider ids and your account id — no profile data) for at least 8 years, and a one-way hash showing that an erasure was requested and completed.</p>
           <p>If you have an active subscription, cancel it first in Plan &amp; billing.</p>
           <p>Want a copy first? Use Download my data before you continue.</p>
           <label className="block">

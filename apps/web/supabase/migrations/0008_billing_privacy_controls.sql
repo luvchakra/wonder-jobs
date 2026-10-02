@@ -125,8 +125,8 @@ drop trigger if exists privacy_requests_append_only on wonderjobs.privacy_reques
 create trigger privacy_requests_append_only before update or delete on wonderjobs.privacy_requests
   for each row execute function wonderjobs.forbid_mutation();
 
--- Audit and consent rows can't be edited. They can still be deleted, but only by the cascade
--- when the account is erased.
+-- Audit and consent rows can't be edited. They can still be deleted (the account-erasure cascade
+-- relies on that), so the protection here is against alteration, not removal.
 drop trigger if exists action_audit_no_update on wonderjobs.action_audit;
 create trigger action_audit_no_update before update on wonderjobs.action_audit
   for each row execute function wonderjobs.forbid_mutation();

@@ -18,6 +18,9 @@ export function safeNextPath(raw: string | null | undefined, fallback = "/app", 
     return fallback;
   }
   if (url.origin !== BASE) return fallback;
+  // Dot-segments can collapse into a scheme-relative path: `/..//evil.com` resolves to pathname
+  // `//evil.com`, which a browser then reads as another host.
+  if (url.pathname.startsWith("//")) return fallback;
   const path = `${url.pathname}${url.search}${url.hash}`;
   if (requirePrefix && !(url.pathname === requirePrefix || url.pathname.startsWith(`${requirePrefix}/`))) return fallback;
   return path;

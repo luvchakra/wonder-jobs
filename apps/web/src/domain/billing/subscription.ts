@@ -8,8 +8,11 @@ import type { BillingEvent, Entitlement, Subscription } from "./types";
  * - The tenant on an existing record is authoritative. An event whose metadata
  *   names a different tenant is refused (`tenant_mismatch`) rather than moving a
  *   paid subscription between accounts.
- * - Provider events can arrive out of order. A status change older than the one
- *   already applied is ignored (`stale`) — payments are still ledgered by the caller.
+ * - Provider events can arrive out of order. Any event older than the one already
+ *   applied is ignored (`stale`) — including payments, so a retried or resent old
+ *   invoice can't re-activate a subscription that has since stopped. The caller still
+ *   ledgers every event.
+ * - A failed payment only ever moves `active` → `past_due`; it never grants access.
  * - Nothing here grants access by itself; `entitlementFor` reads the result.
  */
 export type ApplyOutcome =
@@ -23,7 +26,7 @@ export function applyBillingEvent(current: Subscription | undefined, e: BillingE
   if (current && e.tenantId && e.tenantId !== current.tenantId) return { result: "rejected", reason: "tenant_mismatch" };
   const tenantId = current?.tenantId ?? e.tenantId;
   if (!tenantId) return { result: "unchanged", reason: "no_tenant" };
-  if (current && current.updatedAt > e.occurredAt && e.kind !== "payment_succeeded") return { result: "unchanged", reason: "stale" };
+  if (current && current.updatedAt > e.occurredAt) return { result: "unchanged", reason: "stale" };
 
   const base: Subscription = current ?? {
     tenantId,
@@ -50,7 +53,7 @@ export function applyBillingEvent(current: Subscription | undefined, e: BillingE
       if (next.status !== "canceled") next.status = "active";
       break;
     case "payment_failed":
-      if (next.status !== "canceled") next.status = "past_due";
+      if (next.status === "active") next.status = "past_due";
       break;
     case "subscription_canceled":
       next.status = "canceled";

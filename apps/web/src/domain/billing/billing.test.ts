@@ -87,6 +87,17 @@ describe("applying events to a subscription", () => {
     expect(ended.result === "applied" && entitlementFor(ended.subscription).plan).toBe("free");
   });
 
+  it("an old payment can't re-activate a subscription that has since stopped", () => {
+    expect(applyBillingEvent(sub({ status: "unpaid", updatedAt: "2026-10-05T00:00:00.000Z" }), ev({ kind: "payment_succeeded", occurredAt: "2026-10-01T00:00:00.000Z" }))).toEqual({ result: "unchanged", reason: "stale" });
+  });
+
+  it("a failed payment never grants access", () => {
+    for (const status of ["incomplete", "unpaid", "paused"] as const) {
+      const r = applyBillingEvent(sub({ status, updatedAt: "2026-09-01T00:00:00.000Z" }), ev({ kind: "payment_failed", occurredAt: "2026-10-02T00:00:00.000Z" }));
+      expect(r.result === "applied" && entitlementFor(r.subscription).plan).toBe("free");
+    }
+  });
+
   it("re-applying the same event gives the same result (redelivery is harmless)", () => {
     const e = ev({ tenantId: "t1", status: "active", currentPeriodEnd: "2026-11-01T00:00:00.000Z" });
     const once = applyBillingEvent(undefined, e);

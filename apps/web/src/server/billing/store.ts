@@ -16,8 +16,8 @@ export interface BillingStore {
   ledgerForTenant(tenantId: string, limit?: number): Promise<LedgerRow[]>;
   /** The whole ledger in order, for chain verification by an auditor. */
   ledgerPage(afterSeq: number, limit: number): Promise<LedgerRow[]>;
-  /** Subscriptions that may still take money, for the daily reconciliation. */
-  openSubscriptions(limit: number): Promise<Subscription[]>;
+  /** Subscriptions that may still take money, for the daily reconciliation, in a stable order (paged). */
+  openSubscriptions(limit: number, offset?: number): Promise<Subscription[]>;
 }
 
 /** Prefer the subscription that grants access, then the most recently changed one. */
@@ -53,8 +53,8 @@ export class MemoryBillingStore implements BillingStore {
   async ledgerPage(afterSeq: number, limit: number) {
     return this.ledger.filter((r) => r.seq > afterSeq).slice(0, limit);
   }
-  async openSubscriptions(limit: number) {
-    return [...this.subs.values()].filter((s) => s.status !== "canceled").slice(0, limit);
+  async openSubscriptions(limit: number, offset = 0) {
+    return [...this.subs.values()].filter((s) => s.status !== "canceled").slice(offset, offset + limit);
   }
   /** Test hook: simulate tampering by an attacker with raw table access. */
   _rows() {
@@ -197,8 +197,8 @@ class SupabaseBillingStore implements BillingStore {
     if (error) throw new Error(error.message);
     return (data as LedgerDbRow[]).map(fromLedgerRow);
   }
-  async openSubscriptions(limit: number) {
-    const { data, error } = await this.db().from("billing_subscriptions").select(SUB_COLS).neq("status", "canceled").order("updated_at", { ascending: true }).limit(limit);
+  async openSubscriptions(limit: number, offset = 0) {
+    const { data, error } = await this.db().from("billing_subscriptions").select(SUB_COLS).neq("status", "canceled").order("provider").order("subscription_id").range(offset, offset + limit - 1);
     if (error) throw new Error(error.message);
     return (data as SubRow[]).map(fromSubRow);
   }

@@ -26,8 +26,8 @@ export const RETENTION: RetentionRule[] = [
   { data: "Action audit (what Wonder did on your behalf, and when)", period: "Until you delete your account; rows can't be edited", basis: "Legitimate interest — accountability and security" },
   { data: "Contact-form messages", period: "24 months, then deleted automatically", days: 730, basis: "Legitimate interest — answering you" },
   { data: "Notice acknowledgements and consents", period: "Until you delete your account", basis: "Legal obligation — proof of notice and consent" },
-  { data: "Billing ledger (payment events: amounts, currency, dates, provider reference ids and your account id — no card or bank details, no profile data)", period: "8 years, including after account deletion", basis: "Legal obligation — tax and accounting records (Companies Act 2013 s.128, CGST Act s.36)" },
-  { data: "Record that an export or erasure was requested (a one-way hash, not your id)", period: "8 years", basis: "Legal obligation — demonstrating compliance" },
+  { data: "Billing ledger (payment events: amounts, currency, dates, provider reference ids and your account id — no card or bank details, no profile data)", period: "At least 8 years (the legal minimum), including after account deletion; it isn't deleted automatically after that yet", basis: "Legal obligation — tax and accounting records (Companies Act 2013 s.128, CGST Act s.36)" },
+  { data: "Record that an export or erasure was requested (a one-way hash, not your id)", period: "At least 8 years; not yet deleted automatically", basis: "Legal obligation — demonstrating compliance" },
 ];
 
 export const CONTACT_MESSAGE_RETENTION_DAYS = RETENTION.find((r) => r.days)!.days!;

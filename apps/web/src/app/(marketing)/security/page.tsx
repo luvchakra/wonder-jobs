@@ -79,7 +79,7 @@ export default function SecurityPage() {
               <li>A redelivered event is recognised by its provider event id and recorded once; the ledger stores identifiers and amounts only, with a hash of the original payload, never names or card data.</li>
               <li>A daily reconciliation asks Razorpay and Stripe for the live status of every open subscription and records any correction in the ledger.</li>
               <li>Segregation of duties: a separate, read-only auditor credential can verify the hash chain and export the full ledger as CSV; it can&apos;t change data, deploy or migrate.</li>
-              <li>Payment records are kept for eight years to meet tax and accounting law, including after an account is deleted.</li>
+              <li>Payment records are kept for at least eight years to meet tax and accounting law, including after an account is deleted; there is no automatic deletion after that yet.</li>
               <li>WonderJobs is not a public company and has not been audited under the Sarbanes-Oxley Act; these are the kinds of controls such audits test.</li>
             </ul>
           ),

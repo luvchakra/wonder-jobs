@@ -109,3 +109,20 @@ export async function signOutEverywhere(userId: string | null) {
     /* ignore */
   }
 }
+
+let providerSettings: Promise<Record<string, boolean> | null> | undefined;
+/**
+ * Whether an OAuth provider is switched on for this Supabase project, from Auth's public settings
+ * endpoint. `null` when it can't be determined (network, misconfiguration) — callers then proceed and
+ * let Supabase answer, rather than blocking a provider that may well be on.
+ */
+export async function oauthProviderEnabled(provider: "google"): Promise<boolean | null> {
+  const env = supabaseAuthEnv();
+  if (!env) return null;
+  providerSettings ??= fetch(`${env.url}/auth/v1/settings`, { headers: { apikey: env.key }, cache: "no-store" })
+    .then((r) => (r.ok ? (r.json() as Promise<{ external?: Record<string, boolean> }>) : null))
+    .then((d) => d?.external ?? null)
+    .catch(() => null);
+  const ext = await providerSettings;
+  return ext ? ext[provider] === true : null;
+}

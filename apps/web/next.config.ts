@@ -26,10 +26,10 @@ function contentSecurityPolicy(): string {
     "default-src": ["'self'"],
     // Vercel's preview toolbar (vercel.live) only appears on preview deployments.
     "script-src": ["'self'", "'unsafe-inline'", "https://vercel.live", ...(dev ? ["'unsafe-eval'"] : [])],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
-    "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'", ...supabaseOrigins, "https://vercel.live", ...(dev ? ["ws:", "http://localhost:*"] : [])],
+    "style-src": ["'self'", "'unsafe-inline'", "https://vercel.live"],
+    "img-src": ["'self'", "data:", "blob:", "https://vercel.live", "https://vercel.com"],
+    "font-src": ["'self'", "data:", "https://vercel.live", "https://assets.vercel.com"],
+    "connect-src": ["'self'", ...supabaseOrigins, "https://vercel.live", "wss://ws-us3.pusher.com", ...(dev ? ["ws:", "http://localhost:*"] : [])],
     "frame-src": ["https://vercel.live"],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
@@ -53,7 +53,9 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // The microphone is used for dictation on our own pages only; nothing else is ever requested.
   { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()" },
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  // allow-popups: the apply flow keeps a handle on the employer tab it opened, so a candidate's half-filled
+  // form is reused rather than reloaded; plain same-origin would sever that handle.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
 ];
 

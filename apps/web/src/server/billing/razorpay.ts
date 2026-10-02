@@ -53,6 +53,8 @@ export async function razorpaySubscribe(cfg: RazorpayConfig, input: { tenantId: 
     total_count: cfg.totalCount,
     quantity: 1,
     customer_notify: 1,
+    // An abandoned payment link expires after a week instead of lingering as an open subscription.
+    expire_by: Math.floor(Date.now() / 1000) + 7 * 86_400,
     notes: { tenant_id: input.tenantId },
   });
   if (!s.short_url) throw new ProviderError("Razorpay did not return a payment link", 502);

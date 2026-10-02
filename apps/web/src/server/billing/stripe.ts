@@ -113,8 +113,9 @@ export async function stripePortal(cfg: StripeConfig, customerId: string, return
 }
 
 export async function stripeSubscriptionStatus(cfg: StripeConfig, subscriptionId: string): Promise<{ status: SubscriptionStatus; cancelAtPeriodEnd: boolean; raw: string }> {
-  const s = await call<{ status: string; cancel_at_period_end: boolean }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
-  return { status: normalizeStripeStatus(s.status), cancelAtPeriodEnd: !!s.cancel_at_period_end, raw: s.status };
+  const s = await call<{ status: string; cancel_at_period_end: boolean; cancel_at: number | null }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  // Same reading as the webhook (`fromStripeEvent`): a scheduled `cancel_at` is a cancellation too.
+  return { status: normalizeStripeStatus(s.status), cancelAtPeriodEnd: !!s.cancel_at_period_end || s.cancel_at != null, raw: s.status };
 }
 
 /**

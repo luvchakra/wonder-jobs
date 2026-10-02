@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
+import { isErased } from "@/server/privacy/records";
 import { rateLimit } from "@/server/rateLimit";
 import { isStateStoreName, MAX_STATE_BYTES, stateStore } from "@/server/state";
 
@@ -32,6 +33,8 @@ export async function PUT(req: Request, ctx: Ctx) {
   if (session instanceof NextResponse) return session;
   const { tenantId } = session;
   const rl = rateLimit(`state:${tenantId}`, { capacity: 120, refillPerSec: 4 });
+  // A device still holding a valid token after the account was deleted must not write it back into existence.
+  if (await isErased(tenantId).catch(() => false)) return NextResponse.json({ error: "This account was deleted." }, { status: 410 });
   if (!rl.ok) return NextResponse.json({ error: "Too many updates" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const text = await req.text();
   if (text.length > MAX_STATE_BYTES) return NextResponse.json({ error: "State too large" }, { status: 413 });

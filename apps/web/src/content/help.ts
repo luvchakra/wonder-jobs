@@ -255,7 +255,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Payments: the card lists each payment and failed payment the provider reported.",
       "Profile → Your data:",
       "- Download my data: one JSON file with everything stored for your account — profile, jobs, applications, runs, settings, key details (never the key itself), the audit of what Wonder did, payments, and your notice acceptances.",
-      "- Delete account: type DELETE MY ACCOUNT to confirm. Your sign-in and data are deleted at once; payment records (kept 8 years for tax law) and a one-way hash of the request are all that remain. Cancel an active subscription first.",
+      "- Delete account: type DELETE MY ACCOUNT to confirm. Your sign-in and data are deleted at once; payment records (kept at least 8 years for tax law) and a one-way hash of the request are all that remain. Cancel an active subscription first.",
       "The first time you sign in, and whenever the privacy notice changes, you're asked to confirm you're 18 or older and accept it. Questions or complaints about your data go to the grievance contact on the privacy notice.",
     ],
   },
