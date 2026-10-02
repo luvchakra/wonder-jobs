@@ -11,6 +11,14 @@
  */
 import { inflateRawSync, inflateSync } from "node:zlib";
 
+/**
+ * Decompression-bomb limits. A 5 MB upload can otherwise inflate to gigabytes in memory: zlib stops
+ * at `maxOutputLength` and throws, and the PDF reader also stops once all streams together pass the
+ * total budget. Real résumés are a few hundred KB uncompressed.
+ */
+export const MAX_INFLATED_ENTRY_BYTES = 16 * 1024 * 1024;
+export const MAX_INFLATED_TOTAL_BYTES = 48 * 1024 * 1024;
+
 export type ResumeFormat = "text" | "pdf" | "docx";
 
 export interface ExtractedText {
@@ -113,7 +121,14 @@ export function readZipEntry(buf: Buffer, entry: ZipEntry): Buffer {
   const start = entry.offset + 30 + nameLen + extraLen;
   const data = buf.subarray(start, start + entry.compressedSize);
   if (entry.method === 0) return data;
-  if (entry.method === 8) return inflateRawSync(data);
+  if (entry.method === 8) {
+    try {
+      return inflateRawSync(data, { maxOutputLength: MAX_INFLATED_ENTRY_BYTES });
+    } catch (e) {
+      if (e instanceof RangeError) throw new UnsupportedResumeError("That DOCX is far larger than a résumé once unpacked. Save it as PDF, or paste the text instead.");
+      throw e;
+    }
+  }
   throw new UnsupportedResumeError("That DOCX uses a compression Wonder can't read. Save it as PDF, or paste the text instead.");
 }
 
@@ -184,6 +199,7 @@ function isCMapStream(text: string): boolean {
 export function extractPdfText(buf: Buffer): string {
   const raw = buf.toString("latin1");
   const bodies: { obj: number | null; text: string }[] = [];
+  let inflatedBytes = 0;
   // Every stream a font dictionary points at as its program (/FontFile, /FontFile2, /FontFile3).
   const fontPrograms = new Set([...raw.matchAll(/\/FontFile[23]?\s+(\d+)\s+\d+\s+R/g)].map((m) => Number(m[1])));
   const re = /stream\r?\n?/g;
@@ -212,6 +228,8 @@ export function extractPdfText(buf: Buffer): string {
     try {
       const slice = buf.subarray(start, end);
       const body = /\/FlateDecode/.test(dict) ? inflate(slice) : slice;
+      inflatedBytes += body.length;
+      if (inflatedBytes > MAX_INFLATED_TOTAL_BYTES) break;
       const objMatch = dictStart >= 0 ? raw.slice(Math.max(0, dictStart - 40), dictStart).match(/(\d+)\s+\d+\s+obj\s*$/) : null;
       bodies.push({ obj: objMatch ? Number(objMatch[1]) : null, text: body.toString("latin1") });
     } catch {
@@ -266,10 +284,12 @@ function fontCMaps(raw: string, cmapByObj: Map<number, CMap>): Map<string, CMap>
 }
 
 function inflate(slice: Buffer): Buffer {
+  const opts = { maxOutputLength: MAX_INFLATED_ENTRY_BYTES };
   try {
-    return inflateSync(slice);
-  } catch {
-    return inflateRawSync(slice);
+    return inflateSync(slice, opts);
+  } catch (e) {
+    if (e instanceof RangeError) throw e;
+    return inflateRawSync(slice, opts);
   }
 }
 

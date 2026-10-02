@@ -25,6 +25,9 @@ describe("help assistant retrieval", () => {
     ["how do I add my interviews to google calendar", "calendar", "Can I add my interviews and follow-ups to Google Calendar or Outlook?"],
     ["what can I ask wonder", "ask-wonder", "What can I ask Wonder?"],
     ["download my cover letter as word", "applications", "Can I download my tailored résumé and cover letter?"],
+    ["how do I cancel my subscription", "billing-data", "How do I cancel my subscription?"],
+    ["how do I delete my data", "billing-data", "How do I download or delete my data?"],
+    ["is my card safe if I pay for pro", "billing-data", "How do I pay for Pro, and is my card safe?"],
   ])("%s", (question, section, faq) => {
     expect(answer(question)).toEqual({ section, faq });
   });

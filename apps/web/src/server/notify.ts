@@ -48,7 +48,8 @@ export async function notifyContactRecipients(payload: ContactNotifyPayload): Pr
 
   if (!apiKey) {
     // No email provider configured: say so honestly instead of pretending to deliver.
-    console.info("[contact] notification not sent (no RESEND_API_KEY configured)", { recipients, subject, preview: payload.message.slice(0, 200) });
+    // Recipients are the operator's own addresses; the sender's name, address and message stay out of the logs.
+    console.info("[contact] notification not sent (no RESEND_API_KEY configured)", { recipients: recipients.length, topic: payload.topic });
     return { attempted: true, sent: false, recipients, reason: "no email provider configured" };
   }
 

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { DEMO_COOKIE } from "@/lib/auth/config";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 export const runtime = "nodejs";
 
 /** Enter demo mode: the product runs on seeded sample data, stored on this device only. `?next=/app/jobs` deep-links into a screen. */
 export async function GET(req: Request) {
   const raw = new URL(req.url).searchParams.get("next");
-  const next = raw && raw.startsWith("/app") && !raw.startsWith("//") ? raw : "/app";
+  const next = safeNextPath(raw, "/app", "/app");
   const res = NextResponse.redirect(new URL(next, req.url), { status: 303 });
   // Next.js's Link prefetching sends this exact request (marked `next-router-prefetch: 1`) as soon as an
   // "Explore the demo" link scrolls into view, well before anyone clicks it. Setting the cookie on that

@@ -542,7 +542,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Apply with Wonder", href: "/#extension" },
       { label: "Browser helper", href: "/extension" },
       { label: "Live demo", href: "/demo" },
-      { label: "Pricing", href: "/#cta", badge: "Free" },
+      { label: "Pricing & payments", href: "/terms#free", badge: "Free" },
     ],
   },
   {
@@ -566,6 +566,8 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Careers", href: "/about#careers" },
       { label: "Press", href: "/#contact" },
       { label: "Security", href: "/security" },
+      { label: "Trust & compliance", href: "/#trust" },
+      { label: "Report a vulnerability", href: "/security#report" },
     ],
   },
   {
@@ -575,6 +577,8 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Create account", href: "/sign-up" },
       { label: "Forgot password", href: "/forgot-password" },
       { label: "AI settings", href: "/app/settings/ai" },
+      { label: "Plan & billing", href: "/app/profile#plan" },
+      { label: "Your data (export / delete)", href: "/app/profile#your-data" },
       { label: "Get help", href: "/help" },
     ],
   },

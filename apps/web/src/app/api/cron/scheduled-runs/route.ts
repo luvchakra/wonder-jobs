@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { bearerMatches } from "@/server/crypto";
+import { reconcileSubscriptions, type ReconcileReport } from "@/server/billing/service";
+import { purgeExpired } from "@/server/privacy/retention";
 import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
 import { raiseDueReminders } from "@/server/workflow/reminders";
 import { notifyTenant } from "@/server/push/subscriptions";
@@ -28,10 +30,7 @@ const MAX_TENANTS = 200;
 export async function GET(req: Request) {
   const expected = process.env.CRON_SECRET;
   if (!expected) return NextResponse.json({ error: "CRON_SECRET is not configured on this deployment" }, { status: 503 });
-  const given = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!given || given.length !== expected.length || !timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!bearerMatches(req, expected)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const startedAt = Date.now();
   const now = new Date();
@@ -41,7 +40,8 @@ export async function GET(req: Request) {
   try {
     tenants = await listTenantsWithDueSchedules(now, MAX_TENANTS);
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "Could not look for due schedules" }, { status: 502 });
+    console.error("[cron] due-schedule lookup failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ ok: false, error: "Could not look for due schedules" }, { status: 502 });
   }
 
   let deferred = 0;
@@ -81,8 +81,24 @@ export async function GET(req: Request) {
     failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
   }
 
+  // Daily controls: billing reconciliation against the providers, and retention purges.
+  let billing: ReconcileReport | null = null;
+  let purged: { contactMessages: number } | null = null;
+  try {
+    billing = await reconcileSubscriptions();
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `billing reconciliation: ${e instanceof Error ? e.message : String(e)}` });
+  }
+  try {
+    purged = await purgeExpired(now);
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `retention purge: ${e instanceof Error ? e.message : String(e)}` });
+  }
+
   return NextResponse.json({
     ok: true,
+    billing,
+    purged,
     at: now.toISOString(),
     tenantsDue: tenants.length,
     ran: reports.length,

@@ -12,6 +12,7 @@ import { useHydration } from "@/store/hydration";
 import { useCareerStore } from "@/store/career";
 import { useAuthStore } from "@/store/auth";
 import { PageLoading } from "@/components/common/States";
+import { PrivacyNoticeGate } from "@/components/privacy/PrivacyNoticeGate";
 
 /**
  * Renders product pages once local state is hydrated. A signed-in account
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       <MobileNav />
       <MobileSidebarDrawer />
+      <PrivacyNoticeGate />
       <Toaster />
     </StoreHydrator>
   );

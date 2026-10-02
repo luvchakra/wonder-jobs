@@ -254,3 +254,20 @@ describe("extractResumeText", () => {
     expect(extractResumeText(Buffer.from("%PDF-1.4\n%%EOF"), "scan.pdf").readable).toBe(false);
   });
 });
+
+describe("decompression bombs", () => {
+  // ~20 MB of text that compresses to a few KB: the shape of a zip/flate bomb, scaled down.
+  const huge = "A".repeat(20 * 1024 * 1024);
+
+  it("refuses a DOCX whose document inflates past the limit, without inflating it all", () => {
+    const docx = makeDocx([huge]);
+    expect(docx.length).toBeLessThan(100_000);
+    expect(() => extractDocxText(docx)).toThrow(UnsupportedResumeError);
+  });
+
+  it("skips a PDF stream that inflates past the limit instead of holding it in memory", () => {
+    const pdf = makePdf([huge]);
+    expect(pdf.length).toBeLessThan(100_000);
+    expect(extractPdfText(pdf)).not.toContain("AAAA");
+  });
+});

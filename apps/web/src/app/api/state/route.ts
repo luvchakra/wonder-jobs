@@ -14,7 +14,8 @@ export async function GET() {
     const docs = await stateStore.getAll(tenantId);
     return NextResponse.json({ docs }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Load failed" }, { status: 503 });
+    console.error("[state] load failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "Your data couldn't be loaded just now" }, { status: 503 });
   }
 }
 
@@ -45,6 +46,7 @@ export async function PUT(req: Request) {
     const saved = await stateStore.putMany(tenantId, docs);
     return NextResponse.json({ saved });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Save failed" }, { status: 503 });
+    console.error("[state] save failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "Your changes couldn't be saved just now" }, { status: 503 });
   }
 }

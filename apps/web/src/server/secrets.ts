@@ -9,7 +9,7 @@
  * cold start). Implement `SecretStore` against a database (e.g. Supabase with
  * RLS) for production; the API routes do not change.
  */
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from "node:crypto";
 import type { AIProviderId, BYOKStatus } from "@/domain/ai/types";
 import { getSupabaseAdmin, touchTenant } from "./supabase";
 
@@ -109,17 +109,29 @@ function masterKey(): Buffer {
   return g.__wjDevKey ?? (g.__wjDevKey = randomBytes(32));
 }
 
-export function encrypt(plaintext: string) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", masterKey(), iv);
-  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("base64")}:${tag.toString("base64")}:${data.toString("base64")}`;
+/**
+ * Encryption key, separated from the master secret by HKDF. The master secret also signs calendar,
+ * extension and helper tokens; deriving a purpose-specific key means a weakness in one use can't be
+ * leveraged against the other.
+ */
+function encryptionKey(): Buffer {
+  return Buffer.from(hkdfSync("sha256", masterKey(), Buffer.alloc(0), "wonderjobs/secret-store/aes-256-gcm/v2", 32));
 }
 
+/** `v2:iv:tag:data` (base64). AES-256-GCM, random 96-bit IV, authenticated. */
+export function encrypt(plaintext: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `v2:${iv.toString("base64")}:${tag.toString("base64")}:${data.toString("base64")}`;
+}
+
+/** Reads `v2:` ciphertexts and the original unversioned format (keyed by sha256 of the master secret). */
 export function decrypt(ciphertext: string) {
-  const [iv, tag, data] = ciphertext.split(":").map((s) => Buffer.from(s, "base64"));
-  const decipher = createDecipheriv("aes-256-gcm", masterKey(), iv);
+  const v2 = ciphertext.startsWith("v2:");
+  const [iv, tag, data] = (v2 ? ciphertext.slice(3) : ciphertext).split(":").map((s) => Buffer.from(s, "base64"));
+  const decipher = createDecipheriv("aes-256-gcm", v2 ? encryptionKey() : masterKey(), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
 }

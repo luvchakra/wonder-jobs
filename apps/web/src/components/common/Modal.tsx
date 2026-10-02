@@ -4,8 +4,12 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { IconButton } from "./Button";
 
-/** Accessible dialog: focus trap via <dialog>, Escape closes, sheet on mobile. */
-export function Modal({ open, onClose, title, description, children, footer, size = "md" }: { open: boolean; onClose: () => void; title: string; description?: string; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" }) {
+/**
+ * Accessible dialog: focus trap via <dialog>, Escape closes, sheet on mobile.
+ * `dismissible={false}` is for a decision the candidate must make (no close button, Escape and
+ * backdrop clicks do nothing) — the footer must then offer every way out.
+ */
+export function Modal({ open, onClose, title, description, children, footer, size = "md", dismissible = true }: { open: boolean; onClose: () => void; title: string; description?: string; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg"; dismissible?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -18,11 +22,11 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     if (!el) return;
     const onCancel = (e: Event) => {
       e.preventDefault();
-      onClose();
+      if (dismissible) onClose();
     };
     el.addEventListener("cancel", onCancel);
     return () => el.removeEventListener("cancel", onCancel);
-  }, [onClose]);
+  }, [onClose, dismissible]);
   const widths = { sm: "sm:max-w-md", md: "sm:max-w-lg", lg: "sm:max-w-2xl" };
   return (
     <dialog
@@ -34,7 +38,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         widths[size],
       )}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (dismissible && e.target === ref.current) onClose();
       }}
     >
       <div className="p-6">
@@ -45,9 +49,11 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             </h2>
             {description && <p className="mt-1 text-sm text-ink-3">{description}</p>}
           </div>
-          <IconButton label="Close" onClick={onClose} size="sm">
-            <X className="size-4" aria-hidden />
-          </IconButton>
+          {dismissible && (
+            <IconButton label="Close" onClick={onClose} size="sm">
+              <X className="size-4" aria-hidden />
+            </IconButton>
+          )}
         </div>
         <div className="mt-5">{children}</div>
         {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}

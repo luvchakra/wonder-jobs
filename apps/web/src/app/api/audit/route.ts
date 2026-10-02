@@ -26,6 +26,9 @@ export async function POST(req: Request) {
   if (!sb) return NextResponse.json({ recorded: false, reason: "local" });
   await touchTenant(tenantId);
   const { error } = await sb.from("action_audit").insert({ tenant_id: tenantId, action_id: parsed.data.actionId, action_type: parsed.data.actionType, event: parsed.data.event, detail: parsed.data.detail ?? null });
-  if (error) return NextResponse.json({ error: error.message }, { status: 503 });
+  if (error) {
+    console.error("[audit] insert failed:", error.message);
+    return NextResponse.json({ error: "The audit record couldn't be written" }, { status: 503 });
+  }
   return NextResponse.json({ recorded: true });
 }

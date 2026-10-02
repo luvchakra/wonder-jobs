@@ -24,6 +24,9 @@ export async function POST(req: Request) {
   const rl = rateLimit(`resume:${session.tenantId}`, { capacity: 10, refillPerSec: 1 / 30 });
   if (!rl.ok) return NextResponse.json({ error: "That's a lot of resumes at once. Give it a minute." }, { status: 429 });
 
+  // Refuse an oversized body before reading it into memory (multipart overhead allowed for).
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BYTES + 64 * 1024) return NextResponse.json({ error: "That file is over 5 MB. Export a smaller PDF, or paste the text instead." }, { status: 413 });
+
   let text: string;
   let format = "text";
   let readable = true;
