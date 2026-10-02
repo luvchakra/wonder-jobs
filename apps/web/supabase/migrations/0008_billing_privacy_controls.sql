@@ -139,3 +139,6 @@ alter table wonderjobs.billing_ledger enable row level security;
 alter table wonderjobs.privacy_requests enable row level security;
 alter table wonderjobs.consent_records enable row level security;
 revoke all on wonderjobs.billing_subscriptions, wonderjobs.billing_ledger, wonderjobs.privacy_requests, wonderjobs.consent_records from anon, authenticated;
+-- Explicit, in case this runs as a role other than the one whose default privileges 0001 set.
+grant all on wonderjobs.billing_subscriptions, wonderjobs.billing_ledger, wonderjobs.privacy_requests, wonderjobs.consent_records to service_role;
+grant all on all sequences in schema wonderjobs to service_role;
