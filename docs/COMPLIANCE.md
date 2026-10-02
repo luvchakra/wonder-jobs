@@ -72,7 +72,7 @@ controls (ITGC) and application controls a SOX 404 audit would test, implemented
 | Reconciliation | Daily, in the cron: every open subscription (paged, including ones awaiting a first confirmation) is checked against the provider's live status; drift is corrected and ledgered (`reconciliation.<status>`) |
 | Segregation of duties | `BILLING_AUDITOR_TOKEN`: read-only verify + CSV export (`/api/admin/billing-ledger`), separate from deploy, migration (service-role key) and cron secrets |
 | Change management | All changes through PRs with CI (lint, typecheck, tests, build, dependency audit); schema only via versioned migrations whose registry is test-checked against the SQL |
-| Access control | Service-role key server-side only; no anon/authenticated grants on any table; ledger function `execute` granted to `service_role` only |
+| Access control | Supabase security advisor clean for WonderJobs objects (migration 0009 pinned `forbid_mutation`'s search_path; the remaining "RLS enabled, no policy" notices are the deliberate server-only design). Service-role key server-side only; no anon/authenticated grants on any table; ledger function `execute` granted to `service_role` only |
 | Retention | At least 8 years (Companies Act 2013 s.128; CGST Act s.36). Not deleted automatically afterwards yet (the table refuses deletes) — see gaps |
 | PCI DSS | Out of scope beyond SAQ A: hosted payment pages only |
 
