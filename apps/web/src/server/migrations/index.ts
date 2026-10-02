@@ -455,24 +455,19 @@ begin
 end;
 $$;
 
-drop trigger if exists billing_ledger_append_only on wonderjobs.billing_ledger;
-create trigger billing_ledger_append_only before update or delete on wonderjobs.billing_ledger
+create or replace trigger billing_ledger_append_only before update or delete on wonderjobs.billing_ledger
   for each row execute function wonderjobs.forbid_mutation();
-drop trigger if exists billing_ledger_no_truncate on wonderjobs.billing_ledger;
-create trigger billing_ledger_no_truncate before truncate on wonderjobs.billing_ledger
+create or replace trigger billing_ledger_no_truncate before truncate on wonderjobs.billing_ledger
   for each statement execute function wonderjobs.forbid_mutation();
 
-drop trigger if exists privacy_requests_append_only on wonderjobs.privacy_requests;
-create trigger privacy_requests_append_only before update or delete on wonderjobs.privacy_requests
+create or replace trigger privacy_requests_append_only before update or delete on wonderjobs.privacy_requests
   for each row execute function wonderjobs.forbid_mutation();
 
 -- Audit and consent rows can't be edited. They can still be deleted (the account-erasure cascade
 -- relies on that), so the protection here is against alteration, not removal.
-drop trigger if exists action_audit_no_update on wonderjobs.action_audit;
-create trigger action_audit_no_update before update on wonderjobs.action_audit
+create or replace trigger action_audit_no_update before update on wonderjobs.action_audit
   for each row execute function wonderjobs.forbid_mutation();
-drop trigger if exists consent_records_no_update on wonderjobs.consent_records;
-create trigger consent_records_no_update before update on wonderjobs.consent_records
+create or replace trigger consent_records_no_update before update on wonderjobs.consent_records
   for each row execute function wonderjobs.forbid_mutation();
 
 alter table wonderjobs.billing_subscriptions enable row level security;
