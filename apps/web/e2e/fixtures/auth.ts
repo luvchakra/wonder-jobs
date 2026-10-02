@@ -1,6 +1,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueTestEmail, testPassword } from "../utils/testUser";
+import { PRIVACY_NOTICE_VERSION } from "../../src/content/privacy";
 
 export interface TestAccount {
   id: string;
@@ -38,7 +39,23 @@ export async function createTestAccount(tag = "auth"): Promise<TestAccount> {
   const password = testPassword();
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (error || !data.user) throw new Error(`Could not create test account: ${error?.message ?? "no user returned"}`);
+  await acceptPrivacyNotice(data.user.id);
   return { id: data.user.id, email, password };
+}
+
+/**
+ * Records the test account's acceptance of the current privacy notice, as the in-app gate would, so
+ * specs about other flows aren't interrupted by it. Best-effort: a project without migration 0008
+ * simply shows the gate (which then lets the candidate continue).
+ */
+async function acceptPrivacyNotice(id: string): Promise<void> {
+  const admin = adminClient();
+  if (!admin) return;
+  const db = admin.schema("wonderjobs");
+  await db.from("tenants").upsert({ id }, { onConflict: "id" }).then(() => {}, () => {});
+  for (const purpose of ["age_confirmation", "privacy_notice"]) {
+    await db.from("consent_records").insert({ tenant_id: id, purpose, notice_version: PRIVACY_NOTICE_VERSION, granted: true }).then(() => {}, () => {});
+  }
 }
 
 /** Removes the auth user and whatever product state it wrote, so a test run leaves nothing behind in

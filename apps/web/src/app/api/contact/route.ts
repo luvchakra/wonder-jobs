@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 const Body = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(200),
-  topic: z.enum(["general", "support", "feedback", "partnership", "press"]).default("general"),
+  topic: z.enum(["general", "support", "feedback", "partnership", "press", "privacy", "security"]).default("general"),
   message: z.string().trim().min(10).max(4000),
   page: z.string().trim().max(300).optional(),
   // Honeypot: real people never fill this in.
@@ -29,7 +29,8 @@ export async function POST(req: Request) {
   const sb = getSupabaseAdmin();
   if (!sb) {
     // Local mode: nothing to write to. Say so honestly instead of pretending it was delivered.
-    console.info("[contact] (no database configured)", { name, email, topic, message: message.slice(0, 200) });
+    // Never log the sender's name, address or words: server logs are not a place for personal data.
+    console.info("[contact] (no database configured) message received", { topic, length: message.length });
     const notified = await notifyContactRecipients({ name, email, topic, message, page });
     return NextResponse.json({ ok: true, stored: false, notified: notified.sent });
   }

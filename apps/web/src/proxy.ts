@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE, COOKIE_MAX_AGE, DEMO_COOKIE, USER_COOKIE, authConfigured, chunkNames, splitChunks, toBase64Url, type StoredSession } from "@/lib/auth/config";
+import { safeNextPath } from "@/lib/safeRedirect";
+import { isCrossSiteMutation } from "@/lib/csrf";
 import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken } from "@/server/session";
 
 /**
@@ -27,6 +29,11 @@ function clearSessionCookies(res: NextResponse, req: NextRequest) {
 }
 
 export async function proxy(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    // API routes authenticate themselves; the proxy only refuses cross-site mutations (CSRF).
+    if (isCrossSiteMutation(req.method, req.headers, req.nextUrl.host)) return NextResponse.json({ error: "Cross-site request refused" }, { status: 403 });
+    return NextResponse.next();
+  }
   if (!authConfigured()) return NextResponse.next();
   const { pathname, search } = req.nextUrl;
   const isProtected = PROTECTED.some((r) => r.test(pathname));
@@ -42,7 +49,7 @@ export async function proxy(req: NextRequest) {
   const user = stored ? await verifyAccessToken(stored.access_token) : null;
 
   if (user) {
-    const res = isAuthPage ? NextResponse.redirect(new URL(req.nextUrl.searchParams.get("next") || "/app", req.url)) : NextResponse.next();
+    const res = isAuthPage ? NextResponse.redirect(new URL(safeNextPath(req.nextUrl.searchParams.get("next"), "/app"), req.url)) : NextResponse.next();
     if (refreshed) writeSessionCookies(res, req, refreshed);
     if (req.cookies.get(USER_COOKIE)?.value !== user.userId) res.cookies.set(USER_COOKIE, user.userId, { path: "/", maxAge: COOKIE_MAX_AGE, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
     return res;
@@ -63,5 +70,6 @@ export async function proxy(req: NextRequest) {
 export const config = {
   // /platform is matched only so an admin's session is refreshed there; it isn't in PROTECTED, because
   // the admin portal answers 404 to anyone who isn't an admin rather than revealing a sign-in page.
-  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*"],
+  // /api is matched only for the CSRF check above; it returns before any session work.
+  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*", "/api/:path*"],
 };

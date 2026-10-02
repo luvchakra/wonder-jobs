@@ -5,14 +5,16 @@ import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 
-const LINKS = [
+const LINKS: { href: string; label: string; wide?: boolean }[] = [
   { href: "#product", label: "Product" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#ask-wonder", label: "Ask Wonder" },
   { href: "#features", label: "Features" },
   { href: "#extension", label: "Apply" },
-  { href: "#control", label: "Control" },
-  { href: "#ai", label: "Your AI" },
+  // Only from xl on the desktop bar (always in the mobile menu and the footer): at lg the bar is full.
+  { href: "#control", label: "Control", wide: true },
+  { href: "#ai", label: "Your AI", wide: true },
+  { href: "#trust", label: "Trust" },
   { href: "/help", label: "Help" },
   { href: "#contact", label: "Contact" },
 ];
@@ -32,7 +34,7 @@ export function MarketingNav() {
         <WonderLogo />
         <nav aria-label="Marketing" className="hidden items-center gap-5 lg:flex xl:gap-7">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink">
+            <a key={l.href} href={l.href} className={cn("whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink", l.wide && "hidden xl:inline")}>
               {l.label}
             </a>
           ))}

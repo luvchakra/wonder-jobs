@@ -5,6 +5,7 @@ import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
 import { friendlyAuthError } from "@/lib/auth/friendly";
 import { PageLoading } from "@/components/common/States";
 import { Button } from "@/components/common/Button";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 /** Completes email confirmation / magic-link sign-in (PKCE code exchange), then continues to the app. */
 export function AuthCallback() {
@@ -15,7 +16,7 @@ export function AuthCallback() {
     const sb = getSupabaseBrowser();
     const code = params.get("code");
     const rawNext = params.get("next");
-    const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app";
+    const next = safeNextPath(rawNext, "/app");
     const fail = (m: string) => setError(friendlyAuthError(m));
     if (!sb) return fail("Sign-in isn't configured on this deployment.");
     if (params.get("error_description")) return fail(params.get("error_description")!.replace(/\+/g, " "));

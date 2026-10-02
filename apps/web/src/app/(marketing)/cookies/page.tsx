@@ -8,8 +8,8 @@ export default function CookiesPage() {
     <MarketingPage
       eyebrow="Legal"
       title="Cookies"
-      intro="WonderJobs uses a handful of first-party cookies to keep you signed in. There are no advertising or cross-site tracking cookies."
-      updated="September 2026"
+      intro="WonderJobs uses a handful of first-party cookies to keep you signed in. They are all strictly necessary, so there is no consent banner: there are no analytics, advertising or cross-site tracking cookies."
+      updated="October 2026"
       sections={[
         {
           id: "list",
@@ -17,10 +17,16 @@ export default function CookiesPage() {
           body: (
             <ul>
               <li>
-                <strong>wj-auth</strong> (and numbered chunks): your sign-in session. HTTP-only, expires when you sign out or after long inactivity.
+                <strong>wj-auth</strong> (and numbered chunks): your sign-in session tokens. Readable by the app&apos;s own scripts (the sign-in library needs that), sent only over HTTPS, never to other sites (SameSite=Lax). Cleared when you sign out; otherwise it expires after 400 days. A Content Security Policy limits where the page can load scripts from and send data to.
               </li>
               <li>
                 <strong>wj_user</strong>: which account this browser last used, so the app can load the right data before the server responds.
+              </li>
+              <li>
+                <strong>wj-auth-code-verifier</strong>: a one-time value used while you sign in with Google, removed when sign-in completes.
+              </li>
+              <li>
+                <strong>wj_uid</strong>: only on deployments running without sign-in (local development) — an HTTP-only random id that keeps that browser&apos;s data together.
               </li>
               <li>
                 <strong>wj_demo</strong>: set when you enter the demo so the product runs on sample data. Cleared when you exit the demo.

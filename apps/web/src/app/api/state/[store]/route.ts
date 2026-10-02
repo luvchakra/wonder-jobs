@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
+import { isErased } from "@/server/privacy/records";
 import { rateLimit } from "@/server/rateLimit";
 import { isStateStoreName, MAX_STATE_BYTES, stateStore } from "@/server/state";
 
@@ -19,7 +20,8 @@ export async function GET(_req: Request, ctx: Ctx) {
     if (!doc) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
     return NextResponse.json(doc, { headers: { "cache-control": "no-store" } });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Load failed" }, { status: 503 });
+    console.error("[state] load failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "Your data couldn't be loaded just now" }, { status: 503 });
   }
 }
 
@@ -31,6 +33,8 @@ export async function PUT(req: Request, ctx: Ctx) {
   if (session instanceof NextResponse) return session;
   const { tenantId } = session;
   const rl = rateLimit(`state:${tenantId}`, { capacity: 120, refillPerSec: 4 });
+  // A device still holding a valid token after the account was deleted must not write it back into existence.
+  if (await isErased(tenantId).catch(() => false)) return NextResponse.json({ error: "This account was deleted." }, { status: 410 });
   if (!rl.ok) return NextResponse.json({ error: "Too many updates" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const text = await req.text();
   if (text.length > MAX_STATE_BYTES) return NextResponse.json({ error: "State too large" }, { status: 413 });
@@ -45,7 +49,8 @@ export async function PUT(req: Request, ctx: Ctx) {
     const doc = await stateStore.put(tenantId, store, body.state);
     return NextResponse.json({ version: doc.version, updatedAt: doc.updatedAt });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Save failed" }, { status: 503 });
+    console.error("[state] save failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "Your changes couldn't be saved just now" }, { status: 503 });
   }
 }
 

@@ -2,18 +2,20 @@
 import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, Crown, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut, LifeBuoy } from "lucide-react";
+import { ChevronRight, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut, LifeBuoy } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { PushNotifications } from "@/components/pwa/PushNotifications";
+import { PlanCard } from "@/components/billing/PlanCard";
+import { YourDataCard } from "@/components/privacy/YourDataCard";
+import { useBillingStore } from "@/store/billing";
 import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { PageLoading } from "@/components/common/States";
-import { toast } from "@/components/feedback/Toast";
 import { flushRemote, syncStatus } from "@/store/remoteStorage";
 import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
@@ -87,12 +89,12 @@ function CloudSyncCard() {
 function ProfileInner() {
   const params = useSearchParams();
   const dna = useCareerStore((s) => s.dna);
-  const plan = useCareerStore((s) => s.plan);
   const config = useAIStore((s) => s.config);
   const email = useAuthStore((s) => s.email);
   const userId = useAuthStore((s) => s.userId);
   const mode = useAuthStore((s) => s.mode);
-  const upgrade = params.get("upgrade") === "1";
+  const billingReturn = params.get("billing") ?? (params.get("upgrade") === "1" ? "upgrade" : null);
+  const plan = useBillingStore((st) => st.data?.plan ?? "free");
   const displayName = dna.name || email?.split("@")[0] || "You";
   return (
     <div className="mx-auto max-w-2xl">
@@ -110,22 +112,8 @@ function ProfileInner() {
       </Card>
       <CloudSyncCard />
       <PushNotifications />
-      {(plan === "free" || upgrade) && (
-        <Card className="mt-4 border-brand-200 bg-brand-50/60">
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warning-100 text-warning-600">
-              <Crown className="size-5" aria-hidden />
-            </span>
-            <div className="flex-1">
-              <p className="text-[15px] font-semibold text-ink">Upgrade to Pro</p>
-              <p className="text-[13px] text-ink-2">Unlock more runs, AI models and advanced features. Billing isn&apos;t connected in this environment yet — this records your interest.</p>
-              <Button size="sm" className="mt-3" onClick={() => toast.info("Thanks for your interest", "We'll let you know when Pro billing is available.")}>
-                Upgrade
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+      <PlanCard returnState={billingReturn} />
+      <YourDataCard />
       <Card padding="none" className="mt-4">
         <ul className="divide-y divide-line">
           {MORE.map((m) => (

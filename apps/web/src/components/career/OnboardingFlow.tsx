@@ -18,6 +18,7 @@ import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 /** The candidate's own answer to "what do you want Wonder to help with" — never assumed. It
  * personalizes where onboarding sends them next (when nothing more specific was already asked
@@ -71,7 +72,7 @@ function Steps() {
   const rawNext = params.get("next");
   // An explicit `?next=` (e.g. a shared link the candidate was sent to before signing up) always wins.
   // Otherwise, go where the candidate themselves said they wanted — never a hardcoded default.
-  const explicitNext = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
+  const explicitNext = rawNext ? safeNextPath(rawNext, "") || null : null;
   const hydrated = useHydration((s) => s.hydrated);
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);

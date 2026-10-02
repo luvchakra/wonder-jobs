@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Crown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -6,7 +7,8 @@ import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
-import { useCareerStore } from "@/store/career";
+import { useBillingStore, canUpgrade } from "@/store/billing";
+import { useAuthStore } from "@/store/auth";
 import { useUIStore } from "@/store/ui";
 import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV, isActivePath, type NavItem } from "./nav";
 
@@ -48,7 +50,12 @@ function Group({ title, items, pathname, collapsed }: { title?: string; items: N
 /** Desktop sidebar. Collapses automatically on tablet widths (spec §38) and manually on desktop. */
 export function Sidebar() {
   const pathname = usePathname();
-  const plan = useCareerStore((s) => s.plan);
+  const billing = useBillingStore((s) => s.data);
+  const loadBilling = useBillingStore((s) => s.load);
+  const mode = useAuthStore((s) => s.mode);
+  useEffect(() => {
+    if (mode !== "demo") void loadBilling();
+  }, [mode, loadBilling]);
   const manual = useUIStore((s) => s.sidebarCollapsed);
   const setManual = useUIStore((s) => s.setSidebarCollapsed);
   const tablet = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
@@ -64,7 +71,7 @@ export function Sidebar() {
         <Group title="Career" items={CAREER_NAV} pathname={pathname} collapsed={collapsed} />
         <Group title="Resources" items={RESOURCES_NAV} pathname={pathname} collapsed={collapsed} />
       </div>
-      {plan === "free" && !collapsed && (
+      {canUpgrade(billing) && !collapsed && (
         <div className="mb-3 rounded-[16px] border border-line bg-surface-2 p-4">
           <div className="flex items-center gap-2">
             <span className="flex size-8 items-center justify-center rounded-full bg-warning-100 text-warning-600">
@@ -72,10 +79,10 @@ export function Sidebar() {
             </span>
             <div>
               <p className="text-[13px] font-semibold text-ink">Upgrade to Pro</p>
-              <p className="text-[11px] text-ink-3">Unlock more runs, AI models and advanced features.</p>
+              <p className="text-[11px] text-ink-3">See plans and pay with Razorpay or Stripe.</p>
             </div>
           </div>
-          <Button size="sm" full className="mt-3" href="/app/profile?upgrade=1">
+          <Button size="sm" full className="mt-3" href="/app/profile#plan">
             Upgrade
           </Button>
         </div>

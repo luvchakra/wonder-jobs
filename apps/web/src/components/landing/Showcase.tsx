@@ -413,6 +413,8 @@ const TOPICS = [
   { value: "feedback", label: "Feedback or a feature request" },
   { value: "partnership", label: "Partnership or job source" },
   { value: "press", label: "Press" },
+  { value: "privacy", label: "Privacy request (access, correction, erasure, grievance)" },
+  { value: "security", label: "Report a security issue" },
 ];
 
 export function ContactSection() {

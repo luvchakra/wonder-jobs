@@ -1,0 +1,227 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Crown, CreditCard, ExternalLink, ShieldCheck } from "lucide-react";
+import { Card } from "@/components/common/Card";
+import { Button } from "@/components/common/Button";
+import { Badge } from "@/components/common/Badge";
+import { Modal } from "@/components/common/Modal";
+import { toast } from "@/components/feedback/Toast";
+import { BILLING_PROVIDERS, type BillingProviderId, type ProviderAvailability } from "@/domain/billing/types";
+import { formatInterval, formatMoney } from "@/domain/billing/format";
+import { formatDate } from "@/lib/format";
+import { useBillingStore } from "@/store/billing";
+import { useAuthStore } from "@/store/auth";
+
+async function post<T>(url: string, body: unknown = {}): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Something went wrong");
+  return data;
+}
+
+/**
+ * Plan & billing. Everything shown comes from `/api/billing`: the plan is what a signature-verified
+ * Stripe / Razorpay webhook established, prices are read from the provider, and the payment list is
+ * this account's slice of the billing ledger. Paying happens on the provider's own page.
+ */
+export function PlanCard({ returnState }: { returnState: string | null }) {
+  const mode = useAuthStore((s) => s.mode);
+  const { data, status, load } = useBillingStore();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [waiting, setWaiting] = useState(returnState === "success");
+
+  useEffect(() => {
+    if (mode !== "demo") void load(returnState !== null);
+  }, [mode, load, returnState]);
+
+  // Back from checkout: the redirect proves nothing, so poll until the provider's webhook lands (or give up honestly).
+  useEffect(() => {
+    if (!waiting) return;
+    let tries = 0;
+    const id = window.setInterval(async () => {
+      tries++;
+      const d = await load(true);
+      if (d?.plan === "pro" || tries >= 10) {
+        window.clearInterval(id);
+        setWaiting(false);
+      }
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [waiting, load]);
+
+  if (mode === "demo") {
+    return (
+      <Card id="plan" className="mt-4">
+        <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
+        <p className="mt-1 text-[13px] text-ink-2">Billing isn&apos;t part of the demo. Create an account to see plans and pay with Razorpay or Stripe.</p>
+      </Card>
+    );
+  }
+  if (status !== "ready" || !data) {
+    return (
+      <Card id="plan" className="mt-4">
+        <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
+        <p className="mt-1 text-[13px] text-ink-2">{status === "error" ? "Your plan couldn't be loaded just now." : "Checking your plan…"}</p>
+        {status === "error" && (
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => load(true)}>
+            Try again
+          </Button>
+        )}
+      </Card>
+    );
+  }
+
+  const checkout = async (provider: BillingProviderId) => {
+    setBusy(provider);
+    try {
+      const { url } = await post<{ url: string }>("/api/billing/checkout", { provider });
+      window.location.assign(url);
+    } catch (e) {
+      toast.error("Checkout couldn't start", e instanceof Error ? e.message : undefined);
+      setBusy(null);
+    }
+  };
+  const portal = async () => {
+    setBusy("portal");
+    try {
+      const { url } = await post<{ url: string }>("/api/billing/portal");
+      window.location.assign(url);
+    } catch (e) {
+      toast.error("Couldn't open billing", e instanceof Error ? e.message : undefined);
+      setBusy(null);
+    }
+  };
+  const cancel = async () => {
+    setBusy("cancel");
+    try {
+      await post("/api/billing/cancel", { confirm: true });
+      toast.success("Cancellation requested", "Razorpay will confirm it shortly. You keep Pro until the end of the period you've paid for.");
+      setConfirmCancel(false);
+      await load(true);
+    } catch (e) {
+      toast.error("Couldn't cancel", e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sub = data.subscription;
+  const ready = data.providers.filter((p): p is Extract<ProviderAvailability, { state: "ready" }> => p.state === "ready");
+  const pro = data.plan === "pro";
+
+  return (
+    <Card id="plan" className="mt-4">
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warning-100 text-warning-600">
+          <Crown className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
+            <Badge tone={pro ? "brand" : "neutral"}>{pro ? "Pro" : "Free"}</Badge>
+          </div>
+          <p className="mt-0.5 text-[13px] text-ink-2">
+            {data.reason}
+            {sub && ` · confirmed by ${BILLING_PROVIDERS[sub.provider].name}`}
+          </p>
+        </div>
+      </div>
+
+      {waiting && <p className="mt-3 rounded-[12px] bg-info-100 px-3 py-2 text-[13px] text-info-600" role="status">Waiting for the payment provider to confirm your payment. Your plan changes as soon as it does — usually within a few seconds.</p>}
+      {!waiting && returnState === "success" && !pro && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">The payment provider hasn&apos;t confirmed your payment yet. If you completed it, your plan will update here once it does; you haven&apos;t been charged twice.</p>}
+      {returnState === "cancelled" && !pro && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Checkout was closed before paying. Nothing was charged.</p>}
+
+      {pro && sub && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {sub.provider === "stripe" && sub.canManage && (
+            <Button size="sm" variant="outline" loading={busy === "portal"} onClick={portal} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
+              Manage billing on Stripe
+            </Button>
+          )}
+          {sub.provider === "razorpay" && !sub.cancelAtPeriodEnd && (
+            <Button size="sm" variant="outline" onClick={() => setConfirmCancel(true)}>
+              Cancel subscription
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!pro && ready.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {ready.map(({ provider, price }) => (
+            <li key={provider} className="flex flex-col gap-2 rounded-[14px] border border-line p-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-ink">
+                  {price.name} · {formatMoney(price.amount, price.currency)} <span className="font-normal text-ink-3">{formatInterval(price)}</span>
+                </p>
+                {price.description && <p className="text-[12.5px] text-ink-2">{price.description}</p>}
+                <p className="text-[12px] text-ink-3">
+                  {BILLING_PROVIDERS[provider].name}: {BILLING_PROVIDERS[provider].methods}
+                </p>
+              </div>
+              <Button size="sm" loading={busy === provider} disabled={!!busy} onClick={() => checkout(provider)} icon={<CreditCard className="size-4" aria-hidden />}>
+                Pay with {BILLING_PROVIDERS[provider].name}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!pro && (
+        <ul className="mt-3 space-y-1 text-[12.5px] text-ink-3">
+          {data.providers
+            .filter((p) => p.state !== "ready")
+            .map((p) => (
+              <li key={p.provider}>
+                {BILLING_PROVIDERS[p.provider].name}: {p.state === "needs_setup" ? "Needs setup — not connected on this deployment yet" : `Unavailable — ${p.reason}`}
+              </li>
+            ))}
+        </ul>
+      )}
+
+      {data.payments.length > 0 && (
+        <div className="mt-4">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Payments</p>
+          <ul className="mt-1 divide-y divide-line text-[13px]">
+            {data.payments.map((p, i) => (
+              <li key={i} className="flex flex-wrap justify-between gap-2 py-1.5">
+                <span className="text-ink-2">
+                  {formatDate(p.at)} · {BILLING_PROVIDERS[p.provider].name}
+                </span>
+                <span className={p.kind === "payment_failed" ? "text-danger-600" : "text-ink"}>
+                  {p.amount != null && p.currency ? formatMoney(p.amount, p.currency) : "—"} {p.kind === "payment_failed" ? "failed" : "paid"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <p className="mt-4 flex items-start gap-1.5 text-[12px] text-ink-3">
+        <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
+        You pay on Razorpay&apos;s or Stripe&apos;s own page. WonderJobs never sees your card, UPI or bank details.
+      </p>
+
+      <Modal
+        open={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        title="Cancel your subscription?"
+        description="It stops at the end of the period you've already paid for — you keep Pro until then and won't be charged again. Razorpay confirms the change; until it does, this page shows your plan as it is."
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmCancel(false)}>
+              Keep Pro
+            </Button>
+            <Button variant="danger" loading={busy === "cancel"} onClick={cancel}>
+              Cancel at period end
+            </Button>
+          </>
+        }
+      >
+        {sub?.currentPeriodEnd && <p className="text-[13px] text-ink-2">Paid until {formatDate(sub.currentPeriodEnd)}.</p>}
+      </Modal>
+    </Card>
+  );
+}

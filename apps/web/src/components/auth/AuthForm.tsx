@@ -14,6 +14,7 @@ import { getSupabaseBrowser, rememberUser } from "@/lib/auth/browser";
 import { friendlyAuthError } from "@/lib/auth/friendly";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
+import { safeNextPath } from "@/lib/safeRedirect";
 
 const FEATURES = [
   { icon: Compass, label: "Find the right opportunities" },
@@ -22,9 +23,7 @@ const FEATURES = [
   { icon: ShieldCheck, label: "Stay in control" },
 ];
 
-function safeNext(raw: string | null, fallback: string) {
-  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : fallback;
-}
+const safeNext = (raw: string | null, fallback: string) => safeNextPath(raw, fallback);
 
 /** Sign-in / sign-up (spec §5.1 "Get Started" / "Already have an account? Sign in"). Email + password, or a magic link. */
 export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; jobTeaser?: PublicJobTeaser | null }) {

@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/common/Button";
-import { getSupabaseBrowser } from "@/lib/auth/browser";
+import { getSupabaseBrowser, oauthProviderEnabled } from "@/lib/auth/browser";
 import { track } from "@/lib/analytics";
 
 function GoogleMark() {
@@ -12,17 +12,39 @@ function GoogleMark() {
   );
 }
 
+const NOT_ENABLED = "Google sign-in isn't switched on for WonderJobs yet. Use your email instead.";
+
 /**
  * Google OAuth through Supabase Auth (PKCE). Supabase redirects back to
  * /auth/callback, which exchanges the code and continues to `next`.
+ *
+ * `signInWithOAuth` only builds a URL and navigates — it never asks Supabase whether the provider is
+ * on, so a project with Google disabled dropped people on a raw JSON error page. The provider's state
+ * is read from Auth's public settings first, and the button says plainly when it isn't available.
  */
 export function GoogleButton({ next, label = "Continue with Google", disabled, onError }: { next: string; label?: string; disabled?: boolean; onError: (message: string) => void }) {
   const [busy, setBusy] = useState(false);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void oauthProviderEnabled("google").then((on) => {
+      if (alive) setEnabled(on);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const start = async () => {
     const sb = getSupabaseBrowser();
     if (!sb) return onError("Sign-in isn't configured on this deployment yet.");
     setBusy(true);
     try {
+      // Re-checked on click as well: the first check may not have finished yet.
+      if ((await oauthProviderEnabled("google")) === false) {
+        setBusy(false);
+        setEnabled(false);
+        return onError(NOT_ENABLED);
+      }
       const { error } = await sb.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}`, queryParams: { prompt: "select_account" } },
@@ -36,8 +58,15 @@ export function GoogleButton({ next, label = "Continue with Google", disabled, o
     }
   };
   return (
-    <Button type="button" variant="outline" size="lg" full loading={busy} disabled={disabled || busy} onClick={start} icon={<GoogleMark />}>
-      {label}
-    </Button>
+    <div>
+      <Button type="button" variant="outline" size="lg" full loading={busy} disabled={disabled || busy || enabled === false} onClick={start} icon={<GoogleMark />} aria-describedby={enabled === false ? "google-unavailable" : undefined}>
+        {label}
+      </Button>
+      {enabled === false && (
+        <p id="google-unavailable" className="mt-1.5 text-center text-[12.5px] text-ink-3">
+          {NOT_ENABLED}
+        </p>
+      )}
+    </div>
   );
 }
