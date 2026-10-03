@@ -315,7 +315,7 @@ test.describe("AUTOMATION", () => {
     const row = await createKeepWatch(page, "Designer roles");
     await expect(row).toContainText("Only if strong matches > 0");
     await page.goto("/app");
-    await expect(page.locator("#main").getByRole("link", { name: "Wonder keeps looking on your schedule" })).toBeVisible();
+    await expect(page.locator("#main")).toContainText("checks again on schedule");
   });
 
   test("AUTOMATION-002 a scheduled search executes", async ({ page }) => {

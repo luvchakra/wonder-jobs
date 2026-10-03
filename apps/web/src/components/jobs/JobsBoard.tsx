@@ -12,8 +12,6 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
-import { describeDecision } from "@/domain/jobs/decision";
-import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
@@ -29,13 +27,10 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
   const matches = useJobsStore((s) => s.matches);
-  const quality = useJobsStore((s) => s.quality);
   const saved = useJobsStore((s) => s.saved);
   const rejected = useJobsStore((s) => s.rejected);
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
-  const reject = useJobsStore((s) => s.reject);
-  const unreject = useJobsStore((s) => s.unreject);
   const filters = useJobsStore((s) => s.filters);
   const setFilters = useJobsStore((s) => s.setFilters);
   const sort = useJobsStore((s) => s.sort);
@@ -46,7 +41,6 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
   const [limit, setLimit] = useState(PAGE);
   const [compare, setCompare] = useState<string[]>([]);
   const router = useRouter();
-  const openPack = usePrepareApplication();
   const toggleCompare = (id: string) =>
     setCompare((ids) => {
       if (ids.includes(id)) return ids.filter((x) => x !== id);
@@ -138,16 +132,9 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
                 <JobCard
                   job={jobs[id]}
                   match={matches[id]}
-                  quality={quality[id]}
                   saved={!!saved[id]}
                   onToggleSave={() => (saved[id] ? unsave(id) : save(id))}
-                  onReject={() => {
-                    reject(id);
-                    toast.info("Marked not for me", "Wonder won't show this job again. Once you mark a few similar roles, it starts ranking that pattern lower too.", { label: "Undo", onClick: () => unreject(id) });
-                  }}
                   status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
-                  decision={describeDecision(jobs[id], matches[id], quality[id], appByJob.get(id))}
-                  onPrepare={() => openPack(id)}
                   compareSelected={compare.includes(id)}
                   onToggleCompare={compareMode ? () => toggleCompare(id) : undefined}
                 />
