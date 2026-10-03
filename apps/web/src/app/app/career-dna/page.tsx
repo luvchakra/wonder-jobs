@@ -11,6 +11,7 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
+import { RolesCard } from "@/components/career/RolesCard";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
 import { RememberedAnswers } from "@/components/career/RememberedAnswers";
 import { historyOf } from "@/domain/career/history";
@@ -199,6 +200,8 @@ export default function CareerDNAPage() {
             </Field>
           </div>
         </Card>
+
+        <RolesCard />
 
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Resume</h2>

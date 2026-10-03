@@ -8,6 +8,7 @@ import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from 
 import { newId } from "@/lib/ids";
 import { MAX_SAVED_RESUMES, type SavedResume } from "@/domain/resume/saved";
 import type { BaseResumeRef } from "@/domain/resume/files";
+import { MAX_ROLES, withoutResume, type CareerRole, type RoleInput } from "@/domain/career/roles";
 import type { MemoryKey, RememberedAnswer } from "@/domain/jobs-apply/types";
 
 interface CareerState {
@@ -44,6 +45,13 @@ interface CareerState {
   /** The candidate's default résumé: one of their uploaded files or a generated one. Never chosen for them. */
   baseResume?: BaseResumeRef;
   setBaseResume: (ref: BaseResumeRef | undefined) => void;
+  /** Roles the candidate is open to, each a way to search with its own terms, goal and base résumé. */
+  roles: CareerRole[];
+  addRole: (input: RoleInput) => CareerRole | null;
+  updateRole: (id: string, input: RoleInput) => void;
+  removeRole: (id: string) => void;
+  /** An uploaded file was deleted: clear it wherever it was chosen (base résumé, roles). */
+  forgetResumeFile: (id: string) => void;
   /** Answers the candidate gave on application forms, with when they last confirmed them (JobsApply §83–§85). Offered, never filled on their own. */
   answerMemory: RememberedAnswer[];
   rememberAnswer: (key: MemoryKey, value: string) => void;
@@ -97,6 +105,20 @@ export const useCareerStore = create<CareerState>()(
       savedResumes: [],
       baseResume: undefined,
       setBaseResume: (ref) => set({ baseResume: ref }),
+      roles: [],
+      addRole: (input) => {
+        let added: CareerRole | null = null;
+        set((s) => {
+          if ((s.roles ?? []).length >= MAX_ROLES) return {};
+          const at = new Date().toISOString();
+          added = { id: newId("role"), title: input.title.trim(), query: input.query.trim(), goal: input.goal.trim(), baseResume: input.baseResume, createdAt: at, updatedAt: at };
+          return { roles: [...(s.roles ?? []), added] };
+        });
+        return added;
+      },
+      updateRole: (id, input) => set((s) => ({ roles: (s.roles ?? []).map((r) => (r.id === id ? { ...r, title: input.title.trim(), query: input.query.trim(), goal: input.goal.trim(), baseResume: input.baseResume, updatedAt: new Date().toISOString() } : r)) })),
+      removeRole: (id) => set((s) => ({ roles: (s.roles ?? []).filter((r) => r.id !== id) })),
+      forgetResumeFile: (id) => set((s) => ({ baseResume: s.baseResume?.kind === "upload" && s.baseResume.id === id ? undefined : s.baseResume, roles: withoutResume(s.roles ?? [], { kind: "upload", id }) })),
       answerMemory: [],
       rememberAnswer: (key, value) =>
         set((s) => ({ answerMemory: [...(s.answerMemory ?? []).filter((m) => m.key !== key), { key, value: value.trim().slice(0, 500), confirmedAt: new Date().toISOString(), source: "USER_PROVIDED" as const }] })),
@@ -107,7 +129,7 @@ export const useCareerStore = create<CareerState>()(
         return saved;
       },
       // Deleting the base résumé clears the choice; nothing else is promoted in its place.
-      deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id), baseResume: s.baseResume?.kind === "saved" && s.baseResume.id === id ? undefined : s.baseResume })),
+      deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id), baseResume: s.baseResume?.kind === "saved" && s.baseResume.id === id ? undefined : s.baseResume, roles: withoutResume(s.roles ?? [], { kind: "saved", id }) })),
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),

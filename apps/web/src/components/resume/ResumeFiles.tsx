@@ -20,6 +20,7 @@ export function ResumeFiles() {
   const { files, status, load, upload, remove } = useResumeFilesStore();
   const base = useCareerStore((s) => s.baseResume);
   const setBase = useCareerStore((s) => s.setBaseResume);
+  const forgetFile = useCareerStore((s) => s.forgetResumeFile);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UploadedResume | null>(null);
@@ -73,7 +74,7 @@ export function ResumeFiles() {
     try {
       await remove(f.id);
       const wasBase = base?.kind === "upload" && base.id === f.id;
-      if (wasBase) setBase(undefined);
+      forgetFile(f.id);
       toast.success("File deleted", wasBase ? "It was your base résumé — choose another as your base." : undefined);
       setConfirmDelete(null);
     } catch (e) {

@@ -1,4 +1,5 @@
 /** Seed state for the mock backend: one candidate ("Alex Morgan") with realistic history. */
+import type { CareerRole } from "@/domain/career/roles";
 import type { Application } from "@/domain/applications/types";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
 import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
@@ -247,5 +248,14 @@ export function seedSchedules(): WorkflowSchedule[] {
       nextRunAt: next.toISOString(),
       createdAt: ago(20 * DAY),
     },
+  ];
+}
+
+/** Demo only: two roles the sample candidate is open to, so "Search as" has something to show. */
+export function seedRoles(): CareerRole[] {
+  const at = new Date().toISOString();
+  return [
+    { id: "role_demo_pm", title: "Product Manager", query: "product manager", goal: SEED_DNA.careerGoal, createdAt: at, updatedAt: at },
+    { id: "role_demo_analyst", title: "Product Analyst", query: "product analyst", goal: "Product and data analyst roles at consumer tech companies", createdAt: at, updatedAt: at },
   ];
 }

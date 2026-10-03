@@ -146,6 +146,8 @@ export interface RunConfig {
   notify: "always" | "strong_matches_only" | "never";
   /** For scheduled runs: the outcome is "silent" (no notification) unless this holds. */
   scheduleCondition?: ScheduleCondition;
+  /** The candidate's role this search ran as (its terms and goal are already in the fields above). */
+  role?: { id: string; title: string };
 }
 
 export interface ScheduleCondition {
