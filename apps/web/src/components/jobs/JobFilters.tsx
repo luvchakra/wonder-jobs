@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GitCompareArrows, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
+import { GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
@@ -53,7 +53,7 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
  * freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, views = true, compare, onCompare, sourceSearch, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
@@ -70,14 +70,14 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + (filters.company?.trim() ? 1 : 0) + (filters.salaryListed ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const typed = filters.query.trim();
   const wider = typed && sourceSearch ? sourceSearch.describe(typed, splitPlaces(where)) : null;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
-        className="flex flex-col gap-2 sm:flex-row"
+        className="flex"
         onSubmit={(e) => {
           e.preventDefault();
           if (wider) sourceSearch!.run(typed, splitPlaces(where));
@@ -105,34 +105,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
         </div>
-        {/* Where: narrows the list as you type; with words in the box, Enter searches every source there. */}
-        <div className="relative sm:w-60">
-          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
-          <Input
-            value={where}
-            onChange={(e) => {
-              setWhere(e.target.value);
-              onChange({ locations: splitPlaces(e.target.value) });
-            }}
-            placeholder="Anywhere"
-            aria-label="Where"
-            enterKeyHint="search"
-            className="h-11 rounded-full pl-10 pr-10 sm:h-12"
-          />
-          {where && (
-            <button
-              type="button"
-              aria-label="Clear where"
-              onClick={() => {
-                setWhere("");
-                onChange({ locations: [] });
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          )}
-        </div>
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
@@ -151,34 +123,11 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
         <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0" icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more}>
           Refine{activeCount ? ` · ${activeCount}` : ""}
         </Button>
-        <span className="ml-auto shrink-0 pl-2 text-[13px] text-ink-3">{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
+        <span className="ml-auto hidden shrink-0 pl-2 text-[13px] text-ink-3 sm:inline">{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
           {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
-          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
-            <span>
-              Search strictly within your{" "}
-              <Link href="/app/career-dna" className="font-medium text-brand-600 underline-offset-2 hover:underline">
-                Career Profile
-              </Link>
-            </span>
-          </label>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Sort
-            <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
-          </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Work mode
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
-                  {WORK_MODE_LABEL[m]}
-                </Chip>
-              ))}
-            </div>
-          </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Location
             <Input
@@ -188,6 +137,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 onChange({ locations: splitPlaces(e.target.value) });
               }}
               placeholder="Anywhere — e.g. Mumbai, Remote"
+              enterKeyHint="search"
             />
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
@@ -200,46 +150,42 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Company
-            <Input value={filters.company ?? ""} onChange={(e) => onChange({ company: e.target.value })} placeholder="e.g. Razorpay" />
-          </label>
+          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Work mode
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
+                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
+                  {WORK_MODE_LABEL[m]}
+                </Chip>
+              ))}
+            </div>
+          </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Posted
             <Select value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
               <option value="">Any time</option>
               <option value="1">Last 24 hours</option>
-              <option value="3">Last 3 days</option>
               <option value="7">Last week</option>
-              <option value="14">Last 2 weeks</option>
               <option value="30">Last month</option>
             </Select>
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Minimum salary (₹ lakh)
             <Input type="number" inputMode="numeric" min={0} step={1} value={filters.minSalary ? Math.round(filters.minSalary / 100_000) : ""} onChange={(e) => onChange({ minSalary: e.target.value ? Number(e.target.value) * 100_000 : undefined })} placeholder="e.g. 28" />
-            <span className="text-[11px] font-normal text-ink-4">Roles listed in other currencies are roughly converted (1 USD ≈ ₹30) to compare.</span>
-            <Chip active={!!filters.salaryListed} onClick={() => onChange({ salaryListed: !filters.salaryListed })} className="h-9 self-start px-3 text-[12px]">
-              Pay listed only
-            </Chip>
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Sources
-            <div className="flex flex-wrap gap-1.5">
-              {sources.map((s) => (
-                <Chip key={s.id} active={filters.sourceIds.includes(s.id)} onClick={() => onChange({ sourceIds: filters.sourceIds.includes(s.id) ? filters.sourceIds.filter((x) => x !== s.id) : [...filters.sourceIds, s.id] })} className="h-9 px-3 text-[12px]">
-                  {s.name}
-                </Chip>
-              ))}
-            </div>
+            Sort
+            <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
           </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Compare
-            <Chip active={compare} onClick={() => onCompare(!compare)} className="h-9 self-start px-3 text-[12px]">
-              <GitCompareArrows className="size-3.5" aria-hidden /> Compare jobs
-            </Chip>
-            <span className="text-[11px] font-normal text-ink-4">Pick two to four jobs on the list to see their differences side by side.</span>
-          </div>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
+            <span>
+              Search strictly within your{" "}
+              <Link href="/app/career-dna" className="font-medium text-brand-600 underline-offset-2 hover:underline">
+                Career Profile
+              </Link>
+            </span>
+          </label>
           {/* One action for everything above: search every source with these words and places, then show the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
             {sourceSearch && (
@@ -253,27 +199,30 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                   setMore(false);
                 }}
               >
-                Search{splitPlaces(where).length ? ` in ${splitPlaces(where).slice(0, 2).join(", ")}${splitPlaces(where).length > 2 ? "…" : ""}` : " everywhere"}
+                Search
               </Button>
             )}
             <Button variant="outline" onClick={() => setMore(false)}>
               Show {total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}
             </Button>
           </div>
-          {activeCount > 0 && (
-            <div className="sm:col-span-2 lg:col-span-3">
-              <Button
-                size="sm"
-                variant="ghost"
+          <div className="flex flex-wrap items-center gap-x-4 text-[13px] sm:col-span-2 lg:col-span-3">
+            <button type="button" onClick={() => onCompare(!compare)} aria-pressed={compare} className="inline-flex min-h-9 items-center gap-1.5 font-medium text-brand-600 hover:underline">
+              <GitCompareArrows className="size-3.5" aria-hidden /> {compare ? "Stop comparing" : "Compare jobs"}
+            </button>
+            {activeCount > 0 && (
+              <button
+                type="button"
                 onClick={() => {
                   onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
+                className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
               >
                 Clear refinements
-              </Button>
-            </div>
-          )}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
