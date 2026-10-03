@@ -49,7 +49,7 @@ Before this, every Find run also prepared applications for the top three and pau
 | 1 (WJ-180) | Readiness ladder + notes; `/app` is the job list; auto-search + widening; search-only runs; sources searched in parallel; no artificial delays; Home and Jobs merged in the nav; `/app/jobs` redirects | ✅ |
 | 2 (WJ-181) | Jobs page: one search box (typing narrows the jobs found; "Search every source for …" searches for the words, place read from them; mic), one chip row (For you · Strong · All · Saved), "Search as" role chips, cards with Save / Not for me / Prepare (Compare is a mode in Refine), one Refine sheet (sort, work mode, posted, salary, sources, compare); the "hidden" breakdown moved below the list; Find folded in — `/app/runs/new`, `?q=` and `?role=` links land on the jobs screen and search | ✅ |
 | 3 (WJ-182) | Navigation: Jobs · Applications (Calendar, Insights, Interview Prep, Learning) · Profile (Career Profile, Résumés) · Settings (Job sources — new, Scheduled searches, What Wonder can do, AI provider, Search history, Account); each place's pages are tabs at its top (`SectionTabs`) and a group in the mobile menu; the sidebar shows only the four places; every URL unchanged | ✅ |
-| 4 (WJ-183) | CV-first onboarding (upload → confirm three lines → jobs) replacing the tick-every-line first import | ⬜ |
+| 4 (WJ-183) | CV-first onboarding (upload → confirm three lines → jobs) replacing the tick-every-line first import | ✅ |
 
 ## Decisions
 
