@@ -12,8 +12,10 @@ import { useWorkflowStore } from "@/store/workflow";
 import { SEED_DNA, seedRoles, seedActivity, seedApplications, seedInsights, seedNotifications, seedSchedules, seedUpcoming, seedWorkflows } from "./seed";
 import { seedRuns } from "./runs";
 
+/** Seeding marks the sample candidate onboarded, so a demo where they've renamed themselves isn't reset on the next load. */
 export function isDemoSeeded() {
-  return useCareerStore.getState().dna.name === SEED_DNA.name;
+  const s = useCareerStore.getState();
+  return s.onboarded || s.dna.name === SEED_DNA.name;
 }
 
 export function seedDemo() {

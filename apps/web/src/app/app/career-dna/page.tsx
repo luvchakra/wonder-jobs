@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
@@ -15,6 +15,7 @@ import { RolesCard } from "@/components/career/RolesCard";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
 import { RememberedAnswers } from "@/components/career/RememberedAnswers";
 import { historyOf } from "@/domain/career/history";
+import { profileChanged } from "@/domain/career/profileEdit";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
@@ -32,7 +33,16 @@ export default function CareerDNAPage() {
   // The history editor's contact and summary fields are uncontrolled: remount it to show imported values.
   const [importRev, setImportRev] = useState(0);
   const [newSkill, setNewSkill] = useState("");
-  const dirty = JSON.stringify(draft) !== JSON.stringify(dna);
+  const dirty = profileChanged(draft, dna);
+  // The saved profile can change under an untouched form (it loads from your account, or another tab
+  // saves): follow it then, but never over edits not yet saved.
+  const seen = useRef(dna);
+  useEffect(() => {
+    if (seen.current === dna) return;
+    const untouched = !profileChanged(draft, seen.current);
+    seen.current = dna;
+    if (untouched) setDraft(dna);
+  }, [dna, draft]);
   const set = <K extends keyof CareerDNA>(k: K, v: CareerDNA[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
   // Covers a closed tab or reload; an in-app Link click still navigates freely, but the visible "Unsaved
@@ -49,26 +59,30 @@ export default function CareerDNAPage() {
       <PageHeader
         title="Career Profile"
         description="Your Career Profile — what Wonder knows about you. Every match, ranking and draft starts here, and you can change any of it."
-        actions={
-          <>
-            <Badge>Updated {formatDate(dna.updatedAt)}</Badge>
-            {dirty && (
-              <span role="status" className="text-[12px] font-medium text-warning-600">
-                Unsaved changes
-              </span>
-            )}
-            <Button
-              disabled={!dirty}
-              onClick={() => {
-                updateDNA(draft);
-                toast.success("Career Profile updated", "Your next run will use these values.");
-              }}
-            >
-              Save changes
-            </Button>
-          </>
-        }
+        className="mb-2 md:mb-3"
       />
+      {/* Stays in view below the top bar while the long form scrolls, so Save is always one tap away. */}
+      <div className="sticky top-16 z-20 -mx-4 mb-4 flex items-center justify-end gap-2 border-b border-line/70 bg-bg/90 px-4 py-2.5 backdrop-blur md:mx-0 md:rounded-b-[14px] md:px-0">
+        <Badge className="mr-auto">Updated {formatDate(dna.updatedAt)}</Badge>
+        {dirty && (
+          <span role="status" className="text-[12px] font-medium text-warning-600">
+            Unsaved changes
+          </span>
+        )}
+        <Button
+          disabled={!dirty}
+          onClick={() => {
+            updateDNA(draft);
+            // Saving stamps a new time on the stored profile; take it, so the form matches what was saved.
+            const stored = useCareerStore.getState().dna;
+            seen.current = stored;
+            setDraft(stored);
+            toast.success("Career Profile updated", "Your next run will use these values.");
+          }}
+        >
+          Save changes
+        </Button>
+      </div>
       <div className="flex flex-col gap-4">
         <Card>
           <h2 className="mb-3 text-[15px] font-semibold text-ink">Career direction</h2>

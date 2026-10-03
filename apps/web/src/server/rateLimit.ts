@@ -8,6 +8,7 @@
  */
 const buckets = new Map<string, { tokens: number; updated: number }>();
 export const MAX_KEYS = 50_000;
+const EVICT_TO = Math.floor(MAX_KEYS * 0.9);
 const IDLE_MS = 15 * 60_000;
 let lastSweep = 0;
 
@@ -15,9 +16,11 @@ function sweep(now: number) {
   if (now - lastSweep < 60_000 && buckets.size < MAX_KEYS) return;
   lastSweep = now;
   for (const [k, b] of buckets) if (now - b.updated > IDLE_MS) buckets.delete(k);
-  // Still too many: Map iterates in insertion order, so the first keys are the oldest.
+  // Still too many: Map iterates in insertion order, so the first keys are the oldest. Evict down to
+  // 90% so a flood of new keys pays for this full pass once per few thousand requests, not on every one.
+  if (buckets.size < MAX_KEYS) return;
   for (const k of buckets.keys()) {
-    if (buckets.size < MAX_KEYS) break;
+    if (buckets.size <= EVICT_TO) break;
     buckets.delete(k);
   }
 }

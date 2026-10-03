@@ -34,6 +34,8 @@ const existing: Partial<CareerHistory> = {
   certifications: [],
 };
 
+const EMPTY: HistoryDraft = { contact: {}, experience: [], education: [], certifications: [] };
+
 describe("reviewing history from a résumé", () => {
   const items = reviewHistoryImport(rules, existing);
   const by = (k: string) => items.find((i) => i.key === k)!;
@@ -68,6 +70,25 @@ describe("reviewing history from a résumé", () => {
     const h = buildHistoryPatch(rules, existing, ["contact:email", items.find((i) => i.label.includes("Stripe"))!.key]);
     expect(h.contact.email).toBe("arjun@mehta.dev");
     expect(h.experience).toHaveLength(1);
+  });
+
+  it("keeps a second stint at the same employer in the same title as its own role", () => {
+    const stints: HistoryDraft = {
+      ...rules,
+      experience: [
+        { employer: "Simeio Solutions", title: "Senior Manager", startDate: "2022-06", endDate: "2023-01", bullets: ["Led SOW creation"], from: "Simeio 2022", by: "rules" },
+        { employer: "AppDirect", title: "Senior Engineering Manager", startDate: "2021-05", endDate: "2022-05", bullets: [], from: "AppDirect", by: "rules" },
+        { employer: "Simeio Solutions", title: "Senior Manager", startDate: "2019-07", endDate: "2021-05", bullets: ["Designed the migration plan"], from: "Simeio 2019", by: "rules" },
+      ],
+    };
+    const review = reviewHistoryImport(stints, { experience: [] }).filter((i) => i.group === "experience");
+    expect(new Set(review.map((i) => i.key)).size).toBe(3);
+    const h = buildHistoryPatch(stints, { experience: [] }, review.map((i) => i.key));
+    expect(h.experience.map((e) => `${e.employer} ${e.startDate}`)).toEqual(["Simeio Solutions 2022-06", "AppDirect 2021-05", "Simeio Solutions 2019-07"]);
+    // Re-reading the résumé after the profile has the later stint offers only the earlier one as new.
+    const again = reviewHistoryImport(stints, { experience: [h.experience[0]] }).filter((i) => i.group === "experience");
+    expect(again.map((i) => i.status)).toEqual(["same", "new", "new"]);
+    expect(mergeHistoryDrafts(stints, { ...EMPTY, experience: [stints.experience[2]] }).experience).toHaveLength(3);
   });
 
   it("applies nothing when nothing is ticked", () => {
