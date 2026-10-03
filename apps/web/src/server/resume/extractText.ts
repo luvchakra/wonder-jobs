@@ -144,6 +144,8 @@ export function extractDocxText(buf: Buffer): string {
   const xml = readZipEntry(buf, doc).toString("utf8");
   return tidy(
     xml
+      // A list paragraph's bullet is formatting, not text: write the mark so the reader can see the list.
+      .replace(/<w:p\b[^>]*>(?=(?:(?!<\/w:p>)[^])*?<w:numPr>)/g, "$&• ")
       .replace(/<w:tab\b[^>]*\/>/g, "\t")
       .replace(/<w:br\b[^>]*\/>/g, "\n")
       .replace(/<\/w:p>/g, "\n")

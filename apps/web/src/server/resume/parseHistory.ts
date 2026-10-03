@@ -17,7 +17,7 @@ const HEADINGS: [Section, RegExp][] = [
   ["experience", /^(work |professional |relevant |employment |career )?(experience|history)$|^employment$|^work history$|^experience & achievements$/],
   ["education", /^(education|academic background|academics|qualifications|education (and|&) training|academic qualifications)$/],
   ["certifications", /^(certifications?|licen[cs]es?|certifications? (and|&) licen[cs]es?|licen[cs]es? (and|&) certifications?|courses|courses (and|&) certifications|training (and|&) certifications)$/],
-  ["other", /^(skills|technical skills|key skills|core skills|core competencies|competencies|projects|key projects|achievements|awards|honou?rs|publications|languages|interests|hobbies|volunteer(ing)?|references|tools|technologies|contact|personal details|declaration)$/],
+  ["other", /^(skills|technical skills|key skills|core skills|core competencies|competencies|key strengths|transferable skills|areas of expertise|expertise|leadership highlights|selected achievements|key achievements|research interests|projects|key projects|achievements|awards|honou?rs|publications|languages|interests|hobbies|volunteer(ing)?|references|tools|technologies|contact|personal details|declaration)$/],
 ];
 
 function sectionOf(line: string): Section | null {
@@ -54,6 +54,7 @@ export function toMonth(v: string): string | undefined {
 }
 
 const BULLET = /^[-–—•·▪●◦*>✓✔➢➤]\s*/;
+const LONE_MARK = /^[-–—•·▪●◦*>✓✔➢➤]$/;
 const TITLE_WORDS = /\b(engineer|developer|manager|director|architect|analyst|designer|consultant|specialist|lead|head|scientist|administrator|officer|president|vp|founder|co-founder|owner|strategist|marketer|recruiter|accountant|auditor|advisor|coach|producer|editor|writer|intern|associate|executive|assistant|coordinator|partner|principal|programmer|researcher|technician|teacher|professor|lecturer|nurse|physician|product owner|scrum master|cto|ceo|cfo|coo|cmo)\b/i;
 const INSTITUTION = /\b(university|universit[äé]|college|institute|school|academy|polytechnic|iit|iim|nit|bits|iiit|iisc|xlri|isb|mit|stanford|harvard|oxford|cambridge)\b/i;
 const DEGREE = /\b(ph\.?\s?d|doctorate|m\.?\s?b\.?\s?a|pgdm|pgp|m\.?\s?tech|m\.?\s?e\b|m\.?\s?sc|m\.?\s?s\b|m\.?\s?a\b|m\.?\s?com|m\.?\s?c\.?\s?a|master(?:'s|s)?(?: of [a-z ]+)?|b\.?\s?tech|b\.?\s?e\b|b\.?\s?sc|b\.?\s?s\b|b\.?\s?a\b|b\.?\s?com|b\.?\s?b\.?\s?a|b\.?\s?c\.?\s?a|bachelor(?:'s|s)?(?: of [a-z ]+)?|diploma|associate degree|high school|higher secondary|hsc|ssc|12th|10th)\b/i;
@@ -67,9 +68,11 @@ const clean = (t: string) =>
     .replace(/^[\s,|–—-]+|[\s,|–—:-]+$/g, "")
     .trim();
 // Measured without asides in brackets: "(Internal transfer from …)" doesn't make a role line prose.
+// A company abbreviation ("Pvt. Ltd.", "Co.", "Inc.") ends a name, not a sentence.
+const COMPANY_END = /\b(?:ltd|inc|co|corp|llc|llp|pvt|plc|gmbh|ag|bv|nv|sa|pte)\.$/i;
 const looksLikeHeader = (line: string) => {
   const core = line.replace(/\s*\([^)]*\)/g, "").trim();
-  return !BULLET.test(line) && !/[.;]$/.test(core) && core.split(" ").length <= 12 && core.length <= 110;
+  return !BULLET.test(line) && (!/[.;]$/.test(core) || COMPANY_END.test(core)) && core.split(" ").length <= 12 && core.length <= 110;
 };
 
 /**
@@ -80,10 +83,28 @@ export function normalizeResumeDates(text: string): string {
   return text.replace(new RegExp(`(${MONTH}\\.?,?\\s+)((?:19|20)\\d) (\\d)\\b`, "gi"), "$1$2$3");
 }
 
+/** How a résumé is laid out, as the rules read it: the section headings found, and role lines with dates whose title and employer couldn't be told apart. Used by the ATS check. */
+export interface ResumeOutline {
+  headings: { kind: Section | "skills"; text: string }[];
+  unreadRoles: string[];
+  /** Lines that look like headings (short, all capitals) but aren't one the rules recognise. */
+  unknownHeadings: string[];
+  /** A paragraph before the first heading — a summary written without a "Summary" heading. */
+  intro?: string;
+}
+
+const SKILLS_HEADING = /^(skills|technical skills|key skills|core skills|core competencies|competencies|key strengths|transferable skills|areas of expertise|expertise|skills (and|&) tools|tools|technologies)$/;
+
 export function parseHistory(text: string): HistoryDraft {
+  return analyseHistory(text).draft;
+}
+
+export function analyseHistory(text: string): { draft: HistoryDraft; outline: ResumeOutline } {
+  const outline: ResumeOutline = { headings: [], unreadRoles: [], unknownHeadings: [] };
   const lines = normalizeResumeDates(text)
     .split("\n")
-    .map((l) => l.replace(/\s+/g, " ").trim())
+    // A tab separates fields on a résumé line ("Title⇥Place"); keep it as a separator, not a space.
+    .map((l) => l.replace(/\t+/g, " | ").replace(/\s+/g, " ").replace(/^\|\s*|\s*\|$/g, "").trim())
     .filter(Boolean);
   const sections: Record<Section, string[]> = { summary: [], experience: [], education: [], certifications: [], other: [] };
   let current: Section | null = null;
@@ -92,18 +113,24 @@ export function parseHistory(text: string): HistoryDraft {
     const s = sectionOf(line);
     if (s) {
       current = s;
+      const t = line.replace(/[:\-–—_=*#|]+\s*$/g, "").replace(/^[#*\s]+/, "").trim();
+      outline.headings.push({ kind: s === "other" && SKILLS_HEADING.test(t.toLowerCase()) ? "skills" : s, text: t });
       continue;
     }
+    // Only after the first real heading: above it, an all-capitals line is usually the name.
+    if (current && line.length <= 40 && /^[A-Z][A-Z &/'-]{3,}$/.test(line) && line.split(" ").length <= 4 && !RANGE.test(line)) outline.unknownHeadings.push(line);
     if (current) sections[current].push(line);
     else head.push(line);
   }
   const draft: HistoryDraft = { contact: contactOf(head.length ? head : lines.slice(0, 12), text), experience: [], education: [], certifications: [] };
+  const intro = head.filter((l) => l.length >= 120 && !/@|https?:/.test(l)).join(" ");
+  if (intro) outline.intro = intro.slice(0, 600);
   const summary = sections.summary.join(" ").trim();
   if (summary.length >= 40) draft.summary = { value: summary.slice(0, 1200), from: summary.slice(0, 120) };
-  draft.experience = experienceOf(sections.experience);
+  draft.experience = experienceOf(sections.experience, outline.unreadRoles);
   draft.education = educationOf(sections.education);
   draft.certifications = certificationsOf(sections.certifications);
-  return draft;
+  return { draft, outline };
 }
 
 function contactOf(head: string[], text: string): HistoryDraft["contact"] {
@@ -136,15 +163,19 @@ function contactOf(head: string[], text: string): HistoryDraft["contact"] {
   return out;
 }
 
-function experienceOf(section: string[]): ImportedExperience[] {
-  const anchors = section.map((l, i) => (RANGE.test(l) ? i : -1)).filter((i) => i >= 0);
+function experienceOf(section: string[], unread: string[] = []): ImportedExperience[] {
+  // A line right after a lone bullet mark ("•" on its own line, as some PDFs draw it) is that bullet's text.
+  const afterMark = (j: number) => j > 0 && LONE_MARK.test(section[j - 1]);
+  // A role's dates sit on a heading-like line; a year range inside an achievement ("the 2017–2019
+  // roadmap") isn't one.
+  const anchors = section.map((l, i) => (RANGE.test(l) && !BULLET.test(l) && !/\.$/.test(l) ? i : -1)).filter((i) => i >= 0);
   const out: ImportedExperience[] = [];
   const starts: number[] = [];
   for (let a = 0; a < anchors.length; a++) {
     const i = anchors[a];
     const floor = a > 0 ? anchors[a - 1] + 1 : 0;
     let start = i;
-    while (start - 1 >= floor && i - (start - 1) <= 2 && looksLikeHeader(section[start - 1])) start--;
+    while (start - 1 >= floor && i - (start - 1) <= 2 && looksLikeHeader(section[start - 1]) && !afterMark(start - 1)) start--;
     starts.push(start);
   }
   for (let a = 0; a < anchors.length; a++) {
@@ -161,28 +192,58 @@ function experienceOf(section: string[]): ImportedExperience[] {
     const noAside = (l: string) => l.replace(/\s*\([^)]*\)/g, "").trim();
     const headerLines = [...section.slice(starts[a], i), anchorRest].map(noAside).filter(Boolean);
     let bodyFrom = i + 1;
-    let tokens = headerLines.flatMap((l) => l.split(SEPARATORS)).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean);
-    // "Senior PM — Jan 2021 – Present" then "PayCircle, Bengaluru": the employer is on the next line.
-    if (tokens.filter((t) => !isLocation(t)).length < 2 && bodyFrom < end && looksLikeHeader(section[bodyFrom])) {
-      tokens = [...tokens, ...noAside(section[bodyFrom]).split(SEPARATORS).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean)];
+    const split = (l: string) => noAside(l).split(SEPARATORS).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean);
+    const lineTokens = headerLines.map(split);
+    // The line after the dates belongs to the role when it carries a place ("Example Payments · Bengaluru"),
+    // or when the lines so far don't yet give both a title and an employer ("Senior PM — Jan 2021 – Present"
+    // then "PayCircle, Bengaluru").
+    // A labelled line ("Client: Barclays, Singapore") is a detail of the role, not its header.
+    for (let k = 0; k < 2 && bodyFrom < end && looksLikeHeader(section[bodyFrom]) && !afterMark(bodyFrom) && !/^[A-Za-z][\w ]{0,20}:\s/.test(section[bodyFrom]); k++) {
+      const next = split(section[bodyFrom]);
+      const placeOnly = next.length > 0 && next.every(isLocation);
+      if (!(next.some(isLocation) || lineTokens.flat().filter((t) => !isLocation(t)).length < 2)) break;
+      lineTokens.push(next);
       bodyFrom++;
+      if (!placeOnly && lineTokens.flat().some(isLocation)) break;
     }
-    const location = tokens.find(isLocation);
-    const rest = tokens.filter((t) => t !== location && !SINGLE_YEAR.test(t));
-    const title = rest.find((t) => TITLE_WORDS.test(t));
-    const employer = rest.find((t) => t !== title);
-    if (!title || !employer || title.length > 100 || employer.length > 100) continue;
+    const tokens = lineTokens.flat();
+    // Every place on the header ("Chennai", "India") is location, never the employer.
+    const places = tokens.filter(isLocation);
+    const location = places.length ? [...new Set(places)].slice(0, 2).join(", ") : undefined;
+    const rest = tokens.filter((t) => !isLocation(t) && !SINGLE_YEAR.test(t));
+    let title = rest.find((t) => TITLE_WORDS.test(t));
+    const others = rest.filter((t) => t !== title);
+    // Prefer a name that reads like a company, then one written next to a place, then the first.
+    const placed = lineTokens.filter((ts) => ts.some(isLocation)).flat();
+    const employer = others.find((t) => COMPANY_END.test(t)) ?? others.find((t) => placed.includes(t)) ?? others[0];
+    // "Senior Software Engineer, Platform": when the rest of the title's line isn't the employer or a place, it's part of the title.
+    const titleLine = lineTokens.find((ts) => title !== undefined && ts.includes(title));
+    if (title && titleLine && titleLine.length > 1 && !titleLine.includes(employer ?? "") && !titleLine.some(isLocation)) title = titleLine.filter((t) => !SINGLE_YEAR.test(t)).join(", ");
+    if (!title || !employer || title.length > 100 || employer.length > 100) {
+      unread.push(section.slice(starts[a], i + 1).join(" / ").slice(0, 160));
+      continue;
+    }
     out.push({ employer, title, location, startDate, endDate, current: isCurrent || undefined, bullets: bulletsOf(section.slice(bodyFrom, end)), from: [...section.slice(starts[a], i + 1)].join(" / ").slice(0, 200), by: "rules" });
   }
   return out;
 }
 
 function bulletsOf(body: string[]): string[] {
-  // Joined as written (a wrapped line keeps its punctuation), then trimmed once at the ends.
+  // Joined as written (a wrapped line keeps its punctuation), then trimmed once at the ends. When a role
+  // marks its achievements with bullets, a line without a mark continues the one before it — PDFs wrap
+  // long achievements onto lines that can start with anything.
+  const marked = body.some((l) => BULLET.test(l));
   const out: string[] = [];
+  let startNext = false;
   for (const line of body) {
-    if (BULLET.test(line)) out.push(line.replace(BULLET, ""));
-    else if (out.length && /^[a-z(]/.test(line)) out[out.length - 1] = `${out[out.length - 1]} ${line}`;
+    if (BULLET.test(line)) {
+      const rest = line.replace(BULLET, "");
+      if (rest) out.push(rest);
+      else startNext = true;
+    } else if (startNext) {
+      out.push(line);
+      startNext = false;
+    } else if (out.length && (marked || /^[a-z(]/.test(line))) out[out.length - 1] = `${out[out.length - 1]} ${line}`;
     else if (line.length > 40 || /\.$/.test(line)) out.push(line);
   }
   return out
