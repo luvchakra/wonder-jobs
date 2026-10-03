@@ -110,6 +110,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         }
       />
       <HiddenJobNotice job={job} className="mb-4" />
+      {job.foundAs && <p className="mb-4 text-[13px] text-ink-3">Found by your &ldquo;{job.foundAs.title}&rdquo; search.</p>}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <Card className="mb-4">

@@ -156,6 +156,30 @@ describe("runDueSchedules", () => {
     expect(Object.keys(jobs.state.saved).length).toBeGreaterThan(0);
   });
 
+  it("a search saved as one of the candidate's roles runs with that role's terms and labels what it found", async () => {
+    searchSource.mockResolvedValue({ jobs: [job(1), job(2)], cached: false });
+    const roleWorkflow: Workflow = { ...workflow, config: { ...config, careerGoal: "Senior data analyst roles", searchCriteria: { ...config.searchCriteria, query: "data analyst" }, role: { id: "role_1", title: "Data Analyst" } } };
+    await seed({ workflows: { [workflow.id]: roleWorkflow } });
+
+    const report = await runDueSchedules(TENANT, { now: later });
+    expect(report?.outcome).toBe("completed");
+    expect(JSON.stringify(searchSource.mock.calls[0])).toContain("data analyst");
+    const jobs = (await stateStore.get(TENANT, "wj.jobs"))!.state as { state: JobsDoc };
+    for (const id of jobs.state.order) expect(jobs.state.jobs[id].foundAs).toEqual({ id: "role_1", title: "Data Analyst" });
+    const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
+    const run = Object.values(wf.state.runs)[0];
+    expect(run.config.role).toEqual({ id: "role_1", title: "Data Analyst" });
+    expect(run.config.careerGoal).toBe("Senior data analyst roles");
+  });
+
+  it("a search without a role labels nothing — unchanged from before roles existed", async () => {
+    searchSource.mockResolvedValue({ jobs: [job(1)], cached: false });
+    await seed();
+    await runDueSchedules(TENANT, { now: later });
+    const jobs = (await stateStore.get(TENANT, "wj.jobs"))!.state as { state: JobsDoc };
+    expect(jobs.state.jobs[jobs.state.order[0]].foundAs).toBeUndefined();
+  });
+
   it("advances the schedule before running so a failure can't re-fire in a loop", async () => {
     searchSource.mockRejectedValue(new Error("upstream is down"));
     await seed();

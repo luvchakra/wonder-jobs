@@ -8,6 +8,8 @@ import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
+import { roleSearch } from "@/domain/career/roles";
+import { RolePicker } from "@/components/career/RolePicker";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { useAIStore } from "@/store/ai";
@@ -28,7 +30,7 @@ import { toast } from "@/components/feedback/Toast";
 // Phrasing examples only — they fill the box, they're never run or saved on their own.
 const EXAMPLES = ["Product roles in AI startups", "Engineering leadership roles", "Remote roles in cybersecurity", "Director roles in fintech"];
 
-type Origin = "your words" | "your Career Profile" | "you edited";
+type Origin = string;
 
 /**
  * Find (outcome spec §5): one plain-language box — "What are you looking for?" — and Wonder
@@ -45,8 +47,19 @@ function FindInner() {
   const aiConfig = useAIStore((s) => s.config);
   const sources = useJobsStore((s) => s.sources);
   const activeRun = useWorkflowStore(selectActiveRun);
+  const roles = useCareerStore((s) => s.roles ?? []);
+  // `?role=` (from a role's "Search now") starts as that role; otherwise the whole Career Profile.
+  const [roleId, setRoleId] = useState<string | null>(() => {
+    const id = params.get("role");
+    return id && roles.some((r) => r.id === id) ? id : null;
+  });
+  const role = roles.find((r) => r.id === roleId);
+  const roleSearchFor = useMemo(() => (role ? roleSearch(role, defaultSearchQuery) : null), [role]);
 
-  const [request, setRequest] = useState(() => params.get("q") ?? dna.careerGoal);
+  const [request, setRequest] = useState(() => {
+    const r = roles.find((x) => x.id === params.get("role"));
+    return r ? r.goal || r.title : (params.get("q") ?? dna.careerGoal);
+  });
   const [level, setLevel] = useState<AutomationLevel>(defaultLevel);
   const [provider, setProvider] = useState<AIProviderId>(aiConfig.activeProvider);
   const [queryEdit, setQueryEdit] = useState<string | null>(null);
@@ -59,7 +72,14 @@ function FindInner() {
 
   const intent = useMemo(() => deriveSearchIntent(request), [request]);
   const profileQuery = useMemo(() => defaultSearchQuery(dna), [dna]);
-  const query: { value: string; origin: Origin } = queryEdit != null ? { value: queryEdit.trim(), origin: "you edited" } : intent.query ? { value: intent.query, origin: "your words" } : { value: profileQuery, origin: "your Career Profile" };
+  const query: { value: string; origin: Origin } =
+    queryEdit != null
+      ? { value: queryEdit.trim(), origin: "you edited" }
+      : role && roleSearchFor?.query
+        ? { value: roleSearchFor.query, origin: `your “${role.title}” role` }
+        : intent.query
+          ? { value: intent.query, origin: "your words" }
+          : { value: profileQuery, origin: "your Career Profile" };
   const locations: { value: string[]; origin: Origin } =
     locationsEdit != null
       ? { value: locationsEdit.split(",").map((s) => s.trim()).filter(Boolean), origin: "you edited" }
@@ -67,7 +87,14 @@ function FindInner() {
         ? { value: intent.locations, origin: "your words" }
         : { value: dna.preferredLocations, origin: "your Career Profile" };
   const workModes = intent.workModes.length ? intent.workModes : dna.workModes;
-  const goalChanged = request.trim() !== dna.careerGoal.trim();
+  // A role's goal belongs to the role: searching as one never offers to overwrite the profile's goal.
+  const goalChanged = !role && request.trim() !== dna.careerGoal.trim();
+  const pickRole = (id: string | null) => {
+    setRoleId(id);
+    setQueryEdit(null);
+    const r = roles.find((x) => x.id === id);
+    setRequest(r ? r.goal || r.title : dna.careerGoal);
+  };
   const model = useMemo(() => (provider === aiConfig.activeProvider ? aiConfig.activeModel : AI_PROVIDERS[provider].models.find((m) => m.default)?.id ?? AI_PROVIDERS[provider].models[0].id), [provider, aiConfig]);
 
   const dictation = useDictation({ textAtStart: () => request, onText: setRequest });
@@ -90,9 +117,10 @@ function FindInner() {
           minMatchThreshold: threshold,
           maxResults: 50,
           notify: "strong_matches_only",
+          ...(role ? { role: { id: role.id, title: role.title } } : {}),
         },
       });
-      track("find_started", { level, sources: sourceIds.length, locations: locations.value.length, derivedFromWords: query.origin === "your words" });
+      track("find_started", { level, sources: sourceIds.length, locations: locations.value.length, derivedFromWords: query.origin === "your words", asRole: !!role });
       toast.success("Wonder is finding opportunities", "You can pause or stop at any time.");
       router.push(`/app/runs/${run.id}`);
     } catch (e) {
@@ -113,6 +141,12 @@ function FindInner() {
       )}
       <div className="flex flex-col gap-4 pb-44 md:pb-0">
         <Card>
+          {roles.length > 0 && (
+            <div className="mb-4">
+              <RolePicker roles={roles} value={roleId} onChange={pickRole} />
+              {role && <p className="mt-1.5 text-[12px] text-ink-3">Searches with this role&apos;s terms and goal{role.baseResume ? ", and offers its résumé when you apply" : ""}. Matching still uses your whole Career Profile.</p>}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2">
             <label htmlFor="find-request" className="text-[15px] font-semibold text-ink">
               What are you looking for?

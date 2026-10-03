@@ -48,6 +48,7 @@ export default function RunsPage() {
                       <span className="truncate text-[14px] font-semibold text-ink">“{r.config.careerGoal.trim() || r.workflowName.replace(/^(Search|Job Search) — /, "")}”</span>
                     </div>
                     <span className="flex items-center gap-1.5">
+                      {r.config.role && <Badge tone="brand">As {r.config.role.title}</Badge>}
                       {r.trigger === "schedule" && <Badge>Scheduled</Badge>}
                       {r.silent && <Badge>Quiet</Badge>}
                       {r.parentRunId && <Badge tone="info">Recheck</Badge>}

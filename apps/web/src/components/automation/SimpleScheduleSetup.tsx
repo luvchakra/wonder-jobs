@@ -7,6 +7,8 @@ import { AI_PROVIDERS } from "@/domain/ai/types";
 import { buildScheduledSearch, LOOK_FREQUENCY_META, type LookFrequency } from "@/domain/workflow/simpleSchedule";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
+import { roleSearch } from "@/domain/career/roles";
+import { RolePicker } from "@/components/career/RolePicker";
 import { describeSchedule } from "@/services/mock/templates";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
@@ -37,13 +39,17 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   const upsertWorkflow = useWorkflowStore((s) => s.upsertWorkflow);
   const upsertSchedule = useWorkflowStore((s) => s.upsertSchedule);
 
+  const roles = useCareerStore((s) => s.roles ?? []);
+  const [roleId, setRoleId] = useState<string | null>(null);
+  const role = roles.find((r) => r.id === roleId);
   const [request, setRequest] = useState(initialRequest ?? dna.careerGoal);
   const [frequency, setFrequency] = useState<LookFrequency>(initialFrequency ?? "daily");
   const [onlyWorthIt, setOnlyWorthIt] = useState(true);
 
   const intent = useMemo(() => deriveSearchIntent(request), [request]);
   // The candidate's own words, else their Career Profile — never a canned role.
-  const query = intent.query || defaultSearchQuery(dna);
+  // A role's own terms; else the candidate's own words, else their Career Profile — never a canned role.
+  const query = (role && roleSearch(role, defaultSearchQuery).query) || intent.query || defaultSearchQuery(dna);
   const locations = intent.locations.length ? intent.locations : dna.preferredLocations;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
 
@@ -62,6 +68,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
       level: defaultLevel,
       provider: { provider: aiConfig.activeProvider, model: aiConfig.activeModel, billing: AI_PROVIDERS[aiConfig.activeProvider].billing },
       sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
+      role: role ? { id: role.id, title: role.title } : undefined,
     });
     upsertWorkflow(workflow);
     upsertSchedule(schedule);
@@ -73,6 +80,19 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   return (
     <div className="flex flex-col gap-4">
       <Card>
+        {roles.length > 0 && (
+          <div className="mb-4">
+            <RolePicker
+              roles={roles}
+              value={roleId}
+              onChange={(id) => {
+                setRoleId(id);
+                const r = roles.find((x) => x.id === id);
+                setRequest(r ? r.goal || r.title : (initialRequest ?? dna.careerGoal));
+              }}
+            />
+          </div>
+        )}
         <Field label="What should Wonder look for?" htmlFor="sched-request" hint={query ? `Searches for “${query}”${locations.length ? ` in ${locations.join(", ")}` : ""}.` : "Name a role — e.g. “product manager” — so Wonder knows what to search for."}>
           <Input id="sched-request" value={request} onChange={(e) => setRequest(e.target.value)} placeholder="e.g. Director roles in fintech, Bengaluru or remote" />
         </Field>

@@ -57,6 +57,8 @@ export interface CanonicalJob extends Omit<Job, "sourceId" | "externalId"> {
   duplicateOf: string[];
   /** Present when JobsLake found the job: where it was seen, which record is canonical, and why. */
   lake?: JobLakeProvenance;
+  /** The candidate's role whose search found it (the latest search that did), when it ran as one. */
+  foundAs?: { id: string; title: string };
 }
 
 /** One place a job was seen, as JobsLake recorded it. Display-only; never a job's identity. */

@@ -21,6 +21,7 @@ import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useResumeFilesStore } from "@/store/resumeFiles";
+import { baseResumeFor } from "@/domain/career/roles";
 import {
   buildPack,
   exportPackZip,
@@ -91,7 +92,11 @@ export default function ApplyWithWonderPage({
   );
   const dna = useCareerStore((s) => s.dna);
   const savedResumes = useCareerStore((s) => s.savedResumes);
-  const baseResume = useCareerStore((s) => s.baseResume);
+  const accountBase = useCareerStore((s) => s.baseResume);
+  const roles = useCareerStore((s) => s.roles);
+  // A job found by one of the candidate's role searches offers that role's résumé first.
+  const foundAs = job?.foundAs;
+  const { ref: baseResume, role: baseRole } = useMemo(() => baseResumeFor(roles, foundAs, accountBase), [roles, foundAs, accountBase]);
   const resumeFiles = useResumeFilesStore((s) => s.files);
   const resumeFilesStatus = useResumeFilesStore((s) => s.status);
   const loadResumeFiles = useResumeFilesStore((s) => s.load);
@@ -134,8 +139,9 @@ export default function ApplyWithWonderPage({
       saved: savedResumes,
       uploads: resumeFiles,
       base: baseResume,
+      baseRoleTitle: baseRole?.title,
     });
-  }, [app, jobId, savedResumes, resumeFiles, baseResume]);
+  }, [app, jobId, savedResumes, resumeFiles, baseResume, baseRole]);
   useEffect(() => {
     void loadResumeFiles();
   }, [loadResumeFiles]);

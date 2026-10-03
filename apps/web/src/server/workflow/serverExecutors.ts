@@ -202,7 +202,8 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const strong = ranked.filter((m) => m.fit === "strong");
 
       // Publish to the product exactly as the browser does: the catalog reflects this run.
-      snapshot.jobs.jobs = Object.fromEntries(canonical.map((j) => [j.id, j]));
+      const role = ctx.run.config.role;
+      snapshot.jobs.jobs = Object.fromEntries(canonical.map((j) => [j.id, role ? { ...j, foundAs: { id: role.id, title: role.title } } : j]));
       snapshot.jobs.order = canonical.map((j) => j.id);
       for (const m of matches) snapshot.jobs.matches[m.jobId] = m;
       for (const q of quality) snapshot.jobs.quality[q.jobId] = q;

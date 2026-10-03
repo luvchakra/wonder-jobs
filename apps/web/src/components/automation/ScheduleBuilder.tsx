@@ -77,7 +77,9 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
       version: (wf?.version ?? 0) + 1,
       template: wf?.template ?? t.id,
       config: {
-        careerGoal: dna.careerGoal,
+        // An existing search keeps the goal and role it was set up with.
+        careerGoal: wf?.config.role ? wf.config.careerGoal : dna.careerGoal,
+        ...(wf?.config.role ? { role: wf.config.role } : {}),
         automationLevel: level,
         provider: { provider, model, billing: AI_PROVIDERS[provider].billing },
         sourceIds,
@@ -119,6 +121,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
     <div className="flex flex-col gap-4">
       <Card>
         <h2 className="mb-3 text-[15px] font-semibold text-ink">Workflow</h2>
+        {wf?.config.role && <p className="mb-3 rounded-[12px] bg-brand-50 px-3 py-2 text-[13px] text-brand-700">Searches as your &ldquo;{wf.config.role.title}&rdquo; role, with its goal: &ldquo;{wf.config.careerGoal}&rdquo;.</p>}
         <div className="grid gap-4">
           <Field label="Workflow name" htmlFor="wf-name" required>
             <Input id="wf-name" value={name} onChange={(e) => setName(e.target.value)} required />

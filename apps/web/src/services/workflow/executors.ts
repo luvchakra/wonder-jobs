@@ -236,7 +236,9 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const strong = ranked.filter((m) => m.fit === "strong");
       // Publish to the product: the jobs catalog reflects this run.
       const jobsStore = useJobsStore.getState();
-      jobsStore.replaceCatalog(jobs);
+      // A search run as one of the candidate's roles labels what it found, so Apply can offer that role's résumé.
+      const role = ctx.run.config.role;
+      jobsStore.replaceCatalog(role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs);
       jobsStore.setMatches(matches);
       jobsStore.setQuality(quality);
       let saved = 0;

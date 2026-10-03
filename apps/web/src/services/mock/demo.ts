@@ -9,7 +9,7 @@ import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useWorkflowStore } from "@/store/workflow";
-import { SEED_DNA, seedActivity, seedApplications, seedInsights, seedNotifications, seedSchedules, seedUpcoming, seedWorkflows } from "./seed";
+import { SEED_DNA, seedRoles, seedActivity, seedApplications, seedInsights, seedNotifications, seedSchedules, seedUpcoming, seedWorkflows } from "./seed";
 import { seedRuns } from "./runs";
 
 export function isDemoSeeded() {
@@ -18,7 +18,7 @@ export function isDemoSeeded() {
 
 export function seedDemo() {
   const at = new Date().toISOString();
-  useCareerStore.setState({ dna: SEED_DNA, onboarded: true, activity: seedActivity(), upcoming: seedUpcoming(), insights: seedInsights(), notifications: seedNotifications(), plan: "free", reminded: [] });
+  useCareerStore.setState({ dna: SEED_DNA, onboarded: true, activity: seedActivity(), upcoming: seedUpcoming(), insights: seedInsights(), notifications: seedNotifications(), plan: "free", reminded: [], roles: seedRoles() });
   useApplicationsStore.setState({ applications: Object.fromEntries(seedApplications().map((a) => [a.id, a])) });
   useWorkflowStore.setState({
     runs: Object.fromEntries(seedRuns().map((r) => [r.id, r])),

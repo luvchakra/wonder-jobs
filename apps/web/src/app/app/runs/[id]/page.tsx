@@ -95,7 +95,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader back={{ href: "/app/runs", label: "Search history" }} eyebrow={`${run.trigger === "schedule" ? "Scheduled search" : "Search"} · ${relativeTime(run.startedAt ?? run.createdAt)}`} title={`“${request}”`} />
+      <PageHeader back={{ href: "/app/runs", label: "Search history" }} eyebrow={`${run.trigger === "schedule" ? "Scheduled search" : "Search"}${run.config.role ? ` as ${run.config.role.title}` : ""} · ${relativeTime(run.startedAt ?? run.createdAt)}`} title={`“${request}”`} />
       <p className="wj-sr-only" aria-live="polite" aria-atomic="true">
         {experience.title}. {experience.summary}
       </p>

@@ -35,6 +35,8 @@ export interface ScheduledSearchInput {
   level: AutomationLevel;
   provider: ProviderSnapshot;
   sourceIds: string[];
+  /** The candidate's role this search runs as, when they chose one. */
+  role?: { id: string; title: string };
 }
 
 export function buildScheduledSearch(input: ScheduledSearchInput): { workflow: Workflow; schedule: WorkflowSchedule } {
@@ -42,7 +44,7 @@ export function buildScheduledSearch(input: ScheduledSearchInput): { workflow: W
   const cadence = input.frequency === "weekly" ? { frequency: "weekly" as const, days: [1], time: "09:00" } : { frequency: "daily" as const, days: [0, 1, 2, 3, 4, 5, 6], time: "08:00" };
   const trigger: WorkflowSchedule["trigger"] = input.frequency === "manual" ? "manual" : "schedule";
   const at = input.now.toISOString();
-  const name = `${LOOK_FREQUENCY_META[input.frequency].label} — ${input.query}`;
+  const name = `${LOOK_FREQUENCY_META[input.frequency].label} — ${input.role ? `${input.role.title}: ` : ""}${input.query}`;
   const description = quiet ? "Tells you only when there are strong matches." : "Tells you every time it runs.";
   const workflow: Workflow = {
     id: input.ids.workflow,
@@ -59,6 +61,7 @@ export function buildScheduledSearch(input: ScheduledSearchInput): { workflow: W
       minMatchThreshold: 70,
       maxResults: 50,
       notify: quiet ? "strong_matches_only" : "always",
+      ...(input.role ? { role: input.role } : {}),
     },
     stageKeys: DISCOVERY,
     createdAt: at,
