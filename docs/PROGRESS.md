@@ -71,6 +71,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Refine kept to the essentials (WJ-213)
 - ✅ "Search as" waits for Search; brand name replaces the top-bar search (WJ-214)
 - ✅ Phone top bar: avatar left, brand centred (WJ-215)
+- ✅ Ask Wonder search icon beside the bell (WJ-216)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
