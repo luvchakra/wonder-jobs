@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deflateRawSync, deflateSync } from "node:zlib";
-import { detectFormat, extractDocxText, extractPdfText, extractResumeText, looksReadable, UnsupportedResumeError } from "./extractText";
+import { decodeTextString, detectFormat, extractDocxText, extractPdfText, extractResumeText, looksReadable, UnsupportedResumeError } from "./extractText";
 
 const PROSE = [
   "Priya Raman",
@@ -269,5 +269,38 @@ describe("decompression bombs", () => {
     const pdf = makePdf([huge]);
     expect(pdf.length).toBeLessThan(100_000);
     expect(extractPdfText(pdf)).not.toContain("AAAA");
+  });
+});
+
+/** A PDF whose content stream is given as written — for marked-content and ActualText cases. */
+function rawPdf(content: string): Buffer {
+  const body = deflateSync(Buffer.from(content, "latin1"));
+  return Buffer.concat([Buffer.from(`%PDF-1.7\n1 0 obj\n<< /Length ${body.length} /Filter /FlateDecode >>\nstream\n`, "latin1"), body, Buffer.from("\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF", "latin1")]);
+}
+
+describe("ActualText and Unicode text strings (regression: “þÿ (” before every bullet)", () => {
+  it("a span whose ActualText is a zero-width space reads as nothing — not its bytes, not its glyph", () => {
+    // What a real CV exporter wrote: a bullet glyph, then a spacer glyph wrapped in ActualText <FEFF200B>.
+    const pdf = rawPdf(["BT /F1 12 Tf 1 0 0 -1 7 .5 Tm 0 -11 Td (\\225) Tj ET", "BT /Span<</ActualText <FEFF200B> >> BDC /F1 12 Tf 4.6 -11 Td (\\() Tj EMC ET", "BT /F1 12 Tf 20 -11 Td (Owned the roadmap for a wallet.) Tj ET"].join("\n"));
+    const text = extractPdfText(pdf);
+    expect(text).not.toMatch(/þ|ÿ|\uFEFF|\u200B/);
+    expect(text).not.toContain("(");
+    expect(text).toContain("Owned the roadmap for a wallet.");
+  });
+
+  it("uses a span's ActualText in place of its glyphs, in UTF-16 or plain bytes", () => {
+    expect(extractPdfText(rawPdf("BT /Span<</ActualText (\\376\\377\\000f\\000i) >> BDC (X) Tj EMC ( rst draft) Tj ET"))).toContain("fi rst draft");
+    expect(extractPdfText(rawPdf("BT /Span<</ActualText <FEFF2022> >> BDC <0087> Tj EMC (Led the team) Tj ET"))).toContain("•Led the team");
+    expect(extractPdfText(rawPdf("BT /Span<</ActualText (Caf\\351) >> BDC (XXXX) Tj EMC ET"))).toContain("Café");
+  });
+
+  it("leaves glyphs alone in marked content without ActualText", () => {
+    expect(extractPdfText(rawPdf("BT /P <</MCID 3>> BDC (Senior Product Manager) Tj EMC /Artifact BMC (12) Tj EMC ET"))).toContain("Senior Product Manager");
+  });
+
+  it("decodes PDF text strings by their byte-order mark", () => {
+    expect(decodeTextString("<FEFF00480069200B>")).toBe("Hi\u200b");
+    expect(decodeTextString("<EFBBBF48C3A9>")).toBe("Hé");
+    expect(decodeTextString("(Plain)")).toBe("Plain");
   });
 });

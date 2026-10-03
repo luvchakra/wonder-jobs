@@ -69,6 +69,9 @@ export function looksReadable(text: string): boolean {
 function tidy(text: string): string {
   return text
     .replace(/\r\n?/g, "\n")
+    // Byte-order marks, zero-width characters and control characters carry no text of their own.
+    .replace(/[\u200b-\u200d\u2060\ufeff]/g, "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, " ")
     .replace(/ {2,}/g, " ")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -310,15 +313,29 @@ function readContentStream(content: string, merged: CMap, fonts: Map<string, CMa
   let out = "";
   let pending: string[] = [];
   let cmap = merged;
-  const re = /\/([^\s/<>[\]()]+)\s+-?\d*\.?\d+\s+Tf\b|\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]*>|\bTJ\b|\bTj\b|T\*|\bBT\b|(?:-?\d*\.?\d+\s+){5}-?\d*\.?\d+\s+cm\b/g;
+  // Marked content (`BDC`/`BMC` … `EMC`). A span with `/ActualText` says what its glyphs really read as —
+  // often a bullet drawn as a picture-font glyph, or nothing at all (a zero-width space). Inside one,
+  // the glyphs are skipped and the ActualText is written instead, once, when the span closes.
+  const marked: { actual?: string }[] = [];
+  let actualForNextBDC: string | undefined;
+  const inActual = () => marked.some((m) => m.actual !== undefined);
+  const re = /\/ActualText\s*(\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]*>)|\/([^\s/<>[\]()]+)\s+-?\d*\.?\d+\s+Tf\b|\((?:\\.|[^\\()])*\)|<[0-9A-Fa-f\s]*>|\bTJ\b|\bTj\b|\bBDC\b|\bBMC\b|\bEMC\b|T\*|\bBT\b|(?:-?\d*\.?\d+\s+){5}-?\d*\.?\d+\s+cm\b/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     const tok = m[0];
-    if (m[1] !== undefined) cmap = fonts.get(m[1]) ?? merged;
-    else if (tok.startsWith("(")) pending.push(decodePdfString(tok.slice(1, -1), cmap));
+    if (m[1] !== undefined) actualForNextBDC = decodeTextString(m[1]);
+    else if (m[2] !== undefined) cmap = fonts.get(m[2]) ?? merged;
+    else if (tok === "BDC") {
+      marked.push({ actual: actualForNextBDC });
+      actualForNextBDC = undefined;
+    } else if (tok === "BMC") marked.push({});
+    else if (tok === "EMC") {
+      const closed = marked.pop();
+      if (closed?.actual !== undefined && !inActual()) out += closed.actual;
+    } else if (tok.startsWith("(")) pending.push(decodePdfString(tok.slice(1, -1), cmap));
     else if (tok.startsWith("<")) pending.push(decodeHexString(tok.slice(1, -1), cmap));
     else if (tok === "Tj" || tok === "TJ") {
-      out += pending.join("");
+      if (!inActual()) out += pending.join("");
       pending = [];
     } else if (tok === "BT") {
       pending = [];
@@ -330,8 +347,34 @@ function readContentStream(content: string, merged: CMap, fonts: Map<string, CMa
       if (out && !out.endsWith("\n")) out += "\n";
     }
   }
-  out += pending.join("");
   return out;
+}
+
+/**
+ * A PDF *text string* (ActualText, metadata): UTF-16BE when it starts with the FE FF byte-order mark,
+ * UTF-8 with EF BB BF, otherwise single bytes. Not glyph codes — no font is involved.
+ */
+export function decodeTextString(token: string): string {
+  let bytes: number[];
+  if (token.startsWith("<")) {
+    const hex = token.slice(1, -1).replace(/\s+/g, "");
+    bytes = [];
+    for (let i = 0; i + 2 <= hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+    if (hex.length % 2) bytes.push(parseInt(hex.slice(-1) + "0", 16));
+  } else {
+    bytes = [...decodePdfString(token.slice(1, -1), new Map())].map((c) => c.charCodeAt(0) & 0xff);
+  }
+  return bytesToText(bytes);
+}
+
+function bytesToText(bytes: number[]): string {
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    let out = "";
+    for (let i = 2; i + 1 < bytes.length; i += 2) out += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    return out;
+  }
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return Buffer.from(bytes.slice(3)).toString("utf8");
+  return String.fromCharCode(...bytes);
 }
 
 const ESCAPES: Record<string, string> = { n: "\n", r: "\n", t: "\t", b: "", f: "", "(": "(", ")": ")", "\\": "\\" };
@@ -377,6 +420,7 @@ function decodeHexString(s: string, cmap: CMap): string {
     }
     if (hits > 0) return out;
   }
+  if (/^feff/i.test(hex)) return decodeTextString(`<${hex}>`);
   // Two-byte codes are usually UTF-16BE from a subsetted font; one-byte codes are Latin-1.
   const wide = hex.length >= 8 && hex.length % 4 === 0 && hex.startsWith("00");
   const step = wide ? 4 : 2;
