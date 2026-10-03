@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, Download, LifeBuoy, LogIn, LogOut, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Download, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -66,13 +66,17 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
-      {/* Phones: avatar left, brand centred, bell right. Ask Wonder stays on ⌘K. */}
+      {/* Phones: avatar left, brand centred, Ask Wonder and bell right. */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:hidden">
         <span className="pointer-events-auto">
           <WonderLogo href="/app" size={26} />
         </span>
       </div>
       <div className="flex-1" />
+
+      <button type="button" aria-label="Ask Wonder (Command+K)" onClick={() => setCmd(true)} className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
+        <Search className="size-5" aria-hidden />
+      </button>
 
       {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
       <div className="md:relative" ref={notifRef}>

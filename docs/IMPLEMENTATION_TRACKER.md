@@ -8,6 +8,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 
 | ID | Area | Requirement | Status | Notes |
 |---|---|---|---|---|
+| WJ-216 | Shell | Ask Wonder search icon in the top bar | DONE | A search icon left of the notifications bell opens Ask Wonder (same as ⌘K/Ctrl+K), on phones and desktop. |
 | WJ-215 | Shell | Phone top bar: avatar left, brand centred | DONE | On phones the top bar is avatar (profile menu opens from the left) · WonderJobs logo centred · notifications on the right. Desktop keeps the sidebar logo and the avatar on the right. |
 | WJ-214 | Find / Shell | "Search as" picks, Search searches; brand in the top bar | DONE | Tapping a "Search as" role chip only selects it; the search runs when the candidate taps Search in Refine (with Refine's locations). The top bar's "Ask Wonder anything" box is gone — the WonderJobs logo sits there on phones; Ask Wonder stays on ⌘K/Ctrl+K. |
 | WJ-213 | Find | Refine kept to the essentials | DONE | Refine is: what was searched and "Search as", Location, Level, Work mode, Posted, Minimum salary, Sort, and "Search strictly within your Career Profile" — then one Search button and "Show N jobs", with Compare and Clear as quiet links. Removed: Company (the search box covers companies), "Pay listed only", the Sources chips (Job sources page) and the separate Where box in the search row (Location in Refine is the one place). On phones the job count moves to "Show N jobs" so the chip row isn't cut off. |
