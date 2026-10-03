@@ -101,7 +101,9 @@ export const HELP_SECTIONS: HelpSection[] = [
     keywords: ["sources", "jobslake", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "career sites", "greenhouse", "lever", "ashby", "where do jobs come from"],
     body: [
       "Wonder searches real, public job feeds server-side and reads every posting itself. Nothing is invented.",
-      "- Company career sites — public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely (Stripe, Airbnb, Figma, GitLab, Databricks, Coinbase, Groww, CRED, Meesho, Notion, Linear, Ramp, Supabase, Replit, OpenAI, Zapier and more). Applications go straight to the employer.",
+      "- Company career sites — public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely (Stripe, Airbnb, Figma, GitLab, Databricks, Coinbase, Cloudflare, Twilio, MongoDB, Elastic, Datadog, Rubrik, Zscaler, Druva, Groww, CRED, Meesho, Atlan, Notion, Linear, Ramp, Supabase, Replit, OpenAI, Zapier and more). Applications go straight to the employer.",
+      "- SmartRecruiters career sites — the public career pages of Swiggy, Freshworks, Bosch, Continental and Delivery Hero, read through SmartRecruiters' Posting API. Applications go straight to the employer.",
+      "- The Muse — employers that post on The Muse, including the India offices of large companies; you apply from The Muse's page for the role.",
       "- Jobicy, Remote OK, Himalayas — remote job feeds. Himalayas has no search of its own, so Wonder scans its newest postings.",
       "- Arbeitnow — Europe-focused, off by default. Remotive — its public feed exposes only a handful of listings, off by default.",
       "- Adzuna India — India-wide postings across boards; needs free developer keys on the server and shows 'needs setup' until then.",

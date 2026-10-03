@@ -165,6 +165,15 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "greenhouse", slug: "coinbase", company: "Coinbase", domain: "coinbase.com" },
   { ats: "greenhouse", slug: "dropbox", company: "Dropbox", domain: "dropbox.com" },
   { ats: "greenhouse", slug: "duolingo", company: "Duolingo", domain: "duolingo.com" },
+  // Large engineering offices in Bengaluru / Pune / Hyderabad; boards checked live 2026-10-03.
+  { ats: "greenhouse", slug: "cloudflare", company: "Cloudflare", domain: "cloudflare.com" },
+  { ats: "greenhouse", slug: "twilio", company: "Twilio", domain: "twilio.com" },
+  { ats: "greenhouse", slug: "mongodb", company: "MongoDB", domain: "mongodb.com" },
+  { ats: "greenhouse", slug: "elastic", company: "Elastic", domain: "elastic.co" },
+  { ats: "greenhouse", slug: "datadog", company: "Datadog", domain: "datadoghq.com" },
+  { ats: "greenhouse", slug: "rubrik", company: "Rubrik", domain: "rubrik.com" },
+  { ats: "greenhouse", slug: "zscaler", company: "Zscaler", domain: "zscaler.com" },
+  { ats: "greenhouse", slug: "druva", company: "Druva", domain: "druva.com" },
   { ats: "lever", slug: "cred", company: "CRED", domain: "cred.club" },
   { ats: "lever", slug: "meesho", company: "Meesho", domain: "meesho.com" },
   { ats: "lever", slug: "spotify", company: "Spotify", domain: "spotify.com" },
@@ -175,6 +184,7 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "ashby", slug: "replit", company: "Replit", domain: "replit.com" },
   { ats: "ashby", slug: "openai", company: "OpenAI", domain: "openai.com" },
   { ats: "ashby", slug: "zapier", company: "Zapier", domain: "zapier.com" },
+  { ats: "ashby", slug: "atlan", company: "Atlan", domain: "atlan.com" },
 ];
 
 export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[] }
@@ -236,7 +246,119 @@ const careers: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn };
+/* ---------- SmartRecruiters (public Posting API; no key) ---------- */
+/** Employers whose SmartRecruiters career pages are public and hire at scale in India. Checked live 2026-10-03. */
+export const SMARTRECRUITERS_COMPANIES: { slug: string; company: string; domain: string }[] = [
+  { slug: "Swiggy", company: "Swiggy", domain: "swiggy.com" },
+  { slug: "Freshworks", company: "Freshworks", domain: "freshworks.com" },
+  { slug: "BoschGroup", company: "Bosch", domain: "bosch.com" },
+  { slug: "Continental", company: "Continental", domain: "continental.com" },
+  { slug: "DeliveryHero", company: "Delivery Hero", domain: "deliveryhero.com" },
+];
+export interface SmartRecruitersPosting { id: string; name: string; releasedDate?: string; location?: { city?: string; region?: string; country?: string; remote?: boolean; hybrid?: boolean }; department?: { label?: string }; typeOfEmployment?: { label?: string }; experienceLevel?: { label?: string }; industry?: { label?: string }; function?: { label?: string }; applyUrl?: string; postingUrl?: string; jobAd?: { sections?: Record<string, { title?: string; text?: string }> } }
+const COUNTRY_NAME: Record<string, string> = { in: "India", us: "United States", gb: "United Kingdom", de: "Germany", sg: "Singapore", ae: "United Arab Emirates", nl: "Netherlands", pl: "Poland", au: "Australia", ca: "Canada" };
+
+export function rawFromSmartRecruiters(c: (typeof SMARTRECRUITERS_COMPANIES)[number], j: SmartRecruitersPosting): RawPosting {
+  const loc = j.location ?? {};
+  const country = loc.country ? (COUNTRY_NAME[loc.country.toLowerCase()] ?? loc.country.toUpperCase()) : "";
+  const place = [loc.city, loc.region, country].filter((p) => !!p && p.trim()).join(", ");
+  const sections = j.jobAd?.sections ?? {};
+  const description = ["jobDescription", "qualifications", "additionalInformation"].map((k) => sections[k]?.text).filter((t): t is string => !!t).map(htmlToText).join("\n\n");
+  return {
+    externalId: `sr:${c.slug}:${j.id}`,
+    title: j.name,
+    company: c.company,
+    companyDomain: c.domain,
+    location: [place || country, loc.remote ? "Remote" : loc.hybrid ? "Hybrid" : ""].filter(Boolean).join(" · "),
+    remote: !!loc.remote,
+    description: description || `${j.name} — ${[j.department?.label, j.function?.label].filter(Boolean).join(", ")}`,
+    tags: [j.department?.label, j.function?.label, j.typeOfEmployment?.label, j.experienceLevel?.label].filter((t): t is string => !!t && t !== "Not Applicable"),
+    postedAt: j.releasedDate ?? null,
+    applyUrl: j.applyUrl || j.postingUrl || `https://jobs.smartrecruiters.com/${c.slug}/${j.id}`,
+    seniorityHint: j.experienceLevel?.label ?? null,
+    industryHint: j.industry?.label ?? null,
+    employerSite: true,
+    applyPath: "employer_site" as const,
+  };
+}
+
+async function smartRecruitersCompany(c: (typeof SMARTRECRUITERS_COMPANIES)[number], criteria: SearchCriteria): Promise<RawPosting[]> {
+  // The API's own search narrows big boards (Bosch lists thousands); the title check keeps it honest.
+  const list = await getJson<{ content: SmartRecruitersPosting[] }>(`https://api.smartrecruiters.com/v1/companies/${c.slug}/postings?limit=100&q=${encodeURIComponent(corePhrase(criteria.query))}`);
+  const candidates = (list.content ?? []).filter((j) => titleHasCoreTerm(j.name, criteria.query)).slice(0, DETAIL_LIMIT);
+  const detailed = await Promise.all(candidates.map((j) => getJson<SmartRecruitersPosting>(`https://api.smartrecruiters.com/v1/companies/${c.slug}/postings/${j.id}`).catch(() => j)));
+  return detailed.map((j) => rawFromSmartRecruiters(c, j));
+}
+
+const smartrecruiters: SourceFetcher = {
+  id: "smartrecruiters",
+  available: () => true,
+  async fetch(c) {
+    const results = await Promise.all(SMARTRECRUITERS_COMPANIES.map((co) => smartRecruitersCompany(co, c).catch(() => [] as RawPosting[])));
+    return finish("smartrecruiters", results.flat(), c);
+  },
+};
+
+/* ---------- The Muse (public jobs API; no key) ---------- */
+export interface MuseJob { id: number; name: string; publication_date: string; contents?: string; locations?: { name: string }[]; levels?: { name: string }[]; categories?: { name: string }[]; refs?: { landing_page?: string }; company?: { name?: string } }
+
+export function rawFromMuse(j: MuseJob): RawPosting {
+  const places = (j.locations ?? []).map((l) => l.name);
+  // "Flexible / Remote" next to US cities is a US-remote job, not remote anywhere: only a listing with no fixed place is remote,
+  // and the location text names only the fixed places so the location check can't read it as open to everyone.
+  const fixed = places.filter((p) => !/remote/i.test(p));
+  const remote = places.length > 0 && fixed.length === 0;
+  return {
+    // The Muse lists the same posting under several ids; its page is the stable identity.
+    externalId: `muse:${j.refs?.landing_page ?? j.id}`,
+    title: j.name,
+    company: j.company?.name ?? "",
+    location: remote ? "Remote" : fixed.join(" · "),
+    remote,
+    description: j.contents ? htmlToText(j.contents) : j.name,
+    tags: [...(j.categories ?? []).map((c) => c.name), ...(j.levels ?? []).map((l) => l.name)],
+    postedAt: j.publication_date,
+    applyUrl: j.refs?.landing_page ?? "",
+    seniorityHint: j.levels?.[0]?.name ?? null,
+    industryHint: j.categories?.[0]?.name ?? null,
+    employerSite: false,
+    applyPath: "platform" as const,
+  };
+}
+
+const MUSE_CITY: Record<string, string> = { bengaluru: "Bangalore", bangalore: "Bangalore", gurugram: "Gurgaon", gurgaon: "Gurgaon", delhi: "New Delhi", "new delhi": "New Delhi", mumbai: "Mumbai", pune: "Pune", hyderabad: "Hyderabad", chennai: "Chennai", noida: "Noida", kolkata: "Kolkata" };
+/** The Muse's own name for a place: "Bangalore, India" for Bengaluru; a "City, Country" as given stays as is; any other bare city is assumed Indian. */
+export function museLocation(place: string): string {
+  if (/,/.test(place)) return place.trim();
+  const key = place.trim().toLowerCase();
+  return `${MUSE_CITY[key] ?? place.trim()}, India`;
+}
+
+const themuse: SourceFetcher = {
+  id: "themuse",
+  available: () => true,
+  async fetch(c) {
+    const place = c.locations.find((l) => !/remote|anywhere/i.test(l));
+    const wantsRemote = !place || c.locations.some((l) => /remote|anywhere/i.test(l));
+    // The Muse filters only on its exact "City, Country" names (anything else returns the whole world), and spells Indian cities its own way.
+    const queries = [...(place ? [museLocation(place)] : []), ...(wantsRemote ? ["Flexible / Remote"] : [])];
+    const pages = await Promise.all(queries.flatMap((loc) => [1, 2, 3, 4, 5].map((p) => getJson<{ results: MuseJob[] }>(`https://www.themuse.com/api/public/jobs?page=${p}&location=${encodeURIComponent(loc)}`).catch(() => ({ results: [] as MuseJob[] })))));
+    const seen = new Set<string>();
+    const jobs = pages
+      .flatMap((p) => p.results ?? [])
+      .filter((j) => titleHasCoreTerm(j.name, c.query))
+      // The same posting is listed under several ids (one per place); keep one.
+      .filter((j) => {
+        const k = `${j.name.toLowerCase()}|${(j.company?.name ?? "").toLowerCase()}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    return finish("themuse", jobs.map(rawFromMuse), c);
+  },
+};
+
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,
