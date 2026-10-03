@@ -69,6 +69,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Search strictly within your Career Profile (WJ-211)
 - ✅ Dialogs and Ask Wonder stay above the phone keyboard (WJ-212)
 - ✅ Refine kept to the essentials (WJ-213)
+- ✅ "Search as" waits for Search; brand name replaces the top-bar search (WJ-214)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

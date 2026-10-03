@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, Download, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Download, LifeBuoy, LogIn, LogOut, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -66,19 +66,11 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
-      <div className="flex items-center md:hidden">
-        <WonderLogo href="/app" compact />
+      {/* The brand, not a search box: Find has its own search, and Ask Wonder stays on ⌘K. */}
+      <div className="mr-auto flex min-w-0 items-center md:hidden">
+        <WonderLogo href="/app" size={26} />
       </div>
-      <button
-        type="button"
-        onClick={() => setCmd(true)}
-        className="mx-auto flex h-10 w-full max-w-xl items-center gap-2 rounded-full border border-line bg-surface-2 px-4 text-left text-sm text-ink-4 transition-colors hover:border-line-strong"
-        aria-label="Ask Wonder anything (Command+K)"
-      >
-        <Search className="size-4 shrink-0" aria-hidden />
-        <span className="flex-1 truncate">Ask Wonder anything…</span>
-        <kbd className="hidden rounded-md border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink-3 sm:inline-block">⌘ K</kbd>
-      </button>
+      <div className="hidden flex-1 md:block" />
 
       {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
       <div className="md:relative" ref={notifRef}>

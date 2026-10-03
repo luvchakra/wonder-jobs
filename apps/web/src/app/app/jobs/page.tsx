@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
@@ -39,6 +39,8 @@ function JobsHome() {
     else void search.searchNow();
     router.replace("/app/jobs");
   }, [params, search, router]);
+  // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet.
+  const [pickedRole, setPickedRole] = useState<string | null | undefined>(undefined);
   const firstName = dna.name.split(" ")[0];
 
   if (search.readiness.blocker) {
@@ -61,7 +63,7 @@ function JobsHome() {
         search.active && roles.length === 0 ? null : (
           <>
             {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
-            {roles.length > 0 && <RoleChips roles={roles} current={search.active?.config.role?.id ?? search.last?.config.role?.id ?? null} onPick={(id) => void (id ? search.searchAsRole(id) : search.searchNow())} busy={false} />}
+            {roles.length > 0 && <RoleChips roles={roles} current={pickedRole !== undefined ? pickedRole : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null)} onPick={setPickedRole} busy={false} />}
           </>
         )
       }
@@ -76,6 +78,7 @@ function JobsHome() {
         run: (text, places) => {
           // The candidate's own search shows everything it finds, best answer first — not only profile fits.
           useJobsStore.getState().setFilters({ minFit: null });
+          setPickedRole(undefined);
           void search.searchWords(text, places).then((run) => {
             if (run) window.scrollTo({ top: 0, behavior: "smooth" });
           });
@@ -86,7 +89,10 @@ function JobsHome() {
         },
         places: search.readiness.locations,
         runPlaces: (places) => {
-          void search.searchNow({ locations: places }).then((run) => {
+          // A picked "Search as" role only searches here, when the candidate taps Search.
+          const searched = typeof pickedRole === "string" ? search.searchAsRole(pickedRole, places) : search.searchNow({ locations: places });
+          setPickedRole(undefined);
+          void searched.then((run) => {
             if (run) window.scrollTo({ top: 0, behavior: "smooth" });
           });
         },
