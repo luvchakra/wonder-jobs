@@ -168,22 +168,18 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
 });
 
 test.describe("Golden journey — new candidate onboarding", () => {
-  test("GJ-011 a new candidate picks a real goal, which decides where onboarding sends them", async ({ page }) => {
+  test("GJ-011 a new candidate without a CV types the role and lands on jobs", async ({ page }) => {
     // /onboarding renders OnboardingFlow unconditionally — no seeded state needed for this journey.
     await page.goto("/onboarding");
-    const picker = page.getByRole("radiogroup", { name: "What would you like Wonder to help you with?" });
-    await expect(picker).toBeVisible();
-    // All 5 real goals from Phase 2.2 — never a generic feature-bullet welcome screen.
-    for (const label of ["Find my next role", "Improve my career profile", "Prepare an application", "Track my applications", "Let Wonder work for me"]) {
-      await expect(picker.getByRole("radio", { name: new RegExp(label) })).toBeVisible();
-    }
-    const getStarted = page.getByRole("button", { name: "Get Started" });
-    await expect(getStarted).toBeDisabled(); // a goal is required, never assumed
-    await picker.getByRole("radio", { name: /Track my applications/ }).click();
-    await expect(getStarted).toBeEnabled();
-    await getStarted.click();
-    // Step 1 is the real career-goal capture, common to every goal choice.
-    await expect(page.getByText("What are you looking for?")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Add your CV, see your jobs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Upload CV/ })).toBeVisible();
+    await page.getByRole("button", { name: "No CV handy? Type it in" }).click();
+    const show = page.getByRole("button", { name: "Show my jobs" });
+    await expect(show).toBeDisabled(); // a role is required, never assumed
+    await page.getByLabel("Role you want").fill("data analyst");
+    await expect(show).toBeEnabled();
+    await show.click();
+    await page.waitForURL(/\/app$/, { timeout: 20_000 });
   });
 });
 

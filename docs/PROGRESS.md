@@ -40,7 +40,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ **Readiness + jobs on open** (WJ-180): `/app` is the ranked job list, searched on open when missing, stale or for a different search; one blocker shown in place (CV, role, sources); one relevance note with one fix (stale scheduled search, generic-only skills, role without a field, no location); zero results widened once with the reason shown; searches no longer prepare applications; sources searched in parallel; Home and Jobs merged.
 - ✅ **Jobs page** (WJ-181): one search box (narrows as you type; "Search every source for …" with place read from your words; mic), one view row, "Search as" role chips, three-action cards, one Refine sheet; Find folded into the jobs screen; "IAM" in capitals is the field again, not "I am".
 - ✅ **Navigation** (WJ-182): four places — Jobs, Applications, Profile, Settings — each with its pages as tabs at its top; new Settings → Job sources to choose what's searched; no URL changed.
-- ⬜ CV-first onboarding (WJ-183)
+- ✅ CV-first onboarding (WJ-183)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
