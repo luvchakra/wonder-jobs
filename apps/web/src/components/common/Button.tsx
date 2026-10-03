@@ -49,6 +49,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       <Link
         href={href}
         className={cls}
+        aria-label={rest["aria-label"]}
         aria-disabled={disabled || undefined}
         tabIndex={disabled ? -1 : undefined}
         onClick={disabled ? (e) => e.preventDefault() : undefined}

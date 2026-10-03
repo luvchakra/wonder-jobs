@@ -30,7 +30,7 @@ const SECTION_HEADING = /^(summary|profile|objective|experience|work experience|
 const TITLE_WORDS = /\b(engineer|developer|manager|director|architect|analyst|designer|consultant|specialist|lead|head|scientist|administrator|officer|president|founder|owner|strategist|marketer|recruiter|accountant|auditor|advisor|coach|producer|editor|writer)\b/i;
 
 /** Cities Wonder can match against postings. Anything else is better typed by the candidate than guessed. */
-const KNOWN_LOCATIONS = [
+export const KNOWN_LOCATIONS = [
   "Bengaluru", "Bangalore", "Mumbai", "Pune", "Hyderabad", "Chennai", "Delhi", "New Delhi", "Gurugram", "Gurgaon", "Noida", "Kolkata", "Ahmedabad", "Jaipur", "Kochi", "Indore", "Chandigarh",
   "London", "Berlin", "Amsterdam", "Dublin", "Singapore", "Dubai", "Sydney", "Melbourne", "Toronto", "Vancouver", "New York", "San Francisco", "Seattle", "Austin", "Boston", "Chicago",
 ];

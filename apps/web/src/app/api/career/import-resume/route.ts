@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { extractResumeText, UnsupportedResumeError } from "@/server/resume/extractText";
-import { parseResume } from "@/server/resume/parseResume";
+import { readResumeProposal } from "@/server/resume/readResume";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,8 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT = 200_000;
 
 /**
- * Reads a resume and suggests Career DNA from it.
+ * Reads a resume and suggests Career DNA from it — profile fields and history entries — and returns the
+ * text so the candidate's own AI model can read it too, only if they ask.
  *
  * Nothing is saved here: the route returns a draft and the browser shows it field by field for the
  * candidate to accept, edit or ignore. The resume itself is read in memory and never stored — Wonder
@@ -56,23 +57,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That file couldn't be read. Try a PDF or DOCX, or paste the text instead." }, { status: 400 });
   }
 
-  if (!readable) {
-    return NextResponse.json(
-      {
-        error:
-          format === "pdf"
-            ? "Wonder couldn't find any text in that PDF — it's probably a scan or an image. Copy the text from your resume and paste it instead."
-            : "There wasn't enough readable text in that file. Paste your resume text instead.",
-        format,
-      },
-      { status: 422 },
-    );
-  }
-
-  const draft = parseResume(text.slice(0, MAX_TEXT));
-  const filled = Object.keys(draft.evidence).length;
-  if (!filled) {
-    return NextResponse.json({ error: "Wonder couldn't recognise anything to fill in from that. Check it's the right file, or fill your Career Profile in directly." }, { status: 422 });
-  }
-  return NextResponse.json({ ok: true, format, filename, draft, characters: text.length }, { headers: { "cache-control": "no-store" } });
+  const result = readResumeProposal(text.slice(0, MAX_TEXT), format, readable);
+  if (!result.ok) return NextResponse.json({ error: result.error, format }, { status: 422 });
+  return NextResponse.json({ ...result.body, filename }, { headers: { "cache-control": "no-store" } });
 }

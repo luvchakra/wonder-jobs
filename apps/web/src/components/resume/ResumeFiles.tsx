@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, Star, Trash2 } from "lucide-react";
+import { Download, FileUp, Star, Trash2, UserRoundPen } from "lucide-react";
 import { formatBytes, isPdf, type UploadedResume } from "@/domain/resume/files";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useCareerStore } from "@/store/career";
@@ -140,6 +140,9 @@ export function ResumeFiles() {
                     Set as base
                   </Button>
                 )}
+                <Button size="sm" variant="outline" icon={<UserRoundPen className="size-3.5" aria-hidden />} href={`/app/career-dna?fill=${encodeURIComponent(f.id)}`} aria-label={`Fill Career Profile from ${f.filename}`}>
+                  Fill Career Profile
+                </Button>
                 <Button size="sm" variant="outline" icon={<Download className="size-3.5" aria-hidden />} loading={busy === `dl-${f.id}`} onClick={() => download(f)}>
                   Download
                 </Button>

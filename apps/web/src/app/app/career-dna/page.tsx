@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
@@ -23,6 +24,12 @@ export default function CareerDNAPage() {
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);
   const [draft, setDraft] = useState<CareerDNA>(dna);
+  // Resume Studio → "Fill Career Profile" links here with the stored file to read.
+  const params = useSearchParams();
+  const router = useRouter();
+  const fillFrom = params.get("fill") ?? undefined;
+  // The history editor's contact and summary fields are uncontrolled: remount it to show imported values.
+  const [importRev, setImportRev] = useState(0);
   const [newSkill, setNewSkill] = useState("");
   const dirty = JSON.stringify(draft) !== JSON.stringify(dna);
   const set = <K extends keyof CareerDNA>(k: K, v: CareerDNA[K]) => setDraft((d) => ({ ...d, [k]: v }));
@@ -107,7 +114,7 @@ export default function CareerDNAPage() {
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Work history, education and contact</h2>
           <p className="mb-4 text-[12px] text-ink-3">The facts every résumé template renders. Wonder never adds an employer, date, qualification or number you didn&apos;t enter here.</p>
-          <CareerHistoryEditor key={dna.updatedAt} value={historyOf(draft)} onChange={(h) => set("history", h)} />
+          <CareerHistoryEditor key={`${dna.updatedAt}-${importRev}`} value={historyOf(draft)} onChange={(h) => set("history", h)} />
         </Card>
 
         <RememberedAnswers />
@@ -195,8 +202,12 @@ export default function CareerDNAPage() {
 
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Resume</h2>
-          <p className="mb-3 text-[12px] text-ink-3">Pull fields from a resume to fill in the sections above. Every suggestion shows the words it came from, and nothing is applied until you tick it. The file you import here isn&apos;t kept — to keep your résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 hover:underline">upload it in Resume Studio</Link>.</p>
-          <ResumeImport current={draft} onApply={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+          <p className="mb-3 text-[12px] text-ink-3">Fill in the sections above — profile, contact, work history, education and certifications — from one of your stored résumés or a file you bring in once. Every suggestion shows the words it came from, nothing you already have is overwritten unless you choose to, and nothing is applied until you tick it. To keep a résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 hover:underline">upload it in Resume Studio</Link>.</p>
+          <ResumeImport current={draft} history={draft.history ?? {}} onApply={(patch) => {
+              setDraft((d) => ({ ...d, ...patch }));
+              setImportRev((n) => n + 1);
+            }}
+            fileId={fillFrom} onFileHandled={() => router.replace("/app/career-dna")} />
         </Card>
 
         <LearnedPreferences />

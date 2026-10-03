@@ -41,7 +41,7 @@ export default function PrivacyPage() {
       eyebrow="Legal"
       title="Privacy notice"
       intro="What WonderJobs collects, why, who else processes it, how long it is kept, and how to exercise your rights under the EU/UK GDPR and India's Digital Personal Data Protection Act, 2023. It describes how the product actually works today."
-      updated={`2 October 2026 · version ${PRIVACY_NOTICE_VERSION}`}
+      updated={`3 October 2026 · version ${PRIVACY_NOTICE_VERSION}`}
       sections={[
         {
           id: "who",
@@ -76,6 +76,7 @@ export default function PrivacyPage() {
               <ul>
                 <li>Finding, scoring and preparing jobs and applications you ask for — performing our contract with you (GDPR Art. 6(1)(b)); data you provide for that purpose (DPDP s.6 consent and s.7(a) voluntarily provided data).</li>
                 <li>Drafting with AI, only when you run a drafting feature — the same basis; only the details that draft needs are sent, to the provider you chose.</li>
+                <li>Reading a résumé with AI, only when you press &ldquo;Read with AI&rdquo; while filling in your Career Profile — the same basis; that résumé&apos;s text is sent to the provider you chose, and only entries actually written in it are shown to you, each for you to accept or not.</li>
                 <li>Taking payments and keeping financial records — contract, and legal obligation for tax and accounting records (GDPR Art. 6(1)(c)).</li>
                 <li>Security, fraud prevention and the audit trail of what Wonder did on your behalf — legitimate interests (GDPR Art. 6(1)(f)).</li>
                 <li>Notifications on a device — only after you turn them on, and you can turn them off at any time.</li>
