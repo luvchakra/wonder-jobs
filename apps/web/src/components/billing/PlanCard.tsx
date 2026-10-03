@@ -1,4 +1,5 @@
 "use client";
+import { PLAN_RANK, type PaidPlanId } from "@/domain/billing/plans";
 import { useEffect, useState } from "react";
 import { Crown, CreditCard, ExternalLink, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/common/Card";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/common/Badge";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { BILLING_PROVIDERS, type BillingProviderId, type ProviderAvailability } from "@/domain/billing/types";
-import { formatInterval, formatMoney } from "@/domain/billing/format";
+import { formatMoney } from "@/domain/billing/format";
 import { formatDate } from "@/lib/format";
 import { useBillingStore } from "@/store/billing";
 import { useAuthStore } from "@/store/auth";
@@ -72,10 +73,10 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     );
   }
 
-  const checkout = async (provider: BillingProviderId) => {
+  const checkout = async (provider: BillingProviderId, plan: PaidPlanId = "pro") => {
     setBusy(provider);
     try {
-      const { url } = await post<{ url: string }>("/api/billing/checkout", { provider });
+      const { url } = await post<{ url: string }>("/api/billing/checkout", { provider, plan });
       window.location.assign(url);
     } catch (e) {
       toast.error("Checkout couldn't start", e instanceof Error ? e.message : undefined);
@@ -108,7 +109,9 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
 
   const sub = data.subscription;
   const ready = data.providers.filter((p): p is Extract<ProviderAvailability, { state: "ready" }> => p.state === "ready");
-  const pro = data.plan === "pro";
+  const paid = data.plan !== "free";
+  const planLabel = data.plans?.[data.plan]?.label ?? (paid ? "Pro" : "Free");
+  const upgrades = (["pro", "max"] as const).filter((p) => PLAN_RANK[p] > PLAN_RANK[data.plan] && data.plans?.[p]);
 
   return (
     <Card id="plan" className="mt-4">
@@ -119,7 +122,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
-            <Badge tone={pro ? "brand" : "neutral"}>{pro ? "Pro" : "Free"}</Badge>
+            <Badge tone={paid ? "brand" : "neutral"}>{planLabel}</Badge>
           </div>
           <p className="mt-0.5 text-[13px] text-ink-2">
             {data.reason}
@@ -129,10 +132,10 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
       </div>
 
       {waiting && <p className="mt-3 rounded-[12px] bg-info-100 px-3 py-2 text-[13px] text-info-600" role="status">Waiting for the payment provider to confirm your payment. Your plan changes as soon as it does — usually within a few seconds.</p>}
-      {!waiting && returnState === "success" && !pro && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">The payment provider hasn&apos;t confirmed your payment yet. If you completed it, your plan will update here once it does; you haven&apos;t been charged twice.</p>}
-      {returnState === "cancelled" && !pro && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Checkout was closed before paying. Nothing was charged.</p>}
+      {!waiting && returnState === "success" && !paid && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">The payment provider hasn&apos;t confirmed your payment yet. If you completed it, your plan will update here once it does; you haven&apos;t been charged twice.</p>}
+      {returnState === "cancelled" && !paid && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Checkout was closed before paying. Nothing was charged.</p>}
 
-      {pro && sub && (
+      {paid && sub && (
         <div className="mt-3 flex flex-wrap gap-2">
           {sub.provider === "stripe" && sub.canManage && (
             <Button size="sm" variant="outline" loading={busy === "portal"} onClick={portal} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
@@ -147,28 +150,39 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </div>
       )}
 
-      {!pro && ready.length > 0 && (
+      {ready.length > 0 && upgrades.length > 0 && (
         <ul className="mt-4 space-y-3">
-          {ready.map(({ provider, price }) => (
-            <li key={provider} className="flex flex-col gap-2 rounded-[14px] border border-line p-3 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-ink">
-                  {price.name} · {formatMoney(price.amount, price.currency)} <span className="font-normal text-ink-3">{formatInterval(price)}</span>
+          {upgrades.map((p) => {
+            const l = data.plans[p];
+            return (
+              <li key={p} className="rounded-[14px] border border-line p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[15px] font-semibold text-ink">
+                    {l.label} <span className="text-[13px] font-normal text-ink-3">· {l.tagline}</span>
+                  </p>
+                  <p className="text-[14px] font-semibold text-ink">
+                    {formatMoney(l.priceMinor, l.currency)} <span className="font-normal text-ink-3">/ month</span>
+                  </p>
+                </div>
+                <p className="mt-1 text-[12.5px] text-ink-2">
+                  {l.scheduledSearches} scheduled search{l.scheduledSearches === 1 ? "" : "es"}{l.dailySearches ? ", daily" : ", weekly"}{l.keepWatch ? ", keep watch" : ""} · {l.aiDraftsPerMonth} AI drafts a month · {l.roles} role{l.roles === 1 ? "" : "s"} · {l.resumeTemplates >= 8 ? "all" : l.resumeTemplates} résumé designs
+                  {l.applyWithWonder ? " · Apply with Wonder" : ""}
+                  {l.atsReport ? " · ATS report" : ""}
                 </p>
-                {price.description && <p className="text-[12.5px] text-ink-2">{price.description}</p>}
-                <p className="text-[12px] text-ink-3">
-                  {BILLING_PROVIDERS[provider].name}: {BILLING_PROVIDERS[provider].methods}
-                </p>
-              </div>
-              <Button size="sm" loading={busy === provider} disabled={!!busy} onClick={() => checkout(provider)} icon={<CreditCard className="size-4" aria-hidden />}>
-                Pay with {BILLING_PROVIDERS[provider].name}
-              </Button>
-            </li>
-          ))}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {ready.map(({ provider }) => (
+                    <Button key={provider} size="sm" loading={busy === provider} disabled={!!busy} onClick={() => checkout(provider, p)} icon={<CreditCard className="size-4" aria-hidden />}>
+                      {l.label} · pay with {BILLING_PROVIDERS[provider].name}
+                    </Button>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {!pro && (
+      {!paid && (
         <ul className="mt-3 space-y-1 text-[12.5px] text-ink-3">
           {data.providers
             .filter((p) => p.state !== "ready")

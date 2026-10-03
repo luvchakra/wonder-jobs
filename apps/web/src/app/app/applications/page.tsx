@@ -83,26 +83,34 @@ function ApplicationsInner() {
         <EmptyState title="No applications yet" body="Save a job and prepare an application, or let a Wonder run prepare materials for your strongest matches." action={{ label: "Find jobs", href: "/app/jobs" }} />
       ) : view === "timeline" ? (
         <div className="flex flex-col gap-6">
-          {needsAttention.length > 0 && (
-            <section aria-labelledby="apps-needs-attention">
-              <SectionHeader title="Needs attention" />
-              <ApplicationAttentionList items={needsAttention} jobs={jobs} hrefFor={(id) => (applications[id] ? applicationHref(applications[id]) : `/app/applications/${id}`)} />
-            </section>
-          )}
+          {/* The pipeline first, every stage shown even when empty, so where things stand is the first thing read. */}
           <section aria-labelledby="apps-pipeline">
             <SectionHeader title="Pipeline" />
+            <ol className="mb-4 grid grid-cols-4 gap-2 lg:hidden" aria-label="Applications by stage">
+              {STAGES.map((stage) => {
+                const n = list.filter((a) => groupOf(a) === stage.group).length;
+                return (
+                  <li key={stage.group}>
+                    <a href={`#stage-${stage.group}`} className={cn("flex min-h-[64px] flex-col items-center justify-center rounded-[14px] border px-1 py-2 text-center", n ? "border-brand-200 bg-brand-50" : "border-line bg-surface")}>
+                      <span className={cn("text-[20px] font-semibold leading-none", n ? "text-brand-700" : "text-ink-4")}>{n}</span>
+                      <span className="mt-1 text-[11.5px] font-medium text-ink-2">{stage.label}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ol>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
               {STAGES.map((stage) => {
                 const items = list.filter((a) => groupOf(a) === stage.group);
                 return (
-                  <div key={stage.group} className={cn("min-w-0", items.length === 0 && "hidden lg:block")}>
+                  <div key={stage.group} id={`stage-${stage.group}`} className="min-w-0 scroll-mt-24">
                     <div className="mb-2 flex items-center justify-between px-1">
                       <h3 className="text-[13px] font-semibold text-ink-2">{stage.label}</h3>
                       <span className="text-[12px] text-ink-4">{items.length}</span>
                     </div>
                     <div className="flex flex-col gap-2">
                       {items.length === 0 ? (
-                        <p className="rounded-[12px] border border-dashed border-line px-3 py-6 text-center text-[12px] text-ink-4">Nothing here</p>
+                        <p className="rounded-[12px] border border-dashed border-line px-3 py-4 text-center text-[12px] text-ink-4">Nothing here yet</p>
                       ) : (
                         items.map((a) => (
                           <div key={a.id} className="relative">
@@ -119,6 +127,12 @@ function ApplicationsInner() {
               })}
             </div>
           </section>
+          {needsAttention.length > 0 && (
+            <section aria-labelledby="apps-needs-attention">
+              <SectionHeader title="Needs attention" />
+              <ApplicationAttentionList items={needsAttention} jobs={jobs} hrefFor={(id) => (applications[id] ? applicationHref(applications[id]) : `/app/applications/${id}`)} />
+            </section>
+          )}
         </div>
       ) : (
         <>

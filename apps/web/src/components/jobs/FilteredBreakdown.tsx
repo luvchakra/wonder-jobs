@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { EyeOff, SlidersHorizontal } from "lucide-react";
+import { EyeOff, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import type { FilterReason, FilterResult } from "@/domain/jobs/filterExplain";
@@ -8,9 +8,9 @@ import { FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
-export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], sourceIds: [] as never[], minFit: null, freshnessDays: null, minSalary: undefined, onlySaved: false };
+export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], sourceIds: [] as never[], minFit: null, freshnessDays: null, minSalary: undefined, onlySaved: false };
 
-const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "source", "min_fit", "freshness", "min_salary", "search_text"];
+const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "source", "min_fit", "freshness", "min_salary", "location", "search_text"];
 
 /**
  * "Why Was This Filtered" (spec §11): whenever the candidate's active filters are hiding catalog jobs,
@@ -18,13 +18,29 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "sou
  * an explanation the candidate can act on. Always pairs the two required actions: relax everything at
  * once, or go make the underlying preference change deliberately.
  */
-export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty" }) {
+export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void } }) {
   if (result.hiddenTotal === 0) return null;
   const reasons = REASON_ORDER.filter((r) => result.hiddenByReason[r]).sort((a, b) => (result.hiddenByReason[b] ?? 0) - (result.hiddenByReason[a] ?? 0));
   // "Show me anyway" clears every preference filter but never un-hides a job marked "not for me" —
   // that needs its own explicit undo (spec: never silently reverse a candidate's own rejection). Say
   // so whenever rejections are part of what's hidden, so the button's effect is never a surprise.
   const showAnywayNote = result.hiddenByReason.rejected ? `Won't bring back the ${result.hiddenByReason.rejected} job${result.hiddenByReason.rejected === 1 ? "" : "s"} you marked not for me — undo that from the job itself.` : "";
+
+  if (variant === "empty" && search?.label) {
+    // Nothing Wonder already has answers the words typed: search every source for them.
+    return (
+      <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center">
+        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+          <Search className="size-5" aria-hidden />
+        </div>
+        <h2 className="text-base font-semibold text-ink">None of your {result.totalCatalog} jobs match</h2>
+        <p className="mt-1 max-w-sm text-sm text-ink-3">Search every source for {search.label}.</p>
+        <Button className="mt-5" onClick={search.run} icon={<Search className="size-4" aria-hidden />}>
+          Search every source
+        </Button>
+      </div>
+    );
+  }
 
   if (variant === "empty") {
     return (
@@ -70,10 +86,10 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }:
         ))}
       </span>
       <span className="ml-auto flex items-center gap-2">
-        <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="font-medium text-brand-600 hover:underline">
+        <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
           Show me anyway
         </button>
-        <Link href="/app/career-dna" className="font-medium text-brand-600 hover:underline">
+        <Link href="/app/career-dna" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
           Change preferences
         </Link>
       </span>

@@ -47,6 +47,16 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Career Profile sections, CV links/summary, dropped roles offered back (WJ-188)
 - ✅ Phone-width pass over every page (WJ-189)
 - ✅ More real job sources: SmartRecruiters, The Muse, nine more boards (WJ-190)
+- ✅ Use your own AI by pasting a key (WJ-191)
+- ✅ Free / Pro / Max plans, operator-editable (WJ-192)
+- ✅ Credentialed sources (Adzuna India) keep their on/off choice (WJ-193)
+- ✅ Search answers what was typed: word families, relevance ranking, search every source (WJ-194)
+- ✅ Location filter, city aliases, remote-elsewhere excluded (WJ-195)
+- ✅ Comfortable control heights on phones, measured (WJ-196)
+- ✅ Rename uploaded résumés (WJ-197)
+- ✅ Applications: pipeline first, every stage, attention below (WJ-198)
+- ✅ You page values in plain words (WJ-199)
+- ✅ Apply with Wonder guided page: layout fixed and made useful (WJ-200, WJ-201)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

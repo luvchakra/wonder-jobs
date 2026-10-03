@@ -172,7 +172,8 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const minSalary = ctx.get<number>("minSalary");
       const careerGoal = ctx.get<string>("careerGoal");
       const learnedSignals = snapshot.career.learnedSignals;
-      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals }));
+      const searchQuery = ctx.run.config.origin === "words" && !ctx.run.config.role ? ctx.run.config.searchCriteria.query : undefined;
+      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery }));
       const strong = matches.filter((m) => m.fit === "strong").length;
       const worth = matches.filter((m) => m.fit === "worth_considering").length;
       ctx.setProgress(matches.length, matches.length);
@@ -205,6 +206,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const role = ctx.run.config.role;
       snapshot.jobs.jobs = Object.fromEntries(canonical.map((j) => [j.id, role ? { ...j, foundAs: { id: role.id, title: role.title } } : j]));
       snapshot.jobs.order = canonical.map((j) => j.id);
+      snapshot.jobs.searchedFor = ctx.run.config.origin === "words" && !role ? ctx.run.config.searchCriteria.query : "";
       for (const m of matches) snapshot.jobs.matches[m.jobId] = m;
       for (const q of quality) snapshot.jobs.quality[q.jobId] = q;
       let saved = 0;

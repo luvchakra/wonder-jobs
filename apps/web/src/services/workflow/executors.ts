@@ -50,7 +50,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
 
     search: async (ctx) => {
       const sourceIds = ctx.run.config.sourceIds.length ? ctx.run.config.sourceIds : useJobsStore.getState().sources.filter((s) => s.enabled).map((s) => s.id);
-      const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && sourceIds.includes(s.id));
+      const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && s.available !== false && sourceIds.includes(s.id));
       ctx.setProgress(0, null);
       // Signed in: search through JobsLake — one request, every source, deduplicated with provenance.
       // If JobsLake is off or doesn't answer, the direct per-source path below runs instead, and says so.
@@ -188,7 +188,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const matches: JobMatch[] = [];
       ctx.setProgress(0, jobs.length);
       for (let i = 0; i < jobs.length; i += CHUNK) {
-        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals }));
+        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery: typedQuery(ctx.run.config) }));
         ctx.setProgress(matches.length, jobs.length);
         await ctx.sleep(0);
         await ctx.checkpoint();
@@ -241,7 +241,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const jobsStore = useJobsStore.getState();
       // A search run as one of the candidate's roles labels what it found, so Apply can offer that role's résumé.
       const role = ctx.run.config.role;
-      jobsStore.replaceCatalog(role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs);
+      jobsStore.replaceCatalog(role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs, typedQuery(ctx.run.config) ?? "");
       jobsStore.setMatches(matches);
       jobsStore.setQuality(quality);
       let saved = 0;
@@ -453,6 +453,11 @@ const canonicalCache = new Map<string, CanonicalJob[]>();
 const matchCache = new Map<string, JobMatch[]>();
 const qualityCache = new Map<string, JobQuality[]>();
 const rankedCache = new Map<string, string[]>();
+
+/** The candidate's own words, when the run searched for them — what matching judges each posting on first. */
+export function typedQuery(config: { origin?: "profile" | "words"; role?: unknown; searchCriteria: { query: string } }): string | undefined {
+  return config.origin === "words" && !config.role && config.searchCriteria.query.trim() ? config.searchCriteria.query : undefined;
+}
 
 /** Rehydrate working memory for a rerun from the parent run's caches, when available. */
 export function inheritCaches(parentRunId: string, childRunId: string) {

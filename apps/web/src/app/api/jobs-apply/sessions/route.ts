@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fail, parse, send, webTenant } from "@/server/jobsApply/http";
 import { CreateSchema } from "@/server/jobsApply/schemas";
 import { create, list } from "@/server/jobsApply/service";
+import { tenantPlan } from "@/server/billing/service";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const t = await webTenant(req, true);
   if (t instanceof NextResponse) return t;
+  const { limits, config } = await tenantPlan(t);
+  if (!limits.applyWithWonder) return NextResponse.json({ error: { code: "PLAN", message: `Apply with Wonder is on ${config.plans.pro.label} and ${config.plans.max.label}.` } }, { status: 402 });
   const body = await parse(req, CreateSchema);
   if (body instanceof NextResponse) return body;
   try {

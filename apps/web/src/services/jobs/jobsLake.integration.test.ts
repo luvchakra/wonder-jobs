@@ -1,3 +1,4 @@
+import { useJobsStore } from "@/store/jobs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Job } from "@/domain/jobs/types";
 import type { StageContext } from "@/domain/workflow/engine";
@@ -130,7 +131,11 @@ describe("search stage (signed in)", () => {
   }
   const executors = createExecutors({ ai: () => ({}) as never });
 
-  beforeEach(() => setJobsLakeCapability({ search: true, streaming: true }));
+  beforeEach(() => {
+    setJobsLakeCapability({ search: true, streaming: true });
+    // This deployment has no Adzuna credentials, so it is never asked for, even when the run names it.
+    useJobsStore.getState().setSourceAvailability({ adzuna_in: false });
+  });
 
   it("searches through the JobsLake stream and dedupe keeps JobsLake's merge", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
@@ -140,7 +145,7 @@ describe("search stage (signed in)", () => {
     const { c, evidence, warnings } = ctx();
     const out = await executors.search(c);
     const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
-    // Only sources the candidate has switched on (Adzuna is off by default), and only search terms and places.
+    // Only sources that are on and searchable here (Adzuna has no credentials), and only search terms and places.
     expect(body).toEqual({ query: { text: "identity security", locations: ["Bengaluru"] }, sourceIds: ["careers", "remoteok"], searchMode: "balanced", limit: 500 });
     expect(out.data).toMatchObject({ jobIds: ["careers_1"], searchedWith: "JobsLake", requestId: "req_abcdef01" });
     expect(evidence.map((e) => `${e.label}: ${e.value}`)).toEqual(["Searched with: JobsLake · 3 sources planned", "Greenhouse: 1 jobs", "Remote OK: 1 jobs", "Adzuna India: Needs setup", "Sources searched: 2 of 3 answered"]);

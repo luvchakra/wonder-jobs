@@ -1,4 +1,6 @@
 "use client";
+import { planThatAllows } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,7 +13,7 @@ import { buildResumeDocument, type TargetJob } from "@/domain/resume/document";
 import { SPARSE_FIXTURE, ATS_FIXTURE } from "@/domain/resume/fixtures";
 import { layoutResume } from "@/domain/resume/layout";
 import { recommendTemplate } from "@/domain/resume/recommend";
-import { getTemplate, type ResumeTemplate } from "@/domain/resume/templates";
+import { getTemplate, type ResumeTemplate , RESUME_TEMPLATES } from "@/domain/resume/templates";
 import type { SavedResume } from "@/domain/resume/saved";
 import { PROVENANCE_META } from "@/domain/workflow/resolve";
 import { renderSaved } from "@/services/resume/generate";
@@ -65,6 +67,7 @@ function Templates() {
   const target: TargetJob | undefined = useMemo(() => (job ? { id: job.id, title: job.title, company: job.company, description: job.description, skills: job.skills } : undefined), [job]);
   const applicationId = params.get("app") ?? undefined;
 
+  const { plan, limits, plans } = usePlan();
   const h = historyOf(dna);
   const ready = !!dna.name.trim() && h.experience.length > 0;
   // With no work history yet, gallery thumbnails show clearly-labelled sample content instead of an empty page.
@@ -74,6 +77,12 @@ function Templates() {
 
   const use = (t: ResumeTemplate) => {
     setPreview(null);
+    // The plan says how many designs, counted from the first in the gallery.
+    if (RESUME_TEMPLATES.findIndex((x) => x.id === t.id) >= limits.resumeTemplates) {
+      const needs = planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.resumeTemplates > RESUME_TEMPLATES.findIndex((x) => x.id === t.id));
+      toast.info(`${t.name} isn't in ${plans[plan].label}`, needs ? `${plans[plan].label} includes the first ${limits.resumeTemplates}; ${plans[needs].label} has all of them — see Account → Plan.` : undefined);
+      return;
+    }
     // Changing an existing choice after résumés were made: confirm it's presentation only (spec §32).
     if (selectedId && selectedId !== t.id && saved.length) return setConfirmChange(t);
     commit(t);

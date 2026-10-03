@@ -3,6 +3,7 @@ import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { recordServerAudit } from "@/server/audit";
 import { resumeFileStore } from "@/server/resume/files";
+import { cleanResumeFilename, isPdf } from "@/domain/resume/files";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,32 @@ export async function GET(_req: Request, ctx: Ctx) {
   } catch (e) {
     console.error("[resume-files] read failed:", e instanceof Error ? e.message : "unknown");
     return NextResponse.json({ error: "That file couldn't be read just now." }, { status: 503 });
+  }
+}
+
+/** Rename one of your files — the name an employer sees when it is attached. Only the name changes; audited. */
+export async function PATCH(req: Request, ctx: Ctx) {
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  const { id } = await ctx.params;
+  if (!validId(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const rl = rateLimit(`resume-file-rename:${session.tenantId}`, { capacity: 20, refillPerSec: 0.2 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  const body = (await req.json().catch(() => null)) as { filename?: unknown } | null;
+  if (typeof body?.filename !== "string" || body.filename.length > 300) return NextResponse.json({ error: "Give the file a name." }, { status: 400 });
+  try {
+    const store = resumeFileStore();
+    const current = (await store.list(session.tenantId)).find((f) => f.id === id);
+    if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const filename = cleanResumeFilename(body.filename, isPdf(current) ? "pdf" : "docx");
+    if (!filename) return NextResponse.json({ error: "Give the file a name." }, { status: 400 });
+    const file = await store.rename(session.tenantId, id, filename);
+    if (!file) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await recordServerAudit(session.tenantId, { actionId: `resume-file:${id}`, actionType: "resume_file", event: "renamed" });
+    return NextResponse.json({ file });
+  } catch (e) {
+    console.error("[resume-files] rename failed:", e instanceof Error ? e.message : "unknown");
+    return NextResponse.json({ error: "That file couldn't be renamed just now. Try again in a minute." }, { status: 503 });
   }
 }
 

@@ -279,15 +279,80 @@ export const TERM_SYNONYMS: Record<string, string[]> = {
   developer: ["engineer", "engineering"],
 };
 
+/* ---------- word families ---------- */
+// Endings that turn one form of a role or field into another: engineer → engineering, psychology →
+// psychologist, manager → management, design → designer, counsellor → counselling. Deliberately short:
+// "-ion" and "-al" change the meaning (product ≠ production, intern ≠ internal), so they are left out.
+const ENDINGS = ["ologists", "ologist", "ologies", "ology", "ists", "ist", "ies", "ings", "ing", "ments", "ment", "ers", "er", "ors", "or", "ians", "ian", "ants", "ant", "ancy", "ance", "ical", "ics", "ic", "ship", "ed", "es", "s", "y", "e"];
+const OLOGY = /olog(?:ists?|ies|y)$/;
+// Words that are a different thing from their derived forms: an "Account Executive" is not "Accounting",
+// a "Program Manager" is not a "Programmer", "Direct Sales" is not a "Director". These match only themselves
+// (and their plural); their derived forms still match each other (accountant ↔ accounting).
+const STANDALONE = new Set(["account", "market", "program", "engine", "office", "direct", "product", "custom", "content", "general", "secret", "art"]);
+const familyMemo = new Map<string, string[]>();
+/** The keys a word shares with the other forms of it. Two words are the same family when their keys meet. */
+export function wordFamily(word: string): string[] {
+  const w = word.toLowerCase();
+  let keys = familyMemo.get(w);
+  if (keys) return keys;
+  const singular = w.length > 4 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w;
+  if (STANDALONE.has(w) || STANDALONE.has(singular)) keys = [`=${STANDALONE.has(w) ? w : singular}`];
+  else {
+    const out = new Set<string>([w]);
+    if (OLOGY.test(w)) out.add(w.replace(OLOGY, "olog"));
+    for (const end of ENDINGS) {
+      if (!w.endsWith(end) || (end === "s" && w.endsWith("ss"))) continue;
+      const base = w.slice(0, w.length - end.length);
+      if (base.length < 4) continue;
+      out.add(base);
+      if (base.endsWith("e") && base.length > 4) out.add(base.slice(0, -1));
+    }
+    keys = [...out].map((k) => (STANDALONE.has(k) ? `${k}+` : k));
+  }
+  if (familyMemo.size > 5000) familyMemo.clear();
+  familyMemo.set(w, keys);
+  return keys;
+}
+
+/** Whether two words are forms of the same word ("psychology" / "Psychologist"). */
+export function sameFamily(a: string, b: string): boolean {
+  if (a === b) return true;
+  const fb = wordFamily(b);
+  return wordFamily(a).some((k) => fb.includes(k));
+}
+
+const tokenMemo = new Map<string, string[]>();
+/** The words of a text, lowercased, in order ("C++", "Node.js" kept whole). */
+export function wordsOf(text: string): string[] {
+  let out = tokenMemo.get(text);
+  if (!out) {
+    out = text.toLowerCase().match(/[a-z0-9][a-z0-9+#]*(?:\.[a-z0-9]+)*/g) ?? [];
+    if (tokenMemo.size > 400) tokenMemo.clear();
+    tokenMemo.set(text, out);
+  }
+  return out;
+}
+
 const termRegex = new Map<string, RegExp>();
-/** The term as a whole word (or a plural of it), never inside another word: "iam" is not in "Williams". */
+/**
+ * The term as whole words — or as another form of them ("psychology" finds "Clinical Psychologist",
+ * "product management" finds "Product Manager") — never inside another word: "iam" is not in "Williams".
+ */
 export function hasTerm(text: string, term: string): boolean {
   let re = termRegex.get(term);
   if (!re) {
     re = new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&").replace(/\s+/g, "\\s+")}(?:e?s)?(?![a-z0-9])`, "i");
     termRegex.set(term, re);
   }
-  return re.test(text);
+  if (re.test(text)) return true;
+  const want = wordsOf(term);
+  if (!want.length || want.some((w) => w.length < 4 && want.length === 1)) return false;
+  const words = wordsOf(text);
+  outer: for (let i = 0; i + want.length <= words.length; i++) {
+    for (let k = 0; k < want.length; k++) if (!sameFamily(words[i + k], want[k])) continue outer;
+    return true;
+  }
+  return false;
 }
 
 /** The term or one of its known spellings (`TERM_SYNONYMS`), as whole words. */
@@ -335,29 +400,50 @@ export function remotiveCategory(query: string): string | null {
   return null;
 }
 
-/** Location fit for a search: remote roles always pass; otherwise the posting must mention one of the places. */
-export function matchesLocations(job: Pick<Job, "location" | "workMode" | "country">, locations: string[]): boolean {
-  if (!locations.length) return true;
-  const wantsRemote = locations.some((l) => /remote|anywhere/i.test(l));
-  if (job.workMode === "remote" && (wantsRemote || locations.length === 0)) return true;
-  if (job.workMode === "remote") return true; // remote roles are reachable from anywhere; scoring downgrades restricted regions
-  const jl = job.location.toLowerCase();
-  const wantsIndia = locations.some((l) => INDIA_PLACES.test(l));
-  return locations.some((l) => {
-    const term = l.toLowerCase().replace(/,?\s*india$/, "").trim();
-    return term && term !== "remote" && jl.includes(term);
-  }) || (wantsIndia && job.country === "IN");
+/** Other names a place goes by on job boards. */
+const PLACE_ALIASES: Record<string, string[]> = {
+  bengaluru: ["bangalore"], bangalore: ["bengaluru"], gurugram: ["gurgaon"], gurgaon: ["gurugram"], mumbai: ["bombay", "navi mumbai", "thane"], bombay: ["mumbai"],
+  delhi: ["new delhi", "ncr", "delhi ncr"], "new delhi": ["delhi", "ncr"], ncr: ["delhi", "gurugram", "gurgaon", "noida"], chennai: ["madras"], kolkata: ["calcutta"],
+  usa: ["united states", "us"], us: ["united states", "usa"], uk: ["united kingdom", "england", "london"], uae: ["united arab emirates", "dubai", "abu dhabi"],
+};
+const isRemotePlace = (p: string) => /^(remote|anywhere|worldwide|work from home|wfh)$/i.test(p.trim());
+
+/** Whether a location text names the place (or one of its other names), as whole words. */
+export function placeNamed(location: string, place: string): boolean {
+  const term = place.toLowerCase().replace(/,?\s*india$/, "").trim();
+  if (!term) return false;
+  return [term, ...(PLACE_ALIASES[term] ?? [])].some((t) => new RegExp(`(^|[^a-z])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`, "i").test(location));
 }
+
+/** A remote posting that names only "remote" (or nothing) says nothing about who may apply. */
+const saysWhere = (location: string) => /[a-z]/i.test(location.toLowerCase().replace(/\b(remote|job|jobs|position|fully|100%)\b/g, ""));
 
 /** Whether a remote posting is open to someone in the given places (Worldwide/APAC/India vs. "US only"). */
 export function remoteOpenTo(job: Pick<Job, "location" | "workMode">, locations: string[]): boolean | null {
   if (job.workMode !== "remote") return null;
   const jl = job.location.toLowerCase();
-  if (WORLDWIDE.test(jl) || jl === "remote" || jl === "remote (worldwide)") return true;
-  return locations.some((l) => {
-    const term = l.toLowerCase().replace(/,?\s*india$/, "").trim();
-    return term && term !== "remote" && (jl.includes(term) || (INDIA_PLACES.test(term) && /india/.test(jl)));
-  });
+  if (WORLDWIDE.test(jl) || !saysWhere(jl)) return true;
+  return locations.some((l) => !isRemotePlace(l) && (placeNamed(jl, l) || (INDIA_PLACES.test(l) && /india/.test(jl))));
+}
+
+/**
+ * Location fit for a search. A remote role passes unless it is restricted to somewhere else ("Remote - USA"
+ * for someone in Mumbai); an on-site or hybrid one must name one of the places (or be in India when an
+ * Indian place was asked for — scoring then ranks the asked-for city first).
+ */
+export function matchesLocations(job: Pick<Job, "location" | "workMode" | "country">, locations: string[]): boolean {
+  if (!locations.length) return true;
+  const fixed = locations.filter((l) => !isRemotePlace(l));
+  if (job.workMode === "remote") return !fixed.length || remoteOpenTo(job, fixed) !== false;
+  const wantsIndia = fixed.some((l) => INDIA_PLACES.test(l));
+  return fixed.some((l) => placeNamed(job.location, l)) || (wantsIndia && job.country === "IN");
+}
+
+/** The stricter check behind the list's Location filter: the posting is in one of these places, or remote and open to them. */
+export function inPlaces(job: Pick<Job, "location" | "workMode">, places: string[]): boolean {
+  const fixed = places.filter((p) => !isRemotePlace(p));
+  if (job.workMode === "remote") return places.some(isRemotePlace) ? !fixed.length || remoteOpenTo(job, fixed) !== false : fixed.some((p) => placeNamed(job.location, p));
+  return fixed.some((p) => placeNamed(job.location, p) || (/^india$/i.test(p.trim()) && INDIA_PLACES.test(job.location)));
 }
 
 /** "I am a senior director" / "I'm …" / the common "iam …" typo at the start of a goal is the candidate

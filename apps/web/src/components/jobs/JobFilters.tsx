@@ -8,6 +8,7 @@ import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
 import { DictateButton } from "@/components/common/DictateButton";
+import { useCareerStore } from "@/store/career";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -41,7 +42,9 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
-  const activeCount = filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const places = useCareerStore((s) => s.dna.preferredLocations);
+  const [where, setWhere] = useState((filters.locations ?? []).join(", "));
+  const activeCount = (filters.locations?.length ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const typed = filters.query.trim();
   const wider = typed && sourceSearch ? sourceSearch.describe(typed) : null;
@@ -91,7 +94,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
         <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0" icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more}>
           Refine{activeCount ? ` · ${activeCount}` : ""}
         </Button>
-        <span className="ml-auto shrink-0 pl-2 text-[13px] text-ink-3">{total.toLocaleString("en-IN")}</span>
+        <span className="ml-auto shrink-0 pl-2 text-[13px] text-ink-3">{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,12 +106,24 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             Work mode
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-8 px-3 text-[12px]">
+                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
                   {WORK_MODE_LABEL[m]}
                 </Chip>
               ))}
             </div>
           </div>
+          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Location
+            <Input
+              value={where}
+              onChange={(e) => {
+                setWhere(e.target.value);
+                onChange({ locations: e.target.value.split(",").map((p) => p.trim()).filter(Boolean) });
+              }}
+              placeholder={places.length ? `e.g. ${places.slice(0, 2).join(", ")}, Remote` : "e.g. Mumbai, Remote"}
+              aria-label="Location"
+            />
+          </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Posted
             <Select value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
@@ -129,7 +144,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             Sources
             <div className="flex flex-wrap gap-1.5">
               {sources.map((s) => (
-                <Chip key={s.id} active={filters.sourceIds.includes(s.id)} onClick={() => onChange({ sourceIds: filters.sourceIds.includes(s.id) ? filters.sourceIds.filter((x) => x !== s.id) : [...filters.sourceIds, s.id] })} className="h-8 px-3 text-[12px]">
+                <Chip key={s.id} active={filters.sourceIds.includes(s.id)} onClick={() => onChange({ sourceIds: filters.sourceIds.includes(s.id) ? filters.sourceIds.filter((x) => x !== s.id) : [...filters.sourceIds, s.id] })} className="h-9 px-3 text-[12px]">
                   {s.name}
                 </Chip>
               ))}
@@ -137,7 +152,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Compare
-            <Chip active={compare} onClick={() => onCompare(!compare)} className="h-8 self-start px-3 text-[12px]">
+            <Chip active={compare} onClick={() => onCompare(!compare)} className="h-9 self-start px-3 text-[12px]">
               <GitCompareArrows className="size-3.5" aria-hidden /> Compare jobs
             </Chip>
             <span className="text-[11px] font-normal text-ink-4">Pick two to four jobs on the list to see their differences side by side.</span>
@@ -148,7 +163,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  onChange({ workModes: [], sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], locations: [], sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  setWhere("");
                   onSort("best_match");
                 }}
               >

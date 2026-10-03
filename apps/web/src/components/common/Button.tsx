@@ -28,7 +28,7 @@ const variants: Record<Variant, string> = {
   glass: "wj-glass text-ink hover:bg-white/90",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-3 text-[13px] rounded-[10px]",
+  sm: "h-10 px-3.5 text-[13px] rounded-[10px]",
   md: "h-11 px-4 text-sm rounded-[12px]",
   lg: "h-12 px-5 text-[15px] rounded-[14px]",
   xl: "h-14 px-7 text-base rounded-[16px]",

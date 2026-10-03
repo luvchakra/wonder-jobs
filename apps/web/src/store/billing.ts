@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import type { BillingProviderId, ProviderAvailability, SubscriptionStatus } from "@/domain/billing/types";
+import type { PlanId, PlanLimits } from "@/domain/billing/plans";
 import { getClientMode } from "@/lib/mode";
 
 /**
@@ -9,7 +10,10 @@ import { getClientMode } from "@/lib/mode";
  */
 export interface BillingSnapshot {
   providers: ProviderAvailability[];
-  plan: "free" | "pro";
+  plan: PlanId;
+  /** What the plan allows, and every plan for the upgrade list — both from the operator's configuration. */
+  limits: PlanLimits;
+  plans: Record<PlanId, PlanLimits>;
   reason: string;
   until: string | null;
   subscription: { provider: BillingProviderId; status: SubscriptionStatus; cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null; canManage: boolean } | null;

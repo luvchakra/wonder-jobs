@@ -96,6 +96,14 @@ const MEMORY_RULES: { re: RegExp; reject?: RegExp; key: MemoryKey; category: Que
   { re: /\btravel\b/, key: "travel", category: "AVAILABILITY" },
 ];
 
+/** The remembered answer a free-text question is about ("What is your notice period?" → noticePeriod), if any. */
+export function memoryKeyFor(question: string): MemoryKey | undefined {
+  const q = question.toLowerCase();
+  if (/\b(work authori[sz]ation|authori[sz]ed to work|right to work|legally (able|eligible))\b/.test(q)) return "workAuthorization";
+  if (/\bsponsor/.test(q)) return "sponsorship";
+  return MEMORY_RULES.find((r) => r.re.test(q) && !(r.reject && r.reject.test(q)))?.key;
+}
+
 const MOTIVATION = /\b(why (do|would) you (want|like)|why are you interested|why (this|our) (company|role|team)|what (excites|interests|attracts) you|motivat|why .* join|cover letter)\b/;
 const BEHAVIORAL = /\b(describe (a|an|your)|tell (us|me) about|give (us )?an example|a time (when|you)|biggest (achievement|challenge)|proudest|accomplishment|achievement)\b/;
 const QUANTIFY = /\b(quantif|measurable|metric|impact in numbers|by how much|percentage|\bkpi)/;

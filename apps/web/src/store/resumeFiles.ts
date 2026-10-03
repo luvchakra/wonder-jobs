@@ -13,6 +13,8 @@ interface ResumeFilesState {
   load: (force?: boolean) => Promise<void>;
   upload: (file: File) => Promise<UploadedResume>;
   remove: (id: string) => Promise<void>;
+  /** The name the file is attached and downloaded under. */
+  rename: (id: string, filename: string) => Promise<UploadedResume>;
 }
 
 async function errorOf(res: Response, fallback: string) {
@@ -43,6 +45,13 @@ export const useResumeFilesStore = create<ResumeFilesState>((set, get) => ({
     const { file: meta } = (await res.json()) as { file: UploadedResume };
     set((s) => ({ files: [meta, ...s.files.filter((f) => f.id !== meta.id)] }));
     return meta;
+  },
+  rename: async (id, filename) => {
+    const res = await fetch(`/api/resume-files/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ filename }) });
+    if (!res.ok) throw await errorOf(res, "That file couldn't be renamed");
+    const { file } = (await res.json()) as { file: UploadedResume };
+    set((s) => ({ files: s.files.map((f) => (f.id === id ? file : f)) }));
+    return file;
   },
   remove: async (id) => {
     const res = await fetch(`/api/resume-files/${encodeURIComponent(id)}`, { method: "DELETE" });

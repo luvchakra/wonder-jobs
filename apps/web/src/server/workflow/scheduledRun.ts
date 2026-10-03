@@ -7,6 +7,7 @@
  * looking. Every step is idempotent: the schedule is advanced *before* the run starts, so a crash or a
  * timeout can never leave a run re-firing in a loop.
  */
+import { tenantPlan } from "@/server/billing/service";
 import { WorkflowEngine, conditionMet } from "@/domain/workflow/engine";
 import { addNotification } from "@/domain/career/notifications";
 import { isDue, nextScheduledRun } from "@/domain/workflow/schedule";
@@ -49,8 +50,17 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   const now = opts.now ?? new Date();
   const snapshot = await loadTenantSnapshot(tenantId);
 
+  // The plan says how many schedules may be on at once; the oldest ones keep their place if a plan lapses.
+  const { limits } = await tenantPlan(tenantId);
+  const allowed = new Set(
+    Object.values(snapshot.workflow.schedules)
+      .filter((s) => s.enabled)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(0, limits.scheduledSearches)
+      .map((s) => s.id),
+  );
   const due = Object.values(snapshot.workflow.schedules)
-    .filter((s) => isDue(s, now))
+    .filter((s) => allowed.has(s.id) && isDue(s, now))
     .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
   const schedule = due[0];
   if (!schedule) return undefined;

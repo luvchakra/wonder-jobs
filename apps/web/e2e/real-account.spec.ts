@@ -115,7 +115,7 @@ test.describe("Real account — production walk-through", () => {
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("wj-apply-url")).toContainText("https://");
+    await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
     const sessions = await (await page.request.get("/api/jobs-apply/sessions")).json();
     const mine = (sessions.sessions ?? sessions) as { id: string }[];
     expect(mine.length).toBeGreaterThan(0);

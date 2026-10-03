@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corePhrase, defaultSearchQuery, extractRequirements, extractSkills, htmlToText, inferSeniority, matchesLocations, matchesQuery, normalizePosting, parseSalary, queryTerms, remoteOpenTo, stripSelfReference } from "./normalize";
+import { corePhrase, defaultSearchQuery, extractRequirements, extractSkills, hasTerm, htmlToText, inferSeniority, inPlaces, matchesLocations, matchesQuery, normalizePosting, parseSalary, placeNamed, queryTerms, remoteOpenTo, sameFamily, stripSelfReference } from "./normalize";
 
 describe("normalize", () => {
   it("strips HTML into readable text", () => {
@@ -68,7 +68,15 @@ describe("normalize", () => {
     expect(matchesQuery(eng, "senior product roles at fintech companies")).toBe(false);
     expect(matchesLocations(pm, ["Bengaluru", "Remote"])).toBe(true);
     expect(matchesLocations(eng, ["Bengaluru", "Remote"])).toBe(false);
-    expect(matchesLocations({ ...eng, workMode: "remote" }, ["Bengaluru"])).toBe(true);
+    // A remote role restricted to somewhere else ("Remote - USA", or one that names only Berlin) is not open to a Bengaluru search.
+    expect(matchesLocations({ ...eng, workMode: "remote" }, ["Bengaluru"])).toBe(false);
+    expect(matchesLocations({ ...eng, location: "Remote - USA", workMode: "remote" }, ["Mumbai"])).toBe(false);
+    expect(matchesLocations({ ...eng, location: "Remote", workMode: "remote" }, ["Mumbai"])).toBe(true);
+    expect(matchesLocations({ ...eng, location: "", workMode: "remote" }, ["Mumbai"])).toBe(true);
+    expect(matchesLocations({ ...eng, location: "Remote (Worldwide)", workMode: "remote" }, ["Mumbai"])).toBe(true);
+    expect(matchesLocations({ ...eng, location: "Remote - USA", workMode: "remote" }, ["Remote"])).toBe(true);
+    // A place's other name counts: The Muse and many boards say Bangalore.
+    expect(matchesLocations({ ...pm, location: "Bangalore, India", country: "IN" }, ["Bengaluru"])).toBe(true);
     expect(remoteOpenTo({ location: "Remote (Americas only)", workMode: "remote" }, ["Bengaluru", "Remote"])).toBe(false);
     expect(remoteOpenTo({ location: "Remote (Worldwide)", workMode: "remote" }, ["Bengaluru"])).toBe(true);
     expect(remoteOpenTo({ location: "Remote (India, APAC)", workMode: "remote" }, ["Bengaluru, India"])).toBe(true);
@@ -107,5 +115,25 @@ describe("defaultSearchQuery — the run searches for the candidate's own role, 
     expect(defaultSearchQuery({ headline: "Target: Senior Director / SVP — IAM & AI Transformation | Digital Identity, Cyber Risk & AI Governance", careerGoal: "" })).toBe("senior director svp iam");
     expect(defaultSearchQuery({ headline: "Seeking: Head of Data", careerGoal: "" })).toBe("head data");
     expect(defaultSearchQuery({ headline: "Goal - Staff Engineer, Platform", careerGoal: "" })).toBe("staff engineer platform");
+  });
+});
+
+describe("word families and places", () => {
+  it("matches other forms of a word, never a different word", () => {
+    for (const [a, b] of [["psychology", "psychologist"], ["engineer", "engineering"], ["manager", "management"], ["design", "designer"], ["nurse", "nursing"], ["therapy", "therapist"], ["accountant", "accounting"], ["intern", "internship"], ["consultant", "consulting"], ["librarian", "library"]]) expect(sameFamily(a, b)).toBe(true);
+    for (const [a, b] of [["product", "production"], ["intern", "internal"], ["account", "accounting"], ["program", "programmer"], ["director", "direct"], ["engineer", "engine"], ["office", "officer"], ["market", "marketing"]]) expect(sameFamily(a, b)).toBe(false);
+    expect(hasTerm("Clinical Psychologist", "psychology")).toBe(true);
+    expect(hasTerm("Williams & Co", "iam")).toBe(false);
+    expect(matchesQuery({ title: "Counselling Psychologist", description: "", tags: [], skills: [] }, "psychology")).toBe(true);
+  });
+
+  it("narrows a list to places: the city by any of its names, or remote and open to it", () => {
+    const at = (location: string, workMode: "remote" | "onsite" | "hybrid" = "onsite") => ({ location, workMode });
+    expect(inPlaces(at("Bangalore, Karnataka"), ["Bengaluru"])).toBe(true);
+    expect(inPlaces(at("Pune, India"), ["Mumbai"])).toBe(false);
+    expect(inPlaces(at("Remote - USA", "remote"), ["Mumbai", "Remote"])).toBe(false);
+    expect(inPlaces(at("Remote (India)", "remote"), ["Mumbai", "Remote"])).toBe(true);
+    expect(inPlaces(at("Remote", "remote"), ["Mumbai"])).toBe(false);
+    expect(placeNamed("Navi Mumbai, Maharashtra", "Mumbai")).toBe(true);
   });
 });

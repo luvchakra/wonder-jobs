@@ -7,7 +7,7 @@ export function PageHeader({ title, description, actions, back, eyebrow, classNa
     <div className={cn("mb-4 flex items-start justify-between gap-3 md:mb-6 md:items-end", className)}>
       <div className="min-w-0 flex-1">
         {back && (
-          <Link href={back.href} className="mb-2 inline-flex items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
+          <Link href={back.href} className="mb-1 inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
             <ArrowLeft className="size-4" aria-hidden /> {back.label ?? "Back"}
           </Link>
         )}

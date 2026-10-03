@@ -11,6 +11,9 @@ import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { roleSearch } from "@/domain/career/roles";
 import { RolePicker } from "@/components/career/RolePicker";
 import { describeSchedule } from "@/services/mock/templates";
+import { scheduleAllowance } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
+import { PlanGate } from "@/components/billing/PlanGate";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useAIStore } from "@/store/ai";
@@ -47,6 +50,9 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   const defaultLevel = useAutomationStore((s) => s.defaultLevel);
   const upsertWorkflow = useWorkflowStore((s) => s.upsertWorkflow);
   const upsertSchedule = useWorkflowStore((s) => s.upsertSchedule);
+  const schedules = useWorkflowStore((s) => s.schedules);
+  const { plan, plans } = usePlan();
+  const [gate, setGate] = useState<{ reason: string; needs: "free" | "pro" | "max" | null } | null>(null);
 
   const roles = useCareerStore((s) => s.roles ?? []);
   const [roleId, setRoleId] = useState<string | null>(existing?.workflow.config.role?.id ?? null);
@@ -63,6 +69,14 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
 
   const save = () => {
+    // The plan decides how many searches may be on at once and how often they may run.
+    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== existing?.schedule.id).length;
+    const allowance = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, frequency);
+    if (!allowance.ok) {
+      setGate(allowance);
+      return;
+    }
+    setGate(null);
     const { workflow, schedule } = buildScheduledSearch({
       ids: existing ? { workflow: existing.workflow.id, schedule: existing.schedule.id } : { workflow: newId("wf"), schedule: newId("sch") },
       now: new Date(),
@@ -141,6 +155,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
         <p className="mt-3 text-[12px] text-ink-3">Scheduled searches find and compare opportunities. They never prepare or send anything on their own — for that, use advanced search automation.</p>
       </Card>
 
+      {gate && <PlanGate reason={gate.reason} needs={gate.needs} plans={plans} />}
       <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href={advancedHref} className="text-center text-[13px] font-medium text-brand-600 hover:underline">
           Advanced search automation

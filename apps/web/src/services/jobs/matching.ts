@@ -6,7 +6,8 @@
 import type { CareerDNA } from "@/domain/career/types";
 import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, JobMatch, JobQuality, JobQualitySignal, JobSource } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
-import { hasTermOrSynonym, INDUSTRY_WORDS, queryTerms, remoteOpenTo, SENIORITY_WORDS, stripHeadlineLabel, stripSelfReference } from "./normalize";
+import { hasTermOrSynonym, INDUSTRY_WORDS, placeNamed, queryTerms, remoteOpenTo, SENIORITY_WORDS, stripHeadlineLabel, stripSelfReference } from "./normalize";
+import { relevance } from "./relevance";
 import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learning";
 
 const DAY = 86_400_000;
@@ -79,6 +80,12 @@ export interface MatchContext {
   careerGoal?: string;
   /** Active "not for me" learning signals (spec: rejections must actually influence future ranking). */
   learnedSignals?: LearnedSignal[];
+  /**
+   * What the candidate typed, when this is their own search rather than their profile's. The posting is then
+   * judged on answering it — "psychology" for someone whose headline is IAM — and the profile still scores
+   * skills, level, place and pay.
+   */
+  searchQuery?: string;
 }
 
 /** Field words so widespread ("AI", "digital", "data") that on their own they don't place a posting in the candidate's field. */
@@ -107,17 +114,19 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   // looked for as whole words or known spellings ("iam" ↔ "identity and access management"), first in the
   // title, then in the posting's tags, skills and requirements, then anywhere in the description.
   const title = job.title.toLowerCase();
-  const field = fieldTerms(dna.headline, goal);
+  const typed = ctx.searchQuery?.trim() ? relevance(job, ctx.searchQuery) : null;
+  const field = typed ? queryTerms(ctx.searchQuery!, 10).filter((t) => !SENIORITY_WORDS.has(t) && !INDUSTRY_WORDS.has(t)) : fieldTerms(dna.headline, goal);
+  const strongField = field.some((w) => !FIELD_WEAK.has(w));
   const head = `${(job.tags ?? []).join(" ")} ${(job.skills ?? []).join(" ")} ${(job.requirements ?? []).join(" ")}`;
   // A weak word ("AI") counts only alongside a stronger one ("identity") in the same place.
   const found = (text: string) => {
     const hits = field.filter((w) => hasTermOrSynonym(text, w));
-    return hits.some((w) => !FIELD_WEAK.has(w)) ? hits : [];
+    return hits.some((w) => !FIELD_WEAK.has(w)) || (!strongField && hits.length) ? hits : [];
   };
   const inTitle = found(title);
   const inHead = inTitle.length ? [] : found(head);
   const inBody = inTitle.length || inHead.length ? [] : found(job.description ?? "");
-  const goalScore = !field.length ? 0.6 : inTitle.length ? Math.min(1, 0.7 + 0.15 * inTitle.length) : inHead.length ? 0.55 : inBody.length ? 0.4 : 0.15;
+  const goalScore = typed ? Math.max(0.15, typed.score) : !field.length ? 0.6 : inTitle.length ? Math.min(1, 0.7 + 0.15 * inTitle.length) : inHead.length ? 0.55 : inBody.length ? 0.4 : 0.15;
 
   // skills: how much of what the candidate has does the role ask for, and how much of what the role asks for
   // does the candidate have. Both are read from the posting's own text, not only its tag list, and the
@@ -152,7 +161,7 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
         : 1
       : locations.length === 0
         ? 0.7
-        : locations.some((l) => jl.includes(l.replace(", india", "")) || (l === "remote" && jl.includes("remote")))
+        : locations.some((l) => placeNamed(jl, l) || (l === "remote" && jl.includes("remote")))
           ? 1
           : locations.some((l) => l.includes("india") && jl.includes("india"))
             ? 0.6
@@ -165,7 +174,8 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
     compScore = max >= minSalary * 1.15 ? 1 : max >= minSalary ? 0.85 : max >= minSalary * 0.85 ? 0.55 : 0.3;
   }
 
-  const weights = { skills: 0.28, seniority: 0.16, industry: 0.08, career_goal: 0.24, location: 0.12, compensation: 0.12 } as const;
+  // The candidate's own search leans on answering it; the profile's search leans on their skills.
+  const weights = typed ? { skills: 0.2, seniority: 0.12, industry: 0.04, career_goal: 0.38, location: 0.14, compensation: 0.12 } : { skills: 0.28, seniority: 0.16, industry: 0.08, career_goal: 0.24, location: 0.12, compensation: 0.12 };
   const raw = skillScore * weights.skills + seniorityScore * weights.seniority + industryScore * weights.industry + goalScore * weights.career_goal + locationScore * weights.location + compScore * weights.compensation;
   // "Not for me" learning (spec: it must actually affect future ranking, not just hide the one job): a
   // small, bounded penalty once the same reason has repeated enough times to be a pattern rather than
@@ -181,7 +191,7 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of your skills appear in this posting (${overlap.slice(0, 3).join(", ")}).` : "Few of your skills appear in this posting." },
     { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? "Same level as your current role." : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above your current role." : "Below your current level." },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
-    { dimension: "career_goal", label: "Career-goal alignment", score: goalScore, summary: !field.length ? "Add a headline or career goal to your Career Profile to sharpen this." : inTitle.length ? `The role title is in your field (${inTitle.slice(0, 3).join(", ")}).` : inHead.length ? `Your field (${inHead.slice(0, 2).join(", ")}) appears in the posting's requirements or tags, not in its title.` : inBody.length ? `Your field (${inBody.slice(0, 2).join(", ")}) is only mentioned in the description.` : `The posting doesn't mention your field (${field.slice(0, 3).join(", ")}).` },
+    { dimension: "career_goal", label: typed ? "Search match" : "Career-goal alignment", score: goalScore, summary: typed ? (typed.inTitle ? `The role title matches your search (${typed.matched.slice(0, 3).join(", ")}).` : typed.complete ? `Your search (${typed.matched.slice(0, 3).join(", ")}) appears in the posting, not in its title.` : `The posting doesn't mention ${typed.missing.slice(0, 3).join(", ")}.`) : !field.length ? "Add a headline or career goal to your Career Profile to sharpen this." : inTitle.length ? `The role title is in your field (${inTitle.slice(0, 3).join(", ")}).` : inHead.length ? `Your field (${inHead.slice(0, 2).join(", ")}) appears in the posting's requirements or tags, not in its title.` : inBody.length ? `Your field (${inBody.slice(0, 2).join(", ")}) is only mentioned in the description.` : `The posting doesn't mention your field (${field.slice(0, 3).join(", ")}).` },
     { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career Profile to sharpen this." : `${job.location} is outside your preferred locations.` },
     { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
   ];

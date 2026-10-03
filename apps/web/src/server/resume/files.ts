@@ -43,6 +43,8 @@ export interface ResumeFileStore {
   read(tenantId: string, id: string): Promise<{ meta: ResumeFileMeta; bytes: Buffer } | undefined>;
   save(tenantId: string, input: { filename: string; mime: ResumeFileMime; bytes: Buffer }): Promise<ResumeFileMeta>;
   remove(tenantId: string, id: string): Promise<boolean>;
+  /** Change only the name the file is attached and downloaded under; the bytes never change. */
+  rename(tenantId: string, id: string, filename: string): Promise<ResumeFileMeta | undefined>;
 }
 
 const newFileId = () => `rf_${randomBytes(12).toString("base64url")}`;
@@ -70,6 +72,12 @@ export class MemoryResumeFileStore implements ResumeFileStore {
   }
   async remove(t: string, id: string) {
     return this.bucket(t).delete(id);
+  }
+  async rename(t: string, id: string, filename: string) {
+    const f = this.bucket(t).get(id);
+    if (!f) return undefined;
+    f.filename = filename;
+    return metaOf(f);
   }
   /** Erasure in memory mode (Supabase deletes by cascade). */
   removeTenant(t: string) {
@@ -110,6 +118,11 @@ class SupabaseResumeFileStore implements ResumeFileStore {
     const { data, error } = await this.db().from("resume_files").insert(row).select(META_COLS).single();
     if (error) throw new Error(error.message);
     return fromRow(data as Row);
+  }
+  async rename(t: string, id: string, filename: string) {
+    const { data, error } = await this.db().from("resume_files").update({ filename }).eq("tenant_id", t).eq("id", id).select(META_COLS).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? fromRow(data as Row) : undefined;
   }
   async remove(t: string, id: string) {
     const { data, error } = await this.db().from("resume_files").delete().eq("tenant_id", t).eq("id", id).select("id");

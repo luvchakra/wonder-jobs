@@ -109,6 +109,10 @@ describe("applying events to a subscription", () => {
 describe("entitlement", () => {
   it("fails closed to Free with no subscription", () => {
     expect(entitlementFor(undefined)).toEqual({ plan: "free", reason: "No subscription" });
+    const sub: Subscription = { tenantId: "t", provider: "stripe", subscriptionId: "sub_1", planRef: "price_max", status: "active", cancelAtPeriodEnd: false, updatedAt: "2026-01-01T00:00:00Z" };
+    expect(entitlementFor(sub).plan).toBe("pro");
+    expect(entitlementFor(sub, (ref) => (ref === "price_max" ? "max" : "pro"))).toMatchObject({ plan: "max", reason: "Active" });
+    expect(entitlementFor({ ...sub, cancelAtPeriodEnd: true }, () => "max").reason).toContain("Max until");
   });
   it("keeps Pro to the end of a cancelled period, and says so", () => {
     const e = entitlementFor(sub({ cancelAtPeriodEnd: true, currentPeriodEnd: "2026-11-01T00:00:00.000Z" }));

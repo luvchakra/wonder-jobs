@@ -11,7 +11,7 @@ import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
 import { track } from "@/lib/analytics";
 
-export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
+export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], locations: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
 
 interface JobsState {
   sources: JobSource[];
@@ -32,10 +32,12 @@ interface JobsState {
   filters: JobFilters;
   sort: JobSort;
   loaded: boolean;
+  /** What the candidate typed for the search behind this catalog ("" = their profile's search), so a rescore keeps judging the jobs on it. */
+  searchedFor: string;
   loadInitial: () => void;
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
-  replaceCatalog: (jobs: CanonicalJob[]) => void;
+  replaceCatalog: (jobs: CanonicalJob[], searchedFor?: string) => void;
   setMatches: (matches: JobMatch[]) => void;
   setQuality: (quality: JobQuality[]) => void;
   save: (jobId: string) => void;
@@ -75,6 +77,7 @@ export const useJobsStore = create<JobsState>()(
       filters: DEFAULT_FILTERS,
       sort: "best_match",
       loaded: false,
+      searchedFor: "",
       loadInitial: () => {
         if (get().loaded) return;
         if (getClientMode().mode === "user") {
@@ -100,16 +103,17 @@ export const useJobsStore = create<JobsState>()(
         const { jobs, order, loaded } = get();
         if (!loaded) return;
         const { dna, learnedSignals } = useCareerStore.getState();
+        const searchQuery = get().searchedFor || undefined;
         const matches: Record<string, JobMatch> = {};
-        for (const id of order) matches[id] = computeMatch(jobs[id], { dna, learnedSignals });
+        for (const id of order) matches[id] = computeMatch(jobs[id], { dna, learnedSignals, searchQuery });
         set({ matches });
       },
-      replaceCatalog: (list) =>
+      replaceCatalog: (list, searchedFor = "") =>
         set((s) => {
           // A posting found closed in the last week isn't brought back by a source that still lists it.
           const recent = Date.now() - 7 * 86_400_000;
           const live = list.filter((j) => !(s.closed[j.id] && Date.parse(s.closed[j.id].at) > recent && !s.saved[j.id]));
-          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true };
+          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true, searchedFor };
         }),
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
@@ -155,8 +159,16 @@ export const useJobsStore = create<JobsState>()(
       },
       setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
       setSort: (sort) => set({ sort }),
-      setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled } : x)) })),
-      setSourceAvailability: (available) => set((s) => ({ sources: s.sources.map((x) => ({ ...x, available: available[x.id] ?? x.available, enabled: x.requiresSetup && available[x.id] === false ? false : x.enabled })) })),
+      setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
+      setSourceAvailability: (available) =>
+        set((s) => ({
+          sources: s.sources.map((x) => {
+            const now = available[x.id] ?? x.available;
+            // A credentialed source: off while the server can't search it; on once it can, unless the candidate switched it off.
+            const enabled = x.requiresSetup && now === false ? false : x.requiresSetup && now === true && !x.chosen ? (JOB_SOURCES.find((r) => r.id === x.id)?.enabled ?? x.enabled) : x.enabled;
+            return { ...x, available: now, enabled };
+          }),
+        })),
     }),
     {
       name: "wj.jobs",
@@ -165,7 +177,7 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState>;
-        return { ...current, ...p, sources: reconcileSources(p.sources), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {} };
+        return { ...current, ...p, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {} };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -173,7 +185,7 @@ export const useJobsStore = create<JobsState>()(
         const recent = Date.now() - 7 * 86_400_000;
         const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt };
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, searchedFor: s.searchedFor };
         if (getClientMode().mode !== "user") return base;
         const keep = new Set<string>(Object.keys(s.saved));
         for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {

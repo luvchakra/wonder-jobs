@@ -288,7 +288,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
         <Link href={`/app/runs/${last.id}`} aria-label={`Details — ${failed ? "the last search didn't finish" : `searched ${n} sources for ${c.query}`}`} className="min-w-0 underline-offset-2 hover:underline">
           {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"} for “${c.query}”${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}${monitoring ? " · checks again on schedule" : ""}`}
         </Link>
-        <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} aria-label={failed ? "Try again" : "Search again"} title={failed ? "Try again" : "Search again"} className="shrink-0 rounded-full p-1 text-brand-600 hover:bg-brand-50">
+        <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} aria-label={failed ? "Try again" : "Search again"} title={failed ? "Try again" : "Search again"} className="-my-1 shrink-0 rounded-full p-2 text-brand-600 hover:bg-brand-50">
           <RefreshCw className="size-3.5" aria-hidden />
         </button>
       </p>
@@ -335,11 +335,11 @@ export function RoleChips({ roles, current, onPick, busy }: { roles: { id: strin
   return (
     <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
       <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>
-      <Chip active={current === null} onClick={() => onPick(null)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
+      <Chip active={current === null} onClick={() => onPick(null)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
         My profile
       </Chip>
       {roles.map((r) => (
-        <Chip key={r.id} active={current === r.id} onClick={() => onPick(r.id)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
+        <Chip key={r.id} active={current === r.id} onClick={() => onPick(r.id)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
           {r.title}
         </Chip>
       ))}
