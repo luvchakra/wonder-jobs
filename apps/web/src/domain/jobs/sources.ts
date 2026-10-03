@@ -18,6 +18,8 @@ export const JOB_SOURCES: JobSource[] = [
     website: "",
     note: "Public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely. Applications go straight to the employer.",
   },
+  { id: "smartrecruiters", name: "SmartRecruiters career sites", short: "sr", integrated: true, enabled: true, reliability: "high", color: "#1c9f6a", website: "https://www.smartrecruiters.com", note: "Public career pages of Swiggy, Freshworks, Bosch, Continental and Delivery Hero. Applications go straight to the employer." },
+  { id: "themuse", name: "The Muse", short: "tm", integrated: true, enabled: true, reliability: "medium", color: "#7c3aed", website: "https://www.themuse.com", note: "Employers that post on The Muse, including the India offices of large companies. You apply from The Muse's page for the role." },
   { id: "remotive", name: "Remotive", short: "rm", integrated: true, enabled: false, reliability: "medium", color: "#1f6feb", website: "https://remotive.com", note: "Curated remote jobs. The public feed exposes only a handful of listings, so it is off by default." },
   { id: "jobicy", name: "Jobicy", short: "jb", integrated: true, enabled: true, reliability: "medium", color: "#ff6b6b", website: "https://jobicy.com", note: "Remote jobs with seniority and salary data where the employer disclosed it." },
   { id: "remoteok", name: "Remote OK", short: "ok", integrated: true, enabled: true, reliability: "medium", color: "#ff4742", website: "https://remoteok.com", note: "Remote jobs, latest 100 per search." },
