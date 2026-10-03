@@ -22,6 +22,13 @@ interface JobsState {
   quality: Record<string, JobQuality>;
   saved: Record<string, string>; // jobId → savedAt
   rejected: Record<string, string>;
+  /** Postings found to have closed on the employer's or board's own site (jobId → when and why). They leave the
+   *  catalog and aren't added back by a search for a week; a saved job stays, flagged, so nothing the candidate kept disappears. */
+  closed: Record<string, { at: string; reason: string }>;
+  /** When each job's original link was last found open (jobId → ISO time), so it isn't re-checked every visit. */
+  linkOpenAt: Record<string, string>;
+  markClosed: (jobId: string, reason: string) => void;
+  markLinkOpen: (jobIds: string[]) => void;
   filters: JobFilters;
   sort: JobSort;
   loaded: boolean;
@@ -56,6 +63,15 @@ export const useJobsStore = create<JobsState>()(
       quality: {},
       saved: {},
       rejected: {},
+      closed: {},
+      linkOpenAt: {},
+      markClosed: (jobId, reason) =>
+        set((s) => {
+          const closed = { ...s.closed, [jobId]: { at: new Date().toISOString(), reason } };
+          if (s.saved[jobId]) return { closed };
+          return { closed, order: s.order.filter((id) => id !== jobId) };
+        }),
+      markLinkOpen: (ids) => set((s) => ({ linkOpenAt: { ...s.linkOpenAt, ...Object.fromEntries(ids.map((id) => [id, new Date().toISOString()])) } })),
       filters: DEFAULT_FILTERS,
       sort: "best_match",
       loaded: false,
@@ -88,7 +104,13 @@ export const useJobsStore = create<JobsState>()(
         for (const id of order) matches[id] = computeMatch(jobs[id], { dna, learnedSignals });
         set({ matches });
       },
-      replaceCatalog: (list) => set({ jobs: Object.fromEntries(list.map((j) => [j.id, j])), order: list.map((j) => j.id), loaded: true }),
+      replaceCatalog: (list) =>
+        set((s) => {
+          // A posting found closed in the last week isn't brought back by a source that still lists it.
+          const recent = Date.now() - 7 * 86_400_000;
+          const live = list.filter((j) => !(s.closed[j.id] && Date.parse(s.closed[j.id].at) > recent && !s.saved[j.id]));
+          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true };
+        }),
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
       save: (jobId) => {
@@ -143,12 +165,15 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState>;
-        return { ...current, ...p, sources: reconcileSources(p.sources), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {} };
+        return { ...current, ...p, sources: reconcileSources(p.sources), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {} };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
       partialize: (s) => {
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort };
+        const recent = Date.now() - 7 * 86_400_000;
+        const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
+        const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt };
         if (getClientMode().mode !== "user") return base;
         const keep = new Set<string>(Object.keys(s.saved));
         for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {

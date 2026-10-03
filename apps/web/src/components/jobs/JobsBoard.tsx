@@ -14,6 +14,7 @@ import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/Filter
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { describeDecision } from "@/domain/jobs/decision";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
+import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
 
@@ -88,6 +89,9 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
   }, [filterResult, jobs, matches, sort]);
 
   const visible = results.slice(0, limit);
+  // The jobs on screen are checked against their own sites; closed ones leave the list.
+  useLinkCheck(visible);
+  const closed = useJobsStore((s) => s.closed);
   // "Wonder found N opportunities" — the real catalog Wonder has, minus what the candidate set aside.
   const found = useMemo(() => {
     const ids = order.filter((id) => jobs[id] && !rejected[id]);
@@ -141,7 +145,7 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
                     reject(id);
                     toast.info("Marked not for me", "Wonder won't show this job again. Once you mark a few similar roles, it starts ranking that pattern lower too.", { label: "Undo", onClick: () => unreject(id) });
                   }}
-                  status={appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
+                  status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
                   decision={describeDecision(jobs[id], matches[id], quality[id], appByJob.get(id))}
                   onPrepare={() => openPack(id)}
                   compareSelected={compare.includes(id)}
