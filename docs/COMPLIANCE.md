@@ -90,7 +90,7 @@ controls (ITGC) and application controls a SOX 404 audit would test, implemented
 | Key separation | Secret-store encryption key derived with HKDF (`v2:` format); legacy ciphertexts still decrypt | `server/secrets.ts` |
 | Constant-time secrets | `safeEqual` hashes both sides (no length leak); cron uses it | `server/crypto.ts` |
 | Vulnerable dependency | `next` 16.3.5 → 16.3.8 (critical RCE advisory in `next/og` ImageResponse, used by the icon/OG routes) | `package.json` |
-| Supply chain | CI `npm audit --audit-level=high` job, `permissions: contents: read`, Dependabot for npm and Actions | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
+| Supply chain | CI dependency audit: production dependencies fail on high or critical (`npm audit --omit=dev --audit-level=high`), build/lint tooling on critical (split 2026-10-03: GHSA-vfj7-8cjw-p6xm in `braces`, no patched release, reaches us only via `eslint-config-next`), `permissions: contents: read`, Dependabot for npm and Actions | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
 | Disclosure | RFC 9116 `/.well-known/security.txt`; "Report a security issue" contact topic | |
 
 ## 5. Known gaps (not done)
