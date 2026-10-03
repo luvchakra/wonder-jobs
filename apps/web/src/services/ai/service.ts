@@ -10,6 +10,7 @@ import { ProviderError } from "@/domain/ai/types";
 import type { CareerDNA } from "@/domain/career/types";
 import { historyOf, sortExperience } from "@/domain/career/history";
 import type { CanonicalJob, Job } from "@/domain/jobs/types";
+import { AI_HISTORY_SYSTEM, aiHistoryPrompt, rulesAsAIJson, type HistoryDraft } from "@/domain/career/historyImport";
 import { newId } from "@/lib/ids";
 
 export interface CompletionRequest {
@@ -21,11 +22,13 @@ export interface CompletionRequest {
   draft?: string;
   maxTokens?: number;
   runId?: string;
+  /** Extraction, not drafting: the model gets the prompt alone (the draft is only the no-model fallback). */
+  extract?: boolean;
 }
 
 /** Prompt a real model receives: the facts, then the draft to improve. */
 export function composePrompt(req: CompletionRequest) {
-  return req.draft ? `${req.prompt}\n\n---\nStarting draft (rewrite and improve it; keep every fact truthful to the context above; where a fact is missing use a [bracketed placeholder]; output only the finished text, no preamble):\n\n${req.draft}` : req.prompt;
+  return req.draft && !req.extract ? `${req.prompt}\n\n---\nStarting draft (rewrite and improve it; keep every fact truthful to the context above; where a fact is missing use a [bracketed placeholder]; output only the finished text, no preamble):\n\n${req.draft}` : req.prompt;
 }
 
 export interface CompletionResult {
@@ -56,6 +59,12 @@ export interface AIService {
   generateFollowUpEmail(input: GenerateArtifactInput & { appliedAt?: string; kind: "follow_up" | "thank_you" }): Promise<string>;
   /** A draft answer to one question on an employer's form (JobsApply §23–§26). The candidate reviews it; it's never filled unreviewed. */
   answerApplicationQuestion(input: GenerateArtifactInput & { question: string; metric?: string }): Promise<string>;
+  /**
+   * The model's reading of the candidate's résumé as JSON — a proposal only. The reply is untrusted:
+   * `groundAIHistory` (application code) decides what of it may be shown. `byModel` is false when no
+   * model is connected and the rules' own reading came back instead.
+   */
+  readCareerHistory(input: { resumeText: string; rules: HistoryDraft }): Promise<{ reply: string; byModel: boolean; model: string }>;
   usage(): AIUsageRecord[];
 }
 
@@ -139,13 +148,24 @@ export class TemplateAIService implements AIService {
   private records: AIUsageRecord[] = [];
   constructor(public readonly provider: AIProvider, private readonly onUsage?: (r: AIUsageRecord) => void, private readonly costPerMTok: { input: number; output: number } | null = null) {}
 
-  private async run(task: AITask, system: string, context: string, draft: string, runId?: string) {
-    const res = await this.provider.complete({ task, system, prompt: context, draft, runId });
+  private async run(task: AITask, system: string, context: string, draft: string, runId?: string, extra: Partial<CompletionRequest> = {}) {
+    return (await this.runFull(task, system, context, draft, runId, extra)).text;
+  }
+
+  private async runFull(task: AITask, system: string, context: string, draft: string, runId?: string, extra: Partial<CompletionRequest> = {}) {
+    const res = await this.provider.complete({ task, system, prompt: context, draft, runId, ...extra });
     const cost = this.costPerMTok ? (res.inputTokens * this.costPerMTok.input + res.outputTokens * this.costPerMTok.output) / 1_000_000 : null;
     const rec: AIUsageRecord = { id: newId("use"), at: new Date().toISOString(), provider: this.provider.id, model: res.model, task, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costUsd: cost, runId };
     this.records.push(rec);
     this.onUsage?.(rec);
-    return res.text;
+    return res;
+  }
+
+  async readCareerHistory({ resumeText, rules }: { resumeText: string; rules: HistoryDraft }) {
+    const fallback = rulesAsAIJson(rules);
+    const res = await this.runFull("candidate_understanding", AI_HISTORY_SYSTEM, aiHistoryPrompt(resumeText), fallback, undefined, { extract: true, maxTokens: 4096 });
+    // The template provider hands the fallback back unchanged: no model read anything.
+    return { reply: res.text, byModel: !(res.model === "wonder-1" && res.text === fallback), model: res.model };
   }
 
   usage() {

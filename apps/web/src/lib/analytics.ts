@@ -26,6 +26,7 @@ export type AnalyticsEvent =
   | "automation_policy_changed"
   | "resume_imported"
   | "resume_import_applied"
+  | "resume_import_ai"
   | "artifact_downloaded"
   // Outcome-level events (outcome spec §46). Same rule: ids, counts and enum values only.
   | "find_started"

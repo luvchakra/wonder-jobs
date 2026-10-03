@@ -43,6 +43,8 @@ export interface CareerExperience {
   summary?: string;
   bullets: CareerBullet[];
   provenance: FactProvenance;
+  /** Set when the candidate accepted it from their AI model's reading of their résumé (still their résumé's own words). */
+  importedBy?: "ai";
 }
 
 export interface CareerEducation {
@@ -55,6 +57,7 @@ export interface CareerEducation {
   endDate?: string;
   honors?: string[];
   provenance: FactProvenance;
+  importedBy?: "ai";
 }
 
 export interface CareerCertification {
@@ -66,6 +69,7 @@ export interface CareerCertification {
   credentialId?: string;
   url?: string;
   provenance: FactProvenance;
+  importedBy?: "ai";
 }
 
 export interface CareerProject {

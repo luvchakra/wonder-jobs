@@ -4,7 +4,7 @@
  */
 
 /** Bump when the privacy notice changes materially; signed-in candidates are asked to review it again. */
-export const PRIVACY_NOTICE_VERSION = "2026-10-03";
+export const PRIVACY_NOTICE_VERSION = "2026-10-03.2";
 
 /** The candidate types this exact phrase to delete their account; a stray click or a forged request can't. */
 export const ERASE_PHRASE = "DELETE MY ACCOUNT";
@@ -42,7 +42,7 @@ export function grievanceContact(env: Record<string, string | undefined> = { nam
 export const SUB_PROCESSORS: { name: string; purpose: string; data: string }[] = [
   { name: "Supabase", purpose: "Authentication and database", data: "Account, everything you store in the app, including résumé files you upload (encrypted before they reach it)" },
   { name: "Vercel", purpose: "Hosting (Mumbai region, bom1)", data: "Requests in transit, short-lived server logs" },
-  { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderJobs AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature" },
+  { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderJobs AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature; the text of a résumé, only when you ask it to read one" },
   { name: "Razorpay", purpose: "Payments in India (when you subscribe)", data: "Payment details you enter on Razorpay's page; your account id as a reference" },
   { name: "Stripe", purpose: "International payments (when you subscribe)", data: "Payment details you enter on Stripe's page; your email and account id as a reference" },
   { name: "Resend", purpose: "Forwarding contact-form messages to our team", data: "Name, email and message you send us" },

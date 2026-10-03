@@ -214,7 +214,10 @@ function EntryList({ listKey, entries, onChange }: { listKey: ListKey; entries: 
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    <Badge className="hidden sm:inline-flex">{FACT_PROVENANCE_LABEL[e.provenance]}</Badge>
+                    <Badge className="hidden sm:inline-flex">
+                      {FACT_PROVENANCE_LABEL[e.provenance]}
+                      {e.provenance === "RESUME_IMPORTED" && e.importedBy === "ai" ? " · read by AI" : ""}
+                    </Badge>
                     {open === e.id ? <ChevronUp className="size-4 text-ink-3" aria-hidden /> : <ChevronDown className="size-4 text-ink-3" aria-hidden />}
                   </span>
                 </button>
