@@ -26,7 +26,7 @@ export default function RunsPage() {
             <Button variant="outline" href="/app/automation/scheduled" icon={<Timer className="size-4" aria-hidden />}>
               Scheduled searches
             </Button>
-            <Button href="/app/runs/new" icon={<Play className="size-4" aria-hidden />} disabled={!!active}>
+            <Button href="/app?refresh=1" icon={<Play className="size-4" aria-hidden />} disabled={!!active}>
               Find opportunities
             </Button>
           </>
@@ -35,7 +35,7 @@ export default function RunsPage() {
       <ActiveRunCard run={active} className="mb-6" />
       <h2 className="mb-3 text-[17px] font-semibold text-ink">Search history</h2>
       {history.length === 0 ? (
-        <EmptyState title="No searches yet" body="Every search Wonder runs for you appears here — what it found and, one click down, exactly how it worked." action={{ label: "Find opportunities", href: "/app/runs/new" }} />
+        <EmptyState title="No searches yet" body="Every search Wonder runs for you appears here — what it found and, one click down, exactly how it worked." action={{ label: "See your jobs", href: "/app" }} />
       ) : (
         <ul className="flex flex-col gap-3">
           {history.map((r) => {

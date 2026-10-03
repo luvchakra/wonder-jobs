@@ -8,9 +8,8 @@ import { useApplicationsStore } from "@/store/applications";
 import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
-import { Segmented } from "@/components/common/Input";
 import { JobCard } from "@/components/jobs/JobCard";
-import { JobFiltersBar } from "@/components/jobs/JobFilters";
+import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { describeDecision } from "@/domain/jobs/decision";
@@ -20,18 +19,11 @@ import { toast } from "@/components/feedback/Toast";
 
 const PAGE = 24;
 
-type ViewTab = "for_you" | "all" | "saved";
-const VIEW_TABS: { value: ViewTab; label: string }[] = [
-  { value: "for_you", label: "For You" },
-  { value: "all", label: "All Jobs" },
-  { value: "saved", label: "Saved" },
-];
-
 /**
  * The job list: views, Refine, cards, compare, "Why was this filtered". Hosted by the jobs screen,
  * which supplies what goes above it and what to show when Wonder has found nothing yet.
  */
-export function JobsBoard({ header, empty }: { header?: (found: { total: number; strong: number; worth: number; other: number }) => React.ReactNode; empty: React.ReactNode }) {
+export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { total: number; strong: number; worth: number; other: number }) => React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -77,16 +69,8 @@ export function JobsBoard({ header, empty }: { header?: (found: { total: number;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Primary views (spec: "keep advanced filters behind Refine") — presets over the same filters
-  // Refine and the deep links above already use, so results and "Why Was This Filtered" can never
-  // disagree about what a tab means.
-  const activeTab: ViewTab = filters.onlySaved ? "saved" : filters.minFit === "worth_considering" ? "for_you" : "all";
-  const selectTab = (tab: ViewTab) => {
-    setLimit(PAGE);
-    if (tab === "saved") setFilters({ onlySaved: true });
-    else if (tab === "for_you") setFilters({ onlySaved: false, minFit: "worth_considering" });
-    else setFilters({ onlySaved: false, minFit: null });
-  };
+  const [compareMode, setCompareMode] = useState(false);
+  const savedCount = useMemo(() => order.filter((id) => saved[id] && jobs[id]).length, [order, saved, jobs]);
 
   const appByJob = useMemo(() => new Map(Object.values(applications).map((a) => [a.jobId, a])), [applications]);
 
@@ -116,8 +100,25 @@ export function JobsBoard({ header, empty }: { header?: (found: { total: number;
   return (
     <div>
       {header?.(found)}
-      <Segmented<ViewTab> label="View" value={activeTab} onChange={selectTab} options={VIEW_TABS} className="mb-4" />
-      <JobFiltersBar filters={filters} onChange={(p) => { setFilters(p); setLimit(PAGE); }} sort={sort} onSort={setSort} sources={sources} total={results.length} className="mb-5" />
+      <JobFiltersBar
+        filters={filters}
+        onChange={(p) => {
+          setFilters(p);
+          setLimit(PAGE);
+        }}
+        sort={sort}
+        onSort={setSort}
+        sources={sources}
+        total={results.length}
+        savedCount={savedCount}
+        compare={compareMode}
+        onCompare={(on) => {
+          setCompareMode(on);
+          if (!on) setCompare([]);
+        }}
+        sourceSearch={sourceSearch}
+        className="mb-5"
+      />
       {results.length === 0 ? (
         filterResult.hiddenTotal > 0 ? (
           <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} variant="empty" />
@@ -126,7 +127,6 @@ export function JobsBoard({ header, empty }: { header?: (found: { total: number;
         )
       ) : (
         <>
-          <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} />
           <h2 className="wj-sr-only">Job results</h2>
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
@@ -145,7 +145,7 @@ export function JobsBoard({ header, empty }: { header?: (found: { total: number;
                   decision={describeDecision(jobs[id], matches[id], quality[id], appByJob.get(id))}
                   onPrepare={() => openPack(id)}
                   compareSelected={compare.includes(id)}
-                  onToggleCompare={() => toggleCompare(id)}
+                  onToggleCompare={compareMode ? () => toggleCompare(id) : undefined}
                 />
               </li>
             ))}
@@ -174,6 +174,14 @@ export function JobsBoard({ header, empty }: { header?: (found: { total: number;
               </Button>
             </div>
           )}
+          {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
+          <FilteredBreakdown
+            result={filterResult}
+            onShowAnyway={() => {
+              showAnyway();
+              setLimit(PAGE);
+            }}
+          />
         </>
       )}
     </div>

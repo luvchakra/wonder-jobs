@@ -103,7 +103,7 @@ export function describeRun(run: WorkflowRun, previous?: WorkflowRun): Experienc
           title: "No jobs matched this search",
           summary: `None of the ${plural(run.config.sourceIds.length, "source")} had jobs for “${run.config.searchCriteria.query}”${run.config.searchCriteria.locations.length ? ` in ${run.config.searchCriteria.locations.join(", ")}` : ""}. Try a broader role, other locations or more sources.`,
           tone: "warning",
-          nextActions: [{ label: "Change the search", kind: "search_again", href: "/app/runs/new", primary: true }],
+          nextActions: [{ label: "Change the search", kind: "search_again", href: "/app?refresh=1", primary: true }],
         };
       }
       return {
@@ -113,7 +113,7 @@ export function describeRun(run: WorkflowRun, previous?: WorkflowRun): Experienc
         title: "This search couldn't finish",
         summary: `${run.error?.message ?? "Something went wrong."} Everything Wonder found before that is still available.`,
         tone: "danger",
-        nextActions: [{ label: "Search again", kind: "search_again", href: "/app/runs/new", primary: true }],
+        nextActions: [{ label: "Search again", kind: "search_again", href: "/app?refresh=1", primary: true }],
       };
     default: {
       // Terminal, non-failed: describeOutcome already owns the candidate-language result.

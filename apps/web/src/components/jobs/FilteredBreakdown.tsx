@@ -59,7 +59,7 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact" }:
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-line bg-surface px-3.5 py-2.5 text-[13px]">
+    <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] border border-line bg-surface px-3.5 py-2.5 text-[13px]">
       <span className="text-ink-2">
         Showing {result.visibleIds.length} of {result.totalCatalog} — <span className="font-medium text-ink">{result.hiddenTotal} hidden</span>:{" "}
         {reasons.map((r, i) => (

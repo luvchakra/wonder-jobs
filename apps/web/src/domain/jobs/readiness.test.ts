@@ -101,6 +101,11 @@ describe("searching on open, without a button", () => {
     expect(autoSearchDecision({ readiness: ready, mode: "demo", activeRun: false, catalogSize: 0, now }).reason).toBe("demo");
   });
 
+  it("a search the candidate typed stands until it's stale; a search from before origins were recorded counts as the profile's", () => {
+    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { origin: "words", searchCriteria: { query: "data analyst" } } } as never), catalogSize: 40, now }).reason).toBe("fresh");
+    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { searchCriteria: { query: "product manager" } } } as never), catalogSize: 40, now }).reason).toBe("changed");
+  });
+
   it("a role's search doesn't count as the profile's search having changed", () => {
     expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { role: { id: "r", title: "Data" }, searchCriteria: { query: "data analyst" } } } as never), catalogSize: 40, now }).reason).toBe("fresh");
   });

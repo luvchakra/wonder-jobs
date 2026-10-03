@@ -113,7 +113,10 @@ export function autoSearchDecision(p: { readiness: Readiness; mode: "user" | "de
   if (!last) return { run: true, reason: "first" };
   const at = Date.parse(last.completedAt ?? last.createdAt);
   if (last.status === "FAILED" && p.now - at < RECENT_FAILURE_MS) return { run: false, reason: "failed_recently" };
-  if (!last.config.role && last.config.searchCriteria.query.trim().toLowerCase() !== p.readiness.query.toLowerCase()) return { run: true, reason: "changed" };
+  // A search the candidate typed, or ran as one of their roles, stands until it's stale; a profile search
+  // (or one from before searches recorded their origin) is redone when the profile's own search changed.
+  const ownWords = !!last.config.role || last.config.origin === "words";
+  if (!ownWords && last.config.searchCriteria.query.trim().toLowerCase() !== p.readiness.query.toLowerCase()) return { run: true, reason: "changed" };
   if (p.catalogSize === 0) return { run: true, reason: "empty" };
   if (p.now - at > STALE_MS) return { run: true, reason: "stale" };
   return { run: false, reason: "fresh" };

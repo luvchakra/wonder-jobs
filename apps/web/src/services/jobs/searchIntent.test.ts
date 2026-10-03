@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { deriveSearchIntent } from "./searchIntent";
 
 describe("deriveSearchIntent — a plain-language request becomes a search, with nothing invented", () => {
+  it("reads “Find me IAM jobs” as a search for IAM — the acronym, not “I am”", () => {
+    expect(deriveSearchIntent("Find me IAM jobs").query).toBe("iam");
+    expect(deriveSearchIntent("IAM director roles in Mumbai")).toMatchObject({ query: "iam director", locations: ["Mumbai"] });
+  });
+
   it("reads the spec's own example: roles, several places and remote", () => {
     const i = deriveSearchIntent("Find Senior Director or VP IAM roles in Mumbai, Singapore or remote");
     expect(i.query).toBe("senior director vp iam");

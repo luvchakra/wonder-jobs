@@ -102,22 +102,14 @@ test.describe("Golden journey — applications (demo mode)", () => {
 });
 
 test.describe("Golden journey — run Wonder (demo mode)", () => {
-  test("GJ-007 starting a search lands on the job list, with that search's own page one tap away", async ({ page }) => {
-    await page.goto("/demo?next=/app/runs/new");
-    await expect(page).toHaveURL(/\/app\/runs\/new/);
-    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
-    // A demo seed run may already be "active" (services/mock/runs.ts), which disables this page's own
-    // submit button and offers "See progress" instead — either outcome proves runs are real and reachable.
-    const runPageUrl = /\/app\/runs\/(?!new$)[^/]+$/;
-    if (await continueBtn.isEnabled().catch(() => false)) {
-      await continueBtn.click();
-      await page.waitForURL(/\/app$/, { timeout: 20_000 });
-      await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
-    } else {
-      await page.getByRole("link", { name: "See progress" }).click();
-    }
-    await page.waitForURL(runPageUrl, { timeout: 20_000 });
-    expect(page.url()).toMatch(runPageUrl);
+  test("GJ-007 a search from the search box stays on the job list, with that search's own page one tap away", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
+    await page.goto("/demo?next=/app");
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("product manager in Bengaluru");
+    await page.getByRole("button", { name: /^Search every source for/ }).click();
+    await expect(page).toHaveURL(/\/app$/);
+    await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
+    await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
   });
 });
 
@@ -259,13 +251,9 @@ test.describe("Golden journey — manual intervention (demo mode)", () => {
   test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
     // Sample sources answer slowly enough that the search is still running when it's paused.
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
-    await page.goto("/demo?next=/app/runs/new");
-    const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
-    if (await continueBtn.isEnabled().catch(() => false)) {
-      await continueBtn.click();
-      await page.waitForURL(/\/app$/, { timeout: 20_000 });
-      await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
-    } else await page.getByRole("link", { name: "See progress" }).click();
+    await page.goto(`/demo?next=${encodeURIComponent("/app?search=product manager in Bengaluru")}`);
+    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+    await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
 
     // Pause/Continue live on the outcome card; the mobile status bar has its own labelled twin

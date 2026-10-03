@@ -274,7 +274,7 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
 /* ------------------------------------------------------------ features */
 /** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
 const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string }[] = [
-  { icon: Search, t: "Find opportunities", s: "Type it or say it, in your own words. Wonder shows what it understood before it searches.", href: "/demo?next=/app/runs/new" },
+  { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, and refreshed on their own. Type to search for something else.", href: "/demo?next=/app" },
   { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/demo?next=/app" },
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },

@@ -12,7 +12,7 @@ import { useJobsStore } from "@/store/jobs";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useWorkflowStore } from "@/store/workflow";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
+import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -256,6 +256,7 @@ function NoteBody({ note }: { note: RelevanceNote }) {
 
 /** One line: what Wonder is doing now, or what the list is from — with the per-source detail a tap away. */
 export function SearchStatusLine({ search }: { search: JobSearch }) {
+  // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
   const sources = useJobsStore((s) => s.sources);
   if (active) {
@@ -282,7 +283,7 @@ export function SearchStatusLine({ search }: { search: JobSearch }) {
       {widened && <p className="mb-1 text-ink-2">{widened}</p>}
       <p className={failed ? "text-danger-600" : "text-ink-3"} role={failed ? "alert" : undefined}>
         {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"} for “${c.query}”${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}`}{" "}
-        <button type="button" onClick={() => search.search()} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+        <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
           <RefreshCw className="size-3.5" aria-hidden /> {failed ? "Try again" : "Search again"}
         </button>{" "}
         <Link href={`/app/runs/${last.id}`} className="text-ink-3 underline-offset-2 hover:underline">
@@ -320,9 +321,26 @@ export function JobsEmpty({ search }: { search: JobSearch }) {
   return (
     <div className="rounded-[20px] border border-dashed border-line-strong px-6 py-10 text-center">
       <p className="text-[15px] font-semibold text-ink">No jobs yet</p>
-      <Button className="mt-4" onClick={() => search.search()}>
+      <Button className="mt-4" onClick={() => void search.searchNow()}>
         Search now
       </Button>
+    </div>
+  );
+}
+
+/** Search as the whole profile or as one of the candidate's roles — one tap, it searches. */
+export function RoleChips({ roles, current, onPick, busy }: { roles: { id: string; title: string }[]; current: string | null; onPick: (roleId: string | null) => void; busy: boolean }) {
+  return (
+    <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
+      <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>
+      <Chip active={current === null} onClick={() => onPick(null)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
+        My profile
+      </Chip>
+      {roles.map((r) => (
+        <Chip key={r.id} active={current === r.id} onClick={() => onPick(r.id)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
+          {r.title}
+        </Chip>
+      ))}
     </div>
   );
 }

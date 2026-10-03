@@ -273,9 +273,9 @@ test.describe("Candidate searches through JobsLake", () => {
 
   async function find(page: Page, request: string) {
     const lake = page.waitForRequest((r) => r.url().includes("/api/jobs-lake/v1/search") && r.method() === "POST");
-    await page.goto("/app/runs/new");
-    await page.locator("#find-request").fill(request);
-    await page.getByRole("button", { name: "Find opportunities" }).last().click();
+    await page.goto(`/app?search=${encodeURIComponent(request)}`);
+    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+    await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(RUN_URL, { timeout: 20_000 });
     return { card: page.locator("section[aria-labelledby='run-experience-title']"), lake: await lake };
   }

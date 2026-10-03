@@ -90,9 +90,9 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
   );
 }
 
-export function Chip({ active, onClick, children, className }: { active?: boolean; onClick?: () => void; children: React.ReactNode; className?: string }) {
+export function Chip({ active, onClick, children, className, disabled }: { active?: boolean; onClick?: () => void; children: React.ReactNode; className?: string; disabled?: boolean }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-colors", active ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong", className)}>
+    <button type="button" aria-pressed={active} onClick={onClick} disabled={disabled} className={cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-60", active ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong", className)}>
       {children}
     </button>
   );
