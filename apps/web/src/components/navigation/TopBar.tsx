@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Download, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -176,9 +176,6 @@ export function TopBar() {
               </>
             ) : (
               <>
-                <a role="menuitem" href="/demo" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-                  <FlaskConical className="size-4" aria-hidden /> Demo
-                </a>
                 <button
                   type="button"
                   role="menuitem"

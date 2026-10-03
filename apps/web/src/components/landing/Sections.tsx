@@ -274,17 +274,17 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
 /* ------------------------------------------------------------ features */
 /** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
 const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string }[] = [
-  { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, and refreshed on their own. Type to search for something else.", href: "/demo?next=/app" },
-  { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/demo?next=/app" },
-  { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
-  { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },
-  { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
-  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/demo?next=%2Fapp%2Fresume-studio%3Ftab%3Dtemplates" },
-  { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/demo?next=/app/jobs/job_razorpay_spm/apply" },
-  { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/demo?next=/app/career-dna" },
-  { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/demo?next=/app/automation/scheduled" },
-  { icon: LayoutList, t: "Track every application", s: "What needs you comes first — follow-ups due, interviews, replies — then every application from preparing to outcome.", href: "/demo?next=/app/applications" },
-  { icon: Share2, t: "Share a role", s: "Send a job to a friend or mentor. They see the real posting, no account needed.", href: "/demo?next=/app/jobs/job_razorpay_spm" },
+  { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, and refreshed on their own. Type to search for something else.", href: "/sign-up" },
+  { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/sign-up" },
+  { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/sign-up" },
+  { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
+  { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/sign-up" },
+  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/sign-up" },
+  { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/sign-up" },
+  { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
+  { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/sign-up" },
+  { icon: LayoutList, t: "Track every application", s: "What needs you comes first — follow-ups due, interviews, replies — then every application from preparing to outcome.", href: "/sign-up" },
+  { icon: Share2, t: "Share a role", s: "Send a job to a friend or mentor. They see the real posting, no account needed.", href: "/sign-up" },
   { icon: CalendarDays, t: "Your calendar and phone", s: "Subscribe from Google, Outlook or Apple Calendar, install WonderJobs like an app, and get nudges for interviews and follow-ups.", href: "/help#calendar", cta: "How it works" },
 ];
 
@@ -301,9 +301,6 @@ export function FeatureGrid() {
               <span className="wj-gradient-text">Nothing you don&apos;t.</span>
             </h2>
           </div>
-          <a href="/demo" className="inline-flex items-center gap-1 text-[14px] font-semibold text-brand-600 hover:underline">
-            Try it in the demo <ArrowRight className="size-4" aria-hidden />
-          </a>
         </ScrollReveal>
         <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
@@ -316,7 +313,7 @@ export function FeatureGrid() {
                 <span className="relative mt-4 text-[17px] font-semibold text-ink">{f.t}</span>
                 <span className="relative mt-1.5 flex-1 text-[14px] leading-relaxed text-ink-3">{f.s}</span>
                 <span className="relative mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-600">
-                  {f.cta ?? "See it in the demo"} <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
+                  {f.cta ?? "Get started free"} <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
                 </span>
               </Link>
             </ScrollReveal>
@@ -541,7 +538,6 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Résumé templates", href: "/#features" },
       { label: "Apply with Wonder", href: "/#extension" },
       { label: "Browser helper", href: "/extension" },
-      { label: "Live demo", href: "/demo" },
       { label: "Pricing & payments", href: "/terms#free", badge: "Free" },
     ],
   },
@@ -602,9 +598,6 @@ export function MarketingFooter() {
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href="/sign-up" size="sm" className="rounded-full">
               Get started free
-            </Button>
-            <Button href="/demo" variant="outline" size="sm" className="rounded-full">
-              Try the demo
             </Button>
           </div>
         </div>

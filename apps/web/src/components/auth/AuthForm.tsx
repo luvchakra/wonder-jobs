@@ -200,11 +200,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
             )}
           </p>
           <p className="mt-2 text-center text-[13px] text-ink-3">
-            Just looking?{" "}
-            <a href="/demo" className="font-semibold text-brand-600 hover:underline">
-              Explore the demo
-            </a>{" "}
-            · Stuck?{" "}
+            Stuck?{" "}
             <Link href="/help" className="font-semibold text-brand-600 hover:underline">
               Read the guide
             </Link>

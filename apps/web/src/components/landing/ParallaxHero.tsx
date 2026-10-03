@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowRight, Play, CheckCircle2, Bookmark, CalendarDays, Mail, Briefcase } from "lucide-react";
+import { ArrowRight, CheckCircle2, Bookmark, CalendarDays, Mail, Briefcase } from "lucide-react";
 import { HeroScene } from "./HeroScene";
 import { useTyped } from "./OutcomeSections";
 import { Button } from "@/components/common/Button";
@@ -84,9 +84,6 @@ export function ParallaxHero() {
           <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
               Get Started Free
-            </Button>
-            <Button href="/demo" size="xl" variant="glass" className="rounded-full" icon={<Play className="size-4" aria-hidden />}>
-              See the live demo
             </Button>
           </div>
           <ul className="wj-hero-in mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know" style={{ "--wj-i": 4 } as CSSProperties}>
@@ -207,9 +204,6 @@ export function FloatingDashboardCard({ className }: { className?: string }) {
       <p className="mt-3 flex items-center gap-1.5 text-[11px] text-ink-3">
         <span className="size-1.5 rounded-full bg-success-600 wj-animate-pulse-dot" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
       </p>
-      <a href="/demo" className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600">
-        Open the demo <ArrowRight className="size-3.5" aria-hidden />
-      </a>
     </div>
   );
 }

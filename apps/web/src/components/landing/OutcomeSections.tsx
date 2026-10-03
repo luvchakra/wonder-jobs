@@ -315,7 +315,7 @@ export function ControlSection() {
         </div>
 
         <ScrollReveal className="mt-10 text-center">
-          <Button href="/demo?next=/app/automation/settings" variant="glass" size="lg" className="rounded-full text-ink" iconRight={<ArrowRight className="size-4" aria-hidden />}>
+          <Button href="/sign-up" variant="glass" size="lg" className="rounded-full text-ink" iconRight={<ArrowRight className="size-4" aria-hidden />}>
             See what Wonder can do
           </Button>
         </ScrollReveal>

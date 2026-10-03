@@ -25,13 +25,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Create an account, finish onboarding, run your first search.",
     keywords: ["start", "signup", "sign up", "account", "onboarding", "first run", "begin", "register", "login", "sign in"],
     body: [
-      "Create an account with your email and a password, a magic link, or Google. Confirm your email if the deployment asks you to. Onboarding starts by asking what you'd like Wonder to help with — find my next role, improve my career profile, prepare an application, track my applications, or let Wonder work for me — and takes you there when you finish. Along the way you set your career goal, preferred locations, a short profile (headline, level, years, skills, industries) and how much you want Wonder to do on its own. You can import these from your résumé instead of typing them.",
+      "Create an account with your email and a password, a magic link, or Google. Onboarding is two screens: add your CV (PDF or Word, or type instead), then check the three lines Wonder read from it — the role you want, where, and your skills — and press Show my jobs. Your level, years, industries and work history are saved from the CV too; nothing is saved until that press.",
       "Everything you enter becomes your Career Profile. Wonder scores every real posting against it, so honest answers give better matches. You can refine it any time under Career.",
       "Signed in, the first screen is your jobs: every real posting Wonder found, ranked by how well it fits your Career Profile. Wonder searches on its own when you open it — the first time, when your profile's role changes, and when the list is more than 12 hours old — and one line says what it searched, where, and when; Details shows every source's count. If jobs can't be shown yet, that screen shows the one thing to do instead (add your CV, name the role you want, or switch on a source), right there. If a search finds nothing, Wonder searches once more without the location and then without the level words, and says what it let go. A single note below the line points out anything that weakens your matches — a scheduled search looking outside your field, skills that are all general ones, a role without a field, no location — with one fix.",
       "To search for something else, type it in the search box above your jobs — or tap the mic and say it. As you type, the list narrows to the jobs already found; “Search every source for …” underneath shows what Wonder read from your words (the role, and the places if you named any — for example “Senior product roles in Bengaluru or remote, preferably fintech”) and, when you tap it, searches live job sources for it, removes duplicates, compares each posting with your Career Profile, checks hiring signals, and puts what deserves your attention first — then you're back on your jobs. A search never prepares applications on its own: you prepare one from a job when you choose.",
-      "Getting around: the app has four places — Jobs (your ranked jobs, plus one line for anything in your applications that needs you), Applications (with Calendar, Insights, Interview Prep and Learning), Profile (your Career Profile and Résumés) and Settings (Job sources, Scheduled searches, What Wonder can do, AI provider, Search history and Account). Each place's pages are tabs at its top. On a phone the four places are the bar at the bottom; the menu at the top left lists every page. Ask Wonder, the search bar at the top, gets you anywhere from anywhere.",
+      "Getting around: four places, one per stage of a search — Find (your jobs), Saved (your shortlist), Applied (applications, with Calendar, Insights, Interview Prep and Learning) and You (Career Profile, Résumés, Job sources, What Wonder can do, Scheduled searches, Search history, AI provider, Account). On a phone they're the bar at the bottom; on a desktop, the sidebar. A place's own pages are tabs at its top. Ask Wonder, the bar at the top, gets you anywhere from anywhere; the bell lists what happened, each item with one button for the next step; the avatar menu holds Account, Get Help and sign-out.",
       "- Sign in: /sign-in · Create account: /sign-up · Forgot password: /forgot-password",
-      "- Curious first? Open the demo from the avatar menu: sample data on your device only, no account needed.",
     ],
   },
   {
@@ -58,7 +57,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "The profile Wonder matches against, and how each field is used.",
     keywords: ["career dna", "profile", "roles", "role", "search as", "open to", "skills", "seniority", "level", "industries", "locations", "salary", "headline", "goal", "edit profile", "work history", "experience", "education", "certifications", "projects", "import", "remembered answers", "needs confirmation"],
     body: [
-      "Career Profile (Career in the menu) is one page: career direction (name, headline, goal), experience (level and years), work history, education and contact, skills (each rated 1–5), preferences (industries, locations, work modes, minimum salary), strengths and growth areas, your résumé, and where your details came from.",
+      "Career Profile (You → Career Profile) asks two questions, each once. **What you're looking for**: the role you want (what Wonder searches for — a role and its field, not a level alone) and, folded under it, other roles you'd take. **About you**: name, current role, level, years, where, work mode and skills (tap a skill to mark it a strength) — what every job is matched against. Below, one row each for filling from your résumé, work history / education / contact, industries and minimum salary, strengths, remembered answers, what Wonder has learned, and where the profile came from. If your CV lists a role the profile is missing, the page says so and adds it in one tap.",
       "Work history, education, certifications, projects, publications and contact details are what résumé templates are built from — Wonder never adds a role, date or achievement you didn't enter.",
       "How matching uses it: your **field** — the words that name what you do, from your headline and career goal (level and industry words aside) — is looked for in each posting's title, then its tags, skills and requirements, then its description, as whole words or known spellings (IAM counts for 'Identity and Access Management', cybersecurity for 'Information Security'); a posting that never names your field is at most a stretch, whatever else it shares with you. Skills are looked for in the posting's own text (with common inflections, so 'roadmap' counts for 'Roadmapping'); skills most roles share — strategy, roadmap, platform, AI — count less for a posting outside your field. Level compares the posting's inferred seniority with yours; industries compare with the posting's inferred industry; locations decide location fit, including whether a remote role is actually open to your region; minimum salary compares with disclosed pay. Each job's page shows every one of these with its reason.",
       "**Roles you're open to**: if you'd take more than one kind of job — often ones you've held before — add each as a role (up to 6): a name like “Data Analyst”, optional search terms (empty reads them from the name), an optional goal for that search (empty uses the name) and a résumé to offer for it. Tap a role under **Search as** above your jobs (or its Search button here), or choose one when setting up a scheduled search: that search uses the role's terms and goal, while skills, level, locations and salary still come from your one Career Profile. The search, its results and each job it found say which role it ran as, and Apply with Wonder offers that role's résumé first. Roles save as soon as you add them; with none, searching works exactly as before.",
@@ -106,7 +105,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Jobicy, Remote OK, Himalayas — remote job feeds. Himalayas has no search of its own, so Wonder scans its newest postings.",
       "- Arbeitnow — Europe-focused, off by default. Remotive — its public feed exposes only a handful of listings, off by default.",
       "- Adzuna India — India-wide postings across boards; needs free developer keys on the server and shows 'needs setup' until then.",
-      "LinkedIn, Indeed, Naukri, Foundit and Glassdoor do not offer public job APIs, so Wonder does not search them and does not claim to. Turn sources on or off in Settings → Job sources; Refine → Sources narrows your list to the ones you pick.",
+      "LinkedIn, Indeed, Naukri, Foundit and Glassdoor do not offer public job APIs, so Wonder does not search them and does not claim to. Turn sources on or off in You → Job sources; Refine → Sources narrows your list to the ones you pick.",
       "All of these are searched together through JobsLake, WonderJobs' job-data layer: one search asks every source you have switched on, and the same role posted on several sources becomes one job. Open a job → Sources & signals → “Where this job was found” to see every listing, which one WonderJobs shows (the employer's own site when there is one) and which source each key field came from; “Check … now” re-reads the original listing. A search's “See how Wonder worked” shows how many sources answered and what each returned.",
     ],
   },
@@ -119,7 +118,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Every job shows a fit label: Strong Opportunity (82+), Worth Considering (68+), Stretch (55+) or Low-Fit — the percentage is there on hover, never on its own. The score is a weighted blend of skills, seniority, industry, career goal, location and compensation; the Why it fits tab (“Why this job?”) explains each one in plain language.",
       "Each card also says why Wonder surfaced the job, what to consider, and a suggested next step — only from the scores and signals computed for that posting.",
       "Job quality is separate from fit: it estimates how likely a posting is to lead to a real hire from freshness, reposts, cross-posting, whether it appears on the employer's own site, salary transparency and source reliability. Low confidence roles are excluded from the shortlist.",
-      "- Your jobs have four views: For you (worth considering and better), Strong, All and Saved. Refine holds everything else — sort (best match, newest, salary), work mode, when it was posted, minimum salary, sources and Compare. If you've added roles, “Search as” chips search as one of them in one tap.",
+      "- Find has three views: For you (worth considering and better), Strong and All; Saved is its own tab. Every card shows the designation and salary in the same place — a missing salary says Not listed. Refine holds everything else — sort (best match, newest, salary), work mode, when it was posted, minimum salary, sources and Compare. What was searched, the Search-as role chips and any note about your matches sit below the list.",
       "- When jobs are hidden, Wonder says how many and which preference hides each group, with Show it anyway and Change preference. Show it anyway never brings back a job you marked Not for me — undo that from the job itself.",
       "- Compare: Refine → Compare jobs, then tick two to four jobs to see them side by side. Wonder points out real differences; it doesn't pick a winner.",
       "- Save keeps a job in your list and can be picked up by the next run. Not for me hides it; mark three or more for the same reason and Wonder offers to treat that as a preference (see Career Profile → Needs confirmation).",
@@ -138,7 +137,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- On an application's page, “Download resume (.docx)” and “Download cover letter (.docx)” save the current version as a Word file. For a designed PDF, choose a résumé template instead (see Résumé templates).",
       "Wonder never submits on an employer's site. Their forms need your own identity and consent, so every application ends with a hand-off: Continue to Employer (or Open application page) opens the employer's own form, you submit it there — yourself, or with Apply with Wonder filling it first — and then choose Mark as submitted so Wonder tracks it.",
       "- If you press Continue on a search with approvals still pending, those hand-offs are recorded as not approved; open the application later or rerun from that stage.",
-      "- Applications opens on a Timeline: Needs attention at the top (follow-ups due, interviews coming up, packs ready for review, employer replies), then a pipeline — Preparing, Applied, Interview, Outcome. The List view is one click away.",
+      "- Applications opens with Needs attention at the top (follow-ups due, interviews coming up, packs ready for review, employer replies), then a pipeline — Preparing, Applied, Interview, Outcome. The List view is one click away.",
       "- Each application keeps its own history: discovered, prepared, submitted, responses, interviews, outcome. Add notes and follow-ups; reminders appear in notifications and on the calendar.",
       "- Follow-up and thank-you emails: Wonder drafts one, you copy it and send it from your own email, then choose Mark as sent. Wonder has no recruiter's address and doesn't send email itself; each one is recorded in the audit log.",
     ],
@@ -164,7 +163,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Upload the résumé you already use, mark a base résumé, or generate one from eight ATS-friendly templates.",
     keywords: ["resume", "résumé", "cv", "template", "pdf", "docx", "word", "ats", "download", "executive", "technical", "classic", "leadership", "career shift", "academic", "creative", "modern", "my resumes", "upload", "base resume", "base résumé", "own resume", "file"],
     body: [
-      "Profile → Résumés (Resume Studio) opens on My resumes: your own résumé files, the résumés you generated, and tailored drafts from applications.",
+      "You → Résumés (Resume Studio) opens on My resumes: your own résumé files, the résumés you generated, and tailored drafts from applications.",
       "- Upload résumé adds the résumé you already use — a PDF or Word (.docx) file up to 3 MB, five files at most. It's checked by its contents (a real PDF or Word file, with no scripts, macros or password protection), stored encrypted, and attached to applications exactly as you uploaded it. Download or delete it any time.",
       "- Fill Career Profile on a file reads it and proposes your work history, education, certifications and contact details for the Career Profile — you tick what to add (see Career Profile).",
       "- Set as base marks the résumé Wonder offers first when you apply — one of your files or a generated résumé. Your first upload becomes your base if you have none; Wonder never picks one for you otherwise, and you can choose a different résumé for any job.",
@@ -182,6 +181,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Help me, Work with me, Work independently, Keep watch — and per-capability rules.",
     keywords: ["automation", "level", "help me", "work with me", "work independently", "keep watch", "assist", "guided", "autonomous", "continuous", "policy", "permission", "ask me", "risk", "capability"],
     body: [
+      "You → What Wonder can do: pick one of four levels (Help me, Work with me, Work independently, Keep watch). Under it, the page lists exactly what Wonder does on its own, asks you first, and never, at that level — read from the same rule the app enforces, so it can't drift from what happens. Change one action is one tap down.",
       "Choose how much Wonder should handle for each search: Help me (Wonder finds opportunities and asks before doing anything else, even drafting), Work with me (the recommended default: searching, comparing and drafting happen on their own, and Wonder asks before anything that matters), Work independently (anything you've set to Automatic in What Wonder can do runs without asking each time), Keep watch (as Work independently, and Wonder also searches on your schedule, telling you only when something is worth your attention).",
       "What Wonder can do (in Settings) sets a rule per capability: search jobs, deduplicate, analyze jobs, rank opportunities, save jobs, generate résumé, generate cover letter, fill application forms, hand off application, draft a recruiter message, draft a follow-up email, change search preferences and change Career Profile. Each is Automatic, Ask me, or Off.",
       "- Fill application forms (Apply with Wonder) starts as Ask me. Even on Automatic it only fills fields — it can never submit, and hand off application only ever opens the employer's page for you.",
@@ -195,6 +195,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Daily discovery, conditions for notifying you, and the builder.",
     keywords: ["schedule", "scheduled", "daily", "weekly", "cron", "automatic run", "builder", "template", "notify", "silent"],
     body: [
+      "You → Scheduled searches lists each search as one row — when it runs, what it waits for, how the last run went — with its on/off switch. Open a row to change what it looks for and how often, run it now, duplicate or delete it; Advanced search automation at the bottom opens the full builder.",
       "“How often should Wonder look?” — choose Every day, Every week, Keep watch (tells you only when there are strong matches) or I'll search manually, and describe what to look for in your own words. That's all a scheduled search needs; the full builder is under Advanced search automation.",
       "Scheduled searches repeat a workflow (for example Daily Job Discovery at 8 am). Each schedule has a condition such as 'strong matches found' or 'new jobs found': if the condition is not met the run finishes quietly and you are not notified. Silence is a valid outcome.",
       "The builder lets you set trigger, frequency, conditions, actions, AI provider and model, or start from a template. Duplicate, pause or run any schedule now.",
@@ -209,9 +210,10 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Put interviews and follow-ups in your own calendar, get nudges, and install WonderJobs on your phone.",
     keywords: ["calendar", "google calendar", "outlook", "apple calendar", "ical", "ics", "subscribe", "interview", "reminder", "notifications", "push", "install", "app", "home screen", "phone", "iphone", "android", "pwa"],
     body: [
-      "The calendar shows everything with a date: interviews, follow-ups and scheduled searches. Open it from Home → Upcoming → View all, from Profile, or by typing “Calendar” in Ask Wonder.",
+      "The calendar shows everything with a date: interviews, follow-ups and scheduled searches. Open it from Applied → Calendar, or by typing “Calendar” in Ask Wonder.",
       "- Subscribe (signed-in accounts): gives you a private link to add in Google Calendar (Other calendars → + → From URL), Outlook (Add calendar → Subscribe from web) or Apple Calendar (File → New Calendar Subscription). Your calendar app keeps it up to date on its own — usually every 30 minutes or so, not instantly. It's read-only, and anyone with the link can see your upcoming interviews and follow-ups, so treat it like a password. The demo has no account to link, so Subscribe doesn't appear there.",
       "- Notifications: the bell at the top lists what needs you. Turn on Profile → Notifications on this device to also get a nudge on that phone or computer — when a scheduled search finds strong matches, and for follow-up and interview reminders — even while WonderJobs is closed. It's per browser, and permission is only asked when you press the button.",
+      "- Notifications: the bell at the top lists what happened — strong matches from a search, a follow-up due, an application ready for review, a search that needs you. Each has one button for the next step, and a repeat of the same message replaces the old one instead of piling up.",
       "- Install the app: in Chrome, Edge and other Chromium browsers, Install app appears in the avatar menu when your browser allows it. On iPhone, open WonderJobs in Safari and choose Share → Add to Home Screen (that's also how iPhone allows notifications). The installed app is the same WonderJobs, always showing your live data.",
     ],
   },
@@ -225,17 +227,6 @@ export const HELP_SECTIONS: HelpSection[] = [
       "WonderJobs AI is the default. When the deployment has a platform key it uses a real model at no charge to you; otherwise it produces clearly labelled template drafts.",
       "Bring your own key: connect an Anthropic, OpenAI or Gemini key under AI provider. The key is encrypted at rest, never returned to the browser, never logged. Requests are billed to your provider account, which the product says plainly. If your provider fails, Wonder only switches to WonderJobs AI when you have allowed automatic fallback, and tells you when it did.",
       "- Usage and estimated cost per request are listed under AI provider.",
-    ],
-  },
-  {
-    id: "demo",
-    title: "Demo mode",
-    summary: "Sample data on your device, how to enter and leave it.",
-    keywords: ["demo", "sample", "try", "explore", "alex morgan", "exit demo"],
-    body: [
-      "Demo mode shows the product with a sample candidate ('Alex Morgan'), a realistic history and generated postings. It lives only on your device, syncs nothing to an account and needs no sign-in.",
-      "- Enter from the landing page, the sign-in page, or the avatar menu ('Demo'). Leave with 'Exit demo' in the avatar menu or on the profile page.",
-      "- Your real account and the demo never mix: each keeps its own local state.",
     ],
   },
   {
@@ -273,7 +264,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "What is not there yet, in the open.",
     keywords: ["roadmap", "backlog", "coming", "limitation", "not supported", "missing", "future", "planned", "billing", "pro", "email delivery", "scheduler"],
     body: [
-      "- Jobs-first redesign (in progress): your jobs are the first screen and search on their own, with one search box and four places in the menu. Coming next: a start that's just your CV — upload it, check three lines, see your jobs.",
+      "- Jobs-first redesign (done): four places — Find, Saved, Applied, You — with jobs first on every screen, CV-first onboarding, and every page trimmed to its one job. The demo is gone: the product runs on real accounts only.",
       "- Follow-up emails are drafted for you to copy and send yourself; sending them from WonderJobs is planned once a mail provider is connected.",
       "- More sources: the platform team adds employer boards (Greenhouse, Lever, Ashby, SmartRecruiters, Workable), official APIs, feeds and MCP sources through JobsLake, each activated only after a real test. Adzuna India needs keys; LinkedIn, Indeed and Naukri stay off until a partnership exists.",
       "- Pro subscriptions can be paid through Razorpay or Stripe where this deployment has connected them, but Pro doesn't unlock extra features yet — what it includes is still being decided.",
@@ -311,9 +302,8 @@ export const HELP_FAQ: HelpFaq[] = [
   { q: "How do I download or delete my data?", a: "Profile → Your data. Download my data gives you everything as one JSON file; Delete account deletes your sign-in and data at once, keeping only payment records the law requires.", section: "billing-data" },
   { q: "Is my API key safe?", a: "It is encrypted at rest, only ever used from the server, never returned to the browser or logged, and you can remove it any time.", section: "ai" },
   { q: "How do I reset my password?", a: "Use 'Forgot password?' on the sign-in page; the emailed link opens a page to choose a new one.", section: "account" },
-  { q: "What is the demo?", a: "A sample candidate on your device only, for exploring. It never touches your account.", section: "demo" },
   { q: "Will scheduled searches happen while I'm away?", a: "Yes. Wonder's servers fire schedules too, so a run happens while you're away and the shortlist is waiting when you sign in. With the app open they fire at exactly their time; with it closed the server picks them up on its next sweep. Anything needing your approval still waits for you.", section: "scheduled-runs" },
-  { q: "Can Wonder notify me on my phone?", a: "Yes — Profile → 'Notifications on this device'. You'll get a nudge when a scheduled search finds strong matches. It's per browser, so turn it on wherever you want it. On iPhone, add WonderJobs to your Home Screen first; that's Safari's rule, not ours.", section: "scheduled-runs" },
+  { q: "Can Wonder notify me on my phone?", a: "Yes — You → Account → 'Notifications on this device'. You'll get a nudge when a scheduled search finds strong matches. It's per browser, so turn it on wherever you want it. On iPhone, add WonderJobs to your Home Screen first; that's Safari's rule, not ours.", section: "scheduled-runs" },
   { q: "Can I change my automation level later?", a: "Yes, per run and in What Wonder can do; high-risk actions always follow your policy.", section: "automation" },
 ];
 

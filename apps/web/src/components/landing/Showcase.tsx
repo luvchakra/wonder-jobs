@@ -337,10 +337,10 @@ function PhoneApplication() {
 }
 
 const SCREENS: Screen[] = [
-  { id: "home", label: "Home", title: "What deserves your attention today", body: "Strong matches, follow-ups and interviews, ranked by what needs you first — plus your progress, and when Wonder looks next.", demo: "/demo?next=/app", desktop: <DesktopHome />, phone: <PhoneHome /> },
-  { id: "find", label: "Find", title: "Real progress, in plain words", body: "Wonder shows what it's doing and what it has found so far. Pause or stop any time — everything already found stays. When it needs you, it says why.", demo: "/demo?next=/app", desktop: <DesktopFind />, phone: <PhoneFind /> },
-  { id: "jobs", label: "Decide", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile. Each card says why Wonder surfaced it and what to weigh.", demo: "/demo?next=/app/jobs", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Apply with Wonder fills the employer's form and leaves what's yours to answer — submitting is always yours.", demo: "/demo?next=/app/applications", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "home", label: "Home", title: "What deserves your attention today", body: "Strong matches, follow-ups and interviews, ranked by what needs you first — plus your progress, and when Wonder looks next.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
+  { id: "find", label: "Find", title: "Real progress, in plain words", body: "Wonder shows what it's doing and what it has found so far. Pause or stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
+  { id: "jobs", label: "Decide", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile. Each card says why Wonder surfaced it and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
+  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Apply with Wonder fills the employer's form and leaves what's yours to answer — submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
@@ -376,7 +376,7 @@ export function ShowcaseSection() {
                   <span className="size-2.5 rounded-full bg-[#ff5f57]" />
                   <span className="size-2.5 rounded-full bg-[#febc2e]" />
                   <span className="size-2.5 rounded-full bg-[#28c840]" />
-                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">wonderjobs.app{screen.demo.replace("/demo?next=", "")}</span>
+                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">wonderjobs.app{screen.demo.replace("/sign-up", "")}</span>
                 </div>
                 <div className="min-h-[300px]">{screen.desktop}</div>
               </div>
@@ -452,7 +452,7 @@ export function ContactSection() {
           <ul className="mt-8 space-y-4 text-[14.5px] text-ink-2">
             {[
               { icon: Sparkles, t: "Quick answers first", s: "The help center answers most questions instantly.", href: "/help", cta: "Open the help center" },
-              { icon: Target, t: "Try before you ask", s: "The demo runs on sample data. No account needed.", href: "/demo", cta: "Open the demo" },
+              { icon: Target, t: "Something not working?", s: "Say which page and what you expected; a screenshot helps.", href: null, cta: null },
               { icon: Mail, t: "Typical reply time", s: "Within two working days.", href: null, cta: null },
             ].map((r) => (
               <li key={r.t} className="flex items-start gap-3">

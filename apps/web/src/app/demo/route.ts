@@ -6,6 +6,8 @@ export const runtime = "nodejs";
 
 /** Enter demo mode: the product runs on seeded sample data, stored on this device only. `?next=/app/jobs` deep-links into a screen. */
 export async function GET(req: Request) {
+  // No public demo: the product runs on real accounts. Local development and the e2e suite (WJ_DEMO_ENABLED=1) keep it.
+  if (process.env.NODE_ENV === "production" && process.env.WJ_DEMO_ENABLED !== "1") return new NextResponse("Not found", { status: 404 });
   const raw = new URL(req.url).searchParams.get("next");
   const next = safeNextPath(raw, "/app", "/app");
   const res = NextResponse.redirect(new URL(next, req.url), { status: 303 });
