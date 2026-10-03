@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { deflateSync } from "node:zlib";
 import { checkResumeFile, MAX_RESUME_FILE_BYTES, RESUME_MIME, safeResumeFilename } from "./fileValidation";
 import { decryptFile, encryptFile, MemoryResumeFileStore, resumeFileStore, setResumeFileStoreForTests } from "./files";
-import { cleanResumeFilename } from "@/domain/resume/files";
+import { cleanGeneratedResumeName, cleanResumeFilename } from "@/domain/resume/files";
 
 function pdf(body = "BT (Priya Raman) Tj ET", extra = ""): Buffer {
   return Buffer.from(`%PDF-1.7\n1 0 obj\n<< /Length ${body.length} >>\nstream\n${body}\nendstream\nendobj\n${extra}trailer\n<< /Root 1 0 R >>\n%%EOF`, "latin1");
@@ -192,5 +192,13 @@ describe("renaming a résumé file", () => {
     expect(cleanResumeFilename("a<b>:c|d?", "docx")).toBe("a b c d.docx");
     expect(cleanResumeFilename("   ...  ", "pdf")).toBeNull();
     expect(cleanResumeFilename("x".repeat(300), "pdf")).toHaveLength(104);
+  });
+
+  it("keeps a template résumé's name to what an Application Pack accepts, so employers get the name shown", () => {
+    expect(cleanGeneratedResumeName("  Kunal Chakraborty - Resume.pdf ")).toBe("Kunal Chakraborty - Resume");
+    expect(cleanGeneratedResumeName("Kunal & Co, CV (IAM)")).toBe("Kunal Co CV (IAM)");
+    expect(cleanGeneratedResumeName("../x")).toBe("x");
+    expect(cleanGeneratedResumeName("&&&")).toBeNull();
+    expect(`${cleanGeneratedResumeName("Kunal & Co, CV (IAM)")}.pdf`).toMatch(/^[\w .()\-–—À-ž]+\.(pdf|docx)$/i);
   });
 });

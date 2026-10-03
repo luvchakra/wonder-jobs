@@ -12,6 +12,8 @@ export interface SavedResume {
   createdAt: string;
   document: ResumeDocument;
   pageCount: number;
+  /** The candidate's own name for it — the file name employers see (no extension). Unset: a name from the template. */
+  name?: string;
   /** Set when generated for a job's application. */
   target?: { jobId: string; title: string; company: string; applicationId?: string };
 }

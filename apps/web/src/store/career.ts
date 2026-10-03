@@ -59,6 +59,8 @@ interface CareerState {
   forgetAnswer: (key: MemoryKey) => void;
   saveResume: (r: Omit<SavedResume, "id" | "createdAt">) => SavedResume;
   deleteResume: (id: string) => void;
+  /** The candidate's name for a generated résumé (the file name employers see); blank goes back to the template's name. */
+  renameResume: (id: string, name: string) => void;
   completeOnboarding: () => void;
   addActivity: (item: Omit<ActivityItem, "id" | "at">) => void;
   addUpcoming: (item: Omit<UpcomingItem, "id">) => void;
@@ -129,6 +131,7 @@ export const useCareerStore = create<CareerState>()(
         set((s) => ({ savedResumes: [saved, ...s.savedResumes].slice(0, MAX_SAVED_RESUMES) }));
         return saved;
       },
+      renameResume: (id, name) => set((s) => ({ savedResumes: s.savedResumes.map((r) => (r.id === id ? { ...r, name: name.trim() || undefined } : r)) })),
       // Deleting the base résumé clears the choice; nothing else is promoted in its place.
       deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id), baseResume: s.baseResume?.kind === "saved" && s.baseResume.id === id ? undefined : s.baseResume, roles: withoutResume(s.roles ?? [], { kind: "saved", id }) })),
       completeOnboarding: () => set({ onboarded: true }),

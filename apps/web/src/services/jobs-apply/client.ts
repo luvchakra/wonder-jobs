@@ -114,7 +114,7 @@ export async function buildPack(input: { app: Application; job: CanonicalJob; dn
     const g = renderSaved(input.resume.saved.document, input.resume.saved.templateId);
     if (g) {
       const bytes = await renderResumePdf(g.layout, { loadFont: fetchFont, title: `${g.document.header.name} — Résumé`, author: g.document.header.name });
-      resume = { kind: "resume", filename: resumeFilename(g, "pdf"), source: "template-pdf", base64: toBase64(bytes), templateId: g.template.id, templateVersion: input.resume.saved.templateVersion, versionId: input.resume.saved.id, provenance: "SYSTEM_DERIVED" };
+      resume = { kind: "resume", filename: resumeFilename(g, "pdf", input.resume.saved.name), source: "template-pdf", base64: toBase64(bytes), templateId: g.template.id, templateVersion: input.resume.saved.templateVersion, versionId: input.resume.saved.id, provenance: "SYSTEM_DERIVED" };
     }
   } else {
     const v = current(app, "resume");

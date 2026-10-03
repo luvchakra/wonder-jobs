@@ -33,7 +33,7 @@ function useResumeChoices() {
   }, [load]);
   return [
     ...files.map((f) => ({ key: refKey({ kind: "upload", id: f.id }), label: `${f.filename} (your file)` })),
-    ...saved.map((r) => ({ key: refKey({ kind: "saved", id: r.id }), label: `${getTemplate(r.templateId)?.name ?? "Template"} — ${r.target ? `${r.target.company}, ${r.target.title}` : r.document.header.headline || "General"} (${formatDate(r.createdAt)})` })),
+    ...saved.map((r) => ({ key: refKey({ kind: "saved", id: r.id }), label: `${r.name ?? getTemplate(r.templateId)?.name ?? "Template"} — ${r.target ? `${r.target.company}, ${r.target.title}` : r.document.header.headline || "General"} (${formatDate(r.createdAt)})` })),
   ];
 }
 

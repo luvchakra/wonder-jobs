@@ -3,6 +3,7 @@
  * candidate's résumé never has to leave their device to be rendered. `pdf-lib` loads only when a PDF
  * is actually requested.
  */
+import { cleanResumeFilename } from "@/domain/resume/files";
 import type { GeneratedResume } from "./generate";
 import { buildResumeDocx } from "./docx";
 
@@ -17,18 +18,21 @@ function save(bytes: Uint8Array<ArrayBuffer>, type: string, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-export function resumeFilename(g: GeneratedResume, ext: "pdf" | "docx") {
+/** The candidate's own name when they gave one (the name employers see); otherwise one built from the résumé. */
+export function resumeFilename(g: GeneratedResume, ext: "pdf" | "docx", ownName?: string) {
+  const own = ownName ? cleanResumeFilename(ownName, ext) : null;
+  if (own) return own;
   const name = (g.document.header.name || "Resume").replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_|_$/g, "");
   const target = g.document.target ? `_${g.document.target.company.replace(/[^\p{L}\p{N}]+/gu, "_")}` : "";
   return `${name}_Resume_${g.template.name.replace(/[^\p{L}\p{N}]+/gu, "")}${target}.${ext}`;
 }
 
-export async function downloadPdf(g: GeneratedResume) {
+export async function downloadPdf(g: GeneratedResume, ownName?: string) {
   const { renderResumePdf, fetchFont } = await import("./pdf");
   const bytes = await renderResumePdf(g.layout, { loadFont: fetchFont, title: `${g.document.header.name} — Résumé`, author: g.document.header.name });
-  save(new Uint8Array(bytes), "application/pdf", resumeFilename(g, "pdf"));
+  save(new Uint8Array(bytes), "application/pdf", resumeFilename(g, "pdf", ownName));
 }
 
-export function downloadDocx(g: GeneratedResume) {
-  save(buildResumeDocx(g.document, g.template), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", resumeFilename(g, "docx"));
+export function downloadDocx(g: GeneratedResume, ownName?: string) {
+  save(buildResumeDocx(g.document, g.template), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", resumeFilename(g, "docx", ownName));
 }
