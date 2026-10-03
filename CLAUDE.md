@@ -42,6 +42,16 @@ WonderJobs already separates "what AI may decide" from "what only application co
 - A legacy/no-auth mode exists (a random `wj_uid` cookie, used when Supabase Auth isn't configured) where tenant identity has no real authentication behind it — acceptable for local/dev, but never describe or market that mode as equivalent to authenticated tenant isolation.
 - Secrets (BYOK provider keys) are AES-256-GCM encrypted server-side and masked on read (`server/secrets.ts`); never log a decrypted key, pass one to the client, or add a new secret type that skips this store.
 
+## Minimal UI
+
+Every page stays minimalistic. Before adding a control, look for one to remove.
+
+- **Fewest buttons and options possible.** One primary action per screen; a list item carries at most one action (e.g. Save) — the rest live on the item's own page.
+- **Fold, don't show.** Settings, rarely used options, explanations and advanced controls go behind a collapsed row (`components/common/Fold.tsx`) or Refine — never laid out all at once.
+- **Default instead of asking.** Pick a sensible default from the candidate's data rather than adding a selector; don't add choices the candidate doesn't need to make.
+- **Short copy.** One line of help at most; no repeated explanations, badges or "why" blocks on list items.
+- When changing a page, count its visible controls before and after; the number should go down, not up.
+
 ## Ship fast (pre-launch — no end users yet)
 
 The owner tests changes themselves. Speed of getting a change in front of them beats exhaustive pre-push verification. Until this section is changed:
