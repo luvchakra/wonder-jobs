@@ -78,7 +78,7 @@ test.describe("Real account — production walk-through", () => {
     await expect(page.getByText("Example Payments").first()).toBeVisible();
 
     // Résumé Studio: eight templates drawing this account's own data; generate and download a real PDF.
-    await page.goto("/app/resume-studio");
+    await page.goto("/app/resume-studio?tab=templates");
     await expect(page.getByRole("heading", { name: "Choose a resume template" })).toBeVisible({ timeout: 20_000 });
     const cards = page.getByRole("list", { name: "Resume templates" }).getByRole("article");
     await expect(cards).toHaveCount(8);

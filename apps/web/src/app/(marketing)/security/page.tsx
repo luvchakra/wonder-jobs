@@ -42,7 +42,7 @@ export default function SecurityPage() {
             <ul>
               <li>Security headers on every response: a Content Security Policy that limits where scripts, styles and connections can come from, HSTS, framing blocked (clickjacking), MIME sniffing off, a strict referrer policy and a permissions policy that allows only the microphone (for dictation), only on our own pages.</li>
               <li>Requests that change data are refused when the browser reports they came from another site (CSRF protection), on top of SameSite cookies.</li>
-              <li>Rate limits on the AI, upload, contact, search, payment and privacy endpoints; body-size limits on uploads and webhooks; résumé files are read in memory with decompression limits and never stored.</li>
+              <li>Rate limits on the AI, upload, contact, search, payment and privacy endpoints; body-size limits on uploads and webhooks; a résumé imported to fill your Career Profile is read in memory with decompression limits and never stored; a résumé file you upload to keep is checked by its contents (real PDF or Word, no scripts, macros or encryption) before it&apos;s stored.</li>
               <li>Server errors are logged without personal data and never sent to the browser verbatim.</li>
             </ul>
           ),
@@ -52,6 +52,7 @@ export default function SecurityPage() {
           title: "Your AI keys",
           body: (
             <ul>
+              <li>Résumé files you upload are encrypted with AES-256-GCM under their own derived key, bound to your account and the file&apos;s id, so a copied ciphertext can&apos;t be read as anyone else&apos;s file.</li>
               <li>Bring-your-own keys are encrypted with AES-256-GCM before storage, using an encryption key derived (HKDF) only for that purpose, and decrypted only inside the request that uses them.</li>
               <li>Keys are never returned to the browser; the settings page shows only that a key exists and its last four characters.</li>
               <li>Provider calls happen server-side, so your key is never exposed to scripts in the page.</li>

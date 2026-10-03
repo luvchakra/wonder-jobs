@@ -16,6 +16,7 @@ import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
 import { hashKey } from "@/lib/ids";
 import { markdownToPlainText } from "@/lib/richtext";
 import { writeZip } from "@/lib/zip";
+import type { UploadedResume } from "@/domain/resume/files";
 
 export type PublicSession = Omit<JobsApplySession, "tokenNonce">;
 export interface SessionView {
@@ -92,7 +93,7 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-export type ResumeChoice = { kind: "tailored" } | { kind: "saved"; saved: SavedResume };
+export type ResumeChoice = { kind: "tailored" } | { kind: "saved"; saved: SavedResume } | { kind: "upload"; file: UploadedResume };
 
 /**
  * The snapshot a session starts with (§6, §107). Only what exists goes in: the application's current
@@ -103,7 +104,10 @@ export async function buildPack(input: { app: Application; job: CanonicalJob; dn
   const name = safe(dna.name);
   const company = safe(job.company);
   let resume: ApplicationPackSnapshot["resume"];
-  if (input.resume.kind === "saved") {
+  if (input.resume.kind === "upload") {
+    // The candidate's own file goes by reference only; the server hands it to the helper when a form asks.
+    resume = { kind: "resume", filename: input.resume.file.filename, source: "uploaded", versionId: input.resume.file.id, provenance: "USER_PROVIDED" };
+  } else if (input.resume.kind === "saved") {
     const { renderSaved } = await import("@/services/resume/generate");
     const { renderResumePdf, fetchFont } = await import("@/services/resume/pdf");
     const { resumeFilename } = await import("@/services/resume/download");
@@ -168,6 +172,7 @@ function b64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
 
 export function packFileBytes(f: NonNullable<ApplicationPackSnapshot["resume"]>): { bytes: Uint8Array<ArrayBuffer>; mime: string } | null {
   if (f.source === "template-pdf" && f.base64) return { bytes: b64ToBytes(f.base64), mime: "application/pdf" };
+  if (f.source === "uploaded" && f.base64) return { bytes: b64ToBytes(f.base64), mime: /\.docx$/i.test(f.filename) ? DOCX_MIME : "application/pdf" };
   if (f.markdown) return { bytes: buildDocxBytes(f.markdown), mime: DOCX_MIME };
   return null;
 }
@@ -223,6 +228,11 @@ export async function rehydratePack(pack: ApplicationPackSnapshot, app: Applicat
       const g = renderSaved(s.document, s.templateId);
       if (g) resume = { ...resume, base64: toBase64(await renderResumePdf(g.layout, { loadFont: fetchFont, title: `${g.document.header.name} — Résumé`, author: g.document.header.name })) };
     }
+  }
+  if (resume?.source === "uploaded" && !resume.base64) {
+    // Fetched from the candidate's own files for a guided download or the pack zip; never stored in the session.
+    const res = await fetch(`/api/resume-files/${encodeURIComponent(resume.versionId)}`, { cache: "no-store" }).catch(() => null);
+    if (res?.ok) resume = { ...resume, base64: toBase64(new Uint8Array(await res.arrayBuffer())) };
   }
   const byVersion = (type: ArtifactType, id: string) => app?.artifacts.find((a) => a.type === type)?.versions.find((v) => v.id === id)?.content;
   if (resume?.source === "tailored-docx" && !resume.markdown) resume = { ...resume, markdown: byVersion("resume", resume.versionId) };

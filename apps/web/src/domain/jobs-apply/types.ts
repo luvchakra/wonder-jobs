@@ -44,8 +44,12 @@ export interface RememberedAnswer {
 export interface PackFile {
   kind: "resume" | "cover_letter";
   filename: string;
-  /** "tailored-docx": built on the server from the application's current Markdown. "template-pdf": a saved résumé rendered from a template. */
-  source: "tailored-docx" | "template-pdf";
+  /**
+   * "tailored-docx": built on the server from the application's current Markdown. "template-pdf": a saved
+   * résumé rendered from a template. "uploaded": the candidate's own file — never copied into the session;
+   * `versionId` is its file id and the server reads it from the candidate's encrypted files on demand.
+   */
+  source: "tailored-docx" | "template-pdf" | "uploaded";
   /** The DOCX's source text (tailored) — never sent to logs. */
   markdown?: string;
   /** Base64 PDF bytes (template). Dropped from the session once it ends. */

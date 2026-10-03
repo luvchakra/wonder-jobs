@@ -106,7 +106,7 @@ export function ResumeImport({ current, onApply, tone = "light", label = "Import
           reset();
         }}
         title="Import from your resume"
-        description="Wonder reads it, suggests what to fill in, and shows you where each value came from. Nothing is saved until you apply it, and the file itself is never stored."
+        description="Wonder reads it, suggests what to fill in, and shows you where each value came from. Nothing is saved until you apply it, and the file you import here isn’t kept — to keep one to attach when you apply, upload it in Resume Studio."
         size="lg"
         footer={
           draft ? (

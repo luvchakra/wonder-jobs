@@ -7,6 +7,7 @@ import { EMPTY_DNA } from "@/domain/career/types";
 import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from "@/domain/career/learning";
 import { newId } from "@/lib/ids";
 import { MAX_SAVED_RESUMES, type SavedResume } from "@/domain/resume/saved";
+import type { BaseResumeRef } from "@/domain/resume/files";
 import type { MemoryKey, RememberedAnswer } from "@/domain/jobs-apply/types";
 
 interface CareerState {
@@ -40,6 +41,9 @@ interface CareerState {
   setResumeTemplate: (id: string) => void;
   /** Generated résumés, newest first; each a snapshot with its template version. */
   savedResumes: SavedResume[];
+  /** The candidate's default résumé: one of their uploaded files or a generated one. Never chosen for them. */
+  baseResume?: BaseResumeRef;
+  setBaseResume: (ref: BaseResumeRef | undefined) => void;
   /** Answers the candidate gave on application forms, with when they last confirmed them (JobsApply §83–§85). Offered, never filled on their own. */
   answerMemory: RememberedAnswer[];
   rememberAnswer: (key: MemoryKey, value: string) => void;
@@ -91,6 +95,8 @@ export const useCareerStore = create<CareerState>()(
       resumeTemplateId: undefined,
       setResumeTemplate: (id) => set({ resumeTemplateId: id }),
       savedResumes: [],
+      baseResume: undefined,
+      setBaseResume: (ref) => set({ baseResume: ref }),
       answerMemory: [],
       rememberAnswer: (key, value) =>
         set((s) => ({ answerMemory: [...(s.answerMemory ?? []).filter((m) => m.key !== key), { key, value: value.trim().slice(0, 500), confirmedAt: new Date().toISOString(), source: "USER_PROVIDED" as const }] })),
@@ -100,7 +106,8 @@ export const useCareerStore = create<CareerState>()(
         set((s) => ({ savedResumes: [saved, ...s.savedResumes].slice(0, MAX_SAVED_RESUMES) }));
         return saved;
       },
-      deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id) })),
+      // Deleting the base résumé clears the choice; nothing else is promoted in its place.
+      deleteResume: (id) => set((s) => ({ savedResumes: s.savedResumes.filter((r) => r.id !== id), baseResume: s.baseResume?.kind === "saved" && s.baseResume.id === id ? undefined : s.baseResume })),
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),

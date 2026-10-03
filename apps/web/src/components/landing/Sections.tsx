@@ -279,7 +279,7 @@ const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?:
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/demo?next=/app/jobs" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/demo?next=/app/jobs" },
   { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/demo?next=/app/applications/app_razorpay/prepare" },
-  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/demo?next=/app/resume-studio" },
+  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/demo?next=%2Fapp%2Fresume-studio%3Ftab%3Dtemplates" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/demo?next=/app/jobs/job_razorpay_spm/apply" },
   { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/demo?next=/app/career-dna" },
   { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/demo?next=/app/automation/scheduled" },

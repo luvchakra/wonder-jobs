@@ -6,6 +6,7 @@ import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock,
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
+import { useResumeFilesStore } from "@/store/resumeFiles";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { COMPANIES, JOB_SOURCES } from "@/services/mock/catalog";
@@ -44,8 +45,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const application = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === id));
   const openPack = usePrepareApplication();
   const hasSavedResume = useCareerStore((s) => s.savedResumes.length > 0);
-  // Apply with Wonder needs a résumé to put in the form: this job's tailored one, or any template résumé.
-  const canApply = !!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume;
+  const hasUploadedResume = useResumeFilesStore((s) => s.files.length > 0);
+  const loadResumeFiles = useResumeFilesStore((s) => s.load);
+  useEffect(() => {
+    void loadResumeFiles();
+  }, [loadResumeFiles]);
+  // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
+  const canApply = !!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume;
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [tab, setTab] = useState<Tab>(requestedTab === "why" || requestedTab === "company" || requestedTab === "sources" ? requestedTab : "overview");

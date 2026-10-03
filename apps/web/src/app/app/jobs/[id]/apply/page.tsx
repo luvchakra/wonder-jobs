@@ -20,6 +20,7 @@ import { useAuthStore } from "@/store/auth";
 import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
+import { useResumeFilesStore } from "@/store/resumeFiles";
 import {
   buildPack,
   exportPackZip,
@@ -90,6 +91,10 @@ export default function ApplyWithWonderPage({
   );
   const dna = useCareerStore((s) => s.dna);
   const savedResumes = useCareerStore((s) => s.savedResumes);
+  const baseResume = useCareerStore((s) => s.baseResume);
+  const resumeFiles = useResumeFilesStore((s) => s.files);
+  const resumeFilesStatus = useResumeFilesStore((s) => s.status);
+  const loadResumeFiles = useResumeFilesStore((s) => s.load);
   const answerMemory = useCareerStore((s) => s.answerMemory);
   const rememberAnswer = useCareerStore((s) => s.rememberAnswer);
   const email = useAuthStore((s) => s.email);
@@ -127,8 +132,15 @@ export default function ApplyWithWonderPage({
             : "Written by you"
         : undefined,
       saved: savedResumes,
+      uploads: resumeFiles,
+      base: baseResume,
     });
-  }, [app, jobId, savedResumes]);
+  }, [app, jobId, savedResumes, resumeFiles, baseResume]);
+  useEffect(() => {
+    void loadResumeFiles();
+  }, [loadResumeFiles]);
+  const resumeFilesPending =
+    resumeFilesStatus === "idle" || resumeFilesStatus === "loading";
   const [resumeKey, setResumeKey] = useState<string>("");
   const effectiveResumeKey = resumeOptions.some((o) => o.key === resumeKey)
     ? resumeKey
@@ -266,9 +278,15 @@ export default function ApplyWithWonderPage({
       ? {
           kind: "resume",
           filename: choice.label,
-          source: choice.kind === "saved" ? "template-pdf" : "tailored-docx",
+          source:
+            choice.kind === "saved"
+              ? "template-pdf"
+              : choice.kind === "upload"
+                ? "uploaded"
+                : "tailored-docx",
           versionId: choice.key,
-          provenance: "SYSTEM_DERIVED",
+          provenance:
+            choice.kind === "upload" ? "USER_PROVIDED" : "SYSTEM_DERIVED",
         }
       : undefined,
     coverLetter:
@@ -311,7 +329,9 @@ export default function ApplyWithWonderPage({
         resume:
           choice.kind === "saved" && choice.saved
             ? { kind: "saved", saved: choice.saved }
-            : { kind: "tailored" },
+            : choice.kind === "upload" && choice.upload
+              ? { kind: "upload", file: choice.upload }
+              : { kind: "tailored" },
         includeCover: hasCover && includeCover,
       });
       let v = await jobsApplyApi.create({
@@ -623,14 +643,14 @@ export default function ApplyWithWonderPage({
       />
       <ApplyStepper current={step} />
 
-      {!loaded ? (
+      {!loaded || (resumeFilesPending && !resumeOptions.length) ? (
         <PageLoading rows={3} />
       ) : !resumeOptions.length && !(s && inSession) ? (
         <>
           {duplicateCard}
           <EmptyState
-            title="Prepare your application first"
-            body="Apply with Wonder uses the résumé you prepared for this role. Prepare one in the Application Pack, or generate one from a template — then come back."
+            title="Add a résumé first"
+            body="Apply with Wonder needs a résumé. Upload the one you already use in Resume Studio, prepare one in the Application Pack, or generate one from a template — then come back."
             action={{
               label: app ? "Open Application Pack" : "Back to the job",
               href: prepareHref,
