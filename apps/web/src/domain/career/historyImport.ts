@@ -73,8 +73,12 @@ const norm = (s: string | undefined) =>
     .replace(/[^\p{L}\p{N}+#&]+/gu, " ")
     .trim();
 
-/** Two roles are the same role when employer and title match, ignoring case and punctuation. */
-export const experienceKey = (e: { employer: string; title: string }) => `${norm(e.employer)}|${norm(e.title)}`;
+/**
+ * Two roles are the same role when employer, title and the year it started match, ignoring case and
+ * punctuation. The year matters: going back to an employer in the same title is a second role (e.g.
+ * Senior Manager at a firm 2019–2021 and again 2022–2023), not a duplicate.
+ */
+export const experienceKey = (e: { employer: string; title: string; startDate?: string }) => `${norm(e.employer)}|${norm(e.title)}|${(e.startDate ?? "").trim().slice(0, 4)}`;
 export const educationKey = (e: { institution: string; degree?: string }) => `${norm(e.institution)}|${norm(e.degree)}`;
 export const certificationKey = (c: { name: string }) => norm(c.name);
 

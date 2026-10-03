@@ -59,30 +59,30 @@ export default function CareerDNAPage() {
       <PageHeader
         title="Career Profile"
         description="Your Career Profile — what Wonder knows about you. Every match, ranking and draft starts here, and you can change any of it."
-        actions={
-          <>
-            <Badge>Updated {formatDate(dna.updatedAt)}</Badge>
-            {dirty && (
-              <span role="status" className="text-[12px] font-medium text-warning-600">
-                Unsaved changes
-              </span>
-            )}
-            <Button
-              disabled={!dirty}
-              onClick={() => {
-                updateDNA(draft);
-                // Saving stamps a new time on the stored profile; take it, so the form matches what was saved.
-                const stored = useCareerStore.getState().dna;
-                seen.current = stored;
-                setDraft(stored);
-                toast.success("Career Profile updated", "Your next run will use these values.");
-              }}
-            >
-              Save changes
-            </Button>
-          </>
-        }
+        className="mb-2 md:mb-3"
       />
+      {/* Stays in view below the top bar while the long form scrolls, so Save is always one tap away. */}
+      <div className="sticky top-16 z-20 -mx-4 mb-4 flex items-center justify-end gap-2 border-b border-line/70 bg-bg/90 px-4 py-2.5 backdrop-blur md:mx-0 md:rounded-b-[14px] md:px-0">
+        <Badge className="mr-auto">Updated {formatDate(dna.updatedAt)}</Badge>
+        {dirty && (
+          <span role="status" className="text-[12px] font-medium text-warning-600">
+            Unsaved changes
+          </span>
+        )}
+        <Button
+          disabled={!dirty}
+          onClick={() => {
+            updateDNA(draft);
+            // Saving stamps a new time on the stored profile; take it, so the form matches what was saved.
+            const stored = useCareerStore.getState().dna;
+            seen.current = stored;
+            setDraft(stored);
+            toast.success("Career Profile updated", "Your next run will use these values.");
+          }}
+        >
+          Save changes
+        </Button>
+      </div>
       <div className="flex flex-col gap-4">
         <Card>
           <h2 className="mb-3 text-[15px] font-semibold text-ink">Career direction</h2>
