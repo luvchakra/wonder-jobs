@@ -4,7 +4,7 @@ import { usePlan } from "@/lib/usePlan";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Eye, FileText, Star, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, Pencil, Star, Trash2 } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
@@ -15,11 +15,13 @@ import { layoutResume } from "@/domain/resume/layout";
 import { recommendTemplate } from "@/domain/resume/recommend";
 import { getTemplate, type ResumeTemplate , RESUME_TEMPLATES } from "@/domain/resume/templates";
 import type { SavedResume } from "@/domain/resume/saved";
+import { cleanGeneratedResumeName } from "@/domain/resume/files";
 import { PROVENANCE_META } from "@/domain/workflow/resolve";
 import { renderSaved } from "@/services/resume/generate";
 import { downloadDocx, downloadPdf } from "@/services/resume/download";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
+import { Field, Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { EmptyState } from "@/components/common/States";
 import { Tabs } from "@/components/common/Tabs";
@@ -153,6 +155,9 @@ function MyResumes() {
   const applications = useApplicationsStore((s) => s.applications);
   const jobs = useJobsStore((s) => s.jobs);
   const [open, setOpen] = useState<SavedResume | null>(null);
+  const renameResume = useCareerStore((s) => s.renameResume);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const renamed = renaming ? cleanGeneratedResumeName(renaming.name) : null;
   const [busy, setBusy] = useState<string | null>(null);
   const drafts = Object.values(applications)
     .flatMap((a) => a.artifacts.filter((x) => x.type === "resume").map((x) => ({ app: a, artifact: x })))
@@ -166,8 +171,8 @@ function MyResumes() {
     if (!g) return toast.error("This template version is no longer available");
     setBusy(`${r.id}-${kind}`);
     try {
-      if (kind === "pdf") await downloadPdf(g);
-      else downloadDocx(g);
+      if (kind === "pdf") await downloadPdf(g, r.name);
+      else downloadDocx(g, r.name);
     } catch {
       toast.error("The download didn't work", "Try again.");
     } finally {
@@ -199,7 +204,10 @@ function MyResumes() {
                 <li key={r.id} className={`wj-card flex flex-col gap-2 p-4 ${isBase(r) ? "ring-2 ring-brand-300" : ""}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[15px] font-semibold text-ink">{t?.name ?? r.templateId}</p>
+                      <button type="button" onClick={() => setRenaming({ id: r.id, name: r.name ?? "" })} className="group/name -mx-1 flex min-h-9 max-w-full items-center gap-1.5 rounded-[8px] px-1 text-left hover:bg-bg-soft" aria-label={`Rename ${r.name ?? `the ${t?.name ?? ""} résumé`}`} title="Rename — this is the file name employers see">
+                        <span className="truncate text-[15px] font-semibold text-ink">{r.name ?? t?.name ?? r.templateId}</span>
+                        <Pencil className="size-3.5 shrink-0 text-ink-4 group-hover/name:text-brand-600" aria-hidden />
+                      </button>
                       <p className="truncate text-[13px] text-ink-3">{r.target ? `${r.target.company} — ${r.target.title}` : r.document.header.headline || "General résumé"}</p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -212,7 +220,7 @@ function MyResumes() {
                     </div>
                   </div>
                   <p className="text-[12px] text-ink-4">
-                    Created {formatDate(r.createdAt)} · {r.pageCount} page{r.pageCount === 1 ? "" : "s"}
+                    {r.name ? `${t?.name ?? r.templateId} · ` : ""}Created {formatDate(r.createdAt)} · {r.pageCount} page{r.pageCount === 1 ? "" : "s"}
                   </p>
                   <div className="mt-auto flex flex-wrap gap-2 pt-1">
                     {!isBase(r) && (
@@ -240,8 +248,45 @@ function MyResumes() {
         )}
       </section>
 
-      <Modal open={!!open} onClose={() => setOpen(null)} title={open ? `${getTemplate(open.templateId)?.name ?? ""} résumé` : ""} description={open ? `Created ${formatDate(open.createdAt)}` : undefined} size="lg">
+      <Modal open={!!open} onClose={() => setOpen(null)} title={open ? (open.name ?? `${getTemplate(open.templateId)?.name ?? ""} résumé`) : ""} description={open ? `Created ${formatDate(open.createdAt)}` : undefined} size="lg">
         {openRender && <ResumeViewer layout={openRender.layout} title={`${openRender.template.name} v${openRender.template.version}`} />}
+      </Modal>
+
+      <Modal
+        open={!!renaming}
+        onClose={() => setRenaming(null)}
+        title="Rename résumé"
+        description="This is the file name employers see when it's attached to an application."
+        size="sm"
+        footer={
+          renaming && (
+            <>
+              <Button variant="ghost" onClick={() => setRenaming(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="rename-saved-resume" disabled={!renamed}>
+                Save name
+              </Button>
+            </>
+          )
+        }
+      >
+        {renaming && (
+          <form
+            id="rename-saved-resume"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!renamed) return;
+              renameResume(renaming.id, renamed);
+              setRenaming(null);
+              toast.success("Renamed", `Employers will see ${renamed}.pdf.`);
+            }}
+          >
+            <Field label="File name" htmlFor="rename-saved-resume-name" hint={`Saved as ${renamed ? `${renamed}.pdf` : "…"}`}>
+              <Input id="rename-saved-resume-name" value={renaming.name} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} autoFocus maxLength={120} placeholder="e.g. Your Name - Resume" />
+            </Field>
+          </form>
+        )}
       </Modal>
 
       <section aria-labelledby="tailored-drafts">

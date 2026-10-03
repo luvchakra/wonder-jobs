@@ -21,6 +21,12 @@ describe("résumé options when applying", () => {
     expect(o.map((x) => x.key)).toEqual(["saved:s_job", "saved:s_other", "tailored"]);
   });
 
+  it("labels a renamed template résumé by the candidate's own name", () => {
+    const named = { ...saved("s_named"), name: "Priya Sharma - Resume" };
+    const o = resumeOptionsFor({ jobId: "j1", hasTailored: false, saved: [named, saved("s_plain")], base: { kind: "saved", id: "s_named" } });
+    expect(o.map((x) => x.label)).toEqual(["Your base résumé — Priya Sharma - Resume (PDF)", expect.stringMatching(/template résumé \(PDF\)$/)]);
+  });
+
   it("offers the base résumé first when nothing was made for this job — an uploaded one is attached as the candidate's own file", () => {
     const o = resumeOptionsFor({ jobId: "j1", hasTailored: true, saved: [saved("s1")], uploads: [upload("rf_a"), upload("rf_base", "Priya CV.pdf")], base: { kind: "upload", id: "rf_base" } });
     expect(o.map((x) => x.key)).toEqual(["upload:rf_base", "upload:rf_a", "saved:s1", "tailored"]);

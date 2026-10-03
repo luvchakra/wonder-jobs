@@ -17,7 +17,7 @@ export function resumeOptionsFor(input: { jobId: string; hasTailored: boolean; t
   const savedOption = (s: SavedResume): ResumeOption => {
     const t = getTemplate(s.templateId);
     const base = isBaseSaved(s);
-    return { key: `saved:${s.id}`, kind: "saved", saved: s, label: base ? `${baseName} — ${t?.name ?? s.templateId} template (PDF)` : `${t?.name ?? s.templateId} template résumé (PDF)`, detail: `${s.target?.jobId === input.jobId ? "Made for this role · " : ""}From your Career Profile · ${new Date(s.createdAt).toLocaleDateString()} · template v${s.templateVersion}` };
+    return { key: `saved:${s.id}`, kind: "saved", saved: s, label: s.name ? (base ? `${baseName} — ${s.name} (PDF)` : `${s.name} (PDF)`) : base ? `${baseName} — ${t?.name ?? s.templateId} template (PDF)` : `${t?.name ?? s.templateId} template résumé (PDF)`, detail: `${s.target?.jobId === input.jobId ? "Made for this role · " : ""}From your Career Profile · ${new Date(s.createdAt).toLocaleDateString()} · template v${s.templateVersion}` };
   };
   const uploadOption = (u: UploadedResume): ResumeOption => ({ key: `upload:${u.id}`, kind: "upload", upload: u, label: isBaseUpload(u) ? `${baseName} — ${u.filename}` : u.filename, detail: `Your own file (${isPdf(u) ? "PDF" : "Word"}) · uploaded ${new Date(u.uploadedAt).toLocaleDateString()} · attached exactly as uploaded` });
 

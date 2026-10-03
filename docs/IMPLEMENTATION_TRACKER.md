@@ -8,6 +8,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 
 | ID | Area | Requirement | Status | Notes |
 |---|---|---|---|---|
+| WJ-217 | Résumés | Rename template-generated résumés | DONE | On My resumes, tap a template résumé's name to rename it. The name is the file name on PDF/DOCX downloads and on the PDF handed over when applying, and labels it in the apply picker and Roles. Names are kept to the characters an Application Pack accepts, and the dialog shows the exact saved name. Stored on the candidate's own saved résumé (no new server data). |
 | WJ-216 | Shell | Ask Wonder search icon in the top bar | DONE | A search icon left of the notifications bell opens Ask Wonder (same as ⌘K/Ctrl+K), on phones and desktop. |
 | WJ-215 | Shell | Phone top bar: avatar left, brand centred | DONE | On phones the top bar is avatar (profile menu opens from the left) · WonderJobs logo centred · notifications on the right. Desktop keeps the sidebar logo and the avatar on the right. |
 | WJ-214 | Find / Shell | "Search as" picks, Search searches; brand in the top bar | DONE | Tapping a "Search as" role chip only selects it; the search runs when the candidate taps Search in Refine (with Refine's locations). The top bar's "Ask Wonder anything" box is gone — the WonderJobs logo sits there on phones; Ask Wonder stays on ⌘K/Ctrl+K. |

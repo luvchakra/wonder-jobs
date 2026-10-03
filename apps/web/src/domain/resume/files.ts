@@ -33,6 +33,16 @@ export function cleanResumeFilename(input: string, ext: "pdf" | "docx"): string 
   return base ? `${base}.${ext}` : null;
 }
 
+/**
+ * A name for a résumé Wonder renders (a template résumé): `cleanResumeFilename`, kept to the characters an
+ * Application Pack accepts (`server/jobsApply/schemas.ts`), so the name the candidate sees is the name the
+ * employer gets. Returned without the extension; null when nothing usable is left.
+ */
+export function cleanGeneratedResumeName(input: string): string | null {
+  const clean = cleanResumeFilename(input.replace(/[^\w .()\-–—À-ž]+/g, " "), "pdf");
+  return clean ? clean.slice(0, -4) : null;
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
