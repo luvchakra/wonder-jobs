@@ -9,6 +9,9 @@
  */
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { extractSkills, inferSeniority, SKILL_LEXICON } from "@/services/jobs/normalize";
+import { formatMonth } from "@/domain/career/history";
+import { KNOWN_LOCATIONS } from "./locations";
+import { normalizeResumeDates, parseHistory } from "./parseHistory";
 
 export type ResumeField = "name" | "headline" | "yearsExperience" | "seniority" | "skills" | "industries" | "preferredLocations";
 
@@ -28,12 +31,6 @@ const MAX_SKILLS = 14;
 const CONTACT_LINE = /@|\bhttps?:\/\/|linkedin\.com|github\.com|\+\d{1,3}[\s-]?\d{4,}|\b\d{10}\b/i;
 const SECTION_HEADING = /^(summary|profile|objective|experience|work experience|professional experience|education|skills|technical skills|projects|certifications|achievements|contact|about|employment)\b/i;
 const TITLE_WORDS = /\b(engineer|developer|manager|director|architect|analyst|designer|consultant|specialist|lead|head|scientist|administrator|officer|president|founder|owner|strategist|marketer|recruiter|accountant|auditor|advisor|coach|producer|editor|writer)\b/i;
-
-/** Cities Wonder can match against postings. Anything else is better typed by the candidate than guessed. */
-export const KNOWN_LOCATIONS = [
-  "Bengaluru", "Bangalore", "Mumbai", "Pune", "Hyderabad", "Chennai", "Delhi", "New Delhi", "Gurugram", "Gurgaon", "Noida", "Kolkata", "Ahmedabad", "Jaipur", "Kochi", "Indore", "Chandigarh",
-  "London", "Berlin", "Amsterdam", "Dublin", "Singapore", "Dubai", "Sydney", "Melbourne", "Toronto", "Vancouver", "New York", "San Francisco", "Seattle", "Austin", "Boston", "Chicago",
-];
 
 const INDUSTRY_HINTS: [string, RegExp][] = [
   ["Fintech", /\b(fintech|payments?|banking|lending|neobank|wallet|insurtech|trading|brokerage|wealth|crypto|blockchain|remittance|upi)\b/i],
@@ -140,14 +137,23 @@ function findHeadline(head: string[], nameLine?: string): { value: string; from:
 }
 
 function findYears(text: string): { value: number; from: string } | undefined {
-  const stated = text.match(/(\d{1,2})(?:\s*\+)?\s*(?:\+\s*)?years?(?:\s+of)?\s+(?:progressive\s+|relevant\s+|professional\s+|overall\s+)?experience/i);
+  const stated = text.match(/(\d{1,2})(?:\s*\+)?\s*(?:\+\s*)?years?(?:\s+of)?\s+(?:progressive\s+|relevant\s+|professional\s+|overall\s+)?experience/i) ?? text.match(/\b(\d{1,2})\s*\+\s*years?\b/i);
   if (stated) {
     const n = Number(stated[1]);
     if (n >= 1 && n <= 50) return { value: n, from: stated[0] };
   }
-  // Otherwise: this year minus the earliest year that appears in a date range, which is where a career
-  // usually starts. Years on their own (a degree, a certificate) are ignored — too easy to misread.
-  const ranges = [...text.matchAll(/\b(19[89]\d|20[0-4]\d)\s*[-–—]\s*(present|current|now|19[89]\d|20[0-4]\d)\b/gi)];
+  // Otherwise: this year minus the year the earliest role in the work-history section starts. Only roles
+  // count — not a degree's dates in Education, and not a year range inside an achievement ("the
+  // 2017–2019 roadmap").
+  const roles = parseHistory(text).experience;
+  if (roles.length) {
+    const first = [...roles].sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+    const value = new Date().getFullYear() - Number(first.startDate.slice(0, 4));
+    if (value >= 1 && value <= 50) return { value, from: `earliest role: ${first.title} at ${first.employer}, from ${formatMonth(first.startDate)}` };
+  }
+  // No recognisable work-history section: the earliest year that starts a date range, which is where a
+  // career usually starts. Years on their own (a degree, a certificate) are ignored — too easy to misread.
+  const ranges = [...normalizeResumeDates(text).matchAll(/\b(19[89]\d|20[0-4]\d)\s*[-–—]\s*(present|current|now|19[89]\d|20[0-4]\d)\b/gi)];
   if (!ranges.length) return undefined;
   const earliest = Math.min(...ranges.map((r) => Number(r[1])));
   const value = new Date().getFullYear() - earliest;
