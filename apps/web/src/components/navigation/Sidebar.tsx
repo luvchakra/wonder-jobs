@@ -1,16 +1,10 @@
 "use client";
-import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
-import { Button } from "@/components/common/Button";
-import { useBillingStore, canUpgrade } from "@/store/billing";
-import { useAuthStore } from "@/store/auth";
-import { useUIStore } from "@/store/ui";
-import { PRIMARY_NAV, RESOURCES_NAV, isActivePath, type NavItem } from "./nav";
+import { PRIMARY_NAV, isActivePath, type NavItem } from "./nav";
 
 function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = isActivePath(pathname, item);
@@ -33,70 +27,24 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
   );
 }
 
-function Group({ title, items, pathname, collapsed }: { title?: string; items: NavItem[]; pathname: string; collapsed: boolean }) {
-  return (
-    <div className="mt-6">
-      {title && !collapsed && <p className="wj-eyebrow mb-2 px-3 text-[11px]">{title}</p>}
-      {title && collapsed && <div className="mx-auto mb-2 h-px w-6 bg-line" aria-hidden />}
-      <nav aria-label={title ?? "Primary"} className="flex flex-col gap-0.5">
-        {items.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
-        ))}
-      </nav>
-    </div>
-  );
-}
-
-/** Desktop sidebar. Collapses automatically on tablet widths (spec §38) and manually on desktop. */
+/**
+ * Desktop sidebar: the logo and the four places, nothing else. Icons only on tablet widths, icons
+ * and labels from 1024px up. Help, account and sign-out are in the avatar menu; each place's own
+ * pages are tabs at its top. Below 768px the bottom bar (MobileNav) takes over.
+ */
 export function Sidebar() {
   const pathname = usePathname();
-  const billing = useBillingStore((s) => s.data);
-  const loadBilling = useBillingStore((s) => s.load);
-  const mode = useAuthStore((s) => s.mode);
-  useEffect(() => {
-    if (mode !== "demo") void loadBilling();
-  }, [mode, loadBilling]);
-  const manual = useUIStore((s) => s.sidebarCollapsed);
-  const setManual = useUIStore((s) => s.setSidebarCollapsed);
-  const tablet = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
-  const collapsed = tablet || manual;
+  const collapsed = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   return (
-    <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface transition-[width] duration-200", collapsed ? "w-[76px] px-3" : "w-[248px] px-4")} aria-label="Sidebar">
+    <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[216px] px-4")} aria-label="Sidebar">
       <div className={cn("flex h-16 items-center", collapsed ? "justify-center" : "px-1")}>
         <WonderLogo href="/app" compact={collapsed} />
       </div>
-      <div className="flex-1 overflow-y-auto pb-4 wj-scrollbar-none">
-        <Group items={PRIMARY_NAV} pathname={pathname} collapsed={collapsed} />
-        <Group title="Resources" items={RESOURCES_NAV} pathname={pathname} collapsed={collapsed} />
-      </div>
-      {canUpgrade(billing) && !collapsed && (
-        <div className="mb-3 rounded-[16px] border border-line bg-surface-2 p-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-full bg-warning-100 text-warning-600">
-              <Crown className="size-4" aria-hidden />
-            </span>
-            <div>
-              <p className="text-[13px] font-semibold text-ink">Upgrade to Pro</p>
-              <p className="text-[11px] text-ink-3">See plans and pay with Razorpay or Stripe.</p>
-            </div>
-          </div>
-          <Button size="sm" full className="mt-3" href="/app/profile#plan">
-            Upgrade
-          </Button>
-        </div>
-      )}
-      {!tablet && (
-        <button
-          type="button"
-          onClick={() => setManual(!manual)}
-          aria-pressed={manual}
-          aria-label={manual ? "Expand sidebar" : "Collapse sidebar"}
-          className={cn("mb-4 flex h-10 items-center gap-2 rounded-[12px] px-3 text-[13px] text-ink-3 hover:bg-bg-soft hover:text-ink", collapsed && "justify-center px-0")}
-        >
-          {manual ? <PanelLeftOpen className="size-4" aria-hidden /> : <PanelLeftClose className="size-4" aria-hidden />}
-          {!collapsed && "Collapse"}
-        </button>
-      )}
+      <nav aria-label="Primary" className="mt-4 flex flex-col gap-0.5">
+        {PRIMARY_NAV.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+        ))}
+      </nav>
     </aside>
   );
 }

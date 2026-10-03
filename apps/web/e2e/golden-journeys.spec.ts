@@ -113,57 +113,47 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
-  // Forced regardless of the running project's own device preset, so this exercises the actual
-  // mobile layout (hamburger + bottom bar) even under the desktop "chromium" project.
+test.describe("Golden journey — mobile navigation (demo mode)", () => {
+  // Pin a phone viewport so this journey exercises the mobile layout (bottom bar, no sidebar) even under
+  // the desktop "chromium" project.
   test.use({ viewport: { width: 390, height: 844 } });
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/demo?next=/app");
   });
 
-  test("GJ-008 the hamburger opens the full nav drawer, and navigating closes it", async ({ page }) => {
-    const drawer = page.getByRole("dialog", { name: "Menu" });
-    await expect(drawer).toBeHidden();
-
-    await page.getByRole("button", { name: "Open menu" }).click();
-    await expect(drawer).toBeVisible();
-    // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 5 primary destinations.
-    await expect(drawer.getByRole("link", { name: "Profile", exact: true })).toBeVisible();
-    // Each place's own pages are grouped under it: Settings holds sources, schedules, automation, AI and account.
-    await expect(drawer.getByRole("link", { name: "What Wonder can do" })).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Job sources" })).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Help & Guide" })).toBeVisible();
-
-    await drawer.getByRole("link", { name: "Insights" }).click();
-    await page.waitForURL(/\/app\/insights/);
-    await expect(drawer).toBeHidden();
-  });
-
-  test("GJ-009 the bottom bar shows the four places directly — Jobs first — with no More catch-all", async ({ page }) => {
+  test("GJ-008 the bottom bar shows the four places directly, with no menu drawer or More catch-all", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    await expect(bottomBar.getByRole("link", { name: "Home" })).toHaveCount(0);
-    for (const label of ["Jobs", "Applications", "Profile", "Settings"]) {
+    for (const label of ["Find", "Saved", "Applied", "You"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
-    await expect(bottomBar.getByRole("button", { name: "More" })).toHaveCount(0);
-    // Scheduled searches/What Wonder can do/Insights/Resume Studio/etc. are still one tap away via the
-    // hamburger's drawer (GJ-008), not lost — just not duplicated as a 6th bottom-bar tab.
-    await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
+    await expect(bottomBar.getByRole("link")).toHaveCount(4);
+    await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
+    // Help, account and sign-out are in the avatar menu rather than a drawer.
+    await page.getByRole("button", { name: "Profile menu" }).click();
+    await expect(page.getByRole("menuitem", { name: "Get Help" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible();
   });
 
-  test("GJ-010 the drawer is closed by default; a place's own pages are tabs at its top", async ({ page }) => {
-    await expect(page.getByRole("dialog", { name: "Menu" })).toBeHidden();
-    // Account settings stay one tap away via the avatar menu.
-    await expect(page.getByRole("button", { name: "Profile menu" })).toBeVisible();
+  test("GJ-009 a place's own pages are tabs at its top; You lists every settings page as a row", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    await bottomBar.getByRole("link", { name: "Settings" }).click();
-    await page.waitForURL(/\/app\/settings$/);
-    const tabs = page.getByRole("navigation", { name: "Settings" });
-    await expect(tabs.getByRole("link", { name: "Job sources" })).toHaveAttribute("aria-current", "page");
-    await tabs.getByRole("link", { name: "Scheduled searches" }).click();
+    await bottomBar.getByRole("link", { name: "Applied" }).click();
+    await page.waitForURL(/\/app\/applications$/);
+    const tabs = page.getByRole("navigation", { name: "Applied" });
+    await expect(tabs.getByRole("link", { name: "Applications" })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: "Calendar" }).click();
+    await page.waitForURL(/\/app\/calendar$/);
+    await expect(bottomBar.getByRole("link", { name: "Applied" })).toHaveAttribute("aria-current", "page");
+
+    await bottomBar.getByRole("link", { name: "You" }).click();
+    await page.waitForURL(/\/app\/you$/);
+    for (const label of ["Career Profile", "Job sources", "What Wonder can do", "Scheduled searches", "AI provider", "Account"]) {
+      await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
+    }
+    await page.getByRole("link", { name: /^Scheduled searches/ }).click();
     await page.waitForURL(/\/app\/automation\/scheduled$/);
-    await expect(bottomBar.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
+    await expect(bottomBar.getByRole("link", { name: "You" })).toHaveAttribute("aria-current", "page");
   });
 });
 

@@ -54,21 +54,15 @@ function JobsHome() {
 
   return (
     <JobsBoard
-      header={(found) => (
-        <>
-          <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-            <h1 className="text-[26px] font-semibold tracking-tight text-ink md:text-[30px]">{found.total ? `${(found.strong + found.worth).toLocaleString("en-IN")} jobs for you` : "Jobs for you"}</h1>
-            {found.total > 0 && (
-              <p className="text-[13px] text-ink-3">
-                {found.strong} strong · {found.worth} worth considering
-              </p>
-            )}
-          </div>
-          <SearchStatusLine search={search} monitoring={attention.isMonitoring} />
+      header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
+      footer={
+        <div className="mt-6 border-t border-line pt-4">
+          <h1 className="wj-sr-only">Find jobs</h1>
+          {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
           {roles.length > 0 && <RoleChips roles={roles} current={search.active?.config.role?.id ?? search.last?.config.role?.id ?? null} onPick={(id) => void (id ? search.searchAsRole(id) : search.searchNow())} busy={false} />}
           <RelevanceNoteBar notes={search.readiness.notes} />
-        </>
-      )}
+        </div>
+      }
       empty={<JobsEmpty search={search} />}
       sourceSearch={{
         run: (text) => {

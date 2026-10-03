@@ -1,0 +1,22 @@
+▲ Next.js 16.3.8 (Turbopack)
+- Local:         http://localhost:3123
+- Network:       http://192.0.2.2:3123
+✓ Ready in 818ms
+✓ Running next.config.ts took 149ms
+○ Compiling proxy ...
+- Experiments (use with caution):
+  · staleTimes
+
+○ Compiling /demo ...
+ GET /demo?next=/app 303 in 10.1s (next.js: 10.0s, application-code: 71ms)
+○ Compiling /app ...
+ GET /app 200 in 6.2s (next.js: 4.9s, proxy.ts: 257ms, application-code: 1072ms)
+ GET /icon?579ebf05459fef86 200 in 517ms (next.js: 94ms, application-code: 424ms)
+ GET /app/jobs 200 in 1946ms (next.js: 1147ms, proxy.ts: 12ms, application-code: 787ms)
+ GET /icon?579ebf05459fef86 200 in 116ms (next.js: 7ms, application-code: 109ms)
+ GET /app/saved 200 in 1935ms (next.js: 1757ms, proxy.ts: 7ms, application-code: 171ms)
+ GET /icon?579ebf05459fef86 200 in 54ms (next.js: 10ms, application-code: 44ms)
+ GET /app/you 200 in 843ms (next.js: 707ms, proxy.ts: 10ms, application-code: 126ms)
+ GET /icon?579ebf05459fef86 200 in 45ms (next.js: 7ms, application-code: 38ms)
+ GET /app/applications 200 in 241ms (next.js: 28ms, proxy.ts: 11ms, application-code: 202ms)
+ GET /icon?579ebf05459fef86 200 in 182ms (next.js: 7ms, application-code: 175ms)

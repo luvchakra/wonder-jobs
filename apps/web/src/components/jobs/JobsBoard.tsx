@@ -19,10 +19,11 @@ import { toast } from "@/components/feedback/Toast";
 const PAGE = 24;
 
 /**
- * The job list: views, Refine, cards, compare, "Why was this filtered". Hosted by the jobs screen,
- * which supplies what goes above it and what to show when Wonder has found nothing yet.
+ * The job list: search box, cards, compare, "Why was this filtered". The jobs come first on the page;
+ * `header` is only for a line that must be seen before them (a search in progress), `footer` for
+ * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist.
  */
-export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { total: number; strong: number; worth: number; other: number }) => React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch }) {
+export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -52,26 +53,31 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
     });
   const query = useDebounced(filters.query, 250);
 
-  // Deep links: /app/jobs?fit=strong, ?saved=1 — same as before. With neither given, land on the
-  // "For You" view (Wonder's own picks) rather than an unfiltered catalog dump.
+  // Deep links: /app/jobs?fit=strong, ?q=… — same as before; ?saved=1 is the Saved tab now. With
+  // nothing given, land on the "For You" view (Wonder's own picks) rather than an unfiltered dump.
   useEffect(() => {
+    if (savedOnly) return;
+    if (params.get("saved") === "1") {
+      router.replace("/app/saved");
+      return;
+    }
     const fit = params.get("fit") as FitLabel | null;
-    const onlySaved = params.get("saved") === "1";
     const q = params.get("q");
-    if (fit || onlySaved || q) setFilters({ ...(fit || onlySaved ? { minFit: fit ?? null, onlySaved } : {}), ...(q != null ? { query: q } : {}) });
-    else setFilters({ minFit: "worth_considering" });
+    if (fit || q) setFilters({ onlySaved: false, ...(fit ? { minFit: fit } : {}), ...(q != null ? { query: q } : {}) });
+    else setFilters({ onlySaved: false, minFit: "worth_considering" });
     // Only ever apply this once, from the URL the page was opened with — not on every filter change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [compareMode, setCompareMode] = useState(false);
-  const savedCount = useMemo(() => order.filter((id) => saved[id] && jobs[id]).length, [order, saved, jobs]);
 
   const appByJob = useMemo(() => new Map(Object.values(applications).map((a) => [a.jobId, a])), [applications]);
 
   // Single source of truth for what's visible and why the rest is hidden — the results list and the
   // "Why Was This Filtered" breakdown below can never disagree, because they read the same computation.
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, { ...filters, query }, now), [order, jobs, matches, rejected, saved, filters, query, now]);
+  // Saved shows every bookmarked job whatever its fit; Find never shows only saved ones (that's the Saved tab).
+  const effective = useMemo(() => ({ ...filters, query, onlySaved: savedOnly, minFit: savedOnly ? null : filters.minFit }), [filters, query, savedOnly]);
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now), [order, jobs, matches, rejected, saved, effective, now]);
   const results = useMemo(() => {
     const list = [...filterResult.visibleIds];
     list.sort((a, b) => {
@@ -87,19 +93,14 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
   useLinkCheck(visible);
   const closed = useJobsStore((s) => s.closed);
   // "Wonder found N opportunities" — the real catalog Wonder has, minus what the candidate set aside.
-  const found = useMemo(() => {
-    const ids = order.filter((id) => jobs[id] && !rejected[id]);
-    const strong = ids.filter((id) => matches[id]?.fit === "strong").length;
-    const worth = ids.filter((id) => matches[id]?.fit === "worth_considering").length;
-    return { total: ids.length, strong, worth, other: ids.length - strong - worth };
-  }, [order, jobs, matches, rejected]);
   const showAnyway = () => setFilters(CLEAR_FILTERS_PATCH);
 
   return (
     <div>
-      {header?.(found)}
+      {header}
       <JobFiltersBar
-        filters={filters}
+        filters={effective}
+        views={!savedOnly}
         onChange={(p) => {
           setFilters(p);
           setLimit(PAGE);
@@ -108,17 +109,16 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
         onSort={setSort}
         sources={sources}
         total={results.length}
-        savedCount={savedCount}
         compare={compareMode}
         onCompare={(on) => {
           setCompareMode(on);
           if (!on) setCompare([]);
         }}
         sourceSearch={sourceSearch}
-        className="mb-5"
+        className="mb-4"
       />
       {results.length === 0 ? (
-        filterResult.hiddenTotal > 0 ? (
+        filterResult.hiddenTotal > 0 && !savedOnly ? (
           <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} variant="empty" />
         ) : (
           empty
@@ -165,15 +165,18 @@ export function JobsBoard({ header, empty, sourceSearch }: { header?: (found: { 
               </Button>
             </div>
           )}
-          {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
-          <FilteredBreakdown
-            result={filterResult}
-            onShowAnyway={() => {
-              showAnyway();
-              setLimit(PAGE);
-            }}
-          />
         </>
+      )}
+      {footer}
+      {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
+      {results.length > 0 && !savedOnly && (
+        <FilteredBreakdown
+          result={filterResult}
+          onShowAnyway={() => {
+            showAnyway();
+            setLimit(PAGE);
+          }}
+        />
       )}
     </div>
   );

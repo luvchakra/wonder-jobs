@@ -42,6 +42,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ **Navigation** (WJ-182): four places — Jobs, Applications, Profile, Settings — each with its pages as tabs at its top; new Settings → Job sources to choose what's searched; no URL changed.
 - ✅ CV-first onboarding (WJ-183)
 - ✅ Five tabs + minimal pages (WJ-185)
+- ✅ Four tabs by stage, listings first, designation/salary strip (WJ-186)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

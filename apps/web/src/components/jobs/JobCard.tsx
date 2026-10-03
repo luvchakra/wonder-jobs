@@ -19,6 +19,8 @@ export function companyColor(name: string) {
  * `decision` adds the outcome view (outcome spec §9): why Wonder surfaced it, things to consider,
  * and the next suggestion, with Prepare and Compare actions when their handlers are given.
  */
+const LEVEL_LABEL: Record<CanonicalJob["seniority"], string> = { junior: "Junior", mid: "Mid level", senior: "Senior", lead: "Lead", director: "Director" };
+
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   return (
@@ -26,12 +28,18 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       <div className="flex items-start gap-3">
         <CompanyLogo name={job.company} color={companyColor(job.company)} size={compact ? 38 : 44} />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[15px] font-semibold leading-tight text-ink">
+          <p className="truncate text-[15px] font-semibold leading-tight text-ink">
             <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
-              {job.title}
+              {job.company}
             </Link>
-          </h3>
-          <p className="truncate text-[13px] text-ink-3">{job.company}</p>
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="size-3.5" aria-hidden /> {job.location}
+            </span>
+            <span aria-hidden>•</span>
+            <span>{WORK_MODE_LABEL[job.workMode]}</span>
+          </p>
         </div>
         {onReject && (
           <button
@@ -61,19 +69,20 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           </button>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-3">
-        <span className="inline-flex items-center gap-1">
-          <MapPin className="size-3.5" aria-hidden /> {job.location}
-        </span>
-        <span aria-hidden>•</span>
-        <span>{WORK_MODE_LABEL[job.workMode]}</span>
-        {salary && (
-          <>
-            <span aria-hidden>•</span>
-            <span>{salary}</span>
-          </>
-        )}
-      </div>
+      {/* The two things every listing is judged on first, always in the same place — a missing salary says so. */}
+      <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[12px] bg-surface-2 px-3 py-2">
+        <div className="min-w-0">
+          <dt className="text-[10px] font-semibold uppercase tracking-wide text-ink-4">Designation</dt>
+          <dd>
+            <h3 className="text-[14px] font-semibold leading-snug text-ink">{job.title}</h3>
+            <span className="text-[12px] text-ink-3">{LEVEL_LABEL[job.seniority]}</span>
+          </dd>
+        </div>
+        <div className="text-right">
+          <dt className="text-[10px] font-semibold uppercase tracking-wide text-ink-4">Salary</dt>
+          <dd className={cn("whitespace-nowrap text-[14px] font-semibold leading-snug", salary ? "text-ink" : "font-normal text-ink-4")}>{salary ?? "Not listed"}</dd>
+        </div>
+      </dl>
       {/* Fit and where you are with it — the reasons, signals and tags are on the job's own page. */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {match && <FitLabel fit={match.fit} score={match.score} />}

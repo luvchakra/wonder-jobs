@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Bot, CalendarDays, Database, Dna, FileText, History, House, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Bookmark, Bot, CalendarDays, Database, Dna, FileText, History, LayoutList, LifeBuoy, MessagesSquare, Search, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -11,31 +11,21 @@ export interface NavItem {
 const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
 
 /**
- * Five places, one question each: Home (what needs me today), Find (jobs), Wonder (ask it; what it
- * does on its own), Applied (applications and follow-ups), Career (profile, résumés, preferences).
- * The same array drives the desktop sidebar, the mobile bottom bar and the drawer, so they can't
- * drift apart. Each place's own pages are tabs at the top of it (SECTION_TABS).
+ * Four places, one each for the stages of a search: Find (jobs), Saved (the shortlist), Applied
+ * (applications and follow-ups), You (profile, résumés and settings). The same array drives the
+ * desktop sidebar, the mobile bottom bar and the drawer, so they can't drift apart. Each place's
+ * own pages are tabs at the top of it (SECTION_TABS). Ask Wonder lives in the top bar.
  */
 export const PRIMARY_NAV: NavItem[] = [
-  { href: "/app", label: "Home", icon: House, match: (p) => p === "/app" },
-  // A search's own page ("Details") belongs to Find; the list of past searches is under Wonder.
-  { href: "/app/jobs", label: "Find", icon: Search, match: (p) => under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
-  { href: "/app/wonder", label: "Wonder", icon: Sparkles, match: (p) => p === "/app/runs" || under("/app/wonder", "/app/automation", "/app/settings/ai")(p) },
+  // A search's own page ("Details") belongs to Find; the list of past searches is under You.
+  { href: "/app/jobs", label: "Find", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
+  { href: "/app/saved", label: "Saved", icon: Bookmark },
   { href: "/app/applications", label: "Applied", icon: LayoutList, match: under("/app/applications", "/app/calendar", "/app/insights", "/app/interview-prep", "/app/learning") },
-  { href: "/app/career-dna", label: "Career", icon: UserRound, match: (p) => under("/app/career-dna", "/app/resume-studio", "/app/profile")(p) || p === "/app/settings" },
+  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/career-dna", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile")(p) },
 ];
 
 /** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
 export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
-  {
-    title: "Wonder",
-    items: [
-      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
-      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
-      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
-      { href: "/app/settings/ai", label: "AI provider", icon: Settings2 },
-    ],
-  },
   {
     title: "Applied",
     items: [
@@ -47,11 +37,15 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
-    title: "Career",
+    title: "You",
     items: [
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
+      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
+      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
+      { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
       { href: "/app/profile", label: "Account", icon: UserRoundCog },
     ],
   },
@@ -67,7 +61,7 @@ export const RESOURCES_NAV: NavItem[] = [
   { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 
-// The mobile bottom bar shows the same five places, full stop — no "More" catch-all. Every page of each
+// The mobile bottom bar shows the same four places, full stop — no "More" catch-all. Every page of each
 // place is a tab at its top and a group in the drawer the top-left menu opens.
 export const MOBILE_NAV: NavItem[] = PRIMARY_NAV;
 
