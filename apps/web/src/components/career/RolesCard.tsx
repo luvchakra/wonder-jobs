@@ -77,7 +77,7 @@ export function RolesCard() {
                     <p className="text-[12px] text-ink-4">Résumé: {label(r)}</p>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/runs/new?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
+                    <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
                       Search
                     </Button>
                     <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" aria-hidden />} aria-label={`Edit ${r.title}`} onClick={() => setEditing(r)}>

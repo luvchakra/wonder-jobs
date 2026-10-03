@@ -363,7 +363,8 @@ export function remoteOpenTo(job: Pick<Job, "location" | "workMode">, locations:
 /** "I am a senior director" / "I'm …" / the common "iam …" typo at the start of a goal is the candidate
  *  talking about themselves, not a search term — left in, "iam" reads as identity-and-access-management. */
 export function stripSelfReference(text: string): string {
-  return text.replace(/^\s*(?:i\s*am|i['’]?m|iam)\b\s*(?:an?\s+)?/i, "");
+  // "I am" / "I'm" in any case; "iam" / "Iam" only — written in capitals, "IAM" is the field (identity and access management).
+  return text.replace(/^\s*(?:i\s+am|i['’]?m)\b\s*(?:an?\s+)?/i, "").replace(/^\s*(?:iam|Iam)\b\s*(?:an?\s+)?/, "");
 }
 
 /** A headline sometimes leads with a meta-label ("Target: Senior Director / SVP — …") rather than

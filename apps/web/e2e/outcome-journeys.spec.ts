@@ -17,12 +17,10 @@ async function slowSampleSources(page: Page) {
   await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
 }
 
-/** Starts a search from Find: it lands on the job list; the run's own page is one tap away ("Details"). */
+/** Starts a search for the candidate's words (as Ask Wonder's “Find …” does): it lands on the job list; the run's own page is one tap away ("Details"). */
 async function startFind(page: Page, request: string, opts: { openRun?: boolean } = { openRun: true }) {
   await slowSampleSources(page);
-  await page.goto("/demo?next=/app/runs/new");
-  await page.locator("#find-request").fill(request);
-  await page.getByRole("button", { name: "Find opportunities" }).last().click();
+  await page.goto(`/demo?next=${encodeURIComponent(`/app?search=${request}`)}`);
   await page.waitForURL(/\/app$/, { timeout: 20_000 });
   if (opts.openRun) {
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
@@ -76,19 +74,16 @@ test.describe("FIND", () => {
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
   });
 
-  test("FIND-002 natural language → Wonder shows the intent it derived, then the list says what it searched", async ({ page }) => {
-    await page.goto("/demo?next=/app/runs/new");
-    // Prefilled from the candidate's own career goal — never a placeholder query.
-    await expect(page.locator("#find-request")).toHaveValue("Find product management roles in tech companies");
-    await page.locator("#find-request").fill("Senior product roles in Mumbai, preferably fintech");
-    const preview = page.locator("dl").filter({ hasText: "Roles" });
-    await expect(preview).toContainText("Mumbai");
-    await expect(preview).toContainText("from your words");
-    await expect(preview).toContainText(/fintech/i);
-    await page.getByRole("button", { name: "Find opportunities" }).last().click();
-    await page.waitForURL(/\/app$/);
-    // Straight to the job list, which says what it's searching and, when done, where.
-    await expect(page.locator("#main")).toContainText(/for “senior product/i);
+  test("FIND-002 the search box: typing narrows the jobs here; one tap searches every source, reading place from the words", async ({ page }) => {
+    await slowSampleSources(page);
+    await page.goto("/demo?next=/app");
+    const box = page.getByRole("textbox", { name: "Search jobs" });
+    await box.fill("Senior product roles in Mumbai, preferably fintech");
+    // Before anything runs, Wonder says what it read from the words.
+    const wider = page.getByRole("button", { name: /^Search every source for “senior product[^”]*” in Mumbai/i });
+    await expect(wider).toBeVisible();
+    await wider.click();
+    await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “senior product/i);
     await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “senior product[^”]*” in Mumbai/i, { timeout: 45_000 });
   });
 
@@ -151,7 +146,11 @@ test.describe("DECIDE", () => {
   });
 
   test("DECIDE-004 compare two opportunities — differences, never a winner", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs");
+    await page.goto("/demo?next=/app");
+    // Compare is a mode under Refine — the cards carry only Save, Not for me and Prepare until it's on.
+    await expect(page.getByRole("checkbox", { name: /^Compare / })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Refine/ }).click();
+    await page.getByRole("button", { name: "Compare jobs" }).click();
     const boxes = page.getByRole("checkbox", { name: /^Compare / });
     await boxes.nth(0).check();
     await boxes.nth(1).check();
@@ -269,15 +268,17 @@ test.describe("WONDER", () => {
     await page.goto("/demo?next=/app");
     await expect(await askWonder(page, "Find me IAM jobs")).toContainText("Find opportunities: “IAM jobs”");
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/app\/runs\/new\?q=IAM/);
-    await expect(page.locator("#find-request")).toHaveValue("IAM jobs");
+    // Straight to the jobs, searching every source for the candidate's words — and saying so.
+    await expect(page).toHaveURL(/\/app$/);
+    await expect(page.locator("#main")).toContainText(/for “iam/i, { timeout: 20_000 });
   });
 
   test("WONDER-003 “Search again with Director roles”", async ({ page }) => {
     await page.goto("/demo?next=/app");
     await askWonder(page, "Search again with Director roles");
     await page.keyboard.press("Enter");
-    await expect(page.locator("#find-request")).toHaveValue("Director roles");
+    await expect(page).toHaveURL(/\/app$/);
+    await expect(page.locator("#main")).toContainText(/for “director/i, { timeout: 20_000 });
   });
 
   test("WONDER-004 “Why didn't you show this?” explains a real filtering decision", async ({ page }) => {

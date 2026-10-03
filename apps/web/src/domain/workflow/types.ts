@@ -148,6 +148,8 @@ export interface RunConfig {
   scheduleCondition?: ScheduleCondition;
   /** The candidate's role this search ran as (its terms and goal are already in the fields above). */
   role?: { id: string; title: string };
+  /** Where the search terms came from: the Career Profile (searched on open) or words the candidate typed. */
+  origin?: "profile" | "words";
 }
 
 export interface ScheduleCondition {

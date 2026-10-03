@@ -38,7 +38,7 @@ export function RunErrorBanner({ run, error, className }: { run: WorkflowRun; er
           },
         };
       case "fix_config":
-        return { label: error.source && ["anthropic", "openai", "gemini"].includes(error.source) ? "Fix AI settings" : "Change the search", href: error.source && error.source !== "wonderjobs" && ["anthropic", "openai", "gemini"].includes(error.source) ? "/app/settings/ai" : "/app/runs/new" };
+        return { label: error.source && ["anthropic", "openai", "gemini"].includes(error.source) ? "Fix AI settings" : "Change the search", href: error.source && error.source !== "wonderjobs" && ["anthropic", "openai", "gemini"].includes(error.source) ? "/app/settings/ai" : "/app" };
       case "change_provider":
         return { label: "Change provider", href: "/app/settings/ai" };
       case "stop":

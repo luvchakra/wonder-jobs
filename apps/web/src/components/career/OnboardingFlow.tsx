@@ -24,11 +24,11 @@ import { safeNextPath } from "@/lib/safeRedirect";
  * personalizes where onboarding sends them next (when nothing more specific was already asked
  * for via `?next=`), not what fields onboarding collects. */
 const GOALS = [
-  { id: "find_role", label: "Find my next role", body: "Search real postings and see what actually fits.", icon: Search, next: "/app/jobs" },
+  { id: "find_role", label: "Find my next role", body: "Search real postings and see what actually fits.", icon: Search, next: "/app" },
   { id: "improve_profile", label: "Improve my career profile", body: "Build out your Career Profile so matches get sharper.", icon: TrendingUp, next: "/app/career-dna" },
-  { id: "prepare_application", label: "Prepare an application", body: "Get a tailored resume and cover letter ready.", icon: LayoutList, next: "/app/jobs" },
+  { id: "prepare_application", label: "Prepare an application", body: "Get a tailored resume and cover letter ready.", icon: LayoutList, next: "/app" },
   { id: "track_applications", label: "Track my applications", body: "Keep every application, follow-up and reply in one place.", icon: Check, next: "/app/applications" },
-  { id: "let_wonder_work", label: "Let Wonder work for me", body: "Search, analyze, prepare and track — start to finish.", icon: Zap, next: "/app/runs/new" },
+  { id: "let_wonder_work", label: "Let Wonder work for me", body: "Search, analyze, prepare and track — start to finish.", icon: Zap, next: "/app" },
 ] as const;
 
 type GoalId = (typeof GOALS)[number]["id"];
@@ -80,7 +80,7 @@ function Steps() {
   const setDefaultLevel = useAutomationStore((s) => s.setDefaultLevel);
   const [step, setStep] = useState(0);
   const [primaryGoal, setPrimaryGoal] = useState<GoalId | null>(null);
-  const next = explicitNext ?? GOALS.find((g) => g.id === primaryGoal)?.next ?? "/app/runs/new";
+  const next = explicitNext ?? GOALS.find((g) => g.id === primaryGoal)?.next ?? "/app";
   const [goal, setGoal] = useState<string | null>(null);
   const [locations, setLocations] = useState<string | null>(null);
   const [level, setLevel] = useState<AutomationLevel>("guided");

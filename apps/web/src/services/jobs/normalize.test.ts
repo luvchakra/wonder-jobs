@@ -86,9 +86,11 @@ describe("defaultSearchQuery — the run searches for the candidate's own role, 
     expect(defaultSearchQuery({ headline: "", careerGoal: "I'm looking for product management roles in tech companies" })).toBe("product management");
   });
 
-  it("keeps a real IAM query when it is not a self-reference", () => {
+  it("keeps IAM written in capitals — it's the field, not “I am”", () => {
     expect(defaultSearchQuery({ headline: "Security engineer, IAM", careerGoal: "" })).toBe("security engineer iam");
-    expect(stripSelfReference("IAM engineer roles")).toBe("engineer roles");
+    expect(stripSelfReference("IAM engineer roles")).toBe("IAM engineer roles");
+    expect(defaultSearchQuery({ headline: "", careerGoal: "IAM director roles" })).toBe("iam director");
+    expect(stripSelfReference("Iam a senior director")).toBe("senior director");
   });
 
   it("takes the field from the goal when the headline is only a level", () => {

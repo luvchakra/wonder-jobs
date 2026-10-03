@@ -89,8 +89,8 @@ export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderActio
       return {
         id: "wonder-find",
         label: q ? `Find opportunities: “${q}”` : "Search again",
-        hint: "You'll see exactly what Wonder will search for before it starts.",
-        href: q ? `/app/runs/new?q=${encodeURIComponent(q)}` : "/app/runs/new",
+        hint: q ? "Searches every source for your words; your jobs show what it read." : "Searches again for your Career Profile's role.",
+        href: q ? `/app?search=${encodeURIComponent(q)}` : "/app?refresh=1",
       };
     }
     case "explain_job": {

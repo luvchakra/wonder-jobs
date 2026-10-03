@@ -26,7 +26,7 @@ export function ActiveRunCard({ run, className }: { run?: WorkflowRun; className
             <h2 className="text-[17px] font-semibold text-ink">Find opportunities</h2>
             <p className="text-[13px] text-ink-3">Tell Wonder what you&apos;re looking for. It searches, compares and prepares — you decide.</p>
           </div>
-          <Button href="/app/runs/new" icon={<Search className="size-4" aria-hidden />}>
+          <Button href="/app" icon={<Search className="size-4" aria-hidden />}>
             Find opportunities
           </Button>
         </div>

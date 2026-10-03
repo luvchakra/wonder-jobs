@@ -64,7 +64,7 @@ describe("describeOutcome", () => {
     const o = describeOutcome(r)!;
     expect(o.tone).toBe("warning");
     expect(o.title).toBe("110 jobs read, none scored above your minimum match of 70");
-    expect(o.actions.map((a) => a.href)).toEqual(["/app/jobs", "/app/career-dna", "/app/runs/new"]);
+    expect(o.actions.map((a) => a.href)).toEqual(["/app/jobs", "/app/career-dna", "/app?refresh=1"]);
     expect(o.actions[0]).toMatchObject({ label: "Browse all 110 jobs", primary: true });
   });
 
@@ -100,7 +100,7 @@ describe("describeOutcome", () => {
     const o = describeOutcome(run())!;
     expect(o.tone).toBe("warning");
     expect(o.title).toBe("No jobs came back for “senior director”");
-    expect(o.actions).toEqual([{ label: "Change the search", href: "/app/runs/new", primary: true }]);
+    expect(o.actions).toEqual([{ label: "Change the search", href: "/app?refresh=1", primary: true }]);
   });
 
   it("a discovery-only search leads with what deserves attention, never with stage names", () => {
@@ -147,7 +147,7 @@ describe("describeOutcome", () => {
     expect(o.eyebrow).toBe("Search stopped");
     expect(o.title).toBe("Search stopped");
     expect(o.body).toBe("Everything already found is still available.");
-    expect(o.actions).toEqual([{ label: "Search again", href: "/app/runs/new", primary: true }]);
+    expect(o.actions).toEqual([{ label: "Search again", href: "/app?refresh=1", primary: true }]);
     const withShortlist = run({ status: "STOPPED", currentStage: "prepare", outputs: { rank: { stageKey: "rank", data: { rankedJobIds: ["a", "b"], strongMatches: 1 }, provenance: "AI_GENERATED", producedAt: "" } } });
     expect(describeOutcome(withShortlist)!.actions[0]).toMatchObject({ label: "See what was found", showResults: true, primary: true });
   });

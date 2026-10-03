@@ -52,7 +52,7 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
   if (run.status === "STOPPED" || run.status === "CANCELLED") {
     const actions: OutcomeAction[] = [];
     if (ranked > 0) actions.push({ label: "See what was found", showResults: true, primary: true });
-    actions.push({ label: "Search again", href: "/app/runs/new", primary: actions.length === 0 });
+    actions.push({ label: "Search again", href: "/app?refresh=1", primary: actions.length === 0 });
     return {
       tone: "info",
       eyebrow: run.status === "CANCELLED" ? "Search cancelled" : "Search stopped",
@@ -95,7 +95,7 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
       eyebrow: "Nothing found",
       title: query ? `No jobs came back for “${query}”` : "No jobs came back from your sources",
       body: `${quiet}Your sources returned nothing for this search. “See how Wonder worked” shows each source's result — some need setup. Try a broader role, more locations or other work modes.`,
-      actions: [{ label: "Change the search", href: "/app/runs/new", primary: true }],
+      actions: [{ label: "Change the search", href: "/app?refresh=1", primary: true }],
     };
   }
 
@@ -108,7 +108,7 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
       actions: [
         { label: `Browse all ${plural(s.jobsRetained || s.jobsDiscovered, "job")}`, href: "/app/jobs", primary: true },
         { label: "Update Career Profile", href: "/app/career-dna" },
-        { label: "Adjust the search", href: "/app/runs/new" },
+        { label: "Adjust the search", href: "/app?refresh=1" },
       ],
     };
   }
@@ -138,7 +138,7 @@ export function describeOutcome(run: WorkflowRun): RunOutcome | null {
     body: `${quiet}Wonder couldn't prepare application packs this time — “See how Wonder worked” shows why. You can still prepare any shortlisted role yourself.`,
     actions: [
       { label: "See the shortlist", showResults: true, primary: true },
-      { label: "Search again", href: "/app/runs/new" },
+      { label: "Search again", href: "/app?refresh=1" },
     ],
   };
 }
