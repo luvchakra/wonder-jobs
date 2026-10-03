@@ -197,6 +197,8 @@ test.describe("DECIDE", () => {
       await expect(page.getByText("Rank more senior roles lower")).toHaveCount(i < 2 ? 0 : 1);
     }
     await page.reload();
+    // What Wonder learned is folded on the Career Profile.
+    await page.getByText("What Wonder has learned", { exact: true }).click();
     await expect(page.getByText("Rank more senior roles lower")).toBeVisible();
     await expect(page.getByText(/Marked 3 roles "not for me — too senior"/)).toBeVisible();
   });
@@ -221,7 +223,8 @@ test.describe("APPLY", () => {
     await page.keyboard.press("End");
     await page.keyboard.type(" Edited by the candidate.");
     await expect(page.locator("#main").getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("[aria-labelledby='wj-pack-summary']").getByText("Edited by you")).toBeVisible();
+    // The edited version is labelled as the candidate's own, not the model's.
+    await expect(page.getByText("User-modified", { exact: true }).first()).toBeVisible();
   });
 
   test("APPLY-003 review the application before the hand-off", async ({ page }) => {
@@ -282,7 +285,10 @@ test.describe("WONDER", () => {
     await page.keyboard.press("Enter");
     // Straight to the jobs, searching every source for the candidate's words — and saying so.
     await expect(page).toHaveURL(/\/app\/jobs$/);
-    await expect(page.locator("#main")).toContainText(/for “iam/i, { timeout: 20_000 });
+    // While it runs the line above the jobs says so; once done, what was searched sits in Refine.
+    await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 30_000 });
+    await openRefine(page);
+    await expect(page.locator("#main")).toContainText(/for “iam/i);
   });
 
   test("WONDER-003 “Search again with Director roles”", async ({ page }) => {

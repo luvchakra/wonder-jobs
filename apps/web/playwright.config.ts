@@ -68,7 +68,8 @@ export default defineConfig({
         // Build first: NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so a stale
         // `.next` from a differently-configured build would silently test the wrong backend.
         command: `next build && next start -p ${PORT}`,
-        env: { ...process.env, WJ_DEMO_ENABLED: "1" },
+        // A throwaway key when none is set, so the browser helper can be issued its session token here; never a real secret.
+        env: { ...process.env, WJ_DEMO_ENABLED: "1", SECRET_ENCRYPTION_KEY: process.env.SECRET_ENCRYPTION_KEY || "e2e-only-not-a-secret", JOBSLAKE_LOCAL_ADMIN: "1" },
         url: baseURL,
         timeout: 180_000,
         reuseExistingServer: false,
