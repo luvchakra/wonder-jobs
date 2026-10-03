@@ -20,6 +20,7 @@ import { readClientState } from "@/server/clientState";
 import type { ConfirmSchema, CreateSchema, EventsSchema, FillPlanSchema, InterventionSchema } from "./schemas";
 import { getSession, insertSession, listSessions, mutateSession } from "./store";
 import { newNonce, signHelperToken, verifyHelperToken } from "./token";
+import { resumeFileStore } from "../resume/files";
 
 export interface ApiResult {
   status: number;
@@ -279,6 +280,12 @@ export async function helperFile(ctx: HelperCtx, kind: "resume" | "cover_letter"
   const f = kind === "resume" ? s.pack.resume : s.pack.coverLetter;
   if (!f) return err(404, "NOT_FOUND", "Your Application Pack has no such document.");
   if (f.source === "template-pdf" && f.base64) return ok({ filename: f.filename, mime: "application/pdf", base64: f.base64 });
+  if (f.source === "uploaded" && kind === "resume") {
+    // Read from the session owner's own files, by the id the pack recorded: never another account's.
+    const file = await resumeFileStore().read(s.tenantId, f.versionId).catch(() => undefined);
+    if (!file) return err(410, "GONE", "That résumé file was deleted. Choose another résumé and start again.");
+    return ok({ filename: file.meta.filename, mime: file.meta.mime, base64: file.bytes.toString("base64") });
+  }
   if (f.source === "tailored-docx" && f.markdown) return ok({ filename: f.filename, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", base64: Buffer.from(buildDocxBytes(f.markdown)).toString("base64") });
   return err(410, "GONE", "This document is no longer held for this session. Download it from the Application Pack.");
 }

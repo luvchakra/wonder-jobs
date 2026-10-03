@@ -227,6 +227,41 @@ describe("JobsApply server", () => {
     expect(await svc.helperAuth(tok)).toMatchObject({ status: 401 });
   });
 
+  it("helper file: the candidate's own uploaded résumé is read from their encrypted files by id, never another account's", async () => {
+    const { resumeFileStore } = await import("@/server/resume/files");
+    const bytes = Buffer.from("%PDF-1.7\n% Priya's own résumé\n%%EOF", "latin1");
+    const t = tenant();
+    const other = tenant();
+    const mine = await resumeFileStore().save(t, { filename: "Priya Raman CV.pdf", mime: "application/pdf", bytes });
+    const theirs = await resumeFileStore().save(other, { filename: "Someone Else.pdf", mime: "application/pdf", bytes: Buffer.from("%PDF-1.7\n% not yours\n%%EOF") });
+    const uploaded = (versionId: string): ApplicationPackSnapshot => ({ ...pack(), resume: { kind: "resume", filename: "Priya Raman CV.pdf", source: "uploaded", versionId, provenance: "USER_PROVIDED" } });
+    expect(schemas.CreateSchema.safeParse({ job: job(), pack: uploaded(mine.id), mode: "assisted" }).success).toBe(true);
+
+    const c = await svc.create(t, { job: job(), pack: uploaded(mine.id), mode: "assisted" });
+    const id = (c.body as { session: JobsApplySession }).session.id;
+    await svc.act(t, id, "start", {});
+    const tok = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    await svc.helperInspect(await helper(tok), form());
+    const file = await svc.helperFile(await helper(tok), "resume");
+    expect(file.body).toMatchObject({ filename: "Priya Raman CV.pdf", mime: "application/pdf" });
+    expect(Buffer.from((file.body as { base64: string }).base64, "base64").equals(bytes)).toBe(true);
+    // The file never travels inside the session itself.
+    expect(JSON.stringify(((await svc.get(t, id)).body as { session: JobsApplySession }).session)).not.toContain(bytes.toString("base64"));
+
+    // Deleted since: an honest "gone", not someone else's file.
+    await resumeFileStore().remove(t, mine.id);
+    expect(await svc.helperFile(await helper(tok), "resume")).toMatchObject({ status: 410 });
+
+    // A pack naming another account's file id gets nothing.
+    const t2 = tenant();
+    const c2 = await svc.create(t2, { job: job(), pack: uploaded(theirs.id), mode: "assisted" });
+    const id2 = (c2.body as { session: JobsApplySession }).session.id;
+    await svc.act(t2, id2, "start", {});
+    const tok2 = ((await svc.act(t2, id2, "token", {})).body as { token: string }).token;
+    await svc.helperInspect(await helper(tok2), form());
+    expect(await svc.helperFile(await helper(tok2), "resume")).toMatchObject({ status: 410 });
+  });
+
   it("human-only answers can't be stored through the API", async () => {
     const t = tenant();
     const { id, token: tok } = await started(t);

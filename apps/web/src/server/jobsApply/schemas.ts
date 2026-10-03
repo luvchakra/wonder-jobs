@@ -13,7 +13,7 @@ const appValue = z.object({ value: str(500).min(1), provenance, confidence: z.nu
 const packFile = z.object({
   kind: z.enum(["resume", "cover_letter"]),
   filename: str(120).regex(/^[\w .()\-–—À-ž]+\.(pdf|docx)$/i, "A .pdf or .docx file name"),
-  source: z.enum(["tailored-docx", "template-pdf"]),
+  source: z.enum(["tailored-docx", "template-pdf", "uploaded"]),
   markdown: str(60_000).optional(),
   // ~650 KB of PDF; a template résumé is typically 60–200 KB.
   base64: str(900_000)

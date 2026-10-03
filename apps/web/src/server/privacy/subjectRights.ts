@@ -6,6 +6,7 @@ import { secretStore } from "../secrets";
 import { getSupabaseAdmin } from "../supabase";
 import { listSubscriptions } from "../push/subscriptions";
 import { billingStore, MemoryBillingStore } from "../billing/store";
+import { MemoryResumeFileStore, resumeFileStore } from "../resume/files";
 import { cancelUnpaidSubscriptions } from "../billing/service";
 import { consentHistory, forgetConsentsInMemory, privacyRequests, recordPrivacyRequest } from "./records";
 import type { Session } from "../auth";
@@ -19,7 +20,7 @@ import type { Session } from "../auth";
 export async function buildExport(session: Session) {
   const { tenantId } = session;
   const sb = getSupabaseAdmin();
-  const [state, serverDocs, secrets, push, billingSubs, ledger, consents, requests] = await Promise.all([
+  const [state, serverDocs, secrets, push, billingSubs, ledger, consents, requests, resumeFiles] = await Promise.all([
     stateStore.getAll(tenantId),
     Promise.all(SERVER_STORES.map(async (s) => [s, await stateStore.get(tenantId, s)] as const)),
     secretStore.list(tenantId),
@@ -28,6 +29,7 @@ export async function buildExport(session: Session) {
     billingStore().ledgerForTenant(tenantId, 10_000),
     consentHistory(tenantId),
     privacyRequests(tenantId),
+    resumeFileStore().list(tenantId),
   ]);
   let actionAudit: unknown[] = [];
   let contactMessages: unknown[] = [];
@@ -58,6 +60,8 @@ export async function buildExport(session: Session) {
     billing: { subscriptions: billingSubs, ledger: ledger.map((r) => ({ at: r.occurredAt, provider: r.provider, providerType: r.providerType, kind: r.kind, subscriptionId: r.subscriptionId, amount: r.amount, currency: r.currency })) },
     consents,
     privacyRequests: requests,
+    // The files themselves are too large for one JSON response; each downloads from My resumes.
+    resumeFiles: resumeFiles.map((f) => ({ ...f, download: `/api/resume-files/${f.id}` })),
     retention: RETENTION,
   };
 }
@@ -109,6 +113,8 @@ export async function eraseAccount(session: Session): Promise<EraseResult> {
       for (const s of [...STATE_STORES, ...SERVER_STORES]) await stateStore.remove(tenantId, s);
       for (const k of await secretStore.list(tenantId)) await secretStore.remove(tenantId, k.provider);
       if (store instanceof MemoryBillingStore) await store.removeTenant(tenantId);
+      const files = resumeFileStore();
+      if (files instanceof MemoryResumeFileStore) files.removeTenant(tenantId);
       forgetConsentsInMemory(tenantId);
     }
   } catch (e) {

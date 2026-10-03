@@ -115,7 +115,12 @@ function masterKey(): Buffer {
  * leveraged against the other.
  */
 function encryptionKey(): Buffer {
-  return Buffer.from(hkdfSync("sha256", masterKey(), Buffer.alloc(0), "wonderjobs/secret-store/aes-256-gcm/v2", 32));
+  return derivedKey("wonderjobs/secret-store/aes-256-gcm/v2");
+}
+
+/** A 256-bit key for one purpose, derived from the master secret with HKDF. Never the master secret itself. */
+export function derivedKey(info: string): Buffer {
+  return Buffer.from(hkdfSync("sha256", masterKey(), Buffer.alloc(0), info, 32));
 }
 
 /** `v2:iv:tag:data` (base64). AES-256-GCM, random 96-bit IV, authenticated. */

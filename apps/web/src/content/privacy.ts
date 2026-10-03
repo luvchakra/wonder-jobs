@@ -4,7 +4,7 @@
  */
 
 /** Bump when the privacy notice changes materially; signed-in candidates are asked to review it again. */
-export const PRIVACY_NOTICE_VERSION = "2026-10-02";
+export const PRIVACY_NOTICE_VERSION = "2026-10-03";
 
 /** The candidate types this exact phrase to delete their account; a stray click or a forged request can't. */
 export const ERASE_PHRASE = "DELETE MY ACCOUNT";
@@ -22,6 +22,7 @@ export interface RetentionRule {
 
 export const RETENTION: RetentionRule[] = [
   { data: "Account, Career Profile, jobs, applications, run history, settings", period: "Until you delete your account", basis: "Contract — providing the service you asked for" },
+  { data: "Résumé files you upload (PDF or Word, encrypted)", period: "Until you delete the file or your account", basis: "Contract — attaching your own résumé when you apply" },
   { data: "Encrypted AI provider keys", period: "Until you remove the key or delete your account", basis: "Contract" },
   { data: "Action audit (what Wonder did on your behalf, and when)", period: "Until you delete your account; rows can't be edited", basis: "Legitimate interest — accountability and security" },
   { data: "Contact-form messages", period: "24 months, then deleted automatically", days: 730, basis: "Legitimate interest — answering you" },
@@ -39,7 +40,7 @@ export function grievanceContact(env: Record<string, string | undefined> = { nam
 
 /** Everyone who processes personal data for WonderJobs, and what for. Shown on /privacy. */
 export const SUB_PROCESSORS: { name: string; purpose: string; data: string }[] = [
-  { name: "Supabase", purpose: "Authentication and database", data: "Account, everything you store in the app" },
+  { name: "Supabase", purpose: "Authentication and database", data: "Account, everything you store in the app, including résumé files you upload (encrypted before they reach it)" },
   { name: "Vercel", purpose: "Hosting (Mumbai region, bom1)", data: "Requests in transit, short-lived server logs" },
   { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderJobs AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature" },
   { name: "Razorpay", purpose: "Payments in India (when you subscribe)", data: "Payment details you enter on Razorpay's page; your account id as a reference" },

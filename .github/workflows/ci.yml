@@ -72,7 +72,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # Supply-chain gate: fail on any known high or critical advisory in the dependency tree.
+  # Supply-chain gate: what ships (production dependencies) fails on any high or critical advisory;
+  # build and lint tooling (devDependencies) fails on critical. Split 2026-10-03 when GHSA-vfj7-8cjw-p6xm
+  # (braces, every version, no patched release) reached us only through eslint-config-next.
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
@@ -83,7 +85,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm audit --audit-level=high
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --audit-level=critical
 
   # A single required status check for branch protection to point at, so it doesn't need updating every
   # time a job here is renamed or a new one is added — it just reflects whatever the jobs above did.

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Eye, FileText, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, Star, Trash2 } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
@@ -23,22 +23,27 @@ import { EmptyState } from "@/components/common/States";
 import { Tabs } from "@/components/common/Tabs";
 import { toast } from "@/components/feedback/Toast";
 import { GeneratePanel } from "@/components/resume/GeneratePanel";
+import { ResumeFiles } from "@/components/resume/ResumeFiles";
 import { ResumeFonts } from "@/components/resume/ResumePage";
 import { ResumeViewer } from "@/components/resume/ResumeViewer";
 import { TemplateGallery } from "@/components/resume/TemplateGallery";
 import { formatDate } from "@/lib/format";
-
-type Tab = "templates" | "mine";
+import { studioTab, type StudioTab as Tab } from "@/lib/resumeStudio";
 
 export default function ResumeStudioPage() {
   const params = useSearchParams();
   const router = useRouter();
-  const tab: Tab = params.get("tab") === "mine" ? "mine" : "templates";
-  const setTab = (t: Tab) => router.replace(t === "mine" ? "/app/resume-studio?tab=mine" : `/app/resume-studio${params.get("job") ? `?job=${params.get("job")}${params.get("app") ? `&app=${params.get("app")}` : ""}` : ""}`);
+  const tab = studioTab(params);
+  const setTab = (t: Tab) => {
+    if (t === "mine") return router.replace("/app/resume-studio");
+    const job = params.get("job");
+    const app = params.get("app");
+    router.replace(job ? `/app/resume-studio?job=${encodeURIComponent(job)}${app ? `&app=${encodeURIComponent(app)}` : ""}` : "/app/resume-studio?tab=templates");
+  };
   return (
     <div>
       <ResumeFonts />
-      <Tabs value={tab} onChange={setTab} label="Resume" items={[{ value: "templates", label: "Templates" }, { value: "mine", label: "My resumes" }]} className="mb-5" variant="underline" />
+      <Tabs value={tab} onChange={setTab} label="Resume" items={[{ value: "mine", label: "My resumes" }, { value: "templates", label: "Templates" }]} className="mb-5" variant="underline" />
       {tab === "templates" ? <Templates /> : <MyResumes />}
     </div>
   );
@@ -134,6 +139,8 @@ function Templates() {
 function MyResumes() {
   const savedResumes = useCareerStore((s) => s.savedResumes);
   const deleteResume = useCareerStore((s) => s.deleteResume);
+  const base = useCareerStore((s) => s.baseResume);
+  const setBase = useCareerStore((s) => s.setBaseResume);
   const applications = useApplicationsStore((s) => s.applications);
   const jobs = useJobsStore((s) => s.jobs);
   const [open, setOpen] = useState<SavedResume | null>(null);
@@ -142,6 +149,8 @@ function MyResumes() {
     .flatMap((a) => a.artifacts.filter((x) => x.type === "resume").map((x) => ({ app: a, artifact: x })))
     .sort((a, b) => b.artifact.versions[b.artifact.versions.length - 1].createdAt.localeCompare(a.artifact.versions[a.artifact.versions.length - 1].createdAt));
   const openRender = open ? renderSaved(open.document, open.templateId) : null;
+  const isBase = (r: SavedResume) => base?.kind === "saved" && base.id === r.id;
+  const generated = [...savedResumes].sort((a, b) => Number(isBase(b)) - Number(isBase(a)));
 
   const download = async (r: SavedResume, kind: "pdf" | "docx") => {
     const g = renderSaved(r.document, r.templateId);
@@ -159,30 +168,49 @@ function MyResumes() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="mb-1 text-[22px] font-semibold tracking-tight text-ink">My resumes</h1>
+        <p className="text-[13px] text-ink-3">Your own résumé files and every résumé you generated. Mark one as your base résumé and Wonder offers it first when you apply — you can still choose another for any job.</p>
+      </div>
+
+      <ResumeFiles />
+
       <section aria-labelledby="my-resumes">
-        <h1 id="my-resumes" className="mb-1 text-[22px] font-semibold tracking-tight text-ink">
-          My resumes
-        </h1>
-        <p className="mb-4 text-[13px] text-ink-3">Every résumé you generated, kept exactly as it was made — the same content and the same template version, even if your profile or the template changes later.</p>
+        <h2 id="my-resumes" className="mb-1 text-[17px] font-semibold text-ink">
+          Generated from templates
+        </h2>
+        <p className="mb-3 text-[13px] text-ink-3">Kept exactly as each was made — the same content and the same template version, even if your profile or the template changes later.</p>
         {savedResumes.length === 0 ? (
-          <EmptyState icon={<FileText className="size-5" aria-hidden />} title="No résumés generated yet" body="Choose a template and generate one — it's saved here automatically." action={{ label: "Choose a template", href: "/app/resume-studio" }} />
+          <EmptyState icon={<FileText className="size-5" aria-hidden />} title="No résumés generated yet" body="Choose a template and generate one — it's saved here automatically." action={{ label: "Choose a template", href: "/app/resume-studio?tab=templates" }} />
         ) : (
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {savedResumes.map((r) => {
+            {generated.map((r) => {
               const t = getTemplate(r.templateId);
               return (
-                <li key={r.id} className="wj-card flex flex-col gap-2 p-4">
+                <li key={r.id} className={`wj-card flex flex-col gap-2 p-4 ${isBase(r) ? "ring-2 ring-brand-300" : ""}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-[15px] font-semibold text-ink">{t?.name ?? r.templateId}</p>
                       <p className="truncate text-[13px] text-ink-3">{r.target ? `${r.target.company} — ${r.target.title}` : r.document.header.headline || "General résumé"}</p>
                     </div>
-                    <Badge>v{r.templateVersion}</Badge>
+                    <div className="flex shrink-0 gap-1">
+                      {isBase(r) && (
+                        <Badge tone="brand" icon={<Star className="size-3" aria-hidden />}>
+                          Base
+                        </Badge>
+                      )}
+                      <Badge>v{r.templateVersion}</Badge>
+                    </div>
                   </div>
                   <p className="text-[12px] text-ink-4">
                     Created {formatDate(r.createdAt)} · {r.pageCount} page{r.pageCount === 1 ? "" : "s"}
                   </p>
                   <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                    {!isBase(r) && (
+                      <Button size="sm" variant="outline" icon={<Star className="size-3.5" aria-hidden />} onClick={() => setBase({ kind: "saved", id: r.id })}>
+                        Set as base
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" icon={<Eye className="size-3.5" aria-hidden />} onClick={() => setOpen(r)}>
                       Preview
                     </Button>

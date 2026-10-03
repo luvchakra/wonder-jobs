@@ -84,12 +84,13 @@ controls (ITGC) and application controls a SOX 404 audit would test, implemented
 | Security headers | CSP (Vercel preview toolbar allowed), HSTS (2y), X-Frame-Options DENY + `frame-ancestors 'none'`, nosniff, Referrer-Policy, Permissions-Policy (mic self only), COOP `same-origin-allow-popups` (keeps the apply flow's handle on the employer tab), no `X-Powered-By` | `next.config.ts` |
 | CSRF | Proxy refuses cookie-authenticated API mutations whose `Origin` isn't this host or whose `Sec-Fetch-Site` is cross-site; bearer and server-to-server calls pass | `lib/csrf.ts`, `proxy.ts` |
 | Decompression bombs | 16 MB per inflated entry, 48 MB total per PDF; content-length checked before reading uploads | `server/resume/extractText.ts`, `api/career/import-resume` |
+| Uploaded résumé files | Checked by bytes (real PDF/.docx; no encryption, JavaScript/Launch/embedded files/XFA — including inside compressed object streams — macros or ActiveX); ≤ 3 MB, ≤ 5 per account; AES-256-GCM under an HKDF key used only for these files, account + file id bound as AAD; explicit tenant filter on every query; attachment-only download with `nosniff`; upload/delete audited; listed in export, removed on erasure | `server/resume/{fileValidation,files}.ts`, `api/resume-files`, migration 0010 |
 | Rate limiter memory | Idle sweep + LRU cap of 50k keys | `server/rateLimit.ts` |
 | Error leakage | State, audit and billing routes log details server-side and return fixed messages | |
 | Key separation | Secret-store encryption key derived with HKDF (`v2:` format); legacy ciphertexts still decrypt | `server/secrets.ts` |
 | Constant-time secrets | `safeEqual` hashes both sides (no length leak); cron uses it | `server/crypto.ts` |
 | Vulnerable dependency | `next` 16.3.5 → 16.3.8 (critical RCE advisory in `next/og` ImageResponse, used by the icon/OG routes) | `package.json` |
-| Supply chain | CI `npm audit --audit-level=high` job, `permissions: contents: read`, Dependabot for npm and Actions | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
+| Supply chain | CI dependency audit: production dependencies fail on high or critical (`npm audit --omit=dev --audit-level=high`), build/lint tooling on critical (split 2026-10-03: GHSA-vfj7-8cjw-p6xm in `braces`, no patched release, reaches us only via `eslint-config-next`), `permissions: contents: read`, Dependabot for npm and Actions | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
 | Disclosure | RFC 9116 `/.well-known/security.txt`; "Report a security issue" contact topic | |
 
 ## 5. Known gaps (not done)

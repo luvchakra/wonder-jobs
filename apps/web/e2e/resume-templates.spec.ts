@@ -6,7 +6,7 @@ import { test, expect, type Page } from "@playwright/test";
  * renderer drawing that candidate's facts. Chromium only (this sandbox's browser).
  */
 
-const STUDIO = "/demo?next=/app/resume-studio";
+const STUDIO = "/demo?next=%2Fapp%2Fresume-studio%3Ftab%3Dtemplates";
 const cards = (page: Page) => page.getByRole("list", { name: "Resume templates" }).getByRole("article");
 
 async function open(page: Page) {

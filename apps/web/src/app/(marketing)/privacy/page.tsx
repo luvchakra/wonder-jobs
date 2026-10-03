@@ -59,6 +59,7 @@ export default function PrivacyPage() {
             <ul>
               <li>Account: your email, name and a hashed password (or your Google identity), held by our authentication provider.</li>
               <li>Career Profile: goals, skills, locations, pay expectations, work history, education and the contact details you choose to put on your résumé.</li>
+              <li>Résumé files, if you upload your own: the PDF or Word file itself, encrypted (AES-256-GCM) before storage and bound to your account, with its name, size and upload date. It&apos;s attached to an application only when you choose it, and deleted when you delete it or your account. A résumé you import only to fill in your Career Profile is read once and not kept.</li>
               <li>Activity: saved and dismissed jobs, drafted applications, submission records, follow-ups, interviews, search history and settings.</li>
               <li>Provider keys: if you bring your own AI key it is encrypted (AES-256-GCM) before storage and decrypted only on the server, for the request that uses it.</li>
               <li>Billing, if you subscribe: your subscription status and a ledger of payment events (amounts, currency, dates, provider reference ids). Card, UPI and bank details are entered on Razorpay&apos;s or Stripe&apos;s own page and never reach us.</li>

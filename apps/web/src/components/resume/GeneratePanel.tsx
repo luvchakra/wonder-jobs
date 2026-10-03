@@ -196,7 +196,7 @@ function Result({ g, busy, acknowledged, onAcknowledge, onDownload, onRetry, onC
         {!canDownload && report.ok && <p className="self-center text-[12px] text-ink-3">Review the items above to enable downloads.</p>}
       </div>
       <p className="text-[12px] text-ink-4">
-        The PDF is built on your device from exactly what you see above. <Link href="/app/resume-studio?tab=mine" className="text-brand-600 hover:underline">My resumes</Link> keeps every version with the template it used.
+        The PDF is built on your device from exactly what you see above. <Link href="/app/resume-studio" className="text-brand-600 hover:underline">My resumes</Link> keeps every version with the template it used.
       </p>
     </div>
   );

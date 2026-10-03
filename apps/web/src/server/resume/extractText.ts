@@ -283,7 +283,7 @@ function fontCMaps(raw: string, cmapByObj: Map<number, CMap>): Map<string, CMap>
   return byName;
 }
 
-function inflate(slice: Buffer): Buffer {
+export function inflate(slice: Buffer): Buffer {
   const opts = { maxOutputLength: MAX_INFLATED_ENTRY_BYTES };
   try {
     return inflateSync(slice, opts);

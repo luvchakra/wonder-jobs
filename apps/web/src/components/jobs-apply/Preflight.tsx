@@ -5,15 +5,14 @@ import type { Readiness } from "@/domain/jobs-apply/readiness";
 import type { ApplyDestination } from "@/domain/jobs-apply/types";
 import { PROVIDER_NAME } from "@/domain/jobs-apply/destination";
 import type { FillDecision } from "@/domain/jobs-apply/policy";
-import type { SavedResume } from "@/domain/resume/saved";
-import { getTemplate } from "@/domain/resume/templates";
+import type { ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { cn } from "@/lib/cn";
 
 export type Method = "helper" | "guided" | "pack";
-export type ResumeOption = { key: string; label: string; detail: string; kind: "tailored" | "saved"; saved?: SavedResume };
+export { resumeOptionsFor, type ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 
 const METHODS: { key: Method; title: string; body: string; points: string[]; icon: React.ReactNode }[] = [
   {
@@ -183,7 +182,7 @@ export function Preflight(props: {
             </div>
           ) : (
             <p className="mt-1 text-[13px] text-ink-3">
-              No résumé yet. <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">Prepare one in the Application Pack</Link> or <Link href="/app/resume-studio" className="font-medium text-brand-600 hover:underline">generate one from a template</Link>.
+              No résumé yet. <Link href="/app/resume-studio" className="font-medium text-brand-600 hover:underline">Upload the résumé you already use</Link>, <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">prepare one in the Application Pack</Link> or <Link href="/app/resume-studio?tab=templates" className="font-medium text-brand-600 hover:underline">generate one from a template</Link>.
             </p>
           )}
           <p className="mt-4 text-[13px] font-medium text-ink-2">Cover letter</p>
@@ -227,16 +226,4 @@ export function Preflight(props: {
       </aside>
     </div>
   );
-}
-
-export function resumeOptionsFor(input: { jobId: string; hasTailored: boolean; tailoredSource?: string; saved: SavedResume[] }): ResumeOption[] {
-  const out: ResumeOption[] = [];
-  const forJob = input.saved.filter((s) => s.target?.jobId === input.jobId);
-  const others = input.saved.filter((s) => s.target?.jobId !== input.jobId).slice(0, 4);
-  for (const s of [...forJob, ...others]) {
-    const t = getTemplate(s.templateId);
-    out.push({ key: `saved:${s.id}`, kind: "saved", saved: s, label: `${t?.name ?? s.templateId} template résumé (PDF)`, detail: `${s.target?.jobId === input.jobId ? "Made for this role · " : ""}From your Career Profile · ${new Date(s.createdAt).toLocaleDateString()} · template v${s.templateVersion}` });
-  }
-  if (input.hasTailored) out.push({ key: "tailored", kind: "tailored", label: "Tailored résumé for this role (DOCX)", detail: input.tailoredSource ? `From the Application Pack · ${input.tailoredSource}` : "From the Application Pack" });
-  return out;
 }
