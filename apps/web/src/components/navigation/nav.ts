@@ -1,52 +1,74 @@
-import { BarChart3, BookOpen, Dna, FileText, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, Zap, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Bot, CalendarDays, Database, Dna, FileText, History, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  exact?: boolean;
-  /** Other paths that belong to this item (a job's own page belongs to Jobs). */
-  also?: string[];
+  /** Whether this item is the current page — defaults to the href and anything under it. */
+  match?: (pathname: string) => boolean;
 }
 
-// The real destinations of the product (spec: "Home / Jobs / Applications / Career / Wonder").
-// Same array drives the desktop sidebar, the mobile bottom bar and the mobile drawer, so all three
-// can never drift out of sync with each other.
+const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
+
+/**
+ * Four places (jobs-first redesign, `docs/JOBS_FIRST_REDESIGN.md`): your jobs, your applications, your
+ * profile and settings. The same array drives the desktop sidebar, the mobile bottom bar and the
+ * drawer, so they can't drift apart. Each place's own pages are tabs at the top of it (SECTION_TABS).
+ */
 export const PRIMARY_NAV: NavItem[] = [
-  // Signed in = the job list: /app is Jobs (a job's page and comparison belong to it too).
-  { href: "/app", label: "Jobs", icon: Search, exact: true, also: ["/app/jobs"] },
-  { href: "/app/applications", label: "Applications", icon: LayoutList },
-  { href: "/app/career-dna", label: "Career", icon: Dna },
-  { href: "/app/runs", label: "Wonder", icon: Zap },
+  // A search's own page ("Details") belongs to Jobs; the list of past searches is in Settings.
+  { href: "/app", label: "Jobs", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
+  { href: "/app/applications", label: "Applications", icon: LayoutList, match: under("/app/applications", "/app/calendar", "/app/insights", "/app/interview-prep", "/app/learning") },
+  { href: "/app/career-dna", label: "Profile", icon: UserRound, match: under("/app/career-dna", "/app/resume-studio") },
+  { href: "/app/settings", label: "Settings", icon: Settings2, match: (p) => p === "/app/runs" || under("/app/settings", "/app/automation", "/app/profile")(p) },
 ];
 
-// Scheduling and automation policy are Wonder's own advanced controls — one tap from the "Wonder"
-// primary item, not a separate top-level destination.
-export const WONDER_NAV: NavItem[] = [
-  { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
-  { href: "/app/automation/settings", label: "What Wonder can do", icon: Settings2 },
+/** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
+export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Applications",
+    items: [
+      { href: "/app/applications", label: "Applications", icon: LayoutList },
+      { href: "/app/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/app/insights", label: "Insights", icon: BarChart3 },
+      { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
+      { href: "/app/learning", label: "Learning", icon: BookOpen },
+    ],
+  },
+  {
+    title: "Profile",
+    items: [
+      { href: "/app/career-dna", label: "Career Profile", icon: Dna },
+      { href: "/app/resume-studio", label: "Résumés", icon: FileText },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
+      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
+      { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
+      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
+      { href: "/app/profile", label: "Account", icon: UserRoundCog },
+    ],
+  },
 ];
 
-// Everything that helps a candidate improve their profile, grouped under "Career" rather than each
-// getting its own primary nav slot.
-export const CAREER_NAV: NavItem[] = [
-  { href: "/app/insights", label: "Insights", icon: BarChart3 },
-  { href: "/app/resume-studio", label: "Resume Studio", icon: FileText },
-  { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
-  { href: "/app/learning", label: "Learning", icon: BookOpen },
-];
+/** The section (and its tabs) a page belongs to, when it belongs to one. */
+export function sectionFor(pathname: string) {
+  return SECTION_TABS.find((s) => s.items.some((i) => isActivePath(pathname, i)));
+}
 
 export const RESOURCES_NAV: NavItem[] = [
   // Public page: reachable signed out too, which is the point — people need it most when they can't get in.
   { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 
-// The mobile bottom bar shows the same 5 real destinations, full stop — no "More" catch-all. The
-// Wonder/Career secondary groups above are still one tap away via the drawer TopBar's hamburger
-// opens (MobileSidebarDrawer), so nothing here is actually harder to reach, just not duplicated.
+// The mobile bottom bar shows the same four places, full stop — no "More" catch-all. Every page of each
+// place is a tab at its top and a group in the drawer the top-left menu opens.
 export const MOBILE_NAV: NavItem[] = PRIMARY_NAV;
 
 export function isActivePath(pathname: string, item: NavItem) {
-  if (item.also?.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
-  return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
+  return item.match ? item.match(pathname) : pathname === item.href || pathname.startsWith(item.href + "/");
 }

@@ -9,7 +9,7 @@ git fetch origin main
 git merge origin/main        # or: git rebase origin/main, when the branch is yours alone
 ```
 
-- Do this at the start of every session and again before every push.
+- Do this at the start of every session and again before every push (a fetch and merge — seconds, not a reason to delay).
 - If `main` has moved, resolve conflicts first; never build on a stale base.
 - Only after the working branch is up to date with `origin/main` may other activity begin.
 
@@ -42,18 +42,21 @@ WonderJobs already separates "what AI may decide" from "what only application co
 - A legacy/no-auth mode exists (a random `wj_uid` cookie, used when Supabase Auth isn't configured) where tenant identity has no real authentication behind it — acceptable for local/dev, but never describe or market that mode as equivalent to authenticated tenant isolation.
 - Secrets (BYOK provider keys) are AES-256-GCM encrypted server-side and masked on read (`server/secrets.ts`); never log a decrypted key, pass one to the client, or add a new secret type that skips this store.
 
-## Testing and regression discipline
+## Ship fast (pre-launch — no end users yet)
 
-- `npm run check` (lint, typecheck, tests, production build) before every push — unchanged, see Repository layout below.
-- `npm run e2e` (Playwright) and `npm run a11y` (axe-core) exist but are **not** part of CI (they need real time and real Supabase credentials). Run them yourself for any change touching auth, onboarding, Career DNA, automation/scheduling, BYOK, or PWA/push — the 2026-09 audit found these are exactly the areas with the thinnest automated coverage, so CI passing is not sufficient evidence there.
-- Any change to `domain/automation/policy.ts`, `domain/workflow/*`, or anything gating an AI-touching or external-effect action needs a unit test for the specific authorization/governance path (policy off / ask / automatic, wrong automation level, failed lookup) — not just the happy path.
-- Any change touching a Supabase query or migration: verify the tenant filter explicitly in the test, don't rely on RLS to enforce it (see above).
+The owner tests changes themselves. Speed of getting a change in front of them beats exhaustive pre-push verification. Until this section is changed:
+
+- **Fastest path to something testable**: commit, push the working branch, open the PR. Vercel builds a preview for the branch within ~2 minutes of the push (`wonderjobs-git-<branch>-wonder-team4.vercel.app`) — share that link straight away. Merge as soon as CI is green (no waiting for review); production deploys from `main` a couple of minutes later. Don't hold a push to polish.
+- **Before pushing, run only fast, relevant checks**: `npx tsc --noEmit -p apps/web`, lint on the files you changed, and the unit tests for the areas you touched (`npx vitest run <paths>`). CI runs the full `npm run check` (lint, typecheck, all tests, production build) on the PR — let it, don't duplicate it locally.
+- **Don't run** `npm run e2e`, `npm run a11y`, full-app browser walkthroughs or before/after comparisons on other builds unless the owner asks, or a change is genuinely risky and can't be checked any other way. A quick look at the one screen you changed is enough when it helps.
+- **Don't update the help guide** (`apps/web/src/content/help.ts`) unless asked. Don't let e2e specs block a push; fix the ones a change breaks only when CI runs them or the owner asks.
+- **Still required, because they're cheap and protect trust**: the rules above (real data only, AI governance, tenant isolation), and a unit test for any change to `domain/automation/policy.ts`, `domain/workflow/*`, anything gating an AI-touching or external-effect action, or a Supabase query/migration (verify the tenant filter explicitly — RLS won't catch it).
 
 ## Repository layout
 
 - Monorepo with npm workspaces. The Next.js app lives in `apps/web` (Vercel root directory).
-- `npm run check` (from the root or `apps/web`) runs lint, typecheck, tests and the production build; run it before pushing.
+- `npm run check` (from the root or `apps/web`) runs lint, typecheck, tests and the production build; CI runs it on every PR (see "Ship fast" for what to run locally).
 - Database schema lives in `apps/web/supabase/migrations/`; the bundled registry in `apps/web/src/server/migrations/index.ts` must match it (a unit test enforces this).
-- Requirement status and deviations are tracked in `docs/IMPLEMENTATION_TRACKER.md`; update it with every feature change — including the security/governance implication when the change touches automation policy, AI providers, or external actions, not just what changed on screen.
-- `docs/PROGRESS.md` is the high-level progress tracker (epics → stories, done / partial / backlog). Update it at the end of **every** story, including stories that were descoped or remain open, and keep its roadmap in step with the "Roadmap" section of `apps/web/src/content/help.ts`.
+- `docs/IMPLEMENTATION_TRACKER.md` tracks requirement status: add a short row per feature (a few lines, not an essay) — include the security/governance implication when the change touches automation policy, AI providers, or external actions.
+- `docs/PROGRESS.md` is the high-level progress tracker: one line per finished story. It no longer needs to mirror the help guide's roadmap.
 - `docs/UX_BASELINE_AUDIT.md`, `docs/UX_CAPABILITY_MAP.md` and `docs/UX_SIMPLIFICATION_DECISIONS.md` are the current UX-simplification planning docs (Phase 1, Step 1 complete as of 2026-09-23) — consult them before changing navigation, information architecture, or any screen they inventory, rather than re-deriving the current implementation from scratch.

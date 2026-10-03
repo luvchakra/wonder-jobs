@@ -129,8 +129,10 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await page.getByRole("button", { name: "Open menu" }).click();
     await expect(drawer).toBeVisible();
     // The drawer carries every menu the desktop Sidebar does, not just the bottom bar's 5 primary destinations.
-    await expect(drawer.getByRole("link", { name: "Career", exact: true })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Profile", exact: true })).toBeVisible();
+    // Each place's own pages are grouped under it: Settings holds sources, schedules, automation, AI and account.
     await expect(drawer.getByRole("link", { name: "What Wonder can do" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "Job sources" })).toBeVisible();
     await expect(drawer.getByRole("link", { name: "Help & Guide" })).toBeVisible();
 
     await drawer.getByRole("link", { name: "Insights" }).click();
@@ -138,10 +140,10 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await expect(drawer).toBeHidden();
   });
 
-  test("GJ-009 the bottom bar shows every real destination directly — Jobs first — with no More catch-all", async ({ page }) => {
+  test("GJ-009 the bottom bar shows the four places directly — Jobs first — with no More catch-all", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
     await expect(bottomBar.getByRole("link", { name: "Home" })).toHaveCount(0);
-    for (const label of ["Jobs", "Applications", "Career", "Wonder"]) {
+    for (const label of ["Jobs", "Applications", "Profile", "Settings"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(bottomBar.getByRole("button", { name: "More" })).toHaveCount(0);
@@ -150,12 +152,18 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
   });
 
-  test("GJ-010 the drawer is closed by default and the bottom bar has no separate Profile tab", async ({ page }) => {
+  test("GJ-010 the drawer is closed by default; a place's own pages are tabs at its top", async ({ page }) => {
     await expect(page.getByRole("dialog", { name: "Menu" })).toBeHidden();
-    // Profile has never been in the bottom bar's 5 real destinations — it's one tap away via the avatar menu.
-    const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    await expect(bottomBar.getByRole("link", { name: "Profile" })).toHaveCount(0);
+    // Account settings stay one tap away via the avatar menu.
     await expect(page.getByRole("button", { name: "Profile menu" })).toBeVisible();
+    const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
+    await bottomBar.getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL(/\/app\/settings$/);
+    const tabs = page.getByRole("navigation", { name: "Settings" });
+    await expect(tabs.getByRole("link", { name: "Job sources" })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: "Scheduled searches" }).click();
+    await page.waitForURL(/\/app\/automation\/scheduled$/);
+    await expect(bottomBar.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
   });
 });
 

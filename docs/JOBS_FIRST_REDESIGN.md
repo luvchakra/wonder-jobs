@@ -48,14 +48,14 @@ Before this, every Find run also prepared applications for the top three and pau
 |---|---|---|
 | 1 (WJ-180) | Readiness ladder + notes; `/app` is the job list; auto-search + widening; search-only runs; sources searched in parallel; no artificial delays; Home and Jobs merged in the nav; `/app/jobs` redirects | ✅ |
 | 2 (WJ-181) | Jobs page: one search box (typing narrows the jobs found; "Search every source for …" searches for the words, place read from them; mic), one chip row (For you · Strong · All · Saved), "Search as" role chips, cards with Save / Not for me / Prepare (Compare is a mode in Refine), one Refine sheet (sort, work mode, posted, salary, sources, compare); the "hidden" breakdown moved below the list; Find folded in — `/app/runs/new`, `?q=` and `?role=` links land on the jobs screen and search | ✅ |
-| 3 (WJ-182) | Navigation: Jobs · Applications · Profile (Career, Résumés, Roles) · Settings (automation, schedules, AI, account); Insights / Calendar / Prep / Learning under Applications; redirects for every old URL | ⬜ |
+| 3 (WJ-182) | Navigation: Jobs · Applications (Calendar, Insights, Interview Prep, Learning) · Profile (Career Profile, Résumés) · Settings (Job sources — new, Scheduled searches, What Wonder can do, AI provider, Search history, Account); each place's pages are tabs at its top (`SectionTabs`) and a group in the mobile menu; the sidebar shows only the four places; every URL unchanged | ✅ |
 | 4 (WJ-183) | CV-first onboarding (upload → confirm three lines → jobs) replacing the tick-every-line first import | ⬜ |
 
 ## Decisions
 
 - **Compare** is a mode under Refine (PR 2); the cards carry three actions until it's on.
 - **A search the candidate asked for wins**: it stops a running search-only run (what that run found is kept) and starts; a run doing more than searching is left alone and the candidate is told.
-- **Source on/off** for searching moves to Settings (PR 3); until then every available source is searched and Refine → Sources narrows the list.
+- **Source on/off** for searching is Settings → Job sources (PR 3); Refine → Sources only narrows the list.
 - **Ask Wonder** (top bar) stays as is.
 - The old Home's content: "needs you" items become one line above the jobs (counted by kind); "Wonder keeps looking" shows when a schedule is on; upcoming/insights/AI-provider cards move with PR 3.
 

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Calendar, Play, Search, Sparkles, Timer } from "lucide-react";
+import { ArrowRight, Play, Search, Sparkles, Timer } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { Input } from "@/components/common/Input";
 import { resolveWonderQuery } from "@/domain/wonder/resolve";
@@ -9,7 +9,7 @@ import { useNow } from "@/lib/motion";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
-import { CAREER_NAV, PRIMARY_NAV, RESOURCES_NAV, WONDER_NAV } from "./nav";
+import { PRIMARY_NAV, RESOURCES_NAV, SECTION_TABS } from "./nav";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 
@@ -41,7 +41,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       { id: "run", label: "Search again", hint: "Search every source for your Career Profile's role", href: "/app?refresh=1", icon: Play, group: "Actions" },
       { id: "search", label: "Jobs", hint: "Your jobs, ranked by fit with your Career Profile", href: "/app", icon: Search, group: "Actions" },
       { id: "schedule", label: "Set up a scheduled search", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
-      ...[...PRIMARY_NAV, ...WONDER_NAV, ...CAREER_NAV, ...RESOURCES_NAV, { href: "/app/settings/ai", label: "AI provider & keys", icon: Sparkles }, { href: "/app/calendar", label: "Calendar", icon: Calendar }].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
+      ...[...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
     ],
     [],
   );
