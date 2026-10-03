@@ -23,7 +23,7 @@ function NewScheduleInner() {
     const template = q ? { ...base, query: q } : base;
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader back={{ href: "/app/automation/scheduled", label: "Scheduled searches" }} title="Advanced search automation" description={`Starting from “${base.name}”. Choose the steps, conditions and actions yourself.`} />
+        <PageHeader back={{ href: "/app/automation/settings#scheduled", label: "Automation" }} title="Advanced search automation" description={`Starting from “${base.name}”. Choose the steps, conditions and actions yourself.`} />
         <ScheduleBuilder key={`${template.id}:${q ?? ""}`} template={template} />
       </div>
     );
@@ -32,7 +32,7 @@ function NewScheduleInner() {
   const advancedHref = `/app/automation/scheduled/new?template=daily_discovery${q ? `&q=${encodeURIComponent(q)}` : ""}`;
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader back={{ href: "/app/automation/scheduled", label: "Scheduled searches" }} title="Keep Wonder looking" description="Wonder searches on its own and tells you what's worth your attention." />
+      <PageHeader back={{ href: "/app/automation/settings#scheduled", label: "Automation" }} title="Keep Wonder looking" description="Wonder searches on its own and tells you what's worth your attention." />
       <SimpleScheduleSetup initialRequest={q ?? undefined} initialFrequency={often && FREQUENCIES.includes(often) ? often : undefined} advancedHref={advancedHref} />
     </div>
   );

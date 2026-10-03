@@ -486,7 +486,7 @@ export default function ApplyWithWonderPage({
     // Drafting is AI generation: gated like the rest of it, and the candidate's click is the "ask".
     if (resolveCapability("generate_cover_letter", policy, level) === "skip")
       throw new Error(
-        "Drafting is turned off in What Wonder can do (Generate cover letter).",
+        "Drafting is turned off in Automation (Generate cover letter).",
       );
     const text = await ai().answerApplicationQuestion({
       job,

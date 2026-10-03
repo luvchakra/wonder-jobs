@@ -56,26 +56,39 @@ function JobsHome() {
   return (
     <JobsBoard
       header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
+      // What was searched and "Search as" live in Refine — the list stays the page.
+      refineTop={
+        search.active && roles.length === 0 ? null : (
+          <>
+            {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
+            {roles.length > 0 && <RoleChips roles={roles} current={search.active?.config.role?.id ?? search.last?.config.role?.id ?? null} onPick={(id) => void (id ? search.searchAsRole(id) : search.searchNow())} busy={false} />}
+          </>
+        )
+      }
       footer={
-        <div className="mt-6 border-t border-line pt-4">
+        <div className="mt-6">
           <h1 className="wj-sr-only">Find jobs</h1>
-          {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
-          {roles.length > 0 && <RoleChips roles={roles} current={search.active?.config.role?.id ?? search.last?.config.role?.id ?? null} onPick={(id) => void (id ? search.searchAsRole(id) : search.searchNow())} busy={false} />}
           <RelevanceNoteBar notes={search.readiness.notes} />
         </div>
       }
       empty={<JobsEmpty search={search} />}
       sourceSearch={{
-        run: (text) => {
+        run: (text, places) => {
           // The candidate's own search shows everything it finds, best answer first — not only profile fits.
           useJobsStore.getState().setFilters({ minFit: null });
-          void search.searchWords(text).then((run) => {
+          void search.searchWords(text, places).then((run) => {
             if (run) window.scrollTo({ top: 0, behavior: "smooth" });
           });
         },
-        describe: (text) => {
-          const d = describeWords(text, search.readiness.locations);
-          return d.query ? `“${d.query}”${d.locations.length ? ` in ${d.locations.join(", ")}${d.fromWords ? "" : " (your places)"}` : ""}` : null;
+        describe: (text, places) => {
+          const d = describeWords(text, search.readiness.locations, places);
+          return d.query ? `“${d.query}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
+        },
+        places: search.readiness.locations,
+        runPlaces: (places) => {
+          void search.searchNow({ locations: places }).then((run) => {
+            if (run) window.scrollTo({ top: 0, behavior: "smooth" });
+          });
         },
       }}
     />

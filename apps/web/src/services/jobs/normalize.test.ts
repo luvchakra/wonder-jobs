@@ -133,7 +133,8 @@ describe("word families and places", () => {
     expect(inPlaces(at("Pune, India"), ["Mumbai"])).toBe(false);
     expect(inPlaces(at("Remote - USA", "remote"), ["Mumbai", "Remote"])).toBe(false);
     expect(inPlaces(at("Remote (India)", "remote"), ["Mumbai", "Remote"])).toBe(true);
-    expect(inPlaces(at("Remote", "remote"), ["Mumbai"])).toBe(false);
+    expect(inPlaces(at("Remote", "remote"), ["Mumbai"])).toBe(true);
+    expect(inPlaces(at("Pune, India"), ["Remote"])).toBe(false);
     expect(placeNamed("Navi Mumbai, Maharashtra", "Mumbai")).toBe(true);
   });
 });

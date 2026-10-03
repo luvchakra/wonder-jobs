@@ -247,7 +247,7 @@ export default function CareerDNAPage() {
           </MoreRow>
         </Card>
 
-        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career Profile unless you allow it in What Wonder can do.</p>
+        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career Profile unless you allow it in Automation.</p>
       </div>
     </div>
   );

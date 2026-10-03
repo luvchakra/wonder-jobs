@@ -150,6 +150,39 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </div>
       )}
 
+      {data.testing?.allowed && !sub && (
+        <div className="mt-4 rounded-[14px] border border-dashed border-brand-300 bg-brand-50/50 p-3">
+          <p className="text-[13px] font-semibold text-ink">Try a plan — testing, no payment</p>
+          <p className="mt-0.5 text-[12px] text-ink-3">Switch to see exactly what each plan allows. Payments aren&apos;t connected yet, so nothing is charged.</p>
+          <div className="mt-2 grid grid-cols-3 gap-2" role="group" aria-label="Plan for testing">
+            {(["free", "pro", "max"] as const).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={data.plan === p ? "primary" : "outline"}
+                aria-pressed={data.plan === p}
+                loading={busy === `test-${p}`}
+                disabled={!!busy}
+                onClick={async () => {
+                  setBusy(`test-${p}`);
+                  try {
+                    await post("/api/billing/test-plan", { plan: p === "free" ? null : p });
+                    await load(true);
+                    toast.success(`Now testing ${data.plans?.[p]?.label ?? p}`, "Every limit in the app follows it right away.");
+                  } catch (e) {
+                    toast.error("Couldn't switch", e instanceof Error ? e.message : undefined);
+                  } finally {
+                    setBusy(null);
+                  }
+                }}
+              >
+                {data.plans?.[p]?.label ?? p}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {ready.length > 0 && upgrades.length > 0 && (
         <ul className="mt-4 space-y-3">
           {upgrades.map((p) => {

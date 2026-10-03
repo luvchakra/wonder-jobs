@@ -439,10 +439,11 @@ export function matchesLocations(job: Pick<Job, "location" | "workMode" | "count
   return fixed.some((l) => placeNamed(job.location, l)) || (wantsIndia && job.country === "IN");
 }
 
-/** The stricter check behind the list's Location filter: the posting is in one of these places, or remote and open to them. */
+/** The list's Where filter: the posting is in one of these places, or remote and not restricted to somewhere else. */
 export function inPlaces(job: Pick<Job, "location" | "workMode">, places: string[]): boolean {
   const fixed = places.filter((p) => !isRemotePlace(p));
-  if (job.workMode === "remote") return places.some(isRemotePlace) ? !fixed.length || remoteOpenTo(job, fixed) !== false : fixed.some((p) => placeNamed(job.location, p));
+  if (job.workMode === "remote") return !fixed.length || remoteOpenTo(job, fixed) !== false;
+  if (!fixed.length) return false; // "Remote" alone: on-site and hybrid roles are elsewhere
   return fixed.some((p) => placeNamed(job.location, p) || (/^india$/i.test(p.trim()) && INDIA_PLACES.test(job.location)));
 }
 

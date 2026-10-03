@@ -107,7 +107,7 @@ export function Preflight(props: {
                     ))}
                   </ul>
                   {m.key === "helper" && props.helperInstalled === false && <span className="mt-1 text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
-                  {disabled && <span className="mt-1 text-[12px] font-medium text-ink-3">“Fill application forms” is off in What Wonder can do</span>}
+                  {disabled && <span className="mt-1 text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   <span className={cn("absolute bottom-3 right-3", selected ? "text-brand-600" : "text-ink-4")}>{selected ? <CheckCircle2 className="size-5" aria-hidden /> : <Circle className="size-5" aria-hidden />}</span>
                 </button>
               );
@@ -132,7 +132,7 @@ export function Preflight(props: {
               </label>
               {props.independent && props.fillPolicy !== "run" && (
                 <p className="mt-2 text-[12px] text-ink-3">
-                  Your <Link href="/app/automation" className="font-medium text-brand-600 hover:underline">What Wonder can do</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
+                  Your <Link href="/app/automation" className="font-medium text-brand-600 hover:underline">Automation</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
                 </p>
               )}
               {props.helperInstalled === false && (
@@ -215,7 +215,7 @@ export function Preflight(props: {
               </li>
             ))}
           </ul>
-          {props.handoffPolicy === "skip" && <p className="mt-3 text-[12px] text-danger-600">“Hand off application” is turned off in What Wonder can do, so Wonder won&apos;t open employer pages for you.</p>}
+          {props.handoffPolicy === "skip" && <p className="mt-3 text-[12px] text-danger-600">“Hand off application” is turned off in Automation, so Wonder won&apos;t open employer pages for you.</p>}
           {!destination && <p className="mt-3 text-[12px] text-danger-600">This job has no application link Wonder can open.</p>}
           {props.blockedReason && <p className="mt-3 text-[12px] text-warning-600">{props.blockedReason}</p>}
           <Button full size="lg" className="mt-4" onClick={props.onStart} disabled={blocked || props.busy} loading={props.busy}>

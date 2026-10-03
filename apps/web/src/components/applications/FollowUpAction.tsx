@@ -119,7 +119,7 @@ export function FollowUpAction({ application, job }: { application: Application;
         <p className="text-[13px] text-ink-3">
           Sending email is turned off in{" "}
           <Link href="/app/automation/settings" className="font-medium text-brand-600 hover:underline">
-            What Wonder can do
+            Automation
           </Link>
           . Turn it on to let Wonder draft and send with your approval.
         </p>

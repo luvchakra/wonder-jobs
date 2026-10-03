@@ -12,6 +12,8 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
+import { fieldTerms } from "@/services/jobs/matching";
+import { useCareerStore } from "@/store/career";
 import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
@@ -23,7 +25,7 @@ const PAGE = 24;
  * `header` is only for a line that must be seen before them (a search in progress), `footer` for
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist.
  */
-export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -77,7 +79,10 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
   // "Why Was This Filtered" breakdown below can never disagree, because they read the same computation.
   // Saved shows every bookmarked job whatever its fit; Find never shows only saved ones (that's the Saved tab).
   const effective = useMemo(() => ({ ...filters, query, onlySaved: savedOnly, minFit: savedOnly ? null : filters.minFit }), [filters, query, savedOnly]);
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now), [order, jobs, matches, rejected, saved, effective, now]);
+  const headline = useCareerStore((s) => s.dna.headline);
+  const goal = useCareerStore((s) => s.dna.careerGoal);
+  const field = useMemo(() => fieldTerms(headline, goal), [headline, goal]);
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now, field), [order, jobs, matches, rejected, saved, effective, now, field]);
   const results = useMemo(() => {
     const list = [...filterResult.visibleIds];
     list.sort((a, b) => {
@@ -118,6 +123,7 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
           if (!on) setCompare([]);
         }}
         sourceSearch={sourceSearch}
+        refineTop={refineTop}
         className="mb-4"
       />
       {results.length === 0 ? (
@@ -130,7 +136,7 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
             }}
             variant="empty"
             // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
-            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim()), run: () => sourceSearch.run(effective.query.trim()) } : undefined}
+            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch.run(effective.query.trim(), effective.locations ?? []) } : undefined}
           />
         ) : (
           empty

@@ -246,7 +246,9 @@ test.describe("JobsApply with the browser helper", () => {
     expect(await employer.locator("input[name=cv2]").evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(0);
 
     await page.goto("/app/career-dna");
-    await expect(page.getByRole("heading", { name: "Application answers Wonder remembers" })).toBeVisible({ timeout: 20_000 });
+    // Remembered answers are folded under "Answers Wonder remembers" on the Career Profile.
+    await page.getByText("Answers Wonder remembers", { exact: true }).click({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Application answers Wonder remembers" })).toBeVisible();
     await expect(page.getByText("₹60,00,000")).toBeVisible();
   });
 
@@ -288,7 +290,7 @@ test.describe("JobsApply with the browser helper", () => {
     await openApply(page);
     await startWithHelper(page, context);
     await expect(page.getByText("Wonder couldn't identify this application form yet").first()).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible();
     await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
   });
 });
@@ -305,9 +307,10 @@ web.describe("JobsApply in WonderJobs", () => {
   web("APPLY-001/002: Apply with Wonder is offered where a résumé exists, and explained where it doesn't", async ({ page }) => {
     await page.goto(`/demo?next=/app/jobs/${JOB}`);
     await expect(page.getByRole("link", { name: "Apply with Wonder" })).toBeVisible({ timeout: 30_000 });
+    // Without any résumé, Apply with Wonder isn't offered at all; preparing the application is the next step.
     await page.goto("/app/jobs/job_airbnb_pm");
-    await expect(page.getByRole("button", { name: "Apply with Wonder" })).toBeDisabled({ timeout: 20_000 });
-    await expect(page.getByText("Prepare a résumé first")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Prepare application" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("link", { name: "Apply with Wonder" })).toHaveCount(0);
   });
 
   web("GJ5 / APPLY-006: an application already submitted is flagged before anything starts", async ({ page }) => {
@@ -321,7 +324,7 @@ web.describe("JobsApply in WonderJobs", () => {
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
-    await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("+91 90000 00000")).toBeVisible();
     await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
     if (info.project.name === "chromium") {

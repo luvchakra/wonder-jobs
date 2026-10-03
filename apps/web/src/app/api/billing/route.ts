@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
-import { entitlement, providerAvailability } from "@/server/billing/service";
+import { entitlement, paymentsLive, providerAvailability } from "@/server/billing/service";
+import { isAdminSession } from "@/server/jobslake/access";
 import { getPlansConfig } from "@/server/billing/plansConfig";
 import { limitsFor } from "@/domain/billing/plans";
 import { billingStore } from "@/server/billing/store";
@@ -35,6 +36,8 @@ export async function GET() {
       until: ent.until ?? null,
       subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled" } : null,
       payments,
+      // Pre-launch: switch plans without paying, to try each plan's limits.
+      testing: { allowed: isAdminSession(session) || !paymentsLive(), active: ent.reason.startsWith("Testing ") },
     },
     { headers: { "cache-control": "no-store" } },
   );

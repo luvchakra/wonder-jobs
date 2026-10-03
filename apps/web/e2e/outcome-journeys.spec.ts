@@ -21,7 +21,7 @@ async function slowSampleSources(page: Page) {
 async function startFind(page: Page, request: string, opts: { openRun?: boolean } = { openRun: true }) {
   await slowSampleSources(page);
   await page.goto(`/demo?next=${encodeURIComponent(`/app/jobs?search=${request}`)}`);
-  await page.waitForURL(/\/app$/, { timeout: 20_000 });
+  await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
   if (opts.openRun) {
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(RUN_URL, { timeout: 20_000 });
@@ -30,6 +30,12 @@ async function startFind(page: Page, request: string, opts: { openRun?: boolean 
 }
 
 const title = (card: Locator) => card.locator("#run-experience-title");
+
+/** What was searched sits at the top of Refine (WJ-206); opens it if it's closed. */
+async function openRefine(page: Page) {
+  const refine = page.getByRole("button", { name: /^Refine/ });
+  if ((await refine.getAttribute("aria-expanded")) !== "true") await refine.click();
+}
 
 /** Answers each "Wonder needs your input" with Continue until the search reaches its result. */
 async function driveToResult(card: Locator) {
@@ -65,12 +71,14 @@ test.describe("FIND", () => {
     await expect(page.getByRole("heading", { name: "Career Profile", level: 1 })).toBeVisible();
     await page.goto("/app");
     // No button between the candidate and the jobs.
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/jobs for you/);
+    await expect(page).toHaveURL(/\/app\/jobs$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Find jobs/);
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
+    await openRefine(page);
     await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “/);
-    // Old links into the job list keep their filter.
+    // Links into the job list keep their filter.
     await page.goto("/app/jobs?fit=strong");
-    await expect(page).toHaveURL(/\/app\?fit=strong/);
+    await expect(page).toHaveURL(/\/app\/jobs\?fit=strong/);
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
   });
 
@@ -84,7 +92,9 @@ test.describe("FIND", () => {
     await expect(wider).toBeVisible();
     await wider.click();
     await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “senior product/i);
-    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “senior product[^”]*” in Mumbai/i, { timeout: 45_000 });
+    await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 45_000 });
+    await openRefine(page);
+    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “senior product[^”]*” in Mumbai/i);
   });
 
   test("FIND-003 real progress → completion → result summary that matches the engine", async ({ page }) => {
@@ -121,18 +131,19 @@ test.describe("FIND", () => {
 test.describe("DECIDE", () => {
   test("DECIDE-001 an opportunity says why Wonder surfaced it", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
+    // A card carries its fit; the reasons are on the job's own page, opened at "Why it fits".
     const first = page.getByRole("list", { name: "Job results" }).locator(":scope > li").first();
-    await expect(first.getByText("Why Wonder surfaced this")).toBeVisible();
+    await expect(first.getByText(/Opportunity|Worth Considering/).first()).toBeVisible();
     await page.goto("/app/jobs/job_google_pm?tab=why");
-    await expect(page.getByRole("tab", { name: "Why it fits" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByText("Why Wonder thinks this fits")).toBeVisible();
+    await expect(page.getByText("Skill alignment")).toBeVisible();
   });
 
   test("DECIDE-002 an opportunity shows its hiring-signal evidence", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_google_pm");
-    await page.getByRole("tab", { name: "Sources & signals" }).click();
-    await expect(page.getByRole("heading", { name: "Hiring signals" })).toBeVisible();
-    await expect(page.getByText(/Signals are observations, not claims/)).toBeVisible();
+    await page.getByText("Sources & hiring signals", { exact: true }).click();
+    await expect(page.getByText(/Hiring confidence/).first()).toBeVisible();
+    await expect(page.getByText(/Observations, not claims/)).toBeVisible();
   });
 
   test("DECIDE-003 a filtered job explains why and offers Show it anyway", async ({ page }) => {
@@ -173,7 +184,7 @@ test.describe("DECIDE", () => {
 
   test("DECIDE-006 not-for-me only becomes a learned preference once the evidence is real, and it persists", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
-    const links = page.getByRole("list", { name: "Job results" }).locator("h3 a");
+    const links = page.getByRole("list", { name: "Job results" }).locator('a[href^="/app/jobs/"]');
     await expect(links.nth(2)).toBeVisible();
     const hrefs = await links.evaluateAll((as) => as.slice(0, 3).map((a) => a.getAttribute("href")!));
     expect(hrefs).toHaveLength(3);
@@ -186,6 +197,8 @@ test.describe("DECIDE", () => {
       await expect(page.getByText("Rank more senior roles lower")).toHaveCount(i < 2 ? 0 : 1);
     }
     await page.reload();
+    // What Wonder learned is folded on the Career Profile.
+    await page.getByText("What Wonder has learned", { exact: true }).click();
     await expect(page.getByText("Rank more senior roles lower")).toBeVisible();
     await expect(page.getByText(/Marked 3 roles "not for me — too senior"/)).toBeVisible();
   });
@@ -200,7 +213,7 @@ test.describe("APPLY", () => {
     await expect(summary).toHaveText(/Nothing prepared yet|of 3 materials ready/);
     await page.getByRole("button", { name: "Generate resume" }).click();
     await expect(summary).toHaveText(/of 3 materials ready/, { timeout: 10_000 });
-    await expect(page.getByText("AI-generated draft")).toBeVisible();
+    await expect(page.getByText("AI-generated", { exact: true }).first()).toBeVisible();
   });
 
   test("APPLY-002 editing generated material records the candidate as its author", async ({ page }) => {
@@ -209,8 +222,9 @@ test.describe("APPLY", () => {
     await editor.click();
     await page.keyboard.press("End");
     await page.keyboard.type(" Edited by the candidate.");
-    await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 5_000 });
-    await expect(page.locator("[aria-labelledby='wj-pack-summary']").getByText("Edited by you")).toBeVisible();
+    await expect(page.locator("#main").getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: 5_000 });
+    // The edited version is labelled as the candidate's own, not the model's.
+    await expect(page.getByText("User-modified", { exact: true }).first()).toBeVisible();
   });
 
   test("APPLY-003 review the application before the hand-off", async ({ page }) => {
@@ -226,7 +240,6 @@ test.describe("APPLY", () => {
   test("APPLY-004 the employer hand-off stays candidate-controlled — nothing is marked submitted", async ({ page, context }) => {
     await context.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => route.fulfill({ status: 200, body: "employer page" }));
     await page.goto("/demo?next=/app/applications/app_razorpay/prepare");
-    await expect(page.getByText("The final action is yours.")).toBeVisible();
     await page.getByRole("button", { name: "Review and continue" }).click();
     await page.getByRole("checkbox", { name: /I've reviewed these materials/ }).check();
     const popup = context.waitForEvent("page");
@@ -245,12 +258,14 @@ test.describe("PROGRESS", () => {
     await expect(page.getByText("Submitted").first()).toBeVisible();
   });
 
-  test("PROGRESS-002 what needs the candidate in their applications is one line above the jobs, counted from real applications", async ({ page }) => {
-    await page.goto("/demo?next=/app");
-    const line = page.locator("#main").getByRole("link", { name: /coming up|due|ready for your review|repl/ }).first();
+  test("PROGRESS-002 what needs the candidate is listed under the pipeline, counted from real applications", async ({ page }) => {
+    await page.goto("/demo?next=/app/applications");
+    await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
+    const line = page.locator("#main").getByRole("link", { name: /coming up|due|ready for your review|repl/i }).first();
     await expect(line).toBeVisible();
     await line.click();
-    await expect(page).toHaveURL(/\/app\/applications$/);
+    await expect(page).toHaveURL(/\/app\/applications\/[^/]+/);
   });
 });
 
@@ -269,15 +284,18 @@ test.describe("WONDER", () => {
     await expect(await askWonder(page, "Find me IAM jobs")).toContainText("Find opportunities: “IAM jobs”");
     await page.keyboard.press("Enter");
     // Straight to the jobs, searching every source for the candidate's words — and saying so.
-    await expect(page).toHaveURL(/\/app$/);
-    await expect(page.locator("#main")).toContainText(/for “iam/i, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/app\/jobs$/);
+    // While it runs the line above the jobs says so; once done, what was searched sits in Refine.
+    await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 30_000 });
+    await openRefine(page);
+    await expect(page.locator("#main")).toContainText(/for “iam/i);
   });
 
   test("WONDER-003 “Search again with Director roles”", async ({ page }) => {
     await page.goto("/demo?next=/app");
     await askWonder(page, "Search again with Director roles");
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/app$/);
+    await expect(page).toHaveURL(/\/app\/jobs$/);
     await expect(page.locator("#main")).toContainText(/for “director/i, { timeout: 20_000 });
   });
 
@@ -296,7 +314,7 @@ test.describe("WONDER", () => {
     await page.goto("/demo?next=/app/jobs");
     await expect(await askWonder(page, "What should I focus on today?")).toContainText(/^Today: .*need/);
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/app$/);
+    await expect(page).toHaveURL(/\/app(\/jobs)?$/);
   });
 });
 
@@ -307,20 +325,26 @@ test.describe("AUTOMATION", () => {
     await page.locator("#sched-request").fill(what);
     await page.getByRole("radiogroup", { name: "How often should Wonder look?" }).getByRole("radio", { name: /Keep watch/ }).click();
     await page.getByRole("button", { name: "Start looking" }).click();
-    await page.waitForURL(/\/app\/automation\/scheduled$/);
-    return page.locator("li", { hasText: `Keep watch — ${what.toLowerCase().replace(/ roles$/, "")}` }).first();
+    await page.waitForURL(/\/app\/automation\/settings#scheduled$/);
+    return page.locator("#scheduled li", { hasText: `Keep watch — ${what.toLowerCase().replace(/ roles$/, "")}` }).first();
+  }
+  async function runNow(page: Page, row: Locator) {
+    await row.getByRole("link").first().click();
+    await page.waitForURL(/\/app\/automation\/scheduled\/[^/]+$/);
+    await page.getByRole("button", { name: "Run now" }).click();
   }
 
   test("AUTOMATION-001 a scheduled search is created through the simple chooser", async ({ page }) => {
     const row = await createKeepWatch(page, "Designer roles");
-    await expect(row).toContainText("Only if strong matches > 0");
+    await expect(row).toContainText(/only if strong matches > 0/i);
     await page.goto("/app");
+    await openRefine(page);
     await expect(page.locator("#main")).toContainText("checks again on schedule");
   });
 
   test("AUTOMATION-002 a scheduled search executes", async ({ page }) => {
     const row = await createKeepWatch(page, "Designer roles");
-    await row.getByRole("button", { name: "Run now" }).click();
+    await runNow(page, row);
     await page.waitForURL(RUN_URL);
     await expect(page.getByText(/^Scheduled search ·/)).toBeVisible();
     await expect(page.locator("#run-experience-title")).not.toHaveText(/finding|getting ready/i, { timeout: 30_000 });
@@ -328,12 +352,12 @@ test.describe("AUTOMATION", () => {
 
   test("AUTOMATION-003 an unmet condition is a legitimate quiet outcome", async ({ page }) => {
     const row = await createKeepWatch(page, "Designer roles");
-    await row.getByRole("button", { name: "Run now" }).click();
+    await runNow(page, row);
     await page.waitForURL(RUN_URL);
     const card = page.locator("section[aria-labelledby='run-experience-title']");
     await expect(card).toContainText("Quiet outcome: no strong match made the shortlist", { timeout: 30_000 });
-    await page.goto("/app/automation/scheduled");
-    await expect(page.locator("li", { hasText: "Keep watch — designer" }).first()).toContainText("quiet — nothing to report");
+    await page.goto("/app/automation/settings");
+    await expect(page.locator("#scheduled li", { hasText: "Keep watch — designer" }).first()).toContainText("nothing to report");
   });
 });
 
@@ -382,7 +406,7 @@ test.describe("MOBILE (390px)", () => {
     await card.getByRole("link", { name: /Strong opportunities/ }).click();
     await page.waitForURL(/\/app(\/jobs)?\?fit=strong/);
     await expectNoHorizontalScroll(page);
-    await page.getByRole("list", { name: "Job results" }).locator("h3 a").first().click();
+    await page.getByRole("list", { name: "Job results" }).locator('a[href^="/app/jobs/"]').first().click();
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
     await expectNoHorizontalScroll(page);
     await page.getByRole("button", { name: /^(Prepare application|Open application pack)$/ }).first().click();
@@ -396,14 +420,15 @@ test.describe("MOBILE (390px)", () => {
     await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “product manager/i);
     await expectNoHorizontalScroll(page);
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
-    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “product manager/i, { timeout: 45_000 });
+    await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 45_000 });
+    await openRefine(page);
+    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “product manager/i);
     await expectNoHorizontalScroll(page);
   });
 
   test("MOBILE-003 the Application Pack at 390px", async ({ page }) => {
     await page.goto("/demo?next=/app/applications/app_razorpay/prepare");
     await expect(page.locator("#wj-pack-summary")).toHaveText("Application ready");
-    await expect(page.getByText("The final action is yours.")).toBeVisible();
     await expectNoHorizontalScroll(page);
     await page.getByRole("button", { name: "Review and continue" }).click();
     await expect(page.getByRole("button", { name: "Continue to Employer" })).toBeVisible();

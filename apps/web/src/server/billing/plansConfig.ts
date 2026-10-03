@@ -1,4 +1,4 @@
-import { DEFAULT_PLANS, mergePlansConfig, monthKey, type PlansConfig } from "@/domain/billing/plans";
+import { DEFAULT_PLANS, mergePlansConfig, monthKey, type PlansConfig, type PlanId } from "@/domain/billing/plans";
 import { stateStore } from "@/server/state";
 import { razorpayConfig, stripeConfig } from "./config";
 
@@ -27,6 +27,23 @@ export async function savePlansConfig(input: unknown, actor: string): Promise<Pl
 interface PlanUsageDoc {
   /** Drafts written by WonderJobs AI, by calendar month. */
   drafts?: Record<string, number>;
+  /** A plan switched on for testing, with no payment (see `testPlanAllowed`). */
+  testPlan?: { plan: PlanId; at: string; byAdmin: boolean };
+}
+
+/** The testing plan this tenant switched to, if any. */
+export async function readTestPlan(tenantId: string): Promise<PlanUsageDoc["testPlan"]> {
+  const doc = await stateStore.get(tenantId, "wj.plan").catch(() => undefined);
+  return ((doc?.state ?? {}) as PlanUsageDoc).testPlan;
+}
+
+/** Switch this tenant to a plan for testing (null goes back to what was paid for). */
+export async function writeTestPlan(tenantId: string, plan: PlanId | null, byAdmin: boolean): Promise<void> {
+  const doc = await stateStore.get(tenantId, "wj.plan").catch(() => undefined);
+  const state = { ...((doc?.state ?? {}) as PlanUsageDoc) };
+  if (plan) state.testPlan = { plan, at: new Date().toISOString(), byAdmin };
+  else delete state.testPlan;
+  await stateStore.put(tenantId, "wj.plan", state);
 }
 
 /** WonderJobs AI drafts this tenant has used this month. A connected own-AI key never goes through here. */

@@ -104,7 +104,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
       track("search_schedule_created", { frequency, quiet: frequency === "keep_watch" || onlyWorthIt });
       toast.success(frequency === "manual" ? "Search saved" : "Wonder will keep looking", frequency === "manual" ? "Run it from Scheduled searches whenever you like." : describeSchedule({ ...schedule, timezone }));
     }
-    router.push("/app/automation/scheduled");
+    router.push("/app/automation/settings#scheduled");
   };
 
   return (

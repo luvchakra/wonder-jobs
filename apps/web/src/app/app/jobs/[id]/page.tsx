@@ -155,10 +155,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
           <Card className="mb-4">
               <h2 className="text-[15px] font-semibold text-ink">Job description</h2>
-              <p className={cn("mt-2 text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-3")}>{job.description}</p>
-              <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
-                {expanded ? "Show less" : "Show more"}
-              </button>
+              <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-3")}>{job.description}</p>
+              {job.description.length > 240 && (
+                <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
+                  {expanded ? "Show less" : "Show more"}
+                </button>
+              )}
+              {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
+              {expanded && /(…|\.\.\.)\s*$/.test(job.description) && (
+                <p className="mt-1 text-[13px] text-ink-3">
+                  This is the part the source shares.{" "}
+                  <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-medium text-brand-600 hover:underline">
+                    Read the full description <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                </p>
+              )}
               <h2 className="mt-6 text-[15px] font-semibold text-ink">Key requirements</h2>
               <ul className="mt-2 flex flex-col gap-2">
                 {job.requirements.map((r) => (
