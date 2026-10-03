@@ -219,7 +219,7 @@ export default function CareerDNAPage() {
 
         <Card>
           <h2 className="mb-1 text-[15px] font-semibold text-ink">Resume</h2>
-          <p className="mb-3 text-[12px] text-ink-3">Fill in the sections above — profile, contact, work history, education and certifications — from one of your stored résumés or a file you bring in once. Every suggestion shows the words it came from, nothing you already have is overwritten unless you choose to, and nothing is applied until you tick it. To keep a résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 hover:underline">upload it in Resume Studio</Link>.</p>
+          <p className="mb-3 text-[12px] text-ink-3">Fill in the sections above — profile, contact, work history, education and certifications — from one of your stored résumés or a file you bring in once. Every suggestion shows the words it came from, nothing you already have is overwritten unless you choose to, and nothing is applied until you tick it. To keep a résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 underline underline-offset-2">upload it in Resume Studio</Link>.</p>
           <ResumeImport current={draft} history={draft.history ?? {}} onApply={(patch) => {
               setDraft((d) => ({ ...d, ...patch }));
               setImportRev((n) => n + 1);

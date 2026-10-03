@@ -1,18 +1,20 @@
-import { BarChart3, BookOpen, Dna, FileText, Home, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, Zap, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Dna, FileText, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Timer, Zap, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   exact?: boolean;
+  /** Other paths that belong to this item (a job's own page belongs to Jobs). */
+  also?: string[];
 }
 
-// The 5 real destinations of the product (spec: "Home / Jobs / Applications / Career / Wonder").
+// The real destinations of the product (spec: "Home / Jobs / Applications / Career / Wonder").
 // Same array drives the desktop sidebar, the mobile bottom bar and the mobile drawer, so all three
 // can never drift out of sync with each other.
 export const PRIMARY_NAV: NavItem[] = [
-  { href: "/app", label: "Home", icon: Home, exact: true },
-  { href: "/app/jobs", label: "Jobs", icon: Search },
+  // Signed in = the job list: /app is Jobs (a job's page and comparison belong to it too).
+  { href: "/app", label: "Jobs", icon: Search, exact: true, also: ["/app/jobs"] },
   { href: "/app/applications", label: "Applications", icon: LayoutList },
   { href: "/app/career-dna", label: "Career", icon: Dna },
   { href: "/app/runs", label: "Wonder", icon: Zap },
@@ -45,5 +47,6 @@ export const RESOURCES_NAV: NavItem[] = [
 export const MOBILE_NAV: NavItem[] = PRIMARY_NAV;
 
 export function isActivePath(pathname: string, item: NavItem) {
+  if (item.also?.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
 }
