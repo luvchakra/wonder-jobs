@@ -15,6 +15,7 @@ import { Button } from "@/components/common/Button";
 import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
+import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
 
 /* ------------------------------------------------------------------ blocker */
@@ -256,7 +257,7 @@ function NoteBody({ note }: { note: RelevanceNote }) {
 /* ------------------------------------------------------------------- status */
 
 /** One line: what Wonder is doing now, or what the list is from — with the per-source detail a tap away. */
-export function SearchStatusLine({ search }: { search: JobSearch }) {
+export function SearchStatusLine({ search, monitoring = false }: { search: JobSearch; monitoring?: boolean }) {
   // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
   const sources = useJobsStore((s) => s.sources);
@@ -282,14 +283,14 @@ export function SearchStatusLine({ search }: { search: JobSearch }) {
   return (
     <div className="mb-4 text-[13px]">
       {widened && <p className="mb-1 text-ink-2">{widened}</p>}
-      <p className={failed ? "text-danger-600" : "text-ink-3"} role={failed ? "alert" : undefined}>
-        {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"} for “${c.query}”${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}`}{" "}
-        <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
-          <RefreshCw className="size-3.5" aria-hidden /> {failed ? "Try again" : "Search again"}
-        </button>{" "}
-        <Link href={`/app/runs/${last.id}`} className="text-ink-3 underline-offset-2 hover:underline">
-          Details
+      <p className={cn("flex items-center gap-1.5", failed ? "text-danger-600" : "text-ink-3")} role={failed ? "alert" : undefined}>
+        {/* The line itself opens the search's details; one icon searches again. */}
+        <Link href={`/app/runs/${last.id}`} aria-label={`Details — ${failed ? "the last search didn't finish" : `searched ${n} sources for ${c.query}`}`} className="min-w-0 underline-offset-2 hover:underline">
+          {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"} for “${c.query}”${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}${monitoring ? " · checks again on schedule" : ""}`}
         </Link>
+        <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} aria-label={failed ? "Try again" : "Search again"} title={failed ? "Try again" : "Search again"} className="shrink-0 rounded-full p-1 text-brand-600 hover:bg-brand-50">
+          <RefreshCw className="size-3.5" aria-hidden />
+        </button>
       </p>
     </div>
   );

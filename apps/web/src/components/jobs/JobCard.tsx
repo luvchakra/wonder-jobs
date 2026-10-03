@@ -8,7 +8,6 @@ import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { FitLabel } from "./MatchBadge";
-import { JobQualityBadge } from "./JobQualityBadge";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
@@ -20,7 +19,7 @@ export function companyColor(name: string) {
  * `decision` adds the outcome view (outcome spec §9): why Wonder surfaced it, things to consider,
  * and the next suggestion, with Prepare and Compare actions when their handlers are given.
  */
-export function JobCard({ job, match, quality, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
+export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
@@ -75,17 +74,14 @@ export function JobCard({ job, match, quality, saved, onToggleSave, onReject, co
           </>
         )}
       </div>
+      {/* Fit and where you are with it — the reasons, signals and tags are on the job's own page. */}
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {match && <FitLabel fit={match.fit} score={match.score} />}
-        {!compact && quality && quality.confidence !== "moderate" && <JobQualityBadge quality={quality} />}
-        {(compact ? job.tags.slice(0, 2) : [...match?.highlights.slice(0, 2) ?? [], ...job.tags.slice(0, 1)]).map((t) => (
-          <Badge key={t}>{t}</Badge>
-        ))}
         {status && <Badge tone="info">{status}</Badge>}
+        <span className="ml-auto text-[12px] text-ink-4">{relativeTime(job.postedAt)}</span>
       </div>
       {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[12px] text-ink-4">{relativeTime(job.postedAt)}</p>
+      <div className={cn("flex flex-wrap items-center justify-end gap-2", (onPrepare || onToggleCompare) && "mt-3")}>
         {(onPrepare || onToggleCompare) && (
           <div className="relative z-10 flex items-center gap-2">
             {onToggleCompare && (

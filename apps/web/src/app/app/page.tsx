@@ -64,19 +64,12 @@ function JobsHome() {
             <h1 className="text-[26px] font-semibold tracking-tight text-ink md:text-[30px]">{found.total ? `${(found.strong + found.worth).toLocaleString("en-IN")} jobs for you` : "Jobs for you"}</h1>
             {found.total > 0 && (
               <p className="text-[13px] text-ink-3">
-                {found.strong} strong · {found.worth} worth considering · ranked by fit with your Career Profile
+                {found.strong} strong · {found.worth} worth considering
               </p>
             )}
           </div>
-          <SearchStatusLine search={search} />
+          <SearchStatusLine search={search} monitoring={attention.isMonitoring} />
           {roles.length > 0 && <RoleChips roles={roles} current={search.active?.config.role?.id ?? search.last?.config.role?.id ?? null} onPick={(id) => void (id ? search.searchAsRole(id) : search.searchNow())} busy={false} />}
-          {attention.isMonitoring && (
-            <p className="-mt-3 mb-4 text-[13px] text-ink-3">
-              <Link href="/app/automation/scheduled" className="font-medium text-ink-2 hover:underline">
-                Wonder keeps looking on your schedule
-              </Link>
-            </p>
-          )}
           {needsYou > 0 && (
             <Link href="/app/applications" className="mb-4 flex items-center gap-2 rounded-[14px] border border-brand-200 bg-brand-50/60 px-3 py-2 text-[13px] font-medium text-brand-700 hover:bg-brand-50">
               <BellRing className="size-4 shrink-0" aria-hidden />

@@ -13,6 +13,7 @@ import { Switch } from "@/components/common/Input";
 import { PageLoading } from "@/components/common/States";
 import { ProviderMark } from "@/components/ai/ProviderMark";
 import { BYOKForm } from "@/components/ai/BYOKForm";
+import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 
 function AISettingsInner() {
@@ -92,10 +93,7 @@ function AISettingsInner() {
         </Card>
       </section>
 
-      <section aria-labelledby="byok" className="mb-5">
-        <h2 id="byok" className="mb-1 text-[15px] font-semibold text-ink">
-          Bring your own key
-        </h2>
+      <Fold title="Use your own API key" hint="Anthropic, OpenAI or Gemini — billed to your account" className="mb-3">
         <p className="mb-3 text-[12px] text-ink-3">
           {backend === "local"
             ? "Keys are encrypted, isolated to your account, never logged or shown again after saving, and can be removed any time — but this deployment has no persistent storage configured, so they're held in memory only and won't survive a server restart."
@@ -110,13 +108,10 @@ function AISettingsInner() {
             ))}
           </div>
         )}
-      </section>
+      </Fold>
 
-      <section aria-labelledby="billing" className="mb-5">
-        <h2 id="billing" className="mb-3 text-[15px] font-semibold text-ink">
-          If your provider fails
-        </h2>
-        <Card>
+      <Fold title="If your provider fails" hint={config.allowPlatformFallback ? "Falls back to WonderJobs AI automatically" : "Asks before switching"} className="mb-3">
+
           <ol className="list-decimal space-y-1 pl-5 text-[13px] text-ink-2">
             <li>Wonder explains what went wrong (key rejected, rate limit, outage).</li>
             <li>You can retry, switch provider, or continue with WonderJobs AI.</li>
@@ -129,14 +124,10 @@ function AISettingsInner() {
             </div>
             <Switch checked={config.allowPlatformFallback} onChange={setAllowPlatformFallback} label="Automatic fallback to WonderJobs AI" />
           </div>
-        </Card>
-      </section>
+      </Fold>
 
-      <section aria-labelledby="usage">
-        <h2 id="usage" className="mb-3 text-[15px] font-semibold text-ink">
-          Usage
-        </h2>
-        <Card>
+      <Fold title="Usage" hint="AI requests and what they cost">
+
           <div className="grid grid-cols-3 gap-3 text-center">
             <div>
               <p className="text-[20px] font-semibold tracking-tight text-ink">{totals.calls}</p>
@@ -183,8 +174,7 @@ function AISettingsInner() {
             </details>
           )}
           <p className="mt-3 text-[11px] text-ink-4">BYOK costs are estimates from token counts and public list prices; your provider&apos;s invoice is the source of truth.</p>
-        </Card>
-      </section>
+      </Fold>
     </div>
   );
 }

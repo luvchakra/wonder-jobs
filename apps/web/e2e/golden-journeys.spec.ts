@@ -243,12 +243,15 @@ test.describe("Golden journey — automation (demo mode)", () => {
     for (const label of ["Help me", "Work with me", "Work independently", "Keep watch"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
+    // Per-action rules are folded under "Fine-tune each action".
+    await page.getByText("Fine-tune each action").click();
     const genResume = page.getByRole("radiogroup", { name: "Generate resume permission" });
     await expect(genResume).toBeVisible();
     await genResume.getByRole("radio", { name: "Off" }).click();
     await expect(genResume.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
     // Reload proves the change is real, persisted state — not a local-only UI toggle.
     await page.reload();
+    await page.getByText("Fine-tune each action").click();
     await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Restore defaults" }).click();
     await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
@@ -287,6 +290,9 @@ test.describe("Golden journey — advanced mode (demo mode)", () => {
   test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
     await page.goto("/demo?next=/app/settings/ai");
     await expect(page.getByText("WonderJobs AI").first()).toBeVisible();
+    // Your own key and usage are folded until opened.
+    await page.getByText("Use your own API key").click();
+    await page.getByText("Usage", { exact: true }).click();
     for (const provider of ["Anthropic", "OpenAI", "Gemini"]) {
       await expect(page.getByText(provider, { exact: true }).first()).toBeVisible();
     }

@@ -41,7 +41,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       { id: "run", label: "Search again", hint: "Search every source for your Career Profile's role", href: "/app?refresh=1", icon: Play, group: "Actions" },
       { id: "search", label: "Jobs", hint: "Your jobs, ranked by fit with your Career Profile", href: "/app", icon: Search, group: "Actions" },
       { id: "schedule", label: "Set up a scheduled search", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
-      ...[...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
+      ...[...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].filter((n, i, all) => all.findIndex((x) => x.href === n.href) === i).map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
     ],
     [],
   );

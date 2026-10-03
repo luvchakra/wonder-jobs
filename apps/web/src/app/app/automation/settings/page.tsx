@@ -1,5 +1,5 @@
 "use client";
-import { ShieldCheck } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useAutomationStore } from "@/store/automation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
@@ -16,12 +16,23 @@ export default function AutomationSettingsPage() {
   const setDefaultLevel = useAutomationStore((s) => s.setDefaultLevel);
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader
-        title="What Wonder can do"
-        description="Wonder can automate the repetitive work. You decide what it is allowed to do."
-        actions={
+      <PageHeader title="What Wonder can do" description="How much Wonder does on its own. Anything set to Ask me waits for you; Wonder never submits an application for you — that's always your click, on the employer's site." />
+      <Card className="mb-4">
+        <AutomationLevelSelector value={defaultLevel} onChange={setDefaultLevel} compact />
+      </Card>
+      <details className="wj-card group">
+        <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold text-ink">Fine-tune each action</span>
+            <span className="block text-[12px] text-ink-3">Automatic, Ask me or Off for each thing Wonder can do</span>
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="mt-4">
+          <AutomationPolicyEditor policy={policy} onChange={setCapability} />
           <Button
-            variant="outline"
+            className="mt-4"
+            variant="ghost"
             size="sm"
             onClick={() => {
               resetPolicy();
@@ -30,27 +41,8 @@ export default function AutomationSettingsPage() {
           >
             Restore defaults
           </Button>
-        }
-      />
-      <Card className="mb-5 flex items-start gap-4 border-brand-200 bg-brand-50/50">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white">
-          <ShieldCheck className="size-5" aria-hidden />
-        </span>
-        <div>
-          <h2 className="text-[17px] font-semibold text-ink">You&apos;re in control.</h2>
-          <p className="mt-1 text-[14px] text-ink-2">Anything set to <strong>Ask me</strong> pauses the run and waits for you. Anything set to <strong>Automatic</strong> still shows up in the run log with full evidence. Nothing is ever sent to an employer without an explicit approval unless you turn that on yourself.</p>
         </div>
-      </Card>
-      <Card className="mb-5">
-        <h2 className="mb-1 text-[15px] font-semibold text-ink">Default automation level</h2>
-        <p className="mb-3 text-[12px] text-ink-3">Used when you start a run. You can change it per run.</p>
-        <AutomationLevelSelector value={defaultLevel} onChange={setDefaultLevel} compact />
-      </Card>
-      <Card>
-        <h2 className="mb-1 text-[15px] font-semibold text-ink">What Wonder may do</h2>
-        <p className="mb-4 text-[12px] text-ink-3">Changes apply to your next run and to scheduled searches. Runs already in progress keep the policy they started with for the current stage.</p>
-        <AutomationPolicyEditor policy={policy} onChange={setCapability} />
-      </Card>
+      </details>
     </div>
   );
 }
