@@ -30,7 +30,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
   return {
     profile: async (ctx) => {
       const dna = useCareerStore.getState().dna;
-      await ctx.sleep(400);
+      await ctx.sleep(0);
       await ctx.checkpoint();
       ctx.setProgress(1, 1);
       ctx.addEvidence({ label: "Skills", value: `${dna.skills.length} skills · ${dna.skills.filter((s) => s.level >= 4).length} strong` });
@@ -75,31 +75,34 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const discovered: Job[] = [];
       const perSource: Record<string, number> = {};
       const failures: string[] = [];
-      for (const src of enabled) {
-        const adapter = getSourceAdapter(src.id);
-        if (!adapter) continue;
-        try {
-          for await (const page of adapter.search(ctx.run.config.searchCriteria, { sleep: ctx.sleep })) {
-            await ctx.checkpoint();
-            discovered.push(...page.jobs);
-            perSource[src.id] = (perSource[src.id] ?? 0) + page.jobs.length;
-            ctx.setProgress(discovered.length, null);
-            ctx.setCounts({ discovered: discovered.length, sources: Object.keys(perSource).length });
-          }
-          ctx.addEvidence({ label: src.name, value: `${(perSource[src.id] ?? 0).toLocaleString("en-IN")} jobs`, tone: "success" });
-        } catch (e) {
-          if (e instanceof SourceUnavailableError) {
-            if (e.kind === "needs_setup") {
-              ctx.addEvidence({ label: src.name, value: "Needs setup", tone: "warning" });
-              ctx.warn(`${src.name} isn't configured on this deployment yet, so it was skipped.`);
-            } else {
-              failures.push(src.name);
-              ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
-              ctx.warn(`${src.name} is temporarily unavailable: ${e.message}`);
+      // Every source at once: the slowest one decides how long this takes, not the sum of them all.
+      await Promise.all(
+        enabled.map(async (src) => {
+          const adapter = getSourceAdapter(src.id);
+          if (!adapter) return;
+          try {
+            for await (const page of adapter.search(ctx.run.config.searchCriteria, { sleep: ctx.sleep })) {
+              await ctx.checkpoint();
+              discovered.push(...page.jobs);
+              perSource[src.id] = (perSource[src.id] ?? 0) + page.jobs.length;
+              ctx.setProgress(discovered.length, null);
+              ctx.setCounts({ discovered: discovered.length, sources: Object.keys(perSource).length });
             }
-          } else throw e;
-        }
-      }
+            ctx.addEvidence({ label: src.name, value: `${(perSource[src.id] ?? 0).toLocaleString("en-IN")} jobs`, tone: "success" });
+          } catch (e) {
+            if (e instanceof SourceUnavailableError) {
+              if (e.kind === "needs_setup") {
+                ctx.addEvidence({ label: src.name, value: "Needs setup", tone: "warning" });
+                ctx.warn(`${src.name} isn't configured on this deployment yet, so it was skipped.`);
+              } else {
+                failures.push(src.name);
+                ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
+                ctx.warn(`${src.name} is temporarily unavailable: ${e.message}`);
+              }
+            } else throw e;
+          }
+        }),
+      );
       ctx.setProgress(discovered.length, discovered.length);
       if (!discovered.length) {
         ctx.fail({ category: failures.length ? "recoverable" : "user_action_required", message: failures.length ? `All sources failed (${failures.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
@@ -142,7 +145,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         }
         processed += chunk.length;
         ctx.setProgress(processed, raw.length);
-        await ctx.sleep(35);
+        await ctx.sleep(0);
         await ctx.checkpoint();
       }
       out.push(...deduplicate(raw));
@@ -168,7 +171,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         }
         ctx.setProgress(analyzed, jobs.length);
         ctx.setCounts({ analyzed });
-        await ctx.sleep(120);
+        await ctx.sleep(0);
         await ctx.checkpoint();
       }
       ctx.addEvidence({ label: "Salary disclosed", value: `${Math.round((withSalary / Math.max(1, jobs.length)) * 100)}%` });
@@ -187,7 +190,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       for (let i = 0; i < jobs.length; i += CHUNK) {
         for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals }));
         ctx.setProgress(matches.length, jobs.length);
-        await ctx.sleep(90);
+        await ctx.sleep(0);
         await ctx.checkpoint();
       }
       matchCache.set(ctx.run.id, matches);
@@ -210,7 +213,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       for (let i = 0; i < jobs.length; i += CHUNK) {
         for (const j of jobs.slice(i, i + CHUNK)) out.push(computeQuality(j, sources));
         ctx.setProgress(out.length, jobs.length);
-        await ctx.sleep(60);
+        await ctx.sleep(0);
         await ctx.checkpoint();
       }
       qualityCache.set(ctx.run.id, out);
@@ -226,7 +229,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const quality = qualityCache.get(ctx.run.id) ?? [];
       const threshold = ctx.get<number>("minMatchThreshold") ?? ctx.run.config.minMatchThreshold;
       const max = ctx.run.config.maxResults;
-      await ctx.sleep(300);
+      await ctx.sleep(0);
       await ctx.checkpoint();
       const qualityById = new Map(quality.map((q) => [q.jobId, q]));
       const ranked = [...matches]
@@ -402,7 +405,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const out = ctx.output<{ submittedApplicationIds: string[]; handedOffApplicationIds?: string[] }>("apply");
       const submitted = out?.submittedApplicationIds ?? [];
       const handedOff = out?.handedOffApplicationIds ?? [];
-      await ctx.sleep(300);
+      await ctx.sleep(0);
       await ctx.checkpoint();
       const due = new Date(Date.now() + 5 * 86_400_000).toISOString();
       for (const id of submitted) {

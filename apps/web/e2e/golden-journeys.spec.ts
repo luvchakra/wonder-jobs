@@ -102,19 +102,17 @@ test.describe("Golden journey — applications (demo mode)", () => {
 });
 
 test.describe("Golden journey — run Wonder (demo mode)", () => {
-  test("GJ-007 starting a run lands on that run's own timeline page", async ({ page }) => {
+  test("GJ-007 starting a search lands on the job list, with that search's own page one tap away", async ({ page }) => {
     await page.goto("/demo?next=/app/runs/new");
     await expect(page).toHaveURL(/\/app\/runs\/new/);
-
     const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
     // A demo seed run may already be "active" (services/mock/runs.ts), which disables this page's own
-    // submit button and offers "See progress" instead — either outcome proves runs are real and
-    // reachable, so this test follows whichever the seed actually produced rather than assuming one.
-    // The target pattern excludes "new" itself: `[^/]+` alone would also match the page we start on,
-    // resolving `waitForURL` instantly without ever waiting for the real navigation the click triggers.
+    // submit button and offers "See progress" instead — either outcome proves runs are real and reachable.
     const runPageUrl = /\/app\/runs\/(?!new$)[^/]+$/;
     if (await continueBtn.isEnabled().catch(() => false)) {
       await continueBtn.click();
+      await page.waitForURL(/\/app$/, { timeout: 20_000 });
+      await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     } else {
       await page.getByRole("link", { name: "See progress" }).click();
     }
@@ -148,9 +146,10 @@ test.describe("Golden journey — mobile navigation drawer (demo mode)", () => {
     await expect(drawer).toBeHidden();
   });
 
-  test("GJ-009 the bottom bar shows all 5 real destinations directly, with no More catch-all", async ({ page }) => {
+  test("GJ-009 the bottom bar shows every real destination directly — Jobs first — with no More catch-all", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    for (const label of ["Home", "Jobs", "Applications", "Career", "Wonder"]) {
+    await expect(bottomBar.getByRole("link", { name: "Home" })).toHaveCount(0);
+    for (const label of ["Jobs", "Applications", "Career", "Wonder"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(bottomBar.getByRole("button", { name: "More" })).toHaveCount(0);
@@ -258,10 +257,15 @@ test.describe("Golden journey — automation (demo mode)", () => {
 
 test.describe("Golden journey — manual intervention (demo mode)", () => {
   test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
+    // Sample sources answer slowly enough that the search is still running when it's paused.
+    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
     await page.goto("/demo?next=/app/runs/new");
     const continueBtn = page.getByRole("button", { name: "Find opportunities" }).last();
-    if (await continueBtn.isEnabled().catch(() => false)) await continueBtn.click();
-    else await page.getByRole("link", { name: "See progress" }).click();
+    if (await continueBtn.isEnabled().catch(() => false)) {
+      await continueBtn.click();
+      await page.waitForURL(/\/app$/, { timeout: 20_000 });
+      await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
+    } else await page.getByRole("link", { name: "See progress" }).click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
 
     // Pause/Continue live on the outcome card; the mobile status bar has its own labelled twin

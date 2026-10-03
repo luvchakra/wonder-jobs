@@ -91,6 +91,11 @@ describe("defaultSearchQuery — the run searches for the candidate's own role, 
     expect(stripSelfReference("IAM engineer roles")).toBe("engineer roles");
   });
 
+  it("takes the field from the goal when the headline is only a level", () => {
+    expect(defaultSearchQuery({ headline: "Senior Director", careerGoal: "identity and access management" })).toBe("senior director identity access");
+    expect(defaultSearchQuery({ headline: "Senior Director", careerGoal: "" })).toBe("senior director");
+  });
+
   it("is empty when there is nothing to derive from, so the product asks instead of inventing", () => {
     expect(defaultSearchQuery({ headline: "", careerGoal: "" })).toBe("");
     expect(defaultSearchQuery({ headline: "", careerGoal: "I want a new job" })).toBe("");

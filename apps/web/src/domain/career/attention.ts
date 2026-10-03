@@ -62,6 +62,20 @@ export function computeApplicationAttention(applications: Record<string, Applica
   return items;
 }
 
+/** "1 interview coming up · 2 follow-ups due" — what in the applications needs the candidate, counted by kind. */
+export function summarizeApplicationAttention(items: ApplicationAttentionItem[]): string {
+  const n = (r: ApplicationAttentionReason[]) => items.filter((i) => r.includes(i.reason)).length;
+  const part = (count: number, one: string, many: string) => (count ? `${count} ${count === 1 ? one : many}` : "");
+  return [
+    part(n(["interview_soon"]), "interview coming up", "interviews coming up"),
+    part(n(["follow_up_due", "follow_up_overdue"]), "follow-up due", "follow-ups due"),
+    part(n(["ready_for_review"]), "application ready for your review", "applications ready for your review"),
+    part(n(["employer_response"]), "employer reply", "employer replies"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export interface CareerActionItem {
   id: string;
   label: string;

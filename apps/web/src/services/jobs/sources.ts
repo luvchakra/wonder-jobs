@@ -50,9 +50,23 @@ export class RemoteSourceAdapter implements JobSourceAdapter {
     const { jobs } = (await res.json()) as { jobs: Job[] };
     const totalPages = Math.max(1, Math.ceil(jobs.length / pageSize));
     for (let page = 0; page < totalPages; page++) {
-      if (page > 0) await sleep(60);
+      if (page > 0) await sleep(0); // yields between pages so pause/stop stay responsive; no added delay
       yield { jobs: jobs.slice(page * pageSize, (page + 1) * pageSize), page: page + 1, totalPages };
     }
+  }
+}
+
+/**
+ * Extra latency per page for the sample sources, read from `localStorage["wj.demoSourceLatencyMs"]`.
+ * Sample data only (demo and local mode): end-to-end tests set it so a search is still running when
+ * they pause or stop it. Real sources never read it.
+ */
+function demoLatencyMs(): number {
+  try {
+    const v = Number(globalThis.localStorage?.getItem("wj.demoSourceLatencyMs"));
+    return Number.isFinite(v) && v > 0 ? Math.min(v, 10_000) : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -71,7 +85,7 @@ export class MockSourceAdapter implements JobSourceAdapter {
     const matches = q ? all.filter((j) => /product|manager|\bpm\b/.test(q) || matchesQuery(j, q)) : all;
     const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
     for (let page = 0; page < totalPages; page++) {
-      await sleep(90 + (page % 3) * 40);
+      await sleep(90 + (page % 3) * 40 + demoLatencyMs());
       yield { jobs: matches.slice(page * pageSize, (page + 1) * pageSize), page: page + 1, totalPages };
     }
   }

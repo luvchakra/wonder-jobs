@@ -12,11 +12,22 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 
 const RUN_URL = /\/app\/runs\/(?!new$)[^/?]+$/;
 
-async function startFind(page: Page, request: string) {
+/** Sample sources answer slowly enough that a search is still running when a test pauses, stops or watches it. */
+async function slowSampleSources(page: Page) {
+  await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
+}
+
+/** Starts a search from Find: it lands on the job list; the run's own page is one tap away ("Details"). */
+async function startFind(page: Page, request: string, opts: { openRun?: boolean } = { openRun: true }) {
+  await slowSampleSources(page);
   await page.goto("/demo?next=/app/runs/new");
   await page.locator("#find-request").fill(request);
   await page.getByRole("button", { name: "Find opportunities" }).last().click();
-  await page.waitForURL(RUN_URL, { timeout: 20_000 });
+  await page.waitForURL(/\/app$/, { timeout: 20_000 });
+  if (opts.openRun) {
+    await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
+    await page.waitForURL(RUN_URL, { timeout: 20_000 });
+  }
   return page.locator("section[aria-labelledby='run-experience-title']");
 }
 
@@ -51,33 +62,34 @@ async function askWonder(page: Page, text: string) {
 }
 
 test.describe("FIND", () => {
-  test("FIND-001 Career Profile → Find opportunities → results", async ({ page }) => {
+  test("FIND-001 signed in, the first screen is the job list — ranked, with what it searched", async ({ page }) => {
     await page.goto("/demo?next=/app/career-dna");
     await expect(page.getByRole("heading", { name: "Career Profile", level: 1 })).toBeVisible();
     await page.goto("/app");
-    await page.locator("#main").getByRole("link", { name: /Find opportunities/ }).first().click();
-    await page.waitForURL(/\/app\/runs\/new/);
-    // Prefilled from the candidate's own career goal — never a placeholder query.
-    await expect(page.locator("#find-request")).toHaveValue("Find product management roles in tech companies");
-    await page.getByRole("button", { name: "Find opportunities" }).last().click();
-    await page.waitForURL(RUN_URL);
-    const card = page.locator("section[aria-labelledby='run-experience-title']");
-    await driveToResult(card);
-    await card.getByRole("link", { name: /Strong opportunities/ }).click();
-    await expect(page).toHaveURL(/\/app\/jobs\?fit=strong/);
+    // No button between the candidate and the jobs.
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/jobs for you/);
+    await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
+    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “/);
+    // Old links into the job list keep their filter.
+    await page.goto("/app/jobs?fit=strong");
+    await expect(page).toHaveURL(/\/app\?fit=strong/);
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
   });
 
-  test("FIND-002 natural language → Wonder shows the intent it derived before searching", async ({ page }) => {
+  test("FIND-002 natural language → Wonder shows the intent it derived, then the list says what it searched", async ({ page }) => {
     await page.goto("/demo?next=/app/runs/new");
+    // Prefilled from the candidate's own career goal — never a placeholder query.
+    await expect(page.locator("#find-request")).toHaveValue("Find product management roles in tech companies");
     await page.locator("#find-request").fill("Senior product roles in Mumbai, preferably fintech");
     const preview = page.locator("dl").filter({ hasText: "Roles" });
     await expect(preview).toContainText("Mumbai");
     await expect(preview).toContainText("from your words");
     await expect(preview).toContainText(/fintech/i);
     await page.getByRole("button", { name: "Find opportunities" }).last().click();
-    await page.waitForURL(RUN_URL);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Senior product roles in Mumbai");
+    await page.waitForURL(/\/app$/);
+    // Straight to the job list, which says what it's searching and, when done, where.
+    await expect(page.locator("#main")).toContainText(/for “senior product/i);
+    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “senior product[^”]*” in Mumbai/i, { timeout: 45_000 });
   });
 
   test("FIND-003 real progress → completion → result summary that matches the engine", async ({ page }) => {
@@ -100,16 +112,14 @@ test.describe("FIND", () => {
     await expect(card.getByRole("link", { name: "Search again" })).toBeVisible();
   });
 
-  test("FIND-005 Wonder asks for input, the candidate answers, and the search resumes", async ({ page }) => {
+  test("FIND-005 a search finds and ranks — it never prepares applications on its own", async ({ page }) => {
     const card = await startFind(page, "Product manager roles in Bengaluru");
-    await expect(title(card)).toHaveText("Wonder needs your input", { timeout: 30_000 });
-    const question = card.getByText(/prepared applications? (is|are) ready/);
-    await expect(question).toBeVisible();
-    await card.getByRole("button", { name: "Continue", exact: true }).click();
-    // The answer is taken: that question goes away and the search moves on (it may ask the next
-    // one — approving the employer hand-off — which driveToResult answers too).
-    await expect(question).toHaveCount(0, { timeout: 10_000 });
     await driveToResult(card);
+    await expect(title(card)).not.toHaveText(/needs your input/i);
+    await page.getByRole("button", { name: /See how Wonder worked/ }).click();
+    const panel = page.locator("#how-wonder-worked-panel");
+    await expect(panel).toContainText("Prioritizing opportunities");
+    await expect(panel).not.toContainText("Preparing application materials");
   });
 });
 
@@ -236,12 +246,11 @@ test.describe("PROGRESS", () => {
     await expect(page.getByText("Submitted").first()).toBeVisible();
   });
 
-  test("PROGRESS-002 interviews and follow-ups appear on Home, counted from real applications", async ({ page }) => {
+  test("PROGRESS-002 what needs the candidate in their applications is one line above the jobs, counted from real applications", async ({ page }) => {
     await page.goto("/demo?next=/app");
-    const progress = page.getByRole("heading", { name: "Your progress" }).locator("xpath=..");
-    await expect(progress).toContainText("interview this week");
-    await expect(progress).toContainText("follow-up due");
-    await progress.getByRole("link", { name: /interview this week/ }).click();
+    const line = page.locator("#main").getByRole("link", { name: /coming up|due|ready for your review|repl/ }).first();
+    await expect(line).toBeVisible();
+    await line.click();
     await expect(page).toHaveURL(/\/app\/applications$/);
   });
 });
@@ -305,7 +314,7 @@ test.describe("AUTOMATION", () => {
     const row = await createKeepWatch(page, "Designer roles");
     await expect(row).toContainText("Only if strong matches > 0");
     await page.goto("/app");
-    await expect(page.getByRole("heading", { name: "Wonder is working" })).toBeVisible();
+    await expect(page.locator("#main").getByRole("link", { name: "Wonder keeps looking on your schedule" })).toBeVisible();
   });
 
   test("AUTOMATION-002 a scheduled search executes", async ({ page }) => {
@@ -341,11 +350,7 @@ test.describe("ADVANCED", () => {
   });
 
   test("ADVANCED-002 the technical detail agrees with the outcome view", async ({ page }) => {
-    await page.goto("/demo?next=/app/runs/new");
-    await page.locator("#find-request").fill("Product manager roles in Bengaluru");
-    await page.getByRole("button", { name: "Find opportunities" }).last().click();
-    await page.waitForURL(RUN_URL);
-    const card = page.locator("section[aria-labelledby='run-experience-title']");
+    const card = await startFind(page, "Product manager roles in Bengaluru");
     await driveToResult(card);
     const strong = await num(card.getByRole("link", { name: /Strong opportunities/ }));
     const worth = await num(card.getByRole("link", { name: /Worth considering/ }));
@@ -374,7 +379,7 @@ test.describe("MOBILE (390px)", () => {
     await driveToResult(card);
     await expectNoHorizontalScroll(page);
     await card.getByRole("link", { name: /Strong opportunities/ }).click();
-    await page.waitForURL(/\/app\/jobs/);
+    await page.waitForURL(/\/app(\/jobs)?\?fit=strong/);
     await expectNoHorizontalScroll(page);
     await page.getByRole("list", { name: "Job results" }).locator("h3 a").first().click();
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
@@ -385,14 +390,13 @@ test.describe("MOBILE (390px)", () => {
     await expectNoHorizontalScroll(page);
   });
 
-  test("MOBILE-002 Wonder asks for input at 390px and the mobile bar answers it", async ({ page }) => {
-    await startFind(page, "Product manager roles in Bengaluru");
-    await expect(page.locator("#run-experience-title")).toHaveText("Wonder needs your input", { timeout: 30_000 });
-    const question = page.locator("section[aria-labelledby='run-experience-title']").getByText(/prepared applications? (is|are) ready/);
-    await expect(question).toBeVisible();
+  test("MOBILE-002 at 390px the first screen is the job list, and a search's progress is one line", async ({ page }) => {
+    await startFind(page, "Product manager roles in Bengaluru", { openRun: false });
+    await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “product manager/i);
     await expectNoHorizontalScroll(page);
-    await page.getByRole("button", { name: "Continue the search" }).click();
-    await expect(question).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
+    await expect(page.locator("#main")).toContainText(/Searched \d+ sources? for “product manager/i, { timeout: 45_000 });
+    await expectNoHorizontalScroll(page);
   });
 
   test("MOBILE-003 the Application Pack at 390px", async ({ page }) => {

@@ -9,6 +9,7 @@ import { getWorkflowService } from "@/services/workflow/service";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { roleSearch } from "@/domain/career/roles";
+import { SEARCH_ONLY_STAGES } from "@/domain/jobs/readiness";
 import { RolePicker } from "@/components/career/RolePicker";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
@@ -106,8 +107,10 @@ function FindInner() {
     try {
       // Only saved to the Career Profile when the candidate ticked it — never silently.
       if (saveAsGoal && goalChanged) updateDNA({ careerGoal: request.trim() });
-      const run = getWorkflowService().startRun({
+      // Search only — find, match, rank. Applications are prepared later, from a job, by the candidate.
+      getWorkflowService().startRun({
         workflowName: `Search — ${request.trim().replace(/^(find|search for)\s+/i, "").slice(0, 48)}`,
+        stageKeys: [...SEARCH_ONLY_STAGES],
         config: {
           careerGoal: request.trim(),
           automationLevel: level,
@@ -121,8 +124,8 @@ function FindInner() {
         },
       });
       track("find_started", { level, sources: sourceIds.length, locations: locations.value.length, derivedFromWords: query.origin === "your words", asRole: !!role });
-      toast.success("Wonder is finding opportunities", "You can pause or stop at any time.");
-      router.push(`/app/runs/${run.id}`);
+      toast.success("Wonder is finding jobs", "They appear here as soon as they're ranked.");
+      router.push("/app");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't start the search.");
     }

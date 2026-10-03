@@ -381,9 +381,12 @@ export function stripHeadlineLabel(text: string): string {
  * is nothing to derive from: the product then asks rather than substituting a canned role.
  */
 export function defaultSearchQuery(dna: { headline: string; careerGoal: string }): string {
-  for (const source of [stripHeadlineLabel(dna.headline), stripSelfReference(dna.careerGoal)]) {
-    const terms = queryTerms(source).filter((t) => !INDUSTRY_WORDS.has(t)).slice(0, 4);
-    if (terms.length) return terms.join(" ");
+  const [head, goal] = [stripHeadlineLabel(dna.headline), stripSelfReference(dna.careerGoal)].map((s) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t)));
+  // A headline that is only a level ("Senior Director") takes its field from the goal ("… identity and access management").
+  if (head.length && head.every((t) => SENIORITY_WORDS.has(t))) {
+    const field = goal.filter((t) => !SENIORITY_WORDS.has(t));
+    if (field.length) return [...head, ...field].slice(0, 4).join(" ");
   }
+  for (const terms of [head, goal]) if (terms.length) return terms.slice(0, 4).join(" ");
   return "";
 }
