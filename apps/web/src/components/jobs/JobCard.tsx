@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bookmark, MapPin, ThumbsDown } from "lucide-react";
 import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { COMPANIES } from "@/services/mock/catalog";
+import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { cn } from "@/lib/cn";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
@@ -20,6 +21,14 @@ export function companyColor(name: string) {
  * and the next suggestion, with Prepare and Compare actions when their handlers are given.
  */
 const LEVEL_LABEL: Record<CanonicalJob["seniority"], string> = { junior: "Junior", mid: "Mid level", senior: "Senior", lead: "Lead", director: "Director" };
+const SOURCE_NAME = new Map(JOB_SOURCES.map((s) => [s.id, s.name]));
+
+/** Where the listing was found — the first source's name, "+1" when it was seen on more. */
+export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): string {
+  const names = job.lake?.sightings.length ? job.lake.sightings.map((x) => x.sourceName) : job.sourceIds.map((id) => SOURCE_NAME.get(id) ?? id);
+  const unique = [...new Set(names)];
+  return unique.length ? `${unique[0]}${unique.length > 1 ? ` +${unique.length - 1}` : ""}` : "";
+}
 
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
@@ -87,7 +96,10 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {match && <FitLabel fit={match.fit} score={match.score} />}
         {status && <Badge tone="info">{status}</Badge>}
-        <span className="ml-auto text-[12px] text-ink-4">{relativeTime(job.postedAt)}</span>
+        <span className="ml-auto truncate text-[12px] text-ink-4">
+          {sourceLine(job) ? `via ${sourceLine(job)} · ` : ""}
+          {relativeTime(job.postedAt)}
+        </span>
       </div>
       {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}
       <div className={cn("flex flex-wrap items-center justify-end gap-2", (onPrepare || onToggleCompare) && "mt-3")}>

@@ -24,8 +24,8 @@ function EditScheduleInner({ id }: { id: string }) {
   if (!schedule || !workflow) {
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader back={{ href: "/app/automation/scheduled", label: "Scheduled searches" }} title="Schedule not found" />
-        <EmptyState title="This schedule isn't available" action={{ label: "Back", href: "/app/automation/scheduled" }} />
+        <PageHeader back={{ href: "/app/automation/settings#scheduled", label: "Automation" }} title="Schedule not found" />
+        <EmptyState title="This schedule isn't available" action={{ label: "Back", href: "/app/automation/settings#scheduled" }} />
       </div>
     );
   }
@@ -41,7 +41,7 @@ function EditScheduleInner({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        back={{ href: "/app/automation/scheduled", label: "Scheduled searches" }}
+        back={{ href: "/app/automation/settings#scheduled", label: "Automation" }}
         title={schedule.name}
         actions={
           <>
@@ -66,7 +66,7 @@ function EditScheduleInner({ id }: { id: string }) {
                 remove(schedule.id);
                 // No confirm dialog: Undo brings it straight back, and its run history is kept either way.
                 toast.info("Schedule removed", "Its run history is kept.", { label: "Undo", onClick: () => upsert(schedule) });
-                router.push("/app/automation/scheduled");
+                router.push("/app/automation/settings#scheduled");
               }}
             >
               <Trash2 className="size-4 text-danger-600" aria-hidden />

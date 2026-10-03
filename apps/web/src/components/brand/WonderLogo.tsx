@@ -9,7 +9,8 @@ import { cn } from "@/lib/cn";
  */
 export type BrandTone = "light" | "dark";
 
-const MARK = { src: "/brand/wonder-mark.png", width: 138, height: 128 };
+// Vector, so the right wing tip is whole at every size (the PNG art was cropped at that edge).
+const MARK = { src: "/brand/wonder-mark.svg", width: 540, height: 480 };
 const LOGO: Record<BrandTone, string> = { light: "/brand/wonderjobs-logo-light.png", dark: "/brand/wonderjobs-logo-dark.png" };
 const LOGO_SIZE = { width: 527, height: 96 };
 const LOCKUP: Record<BrandTone, string> = { light: "/brand/wonderjobs-lockup-light.png", dark: "/brand/wonderjobs-lockup-dark.png" };

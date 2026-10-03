@@ -10,13 +10,11 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("Golden journey — demo entry", () => {
-  test("GJ-001 a real click on a demo link (not a prefetch) enters demo mode and reaches the app", async ({ page }) => {
-    await page.goto("/");
-    // A plain <a href="/demo"> (not the Button-as-Link CTAs elsewhere on the page) forces a real full-page
-    // navigation, so this is unambiguously a genuine click, not Next.js's Link-prefetch side effect that
-    // WJ-102 found and fixed in GET /demo.
-    await page.getByRole("link", { name: "Try it in the demo" }).click();
-    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+  test("GJ-001 opening /demo (where the deployment enables it) enters demo mode and reaches the job list", async ({ page }) => {
+    // The public landing page no longer links to the demo (WJ-188); it is reachable only where
+    // WJ_DEMO_ENABLED=1, which this suite's web server sets.
+    await page.goto("/demo");
+    await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
     const cookies = await page.context().cookies();
     expect(cookies.some((c) => c.name === "wj_demo" && c.value === "1")).toBe(true);
   });
@@ -45,7 +43,8 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
-    await page.getByRole("tab", { name: /Why it fits/i }).click();
+    // "Why it fits" is a folded section now, not a tab.
+    await page.getByText("Why it fits", { exact: true }).click();
     await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
 
     await saveBtn.click();
@@ -84,8 +83,8 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await expect(page.getByRole("heading", { name: "Preparing" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Interview" })).toBeVisible();
     await expect(page.getByRole("tablist", { name: "Application status" })).not.toBeVisible();
-    // Switching to List brings back the tab-based view for power users.
-    await page.getByRole("radio", { name: "List" }).click();
+    // A status deep link (?tab=…) opens the tab-based list.
+    await page.goto("/app/applications?tab=all");
     await expect(page.getByRole("tablist", { name: "Application status" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^All/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^Interview/ })).toBeVisible();
@@ -107,7 +106,7 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     await page.goto("/demo?next=/app");
     await page.getByRole("textbox", { name: "Search jobs" }).fill("product manager in Bengaluru");
     await page.getByRole("button", { name: /^Search every source for/ }).click();
-    await expect(page).toHaveURL(/\/app$/);
+    await expect(page).toHaveURL(/\/app\/jobs$/);
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
   });
@@ -133,7 +132,7 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
     // Help, account and sign-out are in the avatar menu rather than a drawer.
     await page.getByRole("button", { name: "Profile menu" }).click();
     await expect(page.getByRole("menuitem", { name: "Get Help" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Account" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Account" }).first()).toBeVisible();
   });
 
   test("GJ-009 a place's own pages are tabs at its top; You lists every settings page as a row", async ({ page }) => {
@@ -148,28 +147,31 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
 
     await bottomBar.getByRole("link", { name: "You" }).click();
     await page.waitForURL(/\/app\/you$/);
-    for (const label of ["Career Profile", "Job sources", "What Wonder can do", "Scheduled searches", "AI provider", "Account"]) {
+    for (const label of ["Career Profile", "Job sources", "Automation", "AI provider", "Account"]) {
       await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
     }
-    await page.getByRole("link", { name: /^Scheduled searches/ }).click();
-    await page.waitForURL(/\/app\/automation\/scheduled$/);
+    await page.getByRole("link", { name: /^Automation/ }).click();
+    await page.waitForURL(/\/app\/automation\/settings$/);
+    await expect(page.getByRole("heading", { name: "Scheduled searches" })).toBeVisible();
     await expect(bottomBar.getByRole("link", { name: "You" })).toHaveAttribute("aria-current", "page");
   });
 });
 
 test.describe("Golden journey — new candidate onboarding", () => {
   test("GJ-011 a new candidate without a CV types the role and lands on jobs", async ({ page }) => {
-    // /onboarding renders OnboardingFlow unconditionally — no seeded state needed for this journey.
+    // A fresh browser in local mode (no demo cookie): nothing is seeded, so no role is prefilled.
     await page.goto("/onboarding");
     await expect(page.getByRole("heading", { name: "Add your CV, see your jobs" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Upload CV/ })).toBeVisible();
     await page.getByRole("button", { name: "No CV handy? Type it in" }).click();
     const show = page.getByRole("button", { name: "Show my jobs" });
+    // Local mode seeds the sample profile, so clear what it prefilled: with no role, nothing is assumed.
+    await page.getByLabel("Role you want").fill("");
     await expect(show).toBeDisabled(); // a role is required, never assumed
     await page.getByLabel("Role you want").fill("data analyst");
     await expect(show).toBeEnabled();
     await show.click();
-    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+    await page.waitForURL(/\/app(\/jobs)?$/, { timeout: 20_000 });
   });
 });
 
@@ -224,20 +226,20 @@ test.describe("Golden journey — Ask Wonder (demo mode)", () => {
 test.describe("Golden journey — automation (demo mode)", () => {
   test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }) => {
     await page.goto("/demo?next=/app/automation/settings");
-    await expect(page.getByRole("heading", { name: "What Wonder can do" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Automation" })).toBeVisible();
     // Phase 3.2 relabeling — plain language, not internal jargon.
     for (const label of ["Help me", "Work with me", "Work independently", "Keep watch"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
-    // Per-action rules are folded under "Fine-tune each action".
-    await page.getByText("Fine-tune each action").click();
+    // Per-action rules are folded under "Change one action".
+    await page.getByText("Change one action").click();
     const genResume = page.getByRole("radiogroup", { name: "Generate resume permission" });
     await expect(genResume).toBeVisible();
     await genResume.getByRole("radio", { name: "Off" }).click();
     await expect(genResume.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
     // Reload proves the change is real, persisted state — not a local-only UI toggle.
     await page.reload();
-    await page.getByText("Fine-tune each action").click();
+    await page.getByText("Change one action").click();
     await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Restore defaults" }).click();
     await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
@@ -249,7 +251,7 @@ test.describe("Golden journey — manual intervention (demo mode)", () => {
     // Sample sources answer slowly enough that the search is still running when it's paused.
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
     await page.goto(`/demo?next=${encodeURIComponent("/app/jobs?search=product manager in Bengaluru")}`);
-    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+    await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
 
@@ -276,8 +278,8 @@ test.describe("Golden journey — advanced mode (demo mode)", () => {
   test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
     await page.goto("/demo?next=/app/settings/ai");
     await expect(page.getByText("WonderJobs AI").first()).toBeVisible();
-    // Your own key and usage are folded until opened.
-    await page.getByText("Use your own API key").click();
+    // Several providers and usage are folded until opened.
+    await page.getByText("Advanced: models and several providers").click();
     await page.getByText("Usage", { exact: true }).click();
     for (const provider of ["Anthropic", "OpenAI", "Gemini"]) {
       await expect(page.getByText(provider, { exact: true }).first()).toBeVisible();
@@ -290,8 +292,8 @@ test.describe("Golden journey — advanced mode (demo mode)", () => {
 test.describe("Golden journey — trust (demo mode)", () => {
   test("GJ-018 Wonder discloses exactly what it can't do, in the same place it offers to help", async ({ page }) => {
     await page.goto("/demo?next=/app/applications/app_google");
-    // The Phase 3.6 hand-off rewrite: Wonder never claims to send on the candidate's behalf.
-    await expect(page.getByText(/Wonder never sends on your behalf/i)).toBeVisible();
-    await expect(page.getByText(/doesn't have Google's email address and can't send it/i)).toBeVisible();
+    // The Phase 3.6 hand-off rewrite: Wonder drafts; the candidate sends from their own email.
+    await page.getByText("Draft a follow-up email").click();
+    await expect(page.getByText(/you copy it into your own email and send it/i)).toBeVisible();
   });
 });

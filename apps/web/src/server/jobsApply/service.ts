@@ -95,7 +95,7 @@ export async function create(tenantId: string, input: z.infer<typeof CreateSchem
   if (!dest) return err(400, "INVALID", "This job has no application link Wonder can open.");
   if (input.pack.jobId !== input.job.id) return err(400, "INVALID", "The Application Pack is for a different job.");
   const decisions = await decisionsFor(tenantId);
-  if (decisions.handoff === "skip") return err(403, "POLICY_OFF", "Handing off applications is turned off in What Wonder can do. Turn “Hand off application” back on to use JobsApply, or apply from the Application Pack yourself.");
+  if (decisions.handoff === "skip") return err(403, "POLICY_OFF", "Handing off applications is turned off in Automation. Turn “Hand off application” back on to use JobsApply, or apply from the Application Pack yourself.");
 
   const sessions = await listSessions(tenantId);
   // Duplicate protection (§57): a submitted application for this opportunity, by job, apply link or employer + title.
@@ -226,7 +226,7 @@ export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Prom
   if (isResult(out)) return out;
   const fill = await helperFill(ctx, out);
   // Under an "automatic" policy the plan comes back with the inspection; otherwise the helper waits for the candidate's click.
-  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in What Wonder can do — use guided mode." : "Choose Fill to continue.", fills: [] };
+  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [] };
   return ok({ ...helperView(out, fill), plan: auto });
 }
 

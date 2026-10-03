@@ -186,3 +186,15 @@ describe("explainJobVisibility — Ask Wonder's 'why isn't this showing' for one
     expect(r.reason).toBe("rejected");
   });
 });
+
+describe("Refine: level, company, pay listed", () => {
+  it("hides jobs at other levels, at other companies, or without pay — and says which", async () => {
+    const { applyJobFilters } = await import("./filterExplain");
+    const base = { id: "", title: "Product Manager", company: "Razorpay", location: "Bengaluru", country: "IN", workMode: "onsite" as const, currency: "INR", postedAt: new Date().toISOString(), observedAt: new Date().toISOString(), description: "", requirements: [], niceToHave: [], skills: [], seniority: "senior" as const, industry: "Fintech", applyUrl: "https://x", applyPath: "employer_site" as const, onEmployerSite: true, repostCount: 0, tags: [], canonicalKey: "", sourceIds: ["careers"], duplicateOf: [] };
+    const jobs = { a: { ...base, id: "a", salaryMax: 4_000_000 }, b: { ...base, id: "b", seniority: "mid" as const, salaryMax: 2_000_000 }, c: { ...base, id: "c", company: "Swiggy", salaryMax: 3_000_000 }, d: { ...base, id: "d" } };
+    const f = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false, levels: ["senior" as const], company: "razor", salaryListed: true };
+    const r = applyJobFilters(["a", "b", "c", "d"], jobs, {}, {}, {}, f, Date.now());
+    expect(r.visibleIds).toEqual(["a"]);
+    expect(r.hiddenByReason).toEqual({ level: 1, company: 1, no_salary: 1 });
+  });
+});

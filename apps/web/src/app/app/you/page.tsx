@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, Dna, FileText, History, Sparkles, Timer, UserRoundCog } from "lucide-react";
+import { Bot, ChevronRight, Database, Dna, FileText, History, Sparkles, UserRoundCog } from "lucide-react";
 import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { useAuthStore } from "@/store/auth";
@@ -46,8 +46,7 @@ export default function YouPage() {
     { href: "/app/career-dna", label: "Career Profile", value: wants ? (headline ? headline : `Looking for ${wants}`) : "Not filled in", icon: Dna },
     { href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
-    { href: "/app/automation/settings", label: "What Wonder can do", value: LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set", icon: Bot },
-    { href: "/app/automation/scheduled", label: "Scheduled searches", value: active ? `${active} running` : "None set up", icon: Timer },
+    { href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
     { href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
     { href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
     { href: "/app/profile", label: "Account", value: email ?? "", icon: UserRoundCog },

@@ -18,6 +18,8 @@ export interface BillingSnapshot {
   until: string | null;
   subscription: { provider: BillingProviderId; status: SubscriptionStatus; cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null; canManage: boolean } | null;
   payments: { at: string; provider: BillingProviderId; kind: "payment_succeeded" | "payment_failed"; amount: number | null; currency: string | null }[];
+  /** Pre-launch: whether this account may switch plans without paying, and whether it has. */
+  testing?: { allowed: boolean; active: boolean };
 }
 
 interface BillingState {

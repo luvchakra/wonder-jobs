@@ -10,6 +10,7 @@ import { Button } from "@/components/common/Button";
 import { AutomationPolicyEditor } from "@/components/automation/AutomationPolicy";
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { toast } from "@/components/feedback/Toast";
+import { ScheduledSearchList } from "@/components/automation/ScheduledSearchList";
 
 // Shown in the order a search happens, in plain words. The internal pipeline steps are folded into one.
 const SHOWN: { keys: Capability[]; label: string }[] = [
@@ -33,7 +34,10 @@ const GROUPS = [
 
 const KNOWN = new Set<Capability>(SHOWN.flatMap((s) => s.keys));
 
-/** One choice — how much Wonder does on its own — and exactly what that means, read from the same rules the app enforces. */
+/**
+ * Automation: how much Wonder does on its own — and exactly what that means, read from the same rules the
+ * app enforces — and the searches it runs on its own schedule.
+ */
 export default function AutomationSettingsPage() {
   const policy = useAutomationStore((s) => s.policy);
   const setCapability = useAutomationStore((s) => s.setCapability);
@@ -53,7 +57,7 @@ export default function AutomationSettingsPage() {
   );
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="What Wonder can do" description="How much Wonder does on its own. Sending or submitting is always your click." />
+      <PageHeader title="Automation" description="How much Wonder does on its own, and when it searches without you. Sending or submitting is always your click." />
       <Card className="mb-4">
         <AutomationLevelSelector value={level} onChange={setLevel} compact />
       </Card>
@@ -78,7 +82,7 @@ export default function AutomationSettingsPage() {
           <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Never, at any level: submitting an application, or sending an email or message. Wonder drafts and opens; you press send.
         </p>
       </Card>
-      <Fold title="Change one action" hint="Automatic, Ask me or Off for each thing Wonder does">
+      <Fold title="Change one action" hint="Automatic, Ask me or Off for each thing Wonder does" className="mb-8">
         <AutomationPolicyEditor policy={policy} onChange={setCapability} />
         <Button
           className="mt-4"
@@ -92,6 +96,7 @@ export default function AutomationSettingsPage() {
           Restore defaults
         </Button>
       </Fold>
+      <ScheduledSearchList />
     </div>
   );
 }

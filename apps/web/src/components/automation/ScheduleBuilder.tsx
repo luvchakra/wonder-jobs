@@ -125,7 +125,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
     upsertSchedule(schedule);
     if (!sch) track("scheduled_run_created", { template: t.id, frequency });
     toast.success(sch ? "Schedule updated" : "Scheduled run created", trigger === "schedule" ? preview : "Runs when you trigger it.");
-    router.push("/app/automation/scheduled");
+    router.push("/app/automation/settings#scheduled");
   };
 
   return (
@@ -202,7 +202,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
 
       <Card>
         <h2 className="mb-1 text-[15px] font-semibold text-ink">Stages</h2>
-        <p className="mb-3 text-[12px] text-ink-3">Stages always run in order. External application only runs when you allow it in What Wonder can do.</p>
+        <p className="mb-3 text-[12px] text-ink-3">Stages always run in order. External application only runs when you allow it in Automation.</p>
         <ol className="flex flex-wrap gap-2">
           {STAGE_KEYS.map((k) => {
             const on = stageKeys.includes(k);
@@ -320,7 +320,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
       </Card>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" size="lg" href="/app/automation/scheduled">
+        <Button variant="outline" size="lg" href="/app/automation/settings#scheduled">
           Cancel
         </Button>
         <Button size="lg" onClick={save}>

@@ -7,6 +7,8 @@ import { verifyRazorpaySignature } from "./razorpay";
 import { BillingError, cancelSubscription, clearPriceCacheForTests, entitlement, handleWebhook, providerAvailability, reconcileSubscriptions, startCheckout } from "./service";
 
 const ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
   STRIPE_SECRET_KEY: "sk_test_x",
   STRIPE_WEBHOOK_SECRET: "whsec_test",
   STRIPE_PRICE_ID: "price_pro",
@@ -248,5 +250,25 @@ describe("review findings (regressions)", () => {
     const r = await reconcileSubscriptions(5000, new Date("2026-10-03T02:00:00.000Z"));
     expect(r.checked).toBe(451);
     expect((await entitlement("paid-but-missed")).plan).toBe("pro");
+  });
+});
+
+describe("testing plans (pre-launch)", () => {
+  it("unlocks a plan without payment only while payments aren't live — or when an admin switched it", async () => {
+    const { entitlement } = await import("./service");
+    const { writeTestPlan } = await import("./plansConfig");
+    const tenant = `tenant-test-${Math.random().toString(36).slice(2)}`;
+    // Payments are live in this file's environment: a candidate's own testing switch is ignored…
+    await writeTestPlan(tenant, "max", false);
+    expect((await entitlement(tenant)).plan).toBe("free");
+    // …an admin's still counts.
+    await writeTestPlan(tenant, "max", true);
+    expect(await entitlement(tenant)).toMatchObject({ plan: "max", reason: expect.stringMatching(/^Testing Max/) });
+    // Payments not connected: anyone's testing switch counts, and clearing it goes back to Free.
+    for (const k of Object.keys(ENV)) if (!k.startsWith("NEXT_PUBLIC_SUPABASE")) vi.stubEnv(k, "");
+    await writeTestPlan(tenant, "pro", false);
+    expect((await entitlement(tenant)).plan).toBe("pro");
+    await writeTestPlan(tenant, null, false);
+    expect((await entitlement(tenant)).plan).toBe("free");
   });
 });

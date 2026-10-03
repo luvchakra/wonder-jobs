@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Bookmark, Bot, CalendarDays, Database, Dna, FileText, History, LayoutList, LifeBuoy, MessagesSquare, Search, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Bookmark, Bot, CalendarDays, Database, Dna, FileText, History, LayoutList, LifeBuoy, MessagesSquare, Search, Sparkles, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -42,8 +42,7 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
-      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
-      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+      { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
       { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
       { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
       { href: "/app/profile", label: "Account", icon: UserRoundCog },

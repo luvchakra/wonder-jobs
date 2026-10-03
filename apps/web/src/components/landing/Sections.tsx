@@ -25,7 +25,7 @@ export function SourceLogoStrip() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal>
           <p id="sources-title" className="wj-eyebrow text-center">
-            Live jobs from employers&apos; own boards and open job feeds. De-duplicated, all in one place.
+            Live jobs from employers&apos; own boards, SmartRecruiters, The Muse, Adzuna India and open remote feeds. De-duplicated, the source named on every listing.
           </p>
           <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4" aria-label="Connected job sources">
             {sources.map((name) => (
@@ -33,7 +33,7 @@ export function SourceLogoStrip() {
                 {name}
               </li>
             ))}
-            <li className="text-[13px] text-ink-4">+ company career sites, added only after a real test</li>
+            <li className="text-[13px] text-ink-4">+ 40 company career sites, each added only after a real test</li>
           </ul>
         </ScrollReveal>
       </div>
@@ -43,8 +43,8 @@ export function SourceLogoStrip() {
 
 /* ------------------------------------------------------------- agent */
 const AGENT_POINTS = [
-  { icon: Radar, t: "Search everywhere", s: "One search. A bigger world of opportunities." },
-  { icon: Target, t: "Find better matches", s: "Less noise. More of what matters." },
+  { icon: Radar, t: "Search everywhere", s: "Type any role — “psychology in Mumbai” — and every source answers it, in any form of the word." },
+  { icon: Target, t: "Know the pay and the level", s: "Designation, remuneration and source on every listing — “Not listed” when the employer didn't say." },
   { icon: Zap, t: "Prepare in minutes", s: "An Application Pack and a résumé from eight ATS-friendly templates." },
   { icon: MousePointerClick, t: "Apply without retyping", s: "Wonder fills the employer's form. You answer what's yours and press submit." },
   { icon: Eye, t: "See the why", s: "Every match explains itself — and so does every hidden one." },
@@ -91,10 +91,10 @@ export function AgentSection() {
 
 /* ----------------------------------------------------------- journey */
 const JOURNEY = [
-  { key: "find", t: "Find", s: "Tell Wonder what you want", body: "Describe the roles you want in your own words. Wonder shows what it understood, searches live sources and removes duplicates — you see real progress, never a spinner pretending." },
-  { key: "decide", t: "Decide", s: "Know where to spend your time", body: "Every opportunity says why Wonder surfaced it, what to weigh and what to do next. Compare a few side by side — Wonder points out differences, you pick." },
-  { key: "apply", t: "Apply", s: "Your Application Pack, ready", body: "Tailored résumé, cover letter and screening answers in one pack, each labelled as an AI draft or your edit. Apply with Wonder fills the employer's form and stops for anything only you should answer; the submit click is yours." },
-  { key: "progress", t: "Progress", s: "Keep everything moving", body: "Applications, follow-ups, interviews and replies on one timeline — and Wonder can keep watch for new roles, speaking up only when it matters." },
+  { key: "find", t: "Find", s: "Start with your CV", body: "Upload your CV. Wonder reads your role, place and skills, you confirm them, and your jobs are on screen. Type anything else — a role, a city — and every source is searched for it, where you say." },
+  { key: "decide", t: "Decide", s: "Know where to spend your time", body: "Every listing shows the designation, the pay and where it was found, and says why it fits. Nothing is hidden silently — the list tells you what your filters are holding back, and one tap shows it." },
+  { key: "apply", t: "Apply", s: "Your Application Pack, then your click", body: "Tailored résumé, cover letter and answers in one pack, each labelled AI draft or your edit. Apply with Wonder fills the employer's form in your browser, or guides you with every value one tap to copy. The submit click is always yours." },
+  { key: "progress", t: "Progress", s: "Keep everything moving", body: "Your pipeline first — preparing, applied, interview, outcome — then what needs you: follow-ups, interviews, replies. Scheduled searches keep watch and speak up only when something is worth your attention." },
 ];
 
 export function JourneySection() {
@@ -123,9 +123,9 @@ export function JourneySection() {
         <ScrollReveal className="max-w-xl">
           <p className="wj-eyebrow text-brand-200">Find → Decide → Apply → Progress</p>
           <h2 id="journey-title" className="mt-3 text-h2 font-semibold">
-            Tell Wonder what you want. <span className="wj-gradient-text">It does the rest.</span>
+            From your CV to your next role. <span className="wj-gradient-text">Four places, no wizard.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-white/75">No setup wizard and no workflow to babysit. Wonder searches, compares and prepares — then tells you what matters, so you can decide.</p>
+          <p className="mt-4 text-[16px] text-white/75">Find, Saved, Applied and You — that is the whole app. Wonder searches, ranks and prepares; it tells you what matters, and you decide.</p>
         </ScrollReveal>
         <p data-depth="-0.6" className="wj-handwritten mt-6 text-[20px] text-white/80 will-change-transform md:absolute md:right-16 md:top-0 md:rotate-[-6deg]">
           Same you. Bigger possibilities.
@@ -281,7 +281,8 @@ const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?:
   { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/sign-up" },
   { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/sign-up" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/sign-up" },
-  { icon: Dna, t: "Career Profile", s: "Import your résumé; conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
+  { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
+  { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderJobs AI, included.", href: "/sign-up" },
   { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/sign-up" },
   { icon: LayoutList, t: "Track every application", s: "What needs you comes first — follow-ups due, interviews, replies — then every application from preparing to outcome.", href: "/sign-up" },
   { icon: Share2, t: "Share a role", s: "Send a job to a friend or mentor. They see the real posting, no account needed.", href: "/sign-up" },
@@ -404,7 +405,7 @@ export function ProviderSection() {
             <br />
             <span className="wj-gradient-text">Or let us handle it.</span>
           </h2>
-          <p className="mt-5 max-w-md text-[16px] text-white/75">Use WonderJobs AI or connect your own API key. WonderJobs supports Anthropic, OpenAI and Gemini — keys are encrypted, never shown again, and billed only by your provider.</p>
+          <p className="mt-5 max-w-md text-[16px] text-white/75">Use WonderJobs AI, included in every plan, or paste a key from ChatGPT, Claude or Gemini — Wonder recognises it, checks it works, and your drafts use it from then on. Keys are encrypted, never shown again, and billed only by your provider.</p>
           <Button href="/app/settings/ai" variant="glass" size="lg" className="mt-8 rounded-full text-ink" iconRight={<ArrowRight className="size-4" aria-hidden />}>
             Learn more
           </Button>
@@ -444,10 +445,10 @@ export function ExtensionSection() {
             <span className="wj-gradient-text">retyping yourself.</span>
           </h2>
           <p className="mt-5 max-w-md text-[16px] text-ink-2">
-            Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit.
+            Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday — and helps on SmartRecruiters and Workable — with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit.
           </p>
           <ul className="mt-5 space-y-2 text-[14px] text-ink-2">
-            {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderJobs", "No helper? “Guide me” gives you copy buttons and downloads instead"].map((t) => (
+            {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderJobs", "No helper? Guided mode puts every value one tap from your clipboard, and remembers your answers"].map((t) => (
               <li key={t} className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden /> {t}
               </li>
@@ -512,11 +513,11 @@ export function FinalCTA() {
         <h2 id="cta-title" className="mt-3 text-h1 font-semibold">
           Ready to find what&apos;s next?
         </h2>
-        <p className="mt-4 text-[17px] text-white/75">Stop searching harder. Start searching smarter.</p>
+        <p className="mt-4 text-[17px] text-white/75">Upload your CV. Your jobs are a minute away.</p>
         <Button href="/sign-up" size="xl" className="mt-8 rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
           Get Started Free
         </Button>
-        <p className="mt-4 text-[12px] text-white/60">No credit card required</p>
+        <p className="mt-4 text-[12px] text-white/60">Free plan, no card · Pro and Max when you need more</p>
         <p className="wj-handwritten mt-10 text-[20px] text-white/70">The future works for you.</p>
       </ScrollReveal>
     </section>

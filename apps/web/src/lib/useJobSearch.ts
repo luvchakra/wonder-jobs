@@ -65,8 +65,8 @@ export interface JobSearch {
   widened?: string;
   /** Search now with the profile's own terms (or the given ones). */
   search: (opts?: SearchOptions) => WorkflowRun | null;
-  /** Search every source for what the candidate typed — role, places and work mode read from their words. A search already running is stopped first: this is what they asked for. */
-  searchWords: (text: string) => Promise<WorkflowRun | null>;
+  /** Search every source for what the candidate typed — role, places and work mode read from their words, else the places given (the Where field), else the profile's. A search already running is stopped first: this is what they asked for. */
+  searchWords: (text: string, places?: string[]) => Promise<WorkflowRun | null>;
   /** Search as one of the candidate's roles: its terms and goal, the profile's places. Stops a running search first. */
   searchAsRole: (roleId: string) => Promise<WorkflowRun | null>;
   /** Search again — the profile's own search, or the given one. Stops a running search first. */
@@ -83,9 +83,9 @@ export interface SearchOptions {
 }
 
 /** What a typed search will look for — shown before it runs, so the candidate sees what Wonder read. */
-export function describeWords(text: string, fallbackLocations: string[]): { query: string; locations: string[]; fromWords: boolean } {
+export function describeWords(text: string, fallbackLocations: string[], places?: string[]): { query: string; locations: string[]; fromWords: boolean } {
   const intent = deriveSearchIntent(text);
-  return { query: intent.query, locations: intent.locations.length ? intent.locations : fallbackLocations, fromWords: intent.locations.length > 0 };
+  return { query: intent.query, locations: intent.locations.length ? intent.locations : places ?? fallbackLocations, fromWords: intent.locations.length > 0 };
 }
 
 /**
@@ -157,12 +157,12 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   );
 
   const searchWords = useCallback(
-    async (text: string) => {
+    async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
       if (!intent.query) return null;
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
-      return sayBusy(search({ query: intent.query, locations: intent.locations.length ? intent.locations : readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
+      return sayBusy(search({ query: intent.query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
     },
     [search, sources, readiness.locations],
   );

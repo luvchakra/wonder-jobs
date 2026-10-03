@@ -23,7 +23,7 @@ const PAGE = 24;
  * `header` is only for a line that must be seen before them (a search in progress), `footer` for
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist.
  */
-export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -118,6 +118,7 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
           if (!on) setCompare([]);
         }}
         sourceSearch={sourceSearch}
+        refineTop={refineTop}
         className="mb-4"
       />
       {results.length === 0 ? (
@@ -130,7 +131,7 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
             }}
             variant="empty"
             // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
-            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim()), run: () => sourceSearch.run(effective.query.trim()) } : undefined}
+            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch.run(effective.query.trim(), effective.locations ?? []) } : undefined}
           />
         ) : (
           empty

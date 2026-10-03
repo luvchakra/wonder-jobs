@@ -69,7 +69,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
 
   const generate = async (type: ArtifactType) => {
     if ((type === "resume" && policy.generate_resume === "off") || (type === "cover_letter" && policy.generate_cover_letter === "off")) {
-      toast.info("Turned off in What Wonder can do", "Enable generation there, or write it manually.");
+      toast.info("Turned off in Automation", "Enable generation there, or write it manually.");
       return;
     }
     setError(null);

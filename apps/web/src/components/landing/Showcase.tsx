@@ -337,10 +337,10 @@ function PhoneApplication() {
 }
 
 const SCREENS: Screen[] = [
-  { id: "home", label: "Home", title: "What deserves your attention today", body: "Strong matches, follow-ups and interviews, ranked by what needs you first — plus your progress, and when Wonder looks next.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
-  { id: "find", label: "Find", title: "Real progress, in plain words", body: "Wonder shows what it's doing and what it has found so far. Pause or stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
-  { id: "jobs", label: "Decide", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile. Each card says why Wonder surfaced it and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Apply", title: "Your Application Pack, then your click", body: "Tailored materials, each labelled AI draft or your edit. Apply with Wonder fills the employer's form and leaves what's yours to answer — submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "home", label: "Find", title: "Your jobs, the moment you open it", body: "Signed in means looking at relevant jobs: designation, pay and source on every card, best match first. Type a role and a place to search every source for it.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
+  { id: "find", label: "Search", title: "Real progress, in plain words", body: "Wonder says what it's searching, where, and what each source returned. Stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
+  { id: "jobs", label: "Job", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile and your search. Each one says why Wonder ranked it there and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
+  { id: "applications", label: "Applied", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
@@ -357,7 +357,7 @@ export function ShowcaseSection() {
           <h2 id="screens-title" className="mt-3 text-h2 font-semibold text-ink">
             The same Wonder, <span className="wj-gradient-text">on every screen.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-ink-2">Start a search from your laptop, review your Application Pack on the train. Everything syncs to your account.</p>
+          <p className="mt-4 text-[16px] text-ink-2">Four places — Find, Saved, Applied, You — on your laptop and on your phone. Everything syncs to your account.</p>
         </ScrollReveal>
 
         <div className="mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Product screens">
@@ -393,7 +393,7 @@ export function ShowcaseSection() {
               <h3 className="text-[20px] font-semibold text-ink">{screen.title}</h3>
               <p className="mt-2 text-[14.5px] text-ink-2">{screen.body}</p>
               <Button href={screen.demo} variant="dark" size="md" className="mt-4 rounded-full" iconRight={<ExternalLink className="size-4" aria-hidden />}>
-                Open {screen.label} in the demo
+                Start free
               </Button>
             </div>
           </div>

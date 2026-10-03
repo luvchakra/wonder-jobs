@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GitCompareArrows, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
@@ -8,7 +8,6 @@ import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
 import { DictateButton } from "@/components/common/DictateButton";
-import { useCareerStore } from "@/store/career";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -28,59 +27,116 @@ export const VIEW_PATCH: Record<JobsView, Partial<Filters>> = {
 };
 
 export interface SourceSearch {
-  /** Search every source for what was typed. */
-  run: (text: string) => void;
+  /** Search every source for what was typed, in the places given (the Where field). */
+  run: (text: string, places: string[]) => void;
   /** What that search would look for, in plain words ("“data analyst” in Pune"); null when no role can be read. */
-  describe: (text: string) => string | null;
+  describe: (text: string, places: string[]) => string | null;
+  /** The profile's places — what Where starts as. */
+  places: string[];
+  /** Search every source again for the profile's own role, in these places (Refine's Search with nothing typed). */
+  runPlaces: (places: string[]) => void;
 }
 
+const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[] = [
+  { value: "junior", label: "Junior" },
+  { value: "mid", label: "Mid level" },
+  { value: "senior", label: "Senior" },
+  { value: "lead", label: "Lead" },
+  { value: "director", label: "Director+" },
+];
+
+const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
+
 /**
- * One search box (typing narrows the jobs already found; one tap searches every source for it), one row
- * of views, and everything else — sort, work mode, freshness, salary, sources, compare — in Refine.
+ * What and where (typing narrows the jobs already found; Enter searches every source for it, in those
+ * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
+ * freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, views = true, compare, onCompare, sourceSearch, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, views = true, compare, onCompare, sourceSearch, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
-  const places = useCareerStore((s) => s.dna.preferredLocations);
-  const [where, setWhere] = useState((filters.locations ?? []).join(", "));
-  const activeCount = (filters.locations?.length ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const places = filters.locations ?? sourceSearch?.places ?? [];
+  const [where, setWhere] = useState(places.join(", "));
+  // Where starts as the profile's places and follows the filter when something else changes it (Clear, Show me anyway).
+  useEffect(() => {
+    if (filters.locations === undefined && sourceSearch?.places.length) onChange({ locations: sourceSearch.places });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.locations === undefined]);
+  const [seen, setSeen] = useState(filters.locations);
+  if (seen !== filters.locations) {
+    setSeen(filters.locations);
+    const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
+    if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
+  }
+  const activeCount = (filters.levels?.length ?? 0) + (filters.company?.trim() ? 1 : 0) + (filters.salaryListed ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const typed = filters.query.trim();
-  const wider = typed && sourceSearch ? sourceSearch.describe(typed) : null;
+  const wider = typed && sourceSearch ? sourceSearch.describe(typed, splitPlaces(where)) : null;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
-        className="relative"
+        className="flex flex-col gap-2 sm:flex-row"
         onSubmit={(e) => {
           e.preventDefault();
-          if (wider) sourceSearch!.run(typed);
+          if (wider) sourceSearch!.run(typed, splitPlaces(where));
         }}
       >
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
-        <Input
-          value={filters.query}
-          onChange={(e) => {
-            onChange({ query: e.target.value });
-            if (dictation.listening) dictation.rebase(e.target.value);
-          }}
-          placeholder="Search jobs, skills or companies"
-          aria-label="Search jobs"
-          className={cn("h-12 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
-        />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-          {filters.query && (
-            <button type="button" aria-label="Clear search" onClick={() => onChange({ query: "" })} className="rounded-full p-1 text-ink-4 hover:bg-bg-soft hover:text-ink">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
+          <Input
+            value={filters.query}
+            onChange={(e) => {
+              onChange({ query: e.target.value });
+              if (dictation.listening) dictation.rebase(e.target.value);
+            }}
+            placeholder="Search jobs, skills or companies"
+            aria-label="Search jobs"
+            enterKeyHint="search"
+            className={cn("h-11 rounded-full pl-10 sm:h-12", dictation.supported ? "pr-20" : "pr-10")}
+          />
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+            {filters.query && (
+              <button type="button" aria-label="Clear search" onClick={() => onChange({ query: "" })} className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink">
+                <X className="size-4" aria-hidden />
+              </button>
+            )}
+            {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
+          </div>
+        </div>
+        {/* Where: narrows the list as you type; with words in the box, Enter searches every source there. */}
+        <div className="relative sm:w-60">
+          <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
+          <Input
+            value={where}
+            onChange={(e) => {
+              setWhere(e.target.value);
+              onChange({ locations: splitPlaces(e.target.value) });
+            }}
+            placeholder="Anywhere"
+            aria-label="Where"
+            enterKeyHint="search"
+            className="h-11 rounded-full pl-10 pr-10 sm:h-12"
+          />
+          {where && (
+            <button
+              type="button"
+              aria-label="Clear where"
+              onClick={() => {
+                setWhere("");
+                onChange({ locations: [] });
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink"
+            >
               <X className="size-4" aria-hidden />
             </button>
           )}
-          {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
         </div>
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {wider && (
-        <button type="button" onClick={() => sourceSearch!.run(typed)} className="-mt-1 self-start rounded-full px-1 text-left text-[13px] font-medium text-brand-600 hover:underline">
+        <button type="button" onClick={() => sourceSearch!.run(typed, splitPlaces(where))} className="-mt-1 inline-flex min-h-9 items-center self-start rounded-full px-1 text-left text-[13px] font-medium text-brand-600 hover:underline">
           Search every source for {wider} ›
         </button>
       )}
@@ -98,6 +154,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Sort
             <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
@@ -118,11 +175,24 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
               value={where}
               onChange={(e) => {
                 setWhere(e.target.value);
-                onChange({ locations: e.target.value.split(",").map((p) => p.trim()).filter(Boolean) });
+                onChange({ locations: splitPlaces(e.target.value) });
               }}
-              placeholder={places.length ? `e.g. ${places.slice(0, 2).join(", ")}, Remote` : "e.g. Mumbai, Remote"}
-              aria-label="Location"
+              placeholder="Anywhere — e.g. Mumbai, Remote"
             />
+          </label>
+          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Level
+            <div className="flex flex-wrap gap-1.5">
+              {LEVELS.map((l) => (
+                <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className="h-9 px-3 text-[12px]">
+                  {l.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Company
+            <Input value={filters.company ?? ""} onChange={(e) => onChange({ company: e.target.value })} placeholder="e.g. Razorpay" />
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Posted
@@ -139,6 +209,9 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             Minimum salary (₹ lakh)
             <Input type="number" inputMode="numeric" min={0} step={1} value={filters.minSalary ? Math.round(filters.minSalary / 100_000) : ""} onChange={(e) => onChange({ minSalary: e.target.value ? Number(e.target.value) * 100_000 : undefined })} placeholder="e.g. 28" />
             <span className="text-[11px] font-normal text-ink-4">Roles listed in other currencies are roughly converted (1 USD ≈ ₹30) to compare.</span>
+            <Chip active={!!filters.salaryListed} onClick={() => onChange({ salaryListed: !filters.salaryListed })} className="h-9 self-start px-3 text-[12px]">
+              Pay listed only
+            </Chip>
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Sources
@@ -157,14 +230,32 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
             </Chip>
             <span className="text-[11px] font-normal text-ink-4">Pick two to four jobs on the list to see their differences side by side.</span>
           </div>
+          {/* One action for everything above: search every source with these words and places, then show the list. */}
+          <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
+            {sourceSearch && (
+              <Button
+                className="min-w-0 flex-1 sm:flex-none"
+                icon={<Search className="size-4" aria-hidden />}
+                onClick={() => {
+                  if (typed) sourceSearch.run(typed, splitPlaces(where));
+                  else sourceSearch.runPlaces(splitPlaces(where));
+                  setMore(false);
+                }}
+              >
+                Search{splitPlaces(where).length ? ` in ${splitPlaces(where).slice(0, 2).join(", ")}${splitPlaces(where).length > 2 ? "…" : ""}` : " everywhere"}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setMore(false)}>
+              Show {total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}
+            </Button>
+          </div>
           {activeCount > 0 && (
             <div className="sm:col-span-2 lg:col-span-3">
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  onChange({ workModes: [], locations: [], sourceIds: [], freshnessDays: null, minSalary: undefined });
-                  setWhere("");
+                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
               >

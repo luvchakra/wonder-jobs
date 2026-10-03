@@ -1,6 +1,7 @@
 import { applyBillingEvent, entitlementFor } from "@/domain/billing/subscription";
 import { limitsFor, PLAN_RANK, planForRef, type PaidPlanId, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
-import { getPlansConfig } from "./plansConfig";
+import { readTestPlan, getPlansConfig } from "./plansConfig";
+import { authConfigured } from "@/lib/auth/config";
 import { fromRazorpayEvent, fromStripeEvent } from "@/domain/billing/events";
 import type { BillingEvent, BillingProviderId, Entitlement, PlanPrice, ProviderAvailability, Subscription } from "@/domain/billing/types";
 import { sha256Hex } from "../crypto";
@@ -64,10 +65,25 @@ export async function providerAvailability(): Promise<ProviderAvailability[]> {
   );
 }
 
+/**
+ * Testing plans (pre-launch): an account can switch itself to Free, Pro or Max without paying, to see
+ * each plan's limits. Allowed while no payment provider is connected on this deployment, and always for
+ * platform admins (`JOBSLAKE_ADMIN_EMAILS`). Once payments are live, only an admin's switch still counts.
+ */
+export function paymentsLive(): boolean {
+  return !!(stripeConfig() || razorpayConfig());
+}
+
 export async function entitlement(tenantId: string): Promise<Entitlement> {
+  // Local development and tests (no Supabase Auth): there are no accounts to bill, so nothing is held back.
+  if (!authConfigured()) return { plan: "max", reason: "Local mode — every feature is on" };
   try {
     const config = await getPlansConfig();
-    return entitlementFor(currentSubscription(await billingStore().subscriptionsForTenant(tenantId)), (ref) => planForRef(ref, config));
+    const paid = entitlementFor(currentSubscription(await billingStore().subscriptionsForTenant(tenantId)), (ref) => planForRef(ref, config));
+    const test = await readTestPlan(tenantId).catch(() => undefined);
+    // A real subscription always wins; a testing plan only fills in where nothing is paid for.
+    if (test && paid.plan === "free" && !paid.subscription && (test.byAdmin || !paymentsLive())) return { plan: test.plan, reason: `Testing ${config.plans[test.plan]?.label ?? test.plan} — no payment` };
+    return paid;
   } catch {
     // Fail closed: if the record can't be read, nothing paid is unlocked, and we say why.
     return { plan: "free", reason: "Your plan couldn't be checked just now" };

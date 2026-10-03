@@ -146,9 +146,15 @@ export type JobDecision = "saved" | "not_for_me";
 export interface JobFilters {
   query: string;
   workModes: WorkMode[];
-  /** Places the list is narrowed to ("Mumbai", "Remote"); empty = anywhere. */
+  /** Places the list is narrowed to and the next search looks in ("Mumbai", "Remote"); empty = anywhere, undefined = the profile's places. */
   locations?: string[];
   minSalary?: number;
+  /** Only roles that state their pay. */
+  salaryListed?: boolean;
+  /** Levels to show (the posting's seniority); empty or undefined = every level. */
+  levels?: Job["seniority"][];
+  /** Company name contains this. */
+  company?: string;
   sourceIds: string[];
   minFit: FitLabel | null;
   freshnessDays: number | null;

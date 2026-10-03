@@ -270,7 +270,7 @@ export function ControlSection() {
                   </tr>
                 </tbody>
               </table>
-              <p className="mt-3 text-[12px] text-white/50">With the default rules. Each action can be set to Automatic, Ask me or Off in What Wonder can do.</p>
+              <p className="mt-3 text-[12px] text-white/50">With the default rules. Each action can be set to Automatic, Ask me or Off in Automation.</p>
             </div>
           </ScrollReveal>
 

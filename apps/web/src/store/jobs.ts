@@ -11,7 +11,7 @@ import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
 import { track } from "@/lib/analytics";
 
-export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], locations: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
+export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
 
 interface JobsState {
   sources: JobSource[];
@@ -199,7 +199,8 @@ export const useJobsStore = create<JobsState>()(
         for (const id of order) {
           const j = s.jobs[id];
           if (!j) continue;
-          jobs[id] = { ...j, description: j.description.slice(0, PERSISTED_DESCRIPTION) };
+          // Kept short in storage; the trailing "…" tells the job page it has only the start.
+          jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j;
           if (s.matches[id]) matches[id] = s.matches[id];
           if (s.quality[id]) quality[id] = s.quality[id];
         }

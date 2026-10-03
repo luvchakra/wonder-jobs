@@ -382,7 +382,7 @@ export function ResumeImport({ current, history, onApply, tone = "light", label 
             {withHistory && rulesHistory && resumeText && (
               <div className="mt-3 rounded-[14px] border border-dashed border-line p-3" aria-live="polite">
                 {aiGate === "off" ? (
-                  <p className="text-[13px] text-ink-3">AI reading is off because &ldquo;Change Career Profile&rdquo; is set to Off in What Wonder can do. Wonder&apos;s own reading is shown above.</p>
+                  <p className="text-[13px] text-ink-3">AI reading is off because &ldquo;Change Career Profile&rdquo; is set to Off in Automation. Wonder&apos;s own reading is shown above.</p>
                 ) : ai.state === "done" ? (
                   <p className="text-[13px] text-ink-2">
                     {!ai.byModel

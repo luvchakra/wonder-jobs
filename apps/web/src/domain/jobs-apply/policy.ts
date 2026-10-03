@@ -54,7 +54,7 @@ export function fillGate(s: JobsApplySession, input: { host: string; decision: F
   const verdict = checkDomain(input.host, s.destination, s.approvedDomains);
   if (verdict === "unexpected" || verdict === "sso") return { ok: false, reason: "This page isn't the application's destination." };
   if (!s.pack?.version) return { ok: false, reason: "No Application Pack is selected." };
-  if (input.decision === "skip") return { ok: false, reason: "Filling forms is turned off in What Wonder can do — use guided mode." };
+  if (input.decision === "skip") return { ok: false, reason: "Filling forms is turned off in Automation — use guided mode." };
   if (input.decision === "ask" && !input.candidateClicked) return { ok: false, reason: "Waiting for you to choose Fill." };
   const wanted = input.fieldIds ? new Set(input.fieldIds) : null;
   const mappings = s.fieldMappings.filter(

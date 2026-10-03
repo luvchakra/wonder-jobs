@@ -98,7 +98,7 @@ export function trimJobsDoc(doc: JobsDoc): JobsDoc {
   for (const id of order) {
     const j = doc.jobs[id];
     if (!j) continue;
-    jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: j.description.slice(0, PERSISTED_DESCRIPTION) } : j;
+    jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j;
     if (doc.matches[id]) matches[id] = doc.matches[id];
     if (doc.quality[id]) quality[id] = doc.quality[id];
   }

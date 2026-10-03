@@ -57,6 +57,15 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Applications: pipeline first, every stage, attention below (WJ-198)
 - ✅ You page values in plain words (WJ-199)
 - ✅ Apply with Wonder guided page: layout fixed and made useful (WJ-200, WJ-201)
+- ✅ Source name on every listing (WJ-202)
+- ✅ Where in the search row, editable any time (WJ-203)
+- ✅ Landing page matches the current product (WJ-204)
+- ✅ Automation: one page for what Wonder does and when it searches (WJ-205)
+- ✅ Refine: level, company, pay listed, location, and a Search button (WJ-206)
+- ✅ Try any plan without paying, for testing (WJ-207)
+- ✅ Logo mark whole on the right (WJ-208)
+- ✅ Full job description or a link to it (WJ-209)
+- ✅ End-to-end run; specs match the current screens (WJ-210)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

@@ -12,7 +12,8 @@ test.describe("AUTH — landing and sign-up UI (no account needed)", () => {
     await expect(page).toHaveTitle(/WonderJobs/i);
     await expect(page.getByRole("link", { name: /sign up|get started/i }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /sign in/i }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /demo/i }).first()).toBeVisible();
+    // No public demo link any more (WJ-188): the landing page leads to sign-up.
+    await expect(page.getByRole("link", { name: /demo/i })).toHaveCount(0);
     await expect(page.locator("footer")).toBeVisible();
     // Every rendered <img> actually loaded (a broken image reports naturalWidth 0).
     const broken = await page.locator("img").evaluateAll((imgs) => imgs.filter((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth === 0).map((i) => (i as HTMLImageElement).src));
@@ -80,6 +81,8 @@ test.describe("AUTH — landing and sign-up UI (no account needed)", () => {
   });
 
   test("AUTH-015 protected routes redirect to sign-in without a session", async ({ page }) => {
+    // Only meaningful with Supabase Auth configured; local mode (no auth) lets every browser in by design.
+    test.skip(!process.env.NEXT_PUBLIC_SUPABASE_URL, "Supabase Auth isn't configured in this environment — local mode has no sign-in to redirect to.");
     await page.context().clearCookies();
     await page.goto("/app");
     await expect(page).toHaveURL(/\/sign-in/);
