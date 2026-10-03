@@ -133,11 +133,12 @@ function SourcesStep({ blocker }: { blocker: Extract<ReadinessBlocker, { kind: "
       <p className="mt-1 text-[14px] text-ink-3">
         {blocker.off.length ? `Off: ${blocker.off.join(", ")}.` : ""} {blocker.needsSetup.length ? `Not available on WonderJobs yet: ${blocker.needsSetup.join(", ")}.` : ""}
       </p>
-      {off.length > 0 && (
-        <Button className="mt-4" onClick={() => off.forEach((s) => setEnabled(s.id, true))}>
-          Turn them on
+      <div className="mt-4 flex flex-wrap gap-2">
+        {off.length > 0 && <Button onClick={() => off.forEach((s) => setEnabled(s.id, true))}>Turn them on</Button>}
+        <Button variant="outline" href="/app/settings">
+          Job sources
         </Button>
-      )}
+      </div>
     </>
   );
 }

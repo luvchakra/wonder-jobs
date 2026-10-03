@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Menu, Search, Settings, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Menu, Search, Settings, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -142,9 +142,8 @@ export function TopBar() {
             )}
             {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
             {[
-              { href: "/app/profile", label: "Profile", icon: User },
-              { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
-              { href: "/app/automation/settings", label: "Automation settings", icon: Settings },
+              { href: "/app/profile", label: "Account", icon: User },
+              { href: "/app/settings", label: "Settings", icon: Settings },
               { href: "/help", label: "Get Help", icon: LifeBuoy },
             ].map((m) => (
               <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
