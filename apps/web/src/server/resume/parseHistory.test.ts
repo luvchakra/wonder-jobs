@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeResumeDates, parseHistory, toMonth } from "./parseHistory";
+import { analyseHistory, normalizeResumeDates, parseHistory, toMonth } from "./parseHistory";
 import { parseResume } from "./parseResume";
 
 export const INDIA = `Priya Raman
@@ -176,5 +176,28 @@ describe("a long career written with month names (regression: 9 years read as 21
     expect(normalizeResumeDates("Grew revenue 201 6 times")).toBe("Grew revenue 201 6 times");
     expect(toMonth("31 May 2023")).toBe("2023-05");
     expect(toMonth("12 June 2023")).toBe("2023-06");
+  });
+});
+
+describe("role headers and bullets as PDFs and Word files lay them out", () => {
+  it("a bullet mark on its own line starts an achievement, and a wrapped line continues it whatever its first letter", () => {
+    const text = ["Experience", "Northbank Pvt. Ltd.", "Jun 2021 – Present", "Senior Engineer, Platform", "Bengaluru, India", "•", "Led the redesign of the ledger service, cutting p99 latency from 480 ms to 120 ms at 15k requests", "Per second, across every region", "•", "Mentored six engineers; three now lead their own services", "Harbour Co.", "Feb 2018 – May 2021", "Engineer II", "Hyderabad, India", "•", "Built the delivery pipeline"].join("\n");
+    const roles = parseHistory(text).experience;
+    expect(roles.map((r) => `${r.title} @ ${r.employer} @ ${r.location}`)).toEqual(["Senior Engineer, Platform @ Northbank Pvt. Ltd. @ Bengaluru, India", "Engineer II @ Harbour Co. @ Hyderabad, India"]);
+    expect(roles[0].bullets).toEqual(["Led the redesign of the ledger service, cutting p99 latency from 480 ms to 120 ms at 15k requests Per second, across every region", "Mentored six engineers; three now lead their own services"]);
+  });
+
+  it("a tab separates fields; a year range inside an achievement isn't a role", () => {
+    const text = ["Experience", "Senior Manager\tDeloitte\tJan 2020 – Present", "• Developed and finalised the 2017–2019 IAM roadmap, securing funding.", "Analyst\tAcme Corp\tJan 2016 – Dec 2019"].join("\n");
+    const { draft, outline } = analyseHistory(text);
+    expect(draft.experience.map((r) => `${r.title} @ ${r.employer}`)).toEqual(["Senior Manager @ Deloitte", "Analyst @ Acme Corp"]);
+    expect(outline.unreadRoles).toEqual([]);
+  });
+
+  it("outlines the headings found, a summary without a heading, and capitals that aren't a known heading", () => {
+    const { outline } = analyseHistory(["ASHA VERMA", "Engineer with twenty years building identity programmes for banks and insurers across Asia, Europe and North America, now leading.", "Experience", "Engineer, Acme Corp — 2019 - Present", "HOBBY CORNER", "Technical Skills", "Go, Java"].join("\n"));
+    expect(outline.headings).toEqual([{ kind: "experience", text: "Experience" }, { kind: "skills", text: "Technical Skills" }]);
+    expect(outline.intro).toMatch(/^Engineer with twenty years/);
+    expect(outline.unknownHeadings).toEqual(["HOBBY CORNER"]);
   });
 });
