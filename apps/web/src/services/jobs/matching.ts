@@ -6,7 +6,7 @@
 import type { CareerDNA } from "@/domain/career/types";
 import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, JobMatch, JobQuality, JobQualitySignal, JobSource } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
-import { remoteOpenTo } from "./normalize";
+import { hasTermOrSynonym, INDUSTRY_WORDS, queryTerms, remoteOpenTo, SENIORITY_WORDS, stripHeadlineLabel, stripSelfReference } from "./normalize";
 import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learning";
 
 const DAY = 86_400_000;
@@ -29,6 +29,12 @@ function mentions(text: string, skill: string) {
   }
   return re.test(text);
 }
+/**
+ * Skills so common across roles that sharing them says little about fit: a product manager and an
+ * identity director both list "Strategy", "Roadmap", "Platform" and "AI". They count, at a lower weight,
+ * so a posting in another field can't look like a match on them alone.
+ */
+const GENERIC_SKILLS = new Set(["ai", "strategy", "platform", "onboarding", "automation", "risk", "compliance", "security", "roadmap", "roadmapping", "analytics", "metrics", "kpis", "okrs", "agile", "scrum", "jira", "apis", "rest", "growth", "mobile", "saas", "b2b", "b2c", "operations", "content", "brand", "testing", "leadership", "team leadership", "communication", "mentoring", "negotiation", "presentation", "consulting", "project management", "program management", "programme management", "stakeholder management", "excel", "governance", "audit", "hiring", "prioritization", "business case", "customer journey", "retention", "pricing"]);
 const GENERIC_STEMS = new Set(["manage", "product", "busines", "customer", "servic", "system", "engineer", "develop", "design", "market", "operat", "strateg", "communic", "leadersh", "project", "program", "technic", "solution", "platform", "applic", "process", "support", "quality", "researc", "analysi"]);
 /** One shared formatter: `toLocaleString` re-creates one per call, which dominated catalog load time. */
 const OBSERVED_AT = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
@@ -75,11 +81,43 @@ export interface MatchContext {
   learnedSignals?: LearnedSignal[];
 }
 
+/** Field words so widespread ("AI", "digital", "data") that on their own they don't place a posting in the candidate's field. */
+const FIELD_WEAK = new Set(["ai", "digital", "data", "cloud", "technology", "software", "online", "business", "enterprise", "global", "solutions", "services"]);
+const FIELD_STOP = new Set(["roles", "role", "find", "with", "companies", "tech", "jobs", "job", "transformation", "leadership", "management", "senior", "level", "experienced", "professional", "target"]);
+const fieldMemo = new Map<string, string[]>();
+/** The words that name what the candidate does, from their headline and goal: "Target: Senior Director / SVP — IAM & AI Transformation" → iam, ai, digital, identity, … */
+export function fieldTerms(headline: string, goal: string): string[] {
+  const key = `${headline}\n${goal}`;
+  let out = fieldMemo.get(key);
+  if (!out) {
+    out = [...new Set([...queryTerms(stripHeadlineLabel(headline), 40), ...queryTerms(stripSelfReference(goal), 40)])].filter((t) => !SENIORITY_WORDS.has(t) && !INDUSTRY_WORDS.has(t) && !FIELD_STOP.has(t) && t.length > 1).slice(0, 10);
+    fieldMemo.set(key, out);
+  }
+  return out;
+}
+
 export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = Date.now()): JobMatch {
   const { dna } = ctx;
   const goal = (ctx.careerGoal ?? dna.careerGoal).toLowerCase();
   const locations = (ctx.preferredLocations ?? dna.preferredLocations).map((l) => l.toLowerCase());
   const minSalary = ctx.minSalary ?? dna.minSalary;
+
+  // the candidate's field: is this posting the kind of role they're after? Field terms come from their
+  // headline, goal and the search's goal (seniority and industry words aside — scored separately) and are
+  // looked for as whole words or known spellings ("iam" ↔ "identity and access management"), first in the
+  // title, then in the posting's tags, skills and requirements, then anywhere in the description.
+  const title = job.title.toLowerCase();
+  const field = fieldTerms(dna.headline, goal);
+  const head = `${(job.tags ?? []).join(" ")} ${(job.skills ?? []).join(" ")} ${(job.requirements ?? []).join(" ")}`;
+  // A weak word ("AI") counts only alongside a stronger one ("identity") in the same place.
+  const found = (text: string) => {
+    const hits = field.filter((w) => hasTermOrSynonym(text, w));
+    return hits.some((w) => !FIELD_WEAK.has(w)) ? hits : [];
+  };
+  const inTitle = found(title);
+  const inHead = inTitle.length ? [] : found(head);
+  const inBody = inTitle.length || inHead.length ? [] : found(job.description ?? "");
+  const goalScore = !field.length ? 0.6 : inTitle.length ? Math.min(1, 0.7 + 0.15 * inTitle.length) : inHead.length ? 0.55 : inBody.length ? 0.4 : 0.15;
 
   // skills: how much of what the candidate has does the role ask for, and how much of what the role asks for
   // does the candidate have. Both are read from the posting's own text, not only its tag list, and the
@@ -87,10 +125,15 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   const mine = new Map(dna.skills.map((s) => [s.name.toLowerCase(), s.level]));
   const text = `${job.title} ${job.skills.join(" ")} ${job.requirements.join(" ")} ${job.description}`.toLowerCase();
   const overlap = dna.skills.filter((s) => job.skills.some((j) => j.toLowerCase() === s.name.toLowerCase()) || mentions(text, s.name)).map((s) => s.name);
-  const weighted = overlap.reduce((n, s) => n + mine.get(s.toLowerCase())! / 5, 0);
+  // A shared generic skill counts in full when the posting is in the candidate's field, 0.4 otherwise;
+  // specific ones (a tool, a platform, a discipline) always count in full.
+  const genericWeight = !field.length || inTitle.length ? 1 : 0.4;
+  const weightOf = (name: string) => (GENERIC_SKILLS.has(name.toLowerCase()) ? genericWeight : 1);
+  const effective = overlap.reduce((n, name) => n + weightOf(name), 0);
+  const weighted = overlap.reduce((n, name) => n + (mine.get(name.toLowerCase())! / 5) * weightOf(name), 0);
   const skillScore = !dna.skills.length
     ? 0.5
-    : Math.min(1, 0.5 * (weighted / Math.min(Math.max(job.skills.length, 3), 6)) + 0.5 * (overlap.length / Math.min(dna.skills.length, 6)) + (overlap.length >= 4 ? 0.08 : 0));
+    : Math.min(1, 0.5 * (weighted / Math.min(Math.max(job.skills.length, 3), 6)) + 0.5 * (effective / Math.min(dna.skills.length, 6)) + (effective >= 4 ? 0.08 : 0));
 
   // seniority
   const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[dna.seniority];
@@ -98,12 +141,6 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   // industry
   const industryScore = dna.industries.some((i) => i.toLowerCase() === job.industry.toLowerCase()) ? 1 : 0.55;
-
-  // career goal (title keywords)
-  const title = job.title.toLowerCase();
-  const goalWords = goal.split(/[^a-z]+/).filter((w) => w.length > 3 && !["roles", "find", "with", "companies", "tech"].includes(w));
-  const goalHits = goalWords.filter((w) => title.includes(w)).length;
-  const goalScore = goalWords.length ? Math.min(1, 0.35 + goalHits / Math.min(2, goalWords.length)) : 0.6;
 
   // location
   const jl = job.location.toLowerCase();
@@ -128,20 +165,23 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
     compScore = max >= minSalary * 1.15 ? 1 : max >= minSalary ? 0.85 : max >= minSalary * 0.85 ? 0.55 : 0.3;
   }
 
-  const weights = { skills: 0.32, seniority: 0.18, industry: 0.1, career_goal: 0.18, location: 0.12, compensation: 0.1 } as const;
+  const weights = { skills: 0.28, seniority: 0.16, industry: 0.08, career_goal: 0.24, location: 0.12, compensation: 0.12 } as const;
   const raw = skillScore * weights.skills + seniorityScore * weights.seniority + industryScore * weights.industry + goalScore * weights.career_goal + locationScore * weights.location + compScore * weights.compensation;
   // "Not for me" learning (spec: it must actually affect future ranking, not just hide the one job): a
   // small, bounded penalty once the same reason has repeated enough times to be a pattern rather than
   // noise — see domain/career/learning.ts. Never enough on its own to erase an otherwise strong match.
   const learned = ctx.learnedSignals?.length ? learnedRankingEffect(job, dna.seniority, ctx.learnedSignals) : { points: 0 };
   // A remote role the employer restricts to another region can be worth a look, never a "strong" opportunity.
-  const score = Math.round(Math.max(20, Math.min(openTo === false ? 74 : 96, raw * 100 - learned.points)));
+  // A posting that never names the candidate's field in its title, tags, skills or requirements is at
+  // most a stretch, and one that doesn't mention it at all is a low fit — shared generic skills can't lift it.
+  const ceiling = Math.min(openTo === false ? 74 : 96, !field.length || inTitle.length || inHead.length ? 96 : inBody.length ? 64 : 54);
+  const score = Math.round(Math.max(20, Math.min(ceiling, raw * 100 - learned.points)));
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of your skills appear in this posting (${overlap.slice(0, 3).join(", ")}).` : "Few of your skills appear in this posting." },
     { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? "Same level as your current role." : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above your current role." : "Below your current level." },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
-    { dimension: "career_goal", label: "Career-goal alignment", score: goalScore, summary: goalHits ? "The role title matches your stated career goal." : "The role is adjacent to your stated goal." },
+    { dimension: "career_goal", label: "Career-goal alignment", score: goalScore, summary: !field.length ? "Add a headline or career goal to your Career Profile to sharpen this." : inTitle.length ? `The role title is in your field (${inTitle.slice(0, 3).join(", ")}).` : inHead.length ? `Your field (${inHead.slice(0, 2).join(", ")}) appears in the posting's requirements or tags, not in its title.` : inBody.length ? `Your field (${inBody.slice(0, 2).join(", ")}) is only mentioned in the description.` : `The posting doesn't mention your field (${field.slice(0, 3).join(", ")}).` },
     { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career Profile to sharpen this." : `${job.location} is outside your preferred locations.` },
     { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
   ];

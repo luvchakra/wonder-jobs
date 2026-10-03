@@ -57,6 +57,10 @@ export const SKILL_LEXICON: string[] = [
   "Product Strategy", "Product Management", "Roadmapping", "Roadmap", "Product Discovery", "User Research", "Customer Research", "A/B Testing", "Experimentation", "Analytics", "Product Analytics", "Metrics", "KPIs", "OKRs", "PRDs", "Prioritization", "Stakeholder Management", "Go-to-Market", "GTM", "Growth", "Retention", "Monetization", "Pricing", "Onboarding", "Agile", "Scrum", "Kanban", "Jira", "Figma", "Wireframing", "Prototyping", "UX", "UI Design", "Design Systems", "User Interviews", "Usability Testing", "Customer Journey", "Market Research", "Competitive Analysis", "Business Case", "P&L", "Platform", "APIs", "Payments", "Lending", "Risk", "Compliance", "Fraud", "Marketplace", "B2B", "B2C", "SaaS", "Mobile", "iOS", "Android",
   // data
   "SQL", "Python", "R", "Excel", "Tableau", "Looker", "Power BI", "Mixpanel", "Amplitude", "Google Analytics", "Data Analysis", "Data Science", "Machine Learning", "Deep Learning", "NLP", "LLMs", "Generative AI", "AI", "Statistics", "Forecasting", "Data Modeling", "dbt", "Snowflake", "BigQuery", "Spark", "Airflow", "ETL", "Data Engineering", "Pandas", "TensorFlow", "PyTorch", "Scikit-learn",
+  // security, identity and governance
+  "Identity and Access Management", "Identity & Access Management", "Identity Governance", "Privileged Access Management", "Access Management", "Identity Management", "IAM", "IGA", "PAM", "CyberArk", "SailPoint", "Saviynt", "Okta", "Ping Identity", "ForgeRock", "Microsoft Entra", "Azure AD", "Active Directory", "Oracle Identity Manager", "Single Sign-On", "SSO", "MFA", "OAuth", "OIDC", "SAML", "Zero Trust", "Cybersecurity", "Information Security", "Application Security", "Cloud Security", "Security Architecture", "Threat Modeling", "Vulnerability Management", "Penetration Testing", "SIEM", "SOC", "Incident Response", "GRC", "Risk Management", "AI Governance", "Governance", "SOX", "GDPR", "ISO 27001", "NIST", "PCI DSS", "Audit", "Data Protection", "Privacy",
+  // leadership and delivery
+  "Digital Transformation", "Enterprise Architecture", "Programme Management", "Change Management", "Vendor Management", "RFP", "Budget Management", "Hiring", "Team Leadership", "ServiceNow", "ITIL", "Blockchain", "Hyperledger",
   // engineering
   "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Vue", "Angular", "Java", "Kotlin", "Swift", "Go", "Rust", "C++", "C#", ".NET", "Ruby", "Rails", "PHP", "Laravel", "Django", "Flask", "FastAPI", "Spring", "GraphQL", "REST", "gRPC", "Microservices", "Distributed Systems", "System Design", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "RabbitMQ", "Elasticsearch", "AWS", "GCP", "Azure", "Kubernetes", "Docker", "Terraform", "CI/CD", "DevOps", "SRE", "Observability", "Security", "Testing", "Automation", "Selenium", "Playwright", "Cypress", "React Native", "Flutter", "WebSockets", "HTML", "CSS", "Tailwind",
   // business & ops
@@ -79,7 +83,7 @@ export function extractSkills(text: string, max = 12): string[] {
 export function inferSeniority(title: string, hint?: string | null): Job["seniority"] {
   const t = `${title} ${hint ?? ""}`.toLowerCase();
   if (/\b(intern|internship|trainee|graduate|entry[- ]level|junior|jr\.?|associate)\b/.test(t)) return "junior";
-  if (/\b(director|vp|vice president|head of|chief|cxo|cpo|cto|ceo|coo)\b/.test(t)) return "director";
+  if (/\b(director|vp|svp|evp|vice president|head of|chief|cxo|cpo|cto|ceo|coo|cio|ciso)\b/.test(t)) return "director";
   if (/\b(lead|principal|staff|group product manager|gpm|manager of|engineering manager|architect)\b/.test(t)) return "lead";
   if (/\b(senior|sr\.?|experienced|specialist ii|iii)\b/.test(t)) return "senior";
   if (/\bmid[- ]?level\b/.test(t)) return "mid";
@@ -236,8 +240,8 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
 const STOP = new Set(["a", "an", "the", "and", "or", "for", "of", "in", "at", "to", "with", "on", "as", "is", "be", "are", "find", "finding", "looking", "roles", "role", "jobs", "job", "position", "positions", "companies", "company", "opportunity", "opportunities", "work", "working", "remote", "hybrid", "onsite", "tech", "based", "near", "me", "my", "i", "want", "would", "like", "new", "next", "good", "great", "top"]);
 
 /** Search terms from a plain-language goal: "Senior product roles at fintech companies" → ["senior", "product", "fintech"]. */
-export function queryTerms(query: string): string[] {
-  return [...new Set(query.toLowerCase().replace(/[^a-z0-9+#./ -]/g, " ").split(/[\s,/]+/).filter((w) => w.length > 1 && !STOP.has(w)))].slice(0, 8);
+export function queryTerms(query: string, max = 8): string[] {
+  return [...new Set(query.toLowerCase().replace(/[^a-z0-9+#./ -]/g, " ").split(/[\s,/]+/).filter((w) => w.length > 1 && !STOP.has(w)))].slice(0, max);
 }
 
 export const SENIORITY_WORDS = new Set(["senior", "junior", "lead", "principal", "staff", "director", "head", "vp", "svp", "evp", "chief", "intern", "entry", "mid"]);
@@ -249,24 +253,64 @@ export function corePhrase(query: string): string {
   return (terms.length ? terms : queryTerms(query)).slice(0, 3).join(" ");
 }
 
-/** Does a posting match the search? Any core term in the title, or most terms somewhere in the text. */
-/** Title carries the whole core phrase ("product manager"), not just any one word of it ("manager"). */
+/**
+ * Other spellings of a search term that mean the same role or field, so "iam" finds a posting titled
+ * "Identity and Access Management Lead" and "cybersecurity" finds "Information Security Manager".
+ * Whole words only, both ways: a term matches when the posting carries it or one of its spellings.
+ */
+export const TERM_SYNONYMS: Record<string, string[]> = {
+  iam: ["identity and access management", "identity & access management", "identity access management", "identity management", "access management", "identity"],
+  identity: ["iam", "identity and access management", "identity & access management"],
+  iga: ["identity governance", "identity governance and administration"],
+  pam: ["privileged access management", "privileged access"],
+  cybersecurity: ["cyber security", "information security", "infosec", "security"],
+  security: ["cybersecurity", "cyber security", "information security", "infosec"],
+  ai: ["artificial intelligence", "machine learning", "ml", "genai", "generative ai"],
+  ml: ["machine learning"],
+  ux: ["user experience"],
+  qa: ["quality assurance", "quality engineering"],
+  sre: ["site reliability"],
+  devops: ["site reliability", "sre", "platform engineering"],
+  hr: ["human resources", "people operations"],
+  svp: ["senior vice president", "vice president", "vp"],
+  vp: ["vice president", "svp"],
+  director: ["head of", "vice president", "vp"],
+  engineer: ["engineering", "developer"],
+  developer: ["engineer", "engineering"],
+};
+
+const termRegex = new Map<string, RegExp>();
+/** The term as a whole word (or a plural of it), never inside another word: "iam" is not in "Williams". */
+export function hasTerm(text: string, term: string): boolean {
+  let re = termRegex.get(term);
+  if (!re) {
+    re = new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&").replace(/\s+/g, "\\s+")}(?:e?s)?(?![a-z0-9])`, "i");
+    termRegex.set(term, re);
+  }
+  return re.test(text);
+}
+
+/** The term or one of its known spellings (`TERM_SYNONYMS`), as whole words. */
+export function hasTermOrSynonym(text: string, term: string): boolean {
+  return hasTerm(text, term) || (TERM_SYNONYMS[term] ?? []).some((alt) => hasTerm(text, alt));
+}
+
+/** Title carries the whole core phrase ("product manager"), not just any one word of it ("manager"), each word whole or by a known spelling. */
 export function titleMatches(title: string, query: string): boolean {
   const core = queryTerms(corePhrase(query));
   if (!core.length) return true;
-  const t = title.toLowerCase();
-  return core.every((c) => t.includes(c));
+  return core.every((c) => hasTermOrSynonym(title, c));
 }
 
+/** Does a posting match the search? The core phrase in the title, or most terms in its title, tags or skills (not just the body). */
 export function matchesQuery(job: Pick<Job, "title" | "description" | "tags" | "skills">, query: string): boolean {
   const terms = queryTerms(query);
   if (!terms.length) return true;
   if (titleMatches(job.title, query)) return true;
-  // Otherwise the posting must carry most of the search terms in its title, tags or skills (not just the body).
-  const head = `${job.title} ${job.tags.join(" ")} ${job.skills.join(" ")}`.toLowerCase();
+  const head = `${job.title} ${job.tags.join(" ")} ${job.skills.join(" ")}`;
   const core = queryTerms(corePhrase(query));
-  const coreHits = core.filter((t) => head.includes(t)).length;
-  const hits = terms.filter((t) => head.includes(t)).length;
+  const coreHits = core.filter((t) => hasTermOrSynonym(head, t)).length;
+  const hits = terms.filter((t) => hasTermOrSynonym(head, t)).length;
   return coreHits >= Math.max(1, core.length - 1) && hits >= Math.min(terms.length, Math.max(2, Math.ceil(terms.length * 0.5)));
 }
 
