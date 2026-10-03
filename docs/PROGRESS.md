@@ -66,6 +66,8 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Logo mark whole on the right (WJ-208)
 - ✅ Full job description or a link to it (WJ-209)
 - ✅ End-to-end run; specs match the current screens (WJ-210)
+- ✅ Search strictly within your Career Profile (WJ-211)
+- ✅ Dialogs and Ask Wonder stay above the phone keyboard (WJ-212)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

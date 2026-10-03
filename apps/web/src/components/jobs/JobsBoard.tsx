@@ -12,6 +12,8 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
+import { fieldTerms } from "@/services/jobs/matching";
+import { useCareerStore } from "@/store/career";
 import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
@@ -77,7 +79,10 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
   // "Why Was This Filtered" breakdown below can never disagree, because they read the same computation.
   // Saved shows every bookmarked job whatever its fit; Find never shows only saved ones (that's the Saved tab).
   const effective = useMemo(() => ({ ...filters, query, onlySaved: savedOnly, minFit: savedOnly ? null : filters.minFit }), [filters, query, savedOnly]);
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now), [order, jobs, matches, rejected, saved, effective, now]);
+  const headline = useCareerStore((s) => s.dna.headline);
+  const goal = useCareerStore((s) => s.dna.careerGoal);
+  const field = useMemo(() => fieldTerms(headline, goal), [headline, goal]);
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now, field), [order, jobs, matches, rejected, saved, effective, now, field]);
   const results = useMemo(() => {
     const list = [...filterResult.visibleIds];
     list.sort((a, b) => {

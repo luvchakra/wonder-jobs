@@ -8,9 +8,9 @@ import { FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
-export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], company: "", salaryListed: false, sourceIds: [] as never[], minFit: null, freshnessDays: null, minSalary: undefined, onlySaved: false };
+export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], company: "", salaryListed: false, strictProfile: false, sourceIds: [] as never[], minFit: null, freshnessDays: null, minSalary: undefined, onlySaved: false };
 
-const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "company", "location", "search_text"];
+const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "company", "location", "profile", "search_text"];
 
 /**
  * "Why Was This Filtered" (spec §11): whenever the candidate's active filters are hiding catalog jobs,

@@ -297,3 +297,39 @@ test.describe("Golden journey — trust (demo mode)", () => {
     await expect(page.getByText(/you copy it into your own email and send it/i)).toBeVisible();
   });
 });
+
+test.describe("Golden journey — the phone keyboard (demo mode)", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("GJ-019 Ask Wonder's box and a sheet's fields stay above the on-screen keyboard", async ({ page }) => {
+    // Stand-in for the Android keyboard: the visual viewport shrinks, the layout viewport doesn't.
+    await page.addInitScript(() => {
+      const vv = new EventTarget();
+      Object.assign(vv, { height: 844, width: 390, offsetTop: 0, offsetLeft: 0, scale: 1 });
+      Object.defineProperty(window, "visualViewport", { get: () => vv });
+      (window as unknown as { __kbd: (h: number) => void }).__kbd = (h) => {
+        Object.assign(vv, { height: h });
+        vv.dispatchEvent(new Event("resize"));
+      };
+    });
+    await page.goto("/demo?next=/app/jobs");
+    await page.getByRole("button", { name: /Ask Wonder anything/ }).first().click();
+    const input = page.getByRole("combobox", { name: "Command" });
+    await expect(input).toBeVisible();
+    await page.evaluate(() => (window as unknown as { __kbd: (h: number) => void }).__kbd(430));
+    const box = (await input.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(430);
+    const dialog = (await page.locator("dialog[open]").boundingBox())!;
+    expect(Math.round(dialog.width)).toBe(390);
+    await page.keyboard.press("Escape");
+
+    await page.goto("/app/applications");
+    await page.getByRole("button", { name: "Add" }).click();
+    await page.evaluate(() => (window as unknown as { __kbd: (h: number) => void }).__kbd(430));
+    await expect(async () => {
+      const sheet = (await page.locator("dialog[open]").boundingBox())!;
+      expect(sheet.y + sheet.height).toBeLessThanOrEqual(431);
+      expect(sheet.y).toBeGreaterThanOrEqual(0);
+    }).toPass({ timeout: 3_000 });
+  });
+});

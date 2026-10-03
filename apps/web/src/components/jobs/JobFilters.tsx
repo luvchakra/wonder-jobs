@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { GitCompareArrows, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
@@ -69,7 +70,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.levels?.length ?? 0) + (filters.company?.trim() ? 1 : 0) + (filters.salaryListed ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + (filters.company?.trim() ? 1 : 0) + (filters.salaryListed ? 1 : 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const typed = filters.query.trim();
   const wider = typed && sourceSearch ? sourceSearch.describe(typed, splitPlaces(where)) : null;
@@ -155,6 +156,15 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
           {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
+            <span>
+              Search strictly within your{" "}
+              <Link href="/app/career-dna" className="font-medium text-brand-600 underline-offset-2 hover:underline">
+                Career Profile
+              </Link>
+            </span>
+          </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Sort
             <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
@@ -237,7 +247,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 className="min-w-0 flex-1 sm:flex-none"
                 icon={<Search className="size-4" aria-hidden />}
                 onClick={() => {
-                  if (typed) sourceSearch.run(typed, splitPlaces(where));
+                  // Strictly within the profile: its own search (role and field), in these places.
+                  if (typed && !filters.strictProfile) sourceSearch.run(typed, splitPlaces(where));
                   else sourceSearch.runPlaces(splitPlaces(where));
                   setMore(false);
                 }}
@@ -255,7 +266,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
               >

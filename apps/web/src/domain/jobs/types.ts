@@ -155,6 +155,8 @@ export interface JobFilters {
   levels?: Job["seniority"][];
   /** Company name contains this. */
   company?: string;
+  /** Only jobs in the candidate's own field — their Career Profile's headline and goal named in the title, skills, tags or requirements. */
+  strictProfile?: boolean;
   sourceIds: string[];
   minFit: FitLabel | null;
   freshnessDays: number | null;

@@ -198,3 +198,17 @@ describe("Refine: level, company, pay listed", () => {
     expect(r.hiddenByReason).toEqual({ level: 1, company: 1, no_salary: 1 });
   });
 });
+
+describe("Search strictly within your Career Profile", () => {
+  it("keeps jobs that name the candidate's field where it counts, and says why the rest are hidden", async () => {
+    const { applyJobFilters, inProfileField } = await import("./filterExplain");
+    const base = { id: "", title: "", company: "Co", location: "Mumbai", country: "IN", workMode: "onsite" as const, currency: "INR", postedAt: new Date().toISOString(), observedAt: new Date().toISOString(), description: "", requirements: [], niceToHave: [], skills: [], seniority: "director" as const, industry: "Technology", applyUrl: "https://x", applyPath: "employer_site" as const, onEmployerSite: true, repostCount: 0, tags: [], canonicalKey: "", sourceIds: ["careers"], duplicateOf: [] };
+    const field = ["iam", "identity"];
+    const jobs = { a: { ...base, id: "a", title: "Director, Identity and Access Management" }, b: { ...base, id: "b", title: "Sales Director", description: "Sell our IAM products." }, c: { ...base, id: "c", title: "Platform Lead", skills: ["IAM"] } };
+    expect(inProfileField(jobs.b, field)).toBe(false); // the field only in the body isn't the role
+    const f = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false, strictProfile: true };
+    const r = applyJobFilters(["a", "b", "c"], jobs, {}, {}, {}, f, Date.now(), field);
+    expect(r.visibleIds).toEqual(["a", "c"]);
+    expect(r.hiddenByReason).toEqual({ profile: 1 });
+  });
+});

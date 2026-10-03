@@ -23,7 +23,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   }, [open]);
   return (
-    <Modal open={open} onClose={close} title="Ask Wonder" description="Search jobs, ask a real question about your search or applications, or jump to a page.">
+    <Modal open={open} onClose={close} title="Ask Wonder" description="Search jobs, ask about your search or applications, or jump to a page." placement="top">
       <Input
         ref={inputRef}
         value={q}
@@ -55,7 +55,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       {/* A listbox of grouped options, driven from the combobox (arrow keys + Enter): options are
           the clickable rows themselves — no nested buttons or bare list items, which assistive tech
           can't reconcile with the listbox role. */}
-      <div id="wj-cmd-list" role="listbox" aria-label="Results" className="mt-3 max-h-80 overflow-y-auto">
+      <div id="wj-cmd-list" role="listbox" aria-label="Results" className="mt-3 max-h-[45dvh] overflow-y-auto sm:max-h-80">
         {(["Actions", "Go to"] as const).map((group) => {
           const items = filtered.filter((c) => c.group === group);
           if (!items.length) return null;
