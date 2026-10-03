@@ -66,11 +66,13 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
-      {/* The brand, not a search box: Find has its own search, and Ask Wonder stays on ⌘K. */}
-      <div className="mr-auto flex min-w-0 items-center md:hidden">
-        <WonderLogo href="/app" size={26} />
+      {/* Phones: avatar left, brand centred, bell right. Ask Wonder stays on ⌘K. */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:hidden">
+        <span className="pointer-events-auto">
+          <WonderLogo href="/app" size={26} />
+        </span>
       </div>
-      <div className="hidden flex-1 md:block" />
+      <div className="flex-1" />
 
       {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
       <div className="md:relative" ref={notifRef}>
@@ -117,7 +119,7 @@ export function TopBar() {
         )}
       </div>
 
-      <div className="relative" ref={profileRef}>
+      <div className="relative order-first md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-bg-soft">
           <Avatar name={displayName} size={34} />
           <span className="hidden text-left lg:block">
@@ -127,7 +129,7 @@ export function TopBar() {
           <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>
         {profileOpen && (
-          <div role="menu" className="absolute right-0 top-12 w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+          <div role="menu" className="absolute left-0 top-12 w-60 md:left-auto md:right-0 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
             {mode === "demo" && (
               <p className="px-3 pb-2 pt-1.5 text-[11px] leading-snug text-ink-3">
                 You&apos;re exploring sample data. Nothing here is saved to an account.
