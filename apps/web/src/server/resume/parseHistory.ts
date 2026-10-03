@@ -13,7 +13,7 @@ import { KNOWN_COUNTRIES, KNOWN_LOCATIONS } from "./locations";
 type Section = "summary" | "experience" | "education" | "certifications" | "other";
 
 const HEADINGS: [Section, RegExp][] = [
-  ["summary", /^(professional |career |executive )?(summary|profile|objective)$|^about( me)?$|^career objective$/],
+  ["summary", /^(professional |career |executive |personal |candidate )?(summary|profile|objective|overview|statement)$|^(summary|profile) (summary|statement|of qualifications)$|^about( me)?$|^career objective$|^introduction$|^who i am$/],
   ["experience", /^(work |professional |relevant |employment |career )?(experience|history)$|^employment$|^work history$|^experience & achievements$/],
   ["education", /^(education|academic background|academics|qualifications|education (and|&) training|academic qualifications)$/],
   ["certifications", /^(certifications?|licen[cs]es?|certifications? (and|&) licen[cs]es?|licen[cs]es? (and|&) certifications?|courses|courses (and|&) certifications|training (and|&) certifications)$/],
@@ -125,7 +125,8 @@ export function analyseHistory(text: string): { draft: HistoryDraft; outline: Re
   const draft: HistoryDraft = { contact: contactOf(head.length ? head : lines.slice(0, 12), text), experience: [], education: [], certifications: [] };
   const intro = head.filter((l) => l.length >= 120 && !/@|https?:/.test(l)).join(" ");
   if (intro) outline.intro = intro.slice(0, 600);
-  const summary = sections.summary.join(" ").trim();
+  // A "Summary" section, else the opening paragraph above the first heading (a summary written without one).
+  const summary = sections.summary.join(" ").trim() || (outline.intro ?? "");
   if (summary.length >= 40) draft.summary = { value: summary.slice(0, 1200), from: summary.slice(0, 120) };
   draft.experience = experienceOf(sections.experience, outline.unreadRoles);
   draft.education = educationOf(sections.education);

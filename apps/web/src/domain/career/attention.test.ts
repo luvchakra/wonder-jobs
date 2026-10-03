@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeHomeAttention, computeProgressSummary, describeRunActivity, nextScheduledSearch } from "./attention";
+import { computeApplicationAttention, computeHomeAttention, computeProgressSummary, describeRunActivity, nextScheduledSearch } from "./attention";
 import { emptySummary } from "@/domain/workflow/engine";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import type { Application } from "@/domain/applications/types";
@@ -262,5 +262,19 @@ describe("nextScheduledSearch — never claims Wonder is working without a real 
   });
   it("returns nothing when no schedule is enabled", () => {
     expect(nextScheduledSearch({ a: sch({ enabled: false, nextRunAt: "2026-09-24T08:00:00Z" }) })).toBeUndefined();
+  });
+});
+
+describe("computeApplicationAttention", () => {
+  it("lists one row per application and reason — two overdue follow-ups on one application are one thing to do", () => {
+    const apps = {
+      a: app({ id: "a", jobId: "j1", status: "ready_for_review", followUps: [
+        { id: "f1", applicationId: "a", dueAt: new Date(NOW - 2 * 86_400_000).toISOString(), kind: "follow_up", note: "", done: false },
+        { id: "f2", applicationId: "a", dueAt: new Date(NOW - 86_400_000).toISOString(), kind: "follow_up", note: "", done: false },
+      ] }),
+    };
+    const items = computeApplicationAttention(apps, NOW);
+    expect(items.map((i) => i.reason)).toEqual(["follow_up_overdue", "ready_for_review"]);
+    expect(items[0].dueAt).toBe(new Date(NOW - 2 * 86_400_000).toISOString());
   });
 });

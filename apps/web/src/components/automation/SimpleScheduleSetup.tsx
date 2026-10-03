@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
+import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
 import { buildScheduledSearch, LOOK_FREQUENCY_META, type LookFrequency } from "@/domain/workflow/simpleSchedule";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
@@ -30,7 +31,15 @@ const ORDER: LookFrequency[] = ["daily", "weekly", "keep_watch", "manual"];
  * builder does (via `buildScheduledSearch`), so everything downstream — the scheduler, conditions,
  * quiet outcomes, automation policy — is the existing machinery.
  */
-export function SimpleScheduleSetup({ initialRequest, initialFrequency, advancedHref }: { initialRequest?: string; initialFrequency?: LookFrequency; advancedHref: string }) {
+/** The frequency a saved schedule was set up with, read back from what buildScheduledSearch wrote. */
+function frequencyOf(schedule: WorkflowSchedule, workflow: Workflow): LookFrequency {
+  if (schedule.trigger === "manual") return "manual";
+  if (workflow.config.automationLevel === "continuous") return "keep_watch";
+  return schedule.frequency === "weekly" ? "weekly" : "daily";
+}
+
+/** `existing`: edit that schedule in place — same ids, its on/off state and run history kept. */
+export function SimpleScheduleSetup({ initialRequest, initialFrequency, advancedHref, existing }: { initialRequest?: string; initialFrequency?: LookFrequency; advancedHref: string; existing?: { schedule: WorkflowSchedule; workflow: Workflow } }) {
   const router = useRouter();
   const dna = useCareerStore((s) => s.dna);
   const sources = useJobsStore((s) => s.sources);
@@ -40,11 +49,11 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   const upsertSchedule = useWorkflowStore((s) => s.upsertSchedule);
 
   const roles = useCareerStore((s) => s.roles ?? []);
-  const [roleId, setRoleId] = useState<string | null>(null);
+  const [roleId, setRoleId] = useState<string | null>(existing?.workflow.config.role?.id ?? null);
   const role = roles.find((r) => r.id === roleId);
-  const [request, setRequest] = useState(initialRequest ?? dna.careerGoal);
-  const [frequency, setFrequency] = useState<LookFrequency>(initialFrequency ?? "daily");
-  const [onlyWorthIt, setOnlyWorthIt] = useState(true);
+  const [request, setRequest] = useState(existing?.workflow.config.careerGoal ?? initialRequest ?? dna.careerGoal);
+  const [frequency, setFrequency] = useState<LookFrequency>(existing ? frequencyOf(existing.schedule, existing.workflow) : (initialFrequency ?? "daily"));
+  const [onlyWorthIt, setOnlyWorthIt] = useState(existing ? existing.schedule.condition.key !== "always" : true);
 
   const intent = useMemo(() => deriveSearchIntent(request), [request]);
   // The candidate's own words, else their Career Profile — never a canned role.
@@ -55,7 +64,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
 
   const save = () => {
     const { workflow, schedule } = buildScheduledSearch({
-      ids: { workflow: newId("wf"), schedule: newId("sch") },
+      ids: existing ? { workflow: existing.workflow.id, schedule: existing.schedule.id } : { workflow: newId("wf"), schedule: newId("sch") },
       now: new Date(),
       timezone,
       frequency,
@@ -70,10 +79,17 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
       sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
       role: role ? { id: role.id, title: role.title } : undefined,
     });
-    upsertWorkflow(workflow);
-    upsertSchedule(schedule);
-    track("search_schedule_created", { frequency, quiet: frequency === "keep_watch" || onlyWorthIt });
-    toast.success(frequency === "manual" ? "Search saved" : "Wonder will keep looking", frequency === "manual" ? "Run it from Scheduled searches whenever you like." : describeSchedule({ ...schedule, timezone }));
+    if (existing) {
+      const { createdAt, enabled, lastRunAt, lastRunId } = existing.schedule;
+      upsertWorkflow({ ...workflow, version: existing.workflow.version + 1, createdAt: existing.workflow.createdAt });
+      upsertSchedule({ ...schedule, createdAt, enabled, lastRunAt, lastRunId });
+      toast.success("Saved", describeSchedule({ ...schedule, timezone }));
+    } else {
+      upsertWorkflow(workflow);
+      upsertSchedule(schedule);
+      track("search_schedule_created", { frequency, quiet: frequency === "keep_watch" || onlyWorthIt });
+      toast.success(frequency === "manual" ? "Search saved" : "Wonder will keep looking", frequency === "manual" ? "Run it from Scheduled searches whenever you like." : describeSchedule({ ...schedule, timezone }));
+    }
     router.push("/app/automation/scheduled");
   };
 
@@ -130,7 +146,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
           Advanced search automation
         </Link>
         <Button onClick={save} disabled={!query}>
-          {frequency === "manual" ? "Save this search" : "Start looking"}
+          {existing ? "Save changes" : frequency === "manual" ? "Save this search" : "Start looking"}
         </Button>
       </div>
     </div>

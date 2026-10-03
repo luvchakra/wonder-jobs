@@ -201,3 +201,18 @@ describe("role headers and bullets as PDFs and Word files lay them out", () => {
     expect(outline.unknownHeadings).toEqual(["HOBBY CORNER"]);
   });
 });
+
+
+describe("contact and summary from real résumé layouts", () => {
+  it("takes the LinkedIn profile from the Links line an extractor appends for a hyperlink", () => {
+    const h = parseHistory(["Arjun Mehta", "arjun@mehta.dev | +91 98765 43210 | Mumbai, India | LinkedIn", "Links: https://www.linkedin.com/in/arjun-mehta-42 | https://github.com/arjunm", "Experience", "Engineer, Acme — 2020 - 2022"].join("\n"));
+    expect(h.contact.linkedinUrl?.value).toContain("linkedin.com/in/arjun-mehta-42");
+    expect(h.contact.portfolioUrl?.value).toContain("github.com/arjunm");
+  });
+
+  it("reads a summary under 'Profile summary', and an opening paragraph with no heading at all", () => {
+    const para = "Senior identity and access management leader with fourteen years across banking and consulting, building IAM programmes that pass audit the first time and cut onboarding from weeks to hours.";
+    expect(parseHistory(["Arjun Mehta", "Profile Summary", para, "Experience", "Engineer, Acme — 2020 - 2022"].join("\n")).summary?.value).toBe(para);
+    expect(parseHistory(["Arjun Mehta", "arjun@mehta.dev", para, "Experience", "Engineer, Acme — 2020 - 2022"].join("\n")).summary?.value).toBe(para);
+  });
+});

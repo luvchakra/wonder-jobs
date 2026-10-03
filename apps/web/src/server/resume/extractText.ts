@@ -137,11 +137,27 @@ export function readZipEntry(buf: Buffer, entry: ZipEntry): Buffer {
 
 const XML_ENTITIES: Record<string, string> = { lt: "<", gt: ">", quot: '"', apos: "'" };
 
+/**
+ * A hyperlink's address lives outside the text: in a Word file it's a relationship target, in a PDF a
+ * link annotation's /URI. The page shows "LinkedIn"; the URL is only here. Appended as one line so the
+ * contact reader sees it, deduplicated, longest first so a full profile URL beats a bare domain.
+ */
+export function linksLine(urls: Iterable<string>): string {
+  const seen = new Set<string>();
+  for (const u of urls) {
+    const v = u.trim().replace(/\\(.)/g, "$1");
+    if (/^https?:\/\//i.test(v) && !/^mailto:|^tel:/i.test(v) && v.length <= 300) seen.add(v);
+  }
+  return seen.size ? `Links: ${[...seen].join(" | ")}` : "";
+}
+
 export function extractDocxText(buf: Buffer): string {
   const entries = readZipEntries(buf);
   const doc = entries.find((e) => e.name === "word/document.xml");
   if (!doc) throw new UnsupportedResumeError("That ZIP isn't a Word document. Upload a PDF or DOCX, or paste the text instead.");
   const xml = readZipEntry(buf, doc).toString("utf8");
+  const rels = entries.find((e) => e.name === "word/_rels/document.xml.rels");
+  const links = rels ? [...readZipEntry(buf, rels).toString("utf8").matchAll(/Target="(https?:[^"]+)"/g)].map((m) => m[1].replace(/&amp;/g, "&")) : [];
   return tidy(
     xml
       // A list paragraph's bullet is formatting, not text: write the mark so the reader can see the list.
@@ -153,7 +169,9 @@ export function extractDocxText(buf: Buffer): string {
       // `&amp;` last, so `&amp;lt;` doesn't turn into a tag-looking `<`.
       .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
       .replace(/&(lt|gt|quot|apos);/g, (_, e: string) => XML_ENTITIES[e])
-      .replace(/&amp;/g, "&"),
+      .replace(/&amp;/g, "&") +
+      "\n" +
+      linksLine(links),
   );
 }
 
@@ -260,6 +278,9 @@ export function extractPdfText(buf: Buffer): string {
     const text = readContentStream(body.text, cmap, fonts);
     if (text.trim()) parts.push(text);
   }
+  // Link annotations: in the file's own objects, or inside compressed object streams (newer writers).
+  const uris = [raw, ...bodies.map((b) => b.text)].flatMap((t) => [...t.matchAll(/\/URI\s*\(((?:\\.|[^\\)])*)\)/g)].map((m) => m[1]));
+  parts.push(linksLine(uris));
   return tidy(parts.join("\n"));
 }
 

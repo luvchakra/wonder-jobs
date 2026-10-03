@@ -12,44 +12,57 @@ const PROSE = [
 ].join("\n");
 
 /** A one-page PDF with a single Flate-compressed content stream — what a word processor exports. */
-function makePdf(lines: string[], { compress = true, hex = false } = {}): Buffer {
+function makePdf(lines: string[], { compress = true, hex = false, links = [] as string[] } = {}): Buffer {
   const draw = lines.map((l) => (hex ? `<${Buffer.from(l, "latin1").toString("hex")}> Tj T*` : `(${l.replace(/([()\\])/g, "\\$1")}) Tj T*`)).join("\n");
   const content = `BT /F1 12 Tf 14 TL 72 720 Td\n${draw}\nET`;
   const body = compress ? deflateSync(Buffer.from(content, "latin1")) : Buffer.from(content, "latin1");
   const head = Buffer.from(`%PDF-1.4\n1 0 obj\n<< /Length ${body.length}${compress ? " /Filter /FlateDecode" : ""} >>\nstream\n`, "latin1");
-  return Buffer.concat([head, body, Buffer.from("\nendstream\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF", "latin1")]);
+  // Link annotations the way Word and Chromium write them: the page shows "LinkedIn", the URL is only here.
+  const annots = links.map((u, i) => `\n${10 + i} 0 obj\n<< /Type /Annot /Subtype /Link /Rect [72 700 160 712] /A << /S /URI /URI (${u}) >> >>\nendobj`).join("");
+  return Buffer.concat([head, body, Buffer.from(`\nendstream\nendobj${annots}\ntrailer\n<< /Root 1 0 R >>\n%%EOF`, "latin1")]);
 }
 
 /** A minimal DOCX: a ZIP holding word/document.xml, built by hand so the test owns every byte. */
-function makeDocx(paragraphs: string[], { store = false } = {}): Buffer {
+function makeDocx(paragraphs: string[], { store = false, links = [] as string[] } = {}): Buffer {
   const xml = `<?xml version="1.0"?><w:document xmlns:w="x"><w:body>${paragraphs.map((p) => `<w:p><w:r><w:t>${p.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</w:t></w:r></w:p>`).join("")}</w:body></w:document>`;
-  const raw = Buffer.from(xml, "utf8");
+  const parts = [zipFile("word/document.xml", Buffer.from(xml, "utf8"), store)];
+  // Hyperlink targets live in the relationships part, never in the text.
+  if (links.length) parts.push(zipFile("word/_rels/document.xml.rels", Buffer.from(`<Relationships>${links.map((u, i) => `<Relationship Id="rId${i}" Type="hyperlink" Target="${u}" TargetMode="External"/>`).join("")}</Relationships>`, "utf8"), store));
+  let offset = 0;
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  for (const f of parts) {
+    f.central.writeUInt32LE(offset, 42);
+    locals.push(f.local);
+    centrals.push(f.central);
+    offset += f.local.length;
+  }
+  const centralRecord = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(parts.length, 8);
+  eocd.writeUInt16LE(parts.length, 10);
+  eocd.writeUInt32LE(centralRecord.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralRecord, eocd]);
+}
+
+function zipFile(path: string, raw: Buffer, store: boolean): { local: Buffer; central: Buffer } {
   const data = store ? raw : deflateRawSync(raw);
-  const name = Buffer.from("word/document.xml", "utf8");
+  const name = Buffer.from(path, "utf8");
   const local = Buffer.alloc(30);
   local.writeUInt32LE(0x04034b50, 0);
   local.writeUInt16LE(store ? 0 : 8, 8);
   local.writeUInt32LE(raw.length, 22);
   local.writeUInt32LE(data.length, 18);
   local.writeUInt16LE(name.length, 26);
-  const fileRecord = Buffer.concat([local, name, data]);
-
   const central = Buffer.alloc(46);
   central.writeUInt32LE(0x02014b50, 0);
   central.writeUInt16LE(store ? 0 : 8, 10);
   central.writeUInt32LE(data.length, 20);
   central.writeUInt32LE(raw.length, 24);
   central.writeUInt16LE(name.length, 28);
-  central.writeUInt32LE(0, 42); // local header offset
-  const centralRecord = Buffer.concat([central, name]);
-
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0);
-  eocd.writeUInt16LE(1, 8);
-  eocd.writeUInt16LE(1, 10);
-  eocd.writeUInt32LE(centralRecord.length, 12);
-  eocd.writeUInt32LE(fileRecord.length, 16);
-  return Buffer.concat([fileRecord, centralRecord, eocd]);
+  return { local: Buffer.concat([local, name, data]), central: Buffer.concat([central, name]) };
 }
 
 describe("detectFormat", () => {
@@ -302,5 +315,24 @@ describe("ActualText and Unicode text strings (regression: “þÿ (” before e
     expect(decodeTextString("<FEFF00480069200B>")).toBe("Hi\u200b");
     expect(decodeTextString("<EFBBBF48C3A9>")).toBe("Hé");
     expect(decodeTextString("(Plain)")).toBe("Plain");
+  });
+});
+
+
+describe("hyperlinks — the address is outside the text", () => {
+  it("reads a PDF link annotation's URL, so a 'LinkedIn' word on the page still yields the profile", () => {
+    const text = extractPdfText(makePdf(["Arjun Mehta", "LinkedIn | GitHub"], { links: ["https://www.linkedin.com/in/arjun-mehta-42", "https://github.com/arjunm"] }));
+    expect(text).toContain("Links: https://www.linkedin.com/in/arjun-mehta-42 | https://github.com/arjunm");
+  });
+
+  it("reads a Word hyperlink's target from the relationships part", () => {
+    const text = extractDocxText(makeDocx(["Arjun Mehta", "LinkedIn"], { links: ["https://linkedin.com/in/arjun-mehta-42", "mailto:arjun@mehta.dev"] }));
+    expect(text).toContain("Links: https://linkedin.com/in/arjun-mehta-42");
+    expect(text).not.toContain("mailto:");
+  });
+
+  it("adds no Links line when there are none", () => {
+    expect(extractDocxText(makeDocx(["Arjun Mehta"]))).not.toContain("Links:");
+    expect(extractPdfText(makePdf(["Arjun Mehta"]))).not.toContain("Links:");
   });
 });

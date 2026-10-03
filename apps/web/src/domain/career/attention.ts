@@ -59,7 +59,14 @@ export function computeApplicationAttention(applications: Record<string, Applica
     }
   }
   items.sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
-  return items;
+  // One row per application and reason — two overdue follow-ups on one application are one thing to do (the earliest is kept).
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    const key = `${i.applicationId}:${i.reason}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** "1 interview coming up · 2 follow-ups due" — what in the applications needs the candidate, counted by kind. */

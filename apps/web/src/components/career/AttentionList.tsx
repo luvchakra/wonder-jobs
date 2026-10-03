@@ -7,6 +7,8 @@ export interface AttentionRow {
   key: string;
   href: string;
   label: string;
+  /** The thing it's about — one line, truncated. */
+  detail?: string;
   icon: LucideIcon;
   tone?: "warning" | "danger" | "info" | "neutral";
 }
@@ -27,7 +29,10 @@ export function AttentionList({ rows }: { rows: AttentionRow[] }) {
           <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", TONE_CLS[r.tone ?? "neutral"])}>
             <r.icon className="size-4" aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 text-[14px] text-ink-2">{r.label}</span>
+          <span className="min-w-0 flex-1">
+            <span className={cn("block text-[14px] text-ink", r.detail && "font-medium")}>{r.label}</span>
+            {r.detail && <span className="block truncate text-[13px] text-ink-3">{r.detail}</span>}
+          </span>
           <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
         </Link>
       ))}
