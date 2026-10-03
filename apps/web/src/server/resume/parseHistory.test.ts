@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseHistory, toMonth } from "./parseHistory";
+import { normalizeResumeDates, parseHistory, toMonth } from "./parseHistory";
+import { parseResume } from "./parseResume";
 
 export const INDIA = `Priya Raman
 Senior Product Manager
@@ -114,5 +115,66 @@ describe("parseHistory", () => {
     expect(toMonth("03/2020")).toBe("2020-03");
     expect(toMonth("2018")).toBe("2018");
     expect(toMonth("someday")).toBeUndefined();
+  });
+});
+
+/** The layout of a real long-career CV: education first, month-name ranges, a day in some dates, a year split by the PDF, asides in brackets. */
+export const LONG = `Asha Verma
+Target: Senior Director — Identity & Access Management
+Mumbai, India | asha@example.com
+Education
+Example Institute of Technology — B.Tech., Mechanical Engineering July 2001 – May 2005
+Professional Experience
+Northbank — Vice President — IAM Practice Lead
+Dec 2025 – Present
+• Sets the multi-year IAM strategy with senior management.
+Big Four LLP, India — Associate Director (Internal transfer from Big Four LLP, Italy)
+12 June 2023 – Dec 2025
+• Led identity programmes for regulated clients.
+Big Four LLP, Italy (Rome) — Senior Manager
+Jan 2023 – 31 May 2023
+Harbour Insurance, Singapore — Senior Manager
+Nov 2016 – Oct 2018
+• Developed and finalised the 2017–2019 IAM roadmap, securing increased funding.
+Capital Markets Bank, Singapore — Assistant Vice President
+March 2010 – Nov 201 6
+Softworks (ac. KPMG), Pune — Senior Software Engineer
+July 2007 – March 2010
+Starter Tech, Hyderabad — Software Engineer
+July 2005 – July 2007
+Technical Skills
+IAM, IGA`;
+
+describe("a long career written with month names (regression: 9 years read as 21)", () => {
+  it("reads every role, including day-first dates, a split year and asides with commas", () => {
+    const roles = parseHistory(LONG).experience.map((e) => `${e.title} | ${e.employer} | ${e.location ?? ""} | ${e.startDate} – ${e.endDate ?? (e.current ? "present" : "")}`);
+    expect(roles).toEqual([
+      "Vice President | Northbank |  | 2025-12 – present",
+      "Associate Director | Big Four LLP | India | 2023-06 – 2025-12",
+      "Senior Manager | Big Four LLP | Italy | 2023-01 – 2023-05",
+      "Senior Manager | Harbour Insurance | Singapore | 2016-11 – 2018-10",
+      "Assistant Vice President | Capital Markets Bank | Singapore | 2010-03 – 2016-11",
+      "Senior Software Engineer | Softworks | Pune | 2007-07 – 2010-03",
+      "Software Engineer | Starter Tech | Hyderabad | 2005-07 – 2007-07",
+    ]);
+  });
+
+  it("counts years from the earliest role — not from a degree's dates or a year range inside an achievement", () => {
+    const r = parseResume(LONG);
+    expect(r.yearsExperience).toBe(new Date().getFullYear() - 2005);
+    expect(r.evidence.yearsExperience).toBe("earliest role: Software Engineer at Starter Tech, from Jul 2005");
+  });
+
+  it("believes a stated “21+ years” over the dates", () => {
+    const r = parseResume(LONG.replace("Mumbai, India", "21+ years leading identity programmes.\nMumbai, India"));
+    expect(r.yearsExperience).toBe(21);
+    expect(r.evidence.yearsExperience).toBe("21+ years");
+  });
+
+  it("rejoins a year the PDF split, only right after a month name", () => {
+    expect(normalizeResumeDates("March 2010 – Nov 201 6")).toBe("March 2010 – Nov 2016");
+    expect(normalizeResumeDates("Grew revenue 201 6 times")).toBe("Grew revenue 201 6 times");
+    expect(toMonth("31 May 2023")).toBe("2023-05");
+    expect(toMonth("12 June 2023")).toBe("2023-06");
   });
 });

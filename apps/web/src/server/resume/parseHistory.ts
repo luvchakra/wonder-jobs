@@ -8,7 +8,7 @@
  * rather than guessed. Résumé text is data: nothing in it changes what this code does.
  */
 import { validContact, type HistoryDraft, type ImportedCertification, type ImportedEducation, type ImportedExperience } from "@/domain/career/historyImport";
-import { KNOWN_LOCATIONS } from "./parseResume";
+import { KNOWN_COUNTRIES, KNOWN_LOCATIONS } from "./locations";
 
 type Section = "summary" | "experience" | "education" | "certifications" | "other";
 
@@ -34,13 +34,17 @@ function sectionOf(line: string): Section | null {
 
 const MONTHS: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
 const MONTH = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
-const DATE = `(?:${MONTH}\\.?,?\\s+(?:19|20)\\d\\d|(?:0?[1-9]|1[0-2])[/.](?:19|20)\\d\\d|(?:19|20)\\d\\d)`;
+// An optional day first ("31 May 2023", "12 June 2023") — the day itself isn't kept.
+const DATE = `(?:(?:[0-3]?\\d(?:st|nd|rd|th)?\\s+)?${MONTH}\\.?,?\\s+(?:19|20)\\d\\d|(?:0?[1-9]|1[0-2])[/.](?:19|20)\\d\\d|(?:19|20)\\d\\d)`;
 const RANGE = new RegExp(`(${DATE})\\s*(?:-|–|—|to|until)\\s*(${DATE}|present|current|now|till date|to date|ongoing)`, "i");
 const SINGLE_YEAR = /\b((?:19|20)\d\d)\b/;
 
 /** "Jan 2021" → "2021-01", "03/2020" → "2020-03", "2019" → "2019". */
 export function toMonth(v: string): string | undefined {
-  const t = v.trim().toLowerCase();
+  const t = v
+    .trim()
+    .toLowerCase()
+    .replace(/^[0-3]?\d(?:st|nd|rd|th)?\s+(?=[a-z])/, "");
   const named = t.match(new RegExp(`^(${MONTH})\\.?,?\\s+((?:19|20)\\d\\d)$`, "i"));
   if (named) return `${named[2]}-${String(MONTHS[named[1].slice(0, named[1].startsWith("sept") ? 4 : 3)]).padStart(2, "0")}`;
   const numeric = t.match(/^(0?[1-9]|1[0-2])[/.]((?:19|20)\d\d)$/);
@@ -55,17 +59,29 @@ const INSTITUTION = /\b(university|universit[äé]|college|institute|school|acad
 const DEGREE = /\b(ph\.?\s?d|doctorate|m\.?\s?b\.?\s?a|pgdm|pgp|m\.?\s?tech|m\.?\s?e\b|m\.?\s?sc|m\.?\s?s\b|m\.?\s?a\b|m\.?\s?com|m\.?\s?c\.?\s?a|master(?:'s|s)?(?: of [a-z ]+)?|b\.?\s?tech|b\.?\s?e\b|b\.?\s?sc|b\.?\s?s\b|b\.?\s?a\b|b\.?\s?com|b\.?\s?b\.?\s?a|b\.?\s?c\.?\s?a|bachelor(?:'s|s)?(?: of [a-z ]+)?|diploma|associate degree|high school|higher secondary|hsc|ssc|12th|10th)\b/i;
 const SEPARATORS = /\s+[|•·]\s+|\s+[—–-]\s+|\s*,\s+|\s+at\s+|\s+@\s+/i;
 
-const isLocation = (t: string) => /^remote$/i.test(t) || KNOWN_LOCATIONS.some((c) => new RegExp(`^${c}\\b`, "i").test(t)) || /^[A-Z][a-z]+,\s*[A-Z][a-z]+$/.test(t);
+const isLocation = (t: string) => /^remote$/i.test(t) || KNOWN_LOCATIONS.some((c) => new RegExp(`^${c}\\b`, "i").test(t)) || KNOWN_COUNTRIES.some((c) => c.toLowerCase() === t.trim().toLowerCase()) || /^[A-Z][a-z]+,\s*[A-Z][a-z]+$/.test(t);
 const clean = (t: string) =>
   t
     .replace(BULLET, "")
     .replace(/\s+/g, " ")
     .replace(/^[\s,|–—-]+|[\s,|–—:-]+$/g, "")
     .trim();
-const looksLikeHeader = (line: string) => !BULLET.test(line) && !/[.;]$/.test(line) && line.split(" ").length <= 12 && line.length <= 110;
+// Measured without asides in brackets: "(Internal transfer from …)" doesn't make a role line prose.
+const looksLikeHeader = (line: string) => {
+  const core = line.replace(/\s*\([^)]*\)/g, "").trim();
+  return !BULLET.test(line) && !/[.;]$/.test(core) && core.split(" ").length <= 12 && core.length <= 110;
+};
+
+/**
+ * PDF text sometimes splits a year ("Nov 201 6"). Rejoined only right after a month name, where a
+ * year is the only thing that can follow.
+ */
+export function normalizeResumeDates(text: string): string {
+  return text.replace(new RegExp(`(${MONTH}\\.?,?\\s+)((?:19|20)\\d) (\\d)\\b`, "gi"), "$1$2$3");
+}
 
 export function parseHistory(text: string): HistoryDraft {
-  const lines = text
+  const lines = normalizeResumeDates(text)
     .split("\n")
     .map((l) => l.replace(/\s+/g, " ").trim())
     .filter(Boolean);
@@ -140,12 +156,15 @@ function experienceOf(section: string[]): ImportedExperience[] {
     const isCurrent = /present|current|now|till date|to date|ongoing/i.test(range[2]);
     const endDate = isCurrent ? undefined : toMonth(range[2]);
     const anchorRest = clean(section[i].replace(range[0], " ").replace(/\(\s*\)/g, ""));
-    const headerLines = [...section.slice(starts[a], i), anchorRest].filter(Boolean);
+    // Asides in brackets ("(ac. KPMG)", "(Internal transfer from Deloitte, Italy)") aren't the title,
+    // employer or place, and their commas would otherwise split the line in the wrong places.
+    const noAside = (l: string) => l.replace(/\s*\([^)]*\)/g, "").trim();
+    const headerLines = [...section.slice(starts[a], i), anchorRest].map(noAside).filter(Boolean);
     let bodyFrom = i + 1;
     let tokens = headerLines.flatMap((l) => l.split(SEPARATORS)).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean);
     // "Senior PM — Jan 2021 – Present" then "PayCircle, Bengaluru": the employer is on the next line.
     if (tokens.filter((t) => !isLocation(t)).length < 2 && bodyFrom < end && looksLikeHeader(section[bodyFrom])) {
-      tokens = [...tokens, ...section[bodyFrom].split(SEPARATORS).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean)];
+      tokens = [...tokens, ...noAside(section[bodyFrom]).split(SEPARATORS).map((t) => clean(t.replace(/\s*\([^)]*\)\s*$/, ""))).filter(Boolean)];
       bodyFrom++;
     }
     const location = tokens.find(isLocation);
