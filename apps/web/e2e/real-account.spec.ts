@@ -91,7 +91,7 @@ test.describe("Real account — production walk-through", () => {
 
     // Find: a real search through JobsLake, with per-source evidence.
     const lake = page.waitForResponse((r) => r.url().includes("/api/jobs-lake/v1/search") && r.request().method() === "POST", { timeout: 60_000 });
-    await page.goto(`/app?search=${encodeURIComponent("Product manager roles, remote")}`);
+    await page.goto(`/app/jobs?search=${encodeURIComponent("Product manager roles, remote")}`);
     const lakeRes = await lake;
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     expect(lakeRes.status()).toBe(200);

@@ -258,7 +258,7 @@ test.describe("Golden journey — manual intervention (demo mode)", () => {
   test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
     // Sample sources answer slowly enough that the search is still running when it's paused.
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
-    await page.goto(`/demo?next=${encodeURIComponent("/app?search=product manager in Bengaluru")}`);
+    await page.goto(`/demo?next=${encodeURIComponent("/app/jobs?search=product manager in Bengaluru")}`);
     await page.waitForURL(/\/app$/, { timeout: 20_000 });
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });

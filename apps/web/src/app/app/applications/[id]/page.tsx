@@ -21,6 +21,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { companyColor } from "@/components/jobs/JobCard";
 import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
 import { FollowUpAction } from "@/components/applications/FollowUpAction";
+import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
@@ -168,24 +169,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <ExtensionHint hasMaterials={downloadableArtifacts.length > 0} />
               </div>
             )}
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
-              <div className="rounded-[12px] bg-surface-2 p-3">
-                <dt className="text-ink-3">Date applied</dt>
-                <dd className="font-medium text-ink">{app.appliedAt ? formatDate(app.appliedAt) : "Not yet"}</dd>
-              </div>
-              <div className="rounded-[12px] bg-surface-2 p-3">
-                <dt className="text-ink-3">Status</dt>
-                <dd className="font-medium text-ink">{meta.label}</dd>
-              </div>
-              <div className="rounded-[12px] bg-surface-2 p-3">
-                <dt className="text-ink-3">Next action</dt>
-                <dd className="truncate font-medium text-ink">{app.nextAction ?? "—"}</dd>
-              </div>
-              <div className="rounded-[12px] bg-surface-2 p-3">
-                <dt className="text-ink-3">Follow-up</dt>
-                <dd className="font-medium text-ink">{app.followUpAt ? formatDate(app.followUpAt) : "—"}</dd>
-              </div>
-            </dl>
+            <p className="mt-3 text-[13px] text-ink-3">
+              {app.appliedAt ? `Applied ${formatDate(app.appliedAt)}` : "Not applied yet"}
+              {app.nextAction ? ` · Next: ${app.nextAction}` : ""}
+            </p>
           </Card>
 
           <Card>
@@ -212,7 +199,6 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
         <aside className="flex flex-col gap-4">
           <Card>
-            <h2 className="mb-3 text-[15px] font-semibold text-ink">Update status</h2>
             <Field label="Status" htmlFor="status">
               <Select
                 id="status"
@@ -236,10 +222,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 ))}
               </Select>
             </Field>
-            <p className="mt-2 text-[12px] text-ink-4">Changing status here never contacts the employer.</p>
+            <p className="mt-2 text-[12px] text-ink-4">Never contacts the employer.</p>
           </Card>
-          <Card>
-            <h2 className="mb-3 text-[15px] font-semibold text-ink">Follow-ups</h2>
+          <Fold title="Follow-ups" hint={`${app.followUps.filter((f) => !f.done).length} to do`}>
             {app.followUps.length ? (
               <ul className="mb-3 flex flex-col gap-2">
                 {app.followUps.map((f) => (
@@ -278,10 +263,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             >
               Schedule
             </Button>
-          </Card>
-          <Card>
+          </Fold>
+          <Fold title="Draft a follow-up email">
             <FollowUpAction application={app} job={job} />
-          </Card>
+          </Fold>
           <Button variant="ghost" size="sm" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => setConfirmDelete(true)} className="text-danger-600">
             Remove application
           </Button>

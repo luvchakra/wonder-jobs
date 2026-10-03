@@ -9,5 +9,5 @@ export default async function FindPage({ searchParams }: { searchParams: Promise
   const p = await searchParams;
   const q = typeof p.q === "string" ? p.q.trim() : "";
   const role = typeof p.role === "string" ? p.role : "";
-  redirect(role ? `/app?role=${encodeURIComponent(role)}` : q ? `/app?search=${encodeURIComponent(q)}` : "/app");
+  redirect(role ? `/app/jobs?role=${encodeURIComponent(role)}` : q ? `/app/jobs?search=${encodeURIComponent(q)}` : "/app");
 }

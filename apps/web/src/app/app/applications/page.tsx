@@ -9,7 +9,6 @@ import { computeApplicationAttention } from "@/domain/career/attention";
 import { useNow } from "@/lib/motion";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
-import { Segmented } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { Modal } from "@/components/common/Modal";
@@ -58,7 +57,8 @@ function ApplicationsInner() {
   const paramTab = params.get("tab") as Tab | null;
   const [pickedTab, setTab] = useState<Tab | null>(null);
   const tab: Tab = pickedTab ?? (paramTab && TABS.some((x) => x.value === paramTab) ? paramTab : "all");
-  const [view, setView] = useState<ViewMode>("timeline");
+  // A status deep link (?tab=interview) opens that list; otherwise the pipeline.
+  const view: ViewMode = pickedTab || paramTab ? "list" : "timeline";
   const [adding, setAdding] = useState(false);
   const [pickJob, setPickJob] = useState("");
 
@@ -72,17 +72,10 @@ function ApplicationsInner() {
     <div>
       <PageHeader
         title="Applications"
-        description="Track every application from discovery to outcome. Wonder keeps the timeline; you make the calls."
         actions={
-          <>
-            <Segmented<ViewMode> label="View" value={view} onChange={setView} options={[{ value: "timeline", label: "Timeline" }, { value: "list", label: "List" }]} size="sm" />
-            <Button variant="outline" href="/app/applications/apply">
-              Applying with Wonder
-            </Button>
-            <Button icon={<Plus className="size-4" aria-hidden />} onClick={() => setAdding(true)}>
-              Add
-            </Button>
-          </>
+          <Button icon={<Plus className="size-4" aria-hidden />} onClick={() => setAdding(true)}>
+            Add
+          </Button>
         }
       />
       {list.length === 0 ? (

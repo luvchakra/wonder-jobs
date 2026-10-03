@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Bot, CalendarDays, Database, Dna, FileText, History, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Bot, CalendarDays, Database, Dna, FileText, History, House, LayoutList, LifeBuoy, MessagesSquare, Search, Settings2, Sparkles, Timer, UserRound, UserRoundCog, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -11,22 +11,33 @@ export interface NavItem {
 const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
 
 /**
- * Four places (jobs-first redesign, `docs/JOBS_FIRST_REDESIGN.md`): your jobs, your applications, your
- * profile and settings. The same array drives the desktop sidebar, the mobile bottom bar and the
- * drawer, so they can't drift apart. Each place's own pages are tabs at the top of it (SECTION_TABS).
+ * Five places, one question each: Home (what needs me today), Find (jobs), Wonder (ask it; what it
+ * does on its own), Applied (applications and follow-ups), Career (profile, résumés, preferences).
+ * The same array drives the desktop sidebar, the mobile bottom bar and the drawer, so they can't
+ * drift apart. Each place's own pages are tabs at the top of it (SECTION_TABS).
  */
 export const PRIMARY_NAV: NavItem[] = [
-  // A search's own page ("Details") belongs to Jobs; the list of past searches is in Settings.
-  { href: "/app", label: "Jobs", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
-  { href: "/app/applications", label: "Applications", icon: LayoutList, match: under("/app/applications", "/app/calendar", "/app/insights", "/app/interview-prep", "/app/learning") },
-  { href: "/app/career-dna", label: "Profile", icon: UserRound, match: under("/app/career-dna", "/app/resume-studio") },
-  { href: "/app/settings", label: "Settings", icon: Settings2, match: (p) => p === "/app/runs" || under("/app/settings", "/app/automation", "/app/profile")(p) },
+  { href: "/app", label: "Home", icon: House, match: (p) => p === "/app" },
+  // A search's own page ("Details") belongs to Find; the list of past searches is under Wonder.
+  { href: "/app/jobs", label: "Find", icon: Search, match: (p) => under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
+  { href: "/app/wonder", label: "Wonder", icon: Sparkles, match: (p) => p === "/app/runs" || under("/app/wonder", "/app/automation", "/app/settings/ai")(p) },
+  { href: "/app/applications", label: "Applied", icon: LayoutList, match: under("/app/applications", "/app/calendar", "/app/insights", "/app/interview-prep", "/app/learning") },
+  { href: "/app/career-dna", label: "Career", icon: UserRound, match: (p) => under("/app/career-dna", "/app/resume-studio", "/app/profile")(p) || p === "/app/settings" },
 ];
 
 /** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
 export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
   {
-    title: "Applications",
+    title: "Wonder",
+    items: [
+      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
+      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
+      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
+      { href: "/app/settings/ai", label: "AI provider", icon: Settings2 },
+    ],
+  },
+  {
+    title: "Applied",
     items: [
       { href: "/app/applications", label: "Applications", icon: LayoutList },
       { href: "/app/calendar", label: "Calendar", icon: CalendarDays },
@@ -36,20 +47,11 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
-    title: "Profile",
+    title: "Career",
     items: [
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
-      { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
-      { href: "/app/automation/settings", label: "What Wonder can do", icon: Bot },
-      { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
-      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
       { href: "/app/profile", label: "Account", icon: UserRoundCog },
     ],
   },
@@ -65,7 +67,7 @@ export const RESOURCES_NAV: NavItem[] = [
   { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 
-// The mobile bottom bar shows the same four places, full stop — no "More" catch-all. Every page of each
+// The mobile bottom bar shows the same five places, full stop — no "More" catch-all. Every page of each
 // place is a tab at its top and a group in the drawer the top-left menu opens.
 export const MOBILE_NAV: NavItem[] = PRIMARY_NAV;
 

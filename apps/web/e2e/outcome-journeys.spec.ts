@@ -20,7 +20,7 @@ async function slowSampleSources(page: Page) {
 /** Starts a search for the candidate's words (as Ask Wonder's “Find …” does): it lands on the job list; the run's own page is one tap away ("Details"). */
 async function startFind(page: Page, request: string, opts: { openRun?: boolean } = { openRun: true }) {
   await slowSampleSources(page);
-  await page.goto(`/demo?next=${encodeURIComponent(`/app?search=${request}`)}`);
+  await page.goto(`/demo?next=${encodeURIComponent(`/app/jobs?search=${request}`)}`);
   await page.waitForURL(/\/app$/, { timeout: 20_000 });
   if (opts.openRun) {
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();

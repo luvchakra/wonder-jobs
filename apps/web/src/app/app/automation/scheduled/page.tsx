@@ -5,6 +5,7 @@ import { Copy, Play, Plus, Timer, Trash2 } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow";
 import { getWorkflowService } from "@/services/workflow/service";
 import { describeSchedule, SCHEDULE_TEMPLATES } from "@/services/mock/templates";
+import { Fold } from "@/components/common/Fold";
 import { relativeTime } from "@/lib/format";
 import { STAGES } from "@/domain/workflow/stages";
 import { track } from "@/lib/analytics";
@@ -45,7 +46,7 @@ export default function ScheduledRunsPage() {
     <div>
       <PageHeader
         title="Scheduled searches"
-        description="Workflow → Trigger → Schedule → Stages → Conditions → Actions. These run on Wonder's servers as well as in your browser, so a run still happens while you're away. Silence is a valid outcome: Wonder only notifies you when there's something worth your attention."
+        description="Searches Wonder runs on its own. It tells you only when something is worth your attention."
         actions={
           <Button href="/app/automation/scheduled/new" icon={<Plus className="size-4" aria-hidden />}>
             New scheduled search
@@ -141,8 +142,7 @@ export default function ScheduledRunsPage() {
           })}
         </ul>
       )}
-      <section className="mt-8">
-        <h2 className="mb-3 text-[17px] font-semibold text-ink">Templates</h2>
+      <Fold title="Start from a template" className="mt-8">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {SCHEDULE_TEMPLATES.map((t) => (
             <Link key={t.id} href={`/app/automation/scheduled/new?template=${t.id}`} className="wj-card wj-elevate flex flex-col p-4">
@@ -152,7 +152,7 @@ export default function ScheduledRunsPage() {
             </Link>
           ))}
         </div>
-      </section>
+      </Fold>
     </div>
   );
 }

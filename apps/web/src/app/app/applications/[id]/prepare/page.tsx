@@ -2,11 +2,10 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ExternalLink, Lightbulb, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
 import { describeDecision } from "@/domain/jobs/decision";
-import { FitLabel } from "@/components/jobs/MatchBadge";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
@@ -118,11 +117,11 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   };
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader
         back={{ href: `/app/applications/${app.id}`, label: "Application" }}
         title="Application Pack"
-        description={`Everything to apply for ${job.title} at ${job.company}, in one place.`}
+        description={`${job.title} · ${job.company}`}
         actions={
           <>
             <Badge tone={APPLICATION_STATUS_META[app.status].tone}>{APPLICATION_STATUS_META[app.status].label}</Badge>
@@ -136,9 +135,6 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               {pack.ready && <CheckCircle2 className="size-5 text-success-600" aria-hidden />}
               {pack.title}
             </h2>
-            <p className="text-[13px] text-ink-3">
-              {job.title} · {job.company}
-            </p>
           </div>
           {pack.ready ? (
             tab !== "review" && (
@@ -146,56 +142,24 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                 Review and continue
               </Button>
             )
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => setTab(pack.items.find((i) => !i.ready)!.type)}>
-              Prepare the {PACK_ITEM_LABEL[pack.items.find((i) => !i.ready)!.type].toLowerCase()}
-            </Button>
-          )}
+          ) : null}
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Prepared</p>
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {pack.items.map((i) => (
-                <li key={i.type} className="flex items-start gap-2 text-[13px]">
-                  {i.ready ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden /> : <span className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong" aria-hidden />}
-                  <span>
-                    <span className={i.ready ? "font-medium text-ink" : "text-ink-3"}>{i.label}</span>
-                    <span className="block text-[12px] text-ink-4">{i.source ?? "Not prepared yet"}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Missing information</p>
-            <p className="mt-2 text-[13px] text-ink-2">{missingInfo.length ? missingInfo.join(", ") : "Nothing — your Career Profile has the usual contact details."}</p>
-            {missingInfo.length > 0 && (
-              <p className="mt-1 text-[12px] text-ink-4">
-                Not in your <Link href="/app/career-dna" className="font-medium text-brand-600 hover:underline">Career Profile</Link>, so {job.company}&apos;s form will ask you for them.
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Things to consider</p>
-            {concerns.length ? (
-              <ul className="mt-2 flex flex-col gap-1.5">
-                {concerns.map((c) => (
-                  <li key={c} className="flex items-start gap-2 text-[13px] text-ink-2">
-                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-600" aria-hidden /> {c}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-[13px] text-ink-3">Nothing stood out in the match or the posting.</p>
-            )}
-          </div>
-        </div>
-        <p className="mt-4 rounded-[12px] bg-surface-2 p-3 text-[13px] text-ink-2">
-          <strong className="text-ink">The final action is yours.</strong> Wonder opens {job.company}&apos;s own application page with these materials ready. It never submits an application for you.
-        </p>
+        {missingInfo.length > 0 && (
+          <p className="mt-3 text-[13px] text-ink-2">
+            {job.company}&apos;s form will ask for: {missingInfo.join(", ")} (not in your <Link href="/app/career-dna" className="font-medium text-brand-600 hover:underline">Career Profile</Link>).
+          </p>
+        )}
+        {concerns.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {concerns.map((c) => (
+              <li key={c} className="flex items-start gap-2 text-[13px] text-ink-2">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-600" aria-hidden /> {c}
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div>
         <div className="min-w-0">
           <Tabs value={tab} onChange={setTab} label="Materials" items={[{ value: "resume", label: "Resume" }, { value: "cover_letter", label: "Cover Letter" }, { value: "answers", label: "Answers" }, { value: "review", label: "Review" }]} className="mb-4" />
           {error && (
@@ -223,12 +187,9 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               // the previous artifact's edited text to whichever type the tab just changed to.
               <>
               {tab === "resume" && (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-line bg-surface-2 p-3 text-[13px]">
-                  <span className="text-ink-2">Want a designed, ATS-friendly PDF or Word file for this role? It&apos;s built from your Career Profile, ordered for this job.</span>
-                  <Button size="sm" variant="outline" href={`/app/resume-studio?job=${encodeURIComponent(app.jobId)}&app=${encodeURIComponent(app.id)}`}>
-                    Choose a résumé template
-                  </Button>
-                </div>
+                <Link href={`/app/resume-studio?job=${encodeURIComponent(app.jobId)}&app=${encodeURIComponent(app.id)}`} className="mb-4 inline-block text-[13px] font-medium text-brand-600 hover:underline">
+                  Want a designed PDF or Word file? Choose a résumé template
+                </Link>
               )}
               <ArtifactEditor
                 key={tab}
@@ -274,20 +235,15 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                     }} className="mt-0.5 size-4 accent-brand-500" />
                   I&apos;ve reviewed these materials. They&apos;re accurate and I&apos;m happy to use them for this application.
                 </label>
-                <p className="mt-3 text-[12px] text-ink-4">&ldquo;Continue to Employer&rdquo; opens {job.company}&apos;s own application page with these materials ready. Wonder never submits on your behalf — you submit there, then come back and mark it as submitted. &ldquo;Apply with Wonder&rdquo; also fills the employer&apos;s form with these materials in your browser, and stops for anything only you should answer.</p>
+                <p className="mt-3 text-[12px] text-ink-4">Wonder never submits for you: you submit on {job.company}&apos;s site, then mark it submitted.</p>
               </div>
             )}
           </Card>
           <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             {tab !== "review" ? (
-              <>
-                <Button variant="outline" size="lg" onClick={() => setTab((t) => (t === "resume" ? "cover_letter" : t === "cover_letter" ? "answers" : "review"))}>
-                  Skip for now
-                </Button>
-                <Button size="lg" onClick={() => setTab((t) => (t === "resume" ? "cover_letter" : t === "cover_letter" ? "answers" : "review"))} disabled={!artifact(tab)}>
-                  Continue
-                </Button>
-              </>
+              <Button size="lg" onClick={() => setTab((t) => (t === "resume" ? "cover_letter" : t === "cover_letter" ? "answers" : "review"))}>
+                {artifact(tab) ? "Continue" : "Skip for now"}
+              </Button>
             ) : (
               <>
                 <Button size="lg" variant="outline" href={`/app/jobs/${job.id}/apply`} disabled={!approved || !app.artifacts.some((a) => a.type === "resume")}>
@@ -300,54 +256,6 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
             )}
           </div>
         </div>
-        <aside className="flex flex-col gap-4">
-          <Card>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Target role</p>
-            <p className="mt-1 text-[14px] font-semibold text-ink">{job.title}</p>
-            <p className="text-[13px] text-ink-3">{job.company}</p>
-            <Link href={`/app/jobs/${job.id}`} className="mt-2 inline-block text-[13px] font-medium text-brand-600 hover:underline">
-              View job
-            </Link>
-          </Card>
-          {match && (
-            <Card>
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Fit summary</p>
-              <div className="mt-1.5">
-                <FitLabel fit={match.fit} score={match.score} />
-              </div>
-              <ul className="mt-2.5 flex flex-col gap-1.5 text-[13px] text-ink-2">
-                {match.reasons
-                  .slice()
-                  .sort((a, b) => b.score - a.score)
-                  .slice(0, 2)
-                  .map((r) => (
-                    <li key={r.dimension} className="flex gap-2">
-                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success-600" aria-hidden /> {r.summary}
-                    </li>
-                  ))}
-              </ul>
-              <Link href={`/app/jobs/${job.id}`} className="mt-2 inline-block text-[12px] font-medium text-brand-600 hover:underline">
-                See full match breakdown
-              </Link>
-            </Card>
-          )}
-          <Card>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Key requirements</p>
-            <ul className="mt-2 flex flex-col gap-1.5 text-[13px] text-ink-2">
-              {job.requirements.map((r) => (
-                <li key={r} className="flex gap-2">
-                  <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success-600" aria-hidden /> {r}
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <div className="flex gap-3 rounded-[16px] border border-warning-600/20 bg-warning-100/50 p-4 text-[12px] text-ink-2">
-            <Lightbulb className="size-4 shrink-0 text-warning-600" aria-hidden />
-            <p>
-              <strong className="text-ink">Pro tip</strong> — You can edit the resume at any time and rerun this step with your changes.
-            </p>
-          </div>
-        </aside>
       </div>
     </div>
   );
