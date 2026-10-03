@@ -64,7 +64,7 @@ export function Switch({ checked, onChange, label, disabled, id }: { checked: bo
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50", checked ? "border-brand-500 bg-brand-500" : "border-line-strong bg-bg-soft")}
+      className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] disabled:opacity-50", checked ? "border-brand-500 bg-brand-500" : "border-line-strong bg-bg-soft")}
     >
       <span className={cn("absolute size-5 rounded-full bg-white shadow-sm transition-transform", checked ? "translate-x-6" : "translate-x-1")} />
     </button>
@@ -81,7 +81,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn("rounded-full font-medium transition-colors", size === "sm" ? "h-8 px-3 text-xs" : "h-9 px-3.5 text-[13px]", value === o.value ? "bg-brand-500 text-white shadow-sm" : "text-ink-2 hover:text-ink")}
+          className={cn("rounded-full font-medium transition-colors", size === "sm" ? "h-9 px-3 text-xs" : "h-10 px-3.5 text-[13px]", value === o.value ? "bg-brand-500 text-white shadow-sm" : "text-ink-2 hover:text-ink")}
         >
           {o.label}
         </button>
@@ -92,7 +92,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
 
 export function Chip({ active, onClick, children, className, disabled }: { active?: boolean; onClick?: () => void; children: React.ReactNode; className?: string; disabled?: boolean }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} disabled={disabled} className={cn("inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-60", active ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong", className)}>
+    <button type="button" aria-pressed={active} onClick={onClick} disabled={disabled} className={cn("inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition-colors disabled:opacity-60", active ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong", className)}>
       {children}
     </button>
   );

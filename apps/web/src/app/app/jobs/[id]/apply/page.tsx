@@ -777,9 +777,11 @@ export default function ApplyWithWonderPage({
                 <GuidedApplication
                   pack={s.pack}
                   applyUrl={s.destination.url}
+                  memory={answerMemory}
                   onOpen={openEmployer}
                   onDownloadFile={downloadFile}
                   onExport={() => exportPack()}
+                  onRemember={rememberAnswer}
                 />
               )}
               <ApplicationReview

@@ -16,6 +16,23 @@ export type BaseResumeRef = { kind: "upload"; id: string } | { kind: "saved"; id
 
 export const isPdf = (f: Pick<UploadedResume, "mime">) => f.mime === "application/pdf";
 
+/**
+ * The name an employer sees on the file: what the candidate typed, made safe for every upload form and
+ * download — no path or reserved characters, at most 100 characters, and always the file's real extension
+ * (a PDF stays ".pdf" whatever is typed). Null when nothing usable is left.
+ */
+export function cleanResumeFilename(input: string, ext: "pdf" | "docx"): string | null {
+  const base = input
+    .normalize("NFC")
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]+/g, " ")
+    .replace(/\.(pdf|docx?)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s.]+|[\s.]+$/g, "")
+    .slice(0, 100)
+    .trim();
+  return base ? `${base}.${ext}` : null;
+}
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;

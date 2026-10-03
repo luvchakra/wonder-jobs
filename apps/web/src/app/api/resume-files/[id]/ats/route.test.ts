@@ -7,6 +7,13 @@ vi.mock("@/server/auth", () => ({
   requireSession: async () => (tenant ? { userId: tenant, tenantId: tenant, email: `${tenant}@example.com` } : NextResponse.json({ error: "Sign in required" }, { status: 401 })),
 }));
 
+// The ATS report is a Max feature: these tests run as a Max account unless a test says otherwise.
+let plan: "free" | "pro" | "max" = "max";
+vi.mock("@/server/billing/service", async () => {
+  const { DEFAULT_PLANS, limitsFor } = await import("@/domain/billing/plans");
+  return { tenantPlan: async () => ({ plan, limits: limitsFor(plan, DEFAULT_PLANS), config: DEFAULT_PLANS }) };
+});
+
 import { MemoryResumeFileStore, setResumeFileStoreForTests } from "@/server/resume/files";
 import { POST as ats } from "./route";
 
@@ -23,6 +30,7 @@ const post = (id: string) => ats(new Request(`http://localhost/api/resume-files/
 
 let store: MemoryResumeFileStore;
 beforeEach(() => {
+  plan = "max";
   tenant = `tenant-${Math.random().toString(36).slice(2)}`;
   store = new MemoryResumeFileStore();
   setResumeFileStoreForTests(store);
@@ -53,6 +61,14 @@ describe("POST /api/resume-files/[id]/ats", () => {
     await store.remove(tenant!, f.id);
     expect((await post(f.id)).status).toBe(404);
     expect((await post("../../etc")).status).toBe(404);
+  });
+
+  it("is refused below Max, with the plan that has it", async () => {
+    const f = await store.save(tenant!, { filename: "A.pdf", mime: "application/pdf", bytes: pdf(RESUME) });
+    plan = "pro";
+    const res = await post(f.id);
+    expect(res.status).toBe(402);
+    expect(await res.json()).toMatchObject({ kind: "plan", error: expect.stringContaining("Max") });
   });
 
   it("needs a signed-in account", async () => {

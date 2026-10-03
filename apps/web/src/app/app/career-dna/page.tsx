@@ -186,7 +186,7 @@ export default function CareerDNAPage() {
                     setNewSkill("");
                   }}
                 >
-                  <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-9 w-40 rounded-full" />
+                  <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-10 w-40 rounded-full" />
                 </form>
               </li>
             </ul>

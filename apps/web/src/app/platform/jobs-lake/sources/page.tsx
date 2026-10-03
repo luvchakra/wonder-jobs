@@ -46,7 +46,7 @@ export default function SourcesPage() {
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter sources">
               {FILTERS.map((f) => (
-                <Chip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)} className="h-8 px-3 text-[12px]">
+                <Chip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)} className="h-9 px-3 text-[12px]">
                   {f.label} <span className="text-ink-4">{data.sources.filter(f.test).length}</span>
                 </Chip>
               ))}

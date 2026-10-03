@@ -289,7 +289,7 @@ test.describe("JobsApply with the browser helper", () => {
     await startWithHelper(page, context);
     await expect(page.getByText("Wonder couldn't identify this application form yet").first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible();
-    await expect(page.getByTestId("wj-apply-url")).toContainText("https://");
+    await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
   });
 });
 
@@ -323,7 +323,7 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("+91 90000 00000")).toBeVisible();
-    await expect(page.getByTestId("wj-apply-url")).toContainText("https://");
+    await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
     if (info.project.name === "chromium") {
       const [resume] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download" }).first().click()]);
       expect(resume.suggestedFilename()).toMatch(/Resume.*\.docx$/);

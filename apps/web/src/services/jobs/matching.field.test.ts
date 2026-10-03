@@ -78,3 +78,16 @@ describe("scoring against the candidate's field", () => {
     expect(m.fit).toBe("strong");
   });
 });
+
+describe("the candidate's own search", () => {
+  it("judges a posting on what was typed, not the profile's field — the reported case: 'psychology' for an IAM profile found nothing worth showing", () => {
+    const psych = job({ title: "Clinical Psychologist", location: "Mumbai, India", workMode: "onsite", country: "IN", description: "Assessment and therapy for adults." });
+    const typed = computeMatch(psych, { dna, searchQuery: "psychology" });
+    const asProfile = computeMatch(psych, { dna });
+    expect(typed.score).toBeGreaterThan(asProfile.score);
+    expect(typed.reasons.find((r) => r.dimension === "career_goal")).toMatchObject({ label: "Search match" });
+    expect(typed.fit).not.toBe("low_fit");
+    // A posting that doesn't answer the search ranks below one that does.
+    expect(computeMatch(job({ title: "Identity Engineer", location: "Mumbai", workMode: "onsite" }), { dna, searchQuery: "psychology" }).score).toBeLessThan(typed.score);
+  });
+});

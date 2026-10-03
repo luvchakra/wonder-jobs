@@ -25,7 +25,7 @@ export const JOB_SOURCES: JobSource[] = [
   { id: "remoteok", name: "Remote OK", short: "ok", integrated: true, enabled: true, reliability: "medium", color: "#ff4742", website: "https://remoteok.com", note: "Remote jobs, latest 100 per search." },
   { id: "himalayas", name: "Himalayas", short: "hm", integrated: true, enabled: true, reliability: "medium", color: "#0ea5e9", website: "https://himalayas.app", note: "Large remote-jobs feed; Wonder scans the newest postings for your search." },
   { id: "arbeitnow", name: "Arbeitnow", short: "an", integrated: true, enabled: false, reliability: "medium", color: "#111827", website: "https://www.arbeitnow.com", note: "Europe-focused (mostly Germany). Off by default." },
-  { id: "adzuna_in", name: "Adzuna India", short: "ad", integrated: true, enabled: false, reliability: "high", color: "#1e8f5a", website: "https://www.adzuna.in", requiresSetup: true, note: "India-wide postings across job boards. Needs ADZUNA_APP_ID and ADZUNA_APP_KEY on the server (free tier)." },
+  { id: "adzuna_in", name: "Adzuna India", short: "ad", integrated: true, enabled: true, reliability: "high", color: "#1e8f5a", website: "https://www.adzuna.in", requiresSetup: true, note: "India-wide postings across job boards. Needs ADZUNA_APP_ID and ADZUNA_APP_KEY on the server (free tier)." },
 ];
 
 export const JOB_SOURCE_IDS = JOB_SOURCES.map((s) => s.id);
@@ -45,7 +45,8 @@ export function reconcileSources(persisted: JobSource[] | undefined, known?: Rec
     // What the server said this session beats what was persisted last time.
     const available = known?.[s.id] ?? p?.available;
     if (!p) return available === undefined ? s : { ...s, available };
-    const enabled = s.requiresSetup && available === false ? false : p.enabled;
-    return { ...s, enabled, available };
+    // A credentialed source the candidate never switched themselves follows the registry: on once the server can search it.
+    const enabled = s.requiresSetup && available === false ? false : s.requiresSetup && !p.chosen ? s.enabled : p.enabled;
+    return { ...s, enabled, available, ...(p.chosen ? { chosen: true } : {}) };
   });
 }

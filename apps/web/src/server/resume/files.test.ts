@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { deflateSync } from "node:zlib";
 import { checkResumeFile, MAX_RESUME_FILE_BYTES, RESUME_MIME, safeResumeFilename } from "./fileValidation";
 import { decryptFile, encryptFile, MemoryResumeFileStore, resumeFileStore, setResumeFileStoreForTests } from "./files";
+import { cleanResumeFilename } from "@/domain/resume/files";
 
 function pdf(body = "BT (Priya Raman) Tj ET", extra = ""): Buffer {
   return Buffer.from(`%PDF-1.7\n1 0 obj\n<< /Length ${body.length} >>\nstream\n${body}\nendstream\nendobj\n${extra}trailer\n<< /Root 1 0 R >>\n%%EOF`, "latin1");
@@ -170,5 +171,26 @@ describe("résumé file store (memory)", () => {
 
   it("is what resumeFileStore() returns without Supabase", () => {
     expect(resumeFileStore()).toBe(store);
+  });
+});
+
+describe("renaming a résumé file", () => {
+  it("changes only the name, only in the owner's account", async () => {
+    const store = new MemoryResumeFileStore();
+    const bytes = Buffer.from("%PDF-1.4 rename me");
+    const a = await store.save("tenant-a", { filename: "Kunal_Chakraborty_CV (1).pdf", mime: RESUME_MIME.pdf, bytes });
+    expect(await store.rename("tenant-b", a.id, "Hijack.pdf")).toBeUndefined();
+    const renamed = await store.rename("tenant-a", a.id, "Kunal Chakraborty - Resume.pdf");
+    expect(renamed).toMatchObject({ id: a.id, filename: "Kunal Chakraborty - Resume.pdf", sha256: a.sha256 });
+    expect((await store.read("tenant-a", a.id))?.bytes.equals(bytes)).toBe(true);
+  });
+
+  it("cleans what the candidate types and keeps the real extension", () => {
+    expect(cleanResumeFilename("  Kunal Chakraborty - Resume  ", "pdf")).toBe("Kunal Chakraborty - Resume.pdf");
+    expect(cleanResumeFilename("CV.docx", "pdf")).toBe("CV.pdf");
+    expect(cleanResumeFilename("../../etc/passwd", "pdf")).toBe("etc passwd.pdf");
+    expect(cleanResumeFilename("a<b>:c|d?", "docx")).toBe("a b c d.docx");
+    expect(cleanResumeFilename("   ...  ", "pdf")).toBeNull();
+    expect(cleanResumeFilename("x".repeat(300), "pdf")).toHaveLength(104);
   });
 });

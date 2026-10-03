@@ -83,7 +83,10 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
     list.sort((a, b) => {
       if (sort === "date") return jobs[b].postedAt.localeCompare(jobs[a].postedAt);
       if (sort === "salary") return (jobs[b].salaryMax ?? 0) - (jobs[a].salaryMax ?? 0);
-      return (matches[b]?.score ?? 0) - (matches[a]?.score ?? 0) || jobs[b].postedAt.localeCompare(jobs[a].postedAt);
+      // With words in the box, best match is how well a job answers them first, then how well it fits the profile.
+      const rel = filterResult.relevance;
+      const score = (id: string) => (rel ? 0.55 * (rel[id] ?? 0) * 100 + 0.45 * (matches[id]?.score ?? 0) : (matches[id]?.score ?? 0));
+      return score(b) - score(a) || jobs[b].postedAt.localeCompare(jobs[a].postedAt);
     });
     return list;
   }, [filterResult, jobs, matches, sort]);
@@ -119,7 +122,16 @@ export function JobsBoard({ header, footer, empty, sourceSearch, savedOnly = fal
       />
       {results.length === 0 ? (
         filterResult.hiddenTotal > 0 && !savedOnly ? (
-          <FilteredBreakdown result={filterResult} onShowAnyway={() => { showAnyway(); setLimit(PAGE); }} variant="empty" />
+          <FilteredBreakdown
+            result={filterResult}
+            onShowAnyway={() => {
+              showAnyway();
+              setLimit(PAGE);
+            }}
+            variant="empty"
+            // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
+            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim()), run: () => sourceSearch.run(effective.query.trim()) } : undefined}
+          />
         ) : (
           empty
         )

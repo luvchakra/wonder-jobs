@@ -17,7 +17,7 @@ export function ApplyStepper({ current }: { current: ApplyStep }) {
               <span className={cn("grid size-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold", done ? "bg-brand-500 text-white" : active ? "bg-brand-600 text-white ring-4 ring-brand-100" : "bg-surface-2 text-ink-3")}>{done ? <Check className="size-4" aria-hidden /> : i + 1}</span>
               <span className={cn("h-0.5 flex-1", i === APPLY_STEPS.length - 1 ? "bg-transparent" : done ? "bg-brand-500" : "bg-line")} />
             </span>
-            <span className={cn("truncate text-[11px] sm:text-[12px]", active ? "font-semibold text-brand-700" : "text-ink-3")}>{s.label}</span>
+            <span className={cn("line-clamp-2 px-0.5 text-[11px] leading-tight sm:text-[12px]", active ? "font-semibold text-brand-700" : "text-ink-3")}>{s.label}</span>
           </li>
         );
       })}

@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Download, FileUp, Star, Trash2, UserRoundPen } from "lucide-react";
-import { formatBytes, isPdf, type UploadedResume } from "@/domain/resume/files";
+import { Download, FileUp, Pencil, Star, Trash2, UserRoundPen } from "lucide-react";
+import { cleanResumeFilename, formatBytes, isPdf, type UploadedResume } from "@/domain/resume/files";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useCareerStore } from "@/store/career";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
+import { Field, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { downloadBlob } from "@/lib/download";
 import { formatDate } from "@/lib/format";
@@ -17,13 +18,14 @@ import { formatDate } from "@/lib/format";
  * picked for them. Applying attaches the file exactly as uploaded.
  */
 export function ResumeFiles() {
-  const { files, status, load, upload, remove } = useResumeFilesStore();
+  const { files, status, load, upload, remove, rename } = useResumeFilesStore();
   const base = useCareerStore((s) => s.baseResume);
   const setBase = useCareerStore((s) => s.setBaseResume);
   const forgetFile = useCareerStore((s) => s.forgetResumeFile);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UploadedResume | null>(null);
+  const [renaming, setRenaming] = useState<{ file: UploadedResume; name: string } | null>(null);
 
   useEffect(() => {
     void load();
@@ -84,6 +86,22 @@ export function ResumeFiles() {
     }
   };
 
+  const doRename = async () => {
+    if (!renaming) return;
+    const ext = isPdf(renaming.file) ? "pdf" : "docx";
+    if (!cleanResumeFilename(renaming.name, ext)) return;
+    setBusy(`mv-${renaming.file.id}`);
+    try {
+      const f = await rename(renaming.file.id, renaming.name);
+      toast.success("Renamed", `Employers will see ${f.filename}.`);
+      setRenaming(null);
+    } catch (e) {
+      toast.error("Couldn't rename it", e instanceof Error ? e.message : undefined);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const isBase = (f: UploadedResume) => base?.kind === "upload" && base.id === f.id;
   const sorted = [...files].sort((a, b) => Number(isBase(b)) - Number(isBase(a)));
 
@@ -122,9 +140,10 @@ export function ResumeFiles() {
             <li key={f.id} className={`wj-card flex flex-col gap-2 p-4 ${isBase(f) ? "ring-2 ring-brand-300" : ""}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold text-ink" title={f.filename}>
-                    {f.filename}
-                  </p>
+                  <button type="button" onClick={() => setRenaming({ file: f, name: f.filename.replace(/\.(pdf|docx)$/i, "") })} className="group/name -mx-1 flex min-h-9 max-w-full items-center gap-1.5 rounded-[8px] px-1 text-left hover:bg-bg-soft" aria-label={`Rename ${f.filename}`} title="Rename — this is the name employers see">
+                    <span className="truncate text-[15px] font-semibold text-ink">{f.filename}</span>
+                    <Pencil className="size-3.5 shrink-0 text-ink-4 group-hover/name:text-brand-600" aria-hidden />
+                  </button>
                   <p className="text-[12px] text-ink-4">
                     {isPdf(f) ? "PDF" : "Word"} · {formatBytes(f.sizeBytes)} · uploaded {formatDate(f.uploadedAt)}
                   </p>
@@ -155,6 +174,39 @@ export function ResumeFiles() {
           ))}
         </ul>
       )}
+      <Modal
+        open={!!renaming}
+        onClose={() => setRenaming(null)}
+        title="Rename file"
+        description="This is the name employers see when it's attached to an application."
+        size="sm"
+        footer={
+          renaming && (
+            <>
+              <Button variant="ghost" onClick={() => setRenaming(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="rename-resume" loading={busy === `mv-${renaming.file.id}`} disabled={!cleanResumeFilename(renaming.name, isPdf(renaming.file) ? "pdf" : "docx")}>
+                Save name
+              </Button>
+            </>
+          )
+        }
+      >
+        {renaming && (
+          <form
+            id="rename-resume"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void doRename();
+            }}
+          >
+            <Field label="File name" htmlFor="rename-resume-name" hint={`Saved as ${cleanResumeFilename(renaming.name, isPdf(renaming.file) ? "pdf" : "docx") ?? "…"}`}>
+              <Input id="rename-resume-name" value={renaming.name} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })} autoFocus maxLength={120} placeholder="e.g. Kunal Chakraborty - Resume" />
+            </Field>
+          </form>
+        )}
+      </Modal>
       <Modal
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}

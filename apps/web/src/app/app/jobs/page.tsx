@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
+import { useJobsStore } from "@/store/jobs";
 import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, useJobSearch } from "@/lib/useJobSearch";
@@ -66,6 +67,8 @@ function JobsHome() {
       empty={<JobsEmpty search={search} />}
       sourceSearch={{
         run: (text) => {
+          // The candidate's own search shows everything it finds, best answer first — not only profile fits.
+          useJobsStore.getState().setFilters({ minFit: null });
           void search.searchWords(text).then((run) => {
             if (run) window.scrollTo({ top: 0, behavior: "smooth" });
           });

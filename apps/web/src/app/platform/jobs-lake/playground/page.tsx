@@ -59,7 +59,7 @@ export default function PlaygroundPage() {
               <span className="text-[13px] font-medium text-ink-2">Sources {picked.length ? `(${picked.length})` : "(all eligible)"}</span>
               <div className="flex flex-wrap gap-1.5">
                 {live.map((s) => (
-                  <Chip key={s.id} active={picked.includes(s.id)} onClick={() => setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))} className="h-7 px-2.5 text-[12px]">
+                  <Chip key={s.id} active={picked.includes(s.id)} onClick={() => setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))} className="h-9 px-3 text-[12px]">
                     {s.name}
                   </Chip>
                 ))}

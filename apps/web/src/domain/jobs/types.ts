@@ -19,6 +19,8 @@ export interface JobSource {
   requiresSetup?: boolean;
   /** Reported by the server at boot; undefined until known. */
   available?: boolean;
+  /** The candidate switched this source on or off themselves — their choice then always stands. */
+  chosen?: boolean;
 }
 
 /** A raw posting as observed on one source. */
@@ -144,6 +146,8 @@ export type JobDecision = "saved" | "not_for_me";
 export interface JobFilters {
   query: string;
   workModes: WorkMode[];
+  /** Places the list is narrowed to ("Mumbai", "Remote"); empty = anywhere. */
+  locations?: string[];
   minSalary?: number;
   sourceIds: string[];
   minFit: FitLabel | null;

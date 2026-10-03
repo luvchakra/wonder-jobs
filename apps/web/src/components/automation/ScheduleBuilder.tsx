@@ -168,7 +168,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
                   <p className="mb-2 text-[13px] font-medium text-ink-2">Days</p>
                   <div className="flex flex-wrap gap-1.5">
                     {DAY_NAMES.map((d, i) => (
-                      <Chip key={d} active={days.includes(i)} onClick={() => setDays((ds) => (ds.includes(i) ? ds.filter((x) => x !== i) : [...ds, i].sort()))} className="h-8 px-3 text-[12px]">
+                      <Chip key={d} active={days.includes(i)} onClick={() => setDays((ds) => (ds.includes(i) ? ds.filter((x) => x !== i) : [...ds, i].sort()))} className="h-9 px-3 text-[12px]">
                         {d}
                       </Chip>
                     ))}

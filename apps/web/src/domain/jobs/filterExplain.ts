@@ -10,8 +10,10 @@
  * breakdown UI read from, so they can never disagree about what's visible.
  */
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
+import { relevance } from "@/services/jobs/relevance";
+import { inPlaces } from "@/services/jobs/normalize";
 
-export type FilterReason = "rejected" | "not_saved" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "location" | "search_text";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
@@ -21,6 +23,7 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   min_fit: "below your minimum fit",
   freshness: "older than your freshness window",
   min_salary: "below your minimum salary",
+  location: "outside the places you picked",
   search_text: "doesn't match your search text",
 };
 
@@ -35,6 +38,8 @@ export interface FilterResult {
   hiddenByReason: Partial<Record<FilterReason, number>>;
   hiddenTotal: number;
   totalCatalog: number;
+  /** How well each visible job answers the search text (0..1), when there is one — what "Best match" sorts by first. */
+  relevance?: Record<string, number>;
 }
 
 /**
@@ -42,7 +47,7 @@ export interface FilterResult {
  * `explainJobVisibility` (a single job, e.g. for "why isn't X showing") both call this, so they
  * can never disagree about what's hiding a given job.
  */
-function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, terms: string[], now: number): FilterReason | null {
+function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, query: string, now: number, rel?: (score: number) => void): FilterReason | null {
   if (rejected) return "rejected";
   if (filters.onlySaved && !isSaved) return "not_saved";
   if (filters.workModes.length && !filters.workModes.includes(job.workMode)) return "work_mode";
@@ -50,9 +55,12 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
   if (filters.minFit && (!match || FIT_RANK[match.fit] < FIT_RANK[filters.minFit])) return "min_fit";
   if (filters.freshnessDays && now - new Date(job.postedAt).getTime() > filters.freshnessDays * DAY) return "freshness";
   if (filters.minSalary && (job.salaryMax == null || (job.currency === "INR" ? job.salaryMax : job.salaryMax * 30) < filters.minSalary)) return "min_salary";
-  if (terms.length) {
-    const hay = `${job.title} ${job.company} ${job.location} ${job.skills.join(" ")} ${job.tags.join(" ")}`.toLowerCase();
-    if (!terms.every((t) => hay.includes(t))) return "search_text";
+  if (filters.locations?.length && !inPlaces(job, filters.locations)) return "location";
+  if (query) {
+    // Every role or field word somewhere in the posting, as any form of it ("psychology" ↔ "Psychologist").
+    const r = relevance(job, query);
+    if (!r.complete) return "search_text";
+    rel?.(r.score);
   }
   return null;
 }
@@ -66,8 +74,9 @@ export function applyJobFilters(
   filters: JobFilters,
   now: number,
 ): FilterResult {
-  const terms = filters.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const query = filters.query.trim();
   const visibleIds: string[] = [];
+  const scores: Record<string, number> = {};
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};
   let totalCatalog = 0;
 
@@ -75,13 +84,13 @@ export function applyJobFilters(
     const j = jobs[id];
     if (!j) continue; // not a catalog gap the candidate can act on — the id is simply stale
     totalCatalog++;
-    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, terms, now);
+    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r));
     if (reason) hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
     else visibleIds.push(id);
   }
 
   const hiddenTotal = totalCatalog - visibleIds.length;
-  return { visibleIds, hiddenByReason, hiddenTotal, totalCatalog };
+  return { visibleIds, hiddenByReason, hiddenTotal, totalCatalog, ...(query ? { relevance: scores } : {}) };
 }
 
 /**
@@ -98,8 +107,7 @@ export function explainJobVisibility(
   now: number,
 ): { inCatalog: boolean; visible: boolean; reason: FilterReason | null } {
   if (!job) return { inCatalog: false, visible: false, reason: null };
-  const terms = filters.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const reason = firstFailedReason(job, matches[job.id], rejected[job.id], !!saved[job.id], filters, terms, now);
+  const reason = firstFailedReason(job, matches[job.id], rejected[job.id], !!saved[job.id], filters, filters.query.trim(), now);
   return { inCatalog: true, visible: !reason, reason };
 }
 
@@ -116,5 +124,6 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   min_fit: { showAnyway: { minFit: null }, preference: { label: "Change minimum fit", href: "/app/jobs" } },
   freshness: { showAnyway: { freshnessDays: null }, preference: { label: "Change how recent", href: "/app/jobs" } },
   min_salary: { showAnyway: { minSalary: undefined }, preference: { label: "Change minimum salary", href: "/app/career-dna" } },
+  location: { showAnyway: { locations: [] }, preference: { label: "Change your places", href: "/app/career-dna" } },
   search_text: { showAnyway: { query: "" }, preference: { label: "Change the search", href: "/app/jobs" } },
 };

@@ -156,7 +156,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <Card className="mb-4">
               <h2 className="text-[15px] font-semibold text-ink">Job description</h2>
               <p className={cn("mt-2 text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-3")}>{job.description}</p>
-              <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-2 text-[13px] font-medium text-brand-600 hover:underline">
+              <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
                 {expanded ? "Show less" : "Show more"}
               </button>
               <h2 className="mt-6 text-[15px] font-semibold text-ink">Key requirements</h2>
@@ -277,7 +277,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             )}
             {!limits.applyWithWonder && <PlanGate reason="Apply with Wonder fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
             <NotForMeButton jobId={job.id} rejected={rejected} />
-            <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
+            <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
             </a>
           </Card>

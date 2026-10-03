@@ -54,7 +54,7 @@ export function RememberedAnswers() {
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <label className="flex min-w-0 flex-col gap-1 text-[12px] text-ink-3">
             Add
-            <select className="h-9 rounded-[10px] border border-line bg-surface px-2 text-[13px] text-ink" value={adding} onChange={(e) => setAdding(e.target.value as MemoryKey | "")}>
+            <select className="h-10 rounded-[10px] border border-line bg-surface px-2 text-[13px] text-ink" value={adding} onChange={(e) => setAdding(e.target.value as MemoryKey | "")}>
               <option value="">Choose…</option>
               {unused.map((k) => (
                 <option key={k} value={k}>
