@@ -157,7 +157,9 @@ describe("runDueSchedules", () => {
   });
 
   it("a search saved as one of the candidate's roles runs with that role's terms and labels what it found", async () => {
-    searchSource.mockResolvedValue({ jobs: [job(1), job(2)], cached: false });
+    // Postings in the role's own field: a data-analyst search that found only product-manager roles would (rightly) have no strong match.
+    const analyst = { title: "Senior Data Analyst", skills: ["Analytics", "SQL", "Roadmapping"], description: "Own product analytics and the metrics roadmap; shape product strategy with data." };
+    searchSource.mockResolvedValue({ jobs: [job(1, analyst), job(2, analyst)], cached: false });
     const roleWorkflow: Workflow = { ...workflow, config: { ...config, careerGoal: "Senior data analyst roles", searchCriteria: { ...config.searchCriteria, query: "data analyst" }, role: { id: "role_1", title: "Data Analyst" } } };
     await seed({ workflows: { [workflow.id]: roleWorkflow } });
 
