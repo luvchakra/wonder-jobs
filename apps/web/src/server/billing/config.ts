@@ -13,6 +13,8 @@ export interface StripeConfig {
   secretKey: string;
   webhookSecret: string;
   priceId: string;
+  /** The Max plan's price, when the operator created one (STRIPE_PRICE_ID_MAX). */
+  priceIdMax?: string;
 }
 
 export interface RazorpayConfig {
@@ -20,6 +22,8 @@ export interface RazorpayConfig {
   keySecret: string;
   webhookSecret: string;
   planId: string;
+  /** The Max plan at Razorpay, when the operator created one (RAZORPAY_PLAN_ID_MAX). */
+  planIdMax?: string;
   /** Razorpay requires a fixed number of billing cycles per subscription. */
   totalCount: number;
 }
@@ -36,7 +40,7 @@ export function missingBillingEnv(provider: BillingProviderId, env: NodeJS.Proce
 
 export function stripeConfig(env: NodeJS.ProcessEnv = process.env): StripeConfig | null {
   if (missingBillingEnv("stripe", env).length) return null;
-  return { secretKey: env.STRIPE_SECRET_KEY!.trim(), webhookSecret: env.STRIPE_WEBHOOK_SECRET!.trim(), priceId: env.STRIPE_PRICE_ID!.trim() };
+  return { secretKey: env.STRIPE_SECRET_KEY!.trim(), webhookSecret: env.STRIPE_WEBHOOK_SECRET!.trim(), priceId: env.STRIPE_PRICE_ID!.trim(), priceIdMax: env.STRIPE_PRICE_ID_MAX?.trim() || undefined };
 }
 
 export function razorpayConfig(env: NodeJS.ProcessEnv = process.env): RazorpayConfig | null {
@@ -47,6 +51,7 @@ export function razorpayConfig(env: NodeJS.ProcessEnv = process.env): RazorpayCo
     keySecret: env.RAZORPAY_KEY_SECRET!.trim(),
     webhookSecret: env.RAZORPAY_WEBHOOK_SECRET!.trim(),
     planId: env.RAZORPAY_PLAN_ID!.trim(),
+    planIdMax: env.RAZORPAY_PLAN_ID_MAX?.trim() || undefined,
     // 120 cycles = ten years of monthly billing; the candidate can cancel any time.
     totalCount: Number.isInteger(count) && count > 0 && count <= 1200 ? count : 120,
   };

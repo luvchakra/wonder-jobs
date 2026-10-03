@@ -34,11 +34,18 @@ export function isJobSourceId(id: string) {
   return JOB_SOURCE_IDS.includes(id);
 }
 
-/** Merge a persisted source list with the registry: keep the user's on/off choices, drop retired ids, add new ones. */
-export function reconcileSources(persisted: JobSource[] | undefined): JobSource[] {
+/**
+ * Merge a persisted source list with the registry: keep the user's on/off choices, drop retired ids, add new ones.
+ * A credentialed source keeps its choice too — it is only forced off when the server last said it had no credentials.
+ */
+export function reconcileSources(persisted: JobSource[] | undefined, known?: Record<string, boolean | undefined>): JobSource[] {
   const byId = new Map((persisted ?? []).map((s) => [s.id, s]));
   return JOB_SOURCES.map((s) => {
     const p = byId.get(s.id);
-    return p ? { ...s, enabled: s.requiresSetup ? s.enabled : p.enabled, available: p.available } : s;
+    // What the server said this session beats what was persisted last time.
+    const available = known?.[s.id] ?? p?.available;
+    if (!p) return available === undefined ? s : { ...s, available };
+    const enabled = s.requiresSetup && available === false ? false : p.enabled;
+    return { ...s, enabled, available };
   });
 }

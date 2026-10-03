@@ -1,3 +1,4 @@
+import type { PaidPlanId } from "./plans";
 import type { BillingEvent, Entitlement, Subscription } from "./types";
 
 /**
@@ -69,16 +70,21 @@ export function applyBillingEvent(current: Subscription | undefined, e: BillingE
 
 const fmt = (isoDate: string) => new Date(isoDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
-/** What the candidate is entitled to, and why, from the stored subscription. Fails closed to Free. */
-export function entitlementFor(sub: Subscription | undefined): Entitlement {
+/**
+ * What the candidate is entitled to, and why, from the stored subscription. Fails closed to Free.
+ * `paidPlan` says which paid plan the subscription's price buys (Pro when not given).
+ */
+export function entitlementFor(sub: Subscription | undefined, paidPlan?: (planRef: string | undefined) => PaidPlanId): Entitlement {
   if (!sub) return { plan: "free", reason: "No subscription" };
   const until = sub.currentPeriodEnd;
+  const paid = paidPlan?.(sub.planRef) ?? "pro";
+  const label = paid === "max" ? "Max" : "Pro";
   switch (sub.status) {
     case "active":
-      if (sub.cancelAtPeriodEnd) return { plan: "pro", reason: until ? `Cancelled — Pro until ${fmt(until)}` : "Cancelled — Pro until the end of this period", until, subscription: sub };
-      return { plan: "pro", reason: until ? `Renews ${fmt(until)}` : "Active", until, subscription: sub };
+      if (sub.cancelAtPeriodEnd) return { plan: paid, reason: until ? `Cancelled — ${label} until ${fmt(until)}` : `Cancelled — ${label} until the end of this period`, until, subscription: sub };
+      return { plan: paid, reason: until ? `Renews ${fmt(until)}` : "Active", until, subscription: sub };
     case "past_due":
-      return { plan: "pro", reason: "Last payment failed — the payment provider is retrying", until, subscription: sub };
+      return { plan: paid, reason: "Last payment failed — the payment provider is retrying", until, subscription: sub };
     case "incomplete":
       return { plan: "free", reason: "Waiting for the payment provider to confirm your payment", subscription: sub };
     case "paused":

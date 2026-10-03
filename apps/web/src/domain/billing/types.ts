@@ -1,3 +1,4 @@
+import type { PlanId } from "./plans";
 /**
  * Billing domain: provider-neutral types for subscriptions paid through
  * Stripe or Razorpay. Pure — no I/O. The server adapters translate each
@@ -98,7 +99,7 @@ export type ProviderAvailability =
   | { provider: BillingProviderId; state: "unavailable"; reason: string };
 
 export interface Entitlement {
-  plan: "free" | "pro";
+  plan: PlanId;
   /** Why: shown to the candidate so the plan badge has provenance. */
   reason: string;
   /** Until when Pro is paid for, when known. */

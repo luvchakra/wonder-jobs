@@ -165,7 +165,7 @@ describe("checkout, availability and cancellation (provider APIs mocked)", () =>
     expect(body).toContain("subscription_data[metadata][tenant_id]=tenant-a");
     expect(body).toContain("line_items[0][price]=price_pro");
     expect(body).toContain("success_url=https://jobs.example/app/profile?billing=success&provider=stripe#plan");
-    expect((init.headers as Record<string, string>)["idempotency-key"]).toMatch(/^checkout:tenant-a:\d+$/);
+    expect((init.headers as Record<string, string>)["idempotency-key"]).toMatch(/^checkout:tenant-a:pro:\d+$/);
   });
 
   it("won't start a second subscription for someone who already has Pro", async () => {

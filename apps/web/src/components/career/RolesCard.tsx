@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { canAddRole, MAX_ROLES, roleProblem, roleSearch, type CareerRole, type RoleInput } from "@/domain/career/roles";
+import { canAddRole, roleProblem, roleSearch, type CareerRole, type RoleInput } from "@/domain/career/roles";
+import { planThatAllows } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
+import { PlanGate } from "@/components/billing/PlanGate";
 import type { BaseResumeRef } from "@/domain/resume/files";
 import { getTemplate } from "@/domain/resume/templates";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
@@ -48,6 +51,8 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
   const choices = useResumeChoices();
   const [editing, setEditing] = useState<CareerRole | "new" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CareerRole | null>(null);
+  const { plan, limits, plans } = usePlan();
+  const atLimit = !canAddRole(roles, limits.roles);
   const label = (r: CareerRole) => (r.baseResume ? (choices.find((c) => c.key === refKey(r.baseResume))?.label ?? "A résumé that was deleted — choose another") : "Your base résumé");
 
   const Wrap = bare ? "div" : Card;
@@ -59,13 +64,14 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
             Roles you&apos;re open to
           </h2>
         )}
-        <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={!canAddRole(roles)} onClick={() => setEditing("new")}>
+        <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={atLimit} onClick={() => setEditing("new")}>
           Add a role
         </Button>
       </div>
+      {atLimit && plan !== "max" && <PlanGate className="mb-2" reason={`${plans[plan].label} includes ${limits.roles} role${limits.roles === 1 ? "" : "s"}.`} needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.roles > roles.length)} plans={plans} />}
       {!bare && (
       <p className="mb-3 text-[12px] text-ink-3">
-        Open to more than one kind of job — say, roles you&apos;ve held before? Add each as a role with its own search terms, goal and résumé, then choose it under &ldquo;Search as&rdquo; when you search. Matching still uses your whole Career Profile. Up to {MAX_ROLES}.
+        Open to more than one kind of job — say, roles you&apos;ve held before? Add each as a role with its own search terms, goal and résumé, then choose it under &ldquo;Search as&rdquo; when you search. Matching still uses your whole Career Profile. Up to {limits.roles} on {plans[plan].label}.
       </p>
       )}
       {roles.length === 0 ? (

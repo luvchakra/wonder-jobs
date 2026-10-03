@@ -29,6 +29,9 @@ import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
 import { checkOneJobLink } from "@/lib/useLinkCheck";
 import { useAuthStore } from "@/store/auth";
 import { describeDecision } from "@/domain/jobs/decision";
+import { planThatAllows } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
+import { PlanGate } from "@/components/billing/PlanGate";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { cn } from "@/lib/cn";
 
@@ -50,7 +53,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     void loadResumeFiles();
   }, [loadResumeFiles]);
   // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
-  const canApply = !!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume;
+  const { limits, plans } = usePlan();
+  const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [expanded, setExpanded] = useState(false);
@@ -271,6 +275,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
               </Button>
             )}
+            {!limits.applyWithWonder && <PlanGate reason="Apply with Wonder fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
             <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />

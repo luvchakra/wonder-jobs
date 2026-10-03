@@ -13,6 +13,7 @@ import { Switch } from "@/components/common/Input";
 import { PageLoading } from "@/components/common/States";
 import { ProviderMark } from "@/components/ai/ProviderMark";
 import { BYOKForm } from "@/components/ai/BYOKForm";
+import { ConnectOwnAI } from "@/components/ai/ConnectOwnAI";
 import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 
@@ -80,8 +81,7 @@ function AISettingsInner() {
                 <Badge tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>Included in your plan</Badge>
                 {config.activeProvider === "wonderjobs" && <Badge tone="brand">Active</Badge>}
               </div>
-              <p className="text-[12px] text-ink-3">Matching, ranking and quality checks are always deterministic and explainable. Drafting: {platform?.configured ? `written by ${platform.model} on the platform's own key — no charge to you. Used automatically whenever you haven't connected a key of your own.` : platform === null ? "checking…" : "template drafts on this deployment (no platform model connected). Connect your own key below for AI-written materials."}</p>
-              {platform?.configured && platform.provider && platform.provider !== "anthropic" && <p className="mt-1 text-[11px] text-ink-4">Running on {AI_PROVIDERS[platform.provider].name}.</p>}
+              <p className="text-[12px] text-ink-3">{platform?.configured ? "Writes your drafts at no charge to you. Matching and ranking never use a model." : platform === null ? "checking…" : "Not connected to a model on this deployment yet — drafts come from templates. Connect your own AI below for written drafts."}</p>
             </div>
             {config.activeProvider !== "wonderjobs" && (
               <Button size="sm" onClick={() => use("wonderjobs")}>
@@ -92,12 +92,15 @@ function AISettingsInner() {
         </Card>
       </section>
 
-      <Fold title="Use your own API key" hint="Anthropic, OpenAI or Gemini — billed to your account" className="mb-3">
-        <p className="mb-3 text-[12px] text-ink-3">
-          {backend === "local"
-            ? "Keys are encrypted, isolated to your account, never logged or shown again after saving, and can be removed any time — but this deployment has no persistent storage configured, so they're held in memory only and won't survive a server restart."
-            : "Keys are encrypted at rest, isolated to your account, never logged or shown again after saving, and can be removed any time."}
-        </p>
+      <section aria-labelledby="own-ai" className="mb-5">
+        <h2 id="own-ai" className="mb-1 text-[15px] font-semibold text-ink">
+          Use your own AI
+        </h2>
+        <p className="mb-3 text-[12px] text-ink-3">ChatGPT, Claude or Gemini on your own account: paste its key and Wonder does the rest.{backend === "local" ? " This deployment has no persistent storage, so a key is held in memory only and won't survive a restart." : ""}</p>
+        <Card>{!keysLoaded ? <PageLoading rows={2} /> : <ConnectOwnAI />}</Card>
+      </section>
+
+      <Fold title="Advanced: models and several providers" hint="Choose a model per provider, test a connection" className="mb-3">
         {!keysLoaded ? (
           <PageLoading rows={2} />
         ) : (

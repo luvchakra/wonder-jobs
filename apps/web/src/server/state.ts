@@ -16,7 +16,8 @@ export type StateStoreName = (typeof STATE_STORES)[number];
  * Never accepted by `/api/state` and never returned by `getAll`, so the browser can neither overwrite
  * nor bulk-read them; they're reached only through their own tenant-checked routes.
  */
-export const SERVER_STORES = ["wj.jobsapply"] as const;
+// wj.plan: a tenant's own usage counters; wj.plans: the operator's plan configuration, held under the platform tenant.
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;

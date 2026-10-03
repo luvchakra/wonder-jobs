@@ -1,4 +1,6 @@
 "use client";
+import { scheduleAllowance, type ScheduleCadence } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
@@ -32,6 +34,8 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
   const aiConfig = useAIStore((s) => s.config);
   const defaultLevel = useAutomationStore((s) => s.defaultLevel);
   const upsertSchedule = useWorkflowStore((s) => s.upsertSchedule);
+  const schedules = useWorkflowStore((s) => s.schedules);
+  const { plan, plans } = usePlan();
   const upsertWorkflow = useWorkflowStore((s) => s.upsertWorkflow);
   const t = template ?? SCHEDULE_TEMPLATES[0];
   const wf = existing?.workflow;
@@ -63,6 +67,13 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
 
   const [confirmedBroadMatch, setConfirmedBroadMatch] = useState(false);
   const save = () => {
+    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== sch?.id).length;
+    const cadence: ScheduleCadence = trigger !== "schedule" ? "manual" : frequency === "weekly" || frequency === "monthly" ? "weekly" : "daily";
+    const allowance = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, cadence);
+    if (!allowance.ok) {
+      toast.error(allowance.reason, allowance.needs ? `Included in ${plans[allowance.needs].label} — see Account → Plan.` : undefined);
+      return;
+    }
     if (!name.trim()) return toast.error("Give the workflow a name");
     if (!stageKeys.length) return toast.error("Pick at least one stage");
     if (!query.trim() && !confirmedBroadMatch) {

@@ -44,8 +44,8 @@ export function roleProblem(input: RoleInput, others: CareerRole[]): string | nu
   return null;
 }
 
-export function canAddRole(roles: CareerRole[]): boolean {
-  return roles.length < MAX_ROLES;
+export function canAddRole(roles: CareerRole[], max = MAX_ROLES): boolean {
+  return roles.length < Math.min(max, MAX_ROLES);
 }
 
 /**

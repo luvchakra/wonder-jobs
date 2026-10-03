@@ -1,4 +1,6 @@
 import { applyBillingEvent, entitlementFor } from "@/domain/billing/subscription";
+import { limitsFor, PLAN_RANK, planForRef, type PaidPlanId, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
+import { getPlansConfig } from "./plansConfig";
 import { fromRazorpayEvent, fromStripeEvent } from "@/domain/billing/events";
 import type { BillingEvent, BillingProviderId, Entitlement, PlanPrice, ProviderAvailability, Subscription } from "@/domain/billing/types";
 import { sha256Hex } from "../crypto";
@@ -64,7 +66,8 @@ export async function providerAvailability(): Promise<ProviderAvailability[]> {
 
 export async function entitlement(tenantId: string): Promise<Entitlement> {
   try {
-    return entitlementFor(currentSubscription(await billingStore().subscriptionsForTenant(tenantId)));
+    const config = await getPlansConfig();
+    return entitlementFor(currentSubscription(await billingStore().subscriptionsForTenant(tenantId)), (ref) => planForRef(ref, config));
   } catch {
     // Fail closed: if the record can't be read, nothing paid is unlocked, and we say why.
     return { plan: "free", reason: "Your plan couldn't be checked just now" };
@@ -73,24 +76,36 @@ export async function entitlement(tenantId: string): Promise<Entitlement> {
 
 /** Server-side gate for any feature that Pro unlocks. Never trust a plan sent by the browser. */
 export async function hasPro(tenantId: string): Promise<boolean> {
-  return (await entitlement(tenantId)).plan === "pro";
+  return PLAN_RANK[(await entitlement(tenantId)).plan] >= PLAN_RANK.pro;
 }
 
-export async function startCheckout(input: { tenantId: string; email?: string; provider: BillingProviderId; origin: string }): Promise<{ url: string }> {
+/** The tenant's plan and what it allows — the one place every gate reads from. */
+export async function tenantPlan(tenantId: string): Promise<{ plan: PlanId; limits: PlanLimits; config: PlansConfig; entitlement: Entitlement }> {
+  const [config, ent] = await Promise.all([getPlansConfig(), entitlement(tenantId)]);
+  return { plan: ent.plan, limits: limitsFor(ent.plan, config), config, entitlement: ent };
+}
+
+export async function startCheckout(input: { tenantId: string; email?: string; provider: BillingProviderId; origin: string; plan?: PaidPlanId }): Promise<{ url: string }> {
   const { tenantId, provider, origin } = input;
+  const plan: PaidPlanId = input.plan ?? "pro";
   const missing = missingBillingEnv(provider);
   if (missing.length) throw new BillingError("This payment provider isn't set up on this deployment yet", 503);
+  const config = await getPlansConfig();
+  const ref = config.priceRefs[plan][provider];
+  if (!ref) throw new BillingError(`${config.plans[plan].label} isn't set up with this payment provider yet`, 503);
   const subs = await billingStore().subscriptionsForTenant(tenantId);
-  if (entitlementFor(currentSubscription(subs)).plan === "pro") throw new BillingError("You already have Pro", 409);
+  const current = entitlementFor(currentSubscription(subs), (r) => planForRef(r, config)).plan;
+  if (PLAN_RANK[current] >= PLAN_RANK[plan]) throw new BillingError(`You already have ${config.plans[current].label}`, 409);
+  if (current !== "free") throw new BillingError(`Cancel ${config.plans[current].label} first, then choose ${config.plans[plan].label} — changing plans mid-subscription isn't automated yet`, 409);
   const back = (state: string) => `${origin}/app/profile?billing=${state}&provider=${provider}#plan`;
   try {
     if (provider === "stripe") {
       // Same key for repeated clicks within a minute, so a double-click opens one checkout, not two.
-      const idempotencyKey = `checkout:${tenantId}:${Math.floor(Date.now() / 60_000)}`;
-      const s = await stripeCheckout(stripeConfig()!, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey });
+      const idempotencyKey = `checkout:${tenantId}:${plan}:${Math.floor(Date.now() / 60_000)}`;
+      const s = await stripeCheckout({ ...stripeConfig()!, priceId: ref }, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey });
       return { url: s.url };
     }
-    const cfg = razorpayConfig()!;
+    const cfg = { ...razorpayConfig()!, planId: ref };
     const s = await razorpaySubscribe(cfg, { tenantId });
     // Remember the mapping now so an abandoned subscription can be cancelled on erasure. Its provider time
     // starts at the epoch so every real event from Razorpay is newer than this placeholder.

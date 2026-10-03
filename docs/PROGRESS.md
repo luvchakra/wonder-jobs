@@ -47,6 +47,9 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Career Profile sections, CV links/summary, dropped roles offered back (WJ-188)
 - ✅ Phone-width pass over every page (WJ-189)
 - ✅ More real job sources: SmartRecruiters, The Muse, nine more boards (WJ-190)
+- ✅ Use your own AI by pasting a key (WJ-191)
+- ✅ Free / Pro / Max plans, operator-editable (WJ-192)
+- ✅ Credentialed sources (Adzuna India) keep their on/off choice (WJ-193)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

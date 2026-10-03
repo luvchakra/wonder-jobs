@@ -6,6 +6,9 @@ import { decrypt, secretStore } from "@/server/secrets";
 import { getServerProvider } from "@/server/providers";
 import { ServerProviderError } from "@/server/providers/types";
 import { platformAI } from "@/server/providers/platform";
+import { tenantPlan } from "@/server/billing/service";
+import { countDraft, draftUsage } from "@/server/billing/plansConfig";
+import { draftQuota } from "@/domain/billing/plans";
 
 export const runtime = "nodejs";
 
@@ -35,8 +38,13 @@ export async function POST(req: Request) {
   if (provider === "wonderjobs") {
     const platform = platformAI();
     if (!platform) return NextResponse.json({ error: "WonderJobs AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
+    // Drafts on the platform's key count against the plan; a connected own-AI key never comes through here.
+    const { plan, limits, config } = await tenantPlan(tenantId);
+    const quota = draftQuota(limits.aiDraftsPerMonth, await draftUsage(tenantId));
+    if (!quota.allowed) return NextResponse.json({ error: `You've used this month's ${quota.limit} WonderJobs AI drafts on ${config.plans[plan].label}. Connect your own AI (no limit) or move up a plan.`, kind: "quota", plan, limit: quota.limit }, { status: 402 });
     try {
       const result = await getServerProvider(platform.provider)!.complete(platform.apiKey, { model: platform.model, system, prompt, maxTokens: maxTokens ?? 2048 });
+      await countDraft(tenantId).catch(() => {});
       return NextResponse.json(result);
     } catch (e) {
       if (e instanceof ServerProviderError) return NextResponse.json({ error: e.message.replace("your API key", "the platform key"), kind: e.kind }, { status: e.status });
