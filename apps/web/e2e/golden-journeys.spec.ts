@@ -211,7 +211,7 @@ test.describe("Golden journey — application preparation (demo mode)", () => {
 test.describe("Golden journey — Ask Wonder (demo mode)", () => {
   test("GJ-014 a real question resolves to a real, data-backed action, not a canned chat reply", async ({ page }) => {
     await page.goto("/demo?next=/app");
-    await page.getByRole("button", { name: "Ask Wonder anything (Command+K)" }).click();
+    await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
     await input.fill("what applications need my attention");
@@ -313,7 +313,7 @@ test.describe("Golden journey — the phone keyboard (demo mode)", () => {
       };
     });
     await page.goto("/demo?next=/app/jobs");
-    await page.getByRole("button", { name: /Ask Wonder anything/ }).first().click();
+    await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
     await page.evaluate(() => (window as unknown as { __kbd: (h: number) => void }).__kbd(430));

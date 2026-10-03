@@ -68,7 +68,7 @@ export interface JobSearch {
   /** Search every source for what the candidate typed — role, places and work mode read from their words, else the places given (the Where field), else the profile's. A search already running is stopped first: this is what they asked for. */
   searchWords: (text: string, places?: string[]) => Promise<WorkflowRun | null>;
   /** Search as one of the candidate's roles: its terms and goal, the profile's places. Stops a running search first. */
-  searchAsRole: (roleId: string) => Promise<WorkflowRun | null>;
+  searchAsRole: (roleId: string, places?: string[]) => Promise<WorkflowRun | null>;
   /** Search again — the profile's own search, or the given one. Stops a running search first. */
   searchNow: (opts?: SearchOptions) => Promise<WorkflowRun | null>;
 }
@@ -168,12 +168,12 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   );
 
   const searchAsRole = useCallback(
-    async (roleId: string) => {
+    async (roleId: string, places?: string[]) => {
       const role = roles.find((r) => r.id === roleId);
       if (!role) return null;
       const { query, careerGoal } = roleSearch(role, defaultSearchQuery);
       await stopRunningSearch();
-      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words" }));
+      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words", ...(places ? { locations: places } : {}) }));
     },
     [roles, search],
   );

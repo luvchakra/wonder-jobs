@@ -58,7 +58,7 @@ async function askWonder(page: Page, text: string) {
   const input = page.getByRole("combobox", { name: "Command" });
   // The trigger renders before the client has hydrated; retry until the click actually opens it.
   await expect(async () => {
-    await page.getByRole("button", { name: "Ask Wonder anything (Command+K)" }).click();
+    await page.keyboard.press("ControlOrMeta+k");
     await expect(input).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
   await input.fill(text);
