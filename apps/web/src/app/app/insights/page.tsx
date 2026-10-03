@@ -57,7 +57,7 @@ export default function InsightsPage() {
 
   return (
     <div>
-      <PageHeader title="Insights" description="What's working, what isn't, and what to change — from your own activity, not guesses." />
+      <PageHeader title="Insights" description="What's working, from your own activity." />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <h2 className="mb-4 text-[15px] font-semibold text-ink">Application funnel</h2>

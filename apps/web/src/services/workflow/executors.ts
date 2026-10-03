@@ -334,7 +334,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         ctx.addEvidence({ label: "Nothing to review", value: "No applications were prepared in this run." });
         return { data: { reviewedApplicationIds: [] } };
       }
-      await ctx.requestUser(`${ids.length} prepared application${ids.length === 1 ? "" : "s"} are ready. Review them, edit anything you like, then continue.`);
+      await ctx.requestUser(`${ids.length} prepared application${ids.length === 1 ? " is" : "s are"} ready for you to review.`);
       return { provenance: "USER_PROVIDED", data: { reviewedApplicationIds: ids } };
     },
 
@@ -365,7 +365,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
             a.history.push({ at: new Date().toISOString(), event: "confirmed", detail: "Auto-confirmed by your automation policy (Autonomous)" });
           }
         } else {
-          await ctx.requestUser(`${pending.length} application${pending.length === 1 ? " is" : "s are"} ready to submit. Approve each hand-off; Wonder queues the employer's application page and your materials — you press submit.`);
+          await ctx.requestUser(`${pending.length} application${pending.length === 1 ? " is" : "s are"} ready to hand off. Approve and Wonder opens the employer's page with your materials — you press submit.`);
         }
       }
       // Continuing without deciding is a decision: anything still pending is recorded as not approved, never

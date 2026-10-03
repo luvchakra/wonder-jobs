@@ -1,3 +1,4 @@
+import { sortExperience } from "./history";
 import { describe, expect, it } from "vitest";
 import { defaultPolicy } from "@/domain/automation/policy";
 import { AI_HISTORY_SYSTEM, aiHistoryPrompt, aiHistoryReader, buildHistoryPatch, groundAIHistory, mergeHistoryDrafts, reviewHistoryImport, rulesAsAIJson, type HistoryDraft } from "./historyImport";
@@ -89,6 +90,25 @@ describe("reviewing history from a résumé", () => {
     const again = reviewHistoryImport(stints, { experience: [h.experience[0]] }).filter((i) => i.group === "experience");
     expect(again.map((i) => i.status)).toEqual(["same", "new", "new"]);
     expect(mergeHistoryDrafts(stints, { ...EMPTY, experience: [stints.experience[2]] }).experience).toHaveLength(3);
+  });
+
+  it("repairs a profile saved before the fix: only the dropped stint is added, in date order", () => {
+    const stints: HistoryDraft = {
+      ...rules,
+      experience: [
+        { employer: "Simeio Solutions", title: "Senior Manager", startDate: "2022-06", endDate: "2023-01", bullets: [], from: "Simeio 2022", by: "rules" },
+        { employer: "AppDirect", title: "Senior Engineering Manager", startDate: "2021-05", endDate: "2022-05", bullets: [], from: "AppDirect", by: "rules" },
+        { employer: "Simeio Solutions", title: "Senior Manager", startDate: "2019-07", endDate: "2021-05", bullets: [], from: "Simeio 2019", by: "rules" },
+        { employer: "Prudential Services", title: "Senior Manager", startDate: "2016-11", endDate: "2018-10", bullets: [], from: "Prudential", by: "rules" },
+      ],
+    };
+    // What the old import saved: every role except the earlier Simeio stint.
+    const saved = buildHistoryPatch(stints, { experience: [] }, reviewHistoryImport(stints, { experience: [] }).filter((i) => i.group === "experience" && !i.from.includes("2019")).map((i) => i.key));
+    const missing = reviewHistoryImport(stints, saved).filter((i) => i.group === "experience" && i.status === "new");
+    expect(missing.map((i) => i.from)).toEqual(["Simeio 2019"]);
+    const repaired = buildHistoryPatch(stints, saved, missing.map((i) => i.key));
+    expect(sortExperience(repaired.experience).map((e) => `${e.employer} ${e.startDate}`)).toEqual(["Simeio Solutions 2022-06", "AppDirect 2021-05", "Simeio Solutions 2019-07", "Prudential Services 2016-11"]);
+    expect(repaired.experience.filter((e) => saved.experience.some((x) => x.id === e.id))).toHaveLength(3);
   });
 
   it("applies nothing when nothing is ticked", () => {

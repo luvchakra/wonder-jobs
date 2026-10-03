@@ -43,6 +43,9 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ CV-first onboarding (WJ-183)
 - ✅ Five tabs + minimal pages (WJ-185)
 - ✅ Four tabs by stage, listings first, designation/salary strip (WJ-186)
+- ✅ Actionable notifications (WJ-187)
+- ✅ Career Profile sections, CV links/summary, dropped roles offered back (WJ-188)
+- ✅ Phone-width pass over every page (WJ-189)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

@@ -16,7 +16,7 @@ export default function JobSourcesPage() {
   const on = sources.filter((s) => s.enabled && s.available !== false).length;
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Job sources" description={`Wonder searches every source that's switched on — ${on} of ${sources.length} now. Switch one off and your next search leaves it out; jobs it already found stay until then.`} />
+      <PageHeader title="Job sources" description={`${on} of ${sources.length} on. A source that's off is skipped next search.`} />
       <ul className="flex flex-col gap-2" aria-label="Job sources">
         {sources.map((s) => {
           const unavailable = s.available === false;

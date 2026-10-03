@@ -8,6 +8,7 @@
  * timeout can never leave a run re-firing in a loop.
  */
 import { WorkflowEngine, conditionMet } from "@/domain/workflow/engine";
+import { addNotification } from "@/domain/career/notifications";
 import { isDue, nextScheduledRun } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
 import { STAGES, type StageKey } from "@/domain/workflow/stages";
@@ -144,7 +145,7 @@ function recordRun(snapshot: TenantSnapshot, run: WorkflowRun) {
 }
 
 function pushNotification(snapshot: TenantSnapshot, n: Omit<Notification, "id" | "at" | "read">): PushPayload {
-  snapshot.career.notifications = [{ ...n, id: newId("ntf"), at: new Date().toISOString(), read: false }, ...snapshot.career.notifications].slice(0, NOTIFICATION_CAP);
+  snapshot.career.notifications = addNotification(snapshot.career.notifications, n, newId("ntf"), new Date().toISOString(), NOTIFICATION_CAP);
   return { title: n.title, body: n.body, url: n.href, tag: n.category };
 }
 

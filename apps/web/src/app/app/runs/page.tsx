@@ -26,7 +26,7 @@ export default function RunsPage() {
           </Button>
         }
       />
-      <ActiveRunCard run={active} className="mb-6" />
+      {active && <ActiveRunCard run={active} className="mb-6" />}
       {history.length === 0 ? (
         <EmptyState title="No searches yet" body="Every search Wonder runs for you appears here — what it found and, one click down, exactly how it worked." action={{ label: "See your jobs", href: "/app/jobs" }} />
       ) : (

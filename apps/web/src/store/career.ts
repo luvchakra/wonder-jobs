@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { addNotification } from "@/domain/career/notifications";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
@@ -133,7 +134,7 @@ export const useCareerStore = create<CareerState>()(
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),
-      notify: (n) => set((s) => ({ notifications: [{ ...n, id: newId("ntf"), at: new Date().toISOString(), read: false }, ...s.notifications].slice(0, 50) })),
+      notify: (n) => set((s) => ({ notifications: addNotification(s.notifications, n, newId("ntf"), new Date().toISOString(), 50) })),
       markRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (id == null || n.id === id ? { ...n, read: true } : n)) })),
       setInsights: (insights) => set({ insights }),
     }),

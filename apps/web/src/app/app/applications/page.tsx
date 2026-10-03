@@ -11,6 +11,7 @@ import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
 import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
+import { cn } from "@/lib/cn";
 import { Modal } from "@/components/common/Modal";
 import { Field, Select } from "@/components/common/Input";
 import { ApplicationCard, applicationHref } from "@/components/applications/ApplicationCard";
@@ -94,7 +95,7 @@ function ApplicationsInner() {
               {STAGES.map((stage) => {
                 const items = list.filter((a) => groupOf(a) === stage.group);
                 return (
-                  <div key={stage.group} className="min-w-0">
+                  <div key={stage.group} className={cn("min-w-0", items.length === 0 && "hidden lg:block")}>
                     <div className="mb-2 flex items-center justify-between px-1">
                       <h3 className="text-[13px] font-semibold text-ink-2">{stage.label}</h3>
                       <span className="text-[12px] text-ink-4">{items.length}</span>

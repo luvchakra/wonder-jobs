@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Download, FlaskConical, LifeBuoy, LogIn, LogOut, Search, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -16,6 +16,7 @@ import { flushRemote } from "@/store/remoteStorage";
 import { useInstallPrompt } from "@/lib/pwa";
 import { toast } from "@/components/feedback/Toast";
 import { CommandPalette } from "./CommandPalette";
+import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
@@ -41,7 +42,8 @@ export function TopBar() {
   const displayName = dna.name || email?.split("@")[0] || "You";
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
-  const unread = hydrated ? notifications.filter((n) => !n.read).length : 0;
+  const shown = hydrated ? visibleNotifications(notifications) : [];
+  const unread = shown.filter((n) => !n.read).length;
   // Career status is derived from real application state (spec §3 "Career status").
   const apps = Object.values(applications);
   const careerStatus = !hydrated ? "Career Explorer" : apps.some((a) => a.status === "offer") ? "Deciding on an offer" : apps.some((a) => a.status === "interview") ? "Interviewing" : apps.some((a) => a.status === "submitted" || a.status === "under_review") ? "Actively applying" : "Career Explorer";
@@ -78,40 +80,44 @@ export function TopBar() {
         <kbd className="hidden rounded-md border border-line bg-surface px-1.5 py-0.5 text-[11px] font-medium text-ink-3 sm:inline-block">⌘ K</kbd>
       </button>
 
-      <div className="relative" ref={notifRef}>
+      {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
+      <div className="md:relative" ref={notifRef}>
         <button type="button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={notifOpen} onClick={() => setNotifOpen((v) => !v)} className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
           <Bell className="size-5" aria-hidden />
           {unread > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-danger-600 ring-2 ring-surface" aria-hidden />}
         </button>
         {notifOpen && (
-          <div role="dialog" aria-label="Notifications" className="absolute right-0 top-12 w-[340px] max-w-[calc(100vw-2rem)] rounded-[20px] border border-line bg-surface p-2 shadow-lg wj-animate-fade-up">
-            <div className="flex items-center justify-between px-3 py-2">
-              <p className="text-sm font-semibold">Notifications</p>
+          <div role="dialog" aria-label="Notifications" className="absolute inset-x-3 top-[calc(100%+0.25rem)] flex max-h-[min(70dvh,32rem)] flex-col rounded-[20px] border border-line bg-surface p-2 shadow-lg wj-animate-fade-up md:inset-x-auto md:right-0 md:top-12 md:w-[380px]">
+            <div className="flex shrink-0 items-center justify-between px-3 py-2">
+              <p className="text-[15px] font-semibold text-ink">Notifications</p>
               {unread > 0 && (
                 <button type="button" onClick={() => markRead()} className="text-xs font-medium text-brand-600 hover:underline">
                   Mark all read
                 </button>
               )}
             </div>
-            <ul className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-3">You&apos;re all caught up.</li>}
-              {notifications.slice(0, 8).map((n) => (
-                <li key={n.id}>
-                  <Link
-                    href={n.href}
-                    onClick={() => {
-                      markRead(n.id);
-                      setNotifOpen(false);
-                    }}
-                    className={cn("flex gap-3 rounded-[12px] px-3 py-2.5 hover:bg-bg-soft", !n.read && "bg-brand-50/60")}
-                  >
-                    <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", n.read ? "bg-transparent" : "bg-brand-500")} aria-hidden />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-ink">{n.title}</span>
-                      <span className="block text-xs text-ink-3">{n.body}</span>
-                      <span className="mt-0.5 block text-[11px] text-ink-4">{relativeTime(n.at)}</span>
-                    </span>
-                  </Link>
+            <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
+              {shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-3">You&apos;re all caught up.</li>}
+              {shown.slice(0, 10).map((n) => (
+                <li key={n.id} className={cn("flex items-start gap-3 px-3 py-3", !n.read && "bg-brand-50/50 first:rounded-t-[12px] last:rounded-b-[12px]")}>
+                  <span className={cn("mt-[7px] size-2 shrink-0 rounded-full", n.read ? "bg-line-strong" : "bg-brand-500")} aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold leading-snug text-ink">{n.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ink-3">{n.body}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-[12px] text-ink-4">{relativeTime(n.at)}</span>
+                      <Link
+                        href={n.href}
+                        onClick={() => {
+                          markRead(n.id);
+                          setNotifOpen(false);
+                        }}
+                        className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-brand-600 pl-3 pr-2 text-[13px] font-semibold text-white hover:bg-brand-700"
+                      >
+                        {NOTIFICATION_ACTION[n.category] ?? "Open"} <ChevronRight className="size-3.5" aria-hidden />
+                      </Link>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>

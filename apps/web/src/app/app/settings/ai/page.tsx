@@ -53,7 +53,7 @@ function AISettingsInner() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="AI provider" description="Use WonderJobs AI or connect your own API key. Wonder never switches your billing without asking." />
+      <PageHeader title="AI provider" description="WonderJobs AI, or your own key. Never switched without asking." />
       {wantSwitch === "wonderjobs" && config.activeProvider !== "wonderjobs" && (
         <Card className="mb-5 flex items-start gap-3 border-brand-200 bg-brand-50/60">
           <Info className="mt-0.5 size-5 shrink-0 text-brand-600" aria-hidden />

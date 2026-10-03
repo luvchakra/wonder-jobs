@@ -12,7 +12,7 @@ const REASON_META: Record<ApplicationAttentionItem["reason"], { icon: AttentionR
 };
 
 export function jobLabel(job: CanonicalJob | undefined) {
-  return job ? `${job.title} at ${job.company}` : "a saved role";
+  return job ? `${job.company} · ${job.title}` : "a saved role";
 }
 
 /** Real applications needing attention (due follow-ups, upcoming interviews, materials ready for
@@ -22,7 +22,7 @@ export function ApplicationAttentionList({ items, jobs, hrefFor }: { items: Appl
   const rows: AttentionRow[] = items.map((item) => {
     const meta = REASON_META[item.reason];
     const job = jobs[item.jobId];
-    return { key: `${item.applicationId}-${item.reason}`, href: hrefFor ? hrefFor(item.applicationId) : `/app/applications/${item.applicationId}`, label: `${item.label} — ${jobLabel(job)}`, icon: meta.icon, tone: meta.tone };
+    return { key: `${item.applicationId}-${item.reason}`, href: hrefFor ? hrefFor(item.applicationId) : `/app/applications/${item.applicationId}`, label: item.label, detail: jobLabel(job), icon: meta.icon, tone: meta.tone };
   });
   return <AttentionList rows={rows} />;
 }

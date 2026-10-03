@@ -13,8 +13,10 @@ import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input"
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { RolesCard } from "@/components/career/RolesCard";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
+import { MissingRoles } from "@/components/career/MissingRoles";
 import { RememberedAnswers } from "@/components/career/RememberedAnswers";
-import { historyOf } from "@/domain/career/history";
+import { historyOf, sortExperience } from "@/domain/career/history";
+import { stripHeadlineLabel } from "@/services/jobs/normalize";
 import { profileChanged } from "@/domain/career/profileEdit";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
@@ -30,6 +32,8 @@ export default function CareerDNAPage() {
   const params = useSearchParams();
   const router = useRouter();
   const fillFrom = params.get("fill") ?? undefined;
+  // A CV headline like "Target: Senior Director — IAM" is a goal, not the role held today.
+  const targetInHeadline = stripHeadlineLabel(draft.headline) !== draft.headline;
   // The history editor's contact and summary fields are uncontrolled: remount it to show imported values.
   const [importRev, setImportRev] = useState(0);
   const [newSkill, setNewSkill] = useState("");
@@ -58,7 +62,6 @@ export default function CareerDNAPage() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Career Profile"
-        description="Your Career Profile — what Wonder knows about you. Every match, ranking and draft starts here, and you can change any of it."
         className="mb-2 md:mb-3"
       />
       {/* Stays in view below the top bar while the long form scrolls, so Save is always one tap away. */}
@@ -84,17 +87,45 @@ export default function CareerDNAPage() {
         </Button>
       </div>
       <div className="flex flex-col gap-4">
-        {/* What matching reads — everything else is one tap down, under More. */}
+        {/* Two questions, each asked once: who you are today (what jobs are matched against) and
+            what you're looking for (what Wonder searches for). Everything else is one tap down. */}
+        <Card className="p-0">
+          <div className="px-5 pb-5 pt-4">
+            <h2 className="text-[15px] font-semibold text-ink">What you&apos;re looking for</h2>
+            <p className="mb-3 text-[12px] text-ink-3">What Wonder searches for. Say the role and its field.</p>
+            <Field label="Role you want" htmlFor="goal" hint="e.g. “Director, identity and access management” — not a level alone.">
+              <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />
+            </Field>
+          </div>
+          <MoreRow title="Other roles you'd take" hint={draft.careerGoal.trim() ? "Search as each of them with one tap" : "Add roles once you've named the one you want"} last>
+            <RolesCard bare />
+          </MoreRow>
+        </Card>
+
         <Card>
+          <h2 className="text-[15px] font-semibold text-ink">About you</h2>
+          <p className="mb-4 text-[12px] text-ink-3">Who you are today. Every job is matched against this.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="name">
               <Input id="name" value={draft.name} onChange={(e) => set("name", e.target.value)} />
             </Field>
-            <Field label="Headline" htmlFor="headline" hint="Your role and field, e.g. “Senior Director — Identity & Access Management”.">
+            <Field label="Current role" htmlFor="headline" hint="Your title and field now, e.g. “Senior Manager — Identity & Access Management”.">
               <Input id="headline" value={draft.headline} onChange={(e) => set("headline", e.target.value)} />
-            </Field>
-            <Field label="Career goal" htmlFor="goal" className="sm:col-span-2">
-              <Textarea id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} className="min-h-16" />
+              {targetInHeadline && (
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
+                  This reads like where you&apos;re heading, not your role today.
+                  <button
+                    type="button"
+                    className="font-medium text-brand-600 hover:underline"
+                    onClick={() => {
+                      const latest = sortExperience(historyOf(draft).experience)[0];
+                      setDraft((d) => ({ ...d, careerGoal: stripHeadlineLabel(d.headline), headline: latest ? `${latest.title}${latest.employer ? ` — ${latest.employer}` : ""}` : "" }));
+                    }}
+                  >
+                    Move it to Role you want
+                  </button>
+                </p>
+              )}
             </Field>
             <Field label="Level" htmlFor="level">
               <Select id="level" value={draft.seniority} onChange={(e) => set("seniority", e.target.value as CareerDNA["seniority"])}>
@@ -163,6 +194,13 @@ export default function CareerDNAPage() {
         </Card>
 
         <Card className="p-0">
+          <MissingRoles
+            history={historyOf(draft)}
+            onAdd={(h) => {
+              set("history", h);
+              setImportRev((n) => n + 1);
+            }}
+          />
           <MoreRow title="Fill from your résumé" hint="Reads roles, education and contact from a CV — you tick what to keep" open={!!fillFrom}>
             <p className="mb-3 text-[12px] text-ink-3">Every suggestion shows the words it came from, and nothing is applied until you tick it. To keep a résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 underline underline-offset-2">upload it under Résumés</Link>.</p>
             <ResumeImport current={draft} history={draft.history ?? {}} onApply={(patch) => {
@@ -173,9 +211,6 @@ export default function CareerDNAPage() {
           </MoreRow>
           <MoreRow title="Work history, education and contact" hint={`${historyOf(draft).experience.length} roles — what résumés are built from`}>
             <CareerHistoryEditor key={`${dna.updatedAt}-${importRev}`} value={historyOf(draft)} onChange={(h) => set("history", h)} />
-          </MoreRow>
-          <MoreRow title="Roles you're open to" hint="Search as each kind of job you'd take">
-            <RolesCard />
           </MoreRow>
           <MoreRow title="Industries and minimum salary" hint={draft.industries.length ? draft.industries.slice(0, 3).join(", ") : "Any industry"}>
             <div className="flex flex-wrap gap-2">

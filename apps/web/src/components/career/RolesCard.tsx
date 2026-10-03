@@ -39,7 +39,8 @@ function useResumeChoices() {
  * terms, goal and résumé. Saved straight away (they're not part of the profile form above), and used only
  * when the candidate picks one under "Search as".
  */
-export function RolesCard() {
+/** `bare`: no card, title or intro — for use inside a section that already has them. */
+export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
   const roles = useCareerStore((s) => s.roles ?? []);
   const addRole = useCareerStore((s) => s.addRole);
   const updateRole = useCareerStore((s) => s.updateRole);
@@ -49,19 +50,24 @@ export function RolesCard() {
   const [confirmDelete, setConfirmDelete] = useState<CareerRole | null>(null);
   const label = (r: CareerRole) => (r.baseResume ? (choices.find((c) => c.key === refKey(r.baseResume))?.label ?? "A résumé that was deleted — choose another") : "Your base résumé");
 
+  const Wrap = bare ? "div" : Card;
   return (
-    <Card aria-labelledby="roles-title">
+    <Wrap aria-labelledby={bare ? undefined : "roles-title"}>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="roles-title" className="text-[15px] font-semibold text-ink">
-          Roles you&apos;re open to
-        </h2>
+        {!bare && (
+          <h2 id="roles-title" className="text-[15px] font-semibold text-ink">
+            Roles you&apos;re open to
+          </h2>
+        )}
         <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={!canAddRole(roles)} onClick={() => setEditing("new")}>
           Add a role
         </Button>
       </div>
+      {!bare && (
       <p className="mb-3 text-[12px] text-ink-3">
         Open to more than one kind of job — say, roles you&apos;ve held before? Add each as a role with its own search terms, goal and résumé, then choose it under &ldquo;Search as&rdquo; when you search. Matching still uses your whole Career Profile. Up to {MAX_ROLES}.
       </p>
+      )}
       {roles.length === 0 ? (
         <p className="text-[13px] text-ink-4">No roles yet — searches use your Career Profile.</p>
       ) : (
@@ -136,7 +142,7 @@ export function RolesCard() {
       >
         <p className="text-[14px] text-ink-2">Your past searches and the jobs they found are kept. Scheduled searches set up as this role keep running with the terms and goal they were saved with.</p>
       </Modal>
-    </Card>
+    </Wrap>
   );
 }
 
