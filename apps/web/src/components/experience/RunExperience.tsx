@@ -87,7 +87,7 @@ export function RunExperience({ run, previous, onShowResults, className }: { run
   const svc = getWorkflowService();
   const terminal = isTerminal(run.status);
   // Repeats what this run searched: as the same role, the same words, or the profile's own search.
-  const searchAgainHref = run.config.role ? `/app?role=${encodeURIComponent(run.config.role.id)}` : run.config.origin === "words" ? `/app?search=${encodeURIComponent(run.config.careerGoal)}` : "/app?refresh=1";
+  const searchAgainHref = run.config.role ? `/app/jobs?role=${encodeURIComponent(run.config.role.id)}` : run.config.origin === "words" ? `/app/jobs?search=${encodeURIComponent(run.config.careerGoal)}` : "/app/jobs?refresh=1";
   const canRecheck = terminal && run.status !== "CANCELLED" && run.stages.some((s) => s.key === "match") && run.stages.some((s) => s.key === "search" && (s.status === "COMPLETED" || s.status === "COMPLETED_WITH_WARNINGS"));
 
   const control = (fn: () => void, fail: string) => {
@@ -106,7 +106,7 @@ export function RunExperience({ run, previous, onShowResults, className }: { run
       router.push(`/app/runs/${child.id}`);
     }, "Couldn't recheck");
 
-  const actions: NextAction[] = e.nextActions.map((a) => (a.href === "/app?refresh=1" ? { ...a, href: searchAgainHref } : a));
+  const actions: NextAction[] = e.nextActions.map((a) => (a.href === "/app/jobs?refresh=1" ? { ...a, href: searchAgainHref } : a));
   if (terminal && !actions.some((a) => a.href === searchAgainHref)) actions.push({ label: "Search again", href: searchAgainHref });
 
   const run_ = (a: NextAction) => {

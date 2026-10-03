@@ -1,8 +1,7 @@
 "use client";
 import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronRight, Dna, Settings2, Sparkles, Timer, BarChart3, FileText, MessagesSquare, BookOpen, Calendar, LogOut, LifeBuoy } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
@@ -21,18 +20,6 @@ import { useAuthStore } from "@/store/auth";
 import { signOutEverywhere } from "@/lib/auth/browser";
 import { Cloud, CloudOff, FlaskConical } from "lucide-react";
 
-const MORE = [
-  { href: "/app/career-dna", label: "Career Profile", icon: Dna },
-  { href: "/app/calendar", label: "Calendar", icon: Calendar },
-  { href: "/app/insights", label: "Insights", icon: BarChart3 },
-  { href: "/app/automation/scheduled", label: "Scheduled searches", icon: Timer },
-  { href: "/app/automation/settings", label: "What Wonder can do", icon: Settings2 },
-  { href: "/app/settings/ai", label: "AI Provider", icon: Sparkles },
-  { href: "/app/resume-studio", label: "Resume Studio", icon: FileText },
-  { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
-  { href: "/app/learning", label: "Learning", icon: BookOpen },
-  { href: "/help", label: "Get Help", icon: LifeBuoy },
-];
 
 function CloudSyncCard() {
   // "error" is distinct from a confirmed "local" backend: a failed request tells us nothing about how
@@ -98,7 +85,7 @@ function ProfileInner() {
   const displayName = dna.name || email?.split("@")[0] || "You";
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Profile" />
+      <PageHeader title="Account" />
       <Card className="flex items-center gap-4">
         <Avatar name={displayName} size={56} />
         <div className="min-w-0 flex-1">
@@ -116,15 +103,6 @@ function ProfileInner() {
       <YourDataCard />
       <Card padding="none" className="mt-4">
         <ul className="divide-y divide-line">
-          {MORE.map((m) => (
-            <li key={m.href}>
-              <Link href={m.href} className="flex items-center gap-3 px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">
-                <m.icon className="size-4 text-ink-3" aria-hidden />
-                <span className="flex-1">{m.label}</span>
-                <ChevronRight className="size-4 text-ink-4" aria-hidden />
-              </Link>
-            </li>
-          ))}
           <li>
             {mode === "demo" ? (
               <a href="/demo/exit?next=/sign-in" className="flex items-center gap-3 px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">

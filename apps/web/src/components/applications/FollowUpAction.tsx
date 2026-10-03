@@ -1,9 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Check, Copy, Mail, RefreshCw, Send, ShieldCheck } from "lucide-react";
+import { Check, Copy, Mail, RefreshCw, Send } from "lucide-react";
 import type { Application } from "@/domain/applications/types";
 import type { CanonicalJob } from "@/domain/jobs/types";
-import { CAPABILITY_META } from "@/domain/automation/policy";
 import { useActionsStore } from "@/store/actions";
 import { useAutomationStore } from "@/store/automation";
 import { useApplicationsStore } from "@/store/applications";
@@ -114,13 +113,8 @@ export function FollowUpAction({ application, job }: { application: Application;
     addEvent(application.id, { type: "follow_up", title: "Follow-up marked as sent", detail: "Recorded after retry" });
   };
 
-  const meta = CAPABILITY_META.send_email;
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-[15px] font-semibold text-ink">Reach out</h2>
-        <Badge tone={policy === "off" ? "neutral" : policy === "automatic" ? "warning" : "info"}>{policy === "off" ? "Off" : policy === "automatic" ? "Automatic (still needs your click here)" : "Ask me"}</Badge>
-      </div>
       {policy === "off" ? (
         <p className="text-[13px] text-ink-3">
           Sending email is turned off in{" "}
@@ -136,7 +130,7 @@ export function FollowUpAction({ application, job }: { application: Application;
             <p className="rounded-[12px] bg-success-100 px-3 py-2 text-[13px] text-success-600">Marked as sent {alreadySent.executedAt ? `${formatDate(alreadySent.executedAt)} ${formatTime(alreadySent.executedAt)}` : ""}. Wonder won&apos;t ask you to send the same message twice.</p>
           ) : (
             <>
-              {draft ? <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-40 text-[13px]" aria-label="Email draft" /> : <p className="text-[13px] text-ink-3">Wonder can draft a {kind === "thank_you" ? "thank-you note" : "follow-up"} for {job?.company ?? "the employer"}. Wonder doesn&apos;t have {job?.company ?? "the employer"}&apos;s email address and can&apos;t send it — you copy it into your own email and send it yourself.</p>}
+              {draft ? <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} className="min-h-40 text-[13px]" aria-label="Email draft" /> : <p className="text-[13px] text-ink-3">Wonder drafts it; you copy it into your own email and send it.</p>}
               {error && (
                 <p role="alert" className="mt-2 text-[13px] text-danger-600">
                   {error}
@@ -157,9 +151,6 @@ export function FollowUpAction({ application, job }: { application: Application;
               </div>
             </>
           )}
-          <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-ink-4">
-            <ShieldCheck className="size-3" aria-hidden /> {meta.description} Wonder never sends on your behalf; every entry here is something you sent yourself.
-          </p>
         </>
       )}
       {mine.length > 0 && (

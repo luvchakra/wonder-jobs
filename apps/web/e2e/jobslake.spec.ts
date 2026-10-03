@@ -273,7 +273,7 @@ test.describe("Candidate searches through JobsLake", () => {
 
   async function find(page: Page, request: string) {
     const lake = page.waitForRequest((r) => r.url().includes("/api/jobs-lake/v1/search") && r.method() === "POST");
-    await page.goto(`/app?search=${encodeURIComponent(request)}`);
+    await page.goto(`/app/jobs?search=${encodeURIComponent(request)}`);
     await page.waitForURL(/\/app$/, { timeout: 20_000 });
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(RUN_URL, { timeout: 20_000 });

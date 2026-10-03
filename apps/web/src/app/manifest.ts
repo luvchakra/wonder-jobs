@@ -20,7 +20,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Jobs", url: "/app", description: "Your jobs, ranked by fit" },
+      { name: "Find jobs", url: "/app/jobs", description: "Your jobs, ranked by fit" },
       { name: "Jobs", url: "/app/jobs", description: "See every opportunity Wonder has found" },
       { name: "Applications", url: "/app/applications", description: "Track your in-progress applications" },
     ],

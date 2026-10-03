@@ -41,6 +41,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ **Jobs page** (WJ-181): one search box (narrows as you type; "Search every source for …" with place read from your words; mic), one view row, "Search as" role chips, three-action cards, one Refine sheet; Find folded into the jobs screen; "IAM" in capitals is the field again, not "I am".
 - ✅ **Navigation** (WJ-182): four places — Jobs, Applications, Profile, Settings — each with its pages as tabs at its top; new Settings → Job sources to choose what's searched; no URL changed.
 - ✅ CV-first onboarding (WJ-183)
+- ✅ Five tabs + minimal pages (WJ-185)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

@@ -1,82 +1,27 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Play, Search, Sparkles, Timer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { Input } from "@/components/common/Input";
-import { resolveWonderQuery } from "@/domain/wonder/resolve";
-import { useNow } from "@/lib/motion";
-import { useJobsStore } from "@/store/jobs";
-import { useApplicationsStore } from "@/store/applications";
-import { useCareerStore } from "@/store/career";
-import { PRIMARY_NAV, RESOURCES_NAV, SECTION_TABS } from "./nav";
-import { track } from "@/lib/analytics";
+import { useAskWonder } from "@/lib/useAskWonder";
 import { cn } from "@/lib/cn";
 
-interface Command {
-  id: string;
-  label: string;
-  hint?: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  group: "Actions" | "Go to";
-}
-
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const router = useRouter();
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dna = useCareerStore((s) => s.dna);
-  const jobsOrder = useJobsStore((s) => s.order);
-  const jobs = useJobsStore((s) => s.jobs);
-  const matches = useJobsStore((s) => s.matches);
-  const rejected = useJobsStore((s) => s.rejected);
-  const saved = useJobsStore((s) => s.saved);
-  const jobFilters = useJobsStore((s) => s.filters);
-  const applications = useApplicationsStore((s) => s.applications);
-  const now = useNow();
-  const commands = useMemo<Command[]>(
-    () => [
-      { id: "run", label: "Search again", hint: "Search every source for your Career Profile's role", href: "/app?refresh=1", icon: Play, group: "Actions" },
-      { id: "search", label: "Jobs", hint: "Your jobs, ranked by fit with your Career Profile", href: "/app", icon: Search, group: "Actions" },
-      { id: "schedule", label: "Set up a scheduled search", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
-      ...[...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].filter((n, i, all) => all.findIndex((x) => x.href === n.href) === i).map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
-    ],
-    [],
-  );
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return commands;
-    const hits = commands.filter((c) => c.label.toLowerCase().includes(t) || c.hint?.toLowerCase().includes(t));
-    // Ask Wonder (spec Phase 3.1/3.3): a deterministic, pattern-based reading of what was typed —
-    // never a model call or free-text reply — resolved against the candidate's own real data. It
-    // only ever returns a concrete action it can back with real data, or null to fall through to
-    // the plain job-search default below.
-    const wonder = resolveWonderQuery(q.trim(), { dna, jobsOrder, jobs, matches, rejected, saved, filters: jobFilters, applications, now });
-    // Anything typed can be a job search — Wonder's global field is a search field first (spec §3).
-    const search: Command = { id: "search-q", label: `Search jobs for “${q.trim()}”`, hint: "Titles, companies, skills", href: `/app/jobs?q=${encodeURIComponent(q.trim())}`, icon: Search, group: "Actions" };
-    const results: Command[] = wonder ? [{ id: wonder.id, label: wonder.label, hint: wonder.hint, href: wonder.href, icon: Sparkles, group: "Actions" }, search] : [search];
-    return [...results, ...hits.filter((c) => c.id !== "search")];
-  }, [q, commands, dna, jobsOrder, jobs, matches, rejected, saved, jobFilters, applications, now]);
+  const close = () => {
+    setQ("");
+    setIdx(0);
+    onClose();
+  };
+  const { results: filtered, go } = useAskWonder(q, close);
   useEffect(() => {
     if (open) {
       const t = setTimeout(() => inputRef.current?.focus(), 30);
       return () => clearTimeout(t);
     }
   }, [open]);
-  const close = () => {
-    setQ("");
-    setIdx(0);
-    onClose();
-  };
-  const go = (c: Command) => {
-    // Only the action id is recorded — never the typed text (analytics carries no free text).
-    if (c.id.startsWith("wonder-")) track("wonder_intent_submitted", { intent: c.id });
-    close();
-    router.push(c.href);
-    if (c.id.startsWith("wonder-")) track("wonder_action_completed", { intent: c.id, action: "navigate" });
-  };
   return (
     <Modal open={open} onClose={close} title="Ask Wonder" description="Search jobs, ask a real question about your search or applications, or jump to a page.">
       <Input

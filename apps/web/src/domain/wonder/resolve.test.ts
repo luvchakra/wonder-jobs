@@ -132,9 +132,9 @@ describe("resolveWonderQuery — outcome intents", () => {
   });
 
   it("search again carries only the candidate's words to the Find entry", () => {
-    expect(resolveWonderQuery("Search again with Director roles", baseCtx())?.href).toBe("/app?search=Director%20roles");
+    expect(resolveWonderQuery("Search again with Director roles", baseCtx())?.href).toBe("/app/jobs?search=Director%20roles");
     // No subject → the Find entry, which prefills from Career Profile or asks; never a placeholder query.
-    expect(resolveWonderQuery("search again", baseCtx())?.href).toBe("/app?refresh=1");
+    expect(resolveWonderQuery("search again", baseCtx())?.href).toBe("/app/jobs?refresh=1");
   });
 
   it("explain a job opens its Why tab with the real reasons", () => {

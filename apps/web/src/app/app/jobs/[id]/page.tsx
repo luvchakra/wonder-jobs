@@ -2,7 +2,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Building2, CheckCircle2, ExternalLink, MapPin, Share2, Clock, Wallet } from "lucide-react";
+import { Bookmark, CheckCircle2, ExternalLink, MapPin, Clock, Wallet } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
@@ -16,13 +16,12 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
-import { Tabs } from "@/components/common/Tabs";
+import { Fold } from "@/components/common/Fold";
 import { EmptyState } from "@/components/common/States";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { MatchBadge, FitLabel } from "@/components/jobs/MatchBadge";
+import { MatchBadge } from "@/components/jobs/MatchBadge";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
 import { companyColor } from "@/components/jobs/JobCard";
-import { toast } from "@/components/feedback/Toast";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
@@ -32,8 +31,6 @@ import { useAuthStore } from "@/store/auth";
 import { describeDecision } from "@/domain/jobs/decision";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { cn } from "@/lib/cn";
-
-type Tab = "overview" | "why" | "company" | "sources";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -56,7 +53,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const canApply = !!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume;
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
-  const [tab, setTab] = useState<Tab>(requestedTab === "why" || requestedTab === "company" || requestedTab === "sources" ? requestedTab : "overview");
   const [expanded, setExpanded] = useState(false);
   // Is the original posting still open? Checked when the page opens (signed in); a closed one says so here.
   const closed = useJobsStore((s) => s.closed[id]);
@@ -86,36 +82,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
   const prepare = () => openPack(job.id);
   const decision = describeDecision(job, match, quality, application);
-  const share = async () => {
-    const url = `${window.location.origin}/app/jobs/${job.id}`;
-    try {
-      if (navigator.share) await navigator.share({ title: `${job.title} — ${job.company}`, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copied");
-      }
-    } catch (err) {
-      // Only a real cancellation is silent; anything else (permission denied, clipboard write failure)
-      // needs to say something, or clicking Share can look like it simply did nothing.
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error("Couldn't share this", "Copy the page's URL from your browser instead.");
-    }
-  };
-
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
         back={{ href: "/app/jobs", label: "Jobs" }}
         title={job.title}
         actions={
-          <>
-            <Button variant="outline" size="sm" icon={<Share2 className="size-4" aria-hidden />} onClick={share}>
-              Share
-            </Button>
-            <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsave(job.id) : save(job.id))}>
-              {saved ? "Saved" : "Save"}
-            </Button>
-          </>
+          <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsave(job.id) : save(job.id))}>
+            {saved ? "Saved" : "Save"}
+          </Button>
         }
       />
       {closed && (
@@ -151,53 +126,30 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   <span className="inline-flex items-center gap-1">
                     <Clock className="size-3.5" aria-hidden /> Posted {relativeTime(job.postedAt)}
                   </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5 text-[12px] text-ink-3">
-                  <span>Source{sources.length > 1 ? "s" : ""}:</span>
-                  {sources.map((s) => (
-                    <Badge key={s.id}>{s.name}</Badge>
-                  ))}
+                  <span>•</span>
+                  <span>via {sources.map((s) => s.name).join(", ")}</span>
                 </div>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {match && <MatchBadge match={match} showLabel />}
-              {match?.highlights.map((h) => (
-                <Badge key={h} tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>
-                  {h}
-                </Badge>
-              ))}
-              {quality && <JobQualityBadge quality={quality} />}
-              {application && <Badge tone={APPLICATION_STATUS_META[application.status].tone}>{APPLICATION_STATUS_META[application.status].label}</Badge>}
+              {application && (
+                <Link href={`/app/applications/${application.id}`} aria-label={`Application: ${APPLICATION_STATUS_META[application.status].label}`}>
+                  <Badge tone={APPLICATION_STATUS_META[application.status].tone}>{APPLICATION_STATUS_META[application.status].label}</Badge>
+                </Link>
+              )}
               {rejected && <Badge tone="neutral">Marked not for me</Badge>}
             </div>
           </Card>
 
           {(decision.why.length > 0 || decision.consider.length > 0) && (
             <Card className="mb-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[15px] font-semibold text-ink">Wonder&apos;s take</h2>
-                <span className="text-[13px] text-ink-3">
-                  Next: <span className="font-medium text-ink-2">{decision.next.label}</span>
-                </span>
-              </div>
+              <h2 className="mb-3 text-[15px] font-semibold text-ink">Wonder&apos;s take</h2>
               <JobDecision decision={decision} variant="detail" />
             </Card>
           )}
 
-          <Tabs
-            value={tab}
-            onChange={(t) => {
-              if (t === "why") track("why_viewed", { jobId: job.id, surface: "job_detail" });
-              setTab(t);
-            }}
-            label="Job sections"
-            items={[{ value: "overview", label: "Overview" }, { value: "why", label: "Why it fits" }, { value: "company", label: "Company" }, { value: "sources", label: "Sources & signals" }]}
-            className="mb-4"
-          />
-
-          {tab === "overview" && (
-            <Card>
+          <Card className="mb-4">
               <h2 className="text-[15px] font-semibold text-ink">Job description</h2>
               <p className={cn("mt-2 text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-3")}>{job.description}</p>
               <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-2 text-[13px] font-medium text-brand-600 hover:underline">
@@ -231,15 +183,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   </li>
                 ))}
               </ul>
-            </Card>
-          )}
+          </Card>
 
-          {tab === "why" && (
-            <Card>
-              <div className="flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold text-ink">Why this job?</h2>
-                {match && <FitLabel fit={match.fit} />}
-              </div>
+          <Fold title="Why it fits" hint={match ? undefined : "Not compared with your profile yet"} open={requestedTab === "why"} className="mb-3">
               {match ? (
                 <ul className="mt-3 flex flex-col gap-3">
                   {match.reasons.map((r) => (
@@ -259,12 +205,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               ) : (
                 <p className="mt-2 text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
               )}
-              <p className="mt-4 text-[12px] text-ink-4">Each line is how this posting compares with your Career Profile. It&apos;s a guide, not a verdict — you decide.</p>
-            </Card>
-          )}
+          </Fold>
 
-          {tab === "company" && (
-            <Card>
+          <Fold title="Company" open={requestedTab === "company"} className="mb-3">
               <div className="flex items-center gap-3">
                 <CompanyLogo name={job.company} color={company?.color} size={44} />
                 <div>
@@ -284,24 +227,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   <dd className="font-medium text-ink">{job.industry}</dd>
                 </div>
               </dl>
-              <p className="mt-4 inline-flex items-center gap-2 text-[12px] text-ink-4">
-                <Building2 className="size-3.5" aria-hidden /> Company reviews appear here when a review source is connected.
-              </p>
-            </Card>
-          )}
+          </Fold>
 
-          {tab === "sources" && job.lake && (
-            <div className="mb-4">
-              <JobSourcesCard lake={job.lake} />
-            </div>
-          )}
-          {tab === "sources" &&
-            (quality ? (
-              <Card>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[15px] font-semibold text-ink">Hiring signals</h2>
-                  <JobQualityBadge quality={quality} />
-                </div>
+          <Fold title="Sources & hiring signals" open={requestedTab === "sources"}>
+            {job.lake && (
+              <div className="mb-4">
+                <JobSourcesCard lake={job.lake} />
+              </div>
+            )}
+            {quality ? (
+              <>
+                <JobQualityBadge quality={quality} />
                 <p className="mt-2 text-[14px] text-ink-2">{quality.summary}</p>
                 <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">
                   {quality.signals.map((s) => (
@@ -311,11 +247,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     </li>
                   ))}
                 </ul>
-                <p className="mt-3 text-[12px] text-ink-4">Signals are observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
-              </Card>
+                <p className="mt-3 text-[12px] text-ink-4">Observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
+              </>
             ) : (
-              <EmptyState title="No hiring signals collected yet" body="Wonder collects signals like repost frequency and posting age as it re-discovers this listing over time." />
-            ))}
+              <p className="text-[13px] text-ink-3">No hiring signals collected yet.</p>
+            )}
+          </Fold>
         </div>
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
@@ -330,37 +267,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 </Button>
               </>
             ) : (
-              <>
-                <Button size="lg" full onClick={prepare}>
-                  {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
-                </Button>
-                <Button variant="outline" full disabled aria-describedby="wj-apply-needs-resume">
-                  Apply with Wonder
-                </Button>
-                <p id="wj-apply-needs-resume" className="text-center text-[11px] text-ink-4">
-                  Prepare a résumé first — Apply with Wonder uses it to fill the employer&apos;s form.
-                </p>
-              </>
+              <Button size="lg" full onClick={prepare}>
+                {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
+              </Button>
             )}
-            {!application && !saved && <p className="text-center text-[11px] text-ink-4">Also saves this job to your list.</p>}
             <NotForMeButton jobId={job.id} rejected={rejected} />
             <a href={job.applyUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               View original posting <ExternalLink className="size-3.5" aria-hidden />
             </a>
-            <p className="mt-2 text-[12px] text-ink-4">Wonder prepares and fills; it never submits an application. The final action is always yours, on the employer&apos;s site.</p>
           </Card>
-          {application && (
-            <Card className="mt-3">
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-ink-3">Your application</p>
-              <p className="mt-1 text-[14px] text-ink">
-                <Badge tone={APPLICATION_STATUS_META[application.status].tone}>{APPLICATION_STATUS_META[application.status].label}</Badge>
-              </p>
-              {application.nextAction && <p className="mt-2 text-[13px] text-ink-2">Next: {application.nextAction}</p>}
-              <Link href={`/app/applications/${application.id}`} className="mt-2 inline-block text-[13px] font-medium text-brand-600 hover:underline">
-                Open timeline
-              </Link>
-            </Card>
-          )}
         </aside>
       </div>
     </div>
