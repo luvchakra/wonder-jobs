@@ -27,6 +27,8 @@ import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
 import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
+import { checkOneJobLink } from "@/lib/useLinkCheck";
+import { useAuthStore } from "@/store/auth";
 import { describeDecision } from "@/domain/jobs/decision";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { cn } from "@/lib/cn";
@@ -56,6 +58,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const requestedTab = useSearchParams().get("tab");
   const [tab, setTab] = useState<Tab>(requestedTab === "why" || requestedTab === "company" || requestedTab === "sources" ? requestedTab : "overview");
   const [expanded, setExpanded] = useState(false);
+  // Is the original posting still open? Checked when the page opens (signed in); a closed one says so here.
+  const closed = useJobsStore((s) => s.closed[id]);
+  const mode = useAuthStore((s) => s.mode);
+  const hasJob = !!job;
+  useEffect(() => {
+    if (mode === "user" && hasJob) void checkOneJobLink(id);
+  }, [mode, hasJob, id]);
   useEffect(() => {
     if (!job) return;
     track("job_viewed", { jobId: job.id, fit: match?.fit });
@@ -109,6 +118,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           </>
         }
       />
+      {closed && (
+        <div role="alert" className="mb-4 rounded-[14px] border border-warning-600/30 bg-warning-100/50 px-4 py-3 text-[14px] text-ink-2">
+          <p className="font-semibold text-ink">This posting has closed</p>
+          <p className="mt-0.5 text-[13px]">{closed.reason}. Wonder took it off your jobs{saved ? " — it stays in Saved so you can see it" : ""}.</p>
+        </div>
+      )}
       <HiddenJobNotice job={job} className="mb-4" />
       {job.foundAs && <p className="mb-4 text-[13px] text-ink-3">Found by your &ldquo;{job.foundAs.title}&rdquo; search.</p>}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
