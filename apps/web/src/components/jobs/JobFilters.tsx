@@ -10,11 +10,11 @@ import { useDictation } from "@/lib/dictation";
 import { DictateButton } from "@/components/common/DictateButton";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
+// Saved is its own tab, not a view here.
 const VIEWS: { value: JobsView; label: string }[] = [
   { value: "for_you", label: "For you" },
   { value: "strong", label: "Strong" },
   { value: "all", label: "All" },
-  { value: "saved", label: "Saved" },
 ];
 
 /** Which view a set of filters is — views are presets over the same filters, so they can't disagree with Refine or "Why was this filtered". */
@@ -37,7 +37,7 @@ export interface SourceSearch {
  * One search box (typing narrows the jobs already found; one tap searches every source for it), one row
  * of views, and everything else — sort, work mode, freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, savedCount, compare, onCompare, sourceSearch, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; savedCount: number; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total, views = true, compare, onCompare, sourceSearch, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; className?: string }) {
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
@@ -82,12 +82,12 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, sources, total,
         </button>
       )}
       <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-        {VIEWS.map((v) => (
-          <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="shrink-0">
-            {v.label}
-            {v.value === "saved" && savedCount ? ` · ${savedCount}` : ""}
-          </Chip>
-        ))}
+        {views &&
+          VIEWS.map((v) => (
+            <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="shrink-0">
+              {v.label}
+            </Chip>
+          ))}
         <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0" icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more}>
           Refine{activeCount ? ` · ${activeCount}` : ""}
         </Button>
