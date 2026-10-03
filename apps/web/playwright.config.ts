@@ -68,6 +68,7 @@ export default defineConfig({
         // Build first: NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so a stale
         // `.next` from a differently-configured build would silently test the wrong backend.
         command: `next build && next start -p ${PORT}`,
+        env: { ...process.env, WJ_DEMO_ENABLED: "1" },
         url: baseURL,
         timeout: 180_000,
         reuseExistingServer: false,
