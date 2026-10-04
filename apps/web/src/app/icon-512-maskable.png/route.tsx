@@ -4,9 +4,10 @@ import { brandMarkDataUri } from "@/server/brandMark";
 export const runtime = "nodejs";
 
 /**
- * PWA manifest icon (512×512, purpose "maskable"): the mark is padded well inside Android's
- * adaptive-icon safe zone rather than filling the canvas edge to edge, so the launcher's own
- * mask never clips it. Served at a fixed path so manifest.ts can reference it.
+ * PWA manifest icon (512×512, purpose "maskable"): the mark is as large as fits inside the maskable
+ * safe zone (a centred circle, 80% of the canvas) — its wing tips just inside that circle — so it fills
+ * the installed icon without any launcher mask (circle, squircle, rounded square) clipping it.
+ * Served at a fixed path so manifest.ts can reference it.
  */
 export function GET() {
   return new ImageResponse(
@@ -22,7 +23,7 @@ export function GET() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brandMarkDataUri()} alt="" width={230} height={230} />
+        <img src={brandMarkDataUri()} alt="" width={330} height={330} />
       </div>
     ),
     { width: 512, height: 512 },
