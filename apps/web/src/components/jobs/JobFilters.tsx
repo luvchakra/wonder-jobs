@@ -53,7 +53,7 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
  * freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, widerInList, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The list itself offers "Search every source" (nothing on screen matches), so the line under the box isn't repeated. */ widerInList?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, widerInList, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The list itself offers "Search every source" (nothing on screen matches), so the line under the box isn't repeated. */ widerInList?: boolean; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
@@ -123,7 +123,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
         <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0" icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more}>
           Refine{activeCount ? ` · ${activeCount}` : ""}
         </Button>
-        <span className="ml-auto hidden shrink-0 pl-2 text-[13px] text-ink-3 sm:inline">{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
+        <span className={cn("ml-auto hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">

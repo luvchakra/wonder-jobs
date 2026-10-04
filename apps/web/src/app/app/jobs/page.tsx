@@ -95,6 +95,7 @@ function JobsHome() {
         </div>
       }
       empty={<JobsEmpty search={search} />}
+      searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
       sourceSearch={{
         run: (text, places) => {
           // The candidate's own search shows everything it finds, best answer first — not only profile fits.
