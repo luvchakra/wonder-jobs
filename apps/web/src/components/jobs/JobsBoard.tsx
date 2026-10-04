@@ -24,9 +24,10 @@ const PAGE = 24;
 /**
  * The job list: search box, cards, compare, "Why was this filtered". The jobs come first on the page;
  * `header` is only for a line that must be seen before them (a search in progress), `footer` for
- * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist.
+ * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
+ * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -98,6 +99,15 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
   }, [filterResult, jobs, matches, sort]);
 
   const visible = results.slice(0, limit);
+  // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
+  const summary = useMemo(() => {
+    if (savedOnly || header || !searched || !results.length) return null;
+    const what = effective.query.trim() || searched.query;
+    const where = effective.locations?.length ? effective.locations : searched.locations;
+    const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
+    const n = results.length.toLocaleString("en-IN");
+    return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} ${where.length ? `in ${where.join(", ")}` : "anywhere"} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
+  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
@@ -115,6 +125,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
     <div>
       {header}
       <JobFiltersBar
+        showCount={!summary}
         filters={effective}
         views={!savedOnly}
         onChange={(p) => {
@@ -153,6 +164,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
       ) : (
         <>
           <h2 className="wj-sr-only">Job results</h2>
+          {summary && <p className="mb-3 text-[13px] text-ink-3">{summary}</p>}
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
               <li key={id}>
