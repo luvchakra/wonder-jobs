@@ -143,8 +143,9 @@ await atHeight(png(dark, full), 240).toFile(path.join(OUT, "wonderjobs-lockup-da
 await atHeight(png(light, noTagline), 96).toFile(path.join(OUT, "wonderjobs-logo-light.png"));
 await atHeight(png(dark, noTagline), 96).toFile(path.join(OUT, "wonderjobs-logo-dark.png"));
 await atHeight(png(light, mark), 128).toFile(path.join(OUT, "wonder-mark.png"));
-// Square, padded copy for the favicon / PWA icon routes, which composite it onto the brand gradient.
-await png(light, mark).resize({ width: 512, height: 512, fit: "contain", background: TRANSPARENT }).toFile(path.join(OUT, "wonder-mark-square.png"));
+// Square, padded copy for the favicon / PWA icon routes, which composite it onto the brand gradient. Rendered
+// from the vector mark: the source art is cropped at the right wing tip, which showed on installed-app icons.
+await sharp(path.join(OUT, "wonder-mark.svg"), { density: 300 }).resize({ width: 512, height: 512, fit: "contain", background: TRANSPARENT }).png({ compressionLevel: 9 }).toFile(path.join(OUT, "wonder-mark-square.png"));
 
 const sizeOf = async (f) => { const m = await sharp(path.join(OUT, f)).metadata(); return `${f} ${m.width}x${m.height}`; };
 for (const f of ["wonderjobs-lockup-light.png", "wonderjobs-lockup-dark.png", "wonderjobs-logo-light.png", "wonderjobs-logo-dark.png", "wonder-mark.png", "wonder-mark-square.png"]) console.log(" ", await sizeOf(f));
