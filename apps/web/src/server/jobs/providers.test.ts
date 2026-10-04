@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { museLocation, rawFromMuse, rawFromSmartRecruiters, SMARTRECRUITERS_COMPANIES } from "./providers";
+import { museLocation, rawFromJazzFeed, rawFromMuse, rawFromSmartRecruiters, SMARTRECRUITERS_COMPANIES } from "./providers";
 
 describe("rawFromSmartRecruiters", () => {
   const swiggy = SMARTRECRUITERS_COMPANIES[0];
@@ -33,5 +33,36 @@ describe("rawFromMuse", () => {
     expect(museLocation("Gurugram")).toBe("Gurgaon, India");
     expect(museLocation("Pune")).toBe("Pune, India");
     expect(museLocation("London, United Kingdom")).toBe("London, United Kingdom");
+  });
+});
+
+describe("JazzHR feed", () => {
+  const xml = `<?xml version="1.0"?><jobs><company>Eclipse Foundation, Inc.</company>
+  <job><id>job_20260820192623_KFUNIZLPMWNMOTHF</id><status>Open</status><title>Front-End Web Developer (Remote)</title><department></department>
+  <url>https://eclipsefoundation.applytojob.com/apply/9on6pUD4qF/FrontEnd-Web-Developer</url><city>Ottawa</city><state>ON</state><country>Canada</country>
+  <type>Full Time</type><experience>Mid Level</experience><description>&lt;p&gt;Build &amp;amp; ship&lt;/p&gt;</description></job>
+  <job><id>job_20260101000000_CLOSED</id><status>Closed</status><title>Old role</title><url>https://x.applytojob.com/apply/1</url></job>
+  </jobs>`;
+
+  it("reads open jobs with the employer's page, place, and the posting date from the job id", () => {
+    const jobs = rawFromJazzFeed("eclipsefoundation", xml);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      externalId: "jz:eclipsefoundation:job_20260820192623_KFUNIZLPMWNMOTHF",
+      title: "Front-End Web Developer (Remote)",
+      company: "Eclipse Foundation, Inc.",
+      location: "Remote · Ottawa, ON, Canada",
+      remote: true,
+      postedAt: "2026-08-20T19:26:23Z",
+      applyUrl: "https://eclipsefoundation.applytojob.com/apply/9on6pUD4qF/FrontEnd-Web-Developer",
+      tags: ["Full Time", "Mid Level"],
+      employerSite: true,
+    });
+    expect(jobs[0].description).toContain("<p>Build");
+  });
+
+  it("reads an empty or unknown feed as no jobs", () => {
+    expect(rawFromJazzFeed("x", "<jobs><company>X</company></jobs>")).toEqual([]);
+    expect(rawFromJazzFeed("x", "")).toEqual([]);
   });
 });

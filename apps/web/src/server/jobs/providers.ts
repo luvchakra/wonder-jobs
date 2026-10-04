@@ -153,6 +153,69 @@ const adzunaIn: SourceFetcher = {
   },
 };
 
+/* ---------- JazzHR career sites (public XML job feed per company; no key) ---------- */
+/** JazzHR companies verified to have a public feed with open roles (2026-10), weighted to India and remote hiring. */
+export const JAZZHR_COMPANIES = ["ebizon", "procdna", "evertz", "arangodb", "kmkconsultinginc", "marketoneinternationalindia", "hackerearth", "brightvisiontechnologies", "axiomcloud", "eclipsefoundation"];
+
+const xmlText = (s: string) =>
+  s
+    .replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
+const xmlField = (block: string, tag: string) => {
+  const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
+  return m ? xmlText(m[1]) : "";
+};
+
+/** One JazzHR feed (`app.jazz.co/feeds/export/jobs/<company>`) as postings. The feed has no date field; the job id starts with when it was posted. */
+export function rawFromJazzFeed(subdomain: string, xml: string): RawPosting[] {
+  const company = xmlField(xml.split("<job>")[0] ?? "", "company") || subdomain;
+  return [...xml.matchAll(/<job>([\s\S]*?)<\/job>/g)].flatMap(([, b]) => {
+    const id = xmlField(b, "id");
+    const status = xmlField(b, "status");
+    if (!id || (status && !/^open$/i.test(status))) return [];
+    const title = xmlField(b, "title");
+    const place = [xmlField(b, "city"), xmlField(b, "state"), xmlField(b, "country")].filter(Boolean).join(", ");
+    const remote = /\bremote\b/i.test(title);
+    const ts = id.match(/^job_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    return [
+      {
+        externalId: `jz:${subdomain}:${id}`,
+        title,
+        company,
+        location: remote ? ["Remote", place].filter(Boolean).join(" · ") : place,
+        remote,
+        description: xmlField(b, "description") || title,
+        tags: [xmlField(b, "department"), xmlField(b, "type"), xmlField(b, "experience")].filter(Boolean),
+        postedAt: ts ? `${ts[1]}-${ts[2]}-${ts[3]}T${ts[4]}:${ts[5]}:${ts[6]}Z` : null,
+        applyUrl: xmlField(b, "url"),
+        seniorityHint: xmlField(b, "experience") || null,
+        employerSite: true,
+        applyPath: "employer_site" as const,
+      },
+    ];
+  });
+}
+
+const jazzhr: SourceFetcher = {
+  id: "jazzhr",
+  available: () => true,
+  async fetch(c) {
+    const feeds = await Promise.all(
+      JAZZHR_COMPANIES.map(async (sub) => {
+        const res = await fetch(`https://app.jazz.co/feeds/export/jobs/${sub}`, { headers: { accept: "application/xml, text/xml", "user-agent": UA }, next: { revalidate: REVALIDATE } }).catch(() => null);
+        // The feed answers XML labelled text/html; an unknown company is a 404.
+        return res?.ok ? rawFromJazzFeed(sub, await res.text()) : [];
+      }),
+    );
+    return finish("jazzhr", feeds.flat(), c);
+  },
+};
+
 /* ---------- Company career sites (Greenhouse / Lever / Ashby) ---------- */
 /** Boards verified to be public. Extend freely; unknown slugs are skipped gracefully. */
 export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: string; company: string; domain: string }[] = [
@@ -358,7 +421,7 @@ const themuse: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn, jazzhr };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

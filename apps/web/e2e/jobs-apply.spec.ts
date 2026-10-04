@@ -325,11 +325,15 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
+    // Only the first step is open; the rest open as the candidate reaches them.
+    await page.getByText("Your details", { exact: true }).click();
     await expect(page.getByText("+91 90000 00000")).toBeVisible();
     await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
     if (info.project.name === "chromium") {
+      await page.getByText("Attach your documents", { exact: true }).click();
       const [resume] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download" }).first().click()]);
       expect(resume.suggestedFilename()).toMatch(/Resume.*\.docx$/);
+      await page.getByText("Options", { exact: true }).click();
       const [zip] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download Application Pack" }).first().click()]);
       expect(zip.suggestedFilename()).toMatch(/^Application_Pack_.*\.zip$/);
     }

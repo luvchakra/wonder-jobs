@@ -79,6 +79,8 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Clearing a typed search brings your results back; a bare place searches your roles there (WJ-221)
 - ✅ One search action when nothing matches; "None of your jobs are in Singapore" (WJ-222)
 - ✅ "Showing N jobs for … in … from N sources" above the list (WJ-223)
+- ✅ Simpler Apply with Wonder page: one open step, the rest folded (WJ-224)
+- ✅ JazzHR career sites as a job source (WJ-225)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
