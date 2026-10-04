@@ -29,6 +29,9 @@ interface JobsState {
   linkOpenAt: Record<string, string>;
   markClosed: (jobId: string, reason: string) => void;
   markLinkOpen: (jobIds: string[]) => void;
+  /** For a job board's posting (Adzuna): the site it lives on, as found by following its link (jobId → "naukri.com"). */
+  origins: Record<string, string>;
+  setOrigins: (byJob: Record<string, string>) => void;
   filters: JobFilters;
   sort: JobSort;
   loaded: boolean;
@@ -67,12 +70,14 @@ export const useJobsStore = create<JobsState>()(
       rejected: {},
       closed: {},
       linkOpenAt: {},
+      origins: {},
       markClosed: (jobId, reason) =>
         set((s) => {
           const closed = { ...s.closed, [jobId]: { at: new Date().toISOString(), reason } };
           if (s.saved[jobId]) return { closed };
           return { closed, order: s.order.filter((id) => id !== jobId) };
         }),
+      setOrigins: (byJob) => set((s) => ({ origins: { ...s.origins, ...byJob } })),
       markLinkOpen: (ids) => set((s) => ({ linkOpenAt: { ...s.linkOpenAt, ...Object.fromEntries(ids.map((id) => [id, new Date().toISOString()])) } })),
       filters: DEFAULT_FILTERS,
       sort: "best_match",
@@ -177,7 +182,7 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState>;
-        return { ...current, ...p, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {} };
+        return { ...current, ...p, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {} };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -185,7 +190,8 @@ export const useJobsStore = create<JobsState>()(
         const recent = Date.now() - 7 * 86_400_000;
         const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, searchedFor: s.searchedFor };
+        const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor };
         if (getClientMode().mode !== "user") return base;
         const keep = new Set<string>(Object.keys(s.saved));
         for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {

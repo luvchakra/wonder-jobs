@@ -4,6 +4,7 @@ import { Bookmark, MapPin, ThumbsDown } from "lucide-react";
 import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
+import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
@@ -32,6 +33,8 @@ export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): strin
 
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
+  // The site a board's posting lives on ("naukri.com"), once its link has been followed.
+  const origin = useJobsStore((s) => s.origins[job.id]);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
       <div className="flex items-start gap-3">
@@ -97,7 +100,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
         {match && <FitLabel fit={match.fit} score={match.score} />}
         {status && <Badge tone="info">{status}</Badge>}
         <span className="ml-auto truncate text-[12px] text-ink-4">
-          {sourceLine(job) ? `via ${sourceLine(job)} · ` : ""}
+          {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}
         </span>
       </div>

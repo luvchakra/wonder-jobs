@@ -11,6 +11,8 @@ export interface LinkCheck {
   status: LinkStatus;
   /** Why, in plain words — shown to the candidate when a job is removed. */
   reason?: string;
+  /** For a job board's posting: the site it lives on ("naukri.com"), where its link was found to land. */
+  origin?: string;
 }
 
 const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -48,32 +50,22 @@ export function classifyLink(r: { status: number; text: string }): LinkCheck {
 }
 
 const TTL: Record<LinkStatus, number> = { open: 6 * 3_600_000, closed: 24 * 3_600_000, unknown: 30 * 60_000 };
-const cache = new Map<string, { check: LinkCheck; at: number }>();
+/** A check plus where the link finally landed (after redirects), when it could be followed. Server-side only. */
+export type FollowedLinkCheck = LinkCheck & { finalUrl?: string };
+const cache = new Map<string, { check: FollowedLinkCheck; at: number }>();
 const MAX_CACHE = 5_000;
 
-export async function checkJobLink(url: string, now = Date.now()): Promise<LinkCheck> {
+export async function checkJobLink(url: string, now = Date.now()): Promise<FollowedLinkCheck> {
   const hit = cache.get(url);
   if (hit && now - hit.at < TTL[hit.check.status]) return hit.check;
-  let check: LinkCheck;
+  let check: FollowedLinkCheck;
   try {
     const r = await safeFetch(url, { timeoutMs: 7_000, maxBytes: 600_000, maxRedirects: 5, headers: { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml" } });
-    check = classifyLink(r);
+    check = { ...classifyLink(r), finalUrl: r.finalUrl };
   } catch {
     check = { status: "unknown" }; // unreachable or blocked destination: say nothing rather than guess
   }
   if (cache.size >= MAX_CACHE) cache.delete(cache.keys().next().value!);
   cache.set(url, { check, at: now });
   return check;
-}
-
-/** Several links, a few at a time. */
-export async function checkJobLinks(urls: string[], concurrency = 6): Promise<Record<string, LinkCheck>> {
-  const out: Record<string, LinkCheck> = {};
-  const queue = [...new Set(urls)];
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-      for (let u = queue.shift(); u; u = queue.shift()) out[u] = await checkJobLink(u);
-    }),
-  );
-  return out;
 }

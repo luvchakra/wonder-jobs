@@ -75,6 +75,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Rename template-generated résumés (WJ-217)
 - ✅ Installed-app icon shows the whole butterfly (WJ-218)
 - ✅ Bigger butterfly on the app icon (WJ-219)
+- ✅ Adzuna jobs show the site they live on, resolved once and shared (WJ-220)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
