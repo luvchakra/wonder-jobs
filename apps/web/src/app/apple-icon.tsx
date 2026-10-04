@@ -19,7 +19,7 @@ export default function AppleIcon() {
         }}
       >
         { }
-        <img src={brandMarkDataUri()} alt="" width={122} height={122} />
+        <img src={brandMarkDataUri()} alt="" width={150} height={150} />
       </div>
     ),
     { ...size },

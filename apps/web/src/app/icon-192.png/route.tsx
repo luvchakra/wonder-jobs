@@ -18,7 +18,7 @@ export function GET() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brandMarkDataUri()} alt="" width={126} height={126} />
+        <img src={brandMarkDataUri()} alt="" width={158} height={158} />
       </div>
     ),
     { width: 192, height: 192 },
