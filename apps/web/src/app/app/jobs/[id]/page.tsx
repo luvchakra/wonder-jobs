@@ -41,6 +41,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const match = useJobsStore((s) => s.matches[id]);
   const quality = useJobsStore((s) => s.quality[id]);
   const saved = useJobsStore((s) => !!s.saved[id]);
+  const origin = useJobsStore((s) => s.origins[id]);
   const rejected = useJobsStore((s) => !!s.rejected[id]);
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
@@ -131,7 +132,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     <Clock className="size-3.5" aria-hidden /> Posted {relativeTime(job.postedAt)}
                   </span>
                   <span>•</span>
-                  <span>via {sources.map((s) => s.name).join(", ")}</span>
+                  <span>
+                    {origin ? `On ${origin}, via ` : "via "}
+                    {sources.map((s) => s.name).join(", ")}
+                  </span>
                 </div>
               </div>
             </div>

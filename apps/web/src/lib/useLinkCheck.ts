@@ -16,6 +16,16 @@ export const closedReason = (url: string, reason?: string) => {
   return `Closed on ${host}${reason ? `: ${reason}` : ""}`;
 };
 
+/** A job board's posting whose site isn't known yet is checked even if it was found open recently. */
+const needsOrigin = (jobId: string) => {
+  const { jobs, origins } = useJobsStore.getState();
+  return !!jobs[jobId]?.sourceIds.includes("adzuna_in") && !origins[jobId];
+};
+const keepOrigins = (pairs: [string, string | undefined][]) => {
+  const found = Object.fromEntries(pairs.filter((p): p is [string, string] => !!p[1]));
+  if (Object.keys(found).length) useJobsStore.getState().setOrigins(found);
+};
+
 async function check(urls: string[]): Promise<Record<string, LinkCheck>> {
   const res = await fetch("/api/jobs/link-check", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ urls }) });
   if (!res.ok) return {};
@@ -34,7 +44,7 @@ export function useLinkCheck(jobIds: string[]) {
   useEffect(() => {
     if (mode !== "user" || !jobIds.length) return;
     const { jobs, linkOpenAt, closed } = useJobsStore.getState();
-    const due = jobIds.filter((id) => jobs[id]?.applyUrl && !closed[id] && !inFlight.current.has(id) && !(linkOpenAt[id] && Date.now() - Date.parse(linkOpenAt[id]) < RECHECK_MS)).slice(0, BATCH);
+    const due = jobIds.filter((id) => jobs[id]?.applyUrl && !closed[id] && !inFlight.current.has(id) && !(linkOpenAt[id] && Date.now() - Date.parse(linkOpenAt[id]) < RECHECK_MS && !needsOrigin(id))).slice(0, BATCH);
     if (!due.length) return;
     due.forEach((id) => inFlight.current.add(id));
     const urlFor = new Map(due.map((id) => [id, jobs[id].applyUrl]));
@@ -48,6 +58,7 @@ export function useLinkCheck(jobIds: string[]) {
           else if (r?.status === "open") open.push(id);
         }
         if (open.length) store.markLinkOpen(open);
+        keepOrigins([...urlFor].map(([id, url]) => [id, results[url]?.origin]));
       })
       .catch(() => {})
       .finally(() => due.forEach((id) => inFlight.current.delete(id)));
@@ -60,8 +71,9 @@ export async function checkOneJobLink(jobId: string): Promise<LinkCheck | null> 
   const { jobs, linkOpenAt } = useJobsStore.getState();
   const url = jobs[jobId]?.applyUrl;
   if (!url) return null;
-  if (linkOpenAt[jobId] && Date.now() - Date.parse(linkOpenAt[jobId]) < RECHECK_MS) return { status: "open" };
+  if (linkOpenAt[jobId] && Date.now() - Date.parse(linkOpenAt[jobId]) < RECHECK_MS && !needsOrigin(jobId)) return { status: "open" };
   const r = (await check([url]).catch(() => ({}) as Record<string, LinkCheck>))[url] ?? null;
+  keepOrigins([[jobId, r?.origin]]);
   if (r?.status === "closed") useJobsStore.getState().markClosed(jobId, closedReason(url, r.reason));
   if (r?.status === "open") useJobsStore.getState().markLinkOpen([jobId]);
   return r;
