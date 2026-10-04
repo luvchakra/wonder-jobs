@@ -18,7 +18,7 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "work_mode", "sou
  * an explanation the candidate can act on. Always pairs the two required actions: relax everything at
  * once, or go make the underlying preference change deliberately.
  */
-export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void } }) {
+export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] } }) {
   if (result.hiddenTotal === 0) return null;
   const reasons = REASON_ORDER.filter((r) => result.hiddenByReason[r]).sort((a, b) => (result.hiddenByReason[b] ?? 0) - (result.hiddenByReason[a] ?? 0));
   // "Show me anyway" clears every preference filter but never un-hides a job marked "not for me" —
@@ -33,7 +33,9 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", s
         <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
           <Search className="size-5" aria-hidden />
         </div>
-        <h2 className="text-base font-semibold text-ink">None of your {result.totalCatalog} jobs match</h2>
+        <h2 className="text-base font-semibold text-ink">
+          None of your {result.totalCatalog} jobs {search.places?.length ? `are in ${search.places.join(" or ")}` : "match"}
+        </h2>
         <p className="mt-1 max-w-sm text-sm text-ink-3">Search every source for {search.label}.</p>
         <Button className="mt-5" onClick={search.run} icon={<Search className="size-4" aria-hidden />}>
           Search every source

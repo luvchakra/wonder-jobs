@@ -53,7 +53,7 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
  * freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, widerInList, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The list itself offers "Search every source" (nothing on screen matches), so the line under the box isn't repeated. */ widerInList?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const [more, setMore] = useState(false);
   // Say it instead of typing it: the words land in the box, to fix before searching every source.
   const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
@@ -108,7 +108,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      {wider && (
+      {wider && !widerInList && (
         <button type="button" onClick={() => sourceSearch!.run(typed, splitPlaces(where))} className="-mt-1 inline-flex min-h-9 items-center self-start rounded-full px-1 text-left text-[13px] font-medium text-brand-600 hover:underline">
           Search every source for {wider} ›
         </button>

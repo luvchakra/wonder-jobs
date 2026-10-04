@@ -13,6 +13,7 @@ import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { fieldTerms } from "@/services/jobs/matching";
+import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { useCareerStore } from "@/store/career";
 import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
@@ -97,6 +98,13 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
   }, [filterResult, jobs, matches, sort]);
 
   const visible = results.slice(0, limit);
+  // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
+  const typed = effective.query.trim();
+  const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
+  const typedPlaces = useMemo(() => {
+    const i = deriveSearchIntent(typed);
+    return !i.query && i.locations.length ? i.locations : undefined;
+  }, [typed]);
   // The jobs on screen are checked against their own sites; closed ones leave the list.
   useLinkCheck(visible);
   const closed = useJobsStore((s) => s.closed);
@@ -123,6 +131,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
           if (!on) setCompare([]);
         }}
         sourceSearch={sourceSearch}
+        widerInList={searchInEmpty}
         refineTop={refineTop}
         className="mb-4"
       />
@@ -136,7 +145,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, save
             }}
             variant="empty"
             // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
-            search={sourceSearch && effective.query.trim() && filterResult.hiddenByReason.search_text ? { label: sourceSearch.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch.run(effective.query.trim(), effective.locations ?? []) } : undefined}
+            search={searchInEmpty ? { label: sourceSearch!.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch!.run(effective.query.trim(), effective.locations ?? []), places: typedPlaces } : undefined}
           />
         ) : (
           empty
