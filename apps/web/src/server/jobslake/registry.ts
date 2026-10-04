@@ -11,7 +11,7 @@ import type { Job } from "@/domain/jobs/types";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { PROTOCOL_VERSION, type SourceStatus } from "@/domain/jobslake/protocol";
 import type { Depth } from "@/domain/jobslake/planner";
-import { CAREER_BOARDS, finish, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
+import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
 import { fetchFeed, fetchJsonApi, fetchMcp, fetchStructured } from "./custom";
 import { readCredential } from "./credentials";
@@ -35,6 +35,7 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "lever", name: "Lever", provider: "Lever", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, description: `Lever Postings API — career sites of ${companies("lever")}.` }),
   builtin({ id: "ashby", name: "Ashby", provider: "Ashby", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, description: `Ashby Job Posting API — career sites of ${companies("ashby")}.` }),
   builtin({ id: "smartrecruiters", name: "SmartRecruiters career sites", provider: "SmartRecruiters", category: "ats", accessStrategy: "official_api", geography: ["IN", "global"], legacySourceId: "smartrecruiters", capabilities: ATS_CAPS, description: `SmartRecruiters public Posting API — career sites of ${SMARTRECRUITERS_COMPANIES.map((c) => c.company).join(", ")}.` }),
+  builtin({ id: "jazzhr", name: "JazzHR career sites", provider: "JazzHR", category: "ats", accessStrategy: "official_api", geography: ["IN", "global", "remote"], legacySourceId: "jazzhr", capabilities: ATS_CAPS, description: `JazzHR public job feed — career sites of ${JAZZHR_COMPANIES.join(", ")}.` }),
   builtin({ id: "themuse", name: "The Muse", provider: "The Muse", category: "aggregator", accessStrategy: "official_api", geography: ["global", "IN"], legacySourceId: "themuse", capabilities: FEED_CAPS, description: legacyNote("themuse") }),
   builtin({ id: "remotive", name: "Remotive", provider: "Remotive", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "remotive", capabilities: FEED_CAPS, description: legacyNote("remotive") }),
   builtin({ id: "jobicy", name: "Jobicy", provider: "Jobicy", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "jobicy", capabilities: [...FEED_CAPS, "Salary"], description: legacyNote("jobicy") }),

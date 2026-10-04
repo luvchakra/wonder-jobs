@@ -1,7 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, PauseCircle, RefreshCw, XCircle } from "lucide-react";
+import { Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
 import { destinationFor } from "@/domain/jobs-apply/destination";
@@ -41,6 +41,7 @@ import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
@@ -780,7 +781,6 @@ export default function ApplyWithWonderPage({
                   memory={answerMemory}
                   onOpen={openEmployer}
                   onDownloadFile={downloadFile}
-                  onExport={() => exportPack()}
                   onRemember={rememberAnswer}
                 />
               )}
@@ -797,15 +797,18 @@ export default function ApplyWithWonderPage({
               {!guided && (
                 <FilledSummary session={s} progress={view.progress} />
               )}
-              <Card aria-labelledby="wj-controls">
-                <h2
-                  id="wj-controls"
-                  className="text-[15px] font-semibold text-ink"
-                >
-                  How much should Wonder do?
-                </h2>
+              {helperInstalled === false && !guided && (
+                <p className="text-[12px] text-ink-2">
+                  The browser helper isn&apos;t installed.{" "}
+                  <Link href="/extension" className="font-medium text-brand-600 hover:underline">
+                    Install it
+                  </Link>
+                  , or choose Guide me under Options.
+                </p>
+              )}
+              {/* Everything that isn't the next step: how much Wonder does, stop, the pack, cancel. */}
+              <Fold title="Options" hint={`${s.mode === "guided" ? "Guide me" : s.mode === "assisted" ? "Fill for me" : "Independently"} · stop, download or cancel`}>
                 <Segmented
-                  className="mt-3"
                   size="sm"
                   label="How much should Wonder do?"
                   value={s.mode}
@@ -830,31 +833,16 @@ export default function ApplyWithWonderPage({
                         ? "The helper fills safe fields as soon as the form opens."
                         : "Your “Fill application forms” setting is Ask, so the helper still waits for your click."}
                 </p>
-                <div className="mt-4 flex flex-col gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={openEmployer}
-                    iconRight={
-                      <ExternalLink className="size-3.5" aria-hidden />
-                    }
-                  >
-                    Open application
-                  </Button>
-                  {!guided && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => pair(s.id)}
-                      icon={<RefreshCw className="size-3.5" aria-hidden />}
-                    >
+                <div className="mt-3 flex flex-col items-start gap-1">
+                  {!guided && helperConnected === false && helperInstalled !== false && (
+                    <Button size="sm" variant="ghost" onClick={() => pair(s.id)} icon={<RefreshCw className="size-3.5" aria-hidden />}>
                       Reconnect helper
                     </Button>
                   )}
-                  {!s.stopped && (
+                  {!s.stopped && !guided && (
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() =>
                         withSession(
                           (id) => jobsApplyApi.act(id, "stop"),
@@ -865,14 +853,10 @@ export default function ApplyWithWonderPage({
                       }
                       icon={<PauseCircle className="size-3.5" aria-hidden />}
                     >
-                      Stop
+                      Stop the helper
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => exportPack()}
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => exportPack()} icon={<Download className="size-3.5" aria-hidden />}>
                     Download Application Pack
                   </Button>
                   <Button
@@ -889,19 +873,7 @@ export default function ApplyWithWonderPage({
                     Cancel this application
                   </Button>
                 </div>
-                {helperInstalled === false && !guided && (
-                  <p className="mt-3 text-[12px] text-ink-2">
-                    The browser helper isn&apos;t installed.{" "}
-                    <Link
-                      href="/extension"
-                      className="font-medium text-brand-600 hover:underline"
-                    >
-                      Install it
-                    </Link>
-                    , or choose Guide me.
-                  </p>
-                )}
-              </Card>
+              </Fold>
             </aside>
           </div>
         </>

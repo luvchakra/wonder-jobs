@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, Copy, Download, ExternalLink, FileText, Package } from "lucide-react";
+import { Check, ChevronDown, Copy, Download, ExternalLink, FileText } from "lucide-react";
 import { memoryKeyFor } from "@/domain/jobs-apply/classify";
 import { freshMemory, MEMORY_LABEL, PROFILE_LABEL } from "@/domain/jobs-apply/profile";
 import type { ApplicationPackSnapshot, MemoryKey, PackAnswer, RememberedAnswer } from "@/domain/jobs-apply/types";
@@ -95,20 +95,22 @@ function AnswerField({ question, memoryKey, onRemember }: { question: string; me
   );
 }
 
-function Step({ n, title, hint, children }: { n: number; title: string; hint?: string; children: React.ReactNode }) {
+/** One step of the form. Only the first is open; the rest open when the candidate reaches them. */
+function Step({ n, title, hint, open = false, children }: { n: number; title: string; hint?: string; open?: boolean; children: React.ReactNode }) {
   return (
-    <section className="mt-5 first:mt-0" aria-label={title}>
-      <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-brand-600 text-[12px] font-semibold text-white" aria-hidden>
+    <details open={open} className="group border-t border-line py-3 first:border-t-0 first:pt-0" aria-label={title}>
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-600 text-[12px] font-semibold text-white" aria-hidden>
           {n}
         </span>
-        <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-ink">{title}</h3>
-          {hint && <p className="text-[12.5px] text-ink-3">{hint}</p>}
-        </div>
-      </div>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-ink">{title}</span>
+          {hint && <span className="block text-[12.5px] text-ink-3">{hint}</span>}
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
       <div className="mt-2.5 sm:ml-[34px]">{children}</div>
-    </section>
+    </details>
   );
 }
 
@@ -118,9 +120,8 @@ function Step({ n, title, hint, children }: { n: number; title: string; hint?: s
  * remembered answers, and AI drafts that say something; a draft that was only a note to fill in becomes a
  * field to answer once, remembered for the next form. Nothing here submits anything.
  */
-export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFile, onExport, onRemember }: { pack: ApplicationPackSnapshot; applyUrl: string; memory: RememberedAnswer[]; onOpen: () => void; onDownloadFile: (kind: "resume" | "cover_letter") => void; onExport: () => void; onRemember: (key: MemoryKey, value: string) => void }) {
+export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFile, onRemember }: { pack: ApplicationPackSnapshot; applyUrl: string; memory: RememberedAnswer[]; onOpen: () => void; onDownloadFile: (kind: "resume" | "cover_letter") => void; onRemember: (key: MemoryKey, value: string) => void }) {
   const fields = ORDER.filter((k) => pack.profile[k]);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Answers: remembered ones first (the candidate's own words), then drafts that say something, then what is still theirs to answer.
   const offered = new Set<MemoryKey>();
@@ -158,32 +159,16 @@ export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFi
       <h2 id="wj-guided" className="text-[18px] font-semibold text-ink">
         Fill the form with Wonder beside you
       </h2>
-      <p className="mt-1 text-[13px] text-ink-3">Everything the form asks for, one tap to copy. You press the employer&apos;s submit button yourself.</p>
+      <p className="mt-1 text-[13px] text-ink-3">Tap to copy. You press the employer&apos;s submit button yourself.</p>
 
-      <div className="mt-5 flex flex-col">
-        <Step n={1} title="Open the employer's page">
-          <p className="truncate text-[13px] text-ink-2" title={applyUrl} data-testid="wj-apply-url">
-            {shortUrl(applyUrl)}
-          </p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <Button onClick={onOpen} iconRight={<ExternalLink className="size-4" aria-hidden />}>
-              Open page
-            </Button>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!(await copy(applyUrl))) return;
-                setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 1500);
-              }}
-              icon={linkCopied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
-            >
-              {linkCopied ? "Copied" : "Copy link"}
-            </Button>
-          </div>
+      <div className="mt-4 flex flex-col">
+        <Step n={1} title="Open the employer's page" hint={shortUrl(applyUrl)} open>
+          <Button className="w-full sm:w-auto" onClick={onOpen} iconRight={<ExternalLink className="size-4" aria-hidden />} data-testid="wj-apply-url" title={applyUrl}>
+            Open page
+          </Button>
         </Step>
 
-        <Step n={2} title="Your details" hint={fields.length ? "Tap a line to copy it." : undefined}>
+        <Step n={2} title="Your details" hint={fields.length ? `${fields.length} to copy` : "None in your Career Profile yet"}>
           {fields.length ? (
             <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line">
               {fields.map((k) => (
@@ -195,7 +180,7 @@ export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFi
           )}
         </Step>
 
-        <Step n={3} title="Attach your documents">
+        <Step n={3} title="Attach your documents" hint={[pack.resume && "Résumé", pack.coverLetter && "cover letter"].filter(Boolean).join(" and ") || undefined}>
           <ul className="flex flex-col gap-2">
             {pack.resume && (
               <li className="flex items-center gap-3 rounded-[14px] border border-line p-3">
@@ -237,7 +222,7 @@ export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFi
         </Step>
 
         {(ready.length > 0 || toAnswer.length > 0) && (
-          <Step n={4} title="Answers the form may ask for" hint="Tap to copy. Anything Wonder can't know, you answer once and it's remembered.">
+          <Step n={4} title="Answers the form may ask for" hint={`${ready.length} ready${toAnswer.length ? ` · ${toAnswer.length} for you to answer once` : ""}`}>
             <ul className="divide-y divide-line overflow-hidden rounded-[14px] border border-line">
               {ready.map((r) => (
                 <CopyRow key={r.key} label={r.label} value={r.value} note={r.note} multiline />
@@ -250,13 +235,10 @@ export function GuidedApplication({ pack, applyUrl, memory, onOpen, onDownloadFi
         )}
       </div>
 
-      <p className="mt-5 text-[12px] text-ink-4">
+      <p className="mt-3 text-[12px] text-ink-4">
         {onForm.length ? `On the form itself: ${onForm.join("; ")}. ` : ""}
         Work authorization, sponsorship, salary and any legal or demographic questions are yours to answer there.
       </p>
-      <Button className="mt-3" variant="ghost" size="sm" onClick={onExport} icon={<Package className="size-4" aria-hidden />}>
-        Download everything as one pack
-      </Button>
     </Card>
   );
 }
