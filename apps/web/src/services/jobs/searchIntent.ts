@@ -61,6 +61,20 @@ export function deriveSearchIntent(raw: string): SearchIntent {
     rolePart = rolePart.slice(0, m.index).trim();
     break;
   }
+  // Only places, no "in" ("Singapore", "Mumbai or Pune"): where to look, not a job title.
+  if (!locations.length) {
+    const pieces = rolePart.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/i).map((p) => p.trim().replace(/[.!?]+$/, "")).filter(Boolean);
+    if (pieces.length && pieces.every((p) => KNOWN_PLACES.test(p) || MODE_WORDS[p.toLowerCase()])) {
+      for (const piece of pieces) {
+        const mode = MODE_WORDS[piece.toLowerCase()];
+        if (mode) workModes.add(mode);
+        if (mode === "remote") locations.push("Remote");
+        else if (!mode) locations.push(titleCase(piece.toLowerCase()));
+      }
+      derived.push({ field: "locations", label: "Where", value: locations.join(", "), from: rolePart.trim() });
+      rolePart = "";
+    }
+  }
   // Work-mode words anywhere else in the request ("remote IAM roles").
   for (const [word, mode] of Object.entries(MODE_WORDS)) {
     if (new RegExp(`\\b${word.replace(/[-]/g, "[- ]")}\\b`, "i").test(text) && !workModes.has(mode)) {

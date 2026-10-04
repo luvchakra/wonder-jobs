@@ -76,6 +76,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Installed-app icon shows the whole butterfly (WJ-218)
 - ✅ Bigger butterfly on the app icon (WJ-219)
 - ✅ Adzuna jobs show the site they live on, resolved once and shared (WJ-220)
+- ✅ Clearing a typed search brings your results back; a bare place searches your roles there (WJ-221)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

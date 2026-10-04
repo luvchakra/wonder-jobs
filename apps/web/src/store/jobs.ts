@@ -41,6 +41,10 @@ interface JobsState {
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
   replaceCatalog: (jobs: CanonicalJob[], searchedFor?: string) => void;
+  /** The profile's results as they were before a search for typed words replaced them (this session only). */
+  beforeWords?: { jobs: Record<string, CanonicalJob>; order: string[]; matches: Record<string, JobMatch> };
+  /** Clearing the typed words: bring the profile's results back. False when there's nothing kept to restore. */
+  restoreProfileCatalog: () => boolean;
   setMatches: (matches: JobMatch[]) => void;
   setQuality: (quality: JobQuality[]) => void;
   save: (jobId: string) => void;
@@ -118,8 +122,19 @@ export const useJobsStore = create<JobsState>()(
           // A posting found closed in the last week isn't brought back by a source that still lists it.
           const recent = Date.now() - 7 * 86_400_000;
           const live = list.filter((j) => !(s.closed[j.id] && Date.parse(s.closed[j.id].at) > recent && !s.saved[j.id]));
-          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true, searchedFor };
+          // Words searched on top of the profile's results keep those results aside, so clearing the words brings them back.
+          const beforeWords = !searchedFor ? undefined : s.searchedFor ? s.beforeWords : s.order.length ? { jobs: s.jobs, order: s.order, matches: Object.fromEntries(s.order.flatMap((id) => (s.matches[id] ? [[id, s.matches[id]] as const] : []))) } : undefined;
+          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true, searchedFor, beforeWords };
         }),
+      restoreProfileCatalog: () => {
+        const kept = get().beforeWords;
+        if (!kept) return false;
+        const recent = Date.now() - 7 * 86_400_000;
+        const order = kept.order.filter((id) => kept.jobs[id] && !(get().closed[id] && Date.parse(get().closed[id].at) > recent && !get().saved[id]));
+        // The profile search's own scores come back too (the words' search re-scored any job both found).
+        set((s) => ({ jobs: kept.jobs, order, matches: { ...s.matches, ...kept.matches }, searchedFor: "", beforeWords: undefined }));
+        return true;
+      },
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
       save: (jobId) => {

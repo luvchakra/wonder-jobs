@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo } from "react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
-import { autoSearchDecision, jobsReadiness, latestSearchRun, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
+import { autoSearchDecision, catalogSearchRun, jobsReadiness, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { useCareerStore } from "@/store/career";
@@ -122,7 +122,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   }, [files, baseResume]);
   const scheduledWorkflows = useMemo(() => Object.values(schedules).map((s) => workflows[s.workflowId]).filter((w): w is NonNullable<typeof w> => !!w), [schedules, workflows]);
   const readiness = useMemo(() => jobsReadiness({ dna, roles, sources, resumeFileIds, scheduledWorkflows }), [dna, roles, sources, resumeFileIds, scheduledWorkflows]);
-  const last = useMemo(() => latestSearchRun(Object.values(runs)), [runs]);
+  const searchedFor = useJobsStore((s) => s.searchedFor);
+  const last = useMemo(() => catalogSearchRun(Object.values(runs), searchedFor), [runs, searchedFor]);
   const catalogSize = order.filter((id) => !rejected[id]).length;
 
   const search = useCallback(
@@ -159,12 +160,14 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   const searchWords = useCallback(
     async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
-      if (!intent.query) return null;
+      // Only places typed ("Singapore"): the profile's own roles, there.
+      const query = intent.query || (intent.locations.length ? readiness.query : "");
+      if (!query) return null;
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
-      return sayBusy(search({ query: intent.query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
+      return sayBusy(search({ query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
     },
-    [search, sources, readiness.locations],
+    [search, sources, readiness.locations, readiness.query],
   );
 
   const searchAsRole = useCallback(

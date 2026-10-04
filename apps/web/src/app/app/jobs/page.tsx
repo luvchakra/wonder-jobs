@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
+import type { JobFilters } from "@/domain/jobs/types";
 import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, useJobSearch } from "@/lib/useJobSearch";
@@ -41,6 +42,26 @@ function JobsHome() {
   }, [params, search, router]);
   // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet.
   const [pickedRole, setPickedRole] = useState<string | null | undefined>(undefined);
+
+  // Clearing the typed words brings back the profile's results and view as they were before the words
+  // were searched — not what's left of the words' results. (After a reload nothing is kept: search again.)
+  const query = useJobsStore((s) => s.filters.query);
+  const fitBeforeWords = useRef<JobFilters["minFit"] | undefined>(undefined);
+  const typedBefore = useRef(query.trim());
+  useEffect(() => {
+    const was = typedBefore.current;
+    typedBefore.current = query.trim();
+    if (typedBefore.current || !was) return;
+    const t = setTimeout(() => {
+      const s = useJobsStore.getState();
+      if (s.filters.query.trim() || !s.searchedFor) return;
+      const restored = s.restoreProfileCatalog();
+      if (fitBeforeWords.current !== undefined) s.setFilters({ minFit: fitBeforeWords.current });
+      if (!restored) void search.searchNow({ locations: s.filters.locations ?? search.readiness.locations });
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the words change
+  }, [query]);
   const firstName = dna.name.split(" ")[0];
 
   if (search.readiness.blocker) {
@@ -77,7 +98,9 @@ function JobsHome() {
       sourceSearch={{
         run: (text, places) => {
           // The candidate's own search shows everything it finds, best answer first — not only profile fits.
-          useJobsStore.getState().setFilters({ minFit: null });
+          const s = useJobsStore.getState();
+          if (!s.searchedFor) fitBeforeWords.current = s.filters.minFit;
+          s.setFilters({ minFit: null });
           setPickedRole(undefined);
           void search.searchWords(text, places).then((run) => {
             if (run) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -85,7 +108,9 @@ function JobsHome() {
         },
         describe: (text, places) => {
           const d = describeWords(text, search.readiness.locations, places);
-          return d.query ? `“${d.query}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
+          // Only places typed: the profile's own roles, there.
+          const what = d.query || (d.fromWords ? search.readiness.query : "");
+          return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
         },
         places: search.readiness.locations,
         runPlaces: (places) => {

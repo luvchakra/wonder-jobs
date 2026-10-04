@@ -100,6 +100,20 @@ export function latestSearchRun(runs: WorkflowRun[]): WorkflowRun | undefined {
 }
 
 /**
+ * The search behind the jobs on screen (`searchedFor`: the typed words behind the catalog, "" for the
+ * profile's own search). Normally the latest search; but once typed words are cleared and the profile's
+ * results come back, it's the profile search that found them — so what the screen says it searched stays true.
+ */
+export function catalogSearchRun(runs: WorkflowRun[], searchedFor: string): WorkflowRun | undefined {
+  const latest = latestSearchRun(runs);
+  if (!latest || (latest.status !== "COMPLETED" && latest.status !== "COMPLETED_WITH_WARNINGS")) return latest;
+  const typed = (r: WorkflowRun) => (r.config.origin === "words" && !r.config.role ? r.config.searchCriteria.query.trim() : "");
+  const want = searchedFor.trim();
+  if (typed(latest) === want) return latest;
+  return latestSearchRun(runs.filter((r) => typed(r) === want)) ?? latest;
+}
+
+/**
  * Whether opening the jobs screen should search now, without a button: never when something blocks
  * it or a run is already going; yes when there's never been a search, the profile's search changed,
  * the catalog is empty, or the last search is more than 12 hours old. A search that failed in the last

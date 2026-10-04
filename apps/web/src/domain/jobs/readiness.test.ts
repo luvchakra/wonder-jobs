@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_DNA, type CareerDNA } from "@/domain/career/types";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
-import { autoSearchDecision, jobsReadiness, latestSearchRun, onlyLevel, widenSearch, type ReadinessInput } from "./readiness";
+import { autoSearchDecision, catalogSearchRun, jobsReadiness, latestSearchRun, onlyLevel, widenSearch, type ReadinessInput } from "./readiness";
 
 const source = (over: Partial<JobSource> = {}): JobSource => ({ id: "remotive", name: "Remotive", integrated: true, enabled: true, reliability: "high", color: "#000", short: "R", ...over });
 const iamDna: CareerDNA = {
@@ -120,5 +120,21 @@ describe("widening a search that found nothing", () => {
     expect(widenSearch("senior director svp iam", ["Mumbai"])).toEqual({ query: "senior director svp iam", locations: [], dropped: "the location (Mumbai)" });
     expect(widenSearch("senior director svp iam", [])).toEqual({ query: "iam", locations: [], dropped: "the level words" });
     expect(widenSearch("iam", [])).toBeNull();
+  });
+});
+
+describe("the search behind the jobs on screen", () => {
+  const profile = run({ id: "profile", createdAt: "2026-10-03T06:00:00.000Z" });
+  const words = run({ id: "words", createdAt: "2026-10-03T07:00:00.000Z", config: { origin: "words", searchCriteria: { query: "Singapore", locations: ["Singapore"], workModes: [] } } } as never);
+
+  it("is the typed search while its results are shown, and the profile's search once the words are cleared", () => {
+    expect(catalogSearchRun([profile, words], "Singapore")?.id).toBe("words");
+    expect(catalogSearchRun([profile, words], "")?.id).toBe("profile");
+  });
+
+  it("stays the latest search when it is still running or failed, so its status is what's shown", () => {
+    expect(catalogSearchRun([profile, { ...words, status: "RUNNING" } as WorkflowRun], "")?.id).toBe("words");
+    expect(catalogSearchRun([profile, { ...words, status: "FAILED" } as WorkflowRun], "")?.id).toBe("words");
+    expect(catalogSearchRun([words], "")?.id).toBe("words");
   });
 });
