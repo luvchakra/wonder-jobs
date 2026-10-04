@@ -73,6 +73,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Phone top bar: avatar left, brand centred (WJ-215)
 - ✅ Ask Wonder search icon beside the bell (WJ-216)
 - ✅ Rename template-generated résumés (WJ-217)
+- ✅ Installed-app icon shows the whole butterfly (WJ-218)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
