@@ -7,6 +7,14 @@ describe("deriveSearchIntent — a plain-language request becomes a search, with
     expect(deriveSearchIntent("IAM director roles in Mumbai")).toMatchObject({ query: "iam director", locations: ["Mumbai"] });
   });
 
+  it("reads a bare place as where to look, not a job title", () => {
+    expect(deriveSearchIntent("Singapore")).toMatchObject({ query: "", locations: ["Singapore"] });
+    expect(deriveSearchIntent("Mumbai or Pune")).toMatchObject({ query: "", locations: ["Mumbai", "Pune"] });
+    expect(deriveSearchIntent("remote")).toMatchObject({ query: "", locations: ["Remote"], workModes: ["remote"] });
+    expect(deriveSearchIntent("IAM")).toMatchObject({ query: "iam", locations: [] });
+    expect(deriveSearchIntent("Singapore Airlines")).toMatchObject({ locations: [] });
+  });
+
   it("reads the spec's own example: roles, several places and remote", () => {
     const i = deriveSearchIntent("Find Senior Director or VP IAM roles in Mumbai, Singapore or remote");
     expect(i.query).toBe("senior director vp iam");
