@@ -81,6 +81,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ "Showing N jobs for … in … from N sources" above the list (WJ-223)
 - ✅ Simpler Apply with Wonder page: one open step, the rest folded (WJ-224)
 - ✅ JazzHR career sites as a job source (WJ-225)
+- ✅ Cloud browser: Fill for me without the extension, on phones (WJ-226)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

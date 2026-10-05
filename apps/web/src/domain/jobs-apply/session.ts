@@ -374,6 +374,18 @@ export function setMode(s: JobsApplySession, mode: ApplyMode, now: string): Jobs
   return audit({ ...s, mode }, now, "MODE_CHANGED", "candidate", mode);
 }
 
+/** The cloud browser opened for this session (the helper runs there instead of in the candidate's own Chrome). */
+export function openCloud(s: JobsApplySession, now: string, cloudId: string): JobsApplySession {
+  assertActive(s);
+  return audit({ ...s, cloud: { id: cloudId, startedAt: now } }, now, "CLOUD_BROWSER_OPENED", "wonder", "Cloud browser opened — its cookies and storage are discarded when it closes");
+}
+
+/** The cloud browser closed: context, cookies and page gone. Idempotent. */
+export function closeCloud(s: JobsApplySession, now: string, reason: string): JobsApplySession {
+  if (!s.cloud || s.cloud.endedAt) return s;
+  return audit({ ...s, cloud: { ...s.cloud, endedAt: now, reason } }, now, "CLOUD_BROWSER_CLOSED", "wonder", `Cloud browser closed (${reason})`);
+}
+
 export function stripFiles(s: JobsApplySession): JobsApplySession {
   const strip = <T extends { base64?: string; markdown?: string } | undefined>(f: T): T => (f ? { ...f, base64: undefined, markdown: undefined } : f);
   return { ...s, pack: { ...s.pack, resume: strip(s.pack.resume), coverLetter: s.pack.coverLetter ? { ...strip(s.pack.coverLetter), text: undefined } : undefined } };
