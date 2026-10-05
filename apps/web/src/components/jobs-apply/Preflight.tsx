@@ -64,6 +64,8 @@ export function Preflight(props: {
   fillPolicy: FillDecision;
   handoffPolicy: FillDecision;
   helperInstalled: boolean | null;
+  /** This deployment has a cloud browser: Fill for me works without the extension (phones included). */
+  cloudAvailable?: boolean;
   busy: boolean;
   blockedReason?: string;
   onStart: () => void;
@@ -81,7 +83,8 @@ export function Preflight(props: {
           <div role="radiogroup" aria-label="Application method" className="mt-4 grid gap-3 sm:grid-cols-3">
             {METHODS.map((m) => {
               const selected = props.method === m.key;
-              const recommended = m.key === "helper" ? props.helperInstalled === true : m.key === "guided" && props.helperInstalled === false;
+              const helperReady = props.helperInstalled === true || props.cloudAvailable === true;
+              const recommended = m.key === "helper" ? helperReady : m.key === "guided" && props.helperInstalled === false && !props.cloudAvailable;
               const disabled = m.key === "helper" && props.fillPolicy === "skip";
               return (
                 <button
@@ -106,7 +109,8 @@ export function Preflight(props: {
                       </li>
                     ))}
                   </ul>
-                  {m.key === "helper" && props.helperInstalled === false && <span className="mt-1 text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
+                  {m.key === "helper" && props.helperInstalled === false && !props.cloudAvailable && <span className="mt-1 text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
+                  {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 text-[12px] text-ink-3">Opens the employer&apos;s page in a cloud browser, right here</span>}
                   {disabled && <span className="mt-1 text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   <span className={cn("absolute bottom-3 right-3", selected ? "text-brand-600" : "text-ink-4")}>{selected ? <CheckCircle2 className="size-5" aria-hidden /> : <Circle className="size-5" aria-hidden />}</span>
                 </button>
@@ -135,7 +139,7 @@ export function Preflight(props: {
                   Your <Link href="/app/automation" className="font-medium text-brand-600 hover:underline">Automation</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
                 </p>
               )}
-              {props.helperInstalled === false && (
+              {props.helperInstalled === false && !props.cloudAvailable && (
                 <p className="mt-2 text-[12px] text-ink-2">
                   <Link href="/extension" className="font-medium text-brand-600 hover:underline">Install the browser helper</Link> for the fastest experience — or choose Guide me; nothing is blocked either way.
                 </p>

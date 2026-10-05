@@ -27,7 +27,7 @@ function state(m: FieldMapping): { label: string; tone: "success" | "brand" | "w
 }
 
 /** "What Wonder did / what it couldn't / what needs you" for the live form (§31, §39, §164). */
-export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void }) {
+export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen, cloud = false }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void; /** The helper runs in the cloud browser shown above, not in the candidate's own Chrome. */ cloud?: boolean }) {
   const form = session.form;
   const shown = session.fieldMappings.filter((m) => m.category !== "CREDENTIAL");
   const steps = [...new Set(shown.map((m) => m.step ?? 1))].sort((a, b) => a - b);
@@ -45,7 +45,11 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
 
       {!form && (
         <div className="mt-4 rounded-[14px] bg-surface-2 p-4 text-[13px] text-ink-2">
-          {helperConnected === false ? (
+          {cloud ? (
+            <p className="flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin text-brand-600" aria-hidden /> Wonder is reading the employer&apos;s page in the cloud browser above. When it finds the application form, this updates.
+            </p>
+          ) : helperConnected === false ? (
             <>
               <p className="font-medium text-ink">The browser helper isn&apos;t connected to this application.</p>
               <p className="mt-1">Open the employer&apos;s page; if you use the WonderJobs helper, reconnect it. Otherwise switch to guided mode — every value is ready to copy.</p>
@@ -76,7 +80,7 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
             {progress.fillable > 0 && <> · <strong className="font-medium text-brand-700">{progress.fillable} ready to fill</strong></>}
             {progress.needsYou > 0 && <> · <strong className="font-medium text-warning-600">{progress.needsYou} need{progress.needsYou === 1 ? "s" : ""} you</strong></>}
           </p>
-          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">Choose “Fill {progress.fillable} field{progress.fillable === 1 ? "" : "s"}” in the WonderJobs panel on the employer&apos;s page.</p>}
+          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{cloud ? "Choose Fill above." : `Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderJobs panel on the employer's page.`}</p>}
           {steps.map((step) => (
             <div key={step} className="mt-4">
               {steps.length > 1 && <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Step {step}</p>}

@@ -19,6 +19,14 @@ import { writeZip } from "@/lib/zip";
 import type { UploadedResume } from "@/domain/resume/files";
 
 export type PublicSession = Omit<JobsApplySession, "tokenNonce">;
+/** A live cloud browser for one session: where to connect and the one-session token for it. */
+export interface CloudStream {
+  cloudId: string;
+  streamUrl: string;
+  streamToken: string;
+  viewport: { width: number; height: number };
+  reused: boolean;
+}
 export interface SessionView {
   session: PublicSession;
   progress: ApplyProgress;
@@ -56,6 +64,13 @@ async function call<T>(path: string, init?: { method?: string; body?: unknown })
 }
 
 export const jobsApplyApi = {
+  /** The cloud browser: Fill for me without the extension (phones). "available: false" means this deployment has none. */
+  cloud: {
+    available: () => call<{ available: boolean }>("/api/jobs-apply/cloud"),
+    start: (id: string) => call<CloudStream>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "POST", body: {} }),
+    fill: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud/fill`, { method: "POST", body: {} }),
+    end: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "DELETE", body: {} }),
+  },
   list: () => call<{ sessions: (PublicSession & { progress: ApplyProgress })[] }>("/api/jobs-apply/sessions"),
   get: (id: string) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}`),
   create: (body: { job: Pick<CanonicalJob, "id" | "title" | "company" | "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">; pack: ApplicationPackSnapshot; mode: ApplyMode; startOver?: boolean; acknowledgeDuplicate?: boolean }) => call<SessionView>("/api/jobs-apply/sessions", { method: "POST", body }),

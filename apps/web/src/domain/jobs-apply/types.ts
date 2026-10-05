@@ -293,7 +293,9 @@ export type JobsApplyEventType =
   | "SESSION_PAUSED"
   | "SESSION_STOPPED"
   | "SESSION_FAILED"
-  | "MODE_CHANGED";
+  | "MODE_CHANGED"
+  | "CLOUD_BROWSER_OPENED"
+  | "CLOUD_BROWSER_CLOSED";
 
 /** Audit entry (§87): who, what, when, where, result — categories and counts, never a value (§88). */
 export interface JobsApplyAuditEntry {
@@ -333,6 +335,8 @@ export interface JobsApplySession {
   approvedAnswers: Record<string, { value: string; provenance: "USER_PROVIDED" | "USER_MODIFIED" | "AI_GENERATED" | "USER_CONFIRMED"; at: string }>;
   evidence: SubmissionEvidence[];
   audit: JobsApplyAuditEntry[];
+  /** The cloud browser (apps/browser-worker) opened for this session, when the candidate has no extension. Its id only; the stream token is never stored. */
+  cloud?: { id: string; startedAt: string; endedAt?: string; reason?: string };
   /** Rotated on stop/revoke: helper tokens carrying the old nonce stop working (§90). */
   tokenNonce: string;
   stopped: boolean;

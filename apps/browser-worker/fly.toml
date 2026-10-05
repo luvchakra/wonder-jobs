@@ -1,0 +1,29 @@
+# Fly.io deployment for the cloud browser worker. From the repository root:
+#   fly launch --no-deploy --copy-config --config apps/browser-worker/fly.toml --dockerfile apps/browser-worker/Dockerfile
+#   fly secrets set CLOUD_BROWSER_SECRET=<same value as in Vercel> WONDERJOBS_ORIGIN=https://<your app domain>
+#   fly deploy --config apps/browser-worker/fly.toml --dockerfile apps/browser-worker/Dockerfile
+app = "wonderjobs-browser-worker"
+primary_region = "sin"
+
+[build]
+  dockerfile = "apps/browser-worker/Dockerfile"
+
+[env]
+  PORT = "4100"
+  CLOUD_BROWSER_MAX_SESSIONS = "6"
+
+[http_service]
+  internal_port = 4100
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 400
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "2gb"

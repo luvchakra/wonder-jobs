@@ -34,3 +34,6 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# Cloud browser worker build output
+apps/browser-worker/dist
