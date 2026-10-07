@@ -142,8 +142,10 @@ commit, so a prefix hit) and a manual run on `main` (an exact hit). With warm ca
 
 | | Before | After |
 |---|---|---|
-| Production, created → live | 49–83 s (median 59.5 s), TypeScript up to 26 s of it | **42 s**, "Skipping validation of types" |
-| Merge → live | 55–88 s (median 63 s) | **48 s** |
+| Production build, created → build done | 37 s and 69 s (#68, #71); TypeScript up to 26 s of it | **25–28 s**, "Skipping validation of types" |
+| Production upload, build done → live | 14 s | 14 s and 45 s (Vercel-side, outside the build) |
+| Production, created → live | 49–83 s (median 59.5 s) | 42 s and 70 s |
+| Merge → live | 55–88 s (median 63 s) | **48 s** and 75 s |
 | Preview of a working branch, created → live | 65 s and 85 s (#70, #71 heads) | 40 s (#73 head) |
 | Deployments per merge | 1 production + 1 per open Dependabot PR (3 after #71, queued up to 100 s) | **1 production**; Dependabot rebased 5 PRs at 18:30–18:31 and Vercel built none of them |
 | Docs-only merge to production | skipped (rule predates this work) | skipped: cancelled by the ignore step 9 s after creation (#75) |
