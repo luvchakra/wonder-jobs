@@ -211,9 +211,13 @@ test.describe("Golden journey — application preparation (demo mode)", () => {
 test.describe("Golden journey — Ask Wonder (demo mode)", () => {
   test("GJ-014 a real question resolves to a real, data-backed action, not a canned chat reply", async ({ page }) => {
     await page.goto("/demo?next=/app");
-    await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
-    await expect(input).toBeVisible();
+    // The shortcut listener attaches when the page hydrates; under load a press can land before that,
+    // so press again until the palette opens (the shortcut itself is what's under test).
+    await expect(async () => {
+      if (!(await input.isVisible())) await page.keyboard.press("ControlOrMeta+k");
+      await expect(input).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     await input.fill("what applications need my attention");
     const topResult = page.locator("#wj-cmd-list [role='option']").first();
     // The label names a real count, never a static "Applications" nav shortcut.

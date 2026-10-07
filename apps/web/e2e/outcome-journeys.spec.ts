@@ -87,10 +87,10 @@ test.describe("FIND", () => {
     await page.goto("/demo?next=/app");
     const box = page.getByRole("textbox", { name: "Search jobs" });
     await box.fill("Senior product roles in Mumbai, preferably fintech");
-    // Before anything runs, Wonder says what it read from the words.
-    const wider = page.getByRole("button", { name: /^Search every source for “senior product[^”]*” in Mumbai/i });
-    await expect(wider).toBeVisible();
-    await wider.click();
+    // Before anything runs, Wonder says what it read from the words. Nothing on screen matches them, so
+    // the list itself offers the one search (WJ-222) instead of the line under the box.
+    await expect(page.locator("#main")).toContainText(/Search every source for “senior product[^”]*” in Mumbai/i);
+    await page.locator("#main").getByRole("button", { name: "Search every source", exact: true }).click();
     await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “senior product/i);
     await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 45_000 });
     await openRefine(page);
