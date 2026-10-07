@@ -131,7 +131,7 @@ nowhere automatically before this change.
 | Dependency audit | 27 s | 26–29 s | 24 s |
 | Changes (new, runs first) | — | 7 s | 6–7 s |
 | **Whole gate, to the last required job** | **76 s** | 72–78 s | **46–54 s** |
-| Docs/Markdown-only PR | 62–85 s (everything ran) | Changes + CI only | see below |
+| Docs/Markdown-only PR | 62–85 s (everything ran) | **16 s** (Changes + CI; #75) | same |
 
 "Cold" is the first run after a lockfile change (the caches key on it). Measured on #73's own run and its
 merge to `main`. "Warm" restores `main`'s caches: Dependabot's rebased `actions/checkout` PR (a different
@@ -144,8 +144,9 @@ commit, so a prefix hit) and a manual run on `main` (an exact hit). With warm ca
 |---|---|---|
 | Production, created → live | 49–83 s (median 59.5 s), TypeScript up to 26 s of it | **42 s**, "Skipping validation of types" |
 | Merge → live | 55–88 s (median 63 s) | **48 s** |
-| Preview of this branch, created → live | 51–83 s | 40 s |
+| Preview of a working branch, created → live | 65 s and 85 s (#70, #71 heads) | 40 s (#73 head) |
 | Deployments per merge | 1 production + 1 per open Dependabot PR (3 after #71, queued up to 100 s) | **1 production**; Dependabot rebased 5 PRs at 18:30–18:31 and Vercel built none of them |
+| Docs-only merge to production | skipped (rule predates this work) | skipped: cancelled by the ignore step 9 s after creation (#75) |
 
 ### E2E (off the gate)
 
@@ -161,5 +162,10 @@ libraries takes 2–3.5 min. It ran on #73 (the CI-file change) and on its merge
   #73 carried the lockfile-only fix.
 - Dependabot adds labels as it opens a PR, and each `labeled` event starts a run that cancels the previous
   one. The last run is complete; the cancelled ones cost a few runner-seconds.
+- Docs-only previews still built: working branches are reset to `main` after each squash merge, so a
+  preview's previous deployment is never in Vercel's shallow clone, and the script built to be safe.
+  Previews now compare with the newest squash-merge commit below them (that is `main`) when that
+  happens; production still builds whenever its previous commit is unknown. Tested on shallow clones
+  of synthetic histories (11 cases, including a branch that merged `main`).
 - GitHub's runner queue added 5 minutes to one run (a job with no steps, waiting for a runner). That
   is outside this pipeline.
