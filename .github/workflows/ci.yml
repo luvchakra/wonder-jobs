@@ -201,6 +201,10 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
       - run: npx playwright install --with-deps chromium
         working-directory: apps/web
+      # Full Chromium, as where the suite was written: headless Playwright otherwise picks its headless
+      # shell, which can't load the browser-helper extension and renders the visual baselines differently.
+      - run: echo "PW_CHROMIUM_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
+        working-directory: apps/web
       - uses: actions/cache/restore@v4
         with:
           path: apps/web/.next/cache
