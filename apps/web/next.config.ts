@@ -64,6 +64,11 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Don't advertise the framework in every response.
   poweredByHeader: false,
+  // Types are checked once per change, by CI's Typecheck job (`next typegen` + `tsc`, the same route
+  // types `next build` would check), which must pass before a PR merges. On CI and Vercel the build's
+  // own TypeScript pass repeated that work (17 s in CI, up to 26 s of a production deploy). Local
+  // builds still check.
+  typescript: { ignoreBuildErrors: Boolean(process.env.CI || process.env.VERCEL) },
   experimental: {
     // Keep visited product pages in the client router cache: back/forward and
     // repeat navigations render instantly instead of refetching the segment.

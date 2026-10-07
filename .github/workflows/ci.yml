@@ -1,32 +1,65 @@
 name: CI
 
-# Deliberately fast, on every push/PR: lint, typecheck, unit tests and the production build run as four
-# independent jobs instead of one sequential `npm run check`, so GitHub Actions schedules them on
-# separate runners at the same time — total wall-clock time is roughly the slowest single job, not the
-# sum of all four. The heavier Playwright E2E suite and the accessibility audit are intentionally NOT
-# run here: they need real time (tens of seconds to minutes) and, for the E2E suite, real Supabase
-# credentials, so they'd slow down every single push/merge for checks that don't need to gate one. Run
-# them on demand instead — from the repo root or apps/web:
-#   npm run verify   # everything: check (lint+typecheck+test+build) + e2e (Playwright) + a11y
-#   npm run e2e      # just the Playwright suite
-#   npm run a11y     # just the accessibility audit
+# What runs when (numbers and the reasoning: docs/performance.md):
+#
+#   pull request   Changes → Lint, Typecheck, Unit tests, Build, Dependency audit in parallel → CI.
+#                  Docs/Markdown-only PRs run none of them (CI still reports, as passed).
+#                  The `e2e` label, or any change to .github/workflows or .github/scripts, adds E2E.
+#   push to main   the same, for the merged commit; also saves the build caches PRs restore from.
+#   nightly        everything, E2E included, on main. A failure opens (or comments on) one issue.
+#   manual         Actions → CI → Run workflow: everything, E2E included.
+#
+# `CI` is the single check branch protection points at: it passes when every job above passed or was
+# skipped as not needed, and fails on any failure or cancellation. `E2E` summarises the E2E shards the
+# same way, so it can be made required later without renaming anything.
 on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    - cron: "17 21 * * *" # 02:47 IST
+  workflow_dispatch:
 
-# Least privilege: these jobs only read the repository.
+# Least privilege: these jobs only read the repository (the alert job asks for issues: write itself).
 permissions:
   contents: read
 
+# A new push to a PR cancels that PR's older run. Pushes to main are never cancelled (each merged commit
+# keeps its own result), and the event name keeps a nightly or manual run from cancelling a merge's run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.decide.outputs.code }}
+      e2e: ${{ steps.decide.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history (trees only) so the diff can start at the PR's merge base or the push's `before`.
+          fetch-depth: 0
+          filter: blob:none
+      - id: decide
+        run: bash .github/scripts/ci-changes.sh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,11 +67,27 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
+      # ESLint's own cache, keyed on file content (a fresh checkout changes every mtime): unchanged files
+      # reuse their last result. A lockfile change starts it cold.
+      - uses: actions/cache/restore@v4
+        with:
+          path: apps/web/.next/cache/eslint
+          key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-${{ github.sha }}
+          restore-keys: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-
+      - run: npx eslint --cache --cache-strategy content --cache-location .next/cache/eslint/
+        working-directory: apps/web
+      - if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: apps/web/.next/cache/eslint
+          key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-${{ github.sha }}
 
   typecheck:
     name: Typecheck
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,11 +95,29 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # tsc's incremental state: file versions are content hashes, so it is safe across checkouts.
+      - uses: actions/cache/restore@v4
+        with:
+          path: apps/web/tsconfig.tsbuildinfo
+          key: tsc-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/tsconfig.json') }}-${{ github.sha }}
+          restore-keys: tsc-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/tsconfig.json') }}-
+      # The only type check: `next build` skips its own on CI and Vercel (next.config.ts). `next typegen`
+      # writes the route types that check covered, so tsc validates them too.
+      - run: npx next typegen
+        working-directory: apps/web
       - run: npm run typecheck
+      - if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: apps/web/tsconfig.tsbuildinfo
+          key: tsc-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/tsconfig.json') }}-${{ github.sha }}
 
   test:
     name: Unit tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,7 +129,10 @@ jobs:
 
   build:
     name: Build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,14 +140,28 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Turbopack's build cache. Restored on every run (PRs read main's), saved only from main.
+      - uses: actions/cache/restore@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
       - run: npm run build
+      - if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
 
   # Supply-chain gate: what ships (production dependencies) fails on any high or critical advisory;
   # build and lint tooling (devDependencies) fails on critical. Split 2026-10-03 when GHSA-vfj7-8cjw-p6xm
   # (braces, every version, no patched release) reached us only through eslint-config-next.
   audit:
     name: Dependency audit
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -88,17 +172,107 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm audit --audit-level=critical
 
-  # A single required status check for branch protection to point at, so it doesn't need updating every
-  # time a job here is renamed or a new one is added — it just reflects whatever the jobs above did.
+  # Playwright, off the merge gate (nightly, manual, `e2e` label, CI-file changes). Chromium projects
+  # (desktop and Pixel 7), the ones this repo verifies; specs that need Supabase report BLOCKED (skipped)
+  # unless the three Supabase secrets below exist in the repository.
+  e2e:
+    name: E2E (${{ matrix.shard }}/2)
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        working-directory: apps/web
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      # Full Chromium, as where the suite was written: headless Playwright otherwise picks its headless
+      # shell, which can't load the browser-helper extension and renders the visual baselines differently.
+      - run: echo "PW_CHROMIUM_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
+        working-directory: apps/web
+      - uses: actions/cache/restore@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      - run: npx playwright test --project=chromium --project="Mobile Chrome" --shard=${{ matrix.shard }}/2
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: apps/web/playwright-report
+          retention-days: 7
+
+  e2e-summary:
+    name: E2E
+    if: always()
+    needs: [changes, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pass when E2E passed or wasn't needed
+        env:
+          RESULT: ${{ needs.e2e.result }}
+        run: |
+          echo "E2E: $RESULT"
+          case "$RESULT" in success|skipped) exit 0 ;; *) exit 1 ;; esac
+
+  # The single required status check. A job skipped because the change didn't need it counts as passed.
   ci:
     name: CI
     if: always()
-    needs: [lint, typecheck, test, build, audit]
+    needs: [changes, lint, typecheck, test, build, audit, e2e]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Fail if any job failed
+      - name: Fail if any job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
-            echo "One or more required jobs did not pass."
-            exit 1
-          fi
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')
+          if [ -n "$bad" ]; then echo "Did not pass: $bad"; exit 1; fi
+
+  # Off-gate runs have nobody watching them: a failed nightly or manual run opens one issue, or comments
+  # on the one already open, with the run link.
+  alert:
+    name: Alert on failure
+    if: always() && needs.ci.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs: [changes, lint, typecheck, test, build, audit, e2e, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NEEDS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          title="CI failing on main (nightly / manual run)"
+          failed=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key) (\(.value.result))"] | join(", ")')
+          body=$(printf '%s run on `%s` failed: %s\n\n%s' "$EVENT" "${GITHUB_SHA:0:7}" "$failed" "$RUN_URL")
+          n=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ -n "$n" ]; then gh issue comment "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi

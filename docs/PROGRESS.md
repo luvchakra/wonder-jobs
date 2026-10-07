@@ -82,6 +82,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Simpler Apply with Wonder page: one open step, the rest folded (WJ-224)
 - ✅ JazzHR career sites as a job source (WJ-225)
 - ✅ Cloud browser: Fill for me without the extension, on phones (WJ-226)
+- ✅ Faster build-to-deploy: CI caches, types checked once, one deploy per merge, nightly E2E (WJ-227)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
