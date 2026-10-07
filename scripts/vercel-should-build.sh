@@ -9,7 +9,8 @@
 #      Dependabot rebases every open PR after each merge, which used to queue several builds right
 #      behind production. (Also disabled in vercel.json `git.deploymentEnabled`; this is the backstop.)
 #   2. Previews of a squash-merge commit ("… (#123)"): skipped. Production builds that exact commit.
-#   3. Only docs/Markdown changed since the last deployment: skipped (production included).
+#   3. Only docs/Markdown changed since the last deployment: skipped (production included). A preview
+#      whose last deployment is gone from history (branch reset after a merge) compares with main.
 # Production is never skipped by 1 or 2.
 set -u
 
@@ -29,18 +30,29 @@ if [ "$env" = "preview" ]; then
   fi
 fi
 
-# First deploy / no previous commit → build.
-if [ -z "${VERCEL_GIT_PREVIOUS_SHA:-}" ] || [ -z "${VERCEL_GIT_COMMIT_SHA:-}" ]; then
-  echo "No previous deployment SHA — building."
+prev="${VERCEL_GIT_PREVIOUS_SHA:-}"
+head="${VERCEL_GIT_COMMIT_SHA:-}"
+if [ -z "$head" ]; then
+  echo "No commit SHA — building."
   exit 1
 fi
-
-if ! git cat-file -e "${VERCEL_GIT_PREVIOUS_SHA}^{commit}" 2>/dev/null; then
-  echo "Previous SHA not available in shallow clone — building."
-  exit 1
+if [ -z "$prev" ] || ! git cat-file -e "$prev^{commit}" 2>/dev/null; then
+  # Working branches are reset to main after each squash merge, so a preview's previous deployment is
+  # usually gone from history. For previews only, diff from the newest squash-merge commit ("… (#123)")
+  # below this one: that is main, and the diff is exactly what the branch adds. Production builds.
+  base=""
+  if [ "$env" = "preview" ]; then
+    base="$(git log --format='%H %s' "$head~1" 2>/dev/null | grep -E '\(#[0-9]+\)[[:space:]]*$' | head -n 1 | cut -d' ' -f1)"
+  fi
+  if [ -z "$base" ]; then
+    echo "Previous deployment's commit not in this clone — building."
+    exit 1
+  fi
+  echo "Previous deployment's commit not in this clone — comparing with main at ${base:0:7}."
+  prev="$base"
 fi
 
-changed="$(git diff --name-only "${VERCEL_GIT_PREVIOUS_SHA}" "${VERCEL_GIT_COMMIT_SHA}" 2>/dev/null || true)"
+changed="$(git diff --no-renames --name-only "$prev" "$head" 2>/dev/null || true)"
 if [ -z "$changed" ]; then
   echo "No changes detected — building to be safe."
   exit 1
