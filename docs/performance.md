@@ -118,6 +118,48 @@ nowhere automatically before this change.
 - **Rollback:** revert this PR. Or individually: delete the `typescript` line in `next.config.ts`, the
   `git` line in `apps/web/vercel.json`, or the cache steps in `ci.yml`.
 
-## After
+## After (measured 2026-10-07, first runs after #73 merged)
 
-Recorded from the first real runs after merge (see the table below once filled).
+### The merge gate
+
+| Check | Before, median | After, cold cache | After, warm cache |
+|---|---|---|---|
+| Build | 65 s | 56–61 s | **25–34 s** (`next build` 4–5 s) |
+| Lint | 44 s | 47–57 s | **17–24 s** (ESLint 2 s) |
+| Typecheck | 40 s | 42–44 s | **30–33 s** (`next typegen` + `tsc` 7 s) |
+| Unit tests | 35 s | 38–41 s | 25 s |
+| Dependency audit | 27 s | 26–29 s | 24 s |
+| Changes (new, runs first) | — | 7 s | 6–7 s |
+| **Whole gate, to the last required job** | **76 s** | 72–78 s | **46–54 s** |
+| Docs/Markdown-only PR | 62–85 s (everything ran) | Changes + CI only | see below |
+
+"Cold" is the first run after a lockfile change (the caches key on it). Measured on #73's own run and its
+merge to `main`. "Warm" restores `main`'s caches: Dependabot's rebased `actions/checkout` PR (a different
+commit, so a prefix hit) and a manual run on `main` (an exact hit). With warm caches every job is mostly
+`npm ci` (13–19 s); the work itself is 2–7 s.
+
+### Vercel
+
+| | Before | After |
+|---|---|---|
+| Production, created → live | 49–83 s (median 59.5 s), TypeScript up to 26 s of it | **42 s**, "Skipping validation of types" |
+| Merge → live | 55–88 s (median 63 s) | **48 s** |
+| Preview of this branch, created → live | 51–83 s | 40 s |
+| Deployments per merge | 1 production + 1 per open Dependabot PR (3 after #71, queued up to 100 s) | **1 production**; Dependabot rebased 5 PRs at 18:30–18:31 and Vercel built none of them |
+
+### E2E (off the gate)
+
+Two shards of 124 tests on full Chromium: 4–7.5 min per shard, of which installing Chromium and its system
+libraries takes 2–3.5 min. It ran on #73 (the CI-file change) and on its merge: all passing.
+
+### Notes from the first runs
+
+- The first E2E run on a GitHub runner failed 12 tests the sandbox passes. Playwright had picked its
+  headless shell, which can't load the browser-helper extension and renders the résumé gallery 18 px
+  taller. The job now points `PW_CHROMIUM_PATH` at full Chromium, as the sandbox does.
+- Two advisories published after #71 (sharp <0.35.5, source-map-js ≤1.2.1) failed the audit on every PR;
+  #73 carried the lockfile-only fix.
+- Dependabot adds labels as it opens a PR, and each `labeled` event starts a run that cancels the previous
+  one. The last run is complete; the cancelled ones cost a few runner-seconds.
+- GitHub's runner queue added 5 minutes to one run (a job with no steps, waiting for a runner). That
+  is outside this pipeline.
