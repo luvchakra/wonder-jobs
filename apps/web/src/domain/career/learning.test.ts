@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeLearnedSignals, learnedRankingEffect, type RejectionRecord } from "./learning";
+import { computeLearnedSignals, learnedRankingEffect, type InteractionRecord, type RejectionRecord } from "./learning";
 
 /**
  * Learning evaluation (spec §35): fixtures proving the "not for me" signal requires real evidence
@@ -23,7 +23,7 @@ describe("computeLearnedSignals — over-learning guard", () => {
     expect(computeLearnedSignals(records)).toEqual([]);
   });
 
-  it("a rejection with no reason never contributes to any signal, however many accumulate", () => {
+  it("a rejection with no reason (and no title or employer recorded) never contributes to any signal", () => {
     const records = rejections(10, { reason: undefined });
     expect(computeLearnedSignals(records)).toEqual([]);
   });
@@ -116,5 +116,72 @@ describe("learnedRankingEffect — bounded, never silent, never absolute", () =>
     expect(learnedRankingEffect({ ...job, seniority: "director" }, "senior", signals).points).toBeGreaterThan(0);
     expect(learnedRankingEffect({ ...job, seniority: "senior" }, "senior", signals).points).toBe(0);
     expect(learnedRankingEffect({ ...job, seniority: "junior" }, "senior", signals).points).toBe(0);
+  });
+});
+
+function interactions(n: number, patch: Partial<InteractionRecord>): InteractionRecord[] {
+  return Array.from({ length: n }, (_, i) => ({ jobId: `saved-${i}`, at: at(n - i), kind: "saved" as const, industry: "Security", workMode: "remote" as const, title: "Identity Governance Lead", company: `Co ${i}`, ...patch }));
+}
+
+describe("progressive learning — what the candidate keeps choosing, turning down and searching", () => {
+  const job = { industry: "Security", workMode: "remote" as const, seniority: "senior" as const, title: "Director, Identity Governance", company: "Acme", location: "Singapore" };
+
+  it("saves and applications teach a preference only after the same threshold", () => {
+    expect(computeLearnedSignals([], new Set(), { interactions: interactions(2, {}) })).toEqual([]);
+    const ids = computeLearnedSignals([], new Set(), { interactions: interactions(3, {}) }).map((s) => s.id);
+    expect(ids).toEqual(expect.arrayContaining(["prefer_industry:security", "prefer_work_mode:remote", "prefer_title_term:identity", "prefer_title_term:governance"]));
+    expect(ids).not.toContain("prefer_title_term:lead"); // level words say nothing about the work
+  });
+
+  it("doesn't learn what the candidate already put in their preferences", () => {
+    const ids = computeLearnedSignals([], new Set(), { interactions: interactions(3, {}), dna: { industries: ["security"], workModes: ["remote"], preferredLocations: [] } }).map((s) => s.id);
+    expect(ids).not.toContain("prefer_industry:security");
+    expect(ids).not.toContain("prefer_work_mode:remote");
+  });
+
+  it("a preference ranks matching roles higher, bounded, and more with more evidence", () => {
+    const few = computeLearnedSignals([], new Set(), { interactions: interactions(3, {}) });
+    const many = computeLearnedSignals([], new Set(), { interactions: interactions(8, {}) });
+    const a = learnedRankingEffect(job, "senior", few);
+    const b = learnedRankingEffect(job, "senior", many);
+    expect(a.points).toBeLessThan(0);
+    expect(b.points).toBeLessThan(a.points);
+    expect(b.points).toBeGreaterThanOrEqual(-8);
+    expect(b.note).toBe("Like roles you've saved or applied to");
+    expect(learnedRankingEffect({ ...job, industry: "Retail", workMode: "onsite", title: "Store manager" }, "senior", many)).toEqual({ points: 0 });
+  });
+
+  it("turning down the same title words or employer ranks them lower, unless they're also chosen", () => {
+    const turned = rejections(3, { reason: undefined, title: "Sales Development Representative" }).map((r, i) => ({ ...r, company: `C${i}` }));
+    const ids = computeLearnedSignals(turned).map((s) => s.id);
+    expect(ids).toEqual(expect.arrayContaining(["avoid_title_term:sales"]));
+    const signals = computeLearnedSignals(turned);
+    expect(learnedRankingEffect({ ...job, title: "Sales Director" }, "senior", signals).points).toBeGreaterThan(0);
+    const alsoChosen = computeLearnedSignals(turned, new Set(), { interactions: interactions(3, { title: "Sales Engineer" }) }).map((s) => s.id);
+    expect(alsoChosen).not.toContain("avoid_title_term:sales");
+    const acme = rejections(2, { reason: "not_interested", company: "Acme" });
+    expect(computeLearnedSignals(acme).map((s) => s.id)).toContain("avoid_company:acme");
+    expect(learnedRankingEffect(job, "senior", computeLearnedSignals(acme)).points).toBe(12);
+  });
+
+  it("places typed into searches three times rank roles there higher", () => {
+    const searches = [1, 2, 3].map((d) => ({ at: at(d), locations: ["Singapore"] }));
+    const signals = computeLearnedSignals([], new Set(), { searches });
+    expect(signals.map((s) => s.id)).toEqual(["prefer_location:singapore"]);
+    expect(learnedRankingEffect(job, "senior", signals)).toMatchObject({ note: "Where you often search" });
+    expect(computeLearnedSignals([], new Set(), { searches, dna: { industries: [], workModes: [], preferredLocations: ["Singapore"] } })).toEqual([]);
+  });
+
+  it("an avoid and a preference never stack: the strongest avoid wins over small boosts", () => {
+    const signals = [...computeLearnedSignals(rejections(2, { reason: "other", company: "Acme" })), ...computeLearnedSignals([], new Set(), { interactions: interactions(3, {}) })];
+    const e = learnedRankingEffect(job, "senior", signals);
+    expect(e.points).toBeGreaterThan(0);
+    expect(e.note).toBe("Similar to roles you've marked not for me");
+  });
+
+  it("confirmed and dismissed choices survive recomputing", () => {
+    const list = interactions(3, {});
+    expect(computeLearnedSignals([], new Set(), { interactions: list, confirmed: new Set(["prefer_industry:security"]) }).find((s) => s.id === "prefer_industry:security")?.status).toBe("confirmed");
+    expect(computeLearnedSignals([], new Set(["prefer_industry:security"]), { interactions: list }).map((s) => s.id)).not.toContain("prefer_industry:security");
   });
 });

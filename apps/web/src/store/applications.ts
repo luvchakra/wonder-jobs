@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { Application, ApplicationArtifact, ApplicationEvent, ApplicationStatus, ArtifactType, ArtifactVersion } from "@/domain/applications/types";
 import { newId } from "@/lib/ids";
+import { interactionFor, useJobsStore } from "./jobs";
+import { useCareerStore } from "./career";
 
 interface ApplicationsState {
   applications: Record<string, Application>;
@@ -41,13 +43,17 @@ export const useApplicationsStore = create<ApplicationsState>()(
         set((s) => ({ applications: { ...s.applications, [app.id]: app } }));
         return app;
       },
-      setStatus: (id, status, event) =>
+      setStatus: (id, status, event) => {
         set((s) => {
           const a = s.applications[id];
           if (!a) return s;
           const events = event ? [...a.events, { ...event, id: newId("ev"), applicationId: id, at: new Date().toISOString() }] : a.events;
           return { applications: { ...s.applications, [id]: { ...a, status, events, appliedAt: status === "submitted" ? new Date().toISOString() : a.appliedAt } } };
-        }),
+        });
+        // Applying is the strongest evidence of what the candidate wants: learned like saving.
+        const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
+        if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
+      },
       addEvent: (id, event) =>
         set((s) => {
           const a = s.applications[id];

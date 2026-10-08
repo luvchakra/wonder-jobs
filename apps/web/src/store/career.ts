@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
-import { computeLearnedSignals, type LearnedSignal, type RejectionRecord } from "@/domain/career/learning";
+import { computeLearnedSignals, type InteractionRecord, type LearnedSignal, type RejectionRecord, type SearchRecord } from "@/domain/career/learning";
 import { newId } from "@/lib/ids";
 import { MAX_SAVED_RESUMES, type SavedResume } from "@/domain/resume/saved";
 import type { BaseResumeRef } from "@/domain/resume/files";
@@ -29,6 +29,14 @@ interface CareerState {
   dismissedSignals: string[];
   /** Recomputed after every rejection change; read by matching (spec: "not for me" must affect ranking). */
   learnedSignals: LearnedSignal[];
+  /** Jobs the candidate saved or applied to, capped. The positive half of the learning loop. */
+  interactionHistory: InteractionRecord[];
+  /** Places the candidate typed into searches, capped. */
+  searchHistory: SearchRecord[];
+  recordInteraction: (record: InteractionRecord) => void;
+  /** Unsaving takes back that one piece of evidence; an application, once made, stays. */
+  clearInteraction: (jobId: string, kind: InteractionRecord["kind"]) => void;
+  recordSearch: (locations: string[]) => void;
   /** Records one rejection and recomputes learned signals from the full history. */
   recordRejection: (record: RejectionRecord) => void;
   /** Undoing a rejection removes that one record and recomputes — the signal can lose its evidence. */
@@ -70,6 +78,13 @@ interface CareerState {
   setInsights: (insights: CareerInsight[]) => void;
 }
 
+/** Every learned signal, recomputed from the full history; confirmed ones stay confirmed, dismissed ones stay gone. */
+function relearn(s: Pick<CareerState, "rejectionHistory" | "interactionHistory" | "searchHistory" | "dismissedSignals" | "learnedSignals" | "dna">) {
+  const confirmed = new Set(s.learnedSignals.filter((x) => x.status === "confirmed").map((x) => x.id));
+  const learnedSignals = computeLearnedSignals(s.rejectionHistory, new Set(s.dismissedSignals), { interactions: s.interactionHistory ?? [], searches: s.searchHistory ?? [], dna: s.dna, confirmed });
+  return { rejectionHistory: s.rejectionHistory, interactionHistory: s.interactionHistory ?? [], searchHistory: s.searchHistory ?? [], learnedSignals };
+}
+
 export const useCareerStore = create<CareerState>()(
   persist(
     (set) => ({
@@ -85,17 +100,25 @@ export const useCareerStore = create<CareerState>()(
       rejectionHistory: [],
       dismissedSignals: [],
       learnedSignals: [],
+      interactionHistory: [],
+      searchHistory: [],
       recordRejection: (record) =>
         set((s) => {
           const rejectionHistory = [...s.rejectionHistory.filter((r) => r.jobId !== record.jobId), record].slice(-300);
-          const dismissed = new Set(s.dismissedSignals);
-          return { rejectionHistory, learnedSignals: computeLearnedSignals(rejectionHistory, dismissed) };
+          return relearn({ ...s, rejectionHistory });
         }),
-      clearRejection: (jobId) =>
+      clearRejection: (jobId) => set((s) => relearn({ ...s, rejectionHistory: s.rejectionHistory.filter((r) => r.jobId !== jobId) })),
+      recordInteraction: (record) =>
         set((s) => {
-          const rejectionHistory = s.rejectionHistory.filter((r) => r.jobId !== jobId);
-          const dismissed = new Set(s.dismissedSignals);
-          return { rejectionHistory, learnedSignals: computeLearnedSignals(rejectionHistory, dismissed) };
+          const interactionHistory = [...(s.interactionHistory ?? []).filter((r) => !(r.jobId === record.jobId && r.kind === record.kind)), record].slice(-300);
+          return relearn({ ...s, interactionHistory });
+        }),
+      clearInteraction: (jobId, kind) => set((s) => relearn({ ...s, interactionHistory: (s.interactionHistory ?? []).filter((r) => !(r.jobId === jobId && r.kind === kind)) })),
+      recordSearch: (locations) =>
+        set((s) => {
+          const clean = locations.map((l) => l.trim()).filter(Boolean).slice(0, 6);
+          if (!clean.length) return {};
+          return relearn({ ...s, searchHistory: [...(s.searchHistory ?? []), { at: new Date().toISOString(), locations: clean }].slice(-100) });
         }),
       confirmLearnedSignal: (id) => set((s) => ({ learnedSignals: s.learnedSignals.map((sig) => (sig.id === id ? { ...sig, status: "confirmed" } : sig)) })),
       dismissLearnedSignal: (id) =>
@@ -103,7 +126,12 @@ export const useCareerStore = create<CareerState>()(
           const dismissedSignals = s.dismissedSignals.includes(id) ? s.dismissedSignals : [...s.dismissedSignals, id].slice(-100);
           return { dismissedSignals, learnedSignals: s.learnedSignals.filter((sig) => sig.id !== id) };
         }),
-      updateDNA: (patch) => set((s) => ({ dna: { ...s.dna, ...patch, updatedAt: new Date().toISOString() } })),
+      // A preference the candidate adds themselves is no longer something to learn.
+      updateDNA: (patch) =>
+        set((s) => {
+          const dna = { ...s.dna, ...patch, updatedAt: new Date().toISOString() };
+          return { dna, ...relearn({ ...s, dna }) };
+        }),
       resumeTemplateId: undefined,
       setResumeTemplate: (id) => set({ resumeTemplateId: id }),
       savedResumes: [],
