@@ -45,7 +45,9 @@ describe("browser helper — structural no-submit guarantee", () => {
   it("submits only from plan.submit, on a complete page, once, reporting before the press", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
     // state.submit is only ever set from WonderJobs' plan.
-    for (const m of src.matchAll(/state\.submit = ([^;]+);/g)) expect(m[1]).toMatch(/^(false|!!r\.data\.(plan\.)?submit)$/);
+    for (const m of src.matchAll(/state\.submit = ([^;]+);/g)) expect(m[1]).toMatch(/^(false|!IN_CLOUD && !!r\.data\.(plan\.)?submit)$/);
+    // Never inside the cloud browser (a server-hosted page): submission is only in the candidate's own browser.
+    expect(src).toMatch(/const IN_CLOUD = !!\(window\.chrome && window\.chrome\.runtime && window\.chrome\.runtime\.__wonder\);/);
     expect(src).toMatch(/if \(state\.submit && !waiting\.length && final\.length === 1 && pageComplete\(final\[0\]\)\) return submitFinal\(/);
     const fn = src.slice(src.indexOf("async function submitFinal("), src.indexOf("// Learning:"));
     expect(fn.indexOf("if (state.submitted) return;")).toBeGreaterThan(-1);

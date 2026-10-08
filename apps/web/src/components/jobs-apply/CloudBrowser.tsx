@@ -175,7 +175,7 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
         </form>
       )}
 
-      <p className="mt-3 text-[12px] text-ink-4">Sign in, answer and press the employer&apos;s own submit button in the page above. Wonder fills; it submits only if Submit for me is on.</p>
+      <p className="mt-3 text-[12px] text-ink-4">Sign in, answer and press the employer&apos;s own submit button in the page above. Wonder fills; it never submits here — even with Submit for me on.</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {link === "lost" && onReconnect && (
           <Button size="sm" variant="outline" onClick={() => void onReconnect()}>

@@ -31,7 +31,7 @@ describe("the worker never acts on the page by itself", () => {
     const script = pageScript();
     expect(script.startsWith(SHIM)).toBe(true);
     expect(script).toContain("window.__wonderjobsHelper");
-    expect(script).toContain("It never submits");
+    expect(script).toContain("Never in WonderJobs' cloud browser");
   });
 });
 

@@ -19,7 +19,7 @@
  *     turned on "Submit applications" for this application or their account (WJ-249) — and only once
  *     every required field on the page has something in it and the form says it's valid. Once per page
  *     session; reported to WonderJobs (APPLICATION_SUBMITTED) before the press.
- * Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
+ * Never in WonderJobs' cloud browser. Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
  * unit test in the web app holds the helper to exactly these two guarded presses.
  *
  * It reads what the candidate types only into questions WonderJobs flagged as needing them (never a
@@ -360,6 +360,9 @@
 
   /* ------------------------------------------------------ JobsApply session */
 
+  // Inside WonderJobs' cloud browser (a server-hosted page behind the message shim) the helper never
+  // submits: final submission happens only in the candidate's own browser (CLAUDE.md, WJ-249).
+  const IN_CLOUD = !!(window.chrome && window.chrome.runtime && window.chrome.runtime.__wonder);
   const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, submit: false, keepGoing: false, advances: 0, notice: null };
 
   function sigOf(form) {
@@ -380,7 +383,7 @@
     highlight(state.view);
     if (r.data.plan?.allowed) {
       state.advance = !!r.data.plan.advance;
-      state.submit = !!r.data.plan.submit;
+      state.submit = !IN_CLOUD && !!r.data.plan.submit;
     }
     if (r.data.plan?.allowed && r.data.plan.fills.length) return applyPlan(r.data.plan);
     render();
@@ -538,7 +541,7 @@
     }
     state.keepGoing = true;
     state.advance = !!r.data.advance;
-    state.submit = !!r.data.submit;
+    state.submit = !IN_CLOUD && !!r.data.submit;
     await applyPlan(r.data);
   }
 

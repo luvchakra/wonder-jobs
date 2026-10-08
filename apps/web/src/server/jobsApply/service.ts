@@ -223,7 +223,9 @@ function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked
   // The final Submit only under "Submit applications" (WJ-249): never in guided mode, once per job, and only when
   // every required question is answered with the candidate's own value — the helper re-checks the page itself.
   const filling = new Set(g.mappings.map((m) => m.fieldId));
-  const submit = submitAllowed && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
+  // Never in the cloud browser (a server-hosted page): final submission happens only in the candidate's own browser.
+  const inCloud = !!s.cloud && !s.cloud.endedAt;
+  const submit = submitAllowed && !inCloud && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
   return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided", submit };
 }
 
