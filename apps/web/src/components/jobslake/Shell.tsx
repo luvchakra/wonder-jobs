@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Activity, AlertTriangle, BarChart3, Database, FileCode2, Globe2, KeyRound, LayoutDashboard, Lightbulb, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Database, FileCode2, KeyRound, LayoutDashboard, Lightbulb, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const NAV = [
@@ -13,7 +13,6 @@ export const NAV = [
   { href: "/playground", label: "Search Playground", icon: Search },
   { href: "/jobs", label: "Jobs", icon: ListChecks },
   { href: "/quality", label: "Data Quality", icon: ShieldCheck },
-  { href: "/coverage", label: "Coverage", icon: Globe2 },
   { href: "/health", label: "Health", icon: Activity },
   { href: "/runs", label: "Runs", icon: BarChart3 },
   { href: "/alerts", label: "Alerts", icon: AlertTriangle },
