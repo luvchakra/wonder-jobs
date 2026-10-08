@@ -231,6 +231,24 @@ const handlers = {
     return null;
   },
   jobsApplyCall,
+  /**
+   * The popup's Fill on a page no application knows — a job board's redirect that landed on another
+   * site. Offers the candidate's most recent Apply with Wonder application for this tab. Binding only
+   * makes the page ask: the session stays paused, and nothing is read, until the candidate chooses
+   * "Continue here" on the page.
+   */
+  async adoptTab({ tabId, url }) {
+    if (tabId == null || !url || (await sessionFor(url))) return { sessionId: null };
+    const all = await readSessions();
+    const bound = await tabSession(tabId);
+    if (bound && all[bound]) return { sessionId: bound };
+    const live = Object.values(all)
+      .filter((s) => (s.expiresAt ?? 0) * 1000 > Date.now())
+      .sort((a, b) => (b.pairedAt ?? 0) - (a.pairedAt ?? 0))[0];
+    if (!live) return { sessionId: null };
+    await bindTab(tabId, live.sessionId);
+    return { sessionId: live.sessionId };
+  },
   /** For the popup: is this tab an Apply with Wonder destination, and may the helper run here? */
   async tabStatus({ url }) {
     const s = url ? await sessionFor(url) : null;

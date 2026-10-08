@@ -31,20 +31,23 @@ async function refresh() {
 }
 
 /**
- * Fills the form on this tab. On a site outside the helper's built-in list (an employer's own
- * careers page, Workable, a job board's redirect), the form script isn't there yet: opening this popup
- * gave the helper access to this one tab (activeTab), so it is put there now, and nowhere else.
+ * Fills the form on this tab. A page no application knows (a job board's redirect to another site) is
+ * offered to the candidate's latest Apply with Wonder application, which asks before reading anything;
+ * with none, the profile fill runs. Outside the helper's built-in list the form script isn't on the tab
+ * yet: opening this popup gave the helper access to this one tab (activeTab), so it is put there now.
  */
-async function fillTab(tabId) {
-  const fill = () => chrome.tabs.sendMessage(tabId, { type: "fillNow" });
+async function fillTab(tab) {
+  const adopted = tab.url ? await chrome.runtime.sendMessage({ type: "adoptTab", payload: { tabId: tab.id, url: tab.url } }).catch(() => null) : null;
+  const message = adopted?.sessionId ? { type: "jobsApplyAdopt", sessionId: adopted.sessionId } : { type: "fillNow" };
   try {
-    return await fill();
+    return await chrome.tabs.sendMessage(tab.id, message);
   } catch {
     // Not on this tab yet. Every frame the helper may reach first (a form inside an iframe), else the page itself.
     await chrome.scripting
-      .executeScript({ target: { tabId, allFrames: true }, files: ["content/autofill.js"] })
-      .catch(() => chrome.scripting.executeScript({ target: { tabId }, files: ["content/autofill.js"] }));
-    return fill();
+      .executeScript({ target: { tabId: tab.id, allFrames: true }, files: ["content/autofill.js"] })
+      .catch(() => chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/autofill.js"] }));
+    // A freshly started script finds the adopted application itself (the tab is bound to it).
+    return adopted?.sessionId ? undefined : chrome.tabs.sendMessage(tab.id, message);
   }
 }
 
@@ -54,7 +57,7 @@ $("fill").addEventListener("click", async () => {
   $("fill").disabled = true;
   $("fill").textContent = "Filling…";
   try {
-    await fillTab(tab.id);
+    await fillTab(tab);
     window.close();
   } catch {
     // Chrome's own pages, the Web Store and PDFs don't let any extension in.
