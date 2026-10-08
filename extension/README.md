@@ -2,10 +2,13 @@
 
 The browser half of **Apply with Wonder** (JobsApply). It fills an employer's
 application form with what the candidate approved in WonderJobs, stops for
-questions only the candidate should answer, and never submits anything — the
-candidate reviews the form and presses the employer's submit button themselves.
-There is no code in the extension that clicks, submits or sends a key press;
-`apps/web/src/server/jobsApply/extension.test.ts` scans every script for it.
+questions only the candidate should answer, and presses a page's own Next button.
+It presses the employer's final Submit only when the candidate turned on "Submit
+applications" (account default, or "Submit for me" on one application — WJ-248),
+once every required field on the page is filled; otherwise the candidate submits.
+It never submits a form programmatically or sends a key press; the only presses are
+those two guarded `.click()` calls, which
+`apps/web/src/server/jobsApply/extension.test.ts` holds it to.
 
 ## Apply with Wonder (session mode)
 

@@ -60,6 +60,8 @@ export const CreateSchema = z.object({
   startOver: z.boolean().optional(),
   /** The candidate saw the duplicate warning and chose "Continue anyway" (§57). */
   acknowledgeDuplicate: z.boolean().optional(),
+  /** "Submit for me" for this application (WJ-248): always / never; absent = account default. */
+  submit: z.enum(["on", "off"]).optional(),
 });
 
 const fieldType = z.enum(["text", "textarea", "email", "phone", "url", "select", "radio", "checkbox", "date", "file", "combobox", "number", "password", "otp", "unknown"]);
@@ -94,6 +96,7 @@ export const HelperEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("NAVIGATION_CHANGED"), url: str(2000).url(), passwordField: z.boolean().optional() }).strict(),
   z.object({ type: z.literal("SUBMIT_CLICKED") }).strict(),
   z.object({ type: z.literal("STEP_ADVANCED"), label: str(80) }).strict(),
+  z.object({ type: z.literal("APPLICATION_SUBMITTED"), label: str(80) }).strict(),
   z.object({ type: z.literal("ANSWER_LEARNED"), fieldId: str(200), value: str(500).min(1) }).strict(),
   z.object({ type: z.literal("SUBMISSION_DETECTED"), url: str(2000).url(), excerpt: str(400).optional(), confirmationId: str(80).optional() }).strict(),
   z.object({ type: z.literal("STOP") }).strict(),
@@ -115,4 +118,5 @@ export const InterventionSchema = z.discriminatedUnion("action", [
 
 export const ConfirmSchema = z.object({ answer: z.enum(["yes", "not_yet", "unsure"]) });
 export const ModeSchema = z.object({ mode: z.enum(["guided", "assisted", "fill"]) });
+export const SubmitSettingSchema = z.object({ submit: z.enum(["on", "off", "default"]) });
 export const DomainSchema = z.object({ host: str(253) });

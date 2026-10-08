@@ -308,7 +308,7 @@ test.describe("JobsApply with the browser helper", () => {
     await employer.locator("#salary").press("Tab");
     // Every required question answered: Wonder presses the page's own "Save and continue" …
     await expect(employer.locator("#page2")).toBeVisible({ timeout: 15_000 });
-    // … and stops where only a submit button is left. It never submits.
+    // … and stops where only a submit button is left (Submit applications is off by default).
     await expect(panel(employer).getByText(/Last step: answer the highlighted question, review the form, then press “Submit application” yourself/)).toBeVisible({ timeout: 15_000 });
     await expect(employer.locator("input[name=declare]")).not.toBeChecked();
     expect(await employer.evaluate(() => (window as unknown as { __submits: number }).__submits)).toBe(0);

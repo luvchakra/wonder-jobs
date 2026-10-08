@@ -1,8 +1,9 @@
 /**
  * JobsApply state machine (spec §9–§10). Deliberately small: the invariants that matter are
  *
- *  1. SUBMITTED is reachable only by the candidate's own confirmation — never by Wonder or the helper
- *     (CLAUDE.md: "submitted" is set exclusively by the candidate's own later click; spec §54).
+ *  1. SUBMITTED is reached by the candidate's own confirmation — or, when the helper itself pressed the
+ *     employer's Submit under the candidate's "Submit applications" setting (WJ-248), by the helper once it
+ *     sees the employer's confirmation. Nothing else marks an application submitted.
  *  2. TRACKED follows SUBMITTED and nothing else.
  *  3. A terminal session (TRACKED, CANCELLED) never moves again; "Start over" is a new session.
  *  4. Filling is allowed only from an active, un-paused state.
@@ -29,11 +30,12 @@ export class TransitionError extends Error {
   }
 }
 
-export function canTransition(from: JobsApplyStatus, to: JobsApplyStatus, actor: Actor): { ok: true } | { ok: false; reason: string } {
+export function canTransition(from: JobsApplyStatus, to: JobsApplyStatus, actor: Actor, opts: { wonderSubmitted?: boolean } = {}): { ok: true } | { ok: false; reason: string } {
   if (from === to) return { ok: true };
   if (TERMINAL.has(from)) return { ok: false, reason: "session has ended" };
   if (to === "DRAFT") return { ok: false, reason: "a session never returns to draft" };
   if (to === "SUBMITTED") {
+    if (actor === "helper" && opts.wonderSubmitted) return from === "VERIFICATION" ? { ok: true } : { ok: false, reason: "the employer's confirmation wasn't seen" };
     if (actor !== "candidate") return { ok: false, reason: "only the candidate can say an application was submitted" };
     if (!MAY_HAVE_SUBMITTED.has(from) && from !== "SUBMITTED") return { ok: false, reason: "the application was never opened" };
     return { ok: true };
@@ -45,8 +47,8 @@ export function canTransition(from: JobsApplyStatus, to: JobsApplyStatus, actor:
   return { ok: true };
 }
 
-export function assertTransition(from: JobsApplyStatus, to: JobsApplyStatus, actor: Actor): void {
-  const r = canTransition(from, to, actor);
+export function assertTransition(from: JobsApplyStatus, to: JobsApplyStatus, actor: Actor, opts: { wonderSubmitted?: boolean } = {}): void {
+  const r = canTransition(from, to, actor, opts);
   if (!r.ok) throw new TransitionError(from, to, r.reason);
 }
 

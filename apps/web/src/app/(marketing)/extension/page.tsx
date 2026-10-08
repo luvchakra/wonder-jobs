@@ -13,7 +13,7 @@ export default function ExtensionPage() {
     <MarketingPage
       eyebrow="Browser extension"
       title="Apply without retyping yourself"
-      intro="WonderJobs prepares your materials. The extension puts them into the employer's own form — your name, your email, the resume and cover letter tailored to that exact role. It never submits anything for you."
+      intro="WonderJobs prepares your materials. The extension puts them into the employer's own form — your name, your email, the resume and cover letter tailored to that exact role. It submits only if you turn on Submit applications."
       sections={[
         {
           id: "what-it-fills",
@@ -38,7 +38,7 @@ export default function ExtensionPage() {
               </p>
               <p>
                 With <strong>Apply with Wonder</strong> (start it from a job in WonderJobs), the helper reads the whole form, fills what matches your approved details, highlights what needs you, and presses the page&apos;s own Next or Save and continue to
-                reach the next page. It stops for sign-in, verification challenges, an unexpected site, and on the page whose button submits. It never submits — you press the employer&apos;s submit button, then confirm in WonderJobs.
+                reach the next page. It stops for sign-in, verification challenges, an unexpected site, and on the page whose button submits. There it stops and you press the employer&apos;s submit button — unless you turned on Submit applications, when it presses Submit once every required answer is yours, and logs it.
               </p>
             </>
           ),
@@ -93,7 +93,7 @@ export default function ExtensionPage() {
               <li>The token never reaches the employer&apos;s page — only the extension&apos;s own background worker holds it.</li>
               <li>It sends the address of the job page you are on to WonderJobs, so it can find the materials you prepared for that posting. Nothing else about your browsing leaves your machine.</li>
               <li>
-                It never submits a form. Read more in <Link href="/security">Security</Link>.
+                It submits a form only when you turned on Submit applications. Read more in <Link href="/security">Security</Link>.
               </li>
             </ul>
           ),

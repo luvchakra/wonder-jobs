@@ -12,11 +12,15 @@
  *   4. notices — passively — when the candidate presses the employer's submit button and when a
  *      confirmation page appears, and tells WonderJobs as evidence.
  *
- * It never submits. The one button it ever presses is a page's own next-page button ("Next", "Continue",
- * "Save and continue") after filling that page, when WonderJobs allows it (`plan.advance`), and never one
- * its step classifier calls final ("Submit", "Apply", "Send", "Finish", "Confirm"): on a page whose way
- * on is a final button it stops and says so. A unit test in the web app holds that to exactly one press,
- * on a "next" button. The candidate submits.
+ * It presses two kinds of button, each under its own gate from WonderJobs:
+ *   - a page's own next-page button ("Next", "Continue", "Save and continue") after filling that page,
+ *     when `plan.advance` allows it (WJ-239);
+ *   - the employer's final button ("Submit", "Apply", …) only when `plan.submit` is true — the candidate
+ *     turned on "Submit applications" for this application or their account (WJ-248) — and only once
+ *     every required field on the page has something in it and the form says it's valid. Once per page
+ *     session; reported to WonderJobs (APPLICATION_SUBMITTED) before the press.
+ * Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
+ * unit test in the web app holds the helper to exactly these two guarded presses.
  *
  * It reads what the candidate types only into questions WonderJobs flagged as needing them (never a
  * password, code, payment, ID, demographic, legal or right-to-work question), so the answer can be
@@ -356,7 +360,7 @@
 
   /* ------------------------------------------------------ JobsApply session */
 
-  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, keepGoing: false, advances: 0, notice: null };
+  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, submit: false, keepGoing: false, advances: 0, notice: null };
 
   function sigOf(form) {
     return JSON.stringify([form.step, form.signals, form.fields.map((f) => [f.id, f.type, f.hasValue, f.options?.length])]);
@@ -374,7 +378,10 @@
     if (!r || r.error) return render(r);
     state.view = r.data;
     highlight(state.view);
-    if (r.data.plan?.allowed) state.advance = !!r.data.plan.advance;
+    if (r.data.plan?.allowed) {
+      state.advance = !!r.data.plan.advance;
+      state.submit = !!r.data.plan.submit;
+    }
     if (r.data.plan?.allowed && r.data.plan.fills.length) return applyPlan(r.data.plan);
     render();
     // The candidate chose Fill on an earlier page of this form: keep filling page after page.
@@ -426,10 +433,15 @@
     const waiting = openRequired();
     const answer = waiting.length === 1 ? "the highlighted question" : `the ${waiting.length} highlighted questions`;
     const { next, final } = stepButtons();
-    // A page whose way on is a submit: Wonder's part is done; the candidate finishes and submits.
+    // A page whose way on is a submit. With "Submit applications" on for this application, Wonder submits
+    // once the page is complete; otherwise Wonder's part is done and the candidate submits.
     if (final.length) {
+      const finalLabel = clean(final[0].textContent || final[0].value || final[0].getAttribute("aria-label")).slice(0, 80);
+      if (state.submit && !waiting.length && final.length === 1 && pageComplete(final[0])) return submitFinal(final[0], finalLabel);
       state.keepGoing = false;
-      state.notice = `Last step: ${waiting.length ? `answer ${answer}, ` : ""}review the form, then press “${clean(final[0].textContent || final[0].value).slice(0, 40)}” yourself.`;
+      state.notice = state.submit
+        ? `Last step: ${waiting.length ? `answer ${answer} — ` : "fill every required field — "}Wonder submits once the form is complete.`
+        : `Last step: ${waiting.length ? `answer ${answer}, ` : ""}review the form, then press “${finalLabel.slice(0, 40)}” yourself.`;
       return render();
     }
     if (waiting.length) {
@@ -451,6 +463,33 @@
       state.notice = "The page didn't move on — check the form for a message, then press its button yourself.";
       render();
     }, 4000);
+  }
+
+  /** Every required field on the page has something in it, and the employer's own form says it's valid. */
+  function pageComplete(button) {
+    const filled = (el) => (el.type === "checkbox" ? el.checked : el.type === "radio" ? !!document.querySelector(`input[type=radio][name="${CSS.escape(el.name)}"]:checked`) : el.type === "file" ? (el.files?.length ?? 0) > 0 : !!(el.value && String(el.value).trim()));
+    for (const el of document.querySelectorAll("input[required], select[required], textarea[required], input[aria-required=true], select[aria-required=true], textarea[aria-required=true]")) {
+      if (el.closest(`#${PANEL_ID}`) || el.type === "hidden" || !el.getClientRects().length) continue;
+      if (!filled(el)) return false;
+    }
+    const form = button.form || button.closest("form");
+    return !form || form.checkValidity();
+  }
+
+  /** The final press, under "Submit applications" (WJ-248): reported first, once per page session. */
+  async function submitFinal(button, label) {
+    if (state.submitted) return;
+    state.submitted = true; // also keeps the passive submit watcher from reporting this press as the candidate's
+    state.keepGoing = false;
+    const r = await sendEvent({ type: "APPLICATION_SUBMITTED", label });
+    if (state.stopped || !r?.data) {
+      state.submitted = false;
+      state.notice = "Wonder didn't submit — check the form, then press its button yourself.";
+      return render();
+    }
+    state.notice = `Submitting to ${state.view?.company ?? "the employer"} — Submit applications is on for this application.`;
+    render();
+    if (stepKind(label) === "final" && state.submit) button.click(); // the final press: only under plan.submit, on a complete page
   }
 
   // Learning: an answer the candidate types into a question Wonder flagged as needing them is remembered
@@ -499,6 +538,7 @@
     }
     state.keepGoing = true;
     state.advance = !!r.data.advance;
+    state.submit = !!r.data.submit;
     await applyPlan(r.data);
   }
 
@@ -604,7 +644,7 @@
         ${v.resume ? `<h3>Résumé</h3><div>${esc(v.resume.filename)}</div>` : ""}
         ${detected ? `<div class="box" style="background:#dcfce7"><strong>Looks like it went through.</strong><div>Confirm in WonderJobs that you submitted it.</div></div>` : ""}
         <div class="row">
-          <span class="muted">Wonder never submits. Review, then press the employer's submit button yourself.</span>
+          <span class="muted">${state.submit ? "Submit for me is on: Wonder submits once every required field is answered." : "Review, then press the employer's submit button yourself."}</span>
           ${v.stopped ? "" : `<button class="pill ghost" id="stop">Stop</button>`}
         </div>
       </div>`;

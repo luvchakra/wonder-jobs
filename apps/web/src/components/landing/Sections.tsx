@@ -48,7 +48,7 @@ const AGENT_POINTS = [
   { icon: Zap, t: "Prepare in minutes", s: "An Application Pack and a résumé from eight ATS-friendly templates." },
   { icon: MousePointerClick, t: "Apply without retyping", s: "Wonder fills the employer's form. You answer what's yours and press submit." },
   { icon: Eye, t: "See the why", s: "Every match explains itself — and so does every hidden one." },
-  { icon: ShieldCheck, t: "Stay in control", s: "Wonder prepares. The final action is always yours." },
+  { icon: ShieldCheck, t: "Stay in control", s: "Wonder prepares. It submits only where you switch that on." },
 ];
 
 export function AgentSection() {
@@ -240,7 +240,7 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
               ))}
             </ul>
             <p className="mt-4 rounded-[10px] bg-surface-2 px-2.5 py-2 text-[12px] text-ink-2">
-              <strong className="text-ink">The final action is yours.</strong> Wonder fills the employer&apos;s form with these; it never submits for you.
+              <strong className="text-ink">The final action is yours.</strong> Wonder fills the employer&apos;s form with these, and submits only if you turn that on.
             </p>
           </>
         )}

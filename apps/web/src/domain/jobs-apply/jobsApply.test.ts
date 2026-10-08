@@ -6,7 +6,7 @@ import type { Application } from "@/domain/applications/types";
 import { classifyField } from "./classify";
 import { checkDomain, destinationFor, detectProvider, registrableDomain } from "./destination";
 import { mapForm, matchPackAnswer, memoryValueFor, progressOf } from "./mapper";
-import { fillDecision, fillGate, handoffDecision } from "./policy";
+import { fillDecision, fillGate, handoffDecision, submitDecision, submitReady } from "./policy";
 import { buildApplicationProfile, freshMemory, missingProfileFields, splitName } from "./profile";
 import { applyReadiness, findDuplicate } from "./readiness";
 import * as S from "./session";
@@ -594,5 +594,68 @@ describe("pauses only the candidate can lift", () => {
     s = S.resume(s, NOW);
     s = S.recordInspection(s, greenhouseForm(), NOW);
     expect(s.audit.filter((a) => a.event === "AUTH_COMPLETED")).toHaveLength(1);
+  });
+});
+
+describe("final submission (WJ-248): the candidate's opt-in, through resolveCapability, failing closed", () => {
+  const policy = (final_submit: "automatic" | "ask" | "off"): AutomationPolicy => ({ ...defaultPolicy(), final_submit });
+
+  it("is off by default and fails closed when anything is missing", () => {
+    expect(defaultPolicy().final_submit).toBe("off");
+    expect(submitDecision(defaultPolicy(), "continuous")).toBe("skip");
+    expect(submitDecision(undefined, "continuous")).toBe("skip");
+    expect(submitDecision(policy("automatic"), undefined)).toBe("skip");
+    const { final_submit: _missing, ...older } = policy("automatic");
+    void _missing;
+    expect(submitDecision(older, "continuous")).toBe("skip");
+  });
+
+  it("the account default runs only when set to Automatic at an independent level", () => {
+    expect(submitDecision(policy("automatic"), "autonomous")).toBe("run");
+    expect(submitDecision(policy("automatic"), "guided")).toBe("skip");
+    expect(submitDecision(policy("ask"), "continuous")).toBe("skip");
+  });
+
+  it("a per-application choice decides it either way; Never always wins", () => {
+    expect(submitDecision(defaultPolicy(), "assist", "on")).toBe("run");
+    expect(submitDecision(undefined, undefined, "on")).toBe("run");
+    expect(submitDecision(policy("automatic"), "continuous", "off")).toBe("skip");
+    expect(resolveCapability("final_submit", policy("automatic"), "continuous", "deny")).toBe("skip");
+  });
+
+  it("is ready only when every required question holds the candidate's own answer", () => {
+    let s = S.recordInspection(fresh(), greenhouseForm(), NOW);
+    expect(submitReady(s, new Set())).toBe(false);
+    // The required work-authorization question waits on the candidate: not ready while it's open.
+    expect(s.interventions.some((i) => i.required && i.status === "open")).toBe(true);
+    expect(submitReady(s, new Set(s.fieldMappings.map((m) => m.fieldId)))).toBe(false);
+    s = { ...s, interventions: s.interventions.map((i) => ({ ...i, status: "resolved" as const })), fieldMappings: s.fieldMappings.map((m) => ({ ...m, status: "filled" as const })) };
+    expect(submitReady(s, new Set())).toBe(true);
+  });
+
+  it("once Wonder submits, the employer's confirmation marks it submitted — once per job, audited", () => {
+    let s = S.recordInspection(fresh(), greenhouseForm(), NOW);
+    expect(canTransition("VERIFICATION", "SUBMITTED", "helper").ok).toBe(false);
+    s = S.recordWonderSubmitted(s, "Submit application", NOW);
+    expect(s.status).toBe("SUBMITTING");
+    expect(s.wonderSubmittedAt).toBe(NOW);
+    expect(S.recordWonderSubmitted(s, "Submit application", NOW)).toBe(s);
+    expect(s.audit.at(-1)).toMatchObject({ event: "APPLICATION_SUBMITTED", actor: "helper" });
+    s = S.recordSubmissionDetected(s, { url: "https://boards.greenhouse.io/example/jobs/7/confirmation", excerpt: "Thank you for applying" }, NOW);
+    expect(s.status).toBe("SUBMITTED");
+    expect(s.audit.at(-1)?.detail).toMatch(/Submitted by Wonder/);
+  });
+
+  it("without Wonder's own press, a confirmation page is still only evidence", () => {
+    const s = S.recordSubmissionDetected(S.recordInspection(fresh(), greenhouseForm(), NOW), { url: "https://boards.greenhouse.io/example/jobs/7/confirmation" }, NOW);
+    expect(s.status).toBe("VERIFICATION");
+  });
+
+  it("the candidate can set or clear the per-application choice", () => {
+    let s = S.setSubmitOverride(fresh(), "on", NOW);
+    expect(s.submitOverride).toBe("on");
+    s = S.setSubmitOverride(s, "default", NOW);
+    expect(s.submitOverride).toBeUndefined();
+    expect(S.createSession({ id: "y", tenantId: "t", nonce: "n", destination: dest, pack: pack(), mode: "fill", now: NOW, submit: "off" }).submitOverride).toBe("off");
   });
 });

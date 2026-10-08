@@ -3,10 +3,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * APPLY-053 / EXT-010: the browser helper has no way to submit an application. It never submits a form
- * or simulates a key press, anywhere. It presses exactly one kind of button — a page's own next-page
- * button, after its step classifier calls it "next" (owner decision, WJ-239) — and that classifier
- * calls every submit/apply/send/finish/confirm button "final", which is never pressed. This scans every
+ * APPLY-053 / EXT-010: the browser helper never submits a form programmatically or simulates a key press,
+ * anywhere. It presses exactly two kinds of button, each in one place under its own gate: a page's own
+ * next-page button after its step classifier calls it "next" (owner decision WJ-239), and the employer's
+ * final button only under `plan.submit` — the candidate's "Submit applications" setting (owner decision
+ * WJ-248) — after checking the page is complete and reporting APPLICATION_SUBMITTED first. This scans every
  * script the extension ships and runs the classifier itself.
  */
 const ROOT = path.resolve(__dirname, "../../../../../extension");
@@ -29,16 +30,26 @@ describe("browser helper — structural no-submit guarantee", () => {
       for (const f of files) expect(readFileSync(f, "utf8"), path.relative(ROOT, f)).not.toMatch(pattern);
     });
   }
-  it("presses exactly one button, in one place, and only after the step classifier calls it next", () => {
+  it("presses exactly two buttons, each in one place: next after the classifier says next; final only under plan.submit", () => {
     for (const f of files) {
       const src = readFileSync(f, "utf8");
       const presses = src.match(/\.click\(\s*\)/g) ?? [];
       if (!f.endsWith(path.join("content", "autofill.js"))) expect(presses, path.relative(ROOT, f)).toHaveLength(0);
       else {
-        expect(presses).toHaveLength(1);
+        expect(presses).toHaveLength(2);
         expect(src).toMatch(/if \(stepKind\(label\) === "next"\) button\.click\(\);/);
+        expect(src).toMatch(/if \(stepKind\(label\) === "final" && state\.submit\) button\.click\(\);/);
       }
     }
+  });
+  it("submits only from plan.submit, on a complete page, once, reporting before the press", () => {
+    const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
+    // state.submit is only ever set from WonderJobs' plan.
+    for (const m of src.matchAll(/state\.submit = ([^;]+);/g)) expect(m[1]).toMatch(/^(false|!!r\.data\.(plan\.)?submit)$/);
+    expect(src).toMatch(/if \(state\.submit && !waiting\.length && final\.length === 1 && pageComplete\(final\[0\]\)\) return submitFinal\(/);
+    const fn = src.slice(src.indexOf("async function submitFinal("), src.indexOf("// Learning:"));
+    expect(fn.indexOf("if (state.submitted) return;")).toBeGreaterThan(-1);
+    expect(fn.indexOf('sendEvent({ type: "APPLICATION_SUBMITTED"')).toBeLessThan(fn.indexOf("button.click()"));
   });
   it("the step classifier never calls a submit, apply, send, finish or confirm button \"next\"", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");

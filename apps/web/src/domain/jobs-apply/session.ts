@@ -28,7 +28,7 @@ function audit(s: JobsApplySession, now: string, event: JobsApplyEventType, acto
 }
 
 function to(s: JobsApplySession, status: JobsApplyStatus, actor: Actor): JobsApplySession {
-  assertTransition(s.status, status, actor);
+  assertTransition(s.status, status, actor, { wonderSubmitted: !!s.wonderSubmittedAt });
   return { ...s, status };
 }
 
@@ -44,6 +44,8 @@ export function createSession(input: {
   pack: ApplicationPackSnapshot;
   mode: ApplyMode;
   now: string;
+  /** The candidate's "Submit for me" choice for this application (WJ-248); absent = account default. */
+  submit?: "on" | "off";
 }): JobsApplySession {
   const { pack, now } = input;
   const s: JobsApplySession = {
@@ -69,6 +71,7 @@ export function createSession(input: {
     stopped: false,
     startedAt: now,
     updatedAt: now,
+    ...(input.submit ? { submitOverride: input.submit } : {}),
   };
   return audit(s, now, "SESSION_CREATED", "candidate", `Pack ${pack.version} · ${input.mode} mode${input.destination.provider ? ` · ${PROVIDER_NAME[input.destination.provider]}` : ""}`, input.destination.domain);
 }
@@ -363,7 +366,30 @@ export function recordSubmitClicked(s: JobsApplySession, now: string): JobsApply
   return audit(to(s, "SUBMITTING", "helper"), now, "SUBMISSION_STARTED", "helper", "You pressed the employer's submit button");
 }
 
-/** The helper saw a confirmation page (§55). Evidence only: the candidate still confirms. */
+/** The candidate's "Submit for me" choice for this application: "on", "off", or back to their account default. */
+export function setSubmitOverride(s: JobsApplySession, choice: "on" | "off" | "default", now: string): JobsApplySession {
+  assertActive(s);
+  const next = choice === "default" ? undefined : choice;
+  if (s.submitOverride === next) return s;
+  const { submitOverride: _drop, ...rest } = s;
+  void _drop;
+  const n: JobsApplySession = next ? { ...rest, submitOverride: next } : rest;
+  return audit(n, now, "MODE_CHANGED", "candidate", `Submit for me: ${choice === "on" ? "always" : choice === "off" ? "never" : "account default"}`);
+}
+
+/**
+ * The helper pressed the employer's final Submit under the candidate's "Submit applications" setting
+ * (WJ-248). Once per job: a second report changes nothing (key submit:{jobId}:me). The employer's
+ * confirmation page then marks it submitted (recordSubmissionDetected); without one, the candidate is asked.
+ */
+export function recordWonderSubmitted(s: JobsApplySession, label: string, now: string): JobsApplySession {
+  assertActive(s);
+  if (s.wonderSubmittedAt || s.status === "SUBMITTED") return s;
+  const n = { ...to(s, "SUBMITTING", "helper"), wonderSubmittedAt: now };
+  return audit(n, now, "APPLICATION_SUBMITTED", "helper", `Pressed “${label.slice(0, 60)}” to submit — Submit applications is on for this application (submit:${s.jobId}:me)`);
+}
+
+/** The helper saw a confirmation page (§55). Evidence only — unless Wonder itself submitted, when it completes the submission. */
 export function recordSubmissionDetected(s: JobsApplySession, ev: { url: string; excerpt?: string; confirmationId?: string }, now: string): JobsApplySession {
   assertActive(s);
   if (s.status === "SUBMITTED") return s;
@@ -376,7 +402,10 @@ export function recordSubmissionDetected(s: JobsApplySession, ev: { url: string;
     at: now,
   };
   const n = { ...to(s, "VERIFICATION", "helper"), evidence: [...s.evidence, evidence] };
-  return audit(n, now, "SUBMISSION_DETECTED", "helper", evidence.kind === "confirmation_number" ? "Confirmation number seen" : "Confirmation page seen", host);
+  const seen = audit(n, now, "SUBMISSION_DETECTED", "helper", evidence.kind === "confirmation_number" ? "Confirmation number seen" : "Confirmation page seen", host);
+  if (!s.wonderSubmittedAt) return seen;
+  // Wonder pressed Submit under the candidate's setting and the employer confirmed it: that is the submission.
+  return audit({ ...to(seen, "SUBMITTED", "helper"), failure: undefined, completedAt: now }, now, "SUBMISSION_CONFIRMED", "helper", "Submitted by Wonder · the employer's confirmation was seen");
 }
 
 /**

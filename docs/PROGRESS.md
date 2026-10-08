@@ -103,6 +103,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JobsLake Insights: source KPIs and suggestions from rules and AI (WJ-245)
 - ✅ Activity digest email: heads up, CTA, waiting on you, wins, fixes and AI suggestions (WJ-246)
 - ✅ Dashboard: KPIs, heads up, actions required, charts and suggestions, from the avatar menu (WJ-247)
+- ✅ Optional final submission: Submit applications setting + per-application/per-job Submit for me (WJ-248)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

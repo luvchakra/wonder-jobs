@@ -16,7 +16,9 @@ import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/States";
-import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { Field, Input, Segmented, Select, Textarea } from "@/components/common/Input";
+import { useAutomationStore } from "@/store/automation";
+import { submitDecision } from "@/domain/jobs-apply/policy";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { companyColor } from "@/components/jobs/JobCard";
 import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
@@ -75,6 +77,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const addFollowUp = useApplicationsStore((s) => s.addFollowUp);
   const completeFollowUp = useApplicationsStore((s) => s.completeFollowUp);
   const remove = useApplicationsStore((s) => s.remove);
+  const setAutoSubmit = useApplicationsStore((s) => s.setAutoSubmit);
+  const automationPolicy = useAutomationStore((s) => s.policy);
+  const automationLevel = useAutomationStore((s) => s.defaultLevel);
   const job = useJobsStore((s) => (app ? s.jobs[app.jobId] : undefined));
   const [note, setNote] = useState("");
   const [fuDate, setFuDate] = useState("");
@@ -149,7 +154,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-ink">Submit on {job.company}&apos;s site</p>
-                    <p className="text-[12px] text-ink-3">Wonder prepares everything but never submits for you: employers&apos; forms need your own identity and consent. Apply there, then mark it submitted so Wonder tracks it.</p>
+                    <p className="text-[12px] text-ink-3">Wonder prepares everything. You submit on the employer&apos;s site and mark it submitted — or, with Submit for me on, Wonder&apos;s helper submits and records it.</p>
                   </div>
                   {/* flex-wrap here too: on a narrow card even this pair alone can be wider than the
                       card, and a shrink-0 row with no wrap of its own forced the second button past
@@ -224,6 +229,22 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             </Field>
             <p className="mt-2 text-[12px] text-ink-4">Never contacts the employer.</p>
           </Card>
+          {!["submitted", "under_review", "interview", "offer", "rejected", "withdrawn"].includes(app.status) && (
+            <Fold title="Submit for me" hint={app.autoSubmit === "on" ? "Always" : app.autoSubmit === "off" ? "Never" : `Account default (${submitDecision(automationPolicy, automationLevel) === "run" ? "on" : "off"})`}>
+              <Segmented
+                size="sm"
+                label="Submit for me"
+                value={app.autoSubmit ?? "default"}
+                onChange={(v) => setAutoSubmit(app.id, v === "default" ? undefined : v)}
+                options={[
+                  { value: "default", label: "Account default" },
+                  { value: "on", label: "Always" },
+                  { value: "off", label: "Never" },
+                ]}
+              />
+              <p className="mt-2 pb-2 text-[12px] text-ink-3">With it on, Wonder&apos;s helper presses the employer&apos;s Submit once every required field holds your own answer. Applies when you apply with Wonder.</p>
+            </Fold>
+          )}
           <Fold title="Follow-ups" hint={`${app.followUps.filter((f) => !f.done).length} to do`}>
             {app.followUps.length ? (
               <ul className="mb-3 flex flex-col gap-2">

@@ -206,7 +206,7 @@ export function ControlSection() {
           <h2 id="control-title" className="mt-3 text-h2 font-semibold">
             Wonder does the work. <span className="wj-gradient-text">The final action is yours.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-white/75">Choose how much Wonder handles. Whatever you pick, it never submits an application, messages a recruiter or sends an email for you.</p>
+          <p className="mt-4 text-[16px] text-white/75">Choose how much Wonder handles. Whatever you pick, it never messages a recruiter or sends an email for you, and submits an application only if you switch that on.</p>
         </ScrollReveal>
 
         <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -296,7 +296,7 @@ export function ControlSection() {
               <ul className="space-y-3 rounded-[28px] border border-white/10 bg-white/[0.06] p-6 text-[14px] text-white/80 backdrop-blur">
                 {[
                   { icon: Radar, t: "Quiet by default", s: "Keep watch only speaks up when something is worth your attention." },
-                  { icon: ShieldCheck, t: "Nothing without you", s: "Wonder can fill a form; submitting it is always your click, on the employer's site." },
+                  { icon: ShieldCheck, t: "Nothing without you", s: "Wonder fills the employer's form; it submits only where you turned that on." },
                   { icon: Sparkles, t: "See how Wonder worked", s: "Sources, evidence and every step — one click away when you want it." },
                 ].map((r) => (
                   <li key={r.t} className="flex items-start gap-3">
