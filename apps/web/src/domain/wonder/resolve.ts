@@ -51,8 +51,8 @@ function openStrongMatches(ctx: WonderContext): CanonicalJob[] {
     .sort((a, b) => ctx.matches[b.id].score - ctx.matches[a.id].score);
 }
 
-export function resolveWonderQuery(raw: string, ctx: WonderContext): WonderAction | null {
-  const intent = parseWonderIntent(raw);
+/** `intent` defaults to the rules' reading; a model's (checked) reading can be passed instead. */
+export function resolveWonderQuery(raw: string, ctx: WonderContext, intent = parseWonderIntent(raw)): WonderAction | null {
   switch (intent.type) {
     case "today_priorities": {
       const attention = computeApplicationAttention(ctx.applications, ctx.now);
