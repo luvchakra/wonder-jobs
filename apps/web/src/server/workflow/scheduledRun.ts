@@ -71,7 +71,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   const workflow = snapshot.workflow.workflows[schedule.workflowId];
 
   // Advance first, always: whatever happens next, this schedule has had its turn.
-  const advanced: WorkflowSchedule = { ...schedule, lastRunAt: now.toISOString(), nextRunAt: nextScheduledRun(schedule, advancedFrom(schedule, now)) };
+  const advanced: WorkflowSchedule = { ...schedule, lastRunAt: now.toISOString(), nextRunAt: nextScheduledRun(schedule, advancedFrom(schedule, now, opts.earlyMs)) };
   snapshot.workflow.schedules[schedule.id] = advanced;
 
   if (Object.values(snapshot.workflow.runs).some((r) => isActive(r.status))) {

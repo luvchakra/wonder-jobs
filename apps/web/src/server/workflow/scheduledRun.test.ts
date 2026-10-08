@@ -219,6 +219,20 @@ describe("runDueSchedules", () => {
     expect(searchSource).toHaveBeenCalledTimes(2);
   });
 
+  it("catching up on a missed day at 07:49 also covers this morning's 08:00 — the schedule found in production", async () => {
+    // Stored state at the time: last run 02:19:58Z, next run stamped for that morning's 02:30Z (already past).
+    searchSource.mockResolvedValue({ jobs: [job(1)], cached: false });
+    await seed({ schedule: schedule({ nextRunAt: "2026-04-15T02:30:00.000Z", lastRunAt: "2026-04-15T02:19:58.000Z" }) });
+    const early = { earlyMs: 60 * 60_000 };
+
+    expect((await runDueSchedules(TENANT, { now: new Date("2026-04-16T02:19:58.000Z"), ...early }))?.outcome).toBe("completed");
+    const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
+    expect(wf.state.schedules["sch-1"].nextRunAt).toBe("2026-04-17T02:30:00.000Z"); // not 04-16 02:30, which this run covered
+    // And from then on it's on time: the following morning's wake runs the following day's search.
+    expect((await runDueSchedules(TENANT, { now: new Date("2026-04-17T02:10:00.000Z"), ...early }))?.outcome).toBe("completed");
+    expect(searchSource).toHaveBeenCalledTimes(2);
+  });
+
   it("tells the candidate when a scheduled run fails", async () => {
     searchSource.mockRejectedValue(new Error("upstream is down"));
     await seed();
