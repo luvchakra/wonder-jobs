@@ -9,7 +9,7 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
-import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchStatusLine } from "@/components/jobs/JobsReadiness";
+import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
  * Signed in = looking at relevant jobs. This screen is the job list, searched on open when it's
@@ -77,53 +77,56 @@ function JobsHome() {
   }
 
   return (
-    <JobsBoard
-      header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
-      // What was searched and "Search as" live in Refine — the list stays the page.
-      refineTop={
-        search.active && roles.length === 0 ? null : (
+    <>
+      {/* What Wonder searches for, first thing on the page, with one tap to change it. */}
+      <WantedRole search={search} />
+      <JobsBoard
+        header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
+        // What was searched and "Search as" live in Refine — the list stays the page.
+        refineTop={
           <>
+            <WantedRole search={search} />
             {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
             {roles.length > 0 && <RoleChips roles={roles} current={pickedRole !== undefined ? pickedRole : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null)} onPick={setPickedRole} busy={false} />}
           </>
-        )
-      }
-      footer={
-        <div className="mt-6">
-          <h1 className="wj-sr-only">Find jobs</h1>
-          <RelevanceNoteBar notes={search.readiness.notes} />
-        </div>
-      }
-      empty={<JobsEmpty search={search} />}
-      searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
-      sourceSearch={{
-        run: (text, places) => {
-          // The candidate's own search shows everything it finds, best answer first — not only profile fits.
-          const s = useJobsStore.getState();
-          if (!s.searchedFor) fitBeforeWords.current = s.filters.minFit;
-          s.setFilters({ minFit: null });
-          setPickedRole(undefined);
-          void search.searchWords(text, places).then((run) => {
-            if (run) window.scrollTo({ top: 0, behavior: "smooth" });
-          });
-        },
-        describe: (text, places) => {
-          const d = describeWords(text, search.readiness.locations, places);
-          // Only places typed: the profile's own roles, there.
-          const what = d.query || (d.fromWords ? search.readiness.query : "");
-          return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
-        },
-        places: search.readiness.locations,
-        runPlaces: (places) => {
-          // A picked "Search as" role only searches here, when the candidate taps Search.
-          const searched = typeof pickedRole === "string" ? search.searchAsRole(pickedRole, places) : search.searchNow({ locations: places });
-          setPickedRole(undefined);
-          void searched.then((run) => {
-            if (run) window.scrollTo({ top: 0, behavior: "smooth" });
-          });
-        },
-      }}
-    />
+        }
+        footer={
+          <div className="mt-6">
+            <h1 className="wj-sr-only">Find jobs</h1>
+            <RelevanceNoteBar notes={search.readiness.notes} />
+          </div>
+        }
+        empty={<JobsEmpty search={search} />}
+        searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
+        sourceSearch={{
+          run: (text, places) => {
+            // The candidate's own search shows everything it finds, best answer first — not only profile fits.
+            const s = useJobsStore.getState();
+            if (!s.searchedFor) fitBeforeWords.current = s.filters.minFit;
+            s.setFilters({ minFit: null });
+            setPickedRole(undefined);
+            void search.searchWords(text, places).then((run) => {
+              if (run) window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+          },
+          describe: (text, places) => {
+            const d = describeWords(text, search.readiness.locations, places);
+            // Only places typed: the profile's own roles, there.
+            const what = d.query || (d.fromWords ? search.readiness.query : "");
+            return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
+          },
+          places: search.readiness.locations,
+          runPlaces: (places) => {
+            // A picked "Search as" role only searches here, when the candidate taps Search.
+            const searched = typeof pickedRole === "string" ? search.searchAsRole(pickedRole, places) : search.searchNow({ locations: places });
+            setPickedRole(undefined);
+            void searched.then((run) => {
+              if (run) window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+          },
+        }}
+      />
+    </>
   );
 }
 

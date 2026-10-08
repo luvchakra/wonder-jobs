@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileUp, Loader2, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
-import { stripSelfReference } from "@/services/jobs/normalize";
+import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
 import type { JobSearch } from "@/lib/useJobSearch";
 import { foundNothing } from "@/lib/useJobSearch";
@@ -260,6 +260,76 @@ function NoteBody({ note }: { note: RelevanceNote }) {
 /* ------------------------------------------------------------------- status */
 
 /** One line: what Wonder is doing now, or what the list is from — with the per-source detail a tap away. */
+/**
+ * The role Wonder searches for, said up front with one tap to change it — the Career Profile's "Role you
+ * want", edited in place. Saving searches for the new role straight away.
+ */
+export function WantedRole({ search, className }: { search: JobSearch; className?: string }) {
+  const dna = useCareerStore((s) => s.dna);
+  const updateDNA = useCareerStore((s) => s.updateDNA);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [hint, setHint] = useState<string | null>(null);
+  const role = dna.careerGoal.trim();
+
+  const save = async () => {
+    const goal = draft.trim();
+    if (!goal || onlyLevel(goal)) {
+      setHint(goal ? `Which ${goal} role? Add the field — e.g. “${goal}, identity and access management”.` : "Say the role you want, e.g. “Director, identity and access management”.");
+      return;
+    }
+    setEditing(false);
+    setHint(null);
+    if (goal === role) return;
+    useJobsStore.getState().setFilters({ query: "" });
+    // Started before the profile changes, so the page's own "the profile's search changed" doesn't start a second one.
+    await search.searchNow({ query: profileSearchQuery({ headline: dna.headline, careerGoal: goal }), careerGoal: goal });
+    updateDNA({ careerGoal: goal });
+  };
+
+  if (!editing) {
+    return (
+      <p className={cn("mb-3 flex flex-wrap items-baseline gap-x-2 text-[14px] text-ink-2", className)}>
+        <span>Looking for</span>
+        <strong className="min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(role);
+            setEditing(true);
+          }}
+          className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
+        >
+          Change
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form
+      className={cn("mb-3 flex flex-col gap-2", className)}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <label htmlFor="wj-wanted-role" className="text-[13px] font-medium text-ink-2">
+        Role you want
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Input id="wj-wanted-role" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="e.g. Director, identity and access management" className="min-w-0 flex-1" />
+        <Button type="submit">Search</Button>
+        <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </div>
+      <p className={cn("text-[12px]", hint ? "text-danger-600" : "text-ink-3")} role={hint ? "alert" : undefined}>
+        {hint ?? "One role and its field. Add other roles in your Career Profile."}
+      </p>
+    </form>
+  );
+}
+
 export function SearchStatusLine({ search, monitoring = false }: { search: JobSearch; monitoring?: boolean }) {
   // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
