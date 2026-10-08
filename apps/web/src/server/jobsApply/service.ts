@@ -208,8 +208,9 @@ export function helperView(s: JobsApplySession, fill: FillDecision) {
 
 function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked: boolean, fieldIds?: string[]) {
   const g = fillGate(s, { host, decision, candidateClicked: clicked, fieldIds });
-  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [] };
-  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })) };
+  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false };
+  // Whoever may fill this page may also press its next-page button — never a submit (the helper's own classifier).
+  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided" };
 }
 
 async function helperFill(ctx: HelperCtx, s: JobsApplySession = ctx.session): Promise<FillDecision> {
@@ -226,7 +227,7 @@ export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Prom
   if (isResult(out)) return out;
   const fill = await helperFill(ctx, out);
   // Under an "automatic" policy the plan comes back with the inspection; otherwise the helper waits for the candidate's click.
-  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [] };
+  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false };
   return ok({ ...helperView(out, fill), plan: auto });
 }
 
@@ -249,6 +250,12 @@ export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSc
           break;
         case "SUBMIT_CLICKED":
           s = S.recordSubmitClicked(s, now);
+          break;
+        case "STEP_ADVANCED":
+          s = S.recordStepAdvanced(s, e.label, now);
+          break;
+        case "ANSWER_LEARNED":
+          s = S.recordLearnedAnswer(s, e.fieldId, e.value, now);
           break;
         case "SUBMISSION_DETECTED":
           s = S.recordSubmissionDetected(s, e, now);

@@ -88,6 +88,8 @@ const PROFILE_RULES: Rule[] = [
 ];
 
 const MEMORY_RULES: { re: RegExp; reject?: RegExp; key: MemoryKey; category: QuestionCategory }[] = [
+  { re: /\b(current|present|last drawn|existing) (annual )?(salary|compensation|ctc|pay)\b|\bcurrent ctc\b|\bctc \(current\)/, key: "currentSalary", category: "COMPENSATION" },
+  { re: /\bemployment status\b|\bare you (currently )?(employed|working)\b|\bcurrently (employed|working)\?|\bjob status\b/, key: "employmentStatus", category: "AVAILABILITY" },
   { re: /\b(salary|compensation|\bctc\b|pay expectation|desired pay|expected pay|remuneration|rate expectation)/, reject: /current|present|last drawn/, key: "salaryExpectation", category: "COMPENSATION" },
   { re: /\bnotice period\b|\bnotice\b/, key: "noticePeriod", category: "AVAILABILITY" },
   { re: /\b(start date|when can you start|earliest start|available to start|availability)\b/, key: "availability", category: "AVAILABILITY" },
@@ -150,11 +152,9 @@ export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: bool
   }
 
   // 5. Volatile preferences — confirm before fill (§21, §85). Checked before profile rules so "expected salary (city)" isn't a city.
-  for (const r of MEMORY_RULES) {
-    if (r.re.test(visible) && !(r.reject && r.reject.test(visible))) return { category: r.category, classification: "confirm", target: { kind: "memory", key: r.key }, confidence: "LOW", reason: "Wonder asks before using this — it changes over time." };
-  }
-  if (/\b(current|present|last drawn) (salary|compensation|ctc|pay)\b/.test(visible)) {
-    return { category: "COMPENSATION", classification: "confirm", target: { kind: "none" }, confidence: "LOW", reason: "Your current pay is yours to share or not." };
+  // A tick box that merely mentions salary ("show my salary to employers") isn't the salary question.
+  for (const r of f.type === "checkbox" ? [] : MEMORY_RULES) {
+    if (r.re.test(visible) && !(r.reject && r.reject.test(visible))) return { category: r.category, classification: "confirm", target: { kind: "memory", key: r.key }, confidence: "LOW", reason: "Saved in your Career Profile within 30 days: filled. Otherwise Wonder asks — it changes over time." };
   }
 
   // 6. Profile facts by label (HIGH) or by attribute names only (MEDIUM — confirm first).

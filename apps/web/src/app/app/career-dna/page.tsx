@@ -234,7 +234,7 @@ export default function CareerDNAPage() {
               </Field>
             </div>
           </MoreRow>
-          <MoreRow title="Answers Wonder remembers" hint="Offered on application forms for you to confirm">
+          <MoreRow title="Application answers" hint="Salary, notice period, employment status — filled on forms for you">
             <RememberedAnswers />
           </MoreRow>
           <MoreRow title="What Wonder has learned" hint="From the jobs you marked not for me">

@@ -28,12 +28,14 @@ export type ApplicationProfile = Partial<Record<ProfileKey, ApplicationValue>>;
 
 /* ------------------------------------------------------ answer memory */
 
-/** Answers the candidate gave on an earlier application, remembered with a timestamp (§83–§85). */
-export const MEMORY_KEYS = ["salaryExpectation", "noticePeriod", "relocation", "workArrangement", "travel", "availability", "workAuthorization", "sponsorship"] as const;
+/** Answers the candidate saved (in their Career Profile or on an earlier application), with when they last confirmed them (§83–§85). */
+export const MEMORY_KEYS = ["salaryExpectation", "currentSalary", "employmentStatus", "noticePeriod", "relocation", "workArrangement", "travel", "availability", "workAuthorization", "sponsorship", "custom"] as const;
 export type MemoryKey = (typeof MEMORY_KEYS)[number];
 
 export interface RememberedAnswer {
   key: MemoryKey;
+  /** For "custom": the question as an employer worded it — matched against later forms' questions. */
+  question?: string;
   value: string;
   confirmedAt: string;
   source: "USER_PROVIDED";
@@ -285,6 +287,8 @@ export type JobsApplyEventType =
   | "DOMAIN_CHANGED"
   | "DOMAIN_APPROVED"
   | "READY_FOR_REVIEW"
+  | "STEP_ADVANCED"
+  | "ANSWER_LEARNED"
   | "SUBMISSION_STARTED"
   | "SUBMISSION_DETECTED"
   | "SUBMISSION_CONFIRMED"

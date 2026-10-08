@@ -32,12 +32,13 @@ export default function ExtensionPage() {
                 </li>
               </ul>
               <p>
-                Anything your Career Profile doesn&apos;t hold is left blank and listed, so you know what is still yours to type — the helper never invents a value to look complete. Work authorization, sponsorship, salary, legal and demographic questions are
-                always yours to answer.
+                Anything your Career Profile doesn&apos;t hold is left blank and listed, so you know what is still yours to type — the helper never invents a value to look complete. Salary, notice period and employment status come from the Application
+                answers in your Career Profile; when you type an answer to a question the helper flagged, it remembers it for the next form. Work authorization, sponsorship, legal declarations and demographic questions are always yours to answer, and are never
+                remembered.
               </p>
               <p>
-                With <strong>Apply with Wonder</strong> (start it from a job in WonderJobs), the helper reads the whole form, fills what matches your approved details, highlights what needs you, and stops for sign-in, verification challenges or an unexpected
-                site. It never submits — you press the employer&apos;s submit button, then confirm in WonderJobs.
+                With <strong>Apply with Wonder</strong> (start it from a job in WonderJobs), the helper reads the whole form, fills what matches your approved details, highlights what needs you, and presses the page&apos;s own Next or Save and continue to
+                reach the next page. It stops for sign-in, verification challenges, an unexpected site, and on the page whose button submits. It never submits — you press the employer&apos;s submit button, then confirm in WonderJobs.
               </p>
             </>
           ),
@@ -48,7 +49,7 @@ export default function ExtensionPage() {
           body: (
             <>
               <p>Greenhouse, Lever, Ashby and Workday application forms run the helper automatically. On an employer&apos;s own careers site, it asks you to allow that one site first — it never requests access to every website.</p>
-              <p>It reads fields by their labels, so unfamiliar forms still get the obvious fields. It only fills after you choose Fill (or, if you turned it on, when an Apply with Wonder form opens), and only on the page you are looking at.</p>
+              <p>It reads fields by their labels, so unfamiliar forms still get the obvious fields. It only fills after you choose Fill (or, if you turned it on, when an Apply with Wonder form opens), on the form you are looking at, page by page until the submit page.</p>
             </>
           ),
         },

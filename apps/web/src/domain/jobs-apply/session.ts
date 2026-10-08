@@ -5,6 +5,7 @@
  */
 import { checkDomain, hostOf, PROVIDER_NAME } from "./destination";
 import { mapForm } from "./mapper";
+import { memoryKeyFor } from "./classify";
 import { assertTransition, TERMINAL, type Actor } from "./states";
 import type { ApplicationField, ApplicationForm, ApplicationPackSnapshot, ApplyDestination, ApplyMode, FailureCode, FieldMapping, InterventionItem, JobsApplyAuditEntry, JobsApplyEventType, JobsApplySession, JobsApplyStatus, SubmissionEvidence } from "./types";
 
@@ -308,6 +309,37 @@ export function stop(s: JobsApplySession, now: string, nonce: string, actor: Act
   const filled = s.fieldMappings.filter((m) => m.status === "filled").length;
   const n = { ...to(s, "PAUSED", actor), stopped: true, failure: "USER_CANCELLED" as FailureCode, tokenNonce: nonce, resumeStatus: s.status === "PAUSED" ? s.resumeStatus : s.status };
   return audit(n, now, "SESSION_STOPPED", actor, `${filled} field${filled === 1 ? "" : "s"} were filled before stopping; nothing was submitted`);
+}
+
+/**
+ * The helper pressed an employer's next-page button ("Next", "Save and continue") after filling a page.
+ * Never a submit: the helper only presses buttons its step classifier calls "next", and stops at a page
+ * whose only way on is a submit/apply/send button (extension/content/steps.js).
+ */
+export function recordStepAdvanced(s: JobsApplySession, label: string, now: string): JobsApplySession {
+  assertActive(s);
+  return audit(s, now, "STEP_ADVANCED", "helper", `Pressed “${label.slice(0, 60)}” to go to the next page`);
+}
+
+/** Never learned from a form, whatever the candidate typed: these are answered fresh every time. */
+const NEVER_LEARN = new Set(["CREDENTIAL", "EEO", "LEGAL", "SPONSORSHIP", "WORK_AUTHORIZATION"]);
+
+/**
+ * The candidate typed an answer on the employer's form to a question Wonder flagged as needing them.
+ * It joins their saved answers (this session's pack now; their Career Profile via the WonderJobs page),
+ * so the same question is filled next time. Only flagged, non-sensitive questions; the audit keeps the
+ * question, never the answer (§88).
+ */
+export function recordLearnedAnswer(s: JobsApplySession, fieldId: string, value: string, now: string): JobsApplySession {
+  assertActive(s);
+  const m = s.fieldMappings.find((x) => x.fieldId === fieldId);
+  if (!m || m.status !== "needs_you" || m.classification === "human-only" || NEVER_LEARN.has(m.category)) return s;
+  const key = memoryKeyFor(m.label) ?? "custom";
+  if (key === "workAuthorization" || key === "sponsorship") return s;
+  const answer = { key, ...(key === "custom" ? { question: m.label.slice(0, 300) } : {}), value: value.trim().slice(0, 500), confirmedAt: now, source: "USER_PROVIDED" as const };
+  const same = (x: { key: string; question?: string }) => x.key === key && (key !== "custom" || x.question === answer.question);
+  const memory = [...s.pack.memory.filter((x) => !same(x)), answer];
+  return audit({ ...s, pack: { ...s.pack, memory } }, now, "ANSWER_LEARNED", "candidate", `Remembered your answer to “${m.label.slice(0, 80)}”`);
 }
 
 /** The candidate pressed the employer's own submit button (seen passively by the helper) — not a submission record. */

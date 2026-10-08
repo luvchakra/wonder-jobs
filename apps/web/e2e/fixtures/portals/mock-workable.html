@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Apply · Example (mock Workable, two pages)</title>
+<style>body{font:14px system-ui;margin:24px;max-width:720px} p{margin:12px 0} input,textarea{width:100%;padding:6px} svg{width:12px;height:12px}</style></head>
+<body>
+<h1>Senior IAM Identity Security Associate</h1>
+<form id="wk" data-confirmation="WK-2026-0099">
+  <section id="page1">
+    <h2>Personal information</h2>
+    <!-- Workable-style labels: an asterisk, the words, then an icon whose fallback text lands in textContent. -->
+    <p><label for="firstname"><span>*</span>First name<svg aria-hidden="true"><title>info</title></svg>SVGs not supported by this browser.</label><input id="firstname" name="firstname" required></p>
+    <p><label for="lastname"><span>*</span>Last name</label><input id="lastname" name="lastname" required></p>
+    <p><label for="email"><span>*</span>Email</label><input id="email" name="email" type="email" required></p>
+    <h2>Details</h2>
+    <p><label for="notice"><span>*</span>What is your notice period?</label><textarea id="notice" name="notice" required></textarea></p>
+    <p><label for="salary"><span>*</span>What is your current and expected salary?</label><textarea id="salary" name="salary" required></textarea></p>
+    <button type="button" id="next" onclick="if(!document.getElementById('notice').value||!document.getElementById('salary').value)return;document.getElementById('page1').remove();document.getElementById('page2').hidden=false">Save and continue</button>
+  </section>
+  <section id="page2" hidden>
+    <h2>Review</h2>
+    <p><label><input type="checkbox" name="declare" required> I hereby declare that the information furnished is true</label></p>
+    <button type="submit">Submit application</button>
+  </section>
+</form>
+<script src="/__portal/_submit.js"></script>
+</body></html>

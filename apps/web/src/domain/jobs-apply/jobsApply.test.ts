@@ -5,7 +5,7 @@ import { EMPTY_DNA } from "@/domain/career/types";
 import type { Application } from "@/domain/applications/types";
 import { classifyField } from "./classify";
 import { checkDomain, destinationFor, detectProvider, registrableDomain } from "./destination";
-import { mapForm, matchPackAnswer, progressOf } from "./mapper";
+import { mapForm, matchPackAnswer, memoryValueFor, progressOf } from "./mapper";
 import { fillDecision, fillGate, handoffDecision } from "./policy";
 import { buildApplicationProfile, freshMemory, missingProfileFields, splitName } from "./profile";
 import { applyReadiness, findDuplicate } from "./readiness";
@@ -78,7 +78,7 @@ describe("classify — field mapping (APPLY-011…020)", () => {
     expect(cls(f("Expected salary"))).toMatchObject({ classification: "confirm", target: { kind: "memory", key: "salaryExpectation" } });
     expect(cls(f("Notice period"))).toMatchObject({ classification: "confirm", target: { key: "noticePeriod" } });
     expect(cls(f("Are you willing to relocate?"))).toMatchObject({ classification: "confirm", category: "RELOCATION" });
-    expect(cls(f("Current CTC"))).toMatchObject({ classification: "confirm", target: { kind: "none" } });
+    expect(cls(f("Current CTC"))).toMatchObject({ classification: "confirm", target: { kind: "memory", key: "currentSalary" } });
     // Matched only by a technical name: MEDIUM, so it's offered for confirmation rather than filled.
     expect(cls(f("", { hints: { name: "applicant_phone" } }))).toMatchObject({ target: { key: "phone" }, confidence: "MEDIUM" });
   });
@@ -197,13 +197,77 @@ describe("mapper", () => {
     expect(none.mappings[0].value).toBeUndefined();
     expect(none.interventions[0].kind).toBe("confirm_value");
   });
-  it("offers a prepared answer or a fresh remembered one, never fills either on its own", () => {
-    const p = pack({ memory: [{ key: "noticePeriod", value: "60 days", confirmedAt: "2026-09-20T00:00:00Z", source: "USER_PROVIDED" }] });
+  it("offers a prepared answer and a stale saved one for review; never fills them on its own", () => {
+    const p = pack({ memory: [{ key: "noticePeriod", value: "60 days", confirmedAt: "2026-07-01T00:00:00Z", source: "USER_PROVIDED" }] });
     const { mappings, interventions } = mapForm(form([f("Why do you want to join Example?", { id: "why", type: "textarea" }), f("Notice period", { id: "np" })]), p, {}, T);
     expect(mappings.every((m) => m.value === undefined)).toBe(true);
     expect(interventions.find((i) => i.fieldId === "why")?.suggestion?.value).toMatch(/identity platform/);
-    expect(interventions.find((i) => i.fieldId === "np")?.suggestion).toMatchObject({ value: "60 days", lastConfirmedAt: "2026-09-20T00:00:00Z" });
+    // Older than 30 days: not offered, asked afresh — these change.
+    expect(interventions.find((i) => i.fieldId === "np")).toMatchObject({ kind: "confirm_value" });
+    expect(interventions.find((i) => i.fieldId === "np")?.suggestion).toBeUndefined();
     expect(matchPackAnswer("What is your favourite colour?", pack().answers)).toBeUndefined();
+  });
+  it("fills an answer saved in the Career Profile and confirmed in the last 30 days, without asking", () => {
+    const at = "2026-09-20T00:00:00Z";
+    const p = pack({
+      memory: [
+        { key: "noticePeriod", value: "60 days", confirmedAt: at, source: "USER_PROVIDED" },
+        { key: "currentSalary", value: "₹45,00,000", confirmedAt: at, source: "USER_PROVIDED" },
+        { key: "salaryExpectation", value: "60 LPA", confirmedAt: at, source: "USER_PROVIDED" },
+        { key: "employmentStatus", value: "Serving notice period", confirmedAt: at, source: "USER_PROVIDED" },
+        { key: "workAuthorization", value: "Yes", confirmedAt: at, source: "USER_PROVIDED" },
+      ],
+    });
+    const status = [{ label: "Not working currently", value: "nw" }, { label: "On notice period", value: "np" }, { label: "Not resigned yet", value: "nr" }];
+    const { mappings, interventions } = mapForm(
+      form([
+        f("Notice period", { id: "np" }),
+        f("Your current or last drawn salary", { id: "cur", hints: { placeholder: "Lacs" } }),
+        f("Minimum expected salary", { id: "exp", hints: { placeholder: "Lacs" } }),
+        f("Expected salary (INR)", { id: "exp2" }),
+        f("Employment status", { id: "st", type: "radio", options: status }),
+        f("Show current salary and minimum expected salary to employers", { id: "show", type: "checkbox", required: false }),
+        f("Are you legally authorized to work in India?", { id: "auth" }),
+        f("I hereby declare that the information furnished is true", { id: "decl", type: "checkbox" }),
+      ]),
+      p,
+      {},
+      T,
+    );
+    const by = (id: string) => mappings.find((m) => m.fieldId === id);
+    expect(by("np")).toMatchObject({ status: "confirmed", value: "60 days", source: "answer-memory" });
+    expect(by("cur")).toMatchObject({ status: "confirmed", value: "45" });
+    expect(by("exp")).toMatchObject({ status: "confirmed", value: "60" });
+    expect(by("exp2")).toMatchObject({ status: "confirmed", value: "60 LPA" });
+    expect(by("st")).toMatchObject({ status: "confirmed", value: "np" });
+    // Never answered from a saved sentence: a tick box, work authorization, a declaration.
+    expect(by("show")?.value).toBeUndefined();
+    expect(by("auth")?.value).toBeUndefined();
+    expect(by("decl")).toMatchObject({ classification: "human-only" });
+    expect(interventions.map((i) => i.fieldId).sort()).toEqual(["auth", "decl"]);
+  });
+  it("answers a question asking for current and expected salary together from both saved answers", () => {
+    const at = "2026-09-20T00:00:00Z";
+    const p = pack({ memory: [{ key: "currentSalary", value: "45 LPA", confirmedAt: at, source: "USER_PROVIDED" }, { key: "salaryExpectation", value: "60 LPA", confirmedAt: at, source: "USER_PROVIDED" }] });
+    const { mappings } = mapForm(form([f("What is your current and expected salary?", { id: "both", type: "textarea" })]), p, {}, T);
+    expect(mappings[0]).toMatchObject({ status: "confirmed", value: "Current: 45 LPA; Expected: 60 LPA", source: "answer-memory" });
+  });
+  it("fills a question the candidate answered on an earlier form, worded the same way", () => {
+    const p = pack({ memory: [{ key: "custom", question: "How many years have you worked with SailPoint IdentityIQ?", value: "8 years", confirmedAt: "2026-09-20T00:00:00Z", source: "USER_PROVIDED" }] });
+    const same = mapForm(form([f("Years of experience with SailPoint IdentityIQ", { id: "y" })]), p, {}, T);
+    expect(same.mappings[0]).toMatchObject({ status: "confirmed", value: "8 years", sourcePath: "memory.custom" });
+    const other = mapForm(form([f("Why do you want to join Example?", { id: "w", type: "textarea" })]), p, {}, T);
+    expect(other.mappings[0].value).toBeUndefined();
+    // Never for a sensitive question, whatever was learned.
+    const auth = mapForm(form([f("Are you legally authorized to work in India?", { id: "a" })]), pack({ memory: [{ key: "custom", question: "Are you legally authorized to work in India?", value: "Yes", confirmedAt: "2026-09-20T00:00:00Z", source: "USER_PROVIDED" }] }), {}, T);
+    expect(auth.mappings[0].value).toBeUndefined();
+  });
+  it("matches a saved employment status to the form's own wording", () => {
+    const opts = [{ label: "Not working currently", value: "nw" }, { label: "On notice period", value: "np" }, { label: "Not resigned yet", value: "nr" }];
+    const radio = f("Employment status", { type: "radio", options: opts });
+    expect(memoryValueFor(radio, "employmentStatus", "Employed")).toBe("nr");
+    expect(memoryValueFor(radio, "employmentStatus", "Not working")).toBe("nw");
+    expect(memoryValueFor(radio, "employmentStatus", "On notice, last day 30 Nov")).toBe("np");
   });
   it("an approved answer fills as confirmed", () => {
     const { mappings } = mapForm(form([f("Notice period", { id: "np" })]), pack(), { np: { value: "30 days", provenance: "USER_PROVIDED", at: NOW } }, T);
@@ -305,6 +369,41 @@ describe("session state machine", () => {
     expect(canTransition("CANCELLED", "OPENING", "candidate").ok).toBe(false);
     expect(canTransition("FILLING", "READY", "candidate").ok).toBe(false);
     expect(stepOf("WAITING_FOR_USER")).toBe("fill");
+  });
+
+  it("learns what the candidate typed into a question that needed them — never a sensitive one, never the value in the audit", () => {
+    const form = greenhouseForm({
+      fields: [
+        { id: "q1", label: "How many years have you worked with SailPoint IdentityIQ?", type: "text", required: true },
+        { id: "np", label: "What is your notice period?", type: "textarea", required: true },
+        { id: "wa", label: "Are you legally authorized to work in India?", type: "text", required: true },
+        { id: "gender", label: "Gender", type: "text", required: false },
+      ],
+    });
+    let s = S.recordInspection(fresh(), form, NOW);
+    s = S.recordLearnedAnswer(s, "q1", "8 years", NOW);
+    s = S.recordLearnedAnswer(s, "np", "60 days", NOW);
+    s = S.recordLearnedAnswer(s, "wa", "Yes", NOW);
+    s = S.recordLearnedAnswer(s, "gender", "Male", NOW);
+    s = S.recordLearnedAnswer(s, "nope", "x", NOW);
+    expect(s.pack.memory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "custom", question: "How many years have you worked with SailPoint IdentityIQ?", value: "8 years" }),
+        expect.objectContaining({ key: "noticePeriod", value: "60 days" }),
+      ]),
+    );
+    expect(s.pack.memory.some((m) => m.value === "Yes" || m.value === "Male")).toBe(false);
+    const learned = s.audit.filter((a) => a.event === "ANSWER_LEARNED");
+    expect(learned).toHaveLength(2);
+    expect(JSON.stringify(learned)).not.toMatch(/8 years|60 days/);
+    // A second answer to the same question replaces the first.
+    s = S.recordLearnedAnswer(s, "np", "30 days", NOW);
+    expect(s.pack.memory.filter((m) => m.key === "noticePeriod").map((m) => m.value)).toEqual(["30 days"]);
+  });
+
+  it("records each next-page press in the audit, with the button's words", () => {
+    const s = S.recordStepAdvanced(S.recordInspection(fresh(), greenhouseForm(), NOW), "Save and continue", NOW);
+    expect(s.audit.at(-1)).toMatchObject({ event: "STEP_ADVANCED", actor: "helper", detail: expect.stringContaining("Save and continue") });
   });
 
   it("golden path: start → form → fill → needs you → review → evidence → candidate confirms → tracked", () => {
