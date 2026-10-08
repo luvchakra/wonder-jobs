@@ -7,6 +7,9 @@ import { raiseDueReminders } from "@/server/workflow/reminders";
 import { notifyTenant } from "@/server/push/subscriptions";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
 import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
+import { sendDigest } from "@/server/digest/send";
+import { stateStore } from "@/server/state";
+import { getSupabaseAdmin } from "@/server/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +87,27 @@ export async function GET(req: Request) {
     failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
   }
 
+  // Activity digests: after the runs above, so a digest includes what they just found. Only for accounts
+  // with a sign-in email; each tenant at most once a day and only when something happened (sendDigest).
+  const digests = { sent: 0, skipped: 0, notSent: 0 };
+  if (getSupabaseAdmin()) {
+    try {
+      for (const tenantId of await stateStore.listTenants("wj.career", MAX_TENANTS)) {
+        if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
+        try {
+          const r = await sendDigest(tenantId, { now });
+          if (r.sent) digests.sent++;
+          else if (r.reason === "no activity" || r.reason === "turned off" || r.reason === "already sent today") digests.skipped++;
+          else digests.notSent++;
+        } catch (e) {
+          failures.push({ tenantId, error: `digest: ${e instanceof Error ? e.message : String(e)}` });
+        }
+      }
+    } catch (e) {
+      failures.push({ tenantId: "*", error: `digests: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  }
+
   // Daily controls: billing reconciliation against the providers, and retention purges.
   let billing: ReconcileReport | null = null;
   let purged: { contactMessages: number } | null = null;
@@ -107,6 +131,7 @@ export async function GET(req: Request) {
     ran: reports.length,
     deferred,
     reminders: { tenants: remindedTenants, raised: reminded },
+    digests,
     tookMs: Date.now() - startedAt,
     outcomes: reports,
     failures,

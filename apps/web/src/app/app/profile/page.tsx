@@ -7,6 +7,7 @@ import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
+import { DigestEmailCard } from "@/components/account/DigestEmailCard";
 import { PushNotifications } from "@/components/pwa/PushNotifications";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
@@ -99,6 +100,7 @@ function ProfileInner() {
       </Card>
       <CloudSyncCard />
       <PushNotifications />
+      <DigestEmailCard />
       <PlanCard returnState={billingReturn} />
       <YourDataCard />
       <Card padding="none" className="mt-4">

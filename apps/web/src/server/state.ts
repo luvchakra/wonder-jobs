@@ -17,7 +17,8 @@ export type StateStoreName = (typeof STATE_STORES)[number];
  * nor bulk-read them; they're reached only through their own tenant-checked routes.
  */
 // wj.plan: a tenant's own usage counters; wj.plans: the operator's plan configuration, held under the platform tenant.
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans"] as const;
+// wj.digest: the activity digest's on/off choice and its send log (server-written; the client reads it through /api/digest).
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;
