@@ -105,7 +105,7 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
     await page.goto("/demo?next=/app");
     await page.getByRole("textbox", { name: "Search jobs" }).fill("product manager in Bengaluru");
-    await page.getByRole("button", { name: /^Search every source for/ }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/jobs$/);
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
@@ -182,7 +182,9 @@ test.describe("Golden journey — search (demo mode)", () => {
     // A distinctive, single-employer term (the default catalog view is paginated at 24, so a common word
     // like "google" — matched against skills/tags too, e.g. "Google Analytics" — can still fill a page
     // and not visibly shrink).
+    // Typing alone changes nothing; Search applies the words.
     await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(async () => {
       // Top-level results only: each card now carries its own "why" lists, which are list items too.
       const items = await results.locator(":scope > li").all();

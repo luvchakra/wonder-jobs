@@ -142,7 +142,6 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
           if (!on) setCompare([]);
         }}
         sourceSearch={sourceSearch}
-        widerInList={searchInEmpty}
         refineTop={refineTop}
         className="mb-4"
       />

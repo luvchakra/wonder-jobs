@@ -82,15 +82,18 @@ test.describe("FIND", () => {
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
   });
 
-  test("FIND-002 the search box: typing narrows the jobs here; one tap searches every source, reading place from the words", async ({ page }) => {
+  test("FIND-002 the search box: typing does nothing until Search, which searches every source, reading place from the words", async ({ page }) => {
     await slowSampleSources(page);
     await page.goto("/demo?next=/app");
     const box = page.getByRole("textbox", { name: "Search jobs" });
+    const cards = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
+    await expect(cards.first()).toBeVisible();
+    const before = await cards.count();
     await box.fill("Senior product roles in Mumbai, preferably fintech");
-    // Before anything runs, Wonder says what it read from the words. Nothing on screen matches them, so
-    // the list itself offers the one search (WJ-222) instead of the line under the box.
-    await expect(page.locator("#main")).toContainText(/Search every source for “senior product[^”]*” in Mumbai/i);
-    await page.locator("#main").getByRole("button", { name: "Search every source", exact: true }).click();
+    // Typing alone leaves the list as it was (WJ-234).
+    await page.waitForTimeout(600); // longer than the old live-filter debounce
+    await expect(cards).toHaveCount(before);
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “senior product/i);
     await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 45_000 });
     await openRefine(page);

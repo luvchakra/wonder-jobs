@@ -53,10 +53,18 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
  * freshness, salary, sources, compare — in Refine.
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, widerInList, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The list itself offers "Search every source" (nothing on screen matches), so the line under the box isn't repeated. */ widerInList?: boolean; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const [more, setMore] = useState(false);
-  // Say it instead of typing it: the words land in the box, to fix before searching every source.
-  const dictation = useDictation({ textAtStart: () => filters.query, onText: (text) => onChange({ query: text }) });
+  // Typing only changes the box; Search (or Enter) applies the words. Kept in step when something else
+  // changes them (a link with ?q=, "clear" in the list).
+  const [draft, setDraft] = useState(filters.query);
+  const [seenQuery, setSeenQuery] = useState(filters.query);
+  if (seenQuery !== filters.query) {
+    setSeenQuery(filters.query);
+    setDraft(filters.query);
+  }
+  // Say it instead of typing it: the words land in the box, to fix before pressing Search.
+  const dictation = useDictation({ textAtStart: () => draft, onText: setDraft });
   const places = filters.locations ?? sourceSearch?.places ?? [];
   const [where, setWhere] = useState(places.join(", "));
   // Where starts as the profile's places and follows the filter when something else changes it (Clear, Show me anyway).
@@ -72,23 +80,26 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   }
   const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
-  const typed = filters.query.trim();
-  const wider = typed && sourceSearch ? sourceSearch.describe(typed, splitPlaces(where)) : null;
+  // Applies what's in the box and the Where field to the list.
+  const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
         className="flex"
         onSubmit={(e) => {
           e.preventDefault();
-          if (wider) sourceSearch!.run(typed, splitPlaces(where));
+          commit();
+          // Words searched: every source too, not only the jobs already on screen.
+          const words = draft.trim();
+          if (words && sourceSearch?.describe(words, splitPlaces(where))) sourceSearch.run(words, splitPlaces(where));
         }}
       >
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
-            value={filters.query}
+            value={draft}
             onChange={(e) => {
-              onChange({ query: e.target.value });
+              setDraft(e.target.value);
               if (dictation.listening) dictation.rebase(e.target.value);
             }}
             placeholder="Search jobs, skills or companies"
@@ -97,22 +108,28 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             className={cn("h-11 rounded-full pl-10 sm:h-12", dictation.supported ? "pr-20" : "pr-10")}
           />
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-            {filters.query && (
-              <button type="button" aria-label="Clear search" onClick={() => onChange({ query: "" })} className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink">
+            {draft && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setDraft("");
+                  if (filters.query) onChange({ query: "" });
+                }}
+                className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink"
+              >
                 <X className="size-4" aria-hidden />
               </button>
             )}
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
         </div>
+        <Button type="submit" className="ml-2 h-11 shrink-0 rounded-full sm:h-12">
+          Search
+        </Button>
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      {wider && !widerInList && (
-        <button type="button" onClick={() => sourceSearch!.run(typed, splitPlaces(where))} className="-mt-1 inline-flex min-h-9 items-center self-start rounded-full px-1 text-left text-[13px] font-medium text-brand-600 hover:underline">
-          Search every source for {wider} ›
-        </button>
-      )}
       <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
         {views &&
           VIEWS.map((v) => (
@@ -132,9 +149,9 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             Location
             <Input
               value={where}
-              onChange={(e) => {
-                setWhere(e.target.value);
-                onChange({ locations: splitPlaces(e.target.value) });
+              onChange={(e) => setWhere(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commit();
               }}
               placeholder="Anywhere — e.g. Mumbai, Remote"
               enterKeyHint="search"
@@ -193,8 +210,10 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
                 className="min-w-0 flex-1 sm:flex-none"
                 icon={<Search className="size-4" aria-hidden />}
                 onClick={() => {
+                  commit();
                   // Strictly within the profile: its own search (role and field), in these places.
-                  if (typed && !filters.strictProfile) sourceSearch.run(typed, splitPlaces(where));
+                  const words = draft.trim();
+                  if (words && !filters.strictProfile) sourceSearch.run(words, splitPlaces(where));
                   else sourceSearch.runPlaces(splitPlaces(where));
                   setMore(false);
                 }}
@@ -202,7 +221,13 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
                 Search
               </Button>
             )}
-            <Button variant="outline" onClick={() => setMore(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                commit();
+                setMore(false);
+              }}
+            >
               Show {total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}
             </Button>
           </div>
