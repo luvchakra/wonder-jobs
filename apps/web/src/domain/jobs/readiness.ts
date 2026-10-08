@@ -155,5 +155,24 @@ export function widenSearch(query: string, locations: string[]): { query: string
   return null;
 }
 
+/** Words a wider search may use: the candidate's own profile and what they searched — never a role they didn't name. */
+export function profileVocabulary(dna: Pick<CareerDNA, "careerGoal" | "headline" | "skills" | "history">, query: string): Set<string> {
+  const text = [dna.careerGoal, dna.headline, query, ...dna.skills.map((s) => s.name), ...historyOf(dna).experience.map((e) => e.title)].join(" ");
+  return new Set(queryTerms(text, 1000));
+}
+
+/**
+ * A model's wider query for a search that found nothing, kept only if it differs from the query and every
+ * word of it is already the candidate's own (profile or search). Otherwise null and the rules widen instead.
+ */
+export function checkedWiderQuery(proposal: string | null | undefined, query: string, vocabulary: Set<string>): string | null {
+  const q = proposal?.trim().replace(/\s+/g, " ") ?? "";
+  if (!q || q.length > 80) return null;
+  const terms = queryTerms(q, 20);
+  if (!terms.length || !terms.every((t) => vocabulary.has(t))) return null;
+  if (terms.join(" ") === queryTerms(query, 20).join(" ")) return null;
+  return q;
+}
+
 /** Stages of a search-only run: the jobs, matched and ranked — applications are prepared later, from a job. */
 export const SEARCH_ONLY_STAGES = ["profile", "search", "dedupe", "match", "quality", "rank"] as const;

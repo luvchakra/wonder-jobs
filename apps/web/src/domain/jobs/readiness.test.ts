@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_DNA, type CareerDNA } from "@/domain/career/types";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
-import { autoSearchDecision, catalogSearchRun, jobsReadiness, latestSearchRun, onlyLevel, widenSearch, type ReadinessInput } from "./readiness";
+import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, latestSearchRun, onlyLevel, profileVocabulary, widenSearch, type ReadinessInput } from "./readiness";
 
 const source = (over: Partial<JobSource> = {}): JobSource => ({ id: "remotive", name: "Remotive", integrated: true, enabled: true, reliability: "high", color: "#000", short: "R", ...over });
 const iamDna: CareerDNA = {
@@ -148,5 +148,22 @@ describe("the search behind the jobs on screen", () => {
     expect(catalogSearchRun([profile, { ...words, status: "RUNNING" } as WorkflowRun], "")?.id).toBe("words");
     expect(catalogSearchRun([profile, { ...words, status: "FAILED" } as WorkflowRun], "")?.id).toBe("words");
     expect(catalogSearchRun([words], "")?.id).toBe("words");
+  });
+});
+
+describe("checkedWiderQuery", () => {
+  const dna = { ...EMPTY_DNA, careerGoal: "IAM SME practice", headline: "Identity and access management leader", skills: [{ name: "Okta" }] } as unknown as CareerDNA;
+  const vocab = profileVocabulary(dna, "senior iam sme practice");
+
+  it("keeps an AI title made only of the candidate's own words", () => {
+    expect(checkedWiderQuery("Identity and Access Management", "senior iam sme practice", vocab)).toBe("Identity and Access Management");
+  });
+
+  it("refuses a role the candidate never named, the same query, or nothing", () => {
+    expect(checkedWiderQuery("Product Manager", "senior iam sme practice", vocab)).toBeNull();
+    expect(checkedWiderQuery("Identity security architect", "senior iam sme practice", vocab)).toBeNull();
+    expect(checkedWiderQuery("Senior IAM SME practice", "senior iam sme practice", vocab)).toBeNull();
+    expect(checkedWiderQuery("", "senior iam sme practice", vocab)).toBeNull();
+    expect(checkedWiderQuery(null, "senior iam sme practice", vocab)).toBeNull();
   });
 });

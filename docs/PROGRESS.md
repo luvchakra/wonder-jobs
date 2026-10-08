@@ -97,6 +97,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Helper fills page after page to the submit page, learns your answers; salary and status in Career Profile (WJ-239)
 - ✅ AI understands form questions the rules miss, filling from your own saved answers (WJ-240)
 - ✅ Ask Wonder understands requests its patterns miss, via AI (WJ-241)
+- ✅ AI rescoring of top matches and AI-widened empty searches (WJ-242)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

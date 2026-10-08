@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useMemo } from "react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
-import { autoSearchDecision, catalogSearchRun, jobsReadiness, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
+import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, profileVocabulary, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
+import { historyOf } from "@/domain/career/history";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { useCareerStore } from "@/store/career";
@@ -193,18 +194,38 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     if (search()) track("jobs_auto_search", { reason: d.reason });
   }, [auto, readiness, mode, active, last, catalogSize, search]);
 
-  // Found nothing: search once more, wider, and say what was let go.
+  // Found nothing: search once more, wider, and say what was let go. AI first proposes a more common
+  // title for the same role (every word the candidate's own, checked here and on the server); failing
+  // that — or after an AI-widened search also found nothing — the rules widen as before.
   useEffect(() => {
     if (mode !== "user" || active || !last || !foundNothing(last) || started.has(`widen|${last.id}`)) return;
     started.add(`widen|${last.id}`);
-    const w = widenSearch(last.config.searchCriteria.query, last.config.searchCriteria.locations);
-    if (!w) return;
-    const run = search({ query: w.query, locations: w.locations, careerGoal: last.config.careerGoal, origin: last.config.origin, role: last.config.role });
-    if (run) {
-      widenedBecause.set(run.id, `Nothing matched “${last.config.searchCriteria.query}”${last.config.searchCriteria.locations.length ? ` in ${last.config.searchCriteria.locations.join(", ")}` : ""}, so Wonder let go of ${w.dropped}.`);
-      track("jobs_search_widened", { dropped: w.dropped });
-    }
-  }, [mode, active, last, search]);
+    const { query, locations } = last.config.searchCriteria;
+    const where = locations.length ? ` in ${locations.join(", ")}` : "";
+    const base = { careerGoal: last.config.careerGoal, origin: last.config.origin, role: last.config.role };
+    const byRules = () => {
+      const w = widenSearch(query, locations);
+      if (!w) return;
+      const run = search({ ...base, query: w.query, locations: w.locations });
+      if (run) {
+        widenedBecause.set(run.id, `Nothing matched “${query}”${where}, so Wonder let go of ${w.dropped}.`);
+        track("jobs_search_widened", { dropped: w.dropped });
+      }
+    };
+    if (widenedBecause.has(last.id)) return byRules();
+    const profile = { roleWanted: dna.careerGoal.slice(0, 200), headline: dna.headline.slice(0, 200), titles: historyOf(dna).experience.slice(0, 10).map((e) => e.title.slice(0, 120)), skills: dna.skills.slice(0, 25).map((k) => k.name.slice(0, 80)) };
+    fetch("/api/ai/widen", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: query.slice(0, 160), profile }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((d: { query?: string | null } | null) => {
+        const wider = checkedWiderQuery(d?.query, query, profileVocabulary(dna, query));
+        if (!wider) return byRules();
+        const run = search({ ...base, query: wider, locations });
+        if (!run) return;
+        widenedBecause.set(run.id, `Nothing matched “${query}”${where}, so Wonder searched for “${wider}” — a title AI picked from your Career Profile.`);
+        track("jobs_search_widened", { dropped: "ai_title" });
+      });
+  }, [mode, active, last, search, dna]);
 
   const searchNow = useCallback(
     async (opts?: SearchOptions) => {

@@ -1,3 +1,4 @@
+import type { AiFit } from "@/domain/jobs/aiFit";
 import type { CareerDNA, Notification, ActivityItem } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
 import type { LearnedSignal } from "@/domain/career/learning";
@@ -30,6 +31,7 @@ export interface JobsDoc {
   quality: Record<string, JobQuality>;
   saved: Record<string, string>;
   rejected: Record<string, string>;
+  aiFits?: Record<string, AiFit>;
   [key: string]: unknown;
 }
 export interface WorkflowDoc {
@@ -102,7 +104,8 @@ export function trimJobsDoc(doc: JobsDoc): JobsDoc {
     if (doc.matches[id]) matches[id] = doc.matches[id];
     if (doc.quality[id]) quality[id] = doc.quality[id];
   }
-  return { ...doc, order, jobs, matches, quality };
+  const aiFits = Object.fromEntries(order.filter((id) => doc.aiFits?.[id]).map((id) => [id, doc.aiFits![id]]));
+  return { ...doc, order, jobs, matches, quality, aiFits };
 }
 
 export async function saveTenantDocs(snapshot: TenantSnapshot, which: { career?: boolean; jobs?: boolean; workflow?: boolean }): Promise<void> {

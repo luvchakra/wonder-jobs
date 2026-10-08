@@ -7,6 +7,7 @@ import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { getClientMode } from "@/lib/mode";
 import { getUniverse } from "@/services/mock/universe";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
+import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
 import { track } from "@/lib/analytics";
@@ -20,6 +21,8 @@ interface JobsState {
   order: string[];
   matches: Record<string, JobMatch>;
   quality: Record<string, JobQuality>;
+  /** A model's fit read per job (domain/jobs/aiFit.ts), blended into the rule-based match within a fixed band. */
+  aiFits: Record<string, AiFit>;
   saved: Record<string, string>; // jobId → savedAt
   rejected: Record<string, string>;
   /** Postings found to have closed on the employer's or board's own site (jobId → when and why). They leave the
@@ -46,6 +49,7 @@ interface JobsState {
   /** Clearing the typed words: bring the profile's results back. False when there's nothing kept to restore. */
   restoreProfileCatalog: () => boolean;
   setMatches: (matches: JobMatch[]) => void;
+  setAiFits: (fits: Record<string, AiFit>) => void;
   setQuality: (quality: JobQuality[]) => void;
   save: (jobId: string) => void;
   unsave: (jobId: string) => void;
@@ -70,6 +74,7 @@ export const useJobsStore = create<JobsState>()(
       order: [],
       matches: {},
       quality: {},
+      aiFits: {},
       saved: {},
       rejected: {},
       closed: {},
@@ -109,12 +114,13 @@ export const useJobsStore = create<JobsState>()(
         set({ jobs, order: canonical.map((j) => j.id), matches, quality, loaded: true });
       },
       rescore: () => {
-        const { jobs, order, loaded } = get();
+        const { jobs, order, loaded, aiFits } = get();
         if (!loaded) return;
         const { dna, learnedSignals } = useCareerStore.getState();
         const searchQuery = get().searchedFor || undefined;
+        const profile = profileKey(dna);
         const matches: Record<string, JobMatch> = {};
-        for (const id of order) matches[id] = computeMatch(jobs[id], { dna, learnedSignals, searchQuery });
+        for (const id of order) matches[id] = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery }), aiFits[id], profile);
         set({ matches });
       },
       replaceCatalog: (list, searchedFor = "") =>
@@ -136,6 +142,7 @@ export const useJobsStore = create<JobsState>()(
         return true;
       },
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
+      setAiFits: (fits) => set((s) => ({ aiFits: { ...s.aiFits, ...fits } })),
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
       save: (jobId) => {
         track("job_saved", { jobId });
@@ -197,7 +204,7 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState>;
-        return { ...current, ...p, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {} };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {} };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -225,7 +232,8 @@ export const useJobsStore = create<JobsState>()(
           if (s.matches[id]) matches[id] = s.matches[id];
           if (s.quality[id]) quality[id] = s.quality[id];
         }
-        return { ...base, jobs, order, matches, quality };
+        const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
+        return { ...base, jobs, order, matches, quality, aiFits };
       },
     },
   ),
