@@ -84,6 +84,8 @@ export const MEMORY_STALE_DAYS = 30;
 
 export const MEMORY_LABEL: Record<MemoryKey, string> = {
   salaryExpectation: "Expected salary",
+  currentSalary: "Current salary",
+  employmentStatus: "Employment status",
   noticePeriod: "Notice period",
   relocation: "Relocation",
   workArrangement: "Work arrangement",
@@ -91,9 +93,10 @@ export const MEMORY_LABEL: Record<MemoryKey, string> = {
   availability: "Availability / start date",
   workAuthorization: "Work authorization",
   sponsorship: "Sponsorship",
+  custom: "Your answer",
 };
 
-/** A remembered answer Wonder may *offer* (never fill on its own), or undefined when it's missing or stale. */
+/** A saved answer the candidate confirmed within the last MEMORY_STALE_DAYS (Wonder fills it), or undefined when it's missing or stale (Wonder asks). */
 export function freshMemory(memory: RememberedAnswer[], key: MemoryKey, now = Date.now()): RememberedAnswer | undefined {
   const m = memory.filter((x) => x.key === key).sort((a, b) => b.confirmedAt.localeCompare(a.confirmedAt))[0];
   if (!m) return undefined;

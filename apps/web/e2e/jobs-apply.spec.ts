@@ -248,9 +248,9 @@ test.describe("JobsApply with the browser helper", () => {
     expect(await employer.locator("input[name=cv2]").evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(0);
 
     await page.goto("/app/career-dna");
-    // Remembered answers are folded under "Answers Wonder remembers" on the Career Profile.
-    await page.getByText("Answers Wonder remembers", { exact: true }).click({ timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: "Application answers Wonder remembers" })).toBeVisible();
+    // Saved answers are folded under "Application answers" on the Career Profile.
+    await page.getByText("Application answers", { exact: true }).first().click({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Application answers" })).toBeVisible();
     await expect(page.getByText("₹60,00,000")).toBeVisible();
   });
 
@@ -291,6 +291,35 @@ test.describe("JobsApply with the browser helper", () => {
     await panel(other).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
     await expect(other.locator("input[name=gn]")).not.toHaveValue("", { timeout: 15_000 });
     await expect(other.locator("input[name=consent]")).not.toBeChecked();
+  });
+
+  test("WJ-239: Wonder fills, learns what the candidate types, presses Save and continue, and stops at Submit", async ({ page, context, portal }) => {
+    portal.set("mock-workable.html");
+    await openApply(page);
+    const employer = await startWithHelper(page, context);
+    await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
+    // The label's icon fallback ("SVGs not supported by this browser.") no longer hides "First name".
+    await expect(employer.locator("#firstname")).toHaveValue("Alex", { timeout: 15_000 });
+    await expect(panel(employer).getByText(/Answer the 2 highlighted questions/)).toBeVisible({ timeout: 15_000 });
+    // The candidate answers the two questions on the form; Wonder learns them.
+    await employer.locator("#notice").fill("60 days");
+    await employer.locator("#notice").press("Tab");
+    await employer.locator("#salary").fill("Current 45 LPA, expected 60 LPA");
+    await employer.locator("#salary").press("Tab");
+    // Every required question answered: Wonder presses the page's own "Save and continue" …
+    await expect(employer.locator("#page2")).toBeVisible({ timeout: 15_000 });
+    // … and stops where only a submit button is left. It never submits.
+    await expect(panel(employer).getByText(/Last step: answer the highlighted question, review the form, then press “Submit application” yourself/)).toBeVisible({ timeout: 15_000 });
+    await expect(employer.locator("input[name=declare]")).not.toBeChecked();
+    expect(await employer.evaluate(() => (window as unknown as { __submits: number }).__submits)).toBe(0);
+    const json = await sessionJson(page);
+    expect(json).toContain("STEP_ADVANCED");
+    expect(json).toContain("What is your current and expected salary?");
+    // Learned into the Career Profile's Application answers, for the next form.
+    await page.goto("/app/career-dna");
+    await page.getByText("Application answers", { exact: true }).first().click({ timeout: 20_000 });
+    await expect(page.getByText("60 days")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Current 45 LPA, expected 60 LPA")).toBeVisible();
   });
 
   test("APPLY-051: a payment request blocks the application", async ({ page, context, portal }) => {
@@ -405,8 +434,8 @@ const CONTRACTS: Contract[] = [
     filled: [["#legalNameSection_firstName", "Alex"], ["#legalNameSection_lastName", "Morgan"], ["#email", "alex.morgan@example.com"], ["#phone-number", "+91 90000 00000"]],
     file: "",
     untouched: [],
-    // Multi-step: the candidate moves on; the helper reads step 2 and fills the résumé there.
-    afterFirstFill: async (p) => p.getByRole("button", { name: "Next" }).click(),
+    // Multi-step: Wonder presses the page's own Next (WJ-239), reads step 2 and fills the résumé there.
+    afterFirstFill: async (p) => expect(p.locator("#progress")).toHaveText(/Step 2 of 2/, { timeout: 15_000 }),
     secondFile: "#resumeUpload",
     answer: (p) => p.locator("#auth").fill("Yes"),
     submit: "Submit",
@@ -423,8 +452,8 @@ test.describe("Adapter contract ADAPTER-001…010", () => {
       const employer = await startWithHelper(page, context);
       // ADAPTER-001/002/003: detected and read — the adapter names itself in the audit.
       await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
-      // ADAPTER-004/005: mapped and filled from the candidate's own profile.
-      for (const [sel, v] of c.filled) await expect(employer.locator(sel)).toHaveValue(v, { timeout: 15_000 });
+      // ADAPTER-004/005: mapped and filled from the candidate's own profile (a page Wonder moves on from is checked in the audit instead).
+      if (!c.afterFirstFill) for (const [sel, v] of c.filled) await expect(employer.locator(sel)).toHaveValue(v, { timeout: 15_000 });
       // ADAPTER-006: the résumé is attached.
       if (c.secondFile) expect(await employer.locator(c.secondFile).evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(0);
       if (c.file) await expect.poll(() => employer.locator(c.file).evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(1);
@@ -434,7 +463,6 @@ test.describe("Adapter contract ADAPTER-001…010", () => {
       // ADAPTER-008: navigation to the next step is read and filled.
       if (c.afterFirstFill) {
         await c.afterFirstFill(employer);
-        await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
         await expect.poll(() => employer.locator(c.secondFile!).evaluate((el: HTMLInputElement) => el.files?.length ?? 0), { timeout: 15_000 }).toBe(1);
       }
       expect(await employer.evaluate(() => (window as unknown as { __submits: number }).__submits)).toBe(0);

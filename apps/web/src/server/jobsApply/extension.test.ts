@@ -3,9 +3,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * APPLY-053 / EXT-010: the browser helper has no way to submit an application. Not "doesn't by
- * default" — there is no code that clicks, submits a form, or simulates a key press, so no policy,
- * setting or page could make it. This scans every script the extension ships.
+ * APPLY-053 / EXT-010: the browser helper has no way to submit an application. It never submits a form
+ * or simulates a key press, anywhere. It presses exactly one kind of button — a page's own next-page
+ * button, after its step classifier calls it "next" (owner decision, WJ-239) — and that classifier
+ * calls every submit/apply/send/finish/confirm button "final", which is never pressed. This scans every
+ * script the extension ships and runs the classifier itself.
  */
 const ROOT = path.resolve(__dirname, "../../../../../extension");
 
@@ -22,11 +24,30 @@ describe("browser helper — structural no-submit guarantee", () => {
   it("ships scripts to scan", () => {
     expect(files.map((f) => path.relative(ROOT, f)).sort()).toEqual(expect.arrayContaining(["background.js", "content/autofill.js", "content/wonderjobs-bridge.js", "popup/popup.js"]));
   });
-  for (const pattern of [/\.click\(\s*\)/, /\.submit\(/, /requestSubmit/, /new\s+(KeyboardEvent|SubmitEvent|MouseEvent|PointerEvent)/, /dispatchEvent\(\s*new\s+Event\(\s*["'](submit|click)["']/, /\.form\s*\.\s*submit/]) {
+  for (const pattern of [/\.submit\(/, /requestSubmit/, /new\s+(KeyboardEvent|SubmitEvent|MouseEvent|PointerEvent)/, /dispatchEvent\(\s*new\s+Event\(\s*["'](submit|click)["']/, /\.form\s*\.\s*submit/]) {
     it(`no script contains ${pattern}`, () => {
       for (const f of files) expect(readFileSync(f, "utf8"), path.relative(ROOT, f)).not.toMatch(pattern);
     });
   }
+  it("presses exactly one button, in one place, and only after the step classifier calls it next", () => {
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      const presses = src.match(/\.click\(\s*\)/g) ?? [];
+      if (!f.endsWith(path.join("content", "autofill.js"))) expect(presses, path.relative(ROOT, f)).toHaveLength(0);
+      else {
+        expect(presses).toHaveLength(1);
+        expect(src).toMatch(/if \(stepKind\(label\) === "next"\) button\.click\(\);/);
+      }
+    }
+  });
+  it("the step classifier never calls a submit, apply, send, finish or confirm button \"next\"", () => {
+    const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
+    const block = src.slice(src.indexOf("/* step-classifier:start */"), src.indexOf("/* step-classifier:end */"));
+    const stepKind = new Function(`${block}; return stepKind;`)() as (label: string) => "next" | "final" | null;
+    for (const label of ["Next", "Continue", "Save and continue", "Save & Continue", "Next step", "Continue to review", "Proceed", "Next ›"]) expect(stepKind(label), label).toBe("next");
+    for (const label of ["Submit", "Submit application", "Apply", "Apply now", "Send", "Send application", "Finish", "Complete", "Confirm", "Done", "Continue to submit", "Continue to apply", "Save and submit", "Pay now", "Sign and submit"]) expect(stepKind(label), label).toBe("final");
+    for (const label of ["Back", "Cancel", "Upload", "Choose file", "Review application", "Save", "Clear", ""]) expect(stepKind(label), label).toBeNull();
+  });
   it("the content script never reads a password, one-time-code or payment field's value", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
     expect(src).toMatch(/if \(type === "password" \|\| type === "otp"\) continue;/);

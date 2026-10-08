@@ -9,7 +9,7 @@
  */
 import { classifyField, fieldText, type FieldClass } from "./classify";
 import { freshMemory, MEMORY_LABEL, PROFILE_LABEL } from "./profile";
-import type { ApplicationField, ApplicationForm, ApplicationPackSnapshot, FieldMapping, InterventionItem, JobsApplySession, MappingSource } from "./types";
+import type { ApplicationField, ApplicationForm, ApplicationPackSnapshot, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, RememberedAnswer } from "./types";
 
 export interface MapResult {
   mappings: FieldMapping[];
@@ -36,12 +36,78 @@ export function matchPackAnswer(label: string, answers: ApplicationPackSnapshot[
   return best?.answer;
 }
 
+/** Same question, same wording? ≥ 60% of the shorter question's words, and both say more than two words. */
+function sameQuestion(a: string, b: string): number {
+  const x = tokens(a);
+  const y = tokens(b);
+  if (x.size < 2 || y.size < 2) return 0;
+  let common = 0;
+  for (const w of x) if (y.has(w)) common++;
+  return common / Math.min(x.size, y.size);
+}
+
+/** An answer the candidate gave to this question on an earlier form, confirmed within the freshness window. */
+export function learnedAnswer(memory: RememberedAnswer[], question: string, now = Date.now()): RememberedAnswer | undefined {
+  let best: { score: number; m: RememberedAnswer } | undefined;
+  for (const m of memory) {
+    if (m.key !== "custom" || !m.question || !freshMemory([m], "custom", now)) continue;
+    const score = sameQuestion(question, m.question);
+    if (score >= 0.6 && (!best || score > best.score || (score === best.score && m.confirmedAt > best.m.confirmedAt))) best = { score, m };
+  }
+  return best?.m;
+}
+
+const BOTH_SALARY = /\b(current|present|last drawn)\b.*\b(expected|desired|expectation)\b|\b(expected|desired)\b.*\b(current|present|last drawn)\b/;
+
 /** For a select/radio: the option that is exactly the value (case-insensitive), by label or value. */
 function pickOption(field: ApplicationField, value: string): string | undefined {
   if (!field.options?.length) return value;
   const v = value.trim().toLowerCase();
   const hit = field.options.find((o) => o.label.trim().toLowerCase() === v || o.value.trim().toLowerCase() === v);
   return hit?.value;
+}
+
+/** Employment status in the candidate's words, matched to however the form words it. */
+const EMPLOYMENT: { saved: RegExp; option: RegExp }[] = [
+  { saved: /notice/, option: /notice/ },
+  { saved: /not (currently )?(working|employed)|unemployed|between jobs|available immediately/, option: /not (currently )?(working|employed)|unemployed|immediate/ },
+  { saved: /\b(employed|working|not resigned)\b/, option: /not resigned|currently (employed|working)|^employed|^working|full[- ]time/ },
+];
+
+/**
+ * A saved answer shaped for this field: a salary into the unit the form asks for (₹60,00,000 into a
+ * "Lacs" box is 60), employment status onto the form's own choice. Undefined when it doesn't fit.
+ */
+export function memoryValueFor(field: ApplicationField, key: MemoryKey, saved: string): string | undefined {
+  const text = fieldText(field).all;
+  // A tick box ("show my salary to employers") or a date is never answered with a saved sentence.
+  if (field.type === "checkbox" || field.type === "date" || field.type === "file") return undefined;
+  if ((key === "salaryExpectation" || key === "currentSalary") && !field.options?.length) {
+    const lakhsBox = /\b(lac|lacs|lakh|lakhs|lpa)\b/.test(text);
+    const n = parseAmount(saved);
+    if (n === undefined) return field.type === "number" ? undefined : saved;
+    if (lakhsBox) return String(n.lakhs);
+    return field.type === "number" ? String(n.rupees) : saved;
+  }
+  if (key === "employmentStatus" && field.options?.length) {
+    const v = saved.toLowerCase();
+    const rule = EMPLOYMENT.find((r) => r.saved.test(v));
+    const hit = rule && field.options.find((o) => rule.option.test(o.label.toLowerCase()));
+    return hit?.value ?? pickOption(field, saved);
+  }
+  return pickOption(field, saved);
+}
+
+/** "₹60,00,000", "60 LPA", "60 lakhs", "6000000" → rupees and lakhs. */
+function parseAmount(s: string): { rupees: number; lakhs: number } | undefined {
+  const t = s.toLowerCase().replace(/,/g, "");
+  const m = /(\d+(?:\.\d+)?)\s*(lpa|lakhs?|lacs?|l\b|cr|crores?)?/.exec(t);
+  if (!m) return undefined;
+  const x = Number(m[1]);
+  const unit = m[2] ?? "";
+  const rupees = /^(lpa|lakh|lac|l)/.test(unit) ? x * 100_000 : /^cr/.test(unit) ? x * 10_000_000 : x;
+  const lakhs = Math.round((rupees / 100_000) * 100) / 100;
+  return { rupees: Math.round(rupees), lakhs };
 }
 
 function interventionFor(field: ApplicationField, c: FieldClass, kind: InterventionItem["kind"], suggestion?: InterventionItem["suggestion"]): InterventionItem {
@@ -83,6 +149,20 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
       if (value !== undefined) return push({ status: "confirmed", value, source: ok.provenance === "AI_GENERATED" ? "ai-suggested" : "user-entered", sourcePath: `approved.${field.id}` });
     }
 
+    // One box for current and expected salary together: both saved answers, said plainly.
+    const words = base.label.toLowerCase();
+    if (BOTH_SALARY.test(words) && /salary|ctc|compensation|pay/.test(words) && !field.options?.length && field.type !== "checkbox") {
+      const cur = freshMemory(pack.memory, "currentSalary", now);
+      const exp = freshMemory(pack.memory, "salaryExpectation", now);
+      if (cur && exp) return push({ status: "confirmed", value: `Current: ${cur.value}; Expected: ${exp.value}`, source: "answer-memory", sourcePath: "memory.currentSalary+salaryExpectation" });
+    }
+    // A question the candidate answered on an earlier form — learned, so it isn't asked twice.
+    if (c.target.kind !== "file" && c.target.kind !== "profile" && c.target.kind !== "cover_text") {
+      const learned = learnedAnswer(pack.memory, base.label, now);
+      const value = learned && field.type !== "checkbox" ? pickOption(field, learned.value) : undefined;
+      if (learned && value !== undefined) return push({ status: "confirmed", value, source: "answer-memory", sourcePath: "memory.custom" });
+    }
+
     switch (c.target.kind) {
       case "profile": {
         const pv = pack.profile[c.target.key];
@@ -111,6 +191,9 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
         return push({ status: "pending", value: pack.coverLetter?.text ?? "", source: "application-pack", sourcePath: "pack.coverLetter" });
       case "memory": {
         const m = freshMemory(pack.memory, c.target.key, now);
+        // Saved in the Career Profile and confirmed within the freshness window: the candidate's own answer, filled.
+        const fits = m && c.target.key !== "workAuthorization" && c.target.key !== "sponsorship" ? memoryValueFor(field, c.target.key, m.value) : undefined;
+        if (m && fits !== undefined) return push({ status: "confirmed", value: fits, source: "answer-memory", sourcePath: `memory.${c.target.key}` });
         return push({ status: "needs_you", sourcePath: `memory.${c.target.key}`, reason: m ? `You answered this before — confirm it still holds.` : `${MEMORY_LABEL[c.target.key]}: Wonder needs your answer.` }, interventionFor(field, c, "confirm_value", m ? { value: m.value, provenance: "USER_PROVIDED", lastConfirmedAt: m.confirmedAt } : undefined));
       }
       case "draft":

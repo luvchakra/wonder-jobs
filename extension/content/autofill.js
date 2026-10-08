@@ -12,8 +12,15 @@
  *   4. notices — passively — when the candidate presses the employer's submit button and when a
  *      confirmation page appears, and tells WonderJobs as evidence.
  *
- * It never submits. There is no code in this file that clicks a button, submits a form, or sends a
- * key press; a unit test in the web app scans for exactly that. The candidate submits.
+ * It never submits. The one button it ever presses is a page's own next-page button ("Next", "Continue",
+ * "Save and continue") after filling that page, when WonderJobs allows it (`plan.advance`), and never one
+ * its step classifier calls final ("Submit", "Apply", "Send", "Finish", "Confirm"): on a page whose way
+ * on is a final button it stops and says so. A unit test in the web app holds that to exactly one press,
+ * on a "next" button. The candidate submits.
+ *
+ * It reads what the candidate types only into questions WonderJobs flagged as needing them (never a
+ * password, code, payment, ID, demographic, legal or right-to-work question), so the answer can be
+ * remembered for the next form.
  *
  * Without a session, the original "Fill with WonderJobs" button remains: name, email, phone,
  * LinkedIn, résumé and cover letter from the prepared materials, and nothing else.
@@ -46,41 +53,69 @@
   }
 
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+  // Icon fallbacks and required-markers that end up in a label's text ("*First nameSVGs not supported by this browser.").
+  const cleanLabel = (s) =>
+    clean(String(s || "").replace(/SVGs? (are )?not supported by this browser\.?/gi, " ").replace(/your browser does not support (svg|images?)\.?/gi, " "))
+      .replace(/^\*+\s*|\s*\*+$/g, "")
+      .trim();
 
-  /** The text a person reads as this field's question. */
+  /** A label's words without its icons: SVG titles, scripts and decorative (aria-hidden) parts aren't the question. */
+  function textOf(node) {
+    if (!node) return "";
+    const copy = node.cloneNode(true);
+    copy.querySelectorAll("svg, script, style, [aria-hidden='true']").forEach((n) => n.remove());
+    return copy.textContent;
+  }
+
+  /** The text a person reads as this field's question: the first source that says something once icon noise is removed. */
   function labelOf(el) {
-    if (el.id) {
-      const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (l) return clean(l.textContent);
-    }
-    const wrap = el.closest("label");
-    if (wrap) return clean(wrap.textContent);
+    const tries = [];
+    if (el.id) tries.push(textOf(document.querySelector(`label[for="${CSS.escape(el.id)}"]`)));
+    tries.push(textOf(el.closest("label")));
     const by = el.getAttribute("aria-labelledby");
-    if (by) {
-      const t = by
-        .split(/\s+/)
-        .map((id) => document.getElementById(id)?.textContent)
-        .filter(Boolean)
-        .join(" ");
-      if (clean(t)) return clean(t);
+    if (by)
+      tries.push(
+        by
+          .split(/\s+/)
+          .map((id) => textOf(document.getElementById(id)))
+          .filter(Boolean)
+          .join(" "),
+      );
+    tries.push(el.getAttribute("aria-label"));
+    tries.push(nearestLabel(el));
+    tries.push(el.getAttribute("placeholder"));
+    for (const t of tries) {
+      const c = cleanLabel(t);
+      if (c) return c.slice(0, 300);
     }
-    if (el.getAttribute("aria-label")) return clean(el.getAttribute("aria-label"));
-    // Workday and many custom forms keep the label in the field's container.
-    const box = el.closest("[data-automation-id], .field, .form-group, .application-question, .form-field, li, div");
-    const lab = box?.querySelector("label, legend, [data-automation-id='formLabel'], .label, .field-label");
-    if (lab && !lab.contains(el)) return clean(lab.textContent);
-    return clean(el.getAttribute("placeholder") || "");
+    return "";
+  }
+
+  /**
+   * Workday, Workable and most custom forms keep the question in the field's container rather than a
+   * <label for>. The nearest label-like element before the field, a few levels up — never one that
+   * belongs to another field.
+   */
+  function nearestLabel(el) {
+    const SEL = "label, legend, [data-automation-id='formLabel'], .label, .field-label, [data-ui='label'], h3, h4";
+    let box = el.parentElement;
+    for (let i = 0; box && i < 5; i++, box = box.parentElement) {
+      const before = [...box.querySelectorAll(SEL)].filter((l) => !l.contains(el) && !(l.htmlFor && l.htmlFor !== el.id) && l.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const lab = before.pop();
+      if (lab && cleanLabel(textOf(lab))) return textOf(lab);
+    }
+    return "";
   }
 
   function groupLabel(inputs) {
     const fs = inputs[0].closest("fieldset");
     const legend = fs?.querySelector("legend");
-    if (legend) return clean(legend.textContent);
+    if (legend && cleanLabel(legend.textContent)) return cleanLabel(legend.textContent);
     const by = inputs[0].closest("[role=radiogroup], [role=group]")?.getAttribute("aria-labelledby");
-    if (by) return clean(document.getElementById(by)?.textContent);
+    if (by && cleanLabel(document.getElementById(by)?.textContent)) return cleanLabel(document.getElementById(by)?.textContent);
     const box = inputs[0].closest(".field, .form-group, .application-question, [data-automation-id]");
     const lab = box?.querySelector("label, .label, [data-automation-id='formLabel']");
-    return lab ? clean(lab.textContent) : clean(inputs[0].name);
+    return cleanLabel(lab?.textContent) || cleanLabel(nearestLabel(inputs[0])) || clean(inputs[0].name);
   }
 
   function typeOf(el) {
@@ -321,7 +356,7 @@
 
   /* ------------------------------------------------------ JobsApply session */
 
-  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false };
+  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, keepGoing: false, advances: 0, notice: null };
 
   function sigOf(form) {
     return JSON.stringify([form.step, form.signals, form.fields.map((f) => [f.id, f.type, f.hasValue, f.options?.length])]);
@@ -339,9 +374,104 @@
     if (!r || r.error) return render(r);
     state.view = r.data;
     highlight(state.view);
-    if (r.data.plan?.allowed && r.data.plan.fills.length) await applyPlan(r.data.plan);
+    if (r.data.plan?.allowed) state.advance = !!r.data.plan.advance;
+    if (r.data.plan?.allowed && r.data.plan.fills.length) return applyPlan(r.data.plan);
     render();
+    // The candidate chose Fill on an earlier page of this form: keep filling page after page.
+    if (state.keepGoing && !r.data.plan?.allowed && (r.data.progress?.fillable ?? 0) > 0) return fillClicked();
+    if (state.advance) scheduleAdvance();
   }
+
+  /* step-classifier:start */
+  // A page's way on, by its button's words. "final" is never pressed; "next" may be, after filling.
+  const STEP_FINAL = /\b(submit|apply|send|finish|complete|confirm|done|pay|purchase|place order|sign)\b/i;
+  const STEP_NEXT = /^(next|continue|proceed|save (and|&) (continue|next|proceed)|next (step|page)|go to (the )?next (step|page)|continue to [a-z ]{1,30})$/i;
+  function stepKind(label) {
+    const t = String(label || "").replace(/[›»→>]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!t || t.length > 40) return null;
+    if (STEP_FINAL.test(t)) return "final";
+    if (STEP_NEXT.test(t)) return "next";
+    return null;
+  }
+  /* step-classifier:end */
+
+  function stepButtons() {
+    const out = { next: [], final: [] };
+    for (const b of document.querySelectorAll("button, input[type=submit], input[type=button], [role=button]")) {
+      if (b.closest(`#${PANEL_ID}`) || b.disabled || b.getAttribute("aria-disabled") === "true" || !b.getClientRects().length) continue;
+      const kind = stepKind(b.textContent || b.value || b.getAttribute("aria-label"));
+      if (kind) out[kind].push(b);
+    }
+    return out;
+  }
+
+  /** Required questions on this page that are still empty — Wonder waits for them. */
+  function openRequired() {
+    return (state.view?.mappings ?? []).filter((m) => {
+      if (!m.required || m.status !== "needs_you") return false;
+      const els = fieldEls.get(m.fieldId) ?? [];
+      if (!els.length) return false;
+      return !els.some((el) => (el.type === "checkbox" || el.type === "radio" ? el.checked : el.type === "file" ? (el.files?.length ?? 0) > 0 : !!(el.value && String(el.value).trim())));
+    });
+  }
+
+  let advanceTimer = null;
+  function scheduleAdvance() {
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(() => void maybeAdvance(), 1200);
+  }
+
+  async function maybeAdvance() {
+    if (!state.advance || state.stopped || state.offDestination || state.busy || state.submitted || window.top !== window) return;
+    const waiting = openRequired();
+    const answer = waiting.length === 1 ? "the highlighted question" : `the ${waiting.length} highlighted questions`;
+    const { next, final } = stepButtons();
+    // A page whose way on is a submit: Wonder's part is done; the candidate finishes and submits.
+    if (final.length) {
+      state.keepGoing = false;
+      state.notice = `Last step: ${waiting.length ? `answer ${answer}, ` : ""}review the form, then press “${clean(final[0].textContent || final[0].value).slice(0, 40)}” yourself.`;
+      return render();
+    }
+    if (waiting.length) {
+      state.notice = `Answer ${answer} — Wonder moves on when ${waiting.length === 1 ? "it's" : "they're"} done.`;
+      return render();
+    }
+    if (next.length !== 1 || state.advances >= 15) return;
+    const button = next[0];
+    const label = clean(button.textContent || button.value || button.getAttribute("aria-label")).slice(0, 80);
+    const before = sigOf(readForm());
+    await sendEvent({ type: "STEP_ADVANCED", label });
+    if (state.stopped) return;
+    state.advances++;
+    state.notice = null;
+    if (stepKind(label) === "next") button.click(); // the helper's only button press: a page's own next-page button
+    setTimeout(() => {
+      if (sigOf(readForm()) !== before) return;
+      state.keepGoing = false;
+      state.notice = "The page didn't move on — check the form for a message, then press its button yourself.";
+      render();
+    }, 4000);
+  }
+
+  // Learning: an answer the candidate types into a question Wonder flagged as needing them is remembered
+  // for the next form. Only those questions, and never a sensitive one.
+  // Right-to-work questions are "human-only" too; WonderJobs refuses them again on its side.
+  const NEVER_LEARN = new Set(["CREDENTIAL", "EEO", "LEGAL", "SPONSORSHIP"]);
+  document.addEventListener(
+    "change",
+    (e) => {
+      if (!state.sessionId || state.offDestination || !(e.target instanceof Element) || e.target.closest(`#${PANEL_ID}`)) return;
+      const el = e.target;
+      const fieldId = [...fieldEls.entries()].find(([, els]) => els.includes(el))?.[0];
+      const m = fieldId && state.view?.mappings?.find((x) => x.fieldId === fieldId);
+      if (!m || m.status !== "needs_you" || m.classification === "human-only" || NEVER_LEARN.has(m.category)) return;
+      if (["password", "otp", "file", "hidden", "checkbox"].includes((el.type || "").toLowerCase())) return;
+      const value = el.tagName === "SELECT" ? clean(el.selectedOptions?.[0]?.textContent) : el.type === "radio" ? (el.checked ? clean(labelOf(el)) || clean(el.value) : "") : String(el.value || "").trim();
+      if (value && value.length <= 500) void sendEvent({ type: "ANSWER_LEARNED", fieldId, value });
+      if (state.advance) scheduleAdvance();
+    },
+    true,
+  );
 
   async function applyPlan(plan) {
     state.busy = true;
@@ -367,6 +497,8 @@
       state.notice = r.data.reason;
       return render();
     }
+    state.keepGoing = true;
+    state.advance = !!r.data.advance;
     await applyPlan(r.data);
   }
 

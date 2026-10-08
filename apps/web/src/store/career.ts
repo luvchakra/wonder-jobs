@@ -55,8 +55,9 @@ interface CareerState {
   forgetResumeFile: (id: string) => void;
   /** Answers the candidate gave on application forms, with when they last confirmed them (JobsApply §83–§85). Offered, never filled on their own. */
   answerMemory: RememberedAnswer[];
-  rememberAnswer: (key: MemoryKey, value: string) => void;
-  forgetAnswer: (key: MemoryKey) => void;
+  /** `question` names a "custom" answer — one learned from an employer's own question. */
+  rememberAnswer: (key: MemoryKey, value: string, question?: string, confirmedAt?: string) => void;
+  forgetAnswer: (key: MemoryKey, question?: string) => void;
   saveResume: (r: Omit<SavedResume, "id" | "createdAt">) => SavedResume;
   deleteResume: (id: string) => void;
   /** The candidate's name for a generated résumé (the file name employers see); blank goes back to the template's name. */
@@ -123,9 +124,14 @@ export const useCareerStore = create<CareerState>()(
       removeRole: (id) => set((s) => ({ roles: (s.roles ?? []).filter((r) => r.id !== id) })),
       forgetResumeFile: (id) => set((s) => ({ baseResume: s.baseResume?.kind === "upload" && s.baseResume.id === id ? undefined : s.baseResume, roles: withoutResume(s.roles ?? [], { kind: "upload", id }) })),
       answerMemory: [],
-      rememberAnswer: (key, value) =>
-        set((s) => ({ answerMemory: [...(s.answerMemory ?? []).filter((m) => m.key !== key), { key, value: value.trim().slice(0, 500), confirmedAt: new Date().toISOString(), source: "USER_PROVIDED" as const }] })),
-      forgetAnswer: (key) => set((s) => ({ answerMemory: (s.answerMemory ?? []).filter((m) => m.key !== key) })),
+      rememberAnswer: (key, value, question, confirmedAt) =>
+        set((s) => ({
+          answerMemory: [
+            ...(s.answerMemory ?? []).filter((m) => !(m.key === key && (key !== "custom" || m.question === question))),
+            { key, ...(key === "custom" && question ? { question: question.slice(0, 300) } : {}), value: value.trim().slice(0, 500), confirmedAt: confirmedAt ?? new Date().toISOString(), source: "USER_PROVIDED" as const },
+          ].slice(-120),
+        })),
+      forgetAnswer: (key, question) => set((s) => ({ answerMemory: (s.answerMemory ?? []).filter((m) => !(m.key === key && (key !== "custom" || m.question === question))) })),
       saveResume: (r) => {
         const saved: SavedResume = { ...r, id: newId("res"), createdAt: new Date().toISOString() };
         set((s) => ({ savedResumes: [saved, ...s.savedResumes].slice(0, MAX_SAVED_RESUMES) }));

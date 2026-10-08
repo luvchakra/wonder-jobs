@@ -234,6 +234,18 @@ export default function ApplyWithWonderPage({
     return () => clearInterval(t);
   }, [sessionId, live]);
 
+  // Answers the candidate typed on the employer's form, learned by the helper: into their Career Profile's
+  // Application answers, so the next form fills them.
+  const sessionMemory = view?.session.pack.memory;
+  useEffect(() => {
+    if (!sessionMemory?.length) return;
+    const mine = useCareerStore.getState().answerMemory ?? [];
+    for (const m of sessionMemory) {
+      const have = mine.find((x) => x.key === m.key && (m.key !== "custom" || x.question === m.question));
+      if (!have || have.confirmedAt < m.confirmedAt) useCareerStore.getState().rememberAnswer(m.key, m.value, m.question, m.confirmedAt);
+    }
+  }, [sessionMemory]);
+
   // Helper tokens last 30 minutes; while this page is open, keep the pairing fresh.
   const helperMode =
     !!view && view.session.mode !== "guided" && !view.session.stopped;

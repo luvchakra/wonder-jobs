@@ -19,6 +19,8 @@ const LABEL: Partial<Record<JobsApplyAuditEntry["event"], string>> = {
   DOMAIN_CHANGED: "Unexpected destination — paused",
   DOMAIN_APPROVED: "You approved a destination",
   READY_FOR_REVIEW: "Ready for your review",
+  STEP_ADVANCED: "Went to the next page",
+  ANSWER_LEARNED: "Remembered your answer",
   SUBMISSION_STARTED: "You pressed the employer's submit button",
   SUBMISSION_DETECTED: "Confirmation seen",
   SUBMISSION_CONFIRMED: "You confirmed it was submitted",
