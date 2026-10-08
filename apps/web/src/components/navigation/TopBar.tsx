@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, CreditCard, Download, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, CreditCard, Download, LayoutDashboard, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -141,6 +141,7 @@ export function TopBar() {
             )}
             {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
             {[
+              { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
               { href: "/app/profile", label: "Account", icon: User },
               // The Account page's main sections, one tap from anywhere (signed-in accounts only).
               ...(mode === "user"
