@@ -9,14 +9,17 @@ import type { CareerRole } from "@/domain/career/roles";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
 import { historyOf } from "@/domain/career/history";
-import { corePhrase, defaultSearchQuery, hasTermOrSynonym, queryTerms, SENIORITY_WORDS } from "@/services/jobs/normalize";
+import { corePhrase, defaultSearchQuery, hasTermOrSynonym, profileSearchQuery, queryTerms, SENIORITY_WORDS, stripSelfReference } from "@/services/jobs/normalize";
 import { fieldTerms, GENERIC_SKILLS } from "@/services/jobs/matching";
 
 export type ReadinessBlocker =
   /** Nothing to search with: no headline, goal, skills or work history. */
   | { kind: "profile"; hasResume: boolean; resumeFileId?: string }
-  /** A profile, but no role can be read from it. `suggested` is their own latest job title, when there is one. */
-  | { kind: "role"; suggested?: string }
+  /**
+   * A profile, but no role can be read from it. `level`: "Role you want" names only a level
+   * ("director"), so the question is which field. Otherwise `suggested` is their latest job title.
+   */
+  | { kind: "role"; suggested?: string; level?: string }
   /** No job source can be searched on this deployment. */
   | { kind: "sources"; needsSetup: string[]; off: string[] };
 
@@ -58,7 +61,7 @@ export const onlyLevel = (query: string) => queryTerms(query).length > 0 && quer
 export function jobsReadiness(input: ReadinessInput): Readiness {
   const { dna } = input;
   const field = fieldTerms(dna.headline, dna.careerGoal);
-  const query = defaultSearchQuery(dna);
+  const query = profileSearchQuery(dna);
   const locations = dna.preferredLocations;
   const notes: RelevanceNote[] = [];
   const latestTitle = historyOf(dna).experience.find((e) => e.current)?.title ?? historyOf(dna).experience[0]?.title;
@@ -66,7 +69,10 @@ export function jobsReadiness(input: ReadinessInput): Readiness {
   let blocker: ReadinessBlocker | undefined;
   const usable = input.sources.filter((s) => s.integrated && s.enabled && s.available !== false);
   if (!hasProfile(dna)) blocker = { kind: "profile", hasResume: input.resumeFileIds.length > 0, resumeFileId: input.resumeFileIds[0] };
-  else if (!query || onlyLevel(query)) blocker = { kind: "role", suggested: latestTitle?.trim() || undefined };
+  else if (!query || onlyLevel(query)) {
+    const wanted = stripSelfReference(dna.careerGoal).trim();
+    blocker = onlyLevel(wanted) ? { kind: "role", level: wanted } : { kind: "role", suggested: latestTitle?.trim() || undefined };
+  }
   else if (!usable.length)
     blocker = { kind: "sources", needsSetup: input.sources.filter((s) => s.integrated && s.available === false).map((s) => s.name), off: input.sources.filter((s) => s.integrated && !s.enabled && s.available !== false).map((s) => s.name) };
 

@@ -9,7 +9,7 @@ import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
 import { describeSchedule, nextRunAt, SCHEDULE_TEMPLATES, type ScheduleTemplate } from "@/services/mock/templates";
 import { useWorkflowStore } from "@/store/workflow";
-import { defaultSearchQuery } from "@/services/jobs/normalize";
+import { profileSearchQuery } from "@/services/jobs/normalize";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
@@ -49,7 +49,7 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
   const [time, setTime] = useState(sch?.time ?? t.time);
   const [timezone, setTimezone] = useState(sch?.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata"));
   const [sourceIds, setSourceIds] = useState<string[]>(wf?.config.sourceIds ?? sources.filter((s) => s.enabled).map((s) => s.id));
-  const [query, setQuery] = useState(wf?.config.searchCriteria.query ?? (t.query || defaultSearchQuery(dna)));
+  const [query, setQuery] = useState(wf?.config.searchCriteria.query ?? (t.query || profileSearchQuery(dna)));
   const [locations, setLocations] = useState((wf?.config.searchCriteria.locations ?? dna.preferredLocations).join(", "));
   const [threshold, setThreshold] = useState(wf?.config.minMatchThreshold ?? 70);
   const [maxResults, setMaxResults] = useState(wf?.config.maxResults ?? 50);

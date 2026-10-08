@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corePhrase, defaultSearchQuery, extractRequirements, extractSkills, hasTerm, htmlToText, inferSeniority, inPlaces, matchesLocations, matchesQuery, normalizePosting, parseSalary, placeNamed, queryTerms, remoteOpenTo, sameFamily, stripSelfReference } from "./normalize";
+import { corePhrase, defaultSearchQuery, profileSearchQuery, extractRequirements, extractSkills, hasTerm, htmlToText, inferSeniority, inPlaces, matchesLocations, matchesQuery, normalizePosting, parseSalary, placeNamed, queryTerms, remoteOpenTo, sameFamily, stripSelfReference } from "./normalize";
 
 describe("normalize", () => {
   it("strips HTML into readable text", () => {
@@ -115,6 +115,27 @@ describe("defaultSearchQuery — the run searches for the candidate's own role, 
     expect(defaultSearchQuery({ headline: "Target: Senior Director / SVP — IAM & AI Transformation | Digital Identity, Cyber Risk & AI Governance", careerGoal: "" })).toBe("senior director svp iam");
     expect(defaultSearchQuery({ headline: "Seeking: Head of Data", careerGoal: "" })).toBe("head data");
     expect(defaultSearchQuery({ headline: "Goal - Staff Engineer, Platform", careerGoal: "" })).toBe("staff engineer platform");
+  });
+});
+
+describe("profileSearchQuery — the Career Profile searches “Role you want”, as its page says", () => {
+  it("searches the wanted role over the role held today", () => {
+    expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "IAM Director" })).toBe("iam director");
+    expect(profileSearchQuery({ headline: "Data Analyst — Acme", careerGoal: "Product manager in fintech" })).toBe("product manager");
+  });
+
+  it("gives a wanted field with no level the level held today", () => {
+    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "identity and access management" })).toBe("senior director identity access");
+    expect(profileSearchQuery({ headline: "Target: Senior Director / SVP — IAM", careerGoal: "identity and access management" })).toBe("senior director identity access");
+  });
+
+  it("keeps a level alone a level, so the Find page asks for the field instead of guessing it", () => {
+    expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "director" })).toBe("director");
+  });
+
+  it("falls back to the role held today only when no role is wanted", () => {
+    expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "" })).toBe("iam sme practice lead");
+    expect(profileSearchQuery({ headline: "", careerGoal: "" })).toBe("");
   });
 });
 

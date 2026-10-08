@@ -3,7 +3,8 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileUp, Loader2, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
-import type { ReadinessBlocker, RelevanceNote } from "@/domain/jobs/readiness";
+import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
+import { stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
 import type { JobSearch } from "@/lib/useJobSearch";
 import { foundNothing } from "@/lib/useJobSearch";
@@ -28,7 +29,7 @@ export function ReadinessBlockerCard({ blocker }: { blocker: ReadinessBlocker })
   return (
     <section aria-labelledby="readiness-title" className="wj-card p-5 md:p-6">
       {blocker.kind === "profile" && <ProfileStep blocker={blocker} />}
-      {blocker.kind === "role" && <RoleStep suggested={blocker.suggested} />}
+      {blocker.kind === "role" && <RoleStep suggested={blocker.suggested} level={blocker.level} />}
       {blocker.kind === "sources" && <SourcesStep blocker={blocker} />}
     </section>
   );
@@ -82,12 +83,14 @@ function ProfileStep({ blocker }: { blocker: Extract<ReadinessBlocker, { kind: "
   );
 }
 
-function RoleStep({ suggested, compact }: { suggested?: string; compact?: boolean }) {
+function RoleStep({ suggested, level, compact }: { suggested?: string; level?: string; compact?: boolean }) {
   const updateDNA = useCareerStore((s) => s.updateDNA);
-  const [value, setValue] = useState(suggested ?? "");
+  const [value, setValue] = useState(level ?? suggested ?? "");
+  // A level alone ("director") isn't a search: job boards drop level words and search the rest.
+  const levelOnly = onlyLevel(stripSelfReference(value));
   const save = () => {
     const v = value.trim();
-    if (!v) return;
+    if (!v || levelOnly) return;
     updateDNA({ careerGoal: v });
     track("jobs_readiness_action", { step: "role_set" });
   };
@@ -106,14 +109,14 @@ function RoleStep({ suggested, compact }: { suggested?: string; compact?: boolea
         <>
           <p className="wj-eyebrow mb-1">One step to your jobs</p>
           <h2 id="readiness-title" className="text-[20px] font-semibold text-ink">
-            What role are you looking for?
+            {level ? `Which ${level.toLowerCase()} role?` : "What role are you looking for?"}
           </h2>
-          <p className="mt-1 text-[14px] text-ink-3">{suggested ? `Your latest role is filled in — change it if you're after something else.` : "Name the role and its field, e.g. “identity and access management director” or “data analyst”."}</p>
+          <p className="mt-1 text-[14px] text-ink-3">{level ? `Add the field to “${level}”, e.g. “identity and access management ${level.toLowerCase()}”.` : suggested ? `Your latest role is filled in — change it if you're after something else.` : "Name the role and its field, e.g. “identity and access management director” or “data analyst”."}</p>
         </>
       )}
       <div className="mt-2 flex gap-2">
         <Input id="readiness-role" value={value} onChange={(e) => setValue(e.target.value)} placeholder="e.g. data analyst" className="min-w-0 flex-1" aria-label="The role you want" />
-        <Button type="submit" disabled={!value.trim()}>
+        <Button type="submit" disabled={!value.trim() || levelOnly}>
           Show jobs
         </Button>
       </div>

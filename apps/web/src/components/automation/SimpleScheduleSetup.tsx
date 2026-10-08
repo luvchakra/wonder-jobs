@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
 import { buildScheduledSearch, LOOK_FREQUENCY_META, type LookFrequency } from "@/domain/workflow/simpleSchedule";
-import { defaultSearchQuery } from "@/services/jobs/normalize";
+import { defaultSearchQuery, profileSearchQuery } from "@/services/jobs/normalize";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { roleSearch } from "@/domain/career/roles";
 import { RolePicker } from "@/components/career/RolePicker";
@@ -64,7 +64,7 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
   const intent = useMemo(() => deriveSearchIntent(request), [request]);
   // The candidate's own words, else their Career Profile — never a canned role.
   // A role's own terms; else the candidate's own words, else their Career Profile — never a canned role.
-  const query = (role && roleSearch(role, defaultSearchQuery).query) || intent.query || defaultSearchQuery(dna);
+  const query = (role && roleSearch(role, defaultSearchQuery).query) || intent.query || profileSearchQuery(dna);
   const locations = intent.locations.length ? intent.locations : dna.preferredLocations;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
 

@@ -31,6 +31,17 @@ describe("the readiness ladder: the one thing between the candidate and relevant
     expect(jobsReadiness(input({ dna: { ...EMPTY_DNA, headline: "Senior Director" } })).query).toBe("");
   });
 
+  it("searches the role the candidate wants, not the role they hold — the reported case: “Role you want” set to “director” still searched the headline “iam sme practice lead”", () => {
+    const dna: CareerDNA = { ...iamDna, headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "IAM Director" };
+    expect(jobsReadiness(input({ dna })).query).toBe("iam director");
+    // A level alone can't be searched (sources drop level words): ask which one, keeping their word.
+    const levelOnly = jobsReadiness(input({ dna: { ...dna, careerGoal: "director" } }));
+    expect(levelOnly.blocker).toEqual({ kind: "role", level: "director" });
+    expect(levelOnly.query).toBe("");
+    // Nothing wanted yet: the current role is searched, as before.
+    expect(jobsReadiness(input({ dna: { ...dna, careerGoal: "" } })).query).toBe("iam sme practice lead");
+  });
+
   it("no searchable source says which need setup and which are off", () => {
     const r = jobsReadiness(input({ sources: [source({ name: "Adzuna", available: false }), source({ name: "Jobicy", enabled: false })] }));
     expect(r.blocker).toEqual({ kind: "sources", needsSetup: ["Adzuna"], off: ["Jobicy"] });
@@ -39,7 +50,8 @@ describe("the readiness ladder: the one thing between the candidate and relevant
   it("a ready profile searches its own words, in its own locations", () => {
     const r = jobsReadiness(input());
     expect(r.blocker).toBeUndefined();
-    expect(r.query).toBe("senior director svp iam");
+    // "Role you want" (the field) is what's searched, at the level held today.
+    expect(r.query).toBe("senior director identity access");
     expect(r.locations).toEqual(["Mumbai"]);
     expect(r.field).toContain("identity");
   });
@@ -48,7 +60,7 @@ describe("the readiness ladder: the one thing between the candidate and relevant
 describe("relevance notes — what weakens the match, each with one fix", () => {
   it("flags the reported case: a daily search for “product manager” on an IAM director's account", () => {
     const r = jobsReadiness(input({ scheduledWorkflows: [wf("product manager")] }));
-    expect(r.notes).toContainEqual({ kind: "stale_schedule", workflowId: "wf_1", name: "Daily Job Discovery", query: "product manager", suggested: "senior director svp iam" });
+    expect(r.notes).toContainEqual({ kind: "stale_schedule", workflowId: "wf_1", name: "Daily Job Discovery", query: "product manager", suggested: "senior director identity access" });
   });
 
   it("leaves a saved search in the candidate's field alone, including a spelled-out one, and a role's own search", () => {
@@ -81,7 +93,7 @@ describe("relevance notes — what weakens the match, each with one fix", () => 
   });
 });
 
-const run = (over: Partial<WorkflowRun> = {}): WorkflowRun => ({ id: "run_1", status: "COMPLETED", createdAt: "2026-10-03T06:00:00.000Z", completedAt: "2026-10-03T06:01:00.000Z", stages: [{ key: "search" }], config: { searchCriteria: { query: "senior director svp iam", locations: ["Mumbai"], workModes: [] } }, ...over }) as unknown as WorkflowRun;
+const run = (over: Partial<WorkflowRun> = {}): WorkflowRun => ({ id: "run_1", status: "COMPLETED", createdAt: "2026-10-03T06:00:00.000Z", completedAt: "2026-10-03T06:01:00.000Z", stages: [{ key: "search" }], config: { searchCriteria: { query: "senior director identity access", locations: ["Mumbai"], workModes: [] } }, ...over }) as unknown as WorkflowRun;
 const now = Date.parse("2026-10-03T08:00:00.000Z");
 
 describe("searching on open, without a button", () => {
