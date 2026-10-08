@@ -103,6 +103,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JobsLake Insights: source KPIs and suggestions from rules and AI (WJ-245)
 - ✅ Activity digest email: heads up, CTA, waiting on you, wins, fixes and AI suggestions (WJ-246)
 - ✅ Dashboard: KPIs, heads up, actions required, charts and suggestions, from the avatar menu (WJ-247)
+- ✅ Help guide and assistant brought up to the product as it is: Finding jobs, plans, activity email, AI use, Apply with Wonder page by page, and a "When something goes wrong" section (WJ-248)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
@@ -336,7 +337,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 
 ## 12. Help center & support (request #5)
 
-- ✅ `/help`: user guide (17 sections, incl. "Plan, payments and your data" — WJ-166) + FAQ, sticky section nav, public — WJ-087; brought up to date with what shipped (WJ-165): new Ask Wonder and Calendar, notifications and the app sections, seven new FAQs
+- ✅ `/help`: user guide (18 sections, incl. "Plans, payments and your data" — WJ-166, and "When something goes wrong" — WJ-248) + FAQ, sticky section nav, public — WJ-087; brought up to date with what shipped (WJ-165): new Ask Wonder and Calendar, notifications and the app sections, seven new FAQs
 - ✅ Help assistant returns the best-matching FAQ in a section, not the first one sharing a few words (WJ-165)
 - ✅ "Get Help" in the avatar menu and on the profile page
 - ✅ Help assistant chatbot: answers from the guide and links the matching section; platform model when configured — WJ-088
