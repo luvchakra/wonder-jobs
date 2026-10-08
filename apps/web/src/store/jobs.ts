@@ -10,6 +10,12 @@ import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/match
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
+import type { InteractionRecord } from "@/domain/career/learning";
+
+/** What the learning loop keeps about a job the candidate chose. */
+export function interactionFor(job: CanonicalJob, kind: InteractionRecord["kind"]): InteractionRecord {
+  return { jobId: job.id, at: new Date().toISOString(), kind, industry: job.industry, workMode: job.workMode, title: job.title, company: job.company };
+}
 import { track } from "@/lib/analytics";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
@@ -152,13 +158,18 @@ export const useJobsStore = create<JobsState>()(
           delete rejected[jobId];
           return { saved: { ...s.saved, [jobId]: new Date().toISOString() }, rejected };
         });
+        // Saving is evidence of what the candidate wants: learned the same way as "not for me".
+        const saved = get().jobs[jobId];
+        if (saved) useCareerStore.getState().recordInteraction(interactionFor(saved, "saved"));
       },
-      unsave: (jobId) =>
+      unsave: (jobId) => {
         set((s) => {
           const saved = { ...s.saved };
           delete saved[jobId];
           return { saved };
-        }),
+        });
+        useCareerStore.getState().clearInteraction(jobId, "saved");
+      },
       reject: (jobId, reason) => {
         track("job_rejected", { jobId, reason: reason ?? "none" });
         track("opportunity_rejected", { jobId, reason: reason ?? "none", fit: get().matches[jobId]?.fit });
@@ -172,7 +183,7 @@ export const useJobsStore = create<JobsState>()(
         // Every rejection feeds the learning loop (spec: "not for me" must actually influence future
         // ranking), whether or not the candidate gave a reason — a reason is what lets it target a
         // specific pattern (industry, work mode, seniority); without one it's just recorded.
-        if (job) useCareerStore.getState().recordRejection({ jobId, at, reason, industry: job.industry, workMode: job.workMode });
+        if (job) useCareerStore.getState().recordRejection({ jobId, at, reason, industry: job.industry, workMode: job.workMode, title: job.title, company: job.company });
         get().rescore();
       },
       unreject: (jobId) => {

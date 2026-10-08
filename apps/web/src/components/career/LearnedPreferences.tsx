@@ -5,20 +5,26 @@ import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { toast } from "@/components/feedback/Toast";
-import type { LearnedSignal } from "@/domain/career/learning";
+import { PREFER_KINDS, type LearnedSignal } from "@/domain/career/learning";
 
 const LABEL: Record<LearnedSignal["kind"], (value?: string) => string> = {
   avoid_industry: (v) => `Rank ${v ?? "this industry"} roles lower`,
   avoid_work_mode: (v) => `Rank ${v ?? "this work mode"} roles lower`,
   prefer_lower_seniority: () => "Rank more senior roles lower",
   prefer_higher_seniority: () => "Rank more junior roles lower",
+  avoid_title_term: (v) => `Rank “${v}” roles lower`,
+  avoid_company: (v) => `Rank roles at ${v} lower`,
+  prefer_industry: (v) => `Rank ${v ?? "this industry"} roles higher`,
+  prefer_work_mode: (v) => `Rank ${v ?? "this work mode"} roles higher`,
+  prefer_title_term: (v) => `Rank “${v}” roles higher`,
+  prefer_location: (v) => `Rank roles in ${v} higher`,
 };
 
 /**
- * "Provide a way to review learned preferences" (spec §18) — what the reject-reason patterns in
+ * "Provide a way to review learned preferences" (spec §18) — what the patterns in
  * `domain/career/learning.ts` are actually doing to ranking right now, in plain language, with a way
  * to turn any one of them off. Nothing here can be surprised by: every signal only exists because the
- * candidate rejected several similar roles and said why.
+ * candidate repeatedly saved, applied to, searched for or turned down similar roles.
  */
 export function LearnedPreferences() {
   const signals = useCareerStore((s) => s.learnedSignals);
@@ -32,7 +38,7 @@ export function LearnedPreferences() {
       <h2 className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-ink">
         <Sparkles className="size-4 text-brand-600" aria-hidden /> Needs confirmation
       </h2>
-      <p className="mb-3 text-[12px] text-ink-3">Patterns Wonder noticed from marking roles &ldquo;not for me&rdquo; more than once for the same reason. Each one nudges ranking slightly — it never hides a role outright, and never changes the preferences above without you.</p>
+      <p className="mb-3 text-[12px] text-ink-3">Patterns Wonder noticed from the roles you save, apply to, search for and mark &ldquo;not for me&rdquo;. Each nudges ranking slightly, never hides a role and never changes the preferences above without you.</p>
       <ul className="flex flex-col gap-2">
         {signals.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-line bg-surface px-3 py-2.5">
@@ -48,7 +54,7 @@ export function LearnedPreferences() {
                   variant="ghost"
                   onClick={() => {
                     confirm(s.id);
-                    toast.success("Confirmed", "Wonder will keep ranking this pattern lower.");
+                    toast.success("Confirmed", `Wonder will keep ranking this pattern ${PREFER_KINDS.has(s.kind) ? "higher" : "lower"}.`);
                   }}
                 >
                   Yes, keep this
@@ -59,7 +65,7 @@ export function LearnedPreferences() {
                 variant="outline"
                 onClick={() => {
                   dismiss(s.id);
-                  toast.info("Dismissed", "Wonder won't rank this pattern lower, and won't suggest it again.");
+                  toast.info("Dismissed", "Wonder will stop using this pattern, and won't suggest it again.");
                 }}
               >
                 Turn off

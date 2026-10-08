@@ -166,6 +166,9 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       if (!query) return null;
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
+      // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.
+      const typedPlaces = intent.locations.length ? intent.locations : places ?? [];
+      if (typedPlaces.length) useCareerStore.getState().recordSearch(typedPlaces);
       return sayBusy(search({ query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
     },
     [search, sources, readiness.locations, readiness.query],
