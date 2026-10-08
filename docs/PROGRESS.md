@@ -92,6 +92,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Search box applies words only when Search is pressed (WJ-234)
 - ✅ Jobs page says the role it searches for, with one-tap Change; "Search based on Career Profile" button (WJ-235)
 - ✅ Helper Fill on a redirected employer page offers your Apply with Wonder application (WJ-236)
+- ✅ Save the job from the Apply with Wonder page (WJ-237)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
