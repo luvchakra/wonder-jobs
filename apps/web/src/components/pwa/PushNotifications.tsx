@@ -4,6 +4,7 @@ import { Bell, BellOff } from "lucide-react";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { toast } from "@/components/feedback/Toast";
+import { pushErrorMessage } from "@/lib/pushError";
 
 interface Support {
   ok: boolean;
@@ -111,7 +112,7 @@ export function PushNotifications() {
       setSubscribed(true);
       toast.success("Notifications are on", "We've sent one to this device so you can see how it looks.");
     } catch (e) {
-      toast.error("Couldn't turn notifications on", e instanceof Error ? e.message : undefined);
+      toast.error("Couldn't turn notifications on", pushErrorMessage(e, "brave" in navigator));
     } finally {
       setBusy(false);
     }

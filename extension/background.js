@@ -130,6 +130,20 @@ async function injectInto(tabId) {
   }
 }
 
+/**
+ * Chrome only puts content scripts into pages loaded after the helper is installed or updated, and an
+ * update cuts the old copies off. Put the bridge back into WonderJobs tabs that are already open, so
+ * they see the helper without a reload.
+ */
+chrome.runtime.onInstalled.addListener(async () => {
+  const matches = chrome.runtime.getManifest().content_scripts?.find((c) => c.js?.includes("content/wonderjobs-bridge.js"))?.matches ?? [];
+  const tabs = matches.length ? await chrome.tabs.query({ url: matches }).catch(() => []) : [];
+  for (const tab of tabs) {
+    if (tab.id === undefined) continue;
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/wonderjobs-bridge.js"] }).catch(() => {});
+  }
+});
+
 /** On a paired session's destination that isn't in the static content-script list, inject the helper — only where the candidate granted access. */
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== "complete" || !tab.url || !/^https:/.test(tab.url)) return;
