@@ -101,6 +101,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ AI warning signs in job quality and AI findings in the ATS report (WJ-243)
 - ✅ Wonder learns progressively from saves, applications, rejections and searches (WJ-244)
 - ✅ JobsLake Insights: source KPIs and suggestions from rules and AI (WJ-245)
+- ✅ Activity digest email: heads up, CTA, waiting on you, wins, fixes and AI suggestions (WJ-246)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

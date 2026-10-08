@@ -109,3 +109,41 @@ export async function notifyContactRecipients(payload: ContactNotifyPayload, env
     transport.close();
   }
 }
+
+export interface MailMessage {
+  to: string;
+  subject: string;
+  html?: string;
+  text: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Sends one email through the same mailbox as the contact notifications. Never throws; without SMTP
+ * settings nothing is sent and the result says so.
+ */
+export async function sendMail(msg: MailMessage, env: Env = process.env): Promise<{ sent: boolean; reason?: string }> {
+  const smtp = smtpConfig(env);
+  if (!smtp) return { sent: false, reason: "no email provider configured" };
+  const secure = smtp.port === 465;
+  const transport = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure,
+    requireTLS: !secure && !LOOPBACK.has(smtp.host),
+    ignoreTLS: !secure && LOOPBACK.has(smtp.host),
+    auth: { user: smtp.user, pass: smtp.pass },
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 15_000,
+  });
+  try {
+    await transport.sendMail({ from: smtp.from, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
+    return { sent: true };
+  } catch (e) {
+    console.error("[mail] send failed", e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300));
+    return { sent: false, reason: "send failed" };
+  } finally {
+    transport.close();
+  }
+}
