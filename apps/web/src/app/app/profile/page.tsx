@@ -74,6 +74,34 @@ function CloudSyncCard() {
   );
 }
 
+/**
+ * Opens at the section the avatar menu linked to (#plan, #notifications, #your-data). Those cards load
+ * their own data first, so wait briefly for the target to appear, then scroll it clear of the top bar.
+ */
+function useSectionScroll() {
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const go = () => {
+      clearInterval(timer);
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id) return;
+      let tries = 0;
+      timer = setInterval(() => {
+        const el = document.getElementById(id);
+        if (!el && ++tries < 30) return;
+        clearInterval(timer);
+        if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+      }, 100);
+    };
+    go();
+    window.addEventListener("hashchange", go);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("hashchange", go);
+    };
+  }, []);
+}
+
 function ProfileInner() {
   const params = useSearchParams();
   const dna = useCareerStore((s) => s.dna);
@@ -84,6 +112,7 @@ function ProfileInner() {
   const billingReturn = params.get("billing") ?? (params.get("upgrade") === "1" ? "upgrade" : null);
   const plan = useBillingStore((st) => st.data?.plan ?? "free");
   const displayName = dna.name || email?.split("@")[0] || "You";
+  useSectionScroll();
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Account" />
@@ -99,8 +128,10 @@ function ProfileInner() {
         </div>
       </Card>
       <CloudSyncCard />
-      <PushNotifications />
-      <DigestEmailCard />
+      <div id="notifications" className="scroll-mt-20">
+        <PushNotifications />
+        <DigestEmailCard />
+      </div>
       <PlanCard returnState={billingReturn} />
       <YourDataCard />
       <Card padding="none" className="mt-4">

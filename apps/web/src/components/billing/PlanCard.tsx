@@ -53,7 +53,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
 
   if (mode === "demo") {
     return (
-      <Card id="plan" className="mt-4">
+      <Card id="plan" className="mt-4 scroll-mt-20">
         <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
         <p className="mt-1 text-[13px] text-ink-2">Billing isn&apos;t part of the demo. Create an account to see plans and pay with Razorpay or Stripe.</p>
       </Card>
@@ -61,7 +61,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   }
   if (status !== "ready" || !data) {
     return (
-      <Card id="plan" className="mt-4">
+      <Card id="plan" className="mt-4 scroll-mt-20">
         <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
         <p className="mt-1 text-[13px] text-ink-2">{status === "error" ? "Your plan couldn't be loaded just now." : "Checking your plan…"}</p>
         {status === "error" && (
@@ -114,7 +114,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   const upgrades = (["pro", "max"] as const).filter((p) => PLAN_RANK[p] > PLAN_RANK[data.plan] && data.plans?.[p]);
 
   return (
-    <Card id="plan" className="mt-4">
+    <Card id="plan" className="mt-4 scroll-mt-20">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-warning-100 text-warning-600">
           <Crown className="size-5" aria-hidden />

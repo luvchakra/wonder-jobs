@@ -65,7 +65,7 @@ export function YourDataCard() {
   };
 
   return (
-    <Card id="your-data" className="mt-4">
+    <Card id="your-data" className="mt-4 scroll-mt-20">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
           <ShieldCheck className="size-5" aria-hidden />
