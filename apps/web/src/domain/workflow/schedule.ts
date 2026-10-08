@@ -108,9 +108,25 @@ export function ranRecently(s: Pick<WorkflowSchedule, "lastRunAt">, now: Date = 
   return Number.isFinite(at) && now.getTime() - at < ALREADY_RAN_MS;
 }
 
-/** Is this schedule due to fire right now? The one definition both schedulers use. */
-export function isDue(s: Pick<WorkflowSchedule, "enabled" | "trigger" | "nextRunAt" | "lastRunAt">, now: Date = new Date()): boolean {
+/**
+ * Is this schedule due to fire right now? The one definition both schedulers use.
+ *
+ * `earlyMs` lets a scheduler that only wakes once a day take an occurrence that is about to come up,
+ * rather than leave it for its next wake a day later: Vercel's Hobby cron fires once a day, at some
+ * minute within its hour, so an 08:00 search would otherwise run at 07:49 tomorrow instead of today.
+ * The browser and a frequent cron pass 0 and fire on the minute.
+ */
+export function isDue(s: Pick<WorkflowSchedule, "enabled" | "trigger" | "nextRunAt" | "lastRunAt">, now: Date = new Date(), earlyMs = 0): boolean {
   if (!s.enabled || s.trigger !== "schedule" || !s.nextRunAt) return false;
-  if (new Date(s.nextRunAt).getTime() > now.getTime()) return false;
+  if (new Date(s.nextRunAt).getTime() > now.getTime() + Math.max(0, earlyMs)) return false;
   return !ranRecently(s, now);
+}
+
+/**
+ * Where to look for a schedule's next occurrence once it has fired: after the occurrence it just took,
+ * even when it took it a little early — otherwise an early run would find that same occurrence again.
+ */
+export function advancedFrom(s: Pick<WorkflowSchedule, "nextRunAt">, now: Date): Date {
+  const at = s.nextRunAt ? new Date(s.nextRunAt).getTime() : NaN;
+  return Number.isFinite(at) && at > now.getTime() ? new Date(at) : now;
 }

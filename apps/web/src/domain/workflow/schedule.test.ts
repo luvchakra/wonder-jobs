@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDue, nextScheduledRun } from "./schedule";
+import { advancedFrom, isDue, nextScheduledRun } from "./schedule";
 
 const ist = "Asia/Kolkata";
 
@@ -67,5 +67,29 @@ describe("isDue", () => {
     // The guard that lets the browser ticker and the server cron coexist without double-firing.
     expect(isDue({ ...base, lastRunAt: "2026-04-15T02:31:00.000Z" }, now)).toBe(false);
     expect(isDue({ ...base, lastRunAt: "2026-04-14T02:31:00.000Z" }, now)).toBe(true);
+  });
+
+  it("with an early window, takes an occurrence that's about to come up — the once-a-day cron waking at 07:49 for an 08:00 search", () => {
+    const wake = new Date("2026-04-15T02:19:58.000Z"); // 07:49:58 in Asia/Kolkata; the search is at 08:00 (02:30Z)
+    expect(isDue(base, wake)).toBe(false); // on the minute only: it would wait a whole day
+    expect(isDue(base, wake, 60 * 60_000)).toBe(true);
+    expect(isDue(base, wake, 5 * 60_000)).toBe(false); // ten minutes away is outside a five-minute window
+    expect(isDue({ ...base, nextRunAt: "2026-04-15T03:30:00.000Z" }, wake, 60 * 60_000)).toBe(false); // more than an hour away
+    // The early window never overrides "already ran today", and a negative window means none.
+    expect(isDue({ ...base, lastRunAt: "2026-04-14T22:00:00.000Z" }, wake, 60 * 60_000)).toBe(false);
+    expect(isDue(base, wake, -60_000)).toBe(false);
+  });
+});
+
+describe("advancedFrom", () => {
+  it("looks for the next occurrence after the one just taken, even when it was taken early", () => {
+    const early = new Date("2026-04-15T02:19:58.000Z");
+    const s = { frequency: "daily" as const, days: [], time: "08:00", timezone: "Asia/Kolkata", nextRunAt: "2026-04-15T02:30:00.000Z" };
+    expect(advancedFrom(s, early).toISOString()).toBe("2026-04-15T02:30:00.000Z");
+    expect(nextScheduledRun(s, advancedFrom(s, early))).toBe("2026-04-16T02:30:00.000Z"); // tomorrow, not 08:00 today again
+    // Late (the usual case) or no occurrence on record: from now, as before.
+    const late = new Date("2026-04-15T05:00:00.000Z");
+    expect(advancedFrom(s, late)).toBe(late);
+    expect(advancedFrom({ nextRunAt: undefined }, late)).toBe(late);
   });
 });

@@ -28,14 +28,18 @@ async function viaRpc(fn: string, now: Date, limit: number): Promise<string[] | 
   return null;
 }
 
-export async function listTenantsWithDueSchedules(now: Date, limit = 200): Promise<string[]> {
-  const viaSql = await viaRpc("due_schedule_tenants", now, limit);
+/** `earlyMs`: also count schedules due within this long (a once-a-day cron; see `isDue`). */
+export async function listTenantsWithDueSchedules(now: Date, limit = 200, earlyMs = 0): Promise<string[]> {
+  // The database function compares against one instant; asking it about `now + earlyMs` finds the same
+  // tenants, and only loosens its "already ran today" guard by that much — `runDueSchedules` re-checks
+  // each schedule with the exact rule before anything fires.
+  const viaSql = await viaRpc("due_schedule_tenants", new Date(now.getTime() + Math.max(0, earlyMs)), limit);
   if (viaSql) return viaSql;
   const tenants = await stateStore.listTenants("wj.workflow", limit);
   const out: string[] = [];
   for (const tenantId of tenants) {
     const doc = await readClientState<{ schedules?: Record<string, WorkflowSchedule> }>(tenantId, "wj.workflow");
-    if (hasDueSchedule(doc?.schedules, now)) out.push(tenantId);
+    if (hasDueSchedule(doc?.schedules, now, earlyMs)) out.push(tenantId);
   }
   return out;
 }
@@ -54,6 +58,6 @@ export async function listTenantsWithDueReminders(now: Date, limit = 200): Promi
   return out;
 }
 
-export function hasDueSchedule(schedules: Record<string, WorkflowSchedule> | undefined, now: Date): boolean {
-  return Object.values(schedules ?? {}).some((s) => s && isDue(s, now));
+export function hasDueSchedule(schedules: Record<string, WorkflowSchedule> | undefined, now: Date, earlyMs = 0): boolean {
+  return Object.values(schedules ?? {}).some((s) => s && isDue(s, now, earlyMs));
 }

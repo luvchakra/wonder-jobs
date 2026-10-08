@@ -6,6 +6,7 @@ import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/serv
 import { raiseDueReminders } from "@/server/workflow/reminders";
 import { notifyTenant } from "@/server/push/subscriptions";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
+import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,11 +35,13 @@ export async function GET(req: Request) {
 
   const startedAt = Date.now();
   const now = new Date();
+  // Once a day (Hobby), also take what falls due in the next hour rather than leaving it a whole day.
+  const earlyMs = cronEarlyWindowMs();
   const reports: ScheduledRunReport[] = [];
   const failures: { tenantId: string; error: string }[] = [];
   let tenants: string[] = [];
   try {
-    tenants = await listTenantsWithDueSchedules(now, MAX_TENANTS);
+    tenants = await listTenantsWithDueSchedules(now, MAX_TENANTS, earlyMs);
   } catch (e) {
     console.error("[cron] due-schedule lookup failed:", e instanceof Error ? e.message : "unknown");
     return NextResponse.json({ ok: false, error: "Could not look for due schedules" }, { status: 502 });
@@ -53,7 +56,7 @@ export async function GET(req: Request) {
     }
     try {
       // One tenant's bad day is not everyone's: a failure here is recorded and the loop moves on.
-      const report = await runDueSchedules(tenantId, { now, timeoutMs: TENANT_BUDGET_MS });
+      const report = await runDueSchedules(tenantId, { now, timeoutMs: TENANT_BUDGET_MS, earlyMs });
       if (report) reports.push(report);
     } catch (e) {
       failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });

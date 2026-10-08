@@ -10,7 +10,7 @@
 import { tenantPlan } from "@/server/billing/service";
 import { WorkflowEngine, conditionMet } from "@/domain/workflow/engine";
 import { addNotification } from "@/domain/career/notifications";
-import { isDue, nextScheduledRun } from "@/domain/workflow/schedule";
+import { advancedFrom, isDue, nextScheduledRun } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
 import { STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
@@ -40,6 +40,8 @@ export interface RunDueOptions {
   now?: Date;
   /** Hard ceiling for one tenant's run, so a slow source can't eat the whole cron invocation. */
   timeoutMs?: number;
+  /** Also take a schedule due within this long (a once-a-day cron; see `isDue`). */
+  earlyMs?: number;
 }
 
 /**
@@ -60,7 +62,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
       .map((s) => s.id),
   );
   const due = Object.values(snapshot.workflow.schedules)
-    .filter((s) => allowed.has(s.id) && isDue(s, now))
+    .filter((s) => allowed.has(s.id) && isDue(s, now, opts.earlyMs))
     .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
   const schedule = due[0];
   if (!schedule) return undefined;
@@ -69,7 +71,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   const workflow = snapshot.workflow.workflows[schedule.workflowId];
 
   // Advance first, always: whatever happens next, this schedule has had its turn.
-  const advanced: WorkflowSchedule = { ...schedule, lastRunAt: now.toISOString(), nextRunAt: nextScheduledRun(schedule, now) };
+  const advanced: WorkflowSchedule = { ...schedule, lastRunAt: now.toISOString(), nextRunAt: nextScheduledRun(schedule, advancedFrom(schedule, now)) };
   snapshot.workflow.schedules[schedule.id] = advanced;
 
   if (Object.values(snapshot.workflow.runs).some((r) => isActive(r.status))) {
