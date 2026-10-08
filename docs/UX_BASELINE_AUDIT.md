@@ -227,7 +227,7 @@ Not on the Chrome Web Store (manual "Load unpacked" install, disclosed on the ma
 
 `content/help.ts` (10-section guide + FAQ) + `app/help/page.tsx` (public, no session required — confirmed via a cookie-less production request) + `HelpAssistant.tsx` → `/api/help/ask`. **Genuine retrieval-first, model-optional design**: pure keyword search over the guide always runs and always produces an answer; a platform-configured model only ever rewrites/cites from the retrieved excerpts (system-prompted to answer only from them), with any model failure silently falling back to pure retrieval. Source is honestly attributed in the UI ("guide" vs "model").
 
-Contact form → real Resend delivery when `RESEND_API_KEY`/`CONTACT_NOTIFY_EMAILS` are configured, honestly logged otherwise.
+Contact form → real email delivery (SMTP, since WJ-229; Resend before) when `SMTP_*`/`CONTACT_NOTIFY_EMAILS` are configured, honestly logged otherwise.
 
 ## 29. Accessibility
 

@@ -13,7 +13,7 @@ const PILLARS: { icon: typeof CreditCard; eyebrow: string; title: string; points
     eyebrow: "Payments",
     title: "Razorpay and Stripe",
     points: [
-      "Pay with UPI AutoPay, cards or net banking through Razorpay, or with international cards, Apple Pay and Google Pay through Stripe",
+      "WonderJobs is free today. When paid plans open, you pay with UPI AutoPay, cards or net banking through Razorpay, or international cards through Stripe",
       "You pay on the provider's own page; your card, UPI and bank details never reach WonderJobs",
       "Your plan changes only when the provider's signed confirmation arrives, never just because a page redirected",
       "Cancel any time and keep what you've paid for until the period ends",

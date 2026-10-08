@@ -44,7 +44,7 @@ this file — if a control here changes, change the copy in `components/landing/
 | Erasure | Art. 17 | s.12 | Profile → Your data → Delete account (typed confirmation). Deletes tenant row (cascades every tenant table), contact messages, Supabase Auth user. Refused while a subscription would keep charging. A tombstone (the hashed completed request) stops late webhooks and other devices' still-valid tokens (≤1 h) from re-creating the account: state writes answer 410 | `/api/privacy/erase`, `subjectRights.ts::eraseAccount` |
 | Retention exceptions | Art. 17(3)(b) | s.8(7) | Billing ledger (8 years, no FK so it survives erasure, no profile data) and a hashed request record | migration 0008 |
 | Storage limitation | Art. 5(1)(e) | s.8(7) | Published schedule; contact messages purged after 24 months by the daily cron | `content/privacy.ts::RETENTION`, `server/privacy/retention.ts` |
-| Processors | Art. 28, 30 | s.8(2) | Published list incl. Razorpay, Stripe, Resend, push services | `content/privacy.ts::SUB_PROCESSORS` |
+| Processors | Art. 28, 30 | s.8(2) | Published list incl. Razorpay, Stripe, GoDaddy (email), push services | `content/privacy.ts::SUB_PROCESSORS` |
 | Children | Art. 8 | s.9 | 18+ only; confirmed at notice acceptance; terms updated | |
 | Grievance officer / contact | Art. 37–39 (DPO if required) | s.8(10) | From `NEXT_PUBLIC_GRIEVANCE_OFFICER_NAME` / `NEXT_PUBLIC_PRIVACY_EMAIL`; without them, the contact form topic "Privacy request" | `grievanceContact()` |
 | Nomination | — | s.14 | Handled as a request through the grievance contact | privacy page |

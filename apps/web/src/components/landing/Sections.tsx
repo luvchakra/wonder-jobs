@@ -273,13 +273,13 @@ function OutcomeCard({ step, title }: { step: string; title: string }) {
 
 /* ------------------------------------------------------------ features */
 /** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
-const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string }[] = [
+const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string; id?: string }[] = [
   { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, and refreshed on their own. Type to search for something else.", href: "/sign-up" },
   { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/sign-up" },
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/sign-up" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
   { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/sign-up" },
-  { icon: LayoutTemplate, t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/sign-up" },
+  { icon: LayoutTemplate, id: "templates", t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/sign-up" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/sign-up" },
   { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
   { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderJobs AI, included.", href: "/sign-up" },
@@ -306,7 +306,7 @@ export function FeatureGrid() {
         <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <ScrollReveal as="li" key={f.t} delay={(i % 3) * 70}>
-              <Link href={f.href} className="wj-elevate group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-line bg-surface-2 p-6">
+              <Link id={f.id} href={f.href} className="wj-elevate group relative flex h-full scroll-mt-24 flex-col overflow-hidden rounded-[22px] border border-line bg-surface-2 p-6">
                 <span className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-brand-100/60 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" aria-hidden />
                 <span className="relative flex size-11 items-center justify-center rounded-[13px] bg-brand-50 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105">
                   <f.icon className="size-5" aria-hidden />
@@ -536,7 +536,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Screens", href: "/#screens" },
       { label: "Who it's for", href: "/#personas" },
       { label: "Your AI, your keys", href: "/#ai" },
-      { label: "Résumé templates", href: "/#features" },
+      { label: "Résumé templates", href: "/#templates" },
       { label: "Apply with Wonder", href: "/#extension" },
       { label: "Browser helper", href: "/extension" },
       { label: "Pricing & payments", href: "/terms#free", badge: "Free" },

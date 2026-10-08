@@ -45,7 +45,7 @@ export const SUB_PROCESSORS: { name: string; purpose: string; data: string }[] =
   { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderJobs AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature; the text of a résumé, only when you ask it to read one" },
   { name: "Razorpay", purpose: "Payments in India (when you subscribe)", data: "Payment details you enter on Razorpay's page; your account id as a reference" },
   { name: "Stripe", purpose: "International payments (when you subscribe)", data: "Payment details you enter on Stripe's page; your email and account id as a reference" },
-  { name: "Resend", purpose: "Forwarding contact-form messages to our team", data: "Name, email and message you send us" },
+  { name: "GoDaddy", purpose: "Our email (wonderapps.biz): forwarding contact-form messages to our team", data: "Name, email and message you send us" },
   { name: "Your browser's push service (Google, Apple, Mozilla)", purpose: "Delivering notifications you turned on", data: "An encrypted notification; no profile data" },
   { name: "Job sources (Greenhouse, Lever, Ashby, Adzuna and others)", purpose: "Finding postings", data: "Search terms only — never your identity" },
 ];

@@ -109,7 +109,7 @@ A capability can carry more than one mark (e.g. Keep the logic, Relocate the ent
 | Profile & account settings | `app/app/profile/page.tsx` | n/a | Avatar menu | ✅ | | | Low |
 | PWA install | `lib/pwa.ts`, `components/pwa/*` | n/a | Avatar menu (Chromium only) | ✅ | | | Low — honest about iOS/Firefox unavailability |
 | Help center & assistant | `app/help/page.tsx`, `HelpAssistant.tsx` | `/api/help/ask` | Global, public, avatar menu | ✅ | | | Low — genuine retrieval-first design |
-| Contact | `app/api/contact/route.ts` | Resend (optional) | Landing page | ✅ | | | Low |
+| Contact | `app/api/contact/route.ts` | SMTP mailbox (optional) | Landing page | ✅ | | | Low |
 
 ## Cross-cutting (not owned by one nav destination)
 
