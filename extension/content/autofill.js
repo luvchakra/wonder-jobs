@@ -422,7 +422,7 @@
   function statusBlock(v) {
     const f = v.failure;
     if (v.stopped) return `<div class="box"><strong>You stopped Wonder.</strong><div class="muted">Fields already entered stay on the page. Nothing was submitted. Continue from WonderJobs when you're ready.</div></div>`;
-    if (f === "DOMAIN_CHANGED") return `<div class="box bad"><strong>Wonder paused this application.</strong><div>The destination changed unexpectedly to <strong>${esc(location.hostname)}</strong>.</div><div class="row"><button class="pill ghost" id="approve">Continue here</button><button class="pill ghost" id="stop2">Stop</button></div></div>`;
+    if (f === "DOMAIN_CHANGED") return `<div class="box bad"><strong>${v.jobTitle ? `Is this your application for ${esc(v.jobTitle)}${v.company ? ` at ${esc(v.company)}` : ""}?` : "Wonder paused this application."}</strong><div>WonderJobs didn't open <strong>${esc(location.hostname)}</strong> for it. Continue here only if this is that job's form.</div><div class="row"><button class="pill ghost" id="approve">Continue here</button><button class="pill ghost" id="stop2">Stop</button></div></div>`;
     if (f === "PAYMENT_REQUESTED") return `<div class="box bad"><strong>Wonder found a payment request.</strong><div>Wonder will not enter payment information. Legitimate employers don't charge to apply — please verify the employer independently.</div></div>`;
     if (f === "CAPTCHA_REQUIRED") return `<div class="box"><strong>Verification required</strong><div>The portal is asking you to complete a verification challenge. Complete it, then continue.</div><div class="row"><button class="pill" id="resume">I've completed it</button></div></div>`;
     if (f === "MFA_REQUIRED") return `<div class="box"><strong>Sign-in verification required</strong><div>Complete the verification here. Wonder continues after you're signed in.</div><div class="row"><button class="pill" id="resume">I've completed it</button></div></div>`;
@@ -690,6 +690,15 @@
     if (message?.type === "fillNow") {
       (state.sessionId ? fillClicked() : legacyRun()).then(() => sendResponse({ ok: true }));
       return true;
+    }
+    if (message?.type === "jobsApplyAdopt" && message.sessionId) {
+      // The candidate pressed Fill on a page their application didn't open: ask before anything is read.
+      if (!state.sessionId) {
+        state.offDestination = true;
+        void startSession(message.sessionId);
+      }
+      sendResponse({ ok: true });
+      return false;
     }
     if (message?.type === "jobsApplyPaired" && message.sessionId) {
       if (!state.sessionId) void startSession(message.sessionId);

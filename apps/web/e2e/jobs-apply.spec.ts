@@ -28,6 +28,8 @@ const APPLY = `/demo?next=/app/jobs/${JOB}/apply`;
 function portalFor(url: URL, employerPage: string): string | null {
   if (url.pathname === "/__portal/_submit.js") return "_submit.js";
   if (url.hostname === "evil-redirect.test") return "mock-evil.html";
+  // A job board's redirect that lands on a site the application didn't name (WJ-236).
+  if (url.hostname === "careers.redirected.test") return "mock-generic.html";
   if (url.hostname === "boards.greenhouse.io") return "mock-greenhouse.html";
   if (url.hostname === "jobs.lever.co") return "mock-lever.html";
   if (url.hostname === "jobs.ashbyhq.com") return "mock-ashby.html";
@@ -258,10 +260,37 @@ test.describe("JobsApply with the browser helper", () => {
     await expect(panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ })).toBeVisible({ timeout: 20_000 });
     await employer.getByRole("link", { name: "Continue on our partner site" }).click();
     await expect(employer).toHaveURL(/evil-redirect\.test/);
-    await expect(panel(employer).getByText("Wonder paused this application.")).toBeVisible({ timeout: 20_000 });
+    await expect(panel(employer).getByText(/^Is this your application for /)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Wonder detected a new destination: https://evil-redirect.test")).toBeVisible({ timeout: 15_000 });
     await page.getByRole("alert").getByRole("button", { name: "Stop" }).click();
     await expect(page.getByText("You stopped this application").first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("WJ-236: Fill in the popup on a page the application didn't open offers that application, and reads nothing until Continue here", async ({ page, context }) => {
+    await openApply(page);
+    const employer = await startWithHelper(page, context);
+    await expect(panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ })).toBeVisible({ timeout: 20_000 });
+    // The candidate follows a job board's link to another site, in a tab of their own.
+    const other = await context.newPage();
+    await other.goto("https://careers.redirected.test/apply");
+    await expect(panel(other).getByRole("button", { name: "Fill with WonderJobs" })).toBeVisible({ timeout: 15_000 });
+    // The popup's "Fill the form on this tab", run against that tab.
+    const id = new URL(context.serviceWorkers()[0].url()).host;
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+    await popup.evaluate(async () => {
+      // The popup page's own globals: Chrome's extension API and the popup script's fillTab.
+      const g = globalThis as unknown as { chrome: { tabs: { query: (q: object) => Promise<unknown[]> } }; fillTab: (tab: unknown) => Promise<unknown> };
+      const [tab] = await g.chrome.tabs.query({ url: "https://careers.redirected.test/*" });
+      await g.fillTab(tab);
+    });
+    await popup.close();
+    await expect(panel(other).getByText(/^Is this your application for /)).toBeVisible({ timeout: 20_000 });
+    await expect(other.locator("input[name=gn]")).toHaveValue("");
+    await panel(other).getByRole("button", { name: "Continue here" }).click();
+    await panel(other).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
+    await expect(other.locator("input[name=gn]")).not.toHaveValue("", { timeout: 15_000 });
+    await expect(other.locator("input[name=consent]")).not.toBeChecked();
   });
 
   test("APPLY-051: a payment request blocks the application", async ({ page, context, portal }) => {
