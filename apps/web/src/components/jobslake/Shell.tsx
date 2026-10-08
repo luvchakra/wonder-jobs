@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Activity, AlertTriangle, BarChart3, Database, FileCode2, Globe2, KeyRound, LayoutDashboard, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Database, FileCode2, Globe2, KeyRound, LayoutDashboard, Lightbulb, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const NAV = [
   { href: "", label: "Overview", icon: LayoutDashboard },
+  { href: "/insights", label: "Insights", icon: Lightbulb },
   { href: "/sources", label: "Sources", icon: Database },
   { href: "/add", label: "Add Source", icon: PlusCircle },
   { href: "/playground", label: "Search Playground", icon: Search },
