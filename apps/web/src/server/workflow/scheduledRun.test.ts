@@ -197,6 +197,28 @@ describe("runDueSchedules", () => {
     expect(await runDueSchedules(TENANT, { now: later })).toBeUndefined();
   });
 
+  it("a once-a-day cron that wakes at 07:49 runs the 08:00 search that morning — not a day late — and only once", async () => {
+    // The reported case: the Hobby cron fired at 02:19:58Z; the search is at 08:00 IST (02:30Z).
+    searchSource.mockResolvedValue({ jobs: [job(1)], cached: false });
+    await seed();
+    const early = { earlyMs: 60 * 60_000 };
+    const wake = new Date("2026-04-15T02:19:58.000Z");
+
+    expect(await runDueSchedules(TENANT, { now: wake })).toBeUndefined(); // on the minute only, it would wait a day
+    const report = await runDueSchedules(TENANT, { now: wake, ...early });
+    expect(report?.outcome).toBe("completed");
+
+    const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
+    // Advanced past the occurrence it took early: tomorrow at 08:00, not 08:00 today again.
+    expect(wf.state.schedules["sch-1"].nextRunAt).toBe("2026-04-16T02:30:00.000Z");
+    // The browser (no window) at 08:00, or the cron again within the hour, finds nothing more to do today.
+    expect(await runDueSchedules(TENANT, { now: new Date("2026-04-15T02:30:00.000Z") })).toBeUndefined();
+    expect(await runDueSchedules(TENANT, { now: new Date("2026-04-15T02:59:00.000Z"), ...early })).toBeUndefined();
+    // Next morning's wake takes the next one.
+    expect((await runDueSchedules(TENANT, { now: new Date("2026-04-16T02:05:00.000Z"), ...early }))?.outcome).toBe("completed");
+    expect(searchSource).toHaveBeenCalledTimes(2);
+  });
+
   it("tells the candidate when a scheduled run fails", async () => {
     searchSource.mockRejectedValue(new Error("upstream is down"));
     await seed();

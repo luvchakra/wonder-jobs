@@ -21,3 +21,15 @@ export function cronOwnsScheduling(): boolean {
   const minutes = cronIntervalMinutes();
   return minutes > 0 && minutes <= OWNS_SCHEDULING_AT_OR_BELOW;
 }
+
+/**
+ * How early the cron may take a schedule. A once-a-day cron (Vercel Hobby) fires at some minute within
+ * its hour, so it also takes what falls due in the hour after it wakes — an 08:00 search runs at, say,
+ * 07:49 today rather than 07:49 tomorrow. A cron that runs at least hourly is punctual enough to fire on
+ * the minute.
+ */
+export const DAILY_CRON_EARLY_MS = 60 * 60_000;
+
+export function cronEarlyWindowMs(): number {
+  return cronOwnsScheduling() ? 0 : DAILY_CRON_EARLY_MS;
+}
