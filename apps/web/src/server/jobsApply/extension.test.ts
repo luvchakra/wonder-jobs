@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * anywhere. It presses exactly two kinds of button, each in one place under its own gate: a page's own
  * next-page button after its step classifier calls it "next" (owner decision WJ-239), and the employer's
  * final button only under `plan.submit` — the candidate's "Submit applications" setting (owner decision
- * WJ-248) — after checking the page is complete and reporting APPLICATION_SUBMITTED first. This scans every
+ * WJ-249) — after checking the page is complete and reporting APPLICATION_SUBMITTED first. This scans every
  * script the extension ships and runs the classifier itself.
  */
 const ROOT = path.resolve(__dirname, "../../../../../extension");

@@ -8,7 +8,7 @@ import { MarketingFooter } from "@/components/landing/Sections";
 
 export const metadata: Metadata = {
   title: "Help & user guide",
-  description: "How WonderJobs finds, scores and prepares opportunities, what it never does without you, and answers to common questions.",
+  description: "How WonderJobs finds, scores and prepares opportunities, what it never does without you, what to do when something goes wrong, and answers to common questions.",
 };
 
 /** Public help center: FAQ + user guide + an assistant that answers from the guide. Linked from the avatar menu as "Get Help". */
@@ -21,7 +21,7 @@ export default function HelpPage() {
         <header className="mt-4 max-w-2xl">
           <p className="wj-eyebrow text-brand-600">Get help</p>
           <h1 className="mt-2 text-[36px] font-semibold leading-tight tracking-tight md:text-[44px]">User guide &amp; FAQ</h1>
-          <p className="mt-3 text-[15px] text-ink-2">How Wonder searches, scores and prepares, what it never does without you, and what is still on the way.</p>
+          <p className="mt-3 text-[15px] text-ink-2">How Wonder searches, scores and prepares, what it never does without you, what to do when something goes wrong, and what is still on the way.</p>
         </header>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[260px_minmax(0,1fr)]">

@@ -44,7 +44,7 @@ export function createSession(input: {
   pack: ApplicationPackSnapshot;
   mode: ApplyMode;
   now: string;
-  /** The candidate's "Submit for me" choice for this application (WJ-248); absent = account default. */
+  /** The candidate's "Submit for me" choice for this application (WJ-249); absent = account default. */
   submit?: "on" | "off";
 }): JobsApplySession {
   const { pack, now } = input;
@@ -379,7 +379,7 @@ export function setSubmitOverride(s: JobsApplySession, choice: "on" | "off" | "d
 
 /**
  * The helper pressed the employer's final Submit under the candidate's "Submit applications" setting
- * (WJ-248). Once per job: a second report changes nothing (key submit:{jobId}:me). The employer's
+ * (WJ-249). Once per job: a second report changes nothing (key submit:{jobId}:me). The employer's
  * confirmation page then marks it submitted (recordSubmissionDetected); without one, the candidate is asked.
  */
 export function recordWonderSubmitted(s: JobsApplySession, label: string, now: string): JobsApplySession {

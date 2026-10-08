@@ -82,7 +82,7 @@ const POLL_MS = 2500;
  */
 /**
  * The application is in: record it in the tracker (status, follow-up, audit) and close the session.
- * `by`: the candidate confirmed it, or Wonder's helper submitted it under "Submit applications" (WJ-248).
+ * `by`: the candidate confirmed it, or Wonder's helper submitted it under "Submit applications" (WJ-249).
  */
 async function recordSubmission(v: SessionView, appId: string | undefined, by: "you" | "wonder"): Promise<SessionView | null> {
   if (!appId) return null;

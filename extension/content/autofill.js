@@ -16,7 +16,7 @@
  *   - a page's own next-page button ("Next", "Continue", "Save and continue") after filling that page,
  *     when `plan.advance` allows it (WJ-239);
  *   - the employer's final button ("Submit", "Apply", …) only when `plan.submit` is true — the candidate
- *     turned on "Submit applications" for this application or their account (WJ-248) — and only once
+ *     turned on "Submit applications" for this application or their account (WJ-249) — and only once
  *     every required field on the page has something in it and the form says it's valid. Once per page
  *     session; reported to WonderJobs (APPLICATION_SUBMITTED) before the press.
  * Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
@@ -476,7 +476,7 @@
     return !form || form.checkValidity();
   }
 
-  /** The final press, under "Submit applications" (WJ-248): reported first, once per page session. */
+  /** The final press, under "Submit applications" (WJ-249): reported first, once per page session. */
   async function submitFinal(button, label) {
     if (state.submitted) return;
     state.submitted = true; // also keeps the passive submit watcher from reporting this press as the candidate's

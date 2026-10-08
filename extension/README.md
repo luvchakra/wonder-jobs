@@ -4,7 +4,7 @@ The browser half of **Apply with Wonder** (JobsApply). It fills an employer's
 application form with what the candidate approved in WonderJobs, stops for
 questions only the candidate should answer, and presses a page's own Next button.
 It presses the employer's final Submit only when the candidate turned on "Submit
-applications" (account default, or "Submit for me" on one application — WJ-248),
+applications" (account default, or "Submit for me" on one application — WJ-249),
 once every required field on the page is filled; otherwise the candidate submits.
 It never submits a form programmatically or sends a key press; the only presses are
 those two guarded `.click()` calls, which

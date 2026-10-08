@@ -6,7 +6,7 @@
  *    (CLAUDE.md). A missing policy or level fails closed to "ask".
  *  - `fillGate` is the §66 checklist for one fill request.
  *  - `submitDecision` is `resolveCapability("final_submit", …)`: whether the helper may press the employer's
- *    final Submit (owner decision WJ-248). Off by default; anything missing fails closed to "skip".
+ *    final Submit (owner decision WJ-249). Off by default; anything missing fails closed to "skip".
  */
 import { resolveCapability, type AutomationLevel, type AutomationPolicy } from "@/domain/automation/policy";
 import { checkDomain } from "./destination";

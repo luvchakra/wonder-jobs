@@ -48,7 +48,7 @@ export async function decisionsFor(tenantId: string): Promise<{ fill: FillDecisi
   return { fill: fillDecision(a.policy, a.level), handoff: handoffDecision(a.policy, a.level), submit: submitDecision(a.policy, a.level) };
 }
 
-/** Whether the helper may press this application's final Submit (WJ-248): the session's choice, else the account's. */
+/** Whether the helper may press this application's final Submit (WJ-249): the session's choice, else the account's. */
 async function submitFor(tenantId: string, s: JobsApplySession): Promise<boolean> {
   const a = await automationOf(tenantId);
   return submitDecision(a.policy, a.level, s.submitOverride) === "run";
@@ -220,7 +220,7 @@ function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked
   const g = fillGate(s, { host, decision, candidateClicked: clicked, fieldIds });
   if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false, submit: false };
   // Whoever may fill this page may also press its next-page button (the helper's own classifier tells them apart).
-  // The final Submit only under "Submit applications" (WJ-248): never in guided mode, once per job, and only when
+  // The final Submit only under "Submit applications" (WJ-249): never in guided mode, once per job, and only when
   // every required question is answered with the candidate's own value — the helper re-checks the page itself.
   const filling = new Set(g.mappings.map((m) => m.fieldId));
   const submit = submitAllowed && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);

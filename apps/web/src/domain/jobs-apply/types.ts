@@ -351,7 +351,7 @@ export interface JobsApplySession {
   audit: JobsApplyAuditEntry[];
   /** The cloud browser (apps/browser-worker) opened for this session, when the candidate has no extension. Its id only; the stream token is never stored. */
   cloud?: { id: string; startedAt: string; endedAt?: string; reason?: string };
-  /** The candidate's "Submit for me" choice for this application (WJ-248); absent = their account default. */
+  /** The candidate's "Submit for me" choice for this application (WJ-249); absent = their account default. */
   submitOverride?: "on" | "off";
   /** When the helper pressed the employer's Submit under that setting — once per job (key submit:{jobId}:me). */
   wonderSubmittedAt?: string;

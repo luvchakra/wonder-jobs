@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string; action: string }> };
 
 /**
  * POST /api/jobs-apply/sessions/:id/{start|stop|pause|resume|cancel|mode|submit|approve-domain|confirm|tracked|token}
- * Candidate actions (cookie session). `submit` sets this application's "Submit for me" choice (WJ-248) — it
+ * Candidate actions (cookie session). `submit` sets this application's "Submit for me" choice (WJ-249) — it
  * submits nothing itself: only the helper, on the employer's own page, presses Submit under that setting.
  * `confirm` records the candidate's answer to "Did you submit the application?".
  */

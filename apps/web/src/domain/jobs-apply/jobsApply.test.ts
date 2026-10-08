@@ -597,7 +597,7 @@ describe("pauses only the candidate can lift", () => {
   });
 });
 
-describe("final submission (WJ-248): the candidate's opt-in, through resolveCapability, failing closed", () => {
+describe("final submission (WJ-249): the candidate's opt-in, through resolveCapability, failing closed", () => {
   const policy = (final_submit: "automatic" | "ask" | "off"): AutomationPolicy => ({ ...defaultPolicy(), final_submit });
 
   it("is off by default and fails closed when anything is missing", () => {

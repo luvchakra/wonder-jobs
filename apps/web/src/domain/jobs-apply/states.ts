@@ -2,7 +2,7 @@
  * JobsApply state machine (spec §9–§10). Deliberately small: the invariants that matter are
  *
  *  1. SUBMITTED is reached by the candidate's own confirmation — or, when the helper itself pressed the
- *     employer's Submit under the candidate's "Submit applications" setting (WJ-248), by the helper once it
+ *     employer's Submit under the candidate's "Submit applications" setting (WJ-249), by the helper once it
  *     sees the employer's confirmation. Nothing else marks an application submitted.
  *  2. TRACKED follows SUBMITTED and nothing else.
  *  3. A terminal session (TRACKED, CANCELLED) never moves again; "Start over" is a new session.

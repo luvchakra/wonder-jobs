@@ -86,6 +86,6 @@ export interface Application {
   followUps: ApplicationFollowUp[];
   /** Idempotency key used for any external submission of this application. */
   submissionKey: string;
-  /** "Submit for me" for this application (WJ-248): always / never; absent = the account's "Submit applications" default. */
+  /** "Submit for me" for this application (WJ-249): always / never; absent = the account's "Submit applications" default. */
   autoSubmit?: "on" | "off";
 }

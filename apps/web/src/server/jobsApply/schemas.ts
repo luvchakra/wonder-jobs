@@ -60,7 +60,7 @@ export const CreateSchema = z.object({
   startOver: z.boolean().optional(),
   /** The candidate saw the duplicate warning and chose "Continue anyway" (§57). */
   acknowledgeDuplicate: z.boolean().optional(),
-  /** "Submit for me" for this application (WJ-248): always / never; absent = account default. */
+  /** "Submit for me" for this application (WJ-249): always / never; absent = account default. */
   submit: z.enum(["on", "off"]).optional(),
 });
 

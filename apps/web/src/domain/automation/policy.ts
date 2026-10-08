@@ -52,7 +52,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // submits (no code path clicks Submit); "Ask" means the helper waits for "Fill N fields", "Off" means guided
   // copy-and-paste only. Medium risk: values are the candidate's own, and nothing leaves until they submit.
   fill_application: { key: "fill_application", label: "Fill application forms", description: "Put your own profile details, résumé and approved answers into an employer's form in your browser. You review and submit.", risk: "medium", external: false, default: "ask" },
-  // The helper presses the employer's final Submit (owner decision WJ-248): only in the candidate's browser,
+  // The helper presses the employer's final Submit (owner decision WJ-249): only in the candidate's browser,
   // only once every required field holds their own confirmed answer, once per job, audited. Off by default;
   // a per-job / per-application choice (submitDecision in domain/jobs-apply/policy.ts) can turn it on or off.
   final_submit: { key: "final_submit", label: "Submit applications", description: "Press the employer's final Submit button for you, once every required field holds your own confirmed answer. Off unless you turn it on — here or for one job.", risk: "high", external: true, default: "off" },
