@@ -13,7 +13,7 @@ import type { StageExecutor, StageResult } from "@/domain/workflow/engine";
 import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
-import { blendAiFit, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { aiRankJobs } from "@/server/ai/rank";
 import { searchSource, SourceNeedsSetupError } from "@/server/jobs/search";
 import { breadthEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
@@ -183,7 +183,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       if (scores?.length) {
         const profile = profileKey(dna);
         const at = new Date().toISOString();
-        const fits: Record<string, AiFit> = Object.fromEntries(scores.map((x) => [x.id, { score: x.score, reason: x.reason, profile, at }]));
+        const fits: Record<string, AiFit> = Object.fromEntries(scores.map((x) => [x.id, { score: x.score, reason: x.reason, flags: x.flags, profile, at }]));
         matches = matches.map((m) => blendAiFit(m, fits[m.jobId], profile));
         snapshot.jobs.aiFits = { ...(snapshot.jobs.aiFits ?? {}), ...fits };
         ctx.addEvidence({ label: "Read by AI", value: String(scores.length), tone: "info" });
@@ -199,7 +199,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
 
     quality: async (ctx) => {
       const sources = Object.fromEntries(snapshot.jobs.sources.map((s) => [s.id, s]));
-      quality = canonical.map((j) => computeQuality(j, sources));
+      quality = canonical.map((j) => blendAiQuality(computeQuality(j, sources), snapshot.jobs.aiFits?.[j.id]));
       const low = quality.filter((q) => q.confidence === "low").length;
       ctx.setProgress(quality.length, quality.length);
       ctx.setCounts({ checked: quality.length, low_confidence: low });

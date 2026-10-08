@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { EMPTY_DNA } from "@/domain/career/types";
-import type { JobMatch } from "./types";
-import { AI_LABEL, blendAiFit, profileKey } from "./aiFit";
+import type { JobMatch, JobQuality } from "./types";
+import { AI_LABEL, AI_QUALITY_LABEL, blendAiFit, blendAiQuality, checkedFlags, profileKey } from "./aiFit";
 import { setAssistModelForTests } from "@/server/ai/assist";
 import { aiRankJobs } from "@/server/ai/rank";
 
@@ -32,8 +32,41 @@ describe("aiRankJobs — only the postings it was given, scores clamped", () => 
   const job = (id: string) => ({ id, title: "Director IAM", company: "Acme", location: "Mumbai", level: "director", excerpt: "Lead identity." });
   it("drops ids it wasn't given and rejects out-of-range scores", async () => {
     setAssistModelForTests(async () => JSON.stringify({ scores: [{ id: "a", score: 91.6, reason: "Fits." }, { id: "zzz", score: 99, reason: "Invented." }] }));
-    expect(await aiRankJobs({ profile: {}, jobs: [job("a"), job("b")] })).toEqual([{ id: "a", score: 92, reason: "Fits." }]);
+    expect(await aiRankJobs({ profile: {}, jobs: [job("a"), job("b")] })).toEqual([{ id: "a", score: 92, reason: "Fits.", flags: [] }]);
     setAssistModelForTests(async () => JSON.stringify({ scores: [{ id: "a", score: 140, reason: "Too high." }] }));
     expect(await aiRankJobs({ profile: {}, jobs: [job("a")] })).toBeNull();
+  });
+});
+
+describe("posting warning signs — the app's words, the posting's own quote as proof", () => {
+  const posting = "Join our team! A one-time registration fee of $50 is required. Contact us on WhatsApp.";
+  it("keeps only known flags whose quote is really in the posting", () => {
+    expect(
+      checkedFlags(
+        [
+          { flag: "fee_to_apply", quote: "registration  fee of $50" },
+          { flag: "off_platform_contact", quote: "Telegram only" },
+          { flag: "made_up", quote: "Join our team" },
+          { flag: "fee_to_apply", quote: "one-time registration" },
+        ],
+        posting,
+      ),
+    ).toEqual([{ flag: "fee_to_apply", quote: "registration fee of $50" }]);
+  });
+
+  const quality: JobQuality = { jobId: "j1", confidence: "high", summary: "The role is recent.", signals: [] };
+  const fit = (flags: ReturnType<typeof checkedFlags> | undefined) => ({ score: 50, reason: "", profile: "p", at: "", flags });
+  it("a strong sign makes hiring confidence low and is shown as AI's", () => {
+    const q = blendAiQuality(quality, fit([{ flag: "fee_to_apply", quote: "registration fee of $50" }]));
+    expect(q.confidence).toBe("low");
+    expect(q.signals.at(-1)).toMatchObject({ key: "posting_content", label: AI_QUALITY_LABEL, sentiment: "caution" });
+    expect(q.signals.at(-1)?.value).toContain("“registration fee of $50”");
+  });
+  it("nothing found never raises confidence; no AI read changes nothing", () => {
+    const q = blendAiQuality({ ...quality, confidence: "moderate" }, fit([]));
+    expect(q.confidence).toBe("moderate");
+    expect(q.signals.at(-1)).toMatchObject({ value: "No warning signs found", sentiment: "neutral" });
+    expect(blendAiQuality(quality, fit(undefined))).toEqual(quality);
+    expect(blendAiQuality(quality, undefined)).toEqual(quality);
   });
 });

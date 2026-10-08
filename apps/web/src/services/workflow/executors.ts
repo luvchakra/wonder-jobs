@@ -8,7 +8,7 @@ import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
-import { blendAiFit, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import type { CareerDNA } from "@/domain/career/types";
 import { getSourceAdapter, SourceUnavailableError } from "@/services/jobs/sources";
 import type { AIService } from "@/services/ai/service";
@@ -35,11 +35,11 @@ async function aiFitsFor(jobs: CanonicalJob[], matches: JobMatch[], dna: CareerD
   if (!top.length) return null;
   try {
     const res = await fetch("/api/ai/rank", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ profile: profileForAi(dna), jobs: top.map(jobForAi) }) });
-    const data = (await res.json().catch(() => null)) as { scores?: { id: string; score: number; reason: string }[] | null } | null;
+    const data = (await res.json().catch(() => null)) as { scores?: { id: string; score: number; reason: string; flags?: AiFit["flags"] }[] | null } | null;
     if (!res.ok || !data?.scores?.length) return null;
     const profile = profileKey(dna);
     const at = new Date().toISOString();
-    return Object.fromEntries(data.scores.map((x) => [x.id, { score: x.score, reason: x.reason, profile, at }]));
+    return Object.fromEntries(data.scores.map((x) => [x.id, { score: x.score, reason: x.reason, flags: x.flags ?? [], profile, at }]));
   } catch {
     return null;
   }
@@ -237,10 +237,12 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
     quality: async (ctx) => {
       const jobs = canonicalCache.get(ctx.run.id) ?? [];
       const sources = Object.fromEntries(useJobsStore.getState().sources.map((s) => [s.id, s]));
+      // The model's read of each posting (from the match stage) adds what the posting text itself shows.
+      const aiFits = useJobsStore.getState().aiFits;
       const out: JobQuality[] = [];
       ctx.setProgress(0, jobs.length);
       for (let i = 0; i < jobs.length; i += CHUNK) {
-        for (const j of jobs.slice(i, i + CHUNK)) out.push(computeQuality(j, sources));
+        for (const j of jobs.slice(i, i + CHUNK)) out.push(blendAiQuality(computeQuality(j, sources), aiFits[j.id]));
         ctx.setProgress(out.length, jobs.length);
         await ctx.sleep(0);
         await ctx.checkpoint();

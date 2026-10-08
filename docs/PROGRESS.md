@@ -98,6 +98,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ AI understands form questions the rules miss, filling from your own saved answers (WJ-240)
 - ✅ Ask Wonder understands requests its patterns miss, via AI (WJ-241)
 - ✅ AI rescoring of top matches and AI-widened empty searches (WJ-242)
+- ✅ AI warning signs in job quality and AI findings in the ATS report (WJ-243)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
