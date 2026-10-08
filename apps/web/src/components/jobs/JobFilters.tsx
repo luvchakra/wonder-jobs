@@ -85,16 +85,18 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
-        className="flex"
+        className="flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           commit();
-          // Words searched: every source too, not only the jobs already on screen.
+          // Words searched: every source too, not only the jobs already on screen. Nothing typed: the
+          // Career Profile's own search.
           const words = draft.trim();
           if (words && sourceSearch?.describe(words, splitPlaces(where))) sourceSearch.run(words, splitPlaces(where));
+          else if (!words) sourceSearch?.runPlaces(splitPlaces(where));
         }}
       >
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 flex-[1_1_16rem]">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
             value={draft}
@@ -124,8 +126,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
         </div>
-        <Button type="submit" className="ml-2 h-11 shrink-0 rounded-full sm:h-12">
-          Search
+        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="h-11 shrink-0 rounded-full max-sm:flex-1 sm:h-12">
+          {draft.trim() || !sourceSearch ? "Search" : "Search based on Career Profile"}
         </Button>
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
