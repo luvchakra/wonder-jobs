@@ -83,6 +83,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JazzHR career sites as a job source (WJ-225)
 - ✅ Cloud browser: Fill for me without the extension, on phones (WJ-226)
 - ✅ Faster build-to-deploy: CI caches, types checked once, one deploy per merge, nightly E2E (WJ-227)
+- ✅ Find searches “Role you want”; a level alone asks for its field (WJ-228)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

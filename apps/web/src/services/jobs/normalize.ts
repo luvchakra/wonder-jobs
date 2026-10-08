@@ -478,3 +478,19 @@ export function defaultSearchQuery(dna: { headline: string; careerGoal: string }
   for (const terms of [head, goal]) if (terms.length) return terms.slice(0, 4).join(" ");
   return "";
 }
+
+/**
+ * The Career Profile's own search. "Role you want" is what Wonder searches for (the profile page says
+ * so); the current role is searched only when no role is wanted. A wanted field with no level takes the
+ * level of the current role ("Senior Director" + "identity and access management" → "senior director
+ * identity access"). A level alone in "Role you want" ("director") stays a level, so the Find page asks
+ * for its field rather than guessing one from the current role.
+ */
+export function profileSearchQuery(dna: { headline: string; careerGoal: string }): string {
+  const terms = (s: string) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t));
+  const goal = terms(stripSelfReference(stripHeadlineLabel(dna.careerGoal)));
+  if (!goal.length) return defaultSearchQuery(dna);
+  if (goal.some((t) => SENIORITY_WORDS.has(t))) return goal.slice(0, 4).join(" ");
+  const level = terms(stripHeadlineLabel(dna.headline)).filter((t) => SENIORITY_WORDS.has(t)).slice(0, 2);
+  return [...level, ...goal].slice(0, 4).join(" ");
+}
