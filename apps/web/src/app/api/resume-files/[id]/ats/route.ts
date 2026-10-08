@@ -4,10 +4,12 @@ import { rateLimit } from "@/server/rateLimit";
 import { tenantPlan } from "@/server/billing/service";
 import { resumeFileStore } from "@/server/resume/files";
 import { UnsupportedResumeError } from "@/server/resume/extractText";
-import { checkResumeAts } from "@/server/resume/atsCheck";
+import { checkResumeAtsWithText } from "@/server/resume/atsCheck";
+import { withAiAtsFindings } from "@/server/resume/atsAi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,7 +32,9 @@ export async function POST(_req: Request, ctx: Ctx) {
   }
   if (!file) return NextResponse.json({ error: "That file was deleted." }, { status: 404 });
   try {
-    return NextResponse.json({ report: checkResumeAts(file.bytes, file.meta.filename, file.meta.sha256) }, { headers: { "cache-control": "no-store" } });
+    const { report, text } = checkResumeAtsWithText(file.bytes, file.meta.filename, file.meta.sha256);
+    // AI may add marked findings (with the résumé's own words); the score stays the rules'.
+    return NextResponse.json({ report: await withAiAtsFindings(report, text) }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     if (e instanceof UnsupportedResumeError) return NextResponse.json({ error: e.message }, { status: 415 });
     console.error("[resume-files] ats check failed:", e instanceof Error ? e.message : "unknown");

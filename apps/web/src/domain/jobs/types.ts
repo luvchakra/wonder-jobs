@@ -120,7 +120,9 @@ export interface JobQualitySignal {
     | "salary_transparency"
     | "source_reliability"
     | "apply_path"
-    | "last_observed";
+    | "last_observed"
+    /** The model's read of the posting text (domain/jobs/aiFit.ts) — labelled as AI. */
+    | "posting_content";
   label: string;
   value: string;
   sentiment: "positive" | "neutral" | "caution";
