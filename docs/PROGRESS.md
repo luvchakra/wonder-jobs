@@ -95,6 +95,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Save the job from the Apply with Wonder page (WJ-237)
 - ✅ Sign-up asks for the role you want instead of copying the CV headline (WJ-238)
 - ✅ Helper fills page after page to the submit page, learns your answers; salary and status in Career Profile (WJ-239)
+- ✅ AI understands form questions the rules miss, filling from your own saved answers (WJ-240)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 

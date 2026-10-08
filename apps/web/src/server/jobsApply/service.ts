@@ -4,6 +4,7 @@
  *
  * Every function takes the tenant explicitly and never touches another tenant's document.
  */
+import { aiMatchFields } from "./aiMatch";
 import crypto from "node:crypto";
 import type { z } from "zod";
 import type { Application } from "@/domain/applications/types";
@@ -223,8 +224,15 @@ export async function helperSession(ctx: HelperCtx): Promise<ApiResult> {
 }
 
 export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Promise<ApiResult> {
-  const out = await mutate(ctx.tenantId, ctx.session.id, (s) => S.recordInspection(s, form, nowIso()));
+  let out = await mutate(ctx.tenantId, ctx.session.id, (s) => S.recordInspection(s, form, nowIso()));
   if (isResult(out)) return out;
+  // Questions the rules couldn't place: a model reads them and names which saved fact answers each.
+  // The mapper still decides — it fills only the candidate's own values, never a human-only question.
+  const hints = await aiMatchFields(out);
+  if (hints) {
+    const withHints = await mutate(ctx.tenantId, ctx.session.id, (s) => S.withAiHints(s, hints, nowIso()));
+    if (!isResult(withHints)) out = withHints;
+  }
   const fill = await helperFill(ctx, out);
   // Under an "automatic" policy the plan comes back with the inspection; otherwise the helper waits for the candidate's click.
   const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false };

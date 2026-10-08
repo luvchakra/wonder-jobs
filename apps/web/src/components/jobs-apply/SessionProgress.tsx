@@ -16,6 +16,7 @@ const SOURCE: Record<string, string> = {
   "answer-memory": "Remembered answer",
   "ai-suggested": "AI draft you approved",
   "user-entered": "Approved by you",
+  "ai-matched": "Your answer, matched by AI",
 };
 
 function state(m: FieldMapping): { label: string; tone: "success" | "brand" | "warning" | "neutral" | "danger"; icon: React.ReactNode } {

@@ -160,7 +160,14 @@ export type QuestionCategory =
   | "CREDENTIAL"
   | "OTHER";
 
-export type MappingSource = "career-profile" | "application-pack" | "resume" | "answer-memory" | "ai-suggested" | "user-entered";
+export type MappingSource = "career-profile" | "application-pack" | "resume" | "answer-memory" | "ai-suggested" | "ai-matched" | "user-entered";
+
+/**
+ * What a model said an unrecognised form question asks for — one of the candidate's own profile facts or
+ * saved answers, or nothing. A proposal only: the mapper fills from the candidate's stored value, and
+ * never for a question the rules call human-only.
+ */
+export type AiHint = { kind: "profile"; key: ProfileKey } | { kind: "memory"; key: MemoryKey } | { kind: "learned"; question: string } | { kind: "none" };
 
 export interface FieldMapping {
   fieldId: string;
@@ -337,6 +344,8 @@ export interface JobsApplySession {
   interventions: InterventionItem[];
   /** Approved answers keyed by field id, set by the candidate (§23, §51). */
   approvedAnswers: Record<string, { value: string; provenance: "USER_PROVIDED" | "USER_MODIFIED" | "AI_GENERATED" | "USER_CONFIRMED"; at: string }>;
+  /** fieldId → what a model said the question asks for (asked once per field; "none" included). */
+  aiHints?: Record<string, AiHint>;
   evidence: SubmissionEvidence[];
   audit: JobsApplyAuditEntry[];
   /** The cloud browser (apps/browser-worker) opened for this session, when the candidate has no extension. Its id only; the stream token is never stored. */
