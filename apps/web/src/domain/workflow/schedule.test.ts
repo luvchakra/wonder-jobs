@@ -85,11 +85,14 @@ describe("advancedFrom", () => {
   it("looks for the next occurrence after the one just taken, even when it was taken early", () => {
     const early = new Date("2026-04-15T02:19:58.000Z");
     const s = { frequency: "daily" as const, days: [], time: "08:00", timezone: "Asia/Kolkata", nextRunAt: "2026-04-15T02:30:00.000Z" };
+    const hour = 60 * 60_000;
+    expect(nextScheduledRun(s, advancedFrom(s, early, hour))).toBe("2026-04-16T02:30:00.000Z"); // tomorrow, not 08:00 today again
+    // Catching up on yesterday's 08:00 at 07:49 also covers today's: the next is tomorrow's — the production case.
+    expect(nextScheduledRun(s, advancedFrom({ nextRunAt: "2026-04-14T02:30:00.000Z" }, early, hour))).toBe("2026-04-16T02:30:00.000Z");
+    // Without a window (the browser, a frequent cron): from the occurrence or now, as before.
     expect(advancedFrom(s, early).toISOString()).toBe("2026-04-15T02:30:00.000Z");
-    expect(nextScheduledRun(s, advancedFrom(s, early))).toBe("2026-04-16T02:30:00.000Z"); // tomorrow, not 08:00 today again
-    // Late (the usual case) or no occurrence on record: from now, as before.
     const late = new Date("2026-04-15T05:00:00.000Z");
-    expect(advancedFrom(s, late)).toBe(late);
-    expect(advancedFrom({ nextRunAt: undefined }, late)).toBe(late);
+    expect(advancedFrom(s, late).getTime()).toBe(late.getTime());
+    expect(advancedFrom({ nextRunAt: undefined }, late).getTime()).toBe(late.getTime());
   });
 });

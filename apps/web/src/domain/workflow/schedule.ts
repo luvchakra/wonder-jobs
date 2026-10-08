@@ -123,10 +123,12 @@ export function isDue(s: Pick<WorkflowSchedule, "enabled" | "trigger" | "nextRun
 }
 
 /**
- * Where to look for a schedule's next occurrence once it has fired: after the occurrence it just took,
- * even when it took it a little early — otherwise an early run would find that same occurrence again.
+ * Where to look for a schedule's next occurrence once it has fired: after the occurrence it just took
+ * and after the early window it fired within. A run at 07:49 with an hour's window has covered 08:00,
+ * whether it was taking 08:00 itself or catching up on yesterday's — so the next one is tomorrow's.
  */
-export function advancedFrom(s: Pick<WorkflowSchedule, "nextRunAt">, now: Date): Date {
+export function advancedFrom(s: Pick<WorkflowSchedule, "nextRunAt">, now: Date, earlyMs = 0): Date {
+  const covered = now.getTime() + Math.max(0, earlyMs);
   const at = s.nextRunAt ? new Date(s.nextRunAt).getTime() : NaN;
-  return Number.isFinite(at) && at > now.getTime() ? new Date(at) : now;
+  return new Date(Number.isFinite(at) && at > covered ? at : covered);
 }
