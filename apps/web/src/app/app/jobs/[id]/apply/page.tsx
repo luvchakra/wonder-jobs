@@ -108,7 +108,7 @@ export default function ApplyWithWonderPage({
   const email = useAuthStore((s) => s.email);
   const policy = useAutomationStore((s) => s.policy);
   const level = useAutomationStore((s) => s.defaultLevel);
-  const helperInstalled = useExtensionInstalled(600);
+  const helperInstalled = useExtensionInstalled(1500);
   const ai = useAIService();
 
   const [view, setView] = useState<SessionView | null>(null);
@@ -290,6 +290,18 @@ export default function ApplyWithWonderPage({
     if (p.ok) track("jobsapply_helper_paired", { sessionId: id });
     return p.ok;
   }, []);
+  // A session already under way (this page reopened, or the helper only answered late): connect the
+  // helper to it now rather than reporting it as disconnected until the candidate clicks Reconnect.
+  useEffect(() => {
+    if (!sessionId || !live || !helperMode || helperInstalled !== true) return;
+    let alive = true;
+    void pairHelper(sessionId).then((p) => {
+      if (alive) setHelperConnected(p.ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [sessionId, live, helperMode, helperInstalled]);
   const connect = useCallback(
     async (id: string) => {
       if (helperInstalled === false && cloudAvailable === true) return !!(await startCloud(id));
@@ -884,7 +896,7 @@ export default function ApplyWithWonderPage({
                   <Link href="/extension" className="font-medium text-brand-600 hover:underline">
                     Install it
                   </Link>
-                  , or choose Guide me under Options.
+                  , or choose Guide me under Options. Just installed or updated it? Reload this page.
                 </p>
               )}
               {/* Everything that isn't the next step: how much Wonder does, stop, the pack, cancel. */}

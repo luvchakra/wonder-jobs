@@ -88,6 +88,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Plain-words message when an email link opens in another browser (WJ-230)
 - ✅ Footer links checked; landing, help, terms and trust copy match the product today (WJ-231)
 - ✅ Daily cron runs the morning's search that morning, not a day late (WJ-232)
+- ✅ Apply page sees a helper that answers late; push errors in plain words (WJ-233)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
 
