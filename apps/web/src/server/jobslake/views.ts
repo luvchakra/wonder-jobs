@@ -7,6 +7,7 @@
  * count the value is null / empty and the UI says "No data yet" — nothing is estimated.
  */
 import { deriveAlerts, type Alert, type SourceHealth } from "@/domain/jobslake/health";
+import { sourceInsights, type InsightsView } from "@/domain/jobslake/insights";
 import { ACCESS_LABEL, CATEGORY_LABEL, STATUS_LABEL, type CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { credentialStatus, type CredentialStatus } from "./credentials";
 import { healthBySource } from "./core";
@@ -231,4 +232,12 @@ export function publicSource(v: SourceView) {
     available: v.available,
     health: v.health ? { state: v.health.state, successRate: v.health.successRate, p50LatencyMs: v.health.p50LatencyMs, lastRunAt: v.health.lastRunAt, runs: v.health.runs } : null,
   };
+}
+
+/* -------------------------------------------------------------- insights */
+
+export async function insightsView(days = 7): Promise<InsightsView> {
+  const [{ since, opps }, sources, runs] = await Promise.all([poolSince(days), listSources(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - days * 86_400_000).toISOString(), limit: 5000 })]);
+  const withAvailability = await Promise.all(sources.filter((s) => s.status !== "do_not_use" && s.status !== "disabled").map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s) })));
+  return sourceInsights({ days, since, sources: withAvailability, runs, opps, roleFamily });
 }
