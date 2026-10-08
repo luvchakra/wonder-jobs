@@ -8,6 +8,8 @@ import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
+import { blendAiFit, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import type { CareerDNA } from "@/domain/career/types";
 import { getSourceAdapter, SourceUnavailableError } from "@/services/jobs/sources";
 import type { AIService } from "@/services/ai/service";
 import { useCareerStore } from "@/store/career";
@@ -25,6 +27,23 @@ export interface ExecutorDeps {
 }
 
 const CHUNK = 96;
+
+/** The model's fit read for the 30 leading postings (by rule score), or null — the rules' scores then stand. */
+async function aiFitsFor(jobs: CanonicalJob[], matches: JobMatch[], dna: CareerDNA): Promise<Record<string, AiFit> | null> {
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  const top = [...matches].filter((m) => m.score >= 20).sort((a, b) => b.score - a.score).slice(0, 30).map((m) => byId.get(m.jobId)).filter((j): j is CanonicalJob => !!j);
+  if (!top.length) return null;
+  try {
+    const res = await fetch("/api/ai/rank", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ profile: profileForAi(dna), jobs: top.map(jobForAi) }) });
+    const data = (await res.json().catch(() => null)) as { scores?: { id: string; score: number; reason: string }[] | null } | null;
+    if (!res.ok || !data?.scores?.length) return null;
+    const profile = profileKey(dna);
+    const at = new Date().toISOString();
+    return Object.fromEntries(data.scores.map((x) => [x.id, { score: x.score, reason: x.reason, profile, at }]));
+  } catch {
+    return null;
+  }
+}
 
 export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecutor> {
   return {
@@ -192,6 +211,16 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         ctx.setProgress(matches.length, jobs.length);
         await ctx.sleep(0);
         await ctx.checkpoint();
+      }
+      // A model reads the leading postings against the profile; its score nudges the rules' within a band.
+      if (getClientMode().mode === "user") {
+        const fits = await aiFitsFor(jobs, matches, dna);
+        if (fits) {
+          const profile = profileKey(dna);
+          for (let i = 0; i < matches.length; i++) matches[i] = blendAiFit(matches[i], fits[matches[i].jobId], profile);
+          useJobsStore.getState().setAiFits(fits);
+          ctx.addEvidence({ label: "Read by AI", value: String(Object.keys(fits).length), tone: "info" });
+        }
       }
       matchCache.set(ctx.run.id, matches);
       const lake = lakeCache.get(ctx.run.id);
