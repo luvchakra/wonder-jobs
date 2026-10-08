@@ -7,7 +7,7 @@ import { checkDomain, hostOf, PROVIDER_NAME } from "./destination";
 import { mapForm } from "./mapper";
 import { memoryKeyFor } from "./classify";
 import { assertTransition, TERMINAL, type Actor } from "./states";
-import type { ApplicationField, ApplicationForm, ApplicationPackSnapshot, ApplyDestination, ApplyMode, FailureCode, FieldMapping, InterventionItem, JobsApplyAuditEntry, JobsApplyEventType, JobsApplySession, JobsApplyStatus, SubmissionEvidence } from "./types";
+import type { AiHint, ApplicationField, ApplicationForm, ApplicationPackSnapshot, ApplyDestination, ApplyMode, FailureCode, FieldMapping, InterventionItem, JobsApplyAuditEntry, JobsApplyEventType, JobsApplySession, JobsApplyStatus, SubmissionEvidence } from "./types";
 
 const MAX_AUDIT = 250;
 const MAX_ANSWER = 5000;
@@ -96,7 +96,7 @@ export function deriveStatus(s: Pick<JobsApplySession, "fieldMappings" | "interv
 
 /** Merges a fresh mapping with what already happened: a filled field stays filled, a resolved item stays resolved. */
 function remap(s: JobsApplySession, now: number): JobsApplySession {
-  const { mappings, interventions } = mapForm({ fields: s.formFields }, s.pack, s.approvedAnswers, now);
+  const { mappings, interventions } = mapForm({ fields: s.formFields }, s.pack, s.approvedAnswers, now, s.aiHints ?? {});
   const prevM = new Map(s.fieldMappings.map((m) => [m.fieldId, m]));
   const prevI = new Map(s.interventions.map((i) => [i.id, i]));
   const fieldById = new Map(s.formFields.map((f) => [f.id, f]));
@@ -319,6 +319,20 @@ export function stop(s: JobsApplySession, now: string, nonce: string, actor: Act
 export function recordStepAdvanced(s: JobsApplySession, label: string, now: string): JobsApplySession {
   assertActive(s);
   return audit(s, now, "STEP_ADVANCED", "helper", `Pressed “${label.slice(0, 60)}” to go to the next page`);
+}
+
+/**
+ * A model's reading of questions the rules didn't recognise (see server/jobsApply/aiMatch.ts). Stored per
+ * field — "none" too, so a question is asked about once — and the form is remapped: a hint only ever
+ * leads to the candidate's own stored value, and never for a human-only question.
+ */
+export function withAiHints(s: JobsApplySession, hints: Record<string, AiHint>, now: string): JobsApplySession {
+  assertActive(s);
+  const fresh = Object.keys(hints).filter((id) => !(id in (s.aiHints ?? {})));
+  if (!fresh.length) return s;
+  const n = remap({ ...s, aiHints: { ...(s.aiHints ?? {}), ...hints } }, Date.parse(now));
+  const matched = fresh.filter((id) => hints[id].kind !== "none").length;
+  return matched ? audit(n, now, "FORM_ANALYZED", "wonder", `AI matched ${matched} question${matched === 1 ? "" : "s"} to your profile and saved answers`) : n;
 }
 
 /** Never learned from a form, whatever the candidate typed: these are answered fresh every time. */

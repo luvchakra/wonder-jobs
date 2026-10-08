@@ -9,7 +9,7 @@
  */
 import { classifyField, fieldText, type FieldClass } from "./classify";
 import { freshMemory, MEMORY_LABEL, PROFILE_LABEL } from "./profile";
-import type { ApplicationField, ApplicationForm, ApplicationPackSnapshot, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, RememberedAnswer } from "./types";
+import type { AiHint, ApplicationField, ApplicationForm, ApplicationPackSnapshot, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, RememberedAnswer } from "./types";
 
 export interface MapResult {
   mappings: FieldMapping[];
@@ -114,7 +114,26 @@ function interventionFor(field: ApplicationField, c: FieldClass, kind: Intervent
   return { id: `iv_${field.id}`, fieldId: field.id, label: field.label || fieldText(field).visible || "Unlabelled field", category: c.category, required: field.required, kind, suggestion, status: "open" };
 }
 
-export function mapForm(form: Pick<ApplicationForm, "fields">, pack: ApplicationPackSnapshot, approved: Approved = {}, now = Date.now()): MapResult {
+/**
+ * A model's reading of an unrecognised question, turned into the candidate's own value — or undefined.
+ * The model only names a source; the value always comes from the profile or saved answers.
+ */
+export function hintValue(field: ApplicationField, hint: AiHint | undefined, pack: ApplicationPackSnapshot, now: number): string | undefined {
+  if (!hint || hint.kind === "none" || field.type === "checkbox" || field.type === "file") return undefined;
+  if (hint.kind === "profile") {
+    const pv = pack.profile[hint.key];
+    return pv ? pickOption(field, pv.value) : undefined;
+  }
+  if (hint.kind === "memory") {
+    if (hint.key === "workAuthorization" || hint.key === "sponsorship" || hint.key === "custom") return undefined;
+    const m = freshMemory(pack.memory, hint.key, now);
+    return m ? memoryValueFor(field, hint.key, m.value) : undefined;
+  }
+  const m = pack.memory.find((x) => x.key === "custom" && x.question === hint.question && freshMemory([x], "custom", now));
+  return m ? pickOption(field, m.value) : undefined;
+}
+
+export function mapForm(form: Pick<ApplicationForm, "fields">, pack: ApplicationPackSnapshot, approved: Approved = {}, now = Date.now(), hints: Record<string, AiHint> = {}): MapResult {
   const mappings: FieldMapping[] = [];
   const interventions: InterventionItem[] = [];
   const hasCover = !!pack.coverLetter;
@@ -147,6 +166,16 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
     if (ok && c.target.kind !== "file") {
       const value = pickOption(field, ok.value);
       if (value !== undefined) return push({ status: "confirmed", value, source: ok.provenance === "AI_GENERATED" ? "ai-suggested" : "user-entered", sourcePath: `approved.${field.id}` });
+    }
+
+    // The rules didn't recognise this question, but a model matched it to the candidate's own data.
+    const ruleKnows = (c.target.kind === "profile" && c.confidence === "HIGH") || c.target.kind === "file" || c.target.kind === "cover_text";
+    if (!ruleKnows) {
+      const aiValue = hintValue(field, hints[field.id], pack, now);
+      if (aiValue !== undefined) {
+        const h = hints[field.id];
+        return push({ status: "confirmed", value: aiValue, source: "ai-matched", sourcePath: h.kind === "profile" ? `profile.${h.key}` : h.kind === "memory" ? `memory.${h.key}` : "memory.custom" });
+      }
     }
 
     // One box for current and expected salary together: both saved answers, said plainly.
