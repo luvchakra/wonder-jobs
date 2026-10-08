@@ -107,3 +107,17 @@ describe("parseWonderIntent — outcome intents (outcome spec §40)", () => {
     expect(parseWonderIntent("prepare an application for Stripe").type).toBe("prepare_application");
   });
 });
+
+describe("checkedAiIntent — a model's reading, kept only within Ask Wonder's own actions", () => {
+  it("keeps a known action whose subject is words the candidate typed", async () => {
+    const { checkedAiIntent } = await import("./intent");
+    expect(checkedAiIntent("which of my applications should I chase this week", { type: "applications_attention", subject: "" })).toEqual({ type: "applications_attention", subject: "" });
+    expect(checkedAiIntent("is the Razorpay role worth my time", { type: "explain_job", subject: "Razorpay" })).toEqual({ type: "explain_job", subject: "Razorpay" });
+  });
+  it("drops an unknown action or an invented subject", async () => {
+    const { checkedAiIntent } = await import("./intent");
+    expect(checkedAiIntent("submit all my applications", { type: "submit_everything", subject: "" })).toBeNull();
+    expect(checkedAiIntent("is the Razorpay role worth my time", { type: "explain_job", subject: "Google" })).toBeNull();
+    expect(checkedAiIntent("anything", null)).toBeNull();
+  });
+});

@@ -1,10 +1,10 @@
 /**
  * Ask Wonder: a deterministic natural-language-to-action router (spec Phase 3.1/3.3).
  *
- * This is not a chatbot: there is no model call, no free-text reply and no hidden reasoning.
- * A typed phrase is matched against a fixed, small set of real actions by pattern; anything that
- * doesn't match a specific pattern falls back to a job search, exactly like the command palette
- * already did before this existed. The caller (CommandPalette) resolves a match against the
+ * This is not a chatbot: there is no free-text reply and no hidden reasoning. A typed phrase is
+ * matched against a fixed, small set of real actions by pattern; when no pattern matches, a model may
+ * name one of the same actions (`checkedAiIntent`, via /api/ai/intent), and anything else falls back to
+ * a job search, exactly like the command palette already did before this existed. The caller (CommandPalette) resolves a match against the
  * candidate's own real data before showing anything — this module only decides *which* action a
  * phrase means and what's left of the phrase once the intent words are stripped out.
  */
@@ -23,6 +23,34 @@ export type WonderIntentType =
   | "prepare_strongest"
   | "prepare_application"
   | "search_jobs";
+
+/** Every action Ask Wonder can take — the only answers a model may give when it reads a request. */
+export const WONDER_INTENT_TYPES: readonly WonderIntentType[] = [
+  "today_priorities",
+  "application_progress",
+  "missing_skills",
+  "applications_attention",
+  "career_headline",
+  "create_schedule",
+  "change_preferences",
+  "find_opportunities",
+  "explain_why_not_shown",
+  "explain_job",
+  "prepare_strongest",
+  "prepare_application",
+  "search_jobs",
+];
+
+/**
+ * A model's reading of a request, kept only if it names one of Ask Wonder's own actions and its subject is
+ * words the candidate actually typed (never invented). Otherwise null, and the rules' reading stands.
+ */
+export function checkedAiIntent(raw: string, proposal: { type: string; subject: string } | null | undefined): WonderIntent | null {
+  if (!proposal || !(WONDER_INTENT_TYPES as readonly string[]).includes(proposal.type)) return null;
+  const subject = proposal.subject.trim();
+  if (subject && !raw.toLowerCase().includes(subject.toLowerCase())) return null;
+  return { type: proposal.type as WonderIntentType, subject };
+}
 
 export interface WonderIntent {
   type: WonderIntentType;
