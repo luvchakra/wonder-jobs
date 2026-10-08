@@ -41,7 +41,7 @@ export default function PrivacyPage() {
       eyebrow="Legal"
       title="Privacy notice"
       intro="What WonderJobs collects, why, who else processes it, how long it is kept, and how to exercise your rights under the EU/UK GDPR and India's Digital Personal Data Protection Act, 2023. It describes how the product actually works today."
-      updated={`3 October 2026 · version ${PRIVACY_NOTICE_VERSION}`}
+      updated={`8 October 2026 · version ${PRIVACY_NOTICE_VERSION}`}
       sections={[
         {
           id: "who",

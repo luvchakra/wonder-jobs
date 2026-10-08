@@ -39,7 +39,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     summary: "Ask a question in plain words; Wonder answers from your own data and opens the right place.",
     keywords: ["ask wonder", "ask", "question", "command", "search bar", "cmd k", "ctrl k", "shortcut", "today", "priorities", "focus", "missing skills", "why isn't", "why didn't", "attention", "progress"],
     body: [
-      "Ask Wonder is the search bar at the top of every screen. Press ⌘K (Ctrl+K on Windows) or tap it, and ask in plain words.",
+      "Ask Wonder is the search icon beside the bell at the top of every screen. Tap it, or press ⌘K (Ctrl+K on Windows), and ask in plain words.",
       "It recognises these questions and answers them from your own jobs, applications and Career Profile:",
       "- “What should I focus on today?” — applications that need you and strong matches posted this week.",
       "- “What applications need my attention?” and “Show my application progress”.",
@@ -98,11 +98,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "sources",
     title: "Job sources",
     summary: "Where postings come from, and what each source can and cannot do.",
-    keywords: ["sources", "jobslake", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "career sites", "greenhouse", "lever", "ashby", "where do jobs come from"],
+    keywords: ["sources", "jobslake", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "career sites", "greenhouse", "lever", "ashby", "jazzhr", "where do jobs come from"],
     body: [
       "Wonder searches real, public job feeds server-side and reads every posting itself. Nothing is invented.",
       "- Company career sites — public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely (Stripe, Airbnb, Figma, GitLab, Databricks, Coinbase, Cloudflare, Twilio, MongoDB, Elastic, Datadog, Rubrik, Zscaler, Druva, Groww, CRED, Meesho, Atlan, Notion, Linear, Ramp, Supabase, Replit, OpenAI, Zapier and more). Applications go straight to the employer.",
       "- SmartRecruiters career sites — the public career pages of Swiggy, Freshworks, Bosch, Continental and Delivery Hero, read through SmartRecruiters' Posting API. Applications go straight to the employer.",
+      "- JazzHR career sites — the public job feeds of companies that hire through JazzHR. Applications go straight to the employer.",
       "- The Muse — employers that post on The Muse, including the India offices of large companies; you apply from The Muse's page for the role.",
       "- Jobicy, Remote OK, Himalayas — remote job feeds. Himalayas has no search of its own, so Wonder scans its newest postings.",
       "- Arbeitnow — Europe-focused, off by default. Remotive — its public feed exposes only a handful of listings, off by default.",

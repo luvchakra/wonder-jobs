@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { ArrowRight, Bot, Briefcase, Check, CheckCircle2, ExternalLink, FileText, Loader2, Mail, MonitorSmartphone, Radar, Search, Send, Sparkles, Target } from "lucide-react";
+import { ArrowRight, Briefcase, Check, CheckCircle2, ExternalLink, FileText, Loader2, Mail, MonitorSmartphone, Search, Send, Sparkles, Target } from "lucide-react";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
 import { Button } from "@/components/common/Button";
 import { Input, Textarea, Field, Select } from "@/components/common/Input";
@@ -49,19 +49,23 @@ function useDeviceMotion() {
   return ref;
 }
 
+/** The app's four places, as its navigation names them. */
+const NAV = ["Find", "Saved", "Applied", "You"];
+
 const MATCHES = [
-  { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India", why: "Strong overlap with your skills" },
-  { t: "Staff Product Designer", c: "Halcyon", fit: 88, tag: "Strong", loc: "Bengaluru · Hybrid", why: "Seniority aligns · location works for you" },
-  { t: "Design Lead, Growth", c: "Cobalt Pay", fit: 71, tag: "Worth considering", loc: "Remote · APAC", why: "A step up — a growth move" },
+  { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India", why: "Strong overlap with your skills", pay: "₹38–45 LPA", src: "Greenhouse" },
+  { t: "Staff Product Designer", c: "Halcyon", fit: 88, tag: "Strong", loc: "Bengaluru · Hybrid", why: "Seniority aligns · location works for you", pay: "₹42–50 LPA", src: "Lever" },
+  { t: "Design Lead, Growth", c: "Cobalt Pay", fit: 71, tag: "Worth considering", loc: "Remote · APAC", why: "A step up — a growth move", pay: "Pay not listed", src: "Adzuna" },
 ];
 
+/** The Find screen as it is: search box, views, the one-line summary, and cards with designation, pay and source. */
 function DesktopHome() {
   return (
     <div className="grid grid-cols-[150px_1fr] text-[10px]">
       <aside className="border-r border-line bg-surface-2 p-3">
         <p className="text-[11px] font-semibold text-ink">WonderJobs</p>
         <ul className="mt-3 space-y-1.5 text-ink-3">
-          {["Home", "Jobs", "Applications", "Career", "Wonder"].map((i, n) => (
+          {NAV.map((i, n) => (
             <li key={i} className={cn("rounded-[6px] px-2 py-1", n === 0 && "bg-brand-50 font-semibold text-brand-700")}>
               {i}
             </li>
@@ -69,35 +73,28 @@ function DesktopHome() {
         </ul>
       </aside>
       <div className="p-4">
-        <p className="text-ink-3">Good morning, Priya</p>
-        <p className="mt-0.5 text-[15px] font-semibold text-ink">
-          Wonder found <span className="wj-gradient-text">7 things</span> worth your attention.
-        </p>
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {[
-            ["3", "strong matches"],
-            ["2", "follow-ups due"],
-            ["1", "interview tomorrow"],
-          ].map(([n, l]) => (
-            <div key={l} className="rounded-[10px] border border-line bg-white p-2">
-              <p className="text-[16px] font-semibold text-ink">{n}</p>
-              <p className="text-ink-3">{l}</p>
-            </div>
+        <div className="flex h-7 items-center gap-1.5 rounded-full border border-line bg-white px-2.5 text-ink-4">
+          <Search className="size-3" aria-hidden /> Search jobs, skills or companies
+        </div>
+        <div className="mt-2 flex gap-1.5">
+          {["For you", "Strong", "All", "Refine"].map((f, n) => (
+            <span key={f} className={cn("rounded-full border px-2 py-0.5", n === 0 ? "border-brand-200 bg-brand-50 font-semibold text-brand-700" : "border-line text-ink-2")}>
+              {f}
+            </span>
           ))}
         </div>
-        <div className="mt-3 rounded-[10px] border border-line bg-white p-2.5">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold text-ink">Wonder is finding opportunities</p>
-            <span className="rounded-full bg-success-100 px-1.5 py-0.5 text-[9px] font-semibold text-success-600">Live</span>
-          </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-soft">
-            <div className="h-full w-[62%] rounded-full wj-gradient-bg" />
-          </div>
-          <p className="mt-1 text-ink-3">412 found so far · comparing with your career profile</p>
-        </div>
-        <p className="mt-2 flex items-center gap-1.5 text-ink-3">
-          <Radar className="size-3 text-success-600" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
-        </p>
+        <p className="mt-2 text-ink-3">Showing 14 jobs for “senior product designer” in Bengaluru, Remote from 6 sources</p>
+        <ul className="mt-2 space-y-1.5">
+          {MATCHES.map((m) => (
+            <li key={m.t} className="rounded-[10px] border border-line bg-white p-2">
+              <span className="block text-ink-3">{m.c}</span>
+              <span className="block text-[11px] font-semibold text-ink">{m.t}</span>
+              <span className="block text-ink-3">
+                {m.pay} · {m.loc} · via {m.src}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -223,7 +220,7 @@ function PhoneShell({ children, title, tab = 0 }: { children: React.ReactNode; t
         <div className="absolute left-1/2 top-2 h-4 w-16 -translate-x-1/2 rounded-full bg-ink" aria-hidden />
         <div className="px-3 pb-3 pt-8 text-[10px]">{children}</div>
         <div className="absolute inset-x-0 bottom-0 flex justify-around border-t border-line bg-white px-2 py-2 text-[8px] text-ink-3">
-          {["Home", "Jobs", "Apps", "Career", "Wonder"].map((n, i) => (
+          {NAV.map((n, i) => (
             <span key={n} className={cn(i === tab && "font-semibold text-brand-600")}>
               {n}
             </span>
@@ -236,19 +233,19 @@ function PhoneShell({ children, title, tab = 0 }: { children: React.ReactNode; t
 
 function PhoneHome() {
   return (
-    <PhoneShell title="the dashboard">
-      <p className="text-ink-3">Good morning, Priya</p>
-      <p className="mt-0.5 text-[14px] font-semibold leading-tight text-ink">7 things worth your attention.</p>
-      <div className="mt-3 rounded-[12px] wj-gradient-bg p-2.5 text-white">
-        <p className="flex items-center gap-1 font-semibold">
-          <Bot className="size-3" aria-hidden /> Find opportunities
-        </p>
-        <p className="mt-0.5 text-white/85">Work with me · keeps watch daily</p>
+    <PhoneShell title="Find">
+      <div className="flex h-7 items-center gap-1.5 rounded-full border border-line bg-white px-2.5 text-ink-4">
+        <Search className="size-3" aria-hidden /> Search jobs
       </div>
-      <ul className="mt-3 space-y-1.5">
-        {["3 new strong matches", "2 follow-ups due", "1 interview tomorrow"].map((t) => (
-          <li key={t} className="flex items-center gap-2 rounded-[10px] bg-white px-2.5 py-2 font-medium text-ink">
-            <CheckCircle2 className="size-3 text-brand-500" aria-hidden /> {t}
+      <p className="mt-2 text-ink-3">Showing 14 jobs for “senior product designer” in Bengaluru from 6 sources</p>
+      <ul className="mt-2 space-y-1.5">
+        {MATCHES.map((m) => (
+          <li key={m.t} className="rounded-[10px] bg-white px-2.5 py-2">
+            <span className="block text-ink-3">{m.c}</span>
+            <span className="block font-semibold text-ink">{m.t}</span>
+            <span className="block text-ink-3">
+              {m.pay} · via {m.src}
+            </span>
           </li>
         ))}
       </ul>
@@ -258,7 +255,7 @@ function PhoneHome() {
 
 function PhoneJob() {
   return (
-    <PhoneShell title="a job match" tab={1}>
+    <PhoneShell title="a job match" tab={0}>
       <span className="rounded-full bg-success-100 px-2 py-0.5 text-[9px] font-semibold text-success-600">94% · Strong Opportunity</span>
       <p className="mt-2 text-[13px] font-semibold leading-tight text-ink">Senior Product Designer</p>
       <p className="text-ink-3">Northwind Labs · Remote · India</p>
@@ -287,7 +284,7 @@ function PhoneJob() {
 function PhoneFind() {
   const steps = ["Searching the market", "Removing duplicates", "Checking relevant roles", "Comparing with your profile", "Prioritizing for you"];
   return (
-    <PhoneShell title="a search in progress" tab={4}>
+    <PhoneShell title="a search in progress" tab={0}>
       <p className="text-[13px] font-semibold leading-tight text-ink">Wonder is finding opportunities</p>
       <p className="text-ink-3">412 found so far</p>
       <ol className="mt-3 space-y-2">
@@ -376,7 +373,7 @@ export function ShowcaseSection() {
                   <span className="size-2.5 rounded-full bg-[#ff5f57]" />
                   <span className="size-2.5 rounded-full bg-[#febc2e]" />
                   <span className="size-2.5 rounded-full bg-[#28c840]" />
-                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">wonderjobs.app{screen.demo.replace("/sign-up", "")}</span>
+                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">jobs.wonderapps.biz/app</span>
                 </div>
                 <div className="min-h-[300px]">{screen.desktop}</div>
               </div>

@@ -8,7 +8,7 @@ export default function TermsPage() {
     <MarketingPage
       eyebrow="Legal"
       title="Terms of service"
-      intro="Short and readable. By creating an account or using the demo you agree to these terms."
+      intro="Short and readable. By creating an account you agree to these terms."
       updated="October 2026"
       sections={[
         { id: "service", title: "The service", body: <p>WonderJobs finds job postings from public sources, scores them against the profile you provide, and drafts application material for you to review. Job data comes from third parties and may be incomplete, out of date or withdrawn; always confirm on the employer&apos;s site before relying on it.</p> },
