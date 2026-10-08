@@ -58,6 +58,7 @@ export type AnalyticsEvent =
   | "jobsapply_answer_drafted"
   | "jobsapply_stopped"
   | "jobsapply_candidate_submitted"
+  | "jobsapply_wonder_submitted"
   | "jobsapply_submission_unknown"
   | "jobsapply_guided_used"
   | "jobsapply_pack_exported";

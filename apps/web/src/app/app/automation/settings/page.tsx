@@ -57,7 +57,7 @@ export default function AutomationSettingsPage() {
   );
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Automation" description="How much Wonder does on its own, and when it searches without you. Sending or submitting is always your click." />
+      <PageHeader title="Automation" description="How much Wonder does on its own, and when it searches without you. Sending is always your click; submitting only if you turn on Submit applications." />
       <Card className="mb-4">
         <AutomationLevelSelector value={level} onChange={setLevel} compact />
       </Card>

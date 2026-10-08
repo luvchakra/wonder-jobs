@@ -80,6 +80,39 @@ const POLL_MS = 2500;
  * Apply with Wonder (JobsApply). Method → Sign in → Fill & review → Submit on site → Track.
  * Wonder fills; the candidate reviews and submits on the employer's own site, then tells Wonder.
  */
+/**
+ * The application is in: record it in the tracker (status, follow-up, audit) and close the session.
+ * `by`: the candidate confirmed it, or Wonder's helper submitted it under "Submit applications" (WJ-249).
+ */
+async function recordSubmission(v: SessionView, appId: string | undefined, by: "you" | "wonder"): Promise<SessionView | null> {
+  if (!appId) return null;
+  const store = useApplicationsStore.getState();
+  const cur = store.applications[appId];
+  const seen = [...v.session.evidence].reverse().find((e) => e.kind === "confirmation_number" || e.kind === "confirmation_page");
+  if (cur && !SENT.has(cur.status)) {
+    store.setStatus(appId, "submitted", {
+      type: "submitted",
+      title: by === "wonder" ? "Submitted by Wonder" : "Submitted",
+      detail:
+        (by === "wonder" ? "Wonder pressed Submit because “Submit applications” is on for this application" : "Confirmed by you after applying with Wonder") +
+        (seen ? ` · ${seen.kind === "confirmation_number" ? `confirmation ${seen.detail}` : "confirmation page seen"}` : ""),
+    });
+    const due = new Date(Date.now() + 5 * 86_400_000).toISOString();
+    store.addFollowUp(appId, { dueAt: due, kind: "follow_up", note: "Follow up if there is no response" });
+    store.setNextAction(appId, "Wait for response · follow up in 5 days", due);
+  }
+  const handoff = useActionsStore.getState().byKey(`jobsapply-handoff:${v.session.id}`);
+  if (handoff)
+    auditAction({
+      actionId: handoff.id,
+      actionType: "submit_application",
+      event: by === "wonder" ? "wonder_submitted" : "candidate_confirmed_submitted",
+      detail: by === "wonder" ? `submit:${v.session.jobId}:me · ${seen ? "with confirmation evidence" : "no confirmation seen"}` : seen ? "with confirmation evidence" : "candidate confirmation",
+    });
+  track(by === "wonder" ? "jobsapply_wonder_submitted" : "jobsapply_candidate_submitted", { sessionId: v.session.id, evidence: seen?.kind ?? "none" });
+  return v.session.status === "SUBMITTED" ? jobsApplyApi.act(v.session.id, "tracked") : null;
+}
+
 export default function ApplyWithWonderPage({
   params,
 }: {
@@ -115,6 +148,13 @@ export default function ApplyWithWonderPage({
   const ai = useAIService();
 
   const [view, setView] = useState<SessionView | null>(null);
+  // Wonder pressed Submit under "Submit applications" and the employer confirmed it: record it, once.
+  const recordedWonder = useRef<string | null>(null);
+  useEffect(() => {
+    if (!view || view.session.status !== "SUBMITTED" || !view.session.wonderSubmittedAt || recordedWonder.current === view.session.id) return;
+    recordedWonder.current = view.session.id;
+    void recordSubmission(view, app?.id, "wonder").then((t) => t && setView(t));
+  }, [view, app?.id]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -420,6 +460,7 @@ export default function ApplyWithWonderPage({
         includeCover: hasCover && includeCover,
       });
       let v = await jobsApplyApi.create({
+        ...(app.autoSubmit ? { submit: app.autoSubmit } : {}),
         job: {
           id: job.id,
           title: job.title,
@@ -434,6 +475,8 @@ export default function ApplyWithWonderPage({
         startOver,
         acknowledgeDuplicate,
       });
+      // A session already in progress takes this application's current "Submit for me" choice.
+      if (v.resumed && (app.autoSubmit ?? "default") !== (v.session.submitOverride ?? "default")) v = await jobsApplyApi.setSubmit(v.session.id, app.autoSubmit ?? "default");
       if (v.resumed) {
         pre?.close();
         setView(v);
@@ -577,57 +620,19 @@ export default function ApplyWithWonderPage({
     return text;
   };
 
+  const recordSubmitted = async (v: SessionView, by: "you" | "wonder") => {
+    const tracked = await recordSubmission(v, app?.id, by);
+    if (tracked) setView(tracked);
+  };
+
   const confirm = async (answer: "yes" | "not_yet" | "unsure") => {
     if (!view) return;
     setBusy(true);
     try {
-      let v = await jobsApplyApi.confirm(view.session.id, answer);
+      const v = await jobsApplyApi.confirm(view.session.id, answer);
       setView(v);
       if (answer === "yes" && app) {
-        const store = useApplicationsStore.getState();
-        const cur = store.applications[app.id];
-        const seen = [...v.session.evidence]
-          .reverse()
-          .find(
-            (e) =>
-              e.kind === "confirmation_number" ||
-              e.kind === "confirmation_page",
-          );
-        if (cur && !SENT.has(cur.status)) {
-          store.setStatus(app.id, "submitted", {
-            type: "submitted",
-            title: "Submitted",
-            detail: `Confirmed by you after applying with Wonder${seen ? ` · ${seen.kind === "confirmation_number" ? `confirmation ${seen.detail}` : "confirmation page seen"}` : ""}`,
-          });
-          const due = new Date(Date.now() + 5 * 86_400_000).toISOString();
-          store.addFollowUp(app.id, {
-            dueAt: due,
-            kind: "follow_up",
-            note: "Follow up if there is no response",
-          });
-          store.setNextAction(
-            app.id,
-            "Wait for response · follow up in 5 days",
-            due,
-          );
-        }
-        const ledger = useActionsStore.getState();
-        const handoff = ledger.byKey(`jobsapply-handoff:${v.session.id}`);
-        if (handoff)
-          auditAction({
-            actionId: handoff.id,
-            actionType: "submit_application",
-            event: "candidate_confirmed_submitted",
-            detail: seen
-              ? "with confirmation evidence"
-              : "candidate confirmation",
-          });
-        track("jobsapply_candidate_submitted", {
-          sessionId: v.session.id,
-          evidence: seen?.kind ?? "none",
-        });
-        v = await jobsApplyApi.act(v.session.id, "tracked");
-        setView(v);
+        await recordSubmitted(v, "you");
       } else if (answer === "unsure" && app) {
         useApplicationsStore
           .getState()
@@ -946,6 +951,29 @@ export default function ApplyWithWonderPage({
                         ? "The helper fills safe fields as soon as the form opens."
                         : "Your “Fill application forms” setting is Ask, so the helper still waits for your click."}
                 </p>
+                {!guided && (
+                  <div className="mt-4">
+                    <Segmented
+                      size="sm"
+                      label="Submit for me"
+                      value={s.submitOverride ?? "default"}
+                      onChange={(v) => {
+                        if (app) useApplicationsStore.getState().setAutoSubmit(app.id, v === "default" ? undefined : v);
+                        void withSession((id) => jobsApplyApi.setSubmit(id, v));
+                      }}
+                      options={[
+                        { value: "default", label: `Default (${view.decisions?.submit === "run" ? "on" : "off"})` },
+                        { value: "on", label: "Always" },
+                        { value: "off", label: "Never" },
+                      ]}
+                    />
+                    <p className="mt-2 text-[12px] text-ink-3">
+                      {(s.submitOverride ?? (view.decisions?.submit === "run" ? "on" : "off")) === "on"
+                        ? "The helper presses the employer's Submit once every required field holds your own answer."
+                        : "You press the employer's Submit yourself."}
+                    </p>
+                  </div>
+                )}
                 <div className="mt-3 flex flex-col items-start gap-1">
                   {!guided && helperConnected === false && helperInstalled !== false && (
                     <Button size="sm" variant="ghost" onClick={() => pair(s.id)} icon={<RefreshCw className="size-3.5" aria-hidden />}>
@@ -959,7 +987,7 @@ export default function ApplyWithWonderPage({
                       onClick={() =>
                         withSession(
                           (id) => jobsApplyApi.act(id, "stop"),
-                          "Stopped. Fields already entered stay on the page; nothing was submitted.",
+                          s.wonderSubmittedAt ? "Stopped." : "Stopped. Fields already entered stay on the page; nothing was submitted.",
                         ).then(() =>
                           track("jobsapply_stopped", { sessionId: s.id }),
                         )
@@ -978,7 +1006,7 @@ export default function ApplyWithWonderPage({
                     onClick={() =>
                       withSession(
                         (id) => jobsApplyApi.act(id, "cancel"),
-                        "Application session cancelled. Nothing was submitted.",
+                        s.wonderSubmittedAt ? "Application session cancelled." : "Application session cancelled. Nothing was submitted.",
                       )
                     }
                     icon={<XCircle className="size-3.5" aria-hidden />}

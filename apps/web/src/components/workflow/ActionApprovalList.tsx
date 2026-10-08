@@ -91,7 +91,7 @@ export function ActionApprovalList({ run }: { run: WorkflowRun }) {
         title="Continue to the employer's site?"
         // The action's own label already says exactly what happens (a hand-off, never a submission) —
         // this modal must never say anything different from that label.
-        description={confirmedAction ? `${confirmedAction.label}. Wonder never submits on your behalf — you submit there yourself, then come back and mark it as submitted.` : undefined}
+        description={confirmedAction ? `${confirmedAction.label}. You submit there yourself (or Wonder's helper does, if you turned on Submit applications), then it's marked submitted.` : undefined}
         footer={
           <>
             <Button variant="outline" onClick={() => setConfirming(null)}>

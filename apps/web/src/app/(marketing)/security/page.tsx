@@ -90,7 +90,7 @@ export default function SecurityPage() {
           title: "External actions",
           body: (
             <ul>
-              <li>Wonder never submits an application, sends a message or posts on your behalf. Apply steps hand you to the employer&apos;s page and record what happened.</li>
+              <li>Wonder never sends a message or posts on your behalf. It submits an application only if you turned on Submit applications — in your browser, on the employer&apos;s own page, once every required answer is yours — and every submission is logged.</li>
               <li>External actions are written to an audit ledger with what was done and when; its rows can&apos;t be edited.</li>
             </ul>
           ),

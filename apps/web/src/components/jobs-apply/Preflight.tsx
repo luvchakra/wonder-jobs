@@ -79,7 +79,7 @@ export function Preflight(props: {
           <h2 id="wj-apply-method" className="text-[18px] font-semibold text-ink">
             How would you like to apply?
           </h2>
-          <p className="mt-1 text-[13px] text-ink-3">Whichever you choose, you submit on {props.company}&apos;s own site — Wonder never submits for you.</p>
+          <p className="mt-1 text-[13px] text-ink-3">You submit on {props.company}&apos;s own site — or Wonder&apos;s helper does, only if Submit for me is on.</p>
           <div role="radiogroup" aria-label="Application method" className="mt-4 grid gap-3 sm:grid-cols-3">
             {METHODS.map((m) => {
               const selected = props.method === m.key;

@@ -5,7 +5,8 @@
  *  - `fillDecision` is `resolveCapability("fill_application", …)` — the single deterministic gate
  *    (CLAUDE.md). A missing policy or level fails closed to "ask".
  *  - `fillGate` is the §66 checklist for one fill request.
- *  - There is deliberately no submit gate: no code path submits, so there is nothing to allow.
+ *  - `submitDecision` is `resolveCapability("final_submit", …)`: whether the helper may press the employer's
+ *    final Submit (owner decision WJ-249). Off by default; anything missing fails closed to "skip".
  */
 import { resolveCapability, type AutomationLevel, type AutomationPolicy } from "@/domain/automation/policy";
 import { checkDomain } from "./destination";
@@ -36,6 +37,31 @@ export function effectiveFill(decision: FillDecision, mode: "guided" | "assisted
 export function handoffDecision(policy: Partial<AutomationPolicy> | undefined, level: AutomationLevel | undefined): FillDecision {
   if (!policy || !level || !policy.submit_application) return "ask";
   return resolveCapability("submit_application", policy as AutomationPolicy, level);
+}
+
+/** The candidate's choice for one application: always submit for me, never, or (absent) my account default. */
+export type SubmitOverride = "on" | "off";
+
+/**
+ * Whether the helper may press the employer's final Submit for this application. "Never" on the application
+ * always wins; "Always" is the candidate's explicit consent for it; otherwise the account's `final_submit`
+ * policy decides through the same gate as every other capability. Only "run" submits — "ask" and anything
+ * missing mean the candidate presses Submit themselves.
+ */
+export function submitDecision(policy: Partial<AutomationPolicy> | undefined, level: AutomationLevel | undefined, override?: SubmitOverride): "run" | "skip" {
+  if (override === "off") return "skip";
+  if (override === "on") return resolveCapability("final_submit", (policy ?? {}) as AutomationPolicy, level ?? "assist", "allow") === "run" ? "run" : "skip";
+  if (!policy || !level || !policy.final_submit) return "skip";
+  return resolveCapability("final_submit", policy as AutomationPolicy, level) === "run" ? "run" : "skip";
+}
+
+/**
+ * Ready to submit: every required question is answered by the candidate's own value — filled already, or in
+ * the fill the helper is about to do — and nothing required is waiting on them.
+ */
+export function submitReady(s: JobsApplySession, fillingNow: ReadonlySet<string>): boolean {
+  if (s.interventions.some((i) => i.required && i.status === "open")) return false;
+  return s.fieldMappings.filter((m) => m.required).every((m) => m.status === "filled" || m.status === "confirmed" || fillingNow.has(m.fieldId));
 }
 
 export type GateResult = { ok: true; mappings: FieldMapping[] } | { ok: false; reason: string };

@@ -235,7 +235,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                     }} className="mt-0.5 size-4 accent-brand-500" />
                   I&apos;ve reviewed these materials. They&apos;re accurate and I&apos;m happy to use them for this application.
                 </label>
-                <p className="mt-3 text-[12px] text-ink-4">Wonder never submits for you: you submit on {job.company}&apos;s site, then mark it submitted.</p>
+                <p className="mt-3 text-[12px] text-ink-4">You submit on {job.company}&apos;s site, then mark it submitted — unless Submit for me is on, when Wonder&apos;s helper submits.</p>
               </div>
             )}
           </Card>

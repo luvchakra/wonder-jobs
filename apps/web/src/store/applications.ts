@@ -12,6 +12,8 @@ interface ApplicationsState {
   create: (jobId: string, status?: ApplicationStatus) => Application;
   setStatus: (id: string, status: ApplicationStatus, event?: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
   addEvent: (id: string, event: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
+  /** This application's "Submit for me" choice; undefined = account default. */
+  setAutoSubmit: (id: string, choice: "on" | "off" | undefined) => void;
   addVersion: (id: string, type: ArtifactType, version: Omit<ArtifactVersion, "id" | "createdAt">) => ArtifactVersion;
   /** Autosave: rewrites the *current* version's content in place rather than creating a new version — a version is a deliberate snapshot (a generation or a restore), not every keystroke. */
   updateVersionContent: (id: string, type: ArtifactType, content: string) => void;
@@ -54,6 +56,14 @@ export const useApplicationsStore = create<ApplicationsState>()(
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
       },
+      setAutoSubmit: (id, choice) =>
+        set((s) => {
+          const a = s.applications[id];
+          if (!a) return s;
+          const { autoSubmit: _prev, ...rest } = a;
+          void _prev;
+          return { applications: { ...s.applications, [id]: choice ? { ...rest, autoSubmit: choice } : rest } };
+        }),
       addEvent: (id, event) =>
         set((s) => {
           const a = s.applications[id];

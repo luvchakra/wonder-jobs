@@ -30,7 +30,7 @@ export interface CloudStream {
 export interface SessionView {
   session: PublicSession;
   progress: ApplyProgress;
-  decisions?: { fill: FillDecision; handoff: FillDecision };
+  decisions?: { fill: FillDecision; handoff: FillDecision; submit?: "run" | "skip" };
   resumed?: boolean;
 }
 export interface ApiError {
@@ -73,8 +73,10 @@ export const jobsApplyApi = {
   },
   list: () => call<{ sessions: (PublicSession & { progress: ApplyProgress })[] }>("/api/jobs-apply/sessions"),
   get: (id: string) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}`),
-  create: (body: { job: Pick<CanonicalJob, "id" | "title" | "company" | "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">; pack: ApplicationPackSnapshot; mode: ApplyMode; startOver?: boolean; acknowledgeDuplicate?: boolean }) => call<SessionView>("/api/jobs-apply/sessions", { method: "POST", body }),
+  create: (body: { job: Pick<CanonicalJob, "id" | "title" | "company" | "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">; pack: ApplicationPackSnapshot; mode: ApplyMode; startOver?: boolean; acknowledgeDuplicate?: boolean; submit?: "on" | "off" }) => call<SessionView>("/api/jobs-apply/sessions", { method: "POST", body }),
   act: (id: string, action: "start" | "stop" | "resume" | "cancel" | "tracked" | "token", body: Record<string, unknown> = {}) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/${action}`, { method: "POST", body }),
+  /** "Submit for me" for this application (WJ-249). It submits nothing itself; the helper does, under it. */
+  setSubmit: (id: string, submit: "on" | "off" | "default") => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/submit`, { method: "POST", body: { submit } }),
   setMode: (id: string, mode: ApplyMode) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/mode`, { method: "POST", body: { mode } }),
   approveDomain: (id: string, host: string) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/approve-domain`, { method: "POST", body: { host } }),
   confirm: (id: string, answer: "yes" | "not_yet" | "unsure") => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/confirm`, { method: "POST", body: { answer } }),

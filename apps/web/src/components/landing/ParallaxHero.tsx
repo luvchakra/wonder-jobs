@@ -87,7 +87,7 @@ export function ParallaxHero() {
             </Button>
           </div>
           <ul className="wj-hero-in mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] text-ink-3" aria-label="Good to know" style={{ "--wj-i": 4 } as CSSProperties}>
-            {["Free plan, no card", "Starts from your CV", "Never submits on your behalf"].map((t) => (
+            {["Free plan, no card", "Starts from your CV", "Submits only if you switch it on"].map((t) => (
               <li key={t} className="inline-flex items-center gap-1.5">
                 <CheckCircle2 className="size-3.5 text-brand-500" aria-hidden /> {t}
               </li>

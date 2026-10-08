@@ -11,7 +11,7 @@ import type { Application } from "@/domain/applications/types";
 import type { AutomationLevel, AutomationPolicy } from "@/domain/automation/policy";
 import { destinationFor, hostOf } from "@/domain/jobs-apply/destination";
 import { progressOf } from "@/domain/jobs-apply/mapper";
-import { effectiveFill, fillDecision, fillGate, handoffDecision, type FillDecision } from "@/domain/jobs-apply/policy";
+import { effectiveFill, fillDecision, fillGate, handoffDecision, submitDecision, submitReady, type FillDecision } from "@/domain/jobs-apply/policy";
 import { findDuplicate } from "@/domain/jobs-apply/readiness";
 import * as S from "@/domain/jobs-apply/session";
 import { TERMINAL, TransitionError } from "@/domain/jobs-apply/states";
@@ -42,9 +42,16 @@ async function automationOf(tenantId: string): Promise<{ policy?: AutomationPoli
   }
 }
 
-export async function decisionsFor(tenantId: string): Promise<{ fill: FillDecision; handoff: FillDecision }> {
+export async function decisionsFor(tenantId: string): Promise<{ fill: FillDecision; handoff: FillDecision; submit: "run" | "skip" }> {
   const a = await automationOf(tenantId);
-  return { fill: fillDecision(a.policy, a.level), handoff: handoffDecision(a.policy, a.level) };
+  // `submit` here is the account default (no per-application choice); the helper's plan applies the session's own.
+  return { fill: fillDecision(a.policy, a.level), handoff: handoffDecision(a.policy, a.level), submit: submitDecision(a.policy, a.level) };
+}
+
+/** Whether the helper may press this application's final Submit (WJ-249): the session's choice, else the account's. */
+async function submitFor(tenantId: string, s: JobsApplySession): Promise<boolean> {
+  const a = await automationOf(tenantId);
+  return submitDecision(a.policy, a.level, s.submitOverride) === "run";
 }
 
 function wrap<T>(fn: () => T): T | ApiResult {
@@ -74,7 +81,7 @@ async function mutate(tenantId: string, id: string, fn: (s: JobsApplySession) =>
   return out;
 }
 
-export function view(s: JobsApplySession, decisions?: { fill: FillDecision; handoff: FillDecision }) {
+export function view(s: JobsApplySession, decisions?: { fill: FillDecision; handoff: FillDecision; submit: "run" | "skip" }) {
   return { session: S.publicSession(s), progress: progressOf(s), ...(decisions ? { decisions } : {}) };
 }
 
@@ -112,13 +119,13 @@ export async function create(tenantId: string, input: z.infer<typeof CreateSchem
   const now = nowIso();
   if (active && input.startOver) await mutateSession(tenantId, active.id, (s) => S.cancel(s, now, newNonce()));
 
-  const session = S.createSession({ id: `jas_${crypto.randomBytes(9).toString("base64url")}`, tenantId, nonce: newNonce(), destination: dest, pack: input.pack, mode: input.mode, now });
+  const session = S.createSession({ id: `jas_${crypto.randomBytes(9).toString("base64url")}`, tenantId, nonce: newNonce(), destination: dest, pack: input.pack, mode: input.mode, now, submit: input.submit });
   await insertSession(tenantId, session);
   return ok({ ...view(session, decisions), resumed: false }, 201);
 }
 
-export type WebAction = "start" | "stop" | "pause" | "resume" | "cancel" | "mode" | "approve-domain" | "confirm" | "tracked" | "token";
-export const WEB_ACTIONS: WebAction[] = ["start", "stop", "pause", "resume", "cancel", "mode", "approve-domain", "confirm", "tracked", "token"];
+export type WebAction = "start" | "stop" | "pause" | "resume" | "cancel" | "mode" | "submit" | "approve-domain" | "confirm" | "tracked" | "token";
+export const WEB_ACTIONS: WebAction[] = ["start", "stop", "pause", "resume", "cancel", "mode", "submit", "approve-domain", "confirm", "tracked", "token"];
 
 export async function act(tenantId: string, id: string, action: WebAction, body: Record<string, unknown>): Promise<ApiResult> {
   const now = nowIso();
@@ -136,6 +143,8 @@ export async function act(tenantId: string, id: string, action: WebAction, body:
         return S.cancel(s, now, newNonce());
       case "mode":
         return S.setMode(s, body.mode as "guided" | "assisted" | "fill", now);
+      case "submit":
+        return S.setSubmitOverride(s, body.submit as "on" | "off" | "default", now);
       case "approve-domain":
         return S.approveDomain(s, String(body.host ?? ""), now);
       case "confirm":
@@ -207,11 +216,17 @@ export function helperView(s: JobsApplySession, fill: FillDecision) {
   };
 }
 
-function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked: boolean, fieldIds?: string[]) {
+function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked: boolean, fieldIds?: string[], submitAllowed = false) {
   const g = fillGate(s, { host, decision, candidateClicked: clicked, fieldIds });
-  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false };
-  // Whoever may fill this page may also press its next-page button — never a submit (the helper's own classifier).
-  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided" };
+  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false, submit: false };
+  // Whoever may fill this page may also press its next-page button (the helper's own classifier tells them apart).
+  // The final Submit only under "Submit applications" (WJ-249): never in guided mode, once per job, and only when
+  // every required question is answered with the candidate's own value — the helper re-checks the page itself.
+  const filling = new Set(g.mappings.map((m) => m.fieldId));
+  // Never in the cloud browser (a server-hosted page): final submission happens only in the candidate's own browser.
+  const inCloud = !!s.cloud && !s.cloud.endedAt;
+  const submit = submitAllowed && !inCloud && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
+  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided", submit };
 }
 
 async function helperFill(ctx: HelperCtx, s: JobsApplySession = ctx.session): Promise<FillDecision> {
@@ -235,13 +250,13 @@ export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Prom
   }
   const fill = await helperFill(ctx, out);
   // Under an "automatic" policy the plan comes back with the inspection; otherwise the helper waits for the candidate's click.
-  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false };
+  const auto = fill === "run" ? plan(out, hostOf(form.url) ?? "", fill, false, undefined, await submitFor(ctx.tenantId, out)) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false, submit: false };
   return ok({ ...helperView(out, fill), plan: auto });
 }
 
 export async function helperFillPlan(ctx: HelperCtx, body: z.infer<typeof FillPlanSchema>): Promise<ApiResult> {
   const fill = await helperFill(ctx);
-  return ok(plan(ctx.session, body.host.toLowerCase(), fill, body.clicked, body.fieldIds));
+  return ok(plan(ctx.session, body.host.toLowerCase(), fill, body.clicked, body.fieldIds, await submitFor(ctx.tenantId, ctx.session)));
 }
 
 export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSchema>): Promise<ApiResult> {
@@ -261,6 +276,9 @@ export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSc
           break;
         case "STEP_ADVANCED":
           s = S.recordStepAdvanced(s, e.label, now);
+          break;
+        case "APPLICATION_SUBMITTED":
+          s = S.recordWonderSubmitted(s, e.label, now);
           break;
         case "ANSWER_LEARNED":
           s = S.recordLearnedAnswer(s, e.fieldId, e.value, now);
