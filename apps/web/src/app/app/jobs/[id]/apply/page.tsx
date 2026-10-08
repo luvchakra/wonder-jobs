@@ -1,7 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
+import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
 import { destinationFor } from "@/domain/jobs-apply/destination";
@@ -88,6 +88,9 @@ export default function ApplyWithWonderPage({
   const { id: jobId } = use(params);
   const job = useJobsStore((s) => s.jobs[jobId]);
   const jobs = useJobsStore((s) => s.jobs);
+  const saved = useJobsStore((s) => !!s.saved[jobId]);
+  const saveJob = useJobsStore((s) => s.save);
+  const unsaveJob = useJobsStore((s) => s.unsave);
   const applications = useApplicationsStore((s) => s.applications);
   const app = useMemo(
     () => Object.values(applications).find((a) => a.jobId === jobId),
@@ -710,6 +713,11 @@ export default function ApplyWithWonderPage({
         eyebrow="Apply with Wonder"
         title={job.title}
         description={`${job.company} · ${job.location}`}
+        actions={
+          <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsaveJob(job.id) : saveJob(job.id))}>
+            {saved ? "Saved" : "Save"}
+          </Button>
+        }
       />
       <ApplyStepper current={step} />
 
