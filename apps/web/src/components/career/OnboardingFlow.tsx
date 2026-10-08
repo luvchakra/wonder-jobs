@@ -76,8 +76,8 @@ function Steps() {
 
   const confirm = (r: Read | null) => {
     setRead(r);
-    const latest = r?.history?.experience[0]?.title;
-    setRole(r?.draft.headline?.trim() || latest?.trim() || dna.careerGoal || dna.headline);
+    // The role they want is theirs to say: a CV says what they do now, not what they're looking for.
+    setRole(dna.careerGoal);
     setWhere((r?.draft.preferredLocations?.length ? r.draft.preferredLocations : dna.preferredLocations).join(", ") || r?.history?.contact.location?.value.trim() || "");
     setSkills(r?.draft.skills?.length ? r.draft.skills.slice(0, 15) : dna.skills);
     setStep("confirm");
@@ -199,7 +199,7 @@ function Steps() {
               <div className="mt-6 flex flex-col gap-4">
                 <div>
                   <FieldLabel htmlFor="onb-role">Role you want</FieldLabel>
-                  <Input id="onb-role" value={role} onChange={(e) => setRole(e.target.value)} className={FIELD} placeholder="e.g. IAM director, data analyst" disabled={!hydrated} required />
+                  <Input id="onb-role" value={role} onChange={(e) => setRole(e.target.value)} className={FIELD} placeholder="e.g. Director, identity and access management" disabled={!hydrated} required />
                   {levelOnly && <p className="mt-1 text-[12px] text-white/60">Add the field too, e.g. “{role.trim()} of identity and access management”.</p>}
                 </div>
                 <div>
