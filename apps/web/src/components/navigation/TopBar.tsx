@@ -17,6 +17,7 @@ import { useInstallPrompt } from "@/lib/pwa";
 import { toast } from "@/components/feedback/Toast";
 import { CommandPalette } from "./CommandPalette";
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
+import { RunningIndicator } from "./RunningIndicator";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
@@ -88,6 +89,7 @@ export function TopBar() {
       </div>
       <div className="flex-1" />
 
+      <RunningIndicator />
       <button type="button" aria-label="Ask Wonder (Command+K)" onClick={() => setCmd(true)} className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
         <Search className="size-5" aria-hidden />
       </button>

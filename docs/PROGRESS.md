@@ -127,6 +127,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
 - ✅ Extension page up to date with its version; Chrome Web Store package and publish workflow ready (WJ-283)
+- ✅ Running searches shown inline on their row and app-wide in the top bar (WJ-284)
 - ✅ Apply with Wonder stops waiting for a form after 90 s and shows what to do next (WJ-285)
 - ✅ Menus without overlap: You, the avatar menu and Pipeline each hold their own things (WJ-281)
 - ✅ Notifications as things happen — searches, applications, drafts, closed jobs — each with its next step (WJ-282)
