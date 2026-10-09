@@ -77,6 +77,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   lastTest?: TestReport;
   /** Partnership sources only: who confirmed, at activation, that a signed agreement permits this use. */
   agreement?: PartnerAgreement;
+  /** Charged per result: asked last, only to top up a thin search, within a monthly credit budget — and never for API keys. */
+  paid?: boolean;
 }
 
 export interface AuditEvent {

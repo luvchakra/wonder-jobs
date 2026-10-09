@@ -18,6 +18,7 @@ import { ageLabel, searchKey } from "@/domain/jobslake/cache";
 import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache";
 import { DestinationBlockedError } from "./safeFetch";
 import { isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
+import { creditsLeft, topUpBelow } from "./paid";
 import { jobsLakeStore, type CachedAnswer } from "./store";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
@@ -134,7 +135,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
   const health = await healthBySource();
   // Restricted: the planner only ever sees the allowed sources, so an empty list plans nothing.
-  const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography })));
+  const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography, paid: s.paid })));
   const plan = planSearch({ ...req, sourceIds: allowed }, plannable, health);
   const byId = new Map(sources.map((s) => [s.id, s]));
   const planned = plan.waves.flat();
@@ -173,13 +174,17 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     cacheUse?: "fresh" | "fallback";
   }
 
+  // A paid source is asked once, with every phrasing as a title, for no more than its remaining credits.
+  const paidLimit = new Map<string, number>();
+  const connectorCriteria = (src: SourceRecord, q: string) => (src.paid ? { ...criteriaFor(q), titles: phrasings.filter((x) => x !== q), maxResults: paidLimit.get(src.id) } : criteriaFor(q));
+
   const attempt = async (src: SourceRecord, q: string): Promise<Attempt> => {
     const c = caches.get(q) ?? noCache;
     const hit = req.cache === "refresh" ? undefined : c.fresh.get(src.id);
     if (hit) return { jobs: hit.jobs.slice(0, src.limits.maxResults), warnings: [], called: false, cachedAt: hit.fetchedAt, cacheUse: "fresh" };
     const fetchedAt = new Date().toISOString();
     try {
-      const r = await withTimeout(runConnector(src, criteriaFor(q), plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
+      const r = await withTimeout(runConnector(src, connectorCriteria(src, q), plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
       const jobs = r.jobs.slice(0, src.limits.maxResults);
       if (cacheOn) toCache.push(answerFor(src, plan.depth, criteriaFor(q), { jobs, warnings: r.warnings }, fetchedAt));
       return { jobs, warnings: r.warnings, called: true };
@@ -195,7 +200,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     emit({ type: "source_started", sourceId, sourceName: src.name });
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
-    const results = await Promise.all(phrasings.map((q) => attempt(src, q)));
+    const results = await Promise.all((src.paid ? phrasings.slice(0, 1) : phrasings).map((q) => attempt(src, q)));
     const durationMs = Date.now() - started;
     const seen = new Set<string>();
     const jobs: Job[] = [];
@@ -242,7 +247,27 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
 
   for (let w = 0; w < plan.waves.length; w++) {
     if (opts.signal?.aborted) break;
-    const wave = plan.waves[w];
+    let wave = plan.waves[w];
+    // A paid wave tops up a thin search only, within each source's monthly credits. An unreadable budget fails closed.
+    if (wave.every((p) => p.paid)) {
+      const found = canonicalize(observations).opportunities.length;
+      const skip = (p: (typeof wave)[number], message: string) => statuses.push({ sourceId: p.id, sourceName: p.name, outcome: "skipped", retrieved: 0, durationMs: 0, message });
+      if (found >= topUpBelow()) {
+        for (const p of wave) skip(p, `Free sources found ${found} jobs — enough without paid sources`);
+        break;
+      }
+      const runnable: typeof wave = [];
+      for (const p of wave) {
+        const b = await bookkeeping("read a paid source's credit budget", () => creditsLeft(p.id));
+        if (!b) skip(p, "Couldn't read its monthly credit budget");
+        else if (b.left <= 0) skip(p, `Monthly credit limit reached (${b.used} of ${b.budget} used)`);
+        else {
+          paidLimit.set(p.id, b.left);
+          runnable.push(p);
+        }
+      }
+      wave = runnable;
+    }
     // Bounded parallelism within a wave.
     for (let i = 0; i < wave.length; i += 4) await Promise.all(wave.slice(i, i + 4).map((p) => runOne(p.id)));
     const soFar = canonicalize(observations);

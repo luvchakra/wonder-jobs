@@ -92,15 +92,18 @@ export async function authenticateKey(key: string): Promise<{ ownerId: string; k
  * employer career-board (ATS) sources — public postings employers publish through their own ATS's public API.
  */
 export function apiSourceIds(env: Record<string, string | undefined> = process.env, stored: StoredApiPlan | undefined = cachedApiPlan()): string[] {
-  const chosen = (stored?.sourceIds ?? []).filter((s) => typeof s === "string" && s.trim());
+  const chosen = (stored?.sourceIds ?? []).filter((s) => typeof s === "string" && s.trim() && !NEVER_FOR_API.has(s));
   if (chosen.length) return [...new Set(chosen)];
   const set = (env.JOBSLAKE_API_SOURCE_IDS ?? "")
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter((s) => s && !NEVER_FOR_API.has(s));
   if (set.length) return [...new Set(set)];
   return BUILTIN_SOURCES.filter((s) => s.category === "ats" && s.accessStrategy === "official_api").map((s) => s.id);
 }
+
+/** Licensed sources whose terms forbid passing their data on as a dataset: never reachable by an API key, whatever an admin chooses. */
+export const NEVER_FOR_API = new Set(BUILTIN_SOURCES.filter((s) => s.paid || s.accessStrategy === "licensed").map((s) => s.id));
 
 /** The sources a developer search may use: the allowlist, narrowed to the ones they asked for (by id or WonderJobs source id). */
 export function developerSources(requested: string[] | undefined, sources: Pick<SourceRecord, "id" | "legacySourceId">[], allow = apiSourceIds()): string[] {

@@ -6,11 +6,16 @@
  */
 import type { Job } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
+import { theirstack } from "./theirstack";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 
 export interface SearchCriteria {
   query: string;
   locations: string[];
+  /** Other phrasings of the query, for a source asked once with all of them (a paid source). */
+  titles?: string[];
+  /** At most this many results — a paid source's remaining budget. */
+  maxResults?: number;
 }
 
 export interface SourceFetcher {
@@ -438,7 +443,7 @@ const themuse: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn, jazzhr };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn, jazzhr, theirstack };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

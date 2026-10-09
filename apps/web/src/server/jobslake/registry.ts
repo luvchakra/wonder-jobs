@@ -43,6 +43,7 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "remoteok", name: "Remote OK", provider: "Remote OK", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "remoteok", capabilities: FEED_CAPS, description: legacyNote("remoteok") }),
   builtin({ id: "himalayas", name: "Himalayas", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas", capabilities: FEED_CAPS, description: legacyNote("himalayas") }),
   builtin({ id: "arbeitnow", name: "Arbeitnow", provider: "Arbeitnow", category: "aggregator", accessStrategy: "official_api", geography: ["DE", "remote"], legacySourceId: "arbeitnow", capabilities: FEED_CAPS, description: legacyNote("arbeitnow") }),
+  builtin({ id: "theirstack", name: "TheirStack", provider: "TheirStack", category: "aggregator", accessStrategy: "licensed", geography: ["global"], legacySourceId: "theirstack", capabilities: [...FEED_CAPS, "Salary", "Employer identity"], secretRef: "env:THEIRSTACK", paid: true, description: legacyNote("theirstack") }),
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),
 ];
 
