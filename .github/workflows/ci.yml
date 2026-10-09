@@ -69,7 +69,7 @@ jobs:
       - run: npm ci
       # ESLint's own cache, keyed on file content (a fresh checkout changes every mtime): unchanged files
       # reuse their last result. A lockfile change starts it cold.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: apps/web/.next/cache/eslint
           key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-${{ github.sha }}
@@ -77,7 +77,7 @@ jobs:
       - run: npx eslint --cache --cache-strategy content --cache-location .next/cache/eslint/
         working-directory: apps/web
       - if: github.event_name == 'push'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: apps/web/.next/cache/eslint
           key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-${{ github.sha }}
@@ -96,7 +96,7 @@ jobs:
           cache: npm
       - run: npm ci
       # tsc's incremental state: file versions are content hashes, so it is safe across checkouts.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: apps/web/tsconfig.tsbuildinfo
           key: tsc-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/tsconfig.json') }}-${{ github.sha }}
@@ -107,7 +107,7 @@ jobs:
         working-directory: apps/web
       - run: npm run typecheck
       - if: github.event_name == 'push'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: apps/web/tsconfig.tsbuildinfo
           key: tsc-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/tsconfig.json') }}-${{ github.sha }}
@@ -141,14 +141,14 @@ jobs:
           cache: npm
       - run: npm ci
       # Turbopack's build cache. Restored on every run (PRs read main's), saved only from main.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: apps/web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
       - run: npm run build
       - if: github.event_name == 'push'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: apps/web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
@@ -195,7 +195,7 @@ jobs:
       - id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
         working-directory: apps/web
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
@@ -205,7 +205,7 @@ jobs:
       # shell, which can't load the browser-helper extension and renders the visual baselines differently.
       - run: echo "PW_CHROMIUM_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
         working-directory: apps/web
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: apps/web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
