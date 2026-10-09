@@ -279,6 +279,12 @@
     from { background-position: -200% 0; }
     to { background-position: 200% 0; }
   }
+  /* An indeterminate progress bar: a segment sweeping across while work of unknown length runs. */
+  @keyframes wj-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+  }
+  .wj-sweep { animation: wj-sweep 1.4s var(--wj-ease) infinite; }
   .wj-animate-spin { animation: wj-spin 900ms linear infinite; }
   .wj-animate-pulse-dot { animation: wj-pulse-dot 1.6s ease-in-out infinite; }
   .wj-animate-fade-up { animation: wj-fade-up var(--wj-dur-slow) var(--wj-ease) both; }
@@ -346,5 +352,6 @@
     .wj-collar-left, .wj-collar-right, .wj-collar-tie, .wj-collar-knot { animation: none; }
     .wj-collar-knot { opacity: 0; }
     .wj-hero-in { animation: none; opacity: 1; }
+    .wj-sweep { animation: none; transform: none; width: 100%; opacity: 0.5; }
   }
 }
