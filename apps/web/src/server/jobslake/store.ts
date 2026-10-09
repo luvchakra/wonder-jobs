@@ -184,7 +184,7 @@ class SupabaseStore implements JobsLakeStore {
     const fb = await this.ready();
     if (fb) return fb.recordRuns(runs);
     if (!runs.length) return;
-    const rows = runs.map((r) => ({ id: r.id, source_id: r.sourceId, trigger: r.trigger, request_id: r.requestId ?? null, started_at: r.startedAt, duration_ms: r.durationMs, outcome: r.outcome, retrieved: r.retrieved, valid: r.valid, duplicates: r.duplicates, error_code: r.errorCode ?? null, message: r.message ?? null }));
+    const rows = runs.map((r) => ({ id: r.id, source_id: r.sourceId, trigger: r.trigger, request_id: r.requestId ?? null, started_at: r.startedAt, duration_ms: r.durationMs, outcome: r.outcome, retrieved: r.retrieved, valid: r.valid, duplicates: r.duplicates, error_code: r.errorCode ?? null, message: r.message ?? null, search: r.search ?? null }));
     const { error } = await this.sb().from("jobslake_runs").insert(rows);
     if (error) this.fail("record runs", error);
   }
@@ -196,7 +196,7 @@ class SupabaseStore implements JobsLakeStore {
     if (opts.sinceIso) q = q.gte("started_at", opts.sinceIso);
     const { data, error } = await q;
     if (error) this.fail("load runs", error);
-    return (data ?? []).map((r) => ({ id: r.id, sourceId: r.source_id, trigger: r.trigger, requestId: r.request_id ?? undefined, startedAt: new Date(r.started_at).toISOString(), durationMs: r.duration_ms, outcome: r.outcome, retrieved: r.retrieved, valid: r.valid, duplicates: r.duplicates, relevant: r.relevant ?? undefined, strong: r.strong ?? undefined, errorCode: r.error_code ?? undefined, message: r.message ?? undefined }));
+    return (data ?? []).map((r) => ({ id: r.id, sourceId: r.source_id, trigger: r.trigger, requestId: r.request_id ?? undefined, startedAt: new Date(r.started_at).toISOString(), durationMs: r.duration_ms, outcome: r.outcome, retrieved: r.retrieved, valid: r.valid, duplicates: r.duplicates, relevant: r.relevant ?? undefined, strong: r.strong ?? undefined, errorCode: r.error_code ?? undefined, message: r.message ?? undefined, search: r.search ?? undefined }));
   }
   async recordContribution(requestId: string, bySource: Record<string, { relevant: number; strong: number }>) {
     const fb = await this.ready();

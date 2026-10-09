@@ -16,7 +16,8 @@ import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/match
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { aiRankJobs } from "@/server/ai/rank";
 import { searchSource, SourceNeedsSetupError } from "@/server/jobs/search";
-import { breadthEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import { breadthEvidence, phrasingEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import { MAX_VARIANTS, ruleVariants } from "@/domain/jobs/variants";
 import type { SearchResponse } from "@/domain/jobslake/protocol";
 import { search as jobsLakeSearch } from "@/server/jobslake/core";
 import { jobsLakeFlags } from "@/server/jobslake/flags";
@@ -71,7 +72,11 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       // Through JobsLake when it's on: the same core search the browser's stream uses, called in-process.
       if (jobsLakeFlags().jobsLakeSearchEnabled && sources.length) {
         try {
-          const { response } = await jobsLakeSearch(searchRequestFor(criteria, sources.map((s) => s.id), "balanced", 500), { trigger: "search" });
+          // Scheduled runs search the same broader phrasings by rule (no model call on the cron).
+          const variants = ruleVariants(criteria.query).slice(0, MAX_VARIANTS);
+          const { response } = await jobsLakeSearch(searchRequestFor({ ...criteria, variants }, sources.map((s) => s.id), "balanced", 500), { trigger: "search" });
+          const said = phrasingEvidence(variants, []);
+          if (said) ctx.addEvidence(said);
           lake = response;
         } catch (e) {
           ctx.addEvidence({ label: "JobsLake", value: "Didn't answer — searched each source directly", tone: "warning" });
