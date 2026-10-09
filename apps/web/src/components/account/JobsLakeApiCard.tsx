@@ -39,6 +39,14 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
   const [name, setName] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Opened from the avatar menu's "API keys" (…#jobslake-api): show it open, not folded.
+  const [linked, setLinked] = useState(false);
+  useEffect(() => {
+    const check = () => setLinked(window.location.hash === "#jobslake-api");
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, []);
 
   const load = useCallback(async () => {
     const [s, k] = await fetchAll();
@@ -113,7 +121,7 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
 
   return (
     <div id="jobslake-api" className="mt-4 scroll-mt-20">
-      <Fold title="JobsLake API" hint={usage ?? "Search jobs from your own code"} open={returnState !== null || undefined}>
+      <Fold title="JobsLake API" hint={usage ?? "Search jobs from your own code"} open={returnState !== null || linked || undefined}>
         <div className="flex flex-col gap-4 text-[13px]">
           {!status && !keys && <p className="text-ink-3">The API isn&apos;t reachable just now.</p>}
 

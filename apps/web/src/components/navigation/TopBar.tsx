@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, CreditCard, Database, Download, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -163,6 +163,7 @@ export function TopBar() {
               ...(mode === "user"
                 ? [
                     { href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
+                    { href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
                     { href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
                     { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
                   ]
