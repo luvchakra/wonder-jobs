@@ -9,7 +9,7 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
-import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
+import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
  * Signed in = looking at relevant jobs. This screen is the job list, searched on open when it's
@@ -97,6 +97,7 @@ function JobsHome() {
           </div>
         }
         empty={<JobsEmpty search={search} />}
+        searching={search.active ? <SearchingPanel search={search} /> : null}
         searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
         sourceSearch={{
           run: (text, places) => {

@@ -298,6 +298,8 @@ describe("MCP adapter (WJ-JL-029)", () => {
   });
 
   it("search_jobs returns exactly what REST returns for the same request", async () => {
+    // Both calls must ask the sources; with the search cache on, the second would reuse the first's answers.
+    process.env.JOBSLAKE_CACHE_ENABLED = "false";
     const rest = await (await search(post("/v1/search", SEARCH, { authorization: `Bearer ${TOKEN}` }))).json();
     const viaMcp = (await (await mcp(rpc("tools/call", { name: "search_jobs", arguments: SEARCH }))).json()).result;
     expect(viaMcp.isError).toBe(false);
@@ -306,6 +308,7 @@ describe("MCP adapter (WJ-JL-029)", () => {
     const strip = (r: { requestId?: string; sources: { sourceId: string; durationMs: number }[] }) => ({ ...r, requestId: undefined, sources: r.sources.map((s) => ({ ...s, durationMs: 0 })).sort((a, b) => a.sourceId.localeCompare(b.sourceId)) });
     expect(strip(viaMcp.structuredContent)).toEqual(strip(rest));
     expect(JSON.parse(viaMcp.content[0].text).results).toEqual(rest.results);
+    delete process.env.JOBSLAKE_CACHE_ENABLED;
   });
 
   it("returns protocol errors as tool errors", async () => {

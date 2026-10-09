@@ -27,7 +27,7 @@ const PAGE = 24;
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
  * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, searching, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -146,7 +146,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         className="mb-4"
       />
       {results.length === 0 ? (
-        filterResult.hiddenTotal > 0 && !savedOnly ? (
+        searching && !savedOnly ? (
+          searching
+        ) : filterResult.hiddenTotal > 0 && !savedOnly ? (
           <FilteredBreakdown
             result={filterResult}
             onShowAnyway={() => {
