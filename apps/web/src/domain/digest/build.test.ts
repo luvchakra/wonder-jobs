@@ -30,15 +30,21 @@ describe("buildDigest — only what happened, from the account's own data", () =
       applications: [app({ followUps: [{ id: "f1", applicationId: "a1", kind: "interview", dueAt: ahead(30), note: "", done: false }] })],
     });
     expect(d.hasActivity).toBe(true);
-    expect(d.keyDetails[0].text).toBe("1 search reviewed 60 jobs and found 4 strong matches."); // the older run is outside the period
+    expect(d.keyDetails[0].text).toBe("1 search reviewed 60 jobs — 1 strong match in your list."); // the older run is outside the period
     expect(d.headsUp[0].text).toMatch(/^Interview for IAM Director at Acme on /);
     expect(d.headsUp.map((h) => h.text)).toContain("1 strong match is waiting for you to decide.");
     expect(d.headsUp.find((h) => h.text.startsWith("1 strong match"))?.href).toBe("/app/jobs?fit=strong");
     expect(d.cta).toEqual({ label: "Prepare for your interview", href: "/app/applications/a1" });
     expect(d.dependencies.map((x) => x.text)).toEqual(expect.arrayContaining(["Add the role you want — searches need it."]));
-    expect(d.goingWell[0].text).toBe("Wonder found 4 strong matches for you.");
+    expect(d.goingWell[0].text).toBe("You have 1 strong match to choose from.");
     expect(d.subject).toMatch(/^Your WonderJobs digest: interview /);
     expect(d.facts.find((f) => f.key === "activity.strongFound")?.value).toBe("4");
+    expect(d.stats).toMatchObject({ strongMatches: 1, searches: 1, reviewed: 60, strongFound: 4, saved: 1 });
+    // Same count as the Jobs list's "Strong" view: saved ones still count, turned-down ones don't.
+    const both = buildDigest({ ...base, jobs: { j1: job, j2: { ...job, id: "j2" }, j3: { ...job, id: "j3" } }, matches: { j1: { jobId: "j1", fit: "strong" } as JobMatch, j2: { jobId: "j2", fit: "strong" } as JobMatch, j3: { jobId: "j3", fit: "strong" } as JobMatch }, saved: { j1: ago(1) }, rejected: { j3: ago(1) } });
+    expect(both.stats.strongMatches).toBe(2);
+    expect(both.facts.find((f) => f.key === "waiting.strongMatches")?.value).toBe("1");
+    expect(d.topMatches).toEqual([{ jobId: "j2", title: "IAM Director", company: "Acme", location: undefined, href: "/app/jobs/j2" }]);
   });
 
   it("flags searches with no strong match and quiet applications, with rule suggestions", () => {
@@ -59,7 +65,10 @@ describe("AI suggestions and the email", () => {
     const mail = renderDigestEmail({ ...d, suggestions: [{ text: "Try <b>this</b>", origin: "ai" }] }, { origin: "https://jobs.example", name: "Asha", unsubscribeUrl: "https://jobs.example/api/digest/unsubscribe?u=x&s=y" });
     expect(mail.html).toContain("Try &lt;b&gt;this&lt;/b&gt;");
     expect(mail.html).toContain("Suggested by AI");
-    expect(mail.html).toContain('href="https://jobs.example/app/jobs"');
+    expect(mail.html).toContain('href="https://jobs.example/app/jobs?fit=strong"');
+    expect(mail.html).toContain("Jobs reviewed");
+    expect(mail.html).toMatch(/<td width="100%" style="background:#4f46e5/); // the largest funnel stage fills its row
+    expect(mail.text).toContain("Reviewed: 60 · Strong matches: 0");
     expect(mail.text).toContain("Stop these emails: https://jobs.example/api/digest/unsubscribe?u=x&s=y");
   });
 });

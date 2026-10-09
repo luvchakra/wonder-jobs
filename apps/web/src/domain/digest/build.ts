@@ -54,6 +54,10 @@ export interface Digest {
   needsImprovement: DigestItem[];
   suggestions: DigestItem[];
   facts: DigestFact[];
+  /** The numbers for the email's tiles and funnel — the same counts as `facts`. `strongMatches` is the Jobs list's "Strong" count now; the rest are the period's. */
+  stats: { strongMatches: number; searches: number; reviewed: number; strongFound: number; saved: number; applied: number; interviews: number; offers: number };
+  /** Up to three strong matches still waiting on a decision, best first. */
+  topMatches: { jobId: string; title: string; company: string; location?: string; href: string }[];
   /** A short subject line from the most important things. */
   subject: string;
 }
@@ -101,6 +105,16 @@ export function buildDigest(input: DigestInput): Digest {
   const strongWaiting = Object.values(input.matches).filter((m) => m.fit === "strong" && input.jobs[m.jobId] && !acted.has(m.jobId)).length;
   const quiet = apps.filter((a) => a.status === "submitted" && a.appliedAt && t - Date.parse([a.appliedAt, ...a.events.map((e) => e.at)].sort().at(-1)!) > 14 * DAY);
   const forReview = apps.filter((a) => a.status === "ready_for_review").length;
+  // The same set the Jobs list shows under "Strong" (/app/jobs?fit=strong): every strong match not turned down.
+  const strongNow = Object.values(input.matches).filter((m) => m.fit === "strong" && input.jobs[m.jobId] && !input.rejected[m.jobId]).length;
+  const topMatches = Object.values(input.matches)
+    .filter((m) => m.fit === "strong" && input.jobs[m.jobId] && !acted.has(m.jobId))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((m) => {
+      const j = input.jobs[m.jobId];
+      return { jobId: m.jobId, title: j.title, company: j.company, location: j.location || undefined, href: `/app/jobs/${encodeURIComponent(m.jobId)}` };
+    });
   const toConfirm = input.learnedSignals.filter((s) => s.status === "suggested").length;
 
   const facts: DigestFact[] = [];
@@ -116,6 +130,7 @@ export function buildDigest(input: DigestInput): Digest {
   fact("activity.applied", "Applications sent", submitted);
   fact("activity.interviews", "Applications moved to interview", interviews);
   fact("activity.offers", "Offers", offers);
+  fact("jobs.strongMatches", "Strong matches in your jobs list (not turned down)", strongNow);
   fact("waiting.strongMatches", "Strong matches not yet saved, applied to or turned down", strongWaiting);
   fact("waiting.interviewsThisWeek", "Interviews in the next 7 days", interviewsSoon.length);
   fact("waiting.overdueFollowUps", "Overdue follow-ups", overdue.length);
@@ -128,7 +143,8 @@ export function buildDigest(input: DigestInput): Digest {
 
   // ---- key details
   const keyDetails: DigestItem[] = [];
-  if (searches.length) keyDetails.push({ text: `${plural(searches.length, "search", "searches")} reviewed ${plural(reviewed, "job")} and found ${plural(strongFound, "strong match", "strong matches")}.`, href: "/app/jobs" });
+  // Strong matches are counted once each (the Jobs list's count), not summed per search — reruns find the same jobs.
+  if (searches.length) keyDetails.push({ text: `${plural(searches.length, "search", "searches")} reviewed ${plural(reviewed, "job")}${strongFound ? ` — ${plural(strongNow, "strong match", "strong matches")} in your list` : ""}.`, href: strongFound ? STRONG_HREF : "/app/jobs" });
   if (saved || rejected) keyDetails.push({ text: [saved && `You saved ${plural(saved, "job")}`, rejected && `marked ${plural(rejected, "job")} not for me`].filter(Boolean).join(" and ") + ".", href: "/app/jobs" });
   if (newApps || submitted) keyDetails.push({ text: [newApps && `${plural(newApps, "application")} started`, submitted && `${plural(submitted, "application")} sent`].filter(Boolean).join(", ") + ".", href: "/app/applications" });
   if (interviews) keyDetails.push({ text: `${plural(interviews, "application")} moved to interview.`, href: "/app/applications" });
@@ -168,7 +184,7 @@ export function buildDigest(input: DigestInput): Digest {
 
   // ---- going well / needs improvement
   const goingWell: DigestItem[] = [];
-  if (strongFound) goingWell.push({ text: `Wonder found ${plural(strongFound, "strong match", "strong matches")} for you.` });
+  if (strongFound && strongNow) goingWell.push({ text: `You have ${plural(strongNow, "strong match", "strong matches")} to choose from.` });
   if (submitted) goingWell.push({ text: `You sent ${plural(submitted, "application")}.` });
   if (interviews) goingWell.push({ text: `${plural(interviews, "application")} reached interview.` });
   if (offers) goingWell.push({ text: `${plural(offers, "offer")} came in.` });
@@ -189,10 +205,11 @@ export function buildDigest(input: DigestInput): Digest {
   if (strongWaiting >= 3 && !submitted) suggestions.push({ text: "Pick your two strongest matches and start an application today.", href: STRONG_HREF, origin: "rules" });
 
   const hasActivity = !!(searches.length || failed.length || saved || rejected || newApps || submitted || interviews || offers || profileUpdated || learned || answers);
-  const subjectBits = [interviewsSoon.length && `interview ${day(interviewsSoon[0].f.dueAt)}`, strongFound && plural(strongFound, "strong match", "strong matches"), submitted && plural(submitted, "application") + " sent", overdue.length && plural(overdue.length, "follow-up") + " overdue"].filter(Boolean) as string[];
+  const subjectBits = [interviewsSoon.length && `interview ${day(interviewsSoon[0].f.dueAt)}`, strongFound && strongNow && plural(strongNow, "strong match", "strong matches"), submitted && plural(submitted, "application") + " sent", overdue.length && plural(overdue.length, "follow-up") + " overdue"].filter(Boolean) as string[];
   const subject = subjectBits.length ? `Your WonderJobs digest: ${subjectBits.slice(0, 2).join(", ")}` : "Your WonderJobs digest";
 
-  return { since, until: now.toISOString(), hasActivity, keyDetails, headsUp, cta, dependencies, goingWell, needsImprovement, suggestions, facts, subject };
+  const stats = { strongMatches: strongNow, searches: searches.length, reviewed, strongFound, saved, applied: submitted, interviews, offers };
+  return { since, until: now.toISOString(), hasActivity, keyDetails, headsUp, cta, dependencies, goingWell, needsImprovement, suggestions, facts, stats, topMatches, subject };
 }
 
 /**
