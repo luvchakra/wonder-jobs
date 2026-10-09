@@ -247,3 +247,30 @@ describe("mapForm — the owner's form, end to end", () => {
     expect(interventions[0].suggestion).toMatchObject({ value: "v2", provenance: "AI_DERIVED" });
   });
 });
+
+describe("phone — a form that asks for the country code apart", () => {
+  const withPhone: CareerDNA = { ...dna, history: { ...dna.history!, contact: { ...dna.history!.contact, phone: "+91 63073 18656" } } };
+  it("puts the national number in the phone box and picks the code from the list", () => {
+    const m = mapOne(
+      [
+        f("Country Phone Code", { id: "cc", type: "select", options: opts("United States of America (+1)", "India (+91)", "Indonesia (+62)") }),
+        f("Phone Number", { id: "ph" }),
+      ],
+      withPhone,
+    );
+    expect(m.cc).toMatchObject({ status: "pending", value: "v1" });
+    expect(m.ph).toMatchObject({ status: "pending", value: "6307318656" });
+  });
+  it("keeps the full number when the form has one phone box", () => {
+    expect(mapOne([f("Phone Number", { id: "ph" })], withPhone).ph).toMatchObject({ value: "+91 63073 18656" });
+  });
+  it("never reads +91 as +910", () => {
+    expect(matchChoice(f("Code", { type: "select", options: opts("+910 Test", "India (+91)") }), "+91", "phoneCountryCode")).toBe("v1");
+  });
+});
+
+describe("phone extension", () => {
+  it("is never given the phone number", () => {
+    expect(classifyField(f("Phone Extension")).target).toEqual({ kind: "none" });
+  });
+});

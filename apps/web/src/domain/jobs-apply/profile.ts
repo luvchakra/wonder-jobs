@@ -107,6 +107,12 @@ export function buildApplicationProfile(dna: CareerDNA, opts: { accountEmail?: s
   // The account's sign-in email is verified by the auth provider; a Career Profile email is the candidate's own.
   put("email", v(c.email, "USER_PROVIDED") ?? v(opts.accountEmail, "VERIFIED"));
   put("phone", v(c.phone, "USER_PROVIDED"));
+  // "+91 63073 18656" → "+91" and "6307318656", for forms that ask for the code and the number apart.
+  const intl = /^\s*\+(\d{1,3})[\s.-]*(.+)$/.exec(c.phone ?? "");
+  if (intl) {
+    put("phoneCountryCode", v(`+${intl[1]}`, "USER_PROVIDED", 0.95));
+    put("phoneNational", v(intl[2].replace(/\D/g, ""), "USER_PROVIDED", 0.95));
+  }
   put("linkedinUrl", v(c.linkedinUrl, "USER_PROVIDED"));
   put("portfolioUrl", v(c.portfolioUrl, "USER_PROVIDED"));
   put("websiteUrl", v(c.websiteUrl, "USER_PROVIDED"));
@@ -199,6 +205,8 @@ export const PROFILE_LABEL: Record<keyof ApplicationProfile, string> = {
   fullName: "Full name",
   email: "Email",
   phone: "Phone",
+  phoneCountryCode: "Phone country code",
+  phoneNational: "Phone number (without country code)",
   addressLine1: "Address line 1",
   addressLine2: "Address line 2",
   city: "City",

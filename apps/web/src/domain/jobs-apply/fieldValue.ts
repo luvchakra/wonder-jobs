@@ -69,6 +69,13 @@ export function matchChoice(field: ApplicationField, value: string, key?: Profil
   const same = only(opts.filter((o) => norm(o.label) === nv || norm(o.value) === nv));
   if (same) return same.value;
 
+  if (key === "phoneCountryCode") {
+    // "+91" → "India (+91)", "+91", "IN +91" — the digits as a whole code, never "+910".
+    const digits = value.replace(/\D/g, "");
+    const code = new RegExp(`(\\+\\s?|\\()${digits}(?!\\d)`);
+    const hit = only(opts.filter((o) => code.test(o.label) || o.value.replace(/\D/g, "") === digits));
+    if (hit) return hit.value;
+  }
   if (key === "country") {
     const names = countryAliases(value).map(norm);
     const hit = only(opts.filter((o) => names.includes(norm(o.label)) || names.includes(norm(o.value))));
