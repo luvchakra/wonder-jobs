@@ -23,6 +23,8 @@ import { track } from "@/lib/analytics";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Fold } from "@/components/common/Fold";
+import { RunProgress } from "@/components/workflow/RunProgress";
+import { runningRuns } from "@/domain/workflow/running";
 import { Button } from "@/components/common/Button";
 import { Select, Switch } from "@/components/common/Input";
 import { EmptyState } from "@/components/common/States";
@@ -120,6 +122,8 @@ export function ScheduledSearchList() {
         <ul className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-surface">
           {schedules.map((s) => {
             const last = s.lastRunId ? runs[s.lastRunId] : undefined;
+            // A run of this search going on right now — shown on the row until it ends.
+            const live = last && runningRuns({ [last.id]: last }).length ? last : undefined;
             const workflow = workflows[s.workflowId];
             const when = s.trigger === "schedule" ? `${describeSchedule(s)}${s.condition.key === "always" ? "" : ` · only if ${CONDITION[s.condition.key] ?? s.condition.key.replace("_", " ")}`}` : "Runs when you start it";
             const lastLine = s.lastRunAt
@@ -137,12 +141,13 @@ export function ScheduledSearchList() {
                     </span>
                     <span className="block text-[13px] text-ink-2">{when}</span>
                     <span className={`block text-[12px] ${last?.status === "FAILED" ? "text-danger-600" : "text-ink-3"}`}>
-                      {lastLine}
+                      {live ? `Started ${relativeTime(live.createdAt)}` : lastLine}
                       {s.enabled && s.nextRunAt ? ` · next ${relativeTime(s.nextRunAt)}` : !s.enabled ? " · paused" : ""}
                     </span>
                   </button>
                   <Switch checked={s.enabled} onChange={(v) => (!v || allowed(s, s.id)) && upsert({ ...s, enabled: v })} label={`${s.name} on`} />
                 </div>
+                {live && <RunProgress run={live} className="mt-3" />}
                 {expanded && (
                   <div className="mt-3 grid gap-3 rounded-[12px] bg-surface-2 p-3 sm:grid-cols-2">
                     {s.trigger === "schedule" && (
@@ -182,8 +187,8 @@ export function ScheduledSearchList() {
                       </Select>
                     </label>
                     <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
-                      <Button size="sm" variant="outline" icon={<Play className="size-4" aria-hidden />} onClick={() => runNow(s)} disabled={!workflow}>
-                        Run now
+                      <Button size="sm" variant="outline" icon={<Play className="size-4" aria-hidden />} onClick={() => runNow(s)} disabled={!workflow || !!live}>
+                        {live ? "Running…" : "Run now"}
                       </Button>
                       <Link href={`/app/automation/scheduled/${s.id}`} className="text-[13px] font-medium text-brand-600 hover:underline">
                         Change what it searches
