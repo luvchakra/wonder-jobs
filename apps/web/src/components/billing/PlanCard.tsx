@@ -211,6 +211,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
                   {l.scheduledSearches} scheduled search{l.scheduledSearches === 1 ? "" : "es"}{l.dailySearches ? ", daily" : ", weekly"}{l.keepWatch ? ", keep watch" : ""} · {l.aiDraftsPerMonth} AI drafts a month · {l.roles} role{l.roles === 1 ? "" : "s"} · {l.resumeTemplates >= 8 ? "all" : l.resumeTemplates} résumé designs
                   {l.applyWithWonder ? " · Apply with Wonder" : ""}
                   {l.atsReport ? " · ATS report" : ""}
+                  {(l.highlights ?? []).map((h) => ` · ${h}`).join("")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ready.map(({ provider }) => (

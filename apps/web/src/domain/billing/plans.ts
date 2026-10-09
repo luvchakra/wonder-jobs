@@ -31,6 +31,8 @@ export interface PlanLimits {
   resumeTemplates: number;
   atsReport: boolean;
   applyWithWonder: boolean;
+  /** Extra lines the operator adds to this plan's description on pricing, shown as written. Display only — nothing enforces them. */
+  highlights: string[];
 }
 
 export interface PriceRefs {
@@ -50,9 +52,9 @@ export interface PlansConfig {
 
 export const DEFAULT_PLANS: PlansConfig = {
   plans: {
-    free: { label: "Free", tagline: "Looking casually", priceMinor: 0, currency: "INR", scheduledSearches: 1, dailySearches: false, keepWatch: false, aiDraftsPerMonth: 5, roles: 1, resumeTemplates: 2, atsReport: false, applyWithWonder: false },
-    pro: { label: "Pro", tagline: "Actively applying", priceMinor: 49_900, currency: "INR", scheduledSearches: 3, dailySearches: true, keepWatch: false, aiDraftsPerMonth: 60, roles: 3, resumeTemplates: 8, atsReport: false, applyWithWonder: true },
-    max: { label: "Max", tagline: "Senior, or several roles at once", priceMinor: 129_900, currency: "INR", scheduledSearches: 10, dailySearches: true, keepWatch: true, aiDraftsPerMonth: 300, roles: 6, resumeTemplates: 8, atsReport: true, applyWithWonder: true },
+    free: { label: "Free", tagline: "Looking casually", priceMinor: 0, currency: "INR", scheduledSearches: 1, dailySearches: false, keepWatch: false, aiDraftsPerMonth: 5, roles: 1, resumeTemplates: 2, atsReport: false, applyWithWonder: false, highlights: [] },
+    pro: { label: "Pro", tagline: "Actively applying", priceMinor: 49_900, currency: "INR", scheduledSearches: 3, dailySearches: true, keepWatch: false, aiDraftsPerMonth: 60, roles: 3, resumeTemplates: 8, atsReport: false, applyWithWonder: true, highlights: [] },
+    max: { label: "Max", tagline: "Senior, or several roles at once", priceMinor: 129_900, currency: "INR", scheduledSearches: 10, dailySearches: true, keepWatch: true, aiDraftsPerMonth: 300, roles: 6, resumeTemplates: 8, atsReport: true, applyWithWonder: true, highlights: [] },
   },
   priceRefs: { pro: {}, max: {} },
 };
@@ -71,6 +73,7 @@ export const LimitsSchema = z
     resumeTemplates: z.number().int().min(0).max(100),
     atsReport: z.boolean(),
     applyWithWonder: z.boolean(),
+    highlights: z.array(z.string().trim().min(1).max(90)).max(10),
   })
   .partial();
 const RefsSchema = z.object({ stripe: z.string().trim().max(200).optional(), razorpay: z.string().trim().max(200).optional(), previous: z.array(z.string().trim().min(1).max(200)).max(200).optional() }).partial();

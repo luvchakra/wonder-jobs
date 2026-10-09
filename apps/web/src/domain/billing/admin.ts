@@ -84,9 +84,9 @@ export const ApiPlanInput = z
 export type ApiPlanInput = z.infer<typeof ApiPlanInput>;
 
 /** The fields the Plans & features page changes — never prices, currencies or provider ids (those live on Prices). */
-export const FEATURE_KEYS = ["label", "tagline", "scheduledSearches", "dailySearches", "keepWatch", "aiDraftsPerMonth", "roles", "resumeTemplates", "atsReport", "applyWithWonder"] as const satisfies readonly (keyof PlanLimits)[];
+export const FEATURE_KEYS = ["label", "tagline", "scheduledSearches", "dailySearches", "keepWatch", "aiDraftsPerMonth", "roles", "resumeTemplates", "atsReport", "applyWithWonder", "highlights"] as const satisfies readonly (keyof PlanLimits)[];
 
-const Features = LimitsSchema.pick({ label: true, tagline: true, scheduledSearches: true, dailySearches: true, keepWatch: true, aiDraftsPerMonth: true, roles: true, resumeTemplates: true, atsReport: true, applyWithWonder: true });
+const Features = LimitsSchema.pick({ label: true, tagline: true, scheduledSearches: true, dailySearches: true, keepWatch: true, aiDraftsPerMonth: true, roles: true, resumeTemplates: true, atsReport: true, applyWithWonder: true, highlights: true });
 /** Plans & features: per plan, only the feature fields (anything else sent is dropped). */
 export const PlanFeaturesInput = z.object({ plans: z.object({ free: Features, pro: Features, max: Features }).partial() });
 export type PlanFeaturesInput = z.infer<typeof PlanFeaturesInput>;
@@ -102,7 +102,8 @@ export function diffPlans(before: PlansConfig, after: PlansConfig): FieldChange[
   const out: FieldChange[] = [];
   for (const id of PLAN_IDS) {
     for (const key of Object.keys(after.plans[id]) as (keyof PlanLimits)[]) {
-      if (before.plans[id][key] !== after.plans[id][key]) out.push({ field: `${id}.${key}`, from: before.plans[id][key], to: after.plans[id][key] });
+      // Lists (highlights) compare by content, not identity.
+      if (JSON.stringify(before.plans[id][key]) !== JSON.stringify(after.plans[id][key])) out.push({ field: `${id}.${key}`, from: before.plans[id][key], to: after.plans[id][key] });
     }
   }
   for (const id of ["pro", "max"] as const) {

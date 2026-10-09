@@ -141,6 +141,16 @@ describe("plans & features", () => {
     expect(entry).toMatchObject({ actor: ADMIN, action: "billing.plans.saved", detail: { changes: [{ field: "pro.roles", from: 3, to: 4 }] } });
   });
 
+  it("saves extra pricing lines as one change, and an identical save as none", async () => {
+    asAdmin();
+    const body = { plans: { pro: { highlights: ["Priority support"] } } };
+    const res = await plansRoute.PUT(req("PUT", body));
+    expect(res.status).toBe(200);
+    expect((await res.json()).changes).toEqual([{ field: "pro.highlights", from: [], to: ["Priority support"] }]);
+    expect((await getPlansConfig()).plans.pro.highlights).toEqual(["Priority support"]);
+    expect((await (await plansRoute.PUT(req("PUT", body))).json()).changes).toEqual([]);
+  });
+
   it("refuses an invalid value with a reason", async () => {
     asAdmin();
     const res = await plansRoute.PUT(req("PUT", { plans: { pro: { roles: 0 } } }));
