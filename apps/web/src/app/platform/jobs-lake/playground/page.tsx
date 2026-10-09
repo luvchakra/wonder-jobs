@@ -76,12 +76,13 @@ export default function PlaygroundPage() {
           {!out && !error && <Panel><p className="py-8 text-center text-[13px] text-ink-4">Results, per-source outcomes and the search plan appear here.</p></Panel>}
           {out && (
             <>
-              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-6">
                 {[
                   ["Retrieved", out.response.metadata.retrieved],
                   ["Duplicates", out.response.metadata.duplicates],
                   ["Unique", out.response.metadata.unique],
                   ["From warm pool", out.response.metadata.warm],
+                  ["Sources from cache", out.response.metadata.cached ?? 0],
                   ["Sources answered", `${out.response.metadata.sourcesSucceeded}/${out.response.metadata.sourcesPlanned}`],
                 ].map(([k, v]) => (
                   <div key={k as string} className="rounded-[12px] border border-line bg-surface p-2">

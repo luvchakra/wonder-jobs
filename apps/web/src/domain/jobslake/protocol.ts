@@ -177,6 +177,8 @@ export interface SearchRequest {
   limit: number;
   /** End-to-end correlation (spec §83). Opaque to JobsLake. */
   correlationId?: string;
+  /** "refresh" asks every source again instead of reusing a recent answer to the same search. Default "use". */
+  cache?: "use" | "refresh";
 }
 
 export type SourceOutcome = "ok" | "empty" | "needs_setup" | "timeout" | "unavailable" | "skipped";
@@ -190,6 +192,10 @@ export interface SourceSearchStatus {
   /** Safe, human-readable — never a credential, hostname-internal detail or stack trace. */
   message?: string;
   runId?: string;
+  /** Set when this source's jobs are a cached answer to the same search rather than a fetch just now. */
+  cachedAt?: string;
+  /** "fresh": a recent answer reused, the source wasn't asked. "fallback": the source failed now, so its last answer stands in. */
+  cacheUse?: "fresh" | "fallback";
 }
 
 export interface SearchMetadata {
@@ -202,6 +208,8 @@ export interface SearchMetadata {
   sourcesFailed: number;
   warm: number;
   live: number;
+  /** Sources whose jobs came from the search cache (fresh or fallback) instead of a fetch just now. */
+  cached?: number;
 }
 
 export interface SearchResponse {

@@ -9,6 +9,8 @@ export interface JobsLakeFlags {
   jobsLakeWarmPoolEnabled: boolean;
   jobsLakeMcpEnabled: boolean;
   jobsLakeAdminEnabled: boolean;
+  /** Reuse a source's answer for the next similar search (domain/jobslake/cache.ts). */
+  jobsLakeCacheEnabled: boolean;
 }
 
 const on = (name: string, dflt: boolean) => {
@@ -27,5 +29,6 @@ export function jobsLakeFlags(): JobsLakeFlags {
     // MCP is off unless explicitly turned on, and even then needs JOBSLAKE_MCP_TOKEN.
     jobsLakeMcpEnabled: enabled && on("JOBSLAKE_MCP_ENABLED", false),
     jobsLakeAdminEnabled: enabled && on("JOBSLAKE_ADMIN_ENABLED", true),
+    jobsLakeCacheEnabled: enabled && on("JOBSLAKE_CACHE_ENABLED", true),
   };
 }
