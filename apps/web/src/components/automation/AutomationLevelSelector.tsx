@@ -1,19 +1,21 @@
 "use client";
 import { Check } from "lucide-react";
-import { AUTOMATION_LEVELS, AUTOMATION_LEVEL_META, type AutomationLevel } from "@/domain/automation/policy";
+import { AUTOMATION_LEVEL_META, OFFERED_LEVELS, offeredLevel, type AutomationLevel } from "@/domain/automation/policy";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/common/Badge";
 
 /**
- * "How much should Wonder handle?" `layout="grid"` is the compact 2×2 choice used on Find, with the
- * selected level's precise description underneath; `list` shows every description inline.
+ * "How much should Wonder handle?" — two choices: Work with me, or Work independently. A level saved
+ * before (Help me, Keep watch) shows as the nearest of the two. `layout="grid"` puts them side by side
+ * with the selected one's precise description underneath; `list` shows the description inline.
  */
-export function AutomationLevelSelector({ value, onChange, className, compact = false, layout = "list" }: { value: AutomationLevel; onChange: (v: AutomationLevel) => void; className?: string; compact?: boolean; layout?: "list" | "grid" }) {
+export function AutomationLevelSelector({ value: saved, onChange, className, compact = false, layout = "list" }: { value: AutomationLevel; onChange: (v: AutomationLevel) => void; className?: string; compact?: boolean; layout?: "list" | "grid" }) {
+  const value = offeredLevel(saved);
   if (layout === "grid") {
     return (
       <div className={className}>
-        <div role="radiogroup" aria-label="How much should Wonder handle?" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          {AUTOMATION_LEVELS.map((level) => {
+        <div role="radiogroup" aria-label="How much should Wonder handle?" className="grid grid-cols-2 gap-2">
+          {OFFERED_LEVELS.map((level) => {
             const meta = AUTOMATION_LEVEL_META[level];
             const active = value === level;
             return (
@@ -46,7 +48,7 @@ export function AutomationLevelSelector({ value, onChange, className, compact = 
   }
   return (
     <div role="radiogroup" aria-label="How much should Wonder handle?" className={cn("flex flex-col gap-2", className)}>
-      {AUTOMATION_LEVELS.map((level) => {
+      {OFFERED_LEVELS.map((level) => {
         const meta = AUTOMATION_LEVEL_META[level];
         const active = value === level;
         return (

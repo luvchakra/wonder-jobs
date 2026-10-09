@@ -234,7 +234,8 @@ test.describe("Golden journey — automation (demo mode)", () => {
     await page.goto("/demo?next=/app/automation/settings");
     await expect(page.getByRole("heading", { name: "Automation" })).toBeVisible();
     // Phase 3.2 relabeling — plain language, not internal jargon.
-    for (const label of ["Help me", "Work with me", "Work independently", "Keep watch"]) {
+    // Two choices (owner decision, 2026-10-09): Help me folded into Work with me, Keep watch into Work independently.
+    for (const label of ["Work with me", "Work independently"]) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();
     }
     // Per-action rules are folded under "Change one action".

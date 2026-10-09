@@ -11,6 +11,7 @@ import { AutomationPolicyEditor } from "@/components/automation/AutomationPolicy
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { toast } from "@/components/feedback/Toast";
 import { ScheduledSearchList } from "@/components/automation/ScheduledSearchList";
+import { METHOD_LABEL } from "@/components/jobs-apply/Preflight";
 
 // Shown in the order a search happens, in plain words. The internal pipeline steps are folded into one.
 const SHOWN: { keys: Capability[]; label: string }[] = [
@@ -44,6 +45,8 @@ export default function AutomationSettingsPage() {
   const resetPolicy = useAutomationStore((s) => s.resetPolicy);
   const level = useAutomationStore((s) => s.defaultLevel);
   const setLevel = useAutomationStore((s) => s.setDefaultLevel);
+  const applyMethod = useAutomationStore((s) => s.applyMethod) ?? "helper";
+  const setApplyMethod = useAutomationStore((s) => s.setApplyMethod);
   const rows = useMemo(
     () => [
       ...SHOWN.map((s) => {
@@ -60,6 +63,16 @@ export default function AutomationSettingsPage() {
       <PageHeader title="Automation" description="How much Wonder does on its own, and when it searches without you. Sending is always your click; submitting only if you turn on Submit applications." />
       <Card className="mb-4">
         <AutomationLevelSelector value={level} onChange={setLevel} compact />
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="text-[13px] font-medium text-ink">How you apply</p>
+          <div role="radiogroup" aria-label="How you apply" className="mt-2 flex flex-wrap gap-2">
+            {(["helper", "guided", "pack"] as const).map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={applyMethod === m} onClick={() => setApplyMethod(m)} className={`rounded-full border px-3 py-1.5 text-[13px] ${applyMethod === m ? "border-brand-500 bg-brand-50 font-medium text-brand-700" : "border-line text-ink-2 hover:border-line-strong"}`}>
+                {METHOD_LABEL[m]}
+              </button>
+            ))}
+          </div>
+        </div>
       </Card>
       <Card className="mb-4">
         <h2 className="text-[15px] font-semibold text-ink">With “{AUTOMATION_LEVEL_META[level].label}”, Wonder…</h2>
