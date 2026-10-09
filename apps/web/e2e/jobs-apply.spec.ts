@@ -106,7 +106,8 @@ async function openApply(page: Page) {
 
 /** Start with the browser helper; returns the employer tab it opened. */
 async function startWithHelper(page: Page, context: BrowserContext): Promise<Page> {
-  await expect(page.getByRole("radio", { name: /Fill it in with the browser helper/ })).toHaveAttribute("aria-checked", "true");
+  // The helper is the default way to apply, set once in Automation (WJ-272) and shown as a summary line.
+  await expect(page.getByText("Fill it in with the browser helper", { exact: true })).toBeVisible();
   const [employer] = await Promise.all([context.waitForEvent("page"), page.getByRole("button", { name: "Start application" }).click()]);
   await employer.waitForLoadState("domcontentloaded");
   await expect(employer).toHaveURL(/^https:\/\//, { timeout: 15_000 });
