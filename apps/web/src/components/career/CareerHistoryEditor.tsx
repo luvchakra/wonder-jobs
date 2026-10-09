@@ -247,6 +247,14 @@ const CONTACT: { key: keyof CareerContact; label: string; check?: (v: string) =>
   { key: "websiteUrl", label: "Website", check: (v) => isHttpUrl(normalizeUrl(v)) },
 ];
 
+/** Asked by application forms, never printed on a résumé. */
+const ADDRESS: { key: keyof CareerContact; label: string; placeholder?: string }[] = [
+  { key: "addressLine1", label: "Address line 1", placeholder: "Street, building" },
+  { key: "addressLine2", label: "Address line 2" },
+  { key: "state", label: "State / province" },
+  { key: "postalCode", label: "Postal / PIN code" },
+];
+
 export function CareerHistoryEditor({ value, onChange }: { value: CareerHistory; onChange: (h: CareerHistory) => void }) {
   const setContact = (k: keyof CareerContact, v: string) => {
     const t = v.trim();
@@ -269,6 +277,19 @@ export function CareerHistoryEditor({ value, onChange }: { value: CareerHistory;
             );
           })}
         </div>
+        <details className="group mt-3">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[13px] font-medium text-ink-3 [&::-webkit-details-marker]:hidden">
+            Postal address <span className="font-normal">· for application forms, not shown on résumés</span>
+            <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {ADDRESS.map((c) => (
+              <Field key={c.key} label={c.label} htmlFor={`contact-${c.key}`}>
+                <Input id={`contact-${c.key}`} defaultValue={value.contact[c.key] ?? ""} placeholder={c.placeholder} onBlur={(e) => setContact(c.key, e.target.value)} autoComplete="off" />
+              </Field>
+            ))}
+          </div>
+        </details>
       </section>
       <Field label="Professional summary" hint="In your words. Résumés show it as written." htmlFor="hist-summary">
         <Textarea id="hist-summary" defaultValue={value.summary ?? ""} onBlur={(e) => onChange({ ...value, summary: e.target.value.trim() || undefined })} className="min-h-24" />

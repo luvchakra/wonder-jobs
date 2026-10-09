@@ -35,6 +35,8 @@ export const PackSchema = z.object({
   resume: packFile.optional(),
   coverLetter: packFile.extend({ text: str(20_000).optional() }).optional(),
   answers: z.array(z.object({ id: str(80), question: str(1000), answer: str(5000), provenance: z.enum(["AI_GENERATED", "USER_MODIFIED", "USER_PROVIDED"]) })).max(40),
+  education: z.array(z.object({ institution: str(300), degree: str(300).optional(), degreeType: str(40).optional(), field: str(300).optional(), startDate: str(20).optional(), endDate: str(20).optional(), provenance })).max(20).optional(),
+  experience: z.array(z.object({ employer: str(300), title: str(300), location: str(200).optional(), startDate: str(20).optional(), endDate: str(20).optional(), current: z.boolean().optional(), provenance })).max(40).optional(),
   version: str(80).min(1),
   capturedAt: str(40),
 });
@@ -73,7 +75,7 @@ export const FieldSchema = z
     type: fieldType,
     required: z.boolean(),
     options: z.array(z.object({ label: str(200), value: str(200) }).strict()).max(300).optional(),
-    hints: z.object({ name: str(200).optional(), id: str(200).optional(), autocomplete: str(80).optional(), placeholder: str(200).optional(), aria: str(300).optional() }).strict().optional(),
+    hints: z.object({ name: str(200).optional(), id: str(200).optional(), autocomplete: str(80).optional(), placeholder: str(200).optional(), aria: str(300).optional(), section: str(200).optional() }).strict().optional(),
     step: z.number().int().min(1).max(50).optional(),
     hasValue: z.boolean().optional(),
   })

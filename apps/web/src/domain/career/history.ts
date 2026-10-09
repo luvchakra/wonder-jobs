@@ -23,6 +23,11 @@ export interface CareerContact {
   linkedinUrl?: string;
   portfolioUrl?: string;
   websiteUrl?: string;
+  /** Postal address, asked by many application forms; never printed on a résumé. */
+  addressLine1?: string;
+  addressLine2?: string;
+  state?: string;
+  postalCode?: string;
 }
 
 export interface CareerBullet {

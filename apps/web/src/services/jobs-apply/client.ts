@@ -6,7 +6,7 @@
  */
 import type { Application, ArtifactType } from "@/domain/applications/types";
 import type { CareerDNA } from "@/domain/career/types";
-import { buildApplicationProfile, PROFILE_LABEL } from "@/domain/jobs-apply/profile";
+import { buildApplicationProfile, educationFacts, experienceFacts, PROFILE_LABEL } from "@/domain/jobs-apply/profile";
 import type { ApplyProgress } from "@/domain/jobs-apply/mapper";
 import type { FillDecision } from "@/domain/jobs-apply/policy";
 import type { ApplicationPackSnapshot, ApplyMode, JobsApplySession, PackAnswer, RememberedAnswer } from "@/domain/jobs-apply/types";
@@ -142,8 +142,10 @@ export async function buildPack(input: { app: Application; job: CanonicalJob; dn
   const av = current(app, "answers");
   const answers = av ? parseAnswers(av.content, av.provenance) : [];
   const profile = buildApplicationProfile(dna, { accountEmail: input.accountEmail });
-  const fingerprint = JSON.stringify({ p: profile, r: resume?.versionId, c: coverLetter?.versionId, a: av?.id, m: input.memory });
-  return { applicationId: app.id, jobId: job.id, jobTitle: job.title, company: job.company, profile, memory: input.memory, resume, coverLetter, answers, version: `pv_${hashKey(fingerprint)}`, capturedAt: new Date().toISOString() };
+  const education = educationFacts(dna).slice(0, 20);
+  const experience = experienceFacts(dna).slice(0, 40);
+  const fingerprint = JSON.stringify({ p: profile, e: education, x: experience, r: resume?.versionId, c: coverLetter?.versionId, a: av?.id, m: input.memory });
+  return { applicationId: app.id, jobId: job.id, jobTitle: job.title, company: job.company, profile, memory: input.memory, resume, coverLetter, answers, education, experience, version: `pv_${hashKey(fingerprint)}`, capturedAt: new Date().toISOString() };
 }
 
 /* ---------------------------------------------------------- helper */
