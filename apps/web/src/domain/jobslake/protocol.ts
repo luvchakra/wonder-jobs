@@ -198,6 +198,8 @@ export interface SourceSearchStatus {
   cachedAt?: string;
   /** "fresh": a recent answer reused, the source wasn't asked. "fallback": the source failed now, so its last answer stands in. */
   cacheUse?: "fresh" | "fallback";
+  /** A paid source: shown even when skipped, with why it wasn't asked. */
+  paid?: boolean;
 }
 
 export interface SearchMetadata {

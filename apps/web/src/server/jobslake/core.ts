@@ -13,7 +13,7 @@ import { canonicalize, mergeWithWarm, normalizeUrl, type Observation } from "@/d
 import { summarizeHealth, type SourceHealth, type SourceRun } from "@/domain/jobslake/health";
 import { planSearch, type Depth, type SearchPlan } from "@/domain/jobslake/planner";
 import { PROTOCOL_VERSION, validateOpportunity, type CanonicalOpportunity, type SearchEvent, type SearchRequest, type SearchResponse, type SourceOutcome, type SourceSearchStatus } from "@/domain/jobslake/protocol";
-import { matchesLocations, matchesQuery } from "@/services/jobs/normalize";
+import { matchesLocations, matchesQuery, titleMatches } from "@/services/jobs/normalize";
 import { ageLabel, searchKey } from "@/domain/jobslake/cache";
 import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache";
 import { DestinationBlockedError } from "./safeFetch";
@@ -72,7 +72,7 @@ function classify(e: unknown): { outcome: SourceOutcome; code: string; message: 
 /** The candidate-safe version of a source status: category-level messages only. */
 export function publicStatus(s: SourceSearchStatus): SourceSearchStatus {
   const msg: Record<SourceOutcome, string | undefined> = { ok: undefined, empty: "No matching jobs on this source", needs_setup: "Needs setup", timeout: "Didn't respond in time", unavailable: "Temporarily unavailable", skipped: s.message };
-  return { sourceId: s.sourceId, sourceName: s.sourceName, outcome: s.outcome, retrieved: s.retrieved, durationMs: s.durationMs, message: msg[s.outcome], ...(s.cachedAt ? { cachedAt: s.cachedAt, cacheUse: s.cacheUse } : {}) };
+  return { sourceId: s.sourceId, sourceName: s.sourceName, outcome: s.outcome, retrieved: s.retrieved, durationMs: s.durationMs, message: msg[s.outcome], ...(s.paid ? { paid: true } : {}), ...(s.cachedAt ? { cachedAt: s.cachedAt, cacheUse: s.cacheUse } : {}) };
 }
 
 /** Which JobsLake sources a request may use: the candidate's own legacy choices, plus platform-managed sources. */
@@ -250,17 +250,23 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     let wave = plan.waves[w];
     // A paid wave tops up a thin search only, within each source's monthly credits. An unreadable budget fails closed.
     if (wave.every((p) => p.paid)) {
-      const found = canonicalize(observations).opportunities.length;
-      const skip = (p: (typeof wave)[number], message: string) => statuses.push({ sourceId: p.id, sourceName: p.name, outcome: "skipped", retrieved: 0, durationMs: 0, message });
+      // Only jobs whose title is what the candidate searched for count — not ones a broad phrasing
+      // ("identity") swept in, like a "Brand Identity" designer.
+      const found = canonicalize(observations).opportunities.filter((o) => titleMatches(o.title, req.query.text)).length;
+      const skip = (p: (typeof wave)[number], message: string) => {
+        const status: SourceSearchStatus = { sourceId: p.id, sourceName: p.name, outcome: "skipped", retrieved: 0, durationMs: 0, message, paid: true };
+        statuses.push(status);
+        emit({ type: "source_completed", status });
+      };
       if (found >= topUpBelow()) {
-        for (const p of wave) skip(p, `Free sources found ${found} jobs — enough without paid sources`);
+        for (const p of wave) skip(p, `Not needed — free sources found ${found} matching jobs`);
         break;
       }
       const runnable: typeof wave = [];
       for (const p of wave) {
         const b = await bookkeeping("read a paid source's credit budget", () => creditsLeft(p.id));
-        if (!b) skip(p, "Couldn't read its monthly credit budget");
-        else if (b.left <= 0) skip(p, `Monthly credit limit reached (${b.used} of ${b.budget} used)`);
+        if (!b) skip(p, "Not asked — couldn't check its monthly credit budget");
+        else if (b.left <= 0) skip(p, `Not asked — monthly credit limit reached (${b.used} of ${b.budget} used)`);
         else {
           paidLimit.set(p.id, b.left);
           runnable.push(p);
@@ -273,9 +279,12 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     const soFar = canonicalize(observations);
     emit({ type: "dedupe_progress", unique: soFar.opportunities.length, duplicates: soFar.duplicates });
     // Stop widening when there's already plenty — except in maximum coverage, which always goes wide.
+    // A paid wave still gets its own check: many loose results don't mean many matching ones.
     if (req.searchMode !== "maximum_coverage" && w < plan.waves.length - 1 && soFar.opportunities.length >= req.limit * 2) {
-      for (const p of plan.waves.slice(w + 1).flat()) statuses.push({ sourceId: p.id, sourceName: p.name, outcome: "skipped", retrieved: 0, durationMs: 0, message: `Enough results after wave ${w + 1}` });
-      break;
+      const paidAt = plan.waves.findIndex((wv, i) => i > w && wv.every((p) => p.paid));
+      for (const p of plan.waves.slice(w + 1).flat().filter((p) => !p.paid)) statuses.push({ sourceId: p.id, sourceName: p.name, outcome: "skipped", retrieved: 0, durationMs: 0, message: `Enough results after wave ${w + 1}` });
+      if (paidAt < 0) break;
+      w = paidAt - 1;
     }
   }
 
