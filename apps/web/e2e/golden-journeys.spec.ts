@@ -147,7 +147,9 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
 
     await bottomBar.getByRole("link", { name: "You" }).click();
     await page.waitForURL(/\/app\/you$/);
-    for (const label of ["Career Profile", "Job sources", "Automation", "AI provider", "Account"]) {
+    // The name card at the top is the Career Profile's entry; account, plan and data live in the avatar menu (WJ-281).
+    await expect(page.getByRole("link", { name: /Career Profile$/ })).toBeVisible();
+    for (const label of ["Résumés", "Job sources", "Automation", "AI provider", "Search history"]) {
       await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
     }
     await page.getByRole("link", { name: /^Automation/ }).click();
@@ -249,7 +251,8 @@ test.describe("Golden journey — automation (demo mode)", () => {
     await page.getByText("Change one action").click();
     await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Restore defaults" }).click();
-    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Automatic" })).toHaveAttribute("aria-checked", "true");
+    // Drafts ask first by default (WJ-273).
+    await expect(page.getByRole("radiogroup", { name: "Generate resume permission" }).getByRole("radio", { name: "Ask me" })).toHaveAttribute("aria-checked", "true");
   });
 });
 

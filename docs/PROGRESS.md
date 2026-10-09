@@ -126,6 +126,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Two automation choices; how you apply is set once in Automation, not per job (WJ-272)
 - ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
+- ✅ Extension page up to date with its version; Chrome Web Store package and publish workflow ready (WJ-283)
 - ✅ Menus without overlap: You, the avatar menu and Pipeline each hold their own things (WJ-281)
 - ✅ Notifications as things happen — searches, applications, drafts, closed jobs — each with its next step (WJ-282)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)

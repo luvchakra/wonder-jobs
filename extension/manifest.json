@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "WonderJobs helper",
-  "version": "0.2.12",
-  "description": "Apply with Wonder: fills an employer's application form with the details and résumé you approved in WonderJobs, stops for questions only you should answer, and never submits for you.",
+  "version": "0.2.13",
+  "description": "Fills job application forms with the details and résumé you approved in WonderJobs. You review; it submits only if you allow it.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
