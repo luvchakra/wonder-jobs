@@ -81,6 +81,12 @@ export function matchChoice(field: ApplicationField, value: string, key?: Profil
     const hit = only(opts.filter((o) => names.includes(norm(o.label)) || names.includes(norm(o.value))));
     if (hit) return hit.value;
   }
+  // "Prefer not to say" in the candidate's words ↔ "I decline to self-identify" in the form's.
+  const DECLINE = /\b(prefer not|decline|do not wish|don'?t wish|not to (say|disclose|answer|self-identify)|rather not)\b/i;
+  if (DECLINE.test(value)) {
+    const hit = only(opts.filter((o) => DECLINE.test(o.label)));
+    if (hit) return hit.value;
+  }
   if (key === "hasWorkExperience" || /^(yes|no)$/i.test(value.trim())) {
     const yes = /^yes$/i.test(value.trim());
     return only(opts.filter((o) => (yes ? /^\s*(yes|y|true)\b/i : /^\s*(no|n|false)\b/i).test(o.label)))?.value;

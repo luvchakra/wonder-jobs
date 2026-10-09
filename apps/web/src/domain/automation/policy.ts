@@ -16,6 +16,10 @@ export const CAPABILITIES = [
   "send_recruiter_message",
   "submit_application",
   "fill_application",
+  "fill_demographics",
+  "fill_work_authorization",
+  "fill_declarations",
+  "fill_government_ids",
   "final_submit",
   "send_email",
   "change_career_dna",
@@ -57,6 +61,11 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // The helper presses the employer's final Submit (owner decision WJ-249): only in the candidate's browser,
   // only once every required field holds their own confirmed answer, once per job, audited. Off by default;
   // a per-job / per-application choice (submitDecision in domain/jobs-apply/policy.ts) can turn it on or off.
+  // Sensitive questions: off unless the candidate turns a group on (with a confirmation) and saves their own answers.
+  fill_demographics: { key: "fill_demographics", label: "Answer equal-opportunity questions", description: "Gender, pronouns, race/ethnicity, veteran and disability status — with the answers you saved. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
+  fill_work_authorization: { key: "fill_work_authorization", label: "Answer work-authorization and sponsorship questions", description: "From the countries you said you can work in. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
+  fill_declarations: { key: "fill_declarations", label: "Answer legal declarations", description: "Criminal-record questions with your saved answer, and tick the form's consent and agree boxes. Never a signature. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
+  fill_government_ids: { key: "fill_government_ids", label: "Enter ID numbers", description: "PAN, Aadhaar, passport and similar numbers you saved — stored encrypted, shown only masked. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   final_submit: { key: "final_submit", label: "Submit applications", description: "Press the employer's final Submit button for you, once every required field holds your own confirmed answer. Off unless you turn it on — here or for one job.", risk: "high", external: true, default: "off" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
