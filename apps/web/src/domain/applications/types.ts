@@ -1,3 +1,4 @@
+import type { CanonicalJob } from "@/domain/jobs/types";
 export const APPLICATION_STATUSES = [
   "saved",
   "preparing",
@@ -88,4 +89,22 @@ export interface Application {
   submissionKey: string;
   /** "Submit for me" for this application (WJ-249): always / never; absent = the account's "Submit applications" default. */
   autoSubmit?: "on" | "off";
+  /** The job as it was when the application began, so the application still reads right after the job leaves the search results. */
+  job?: ApplicationJob;
+}
+
+/** What an application keeps of its job: the posting's own facts, nothing derived. */
+export type ApplicationJob = Pick<CanonicalJob, "title" | "company" | "companyDomain" | "location" | "workMode" | "salaryMin" | "salaryMax" | "currency" | "applyUrl" | "postedAt">;
+
+export function applicationJobOf(j: CanonicalJob): ApplicationJob {
+  return { title: j.title, company: j.company, companyDomain: j.companyDomain, location: j.location, workMode: j.workMode, salaryMin: j.salaryMin, salaryMax: j.salaryMax, currency: j.currency, applyUrl: j.applyUrl, postedAt: j.postedAt };
+}
+
+/** Event titles the apply page records when it opens the employer's form (Apply with Wonder). */
+export const HANDOFF_TITLES = { guided: "Application opened in guided mode", helper: "Application opened with Wonder's browser helper" } as const;
+
+/** The latest time this application was opened on the employer's site through Wonder, if it was. */
+export function handedOffAt(a: Pick<Application, "events">): ApplicationEvent | undefined {
+  const titles: string[] = Object.values(HANDOFF_TITLES);
+  return [...a.events].reverse().find((e) => e.type === "note" && titles.includes(e.title));
 }

@@ -34,10 +34,12 @@ import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { cn } from "@/lib/cn";
+import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const job = useJobsStore((s) => s.jobs[id]);
+  useRecoverJobs([id]);
   const match = useJobsStore((s) => s.matches[id]);
   const quality = useJobsStore((s) => s.quality[id]);
   const saved = useJobsStore((s) => !!s.saved[id]);

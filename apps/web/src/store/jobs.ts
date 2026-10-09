@@ -66,7 +66,12 @@ interface JobsState {
   setSourceEnabled: (id: string, enabled: boolean) => void;
   /** From the server: which sources this deployment can query. */
   setSourceAvailability: (available: Record<string, boolean>) => void;
+  /** Put back jobs the candidate saved or applied to that dropped out of the catalog (found again on the server); the results list is unchanged. */
+  restoreJobs: (jobs: CanonicalJob[]) => void;
 }
+
+/** The jobs the candidate saved that are still known — kept whatever a new search returns. */
+const savedJobs = (s: { jobs: Record<string, CanonicalJob>; saved: Record<string, string> }) => Object.fromEntries(Object.keys(s.saved).flatMap((id) => (s.jobs[id] ? [[id, s.jobs[id]] as const] : [])));
 
 /** How much of the catalog a signed-in account keeps between sessions (the rest is re-discovered by runs). */
 const PERSISTED_CATALOG = 300;
@@ -136,7 +141,7 @@ export const useJobsStore = create<JobsState>()(
           const live = list.filter((j) => !(s.closed[j.id] && Date.parse(s.closed[j.id].at) > recent && !s.saved[j.id]));
           // Words searched on top of the profile's results keep those results aside, so clearing the words brings them back.
           const beforeWords = !searchedFor ? undefined : s.searchedFor ? s.beforeWords : s.order.length ? { jobs: s.jobs, order: s.order, matches: Object.fromEntries(s.order.flatMap((id) => (s.matches[id] ? [[id, s.matches[id]] as const] : []))) } : undefined;
-          return { jobs: Object.fromEntries(live.map((j) => [j.id, j])), order: live.map((j) => j.id), loaded: true, searchedFor, beforeWords };
+          return { jobs: { ...savedJobs(s), ...Object.fromEntries(live.map((j) => [j.id, j])) }, order: live.map((j) => j.id), loaded: true, searchedFor, beforeWords };
         }),
       restoreProfileCatalog: () => {
         const kept = get().beforeWords;
@@ -144,7 +149,7 @@ export const useJobsStore = create<JobsState>()(
         const recent = Date.now() - 7 * 86_400_000;
         const order = kept.order.filter((id) => kept.jobs[id] && !(get().closed[id] && Date.parse(get().closed[id].at) > recent && !get().saved[id]));
         // The profile search's own scores come back too (the words' search re-scored any job both found).
-        set((s) => ({ jobs: kept.jobs, order, matches: { ...s.matches, ...kept.matches }, searchedFor: "", beforeWords: undefined }));
+        set((s) => ({ jobs: { ...savedJobs(s), ...kept.jobs }, order, matches: { ...s.matches, ...kept.matches }, searchedFor: "", beforeWords: undefined }));
         return true;
       },
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
@@ -195,6 +200,7 @@ export const useJobsStore = create<JobsState>()(
         useCareerStore.getState().clearRejection(jobId);
         get().rescore();
       },
+      restoreJobs: (list) => set((s) => ({ jobs: { ...Object.fromEntries(list.map((j) => [j.id, j])), ...s.jobs } })),
       setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
       setSort: (sort) => set({ sort }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
@@ -235,7 +241,8 @@ export const useJobsStore = create<JobsState>()(
         const jobs: Record<string, CanonicalJob> = {};
         const matches: Record<string, JobMatch> = {};
         const quality: Record<string, JobQuality> = {};
-        for (const id of order) {
+        // Every saved job is kept, in the results or not — saving it is how the candidate said to keep it.
+        for (const id of keep) {
           const j = s.jobs[id];
           if (!j) continue;
           // Kept short in storage; the trailing "…" tells the job page it has only the start.

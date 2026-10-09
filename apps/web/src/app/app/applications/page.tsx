@@ -1,10 +1,11 @@
 "use client";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
-import { APPLICATION_STATUS_META, type Application, type ApplicationStatus } from "@/domain/applications/types";
+import { APPLICATION_STATUS_META, applicationJobOf, type Application, type ApplicationStatus } from "@/domain/applications/types";
+import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { computeApplicationAttention } from "@/domain/career/attention";
 import { useNow } from "@/lib/motion";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
@@ -68,6 +69,12 @@ function ApplicationsInner() {
   const visible = tab === "all" ? list : list.filter((a) => groupOf(a) === tab);
   const candidates = Object.keys(saved).filter((id) => jobs[id] && !list.some((a) => a.jobId === id));
   const needsAttention = useMemo(() => computeApplicationAttention(applications, now), [applications, now]);
+  // Jobs that left the search results are found again; every application keeps its own copy of its job.
+  useRecoverJobs(list.map((a) => a.jobId));
+  useEffect(() => {
+    const byJob = Object.fromEntries(list.filter((a) => !a.job && jobs[a.jobId]).map((a) => [a.jobId, applicationJobOf(jobs[a.jobId])]));
+    if (Object.keys(byJob).length) useApplicationsStore.getState().keepJobs(byJob);
+  }, [list, jobs]);
 
   return (
     <div>

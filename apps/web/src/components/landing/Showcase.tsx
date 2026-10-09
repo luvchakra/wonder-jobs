@@ -50,7 +50,7 @@ function useDeviceMotion() {
 }
 
 /** The app's four places, as its navigation names them. */
-const NAV = ["Find", "Saved", "Applied", "You"];
+const NAV = ["Find", "Saved", "Pipeline", "You"];
 
 const MATCHES = [
   { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India", why: "Strong overlap with your skills", pay: "₹38–45 LPA", src: "Greenhouse" },
@@ -337,7 +337,7 @@ const SCREENS: Screen[] = [
   { id: "home", label: "Find", title: "Your jobs, the moment you open it", body: "Signed in means looking at relevant jobs: designation, pay and source on every card, best match first. Type a role and a place to search every source for it.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
   { id: "find", label: "Search", title: "Real progress, in plain words", body: "Wonder says what it's searching, where, and what each source returned. Stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
   { id: "jobs", label: "Job", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile and your search. Each one says why Wonder ranked it there and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Applied", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "applications", label: "Pipeline", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
