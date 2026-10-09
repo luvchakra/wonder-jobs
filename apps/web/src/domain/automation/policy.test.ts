@@ -23,3 +23,15 @@ describe("migratePolicy — a policy saved before auto-save became opt-in", () =
     expect(migratePolicy({ generate_resume: "off" }, 1)).toMatchObject({ generate_resume: "off", final_submit: "off" });
   });
 });
+
+describe("drafts — 'Ask me' by default, since each is a paid AI call", () => {
+  it("defaults to ask, and a policy saved before v3 moves its old default", async () => {
+    const { migratePolicy, CAPABILITY_META } = await import("./policy");
+    expect(CAPABILITY_META.generate_resume.default).toBe("ask");
+    expect(CAPABILITY_META.generate_cover_letter.default).toBe("ask");
+    expect(migratePolicy({ generate_resume: "automatic", generate_cover_letter: "automatic" }, 2)).toMatchObject({ generate_resume: "ask", generate_cover_letter: "ask" });
+    // A choice made at v3 or later stands; an explicit Off is kept.
+    expect(migratePolicy({ generate_resume: "automatic" }, 3).generate_resume).toBe("automatic");
+    expect(migratePolicy({ generate_cover_letter: "off" }, 2).generate_cover_letter).toBe("off");
+  });
+});

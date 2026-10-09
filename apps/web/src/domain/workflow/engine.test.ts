@@ -61,7 +61,8 @@ function makeEngine(overrides: Partial<Record<string, StageExecutor>> = {}, leve
       learn: simple,
       ...overrides,
     },
-    getPolicy: () => defaultPolicy(),
+    // Drafts default to "Ask me" (each is a paid AI call); these engine tests run them on their own.
+    getPolicy: () => ({ ...defaultPolicy(), generate_resume: "automatic", generate_cover_letter: "automatic" }),
     sleep: () => new Promise<void>((r) => setTimeout(r, 0)),
   });
   const run = (ctx: { run: unknown }) => ctx.run as { actions: { status: string }[] };
@@ -96,7 +97,8 @@ describe("policy", () => {
     expect(resolveCapability("submit_application", { ...p, submit_application: "automatic" }, "autonomous")).toBe("run");
     expect(resolveCapability("search_jobs", p, "assist")).toBe("run");
     expect(resolveCapability("generate_resume", p, "assist")).toBe("ask");
-    expect(resolveCapability("generate_resume", p, "guided")).toBe("run");
+    expect(resolveCapability("generate_resume", p, "guided")).toBe("ask"); // "Ask me" by default
+    expect(resolveCapability("generate_resume", { ...p, generate_resume: "automatic" }, "guided")).toBe("run");
     expect(resolveCapability("generate_resume", { ...p, generate_resume: "off" }, "guided")).toBe("skip");
   });
 });
