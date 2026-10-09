@@ -59,6 +59,8 @@ export interface Digest {
 }
 
 const DAY = 86_400_000;
+/** The Jobs list showing only strong matches (JobsBoard's ?fit= deep link). */
+const STRONG_HREF = "/app/jobs?fit=strong";
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
@@ -139,7 +141,7 @@ export function buildDigest(input: DigestInput): Digest {
   for (const { f, a } of interviewsSoon.slice(0, 3)) headsUp.push({ text: `Interview for ${jobName(a.jobId)} on ${day(f.dueAt)}.`, href: `/app/applications/${a.id}` });
   if (overdue.length) headsUp.push({ text: `${plural(overdue.length, "follow-up")} ${overdue.length === 1 ? "is" : "are"} overdue.`, href: "/app/applications" });
   if (dueSoon.length) headsUp.push({ text: `${plural(dueSoon.length, "follow-up")} due in the next 3 days.`, href: "/app/applications" });
-  if (strongWaiting) headsUp.push({ text: `${plural(strongWaiting, "strong match", "strong matches")} ${strongWaiting === 1 ? "is" : "are"} waiting for you to decide.`, href: "/app/jobs" });
+  if (strongWaiting) headsUp.push({ text: `${plural(strongWaiting, "strong match", "strong matches")} ${strongWaiting === 1 ? "is" : "are"} waiting for you to decide.`, href: STRONG_HREF });
   for (const a of quiet.slice(0, 2)) headsUp.push({ text: `No news on ${jobName(a.jobId)} for over two weeks — a follow-up may help.`, href: `/app/applications/${a.id}` });
   if (foundNothing.length) headsUp.push({ text: `${plural(foundNothing.length, "search", "searches")} found nothing — the search may be too narrow.`, href: "/app/jobs" });
   if (failed.length - foundNothing.length > 0) headsUp.push({ text: `${plural(failed.length - foundNothing.length, "search", "searches")} couldn't finish.`, href: "/app/jobs" });
@@ -152,7 +154,7 @@ export function buildDigest(input: DigestInput): Digest {
       : forReview
         ? { label: "Review your applications", href: "/app/applications" }
         : strongWaiting
-          ? { label: `Review ${plural(strongWaiting, "strong match", "strong matches")}`, href: "/app/jobs" }
+          ? { label: `Review ${plural(strongWaiting, "strong match", "strong matches")}`, href: STRONG_HREF }
           : { label: "Open WonderJobs", href: "/app" };
 
   // ---- waiting on you
@@ -184,7 +186,7 @@ export function buildDigest(input: DigestInput): Digest {
   if (searches.length && reviewed >= 20 && strongFound === 0) suggestions.push({ text: "Make “Role you want” match how employers title the job, and add the skills postings ask for.", href: "/app/career-dna", origin: "rules" });
   if (rejected >= 5 && rejected > saved * 3) suggestions.push({ text: "Add a level or a location to your search so fewer off-target jobs come through.", href: "/app/jobs", origin: "rules" });
   if (quiet.length) suggestions.push({ text: "Send a short, polite follow-up on applications that have gone quiet.", href: "/app/applications", origin: "rules" });
-  if (strongWaiting >= 3 && !submitted) suggestions.push({ text: "Pick your two strongest matches and start an application today.", href: "/app/jobs", origin: "rules" });
+  if (strongWaiting >= 3 && !submitted) suggestions.push({ text: "Pick your two strongest matches and start an application today.", href: STRONG_HREF, origin: "rules" });
 
   const hasActivity = !!(searches.length || failed.length || saved || rejected || newApps || submitted || interviews || offers || profileUpdated || learned || answers);
   const subjectBits = [interviewsSoon.length && `interview ${day(interviewsSoon[0].f.dueAt)}`, strongFound && plural(strongFound, "strong match", "strong matches"), submitted && plural(submitted, "application") + " sent", overdue.length && plural(overdue.length, "follow-up") + " overdue"].filter(Boolean) as string[];
