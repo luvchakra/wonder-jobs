@@ -1,11 +1,12 @@
 "use client";
-import { BookOpen, ArrowRight } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
-import Link from "next/link";
+import { Button } from "@/components/common/Button";
+import { toast } from "@/components/feedback/Toast";
 
 /** Learning suggestions derived from the gap between strong-match roles and your Career DNA. No external catalog is connected yet. */
 export default function LearningPage() {
@@ -19,6 +20,13 @@ export default function LearningPage() {
     for (const s of jobs[m.jobId]?.skills ?? []) if (!mine.has(s.toLowerCase())) gap.set(s, (gap.get(s) ?? 0) + 1);
   }
   const top = [...gap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  // The candidate's own claim, on their click: added at the same default level the Career Profile editor uses.
+  const add = (skill: string) => {
+    const before = useCareerStore.getState().dna.skills;
+    if (before.some((s) => s.name.toLowerCase() === skill.toLowerCase())) return;
+    useCareerStore.getState().updateDNA({ skills: [...before, { name: skill, level: 3 }] });
+    toast.success(`${skill} added to your Career Profile`, "Your matches are re-scored with it.", { label: "Undo", onClick: () => useCareerStore.getState().updateDNA({ skills: before }) });
+  };
   return (
     <div>
       <PageHeader title="Learning" description="Skills common in roles you match but missing from your profile." />
@@ -38,10 +46,10 @@ export default function LearningPage() {
                   <Badge tone="brand">{n} roles</Badge>
                 </div>
                 <p className="mt-2 flex-1 text-[13px] text-ink-3">Appears in {n} of your well-matched roles. Adding evidence of {skill} would strengthen those applications.</p>
-                <div className="mt-4 flex items-center justify-between text-[13px]">
-                  <Link href="/app/career-dna" className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
-                    I have this skill <ArrowRight className="size-3.5" aria-hidden />
-                  </Link>
+                <div className="mt-4 flex items-center justify-between gap-2 text-[13px]">
+                  <Button size="sm" variant="outline" icon={<Plus className="size-4" aria-hidden />} onClick={() => add(skill)}>
+                    Add to my profile
+                  </Button>
                   <span className="text-ink-4">Courses: not available yet</span>
                 </div>
               </Card>

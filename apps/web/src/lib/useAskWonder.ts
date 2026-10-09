@@ -1,7 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Search, Sparkles, Timer } from "lucide-react";
+import { Bookmark, CalendarClock, ClipboardCheck, Play, Search, Sparkles, Star, Timer } from "lucide-react";
+import { handedOffAt } from "@/domain/applications/types";
+import { profileSearchQuery } from "@/services/jobs/normalize";
+import { useWorkflowStore } from "@/store/workflow";
 import { resolveWonderQuery } from "@/domain/wonder/resolve";
 import { parseWonderIntent, type WonderIntent } from "@/domain/wonder/intent";
 import { useNow } from "@/lib/motion";
@@ -56,18 +59,35 @@ export function useAskWonder(q: string, onGo?: () => void) {
   const jobFilters = useJobsStore((s) => s.filters);
   const applications = useApplicationsStore((s) => s.applications);
   const now = useNow();
-  const commands = useMemo<Command[]>(
-    () => [
-      { id: "run", label: "Search again", hint: "Search every source for your Career Profile's role", href: "/app/jobs?refresh=1", icon: Play, group: "Actions" },
-      { id: "search", label: "Jobs", hint: "Your jobs, ranked by fit with your Career Profile", href: "/app/jobs", icon: Search, group: "Actions" },
-      { id: "schedule", label: "Set up a scheduled search", href: "/app/automation/scheduled/new", icon: Timer, group: "Actions" },
-      ...[...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].filter((n, i, all) => all.findIndex((x) => x.href === n.href) === i).map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
-    ],
+  const schedules = useWorkflowStore((s) => s.schedules);
+  // Every page, for typing ("calendar", "learning"…).
+  const pages = useMemo<Command[]>(
+    () => [...PRIMARY_NAV, ...SECTION_TABS.flatMap((s) => s.items), ...RESOURCES_NAV].filter((n, i, all) => all.findIndex((x) => x.href === n.href) === i).map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const })),
     [],
   );
+  // Before anything is typed: what needs the candidate now, read from their own data — each shown only when it's real.
+  const suggested = useMemo<Command[]>(() => {
+    const out: Command[] = [];
+    const apps = Object.values(applications);
+    const opened = apps.filter((a) => (a.status === "preparing" || a.status === "ready_for_review") && handedOffAt(a)).length;
+    if (opened) out.push({ id: "opened", label: `${opened} application${opened === 1 ? "" : "s"} opened with Wonder`, hint: "Did you submit? Mark it in Pipeline", href: "/app/applications", icon: ClipboardCheck, group: "Actions" });
+    const soon = now + 86_400_000;
+    const due = apps.flatMap((a) => a.followUps).filter((f) => !f.done && Date.parse(f.dueAt) <= soon).length;
+    if (due) out.push({ id: "due", label: `${due} follow-up${due === 1 ? "" : "s"} due`, hint: "Interviews and follow-ups in your calendar", href: "/app/calendar", icon: CalendarClock, group: "Actions" });
+    const strong = jobsOrder.filter((id) => matches[id]?.fit === "strong" && !rejected[id] && !saved[id]).length;
+    if (strong) out.push({ id: "strong", label: `Review ${strong} strong match${strong === 1 ? "" : "es"}`, hint: "Ranked by fit with your Career Profile", href: "/app/jobs?fit=strong", icon: Star, group: "Actions" });
+    const started = new Set(apps.map((a) => a.jobId));
+    const toApply = Object.keys(saved).filter((id) => !started.has(id)).length;
+    if (toApply) out.push({ id: "saved", label: `${toApply} saved job${toApply === 1 ? "" : "s"} to apply to`, href: "/app/saved", icon: Bookmark, group: "Actions" });
+    const query = profileSearchQuery(dna);
+    out.push({ id: "run", label: "Search again", hint: query ? `Every source, for “${query}”` : "Every source, for your Career Profile's role", href: "/app/jobs?refresh=1", icon: Play, group: "Actions" });
+    if (!Object.keys(schedules).length) out.push({ id: "schedule", label: "Keep Wonder looking", hint: "A search that runs on its own and tells you what's worth it", href: "/app/automation/settings#scheduled", icon: Timer, group: "Actions" });
+    return [...out, ...PRIMARY_NAV.map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const }))];
+  }, [applications, jobsOrder, matches, rejected, saved, dna, schedules, now]);
+  const commands = useMemo<Command[]>(() => [...suggested.filter((c) => c.group === "Actions"), ...pages], [suggested, pages]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return commands;
+    if (!t) return suggested;
     const hits = commands.filter((c) => c.label.toLowerCase().includes(t) || c.hint?.toLowerCase().includes(t));
     // Ask Wonder (spec Phase 3.1/3.3): the rules' reading of what was typed, else the model's checked
     // reading (one of the same actions) — never a free-text reply — resolved against the candidate's own
@@ -78,8 +98,8 @@ export function useAskWonder(q: string, onGo?: () => void) {
     // Anything typed can be a job search — Wonder's global field is a search field first (spec §3).
     const search: Command = { id: "search-q", label: `Search jobs for “${q.trim()}”`, hint: "Titles, companies, skills", href: `/app/jobs?q=${encodeURIComponent(q.trim())}`, icon: Search, group: "Actions" };
     const results: Command[] = wonder ? [{ id: wonder.id, label: wonder.label, hint: wonder.hint, href: wonder.href, icon: Sparkles, group: "Actions" }, search] : [search];
-    return [...results, ...hits.filter((c) => c.id !== "search")];
-  }, [q, commands, dna, jobsOrder, jobs, matches, rejected, saved, jobFilters, applications, now, ai]);
+    return [...results, ...hits];
+  }, [q, commands, suggested, dna, jobsOrder, jobs, matches, rejected, saved, jobFilters, applications, now, ai]);
   const go = (c: Command) => {
     // Only the action id is recorded — never the typed text (analytics carries no free text).
     if (c.id.startsWith("wonder-")) track("wonder_intent_submitted", { intent: c.id });

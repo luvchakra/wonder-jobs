@@ -67,8 +67,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     }
     const fit = params.get("fit") as FitLabel | null;
     const q = params.get("q");
-    if (fit || q) setFilters({ onlySaved: false, ...(fit ? { minFit: fit } : {}), ...(q != null ? { query: q } : {}) });
-    else setFilters({ onlySaved: false, minFit: "worth_considering" });
+    const exactFit = !!fit && params.get("exact") === "1";
+    if (fit || q) setFilters({ onlySaved: false, exactFit, ...(fit ? { minFit: fit } : {}), ...(q != null ? { query: q } : {}) });
+    else setFilters({ onlySaved: false, exactFit: false, minFit: "worth_considering" });
     // Only ever apply this once, from the URL the page was opened with — not on every filter change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
