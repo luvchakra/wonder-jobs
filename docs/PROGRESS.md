@@ -127,6 +127,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)
+- ✅ Insights counts open what they count; Learning adds a skill to your profile in one click (WJ-278)
 - ✅ Ask Wonder opens on what needs you now (WJ-279)
 - ✅ Application cards keep their job (found again when it left the results), show location, pay and progress, and reopen Apply with Wonder (WJ-275)
 - ✅ Scheduled searches: one-tap ready-made searches that run on their own, changed in place (WJ-276)

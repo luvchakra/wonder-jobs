@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
-import { APPLICATION_STATUS_META, applicationJobOf, type Application, type ApplicationStatus } from "@/domain/applications/types";
+import { APPLICATION_STATUS_META, applicationJobOf, FUNNEL_STAGES, type Application, type ApplicationStatus } from "@/domain/applications/types";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { computeApplicationAttention } from "@/domain/career/attention";
 import { useNow } from "@/lib/motion";
@@ -60,13 +60,15 @@ function ApplicationsInner() {
   const [pickedTab, setTab] = useState<Tab | null>(null);
   const tab: Tab = pickedTab ?? (paramTab && TABS.some((x) => x.value === paramTab) ? paramTab : "all");
   // A status deep link (?tab=interview) opens that list; otherwise the pipeline.
-  const view: ViewMode = pickedTab || paramTab ? "list" : "timeline";
+  // A count on Insights (?stage=submitted) opens exactly the applications it counted.
+  const stage = FUNNEL_STAGES.find((f) => f.key === params.get("stage"));
+  const view: ViewMode = pickedTab || paramTab || stage ? "list" : "timeline";
   const [adding, setAdding] = useState(false);
   const [pickJob, setPickJob] = useState("");
 
   const list = useMemo(() => Object.values(applications).sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt)), [applications]);
   const counts = { all: list.length, in_progress: list.filter((a) => groupOf(a) === "in_progress").length, submitted: list.filter((a) => groupOf(a) === "submitted").length, interview: list.filter((a) => groupOf(a) === "interview").length, outcome: list.filter((a) => groupOf(a) === "outcome").length };
-  const visible = tab === "all" ? list : list.filter((a) => groupOf(a) === tab);
+  const visible = (tab === "all" ? list : list.filter((a) => groupOf(a) === tab)).filter((a) => !stage?.statuses || pickedTab || stage.statuses.includes(a.status));
   const candidates = Object.keys(saved).filter((id) => jobs[id] && !list.some((a) => a.jobId === id));
   const needsAttention = useMemo(() => computeApplicationAttention(applications, now), [applications, now]);
   // Jobs that left the search results are found again; every application keeps its own copy of its job.

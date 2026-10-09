@@ -21,9 +21,9 @@ const VIEWS: { value: JobsView; label: string }[] = [
 /** Which view a set of filters is — views are presets over the same filters, so they can't disagree with Refine or "Why was this filtered". */
 export const viewOf = (f: Filters): JobsView => (f.onlySaved ? "saved" : f.minFit === "strong" ? "strong" : f.minFit === "worth_considering" ? "for_you" : "all");
 export const VIEW_PATCH: Record<JobsView, Partial<Filters>> = {
-  for_you: { onlySaved: false, minFit: "worth_considering" },
-  strong: { onlySaved: false, minFit: "strong" },
-  all: { onlySaved: false, minFit: null },
+  for_you: { onlySaved: false, minFit: "worth_considering", exactFit: false },
+  strong: { onlySaved: false, minFit: "strong", exactFit: false },
+  all: { onlySaved: false, minFit: null, exactFit: false },
   saved: { onlySaved: true },
 };
 

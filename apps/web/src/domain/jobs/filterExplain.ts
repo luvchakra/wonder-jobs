@@ -63,7 +63,7 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
   if (filters.onlySaved && !isSaved) return "not_saved";
   if (filters.workModes.length && !filters.workModes.includes(job.workMode)) return "work_mode";
   if (filters.sourceIds.length && !job.sourceIds.some((s) => filters.sourceIds.includes(s))) return "source";
-  if (filters.minFit && (!match || FIT_RANK[match.fit] < FIT_RANK[filters.minFit])) return "min_fit";
+  if (filters.minFit && (!match || (filters.exactFit ? match.fit !== filters.minFit : FIT_RANK[match.fit] < FIT_RANK[filters.minFit]))) return "min_fit";
   if (filters.freshnessDays && now - new Date(job.postedAt).getTime() > filters.freshnessDays * DAY) return "freshness";
   if (filters.minSalary && (job.salaryMax == null || (job.currency === "INR" ? job.salaryMax : job.salaryMax * 30) < filters.minSalary)) return "min_salary";
   if (filters.salaryListed && job.salaryMax == null && job.salaryMin == null) return "no_salary";
