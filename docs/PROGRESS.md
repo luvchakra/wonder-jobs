@@ -126,6 +126,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Two automation choices; how you apply is set once in Automation, not per job (WJ-272)
 - ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
+- ✅ Company logos on jobs and applications, cached in a JobsLake company directory (WJ-280)
 - ✅ Application cards keep their job (found again when it left the results), show location, pay and progress, and reopen Apply with Wonder (WJ-275)
 - ✅ Scheduled searches: one-tap ready-made searches that run on their own, changed in place (WJ-276)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)

@@ -118,7 +118,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <div className="flex items-start gap-4">
-              <CompanyLogo name={job?.company ?? "?"} color={job ? companyColor(job.company) : undefined} size={52} />
+              <CompanyLogo name={job?.company ?? "?"} domain={job?.companyDomain} logo color={job ? companyColor(job.company) : undefined} size={52} />
               <div className="min-w-0 flex-1">
                 <p className="text-[16px] font-semibold text-ink">{job?.company}</p>
                 <p className="text-[13px] text-ink-3">

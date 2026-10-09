@@ -60,7 +60,7 @@ function CompareInner() {
               {jobs.map((j) => (
                 <th key={j.id} scope="col" className="p-3 align-top">
                   <Link href={`/app/jobs/${j.id}`} className="flex items-center gap-2 hover:underline">
-                    <CompanyLogo name={j.company} color={companyColor(j.company)} size={32} />
+                    <CompanyLogo name={j.company} domain={j.companyDomain} logo color={companyColor(j.company)} size={32} />
                     <span className="min-w-0">
                       <span className="block truncate text-[14px] font-semibold text-ink">{j.title}</span>
                       <span className="block truncate text-[12px] font-normal text-ink-3">{j.company}</span>
