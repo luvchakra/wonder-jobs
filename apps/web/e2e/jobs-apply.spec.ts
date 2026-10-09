@@ -380,6 +380,8 @@ web.describe("JobsApply in WonderJobs", () => {
   web("GJ4 / APPLY-072…077: guided mode — copy, download, open, then the candidate confirms", async ({ page }, info) => {
     await page.goto(APPLY);
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
+    // How you apply is set once in Automation; this job changes it here (WJ-272).
+    await page.getByRole("button", { name: "Change for this job" }).click();
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
@@ -405,6 +407,7 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.goto(APPLY);
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await page.getByRole("button", { name: "Change for this job" }).click();
     await expect(page.getByRole("radiogroup", { name: "Application method" })).toBeVisible();
     await expect(page.getByRole("list", { name: "Application steps" })).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Résumé to use" })).toBeVisible();
