@@ -38,8 +38,9 @@ jobs:
       - name: Deploy
         if: env.FLY_API_TOKEN != ''
         run: flyctl deploy . --config apps/browser-worker/fly.toml --app "$APP" --ha=false --remote-only
-      # Sessions live in one machine's memory: exactly one, in fly.toml's primary_region (bom = Mumbai, near
-      # the candidates). Changing the region in fly.toml moves it: a machine is made there, others removed.
+      # Sessions live in one machine's memory: exactly one, in fly.toml's primary_region (sin = Singapore, the
+      # nearest to India now Fly has closed Mumbai). Changing the region in fly.toml moves it: a machine is
+      # made there, others removed.
       - name: One machine, in the primary region
         if: env.FLY_API_TOKEN != ''
         run: |
