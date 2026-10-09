@@ -188,10 +188,29 @@ describe("activation needs a real passing test (WJ-JL-008..012)", () => {
     expect((await act.json()).source.status).toBe("active");
   });
 
-  it("partnership sources can never be activated", async () => {
+  it("an unconfigured partner portal can't be activated", async () => {
     asAdmin();
-    const r = await activate(post("/admin/sources/partner_linkedin/activate"), ctx("partner_linkedin"));
+    const r = await activate(post("/admin/sources/partner_linkedin/activate", { agreementConfirmed: true }), ctx("partner_linkedin"));
     expect(r.status).toBe(403);
+  });
+
+  it("a configured partner portal activates only with the agreement confirmed, and never returns its secret (WJ-256)", async () => {
+    asAdmin();
+    const connection = { format: "json_api", endpoint: "https://api.partner.example/v1/jobs", auth: { type: "oauth2", tokenUrl: "https://auth.partner.example/token", clientId: "wj" }, mapping: JSON_API.config.api.mapping };
+    const patched = await patchSource(new Request(url("/admin/sources/partner_foundit"), { method: "PATCH", body: JSON.stringify({ config: { kind: "partnership", connection } }) }), ctx("partner_foundit"));
+    expect(patched.status).toBe(200);
+    expect((await putCredential(new Request(url("/admin/sources/partner_foundit/credential"), { method: "PUT", body: JSON.stringify({ secret: SECRET }) }), ctx("partner_foundit"))).status).toBe(200);
+    connector.mockResolvedValueOnce({ jobs: [job({ id: "partner_foundit_1", sourceId: "partner_foundit", applyUrl: "https://acme.example/j/1" })], warnings: [] });
+    expect((await (await testSource(post("/admin/sources/partner_foundit/test"), ctx("partner_foundit"))).json()).ok).toBe(true);
+    expect((await activate(post("/admin/sources/partner_foundit/activate"), ctx("partner_foundit"))).status).toBe(403);
+    const ok = await activate(post("/admin/sources/partner_foundit/activate", { agreementConfirmed: true, agreementReference: "DPA-7" }), ctx("partner_foundit"));
+    expect(ok.status).toBe(200);
+    const text = await ok.text();
+    expect(text).not.toContain(SECRET);
+    expect(JSON.parse(text).source).toMatchObject({ status: "active", agreement: { confirmedBy: ADMIN, reference: "DPA-7" }, partner: { readiness: { next: null } } });
+    const detail = await (await getSource(new Request(url("/admin/sources/partner_foundit")), ctx("partner_foundit"))).text();
+    expect(detail).not.toContain(SECRET);
+    expect(detail).toContain("partner.agreement_confirmed");
   });
 
   it("a scraper without established permission is registered as Do not use", async () => {

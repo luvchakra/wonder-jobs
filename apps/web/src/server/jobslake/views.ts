@@ -9,6 +9,7 @@
 import { deriveAlerts, type Alert, type SourceHealth } from "@/domain/jobslake/health";
 import { sourceInsights, type InsightsView } from "@/domain/jobslake/insights";
 import { ACCESS_LABEL, CATEGORY_LABEL, STATUS_LABEL, type CanonicalOpportunity } from "@/domain/jobslake/protocol";
+import { partnerPreset, partnerReadiness, type PartnerPreset, type PartnerReadiness } from "@/domain/jobslake/partners";
 import { credentialStatus, type CredentialStatus } from "./credentials";
 import { healthBySource } from "./core";
 import { isAvailable, listSources } from "./registry";
@@ -23,11 +24,15 @@ export interface SourceView extends Omit<SourceRecord, "secretRef"> {
   available: boolean;
   health: SourceHealth | null;
   credential: CredentialStatus | null;
+  /** Partner portals only: what's known about the portal, and what's left before it can be activated. */
+  partner?: { preset?: PartnerPreset; readiness: PartnerReadiness };
 }
 
 /** A source for an API response. `secretRef` is dropped; only masked credential status is kept. */
 export async function sourceView(s: SourceRecord, health: Record<string, SourceHealth>): Promise<SourceView> {
   const { secretRef, ...rest } = s;
+  const credential = await credentialStatus(secretRef);
+  const partner = s.config.kind === "partnership" ? { preset: partnerPreset(s.id), readiness: partnerReadiness({ connection: s.config.connection, credentialPresent: !!credential?.present, lastTest: s.lastTest, agreement: s.agreement, active: s.status === "active" || s.status === "degraded" }) } : undefined;
   return {
     ...rest,
     statusLabel: STATUS_LABEL[s.status],
@@ -35,7 +40,8 @@ export async function sourceView(s: SourceRecord, health: Record<string, SourceH
     categoryLabel: CATEGORY_LABEL[s.category],
     available: await isAvailable(s),
     health: health[s.id] ?? null,
-    credential: await credentialStatus(secretRef),
+    credential,
+    ...(partner ? { partner } : {}),
   };
 }
 
