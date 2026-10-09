@@ -173,13 +173,16 @@
     const out = [];
     const vis = (sel) => [...document.querySelectorAll(sel)].some((e) => visible(e));
     if (vis("input[type=password]")) out.push("login_form");
+    // A challenge the candidate already solved leaves its token in the page; it no longer needs them.
+    const solved = [...document.querySelectorAll("textarea[name='g-recaptcha-response'], textarea[name='h-captcha-response'], input[name='cf-turnstile-response']")].some((e) => (e.value || "").length > 20);
     const captcha = [...document.querySelectorAll("iframe")].some((f) => {
       const id = `${f.getAttribute("title") || ""} ${f.getAttribute("src") || ""}`;
       if (!/captcha|challenge|turnstile|hcaptcha/i.test(id)) return false;
       const r = f.getBoundingClientRect();
       return r.width >= 100 && r.height >= 40 && getComputedStyle(f).visibility !== "hidden";
     });
-    if (captcha || vis(".cf-turnstile, .h-captcha:not([data-size=invisible])")) out.push("captcha");
+    state.challenge = !solved && (captcha || vis(".cf-turnstile, .h-captcha:not([data-size=invisible])"));
+    if (state.challenge) out.push("captcha");
     if (vis("input[autocomplete='one-time-code']") || [...document.querySelectorAll("input")].some((e) => visible(e) && /verification code|one[- ]time|otp|security code/i.test(labelOf(e)))) out.push("otp");
     if (vis("input[autocomplete^='cc-']") || [...document.querySelectorAll("input")].some((e) => visible(e) && /card number|\bcvv\b|\bcvc\b|expiry date/i.test(labelOf(e)))) out.push("payment");
     return out;
@@ -363,7 +366,7 @@
   // Inside WonderJobs' cloud browser (a server-hosted page behind the message shim) the helper never
   // submits: final submission happens only in the candidate's own browser (CLAUDE.md, WJ-249).
   const IN_CLOUD = !!(window.chrome && window.chrome.runtime && window.chrome.runtime.__wonder);
-  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, submit: false, keepGoing: false, advances: 0, notice: null };
+  const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, submit: false, keepGoing: false, advances: 0, notice: null, challenge: false };
 
   function sigOf(form) {
     return JSON.stringify([form.step, form.signals, form.fields.map((f) => [f.id, f.type, f.hasValue, f.options?.length])]);
@@ -647,7 +650,7 @@
         ${v.resume ? `<h3>Résumé</h3><div>${esc(v.resume.filename)}</div>` : ""}
         ${detected ? `<div class="box" style="background:#dcfce7"><strong>Looks like it went through.</strong><div>Confirm in WonderJobs that you submitted it.</div></div>` : ""}
         <div class="row">
-          <span class="muted">${state.submit ? "Submit for me is on: Wonder submits once every required field is answered." : "Review, then press the employer's submit button yourself."}</span>
+          <span class="muted">${state.challenge ? "Complete the page's verification, then press the employer's button yourself." : state.submit ? "Submit for me is on: Wonder submits once every required field is answered." : "Review, then press the employer's submit button yourself."}</span>
           ${v.stopped ? "" : `<button class="pill ghost" id="stop">Stop</button>`}
         </div>
       </div>`;
