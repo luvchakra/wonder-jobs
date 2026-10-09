@@ -43,7 +43,8 @@ export function formEncode(params: Record<string, unknown>, prefix = ""): string
   return out.filter(Boolean).join("&");
 }
 
-async function call<T>(cfg: StripeConfig, method: "GET" | "POST", path: string, body?: Record<string, unknown>, idempotencyKey?: string): Promise<T> {
+/** One Stripe API call. Exported for the JobsLake API's metered billing (server/jobslake/apiBilling.ts). */
+export async function stripeCall<T>(cfg: Pick<StripeConfig, "secretKey">, method: "GET" | "POST", path: string, body?: Record<string, unknown>, idempotencyKey?: string): Promise<T> {
   const headers: Record<string, string> = { authorization: `Bearer ${cfg.secretKey}` };
   if (body) headers["content-type"] = "application/x-www-form-urlencoded";
   if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
@@ -68,7 +69,7 @@ interface StripePrice {
 }
 
 export async function stripePrice(cfg: StripeConfig): Promise<PlanPrice> {
-  const p = await call<StripePrice>(cfg, "GET", `/prices/${encodeURIComponent(cfg.priceId)}?expand[]=product`);
+  const p = await stripeCall<StripePrice>(cfg, "GET", `/prices/${encodeURIComponent(cfg.priceId)}?expand[]=product`);
   if (!p.recurring || p.unit_amount == null) throw new ProviderError("STRIPE_PRICE_ID must be a recurring price with a fixed amount", 400);
   if (!p.active) throw new ProviderError("The configured Stripe price is archived", 400);
   const product = typeof p.product === "object" ? p.product : {};
@@ -85,7 +86,7 @@ export async function stripePrice(cfg: StripeConfig): Promise<PlanPrice> {
 }
 
 export async function stripeCheckout(cfg: StripeConfig, input: { tenantId: string; email?: string; successUrl: string; cancelUrl: string; idempotencyKey: string }): Promise<{ id: string; url: string }> {
-  const s = await call<{ id: string; url: string }>(
+  const s = await stripeCall<{ id: string; url: string }>(
     cfg,
     "POST",
     "/checkout/sessions",
@@ -108,12 +109,12 @@ export async function stripeCheckout(cfg: StripeConfig, input: { tenantId: strin
 
 /** Stripe's hosted customer portal: update card, download invoices, cancel. */
 export async function stripePortal(cfg: StripeConfig, customerId: string, returnUrl: string): Promise<string> {
-  const s = await call<{ url: string }>(cfg, "POST", "/billing_portal/sessions", { customer: customerId, return_url: returnUrl });
+  const s = await stripeCall<{ url: string }>(cfg, "POST", "/billing_portal/sessions", { customer: customerId, return_url: returnUrl });
   return s.url;
 }
 
 export async function stripeSubscriptionStatus(cfg: StripeConfig, subscriptionId: string): Promise<{ status: SubscriptionStatus; cancelAtPeriodEnd: boolean; raw: string }> {
-  const s = await call<{ status: string; cancel_at_period_end: boolean; cancel_at: number | null }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  const s = await stripeCall<{ status: string; cancel_at_period_end: boolean; cancel_at: number | null }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
   // Same reading as the webhook (`fromStripeEvent`): a scheduled `cancel_at` is a cancellation too.
   return { status: normalizeStripeStatus(s.status), cancelAtPeriodEnd: !!s.cancel_at_period_end || s.cancel_at != null, raw: s.status };
 }

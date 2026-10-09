@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { bearerMatches } from "@/server/crypto";
 import { reconcileSubscriptions, type ReconcileReport } from "@/server/billing/service";
+import { reportApiUsage, type ApiUsageReport } from "@/server/jobslake/apiBilling";
 import { purgeExpired } from "@/server/privacy/retention";
 import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
 import { raiseDueReminders } from "@/server/workflow/reminders";
@@ -116,6 +117,13 @@ export async function GET(req: Request) {
   } catch (e) {
     failures.push({ tenantId: "*", error: `billing reconciliation: ${e instanceof Error ? e.message : String(e)}` });
   }
+  // JobsLake API pay-as-you-go: re-read each subscription from Stripe and report yesterday's overage (once per day, idempotent).
+  let apiUsage: ApiUsageReport | null = null;
+  try {
+    apiUsage = await reportApiUsage(now);
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `jobslake api usage report: ${e instanceof Error ? e.message : String(e)}` });
+  }
   try {
     purged = await purgeExpired(now);
   } catch (e) {
@@ -125,6 +133,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     ok: true,
     billing,
+    apiUsage,
     purged,
     at: now.toISOString(),
     tenantsDue: tenants.length,

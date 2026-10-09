@@ -237,7 +237,7 @@ export type SearchEvent =
 
 /* ------------------------------------------------------------------ errors */
 
-export type ErrorCode = "INVALID_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "RATE_LIMITED" | "SOURCE_TIMEOUT" | "SOURCE_UNAVAILABLE" | "SOURCE_NEEDS_SETUP" | "DESTINATION_BLOCKED" | "VALIDATION_FAILED" | "FEATURE_DISABLED" | "INTERNAL";
+export type ErrorCode = "INVALID_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "RATE_LIMITED" | "SOURCE_TIMEOUT" | "SOURCE_UNAVAILABLE" | "SOURCE_NEEDS_SETUP" | "DESTINATION_BLOCKED" | "VALIDATION_FAILED" | "FEATURE_DISABLED" | "QUOTA_EXCEEDED" | "INTERNAL";
 
 export interface ErrorBody {
   code: ErrorCode;

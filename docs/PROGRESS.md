@@ -111,6 +111,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Smart search: broader phrasings at once (AI-picked from the profile); search terms on JobsLake Runs (WJ-254)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
+- ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)
 - ✅ Help guide and assistant brought up to the product as it is: Finding jobs, plans, activity email, AI use, Apply with Wonder page by page, and a "When something goes wrong" section (WJ-248)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)

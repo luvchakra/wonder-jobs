@@ -3,8 +3,9 @@
  * Every tool calls the same service function as its REST endpoint and returns the same JSON, so an
  * MCP result and a REST result for the same question are identical (WJ-JL-029).
  *
- * MCP doesn't grant authorization by itself (spec §57): the route requires the service token and
- * the MCP flag before anything here runs.
+ * MCP doesn't grant authorization by itself (spec §57): the route requires the MCP flag and either
+ * the service token or a JobsLake API key before anything here runs. An API key gets only the tools
+ * its REST endpoints allow, metered and restricted exactly as REST (the same service functions).
  */
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import type { Caller } from "./access";
@@ -17,6 +18,8 @@ interface Tool {
   description: string;
   inputSchema: Record<string, unknown>;
   run: (args: Record<string, unknown>, caller: Caller) => Promise<Result<unknown>>;
+  /** Platform-level (sources, health, coverage): service token only, never an API key. */
+  platform?: boolean;
 }
 
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
@@ -42,12 +45,13 @@ export const MCP_TOOLS: Tool[] = [
       return req.ok ? runSearch(caller, req.value) : req;
     },
   },
-  { name: "get_job", description: "Get one canonical opportunity by id. Same schema as GET /api/jobs-lake/v1/opportunities/:id.", inputSchema: idArg, run: async (a) => getOpportunity(String(a.id ?? "")) },
+  { name: "get_job", description: "Get one canonical opportunity by id. Same schema as GET /api/jobs-lake/v1/opportunities/:id.", inputSchema: idArg, run: async (a, c) => getOpportunity(String(a.id ?? ""), c) },
   { name: "refresh_job", description: "Re-read one opportunity from its canonical source. Same schema as POST /api/jobs-lake/v1/opportunities/:id/refresh.", inputSchema: idArg, run: async (a, c) => refreshOpportunityById(c, String(a.id ?? "")) },
   {
     name: "search_sources",
     description: "List JobsLake sources with access strategy, status and health, optionally filtered by text.",
     inputSchema: { type: "object", properties: { text: { type: "string" } } },
+    platform: true,
     run: async (a) => {
       const q = String(a.text ?? "").toLowerCase();
       const all = await listSourcesPublic();
@@ -58,15 +62,20 @@ export const MCP_TOOLS: Tool[] = [
     name: "get_source_health",
     description: "Health of one source (by id) or of all sources, computed from recorded runs.",
     inputSchema: { type: "object", properties: { id: { type: "string" } } },
+    platform: true,
     run: async (a) => (a.id ? getSourcePublic(String(a.id)) : ok(await healthPublic())),
   },
   {
     name: "get_coverage",
     description: "Coverage of the JobsLake warm pool by source, country, role family, seniority, industry and freshness.",
     inputSchema: { type: "object", properties: { days: { type: "integer", minimum: 1, maximum: 30 } } },
+    platform: true,
     run: async (a) => ok(await coveragePublic(Math.min(30, Math.max(1, Number(a.days) || 7)))),
   },
 ];
+
+/** An API key sees the tools for its REST endpoints (search, get, refresh); platform tools need the service token. */
+export const toolsFor = (caller: Caller) => (caller.kind === "developer" ? MCP_TOOLS.filter((t) => !t.platform) : MCP_TOOLS);
 
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
 type RpcReply = { jsonrpc: "2.0"; id: string | number | null; result?: unknown; error?: { code: number; message: string; data?: unknown } };
@@ -84,10 +93,10 @@ export async function handleMcp(msg: Rpc, caller: Caller): Promise<RpcReply | nu
     case "ping":
       return reply(msg.id, {});
     case "tools/list":
-      return reply(msg.id, { tools: MCP_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+      return reply(msg.id, { tools: toolsFor(caller).map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
-      const tool = MCP_TOOLS.find((t) => t.name === name);
+      const tool = toolsFor(caller).find((t) => t.name === name);
       if (!tool) return fail(msg.id, -32602, `Unknown tool: ${name}`);
       const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
       const r = await tool.run(args, caller);

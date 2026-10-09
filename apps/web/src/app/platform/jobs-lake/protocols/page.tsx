@@ -39,6 +39,17 @@ export default function ProtocolsPage() {
                 ))}
               </ul>
             </Panel>
+            <Panel title="API keys">
+              <ul className="flex flex-col gap-1.5 text-[13px] text-ink-2">
+                <li className="font-mono text-[12px] text-ink">{data.apiKeys.header}</li>
+                <li>{data.apiKeys.units}</li>
+                <li>{data.apiKeys.overFree}</li>
+                <li>{data.apiKeys.rateLimit}</li>
+                <li>
+                  {data.apiKeys.sourcesNote} <span className="font-mono text-[12px] text-ink-3">{data.apiKeys.sources.join(" · ")}</span>
+                </li>
+              </ul>
+            </Panel>
             <Panel title="Search request">
               <p className="text-[13px] text-ink-2">{data.searchRequest.note}</p>
               <p className="mt-2 font-mono text-[12px] text-ink-3">{data.searchRequest.fields.join(" · ")}</p>

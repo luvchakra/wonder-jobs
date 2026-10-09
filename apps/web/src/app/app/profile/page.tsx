@@ -11,6 +11,7 @@ import { DigestEmailCard } from "@/components/account/DigestEmailCard";
 import { PushNotifications } from "@/components/pwa/PushNotifications";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
+import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
 import { useBillingStore } from "@/store/billing";
 import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
@@ -75,7 +76,7 @@ function CloudSyncCard() {
 }
 
 /**
- * Opens at the section the avatar menu linked to (#plan, #notifications, #your-data). Those cards load
+ * Opens at the section the avatar menu linked to (#plan, #notifications, #your-data, #jobslake-api). Those cards load
  * their own data first, so wait briefly for the target to appear, then scroll it clear of the top bar.
  */
 function useSectionScroll() {
@@ -133,6 +134,7 @@ function ProfileInner() {
         <DigestEmailCard />
       </div>
       <PlanCard returnState={billingReturn} />
+      <JobsLakeApiCard returnState={params.get("api")} />
       <YourDataCard />
       <Card padding="none" className="mt-4">
         <ul className="divide-y divide-line">

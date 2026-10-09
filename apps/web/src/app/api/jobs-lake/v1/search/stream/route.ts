@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import type { SearchEvent } from "@/domain/jobslake/protocol";
-import { requireCandidateOrService } from "@/server/jobslake/access";
+import { requireApiCaller } from "@/server/jobslake/access";
 import { jobsLakeFlags } from "@/server/jobslake/flags";
 import { badJson, readJson, send } from "@/server/jobslake/http";
-import { err, parseSearchRequest, runSearch, searchGate } from "@/server/jobslake/service";
+import { admitSearch, err, parseSearchRequest, runSearch } from "@/server/jobslake/service";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,14 +14,14 @@ export const maxDuration = 60;
  * `search_completed` (with the full response) or `error`.
  */
 export async function POST(req: Request) {
-  const caller = await requireCandidateOrService(req);
+  const caller = await requireApiCaller(req);
   if (caller instanceof NextResponse) return caller;
   if (!jobsLakeFlags().jobsLakeStreamingEnabled) return send(err(404, "FEATURE_DISABLED", "JobsLake streaming is turned off; use POST /v1/search."));
   const body = await readJson(req);
   if (body === null) return badJson();
   const parsed = parseSearchRequest(body);
   if (!parsed.ok) return send(parsed);
-  const gate = searchGate(caller);
+  const gate = await admitSearch(caller, parsed.value);
   if (!gate.ok) return send(gate);
 
   const enc = new TextEncoder();
@@ -37,8 +37,8 @@ export async function POST(req: Request) {
         }
       };
       try {
-        // The gate already ran (and spent the rate-limit token), so the search itself skips it.
-        const r = await runSearch(caller, parsed.value, { emit: write, signal: req.signal, gateChecked: true });
+        // The gate already ran (spending the rate-limit token, and for an API key one unit), so the search itself skips it.
+        const r = await runSearch(caller, parsed.value, { emit: write, signal: req.signal, admitted: gate.value });
         if (!r.ok) write({ type: "error", error: r.error });
       } catch (e) {
         console.error(`[jobslake] stream search failed: ${e instanceof Error ? e.message : String(e)}`);

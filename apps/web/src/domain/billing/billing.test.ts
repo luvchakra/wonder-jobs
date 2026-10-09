@@ -15,6 +15,21 @@ describe("provider event normalisation", () => {
     expect(fromStripeEvent({ id: "evt_2", type: "checkout.session.completed", created: T, data: { object: { mode: "payment" } } }).kind).toBe("ignored");
   });
 
+  it("ignores JobsLake API pay-as-you-go events, so they never grant or change the candidate plan", () => {
+    const meta = { tenant_id: "tenant-a", purpose: "jobslake_api" };
+    const events = [
+      { type: "checkout.session.completed", object: { mode: "subscription", client_reference_id: "tenant-a", subscription: "sub_api", customer: "cus_1", metadata: meta } },
+      { type: "customer.subscription.created", object: { id: "sub_api", status: "active", metadata: meta, items: { data: [{ price: { id: "price_api" } }] } } },
+      { type: "customer.subscription.updated", object: { id: "sub_api", status: "active", metadata: meta } },
+      { type: "customer.subscription.deleted", object: { id: "sub_api", status: "canceled", metadata: meta } },
+      { type: "invoice.paid", object: { subscription: "sub_api", amount_paid: 120, currency: "usd", subscription_details: { metadata: meta } } },
+      { type: "invoice.payment_failed", object: { amount_due: 120, currency: "usd", parent: { subscription_details: { subscription: "sub_api", metadata: meta } } } },
+    ];
+    for (const ev of events) expect(fromStripeEvent({ id: `evt_${ev.type}`, type: ev.type, created: T, data: { object: ev.object } }).kind).toBe("ignored");
+    // The same events without the purpose are still the candidate plan's.
+    expect(fromStripeEvent({ id: "e", type: "customer.subscription.updated", created: T, data: { object: { id: "sub_pro", status: "active", metadata: { tenant_id: "tenant-a" } } } }).kind).toBe("subscription_updated");
+  });
+
   it("reads current_period_end from subscription items (2025+ Stripe API) and from the top level (older)", () => {
     const newer = fromStripeEvent({ id: "e", type: "customer.subscription.updated", created: T, data: { object: { id: "sub_1", status: "active", metadata: { tenant_id: "t" }, items: { data: [{ current_period_end: T + 86400, price: { id: "price_1" } }] } } } });
     expect(newer.currentPeriodEnd).toBe(new Date((T + 86400) * 1000).toISOString());
