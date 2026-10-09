@@ -15,7 +15,19 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = join(root, "extension");
-const target = join(root, "apps/web/public/wonderjobs-extension.zip");
+// `--store`: the Chrome Web Store package — the same files, minus the localhost entries only a developer needs.
+const store = process.argv.includes("--store");
+const manifestVersion = JSON.parse(readFileSync(join(source, "manifest.json"), "utf8")).version;
+const target = store ? join(root, `dist/wonderjobs-helper-${manifestVersion}.zip`) : join(root, "apps/web/public/wonderjobs-extension.zip");
+
+/** The store manifest: no localhost host permission or content-script match. */
+function forStore(json) {
+  const m = JSON.parse(json);
+  const keep = (list) => (list ?? []).filter((p) => !/localhost/.test(p));
+  m.host_permissions = keep(m.host_permissions);
+  for (const cs of m.content_scripts ?? []) cs.matches = keep(cs.matches);
+  return Buffer.from(`${JSON.stringify(m, null, 2)}\n`);
+}
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -52,6 +64,8 @@ function u32(n) {
 
 const files = walk(source)
   .map((full) => ({ name: relative(source, full).split("\\").join("/"), data: readFileSync(full) }))
+  .filter((f) => !(store && f.name === "README.md"))
+  .map((f) => (store && f.name === "manifest.json" ? { ...f, data: forStore(f.data.toString("utf8")) } : f))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const local = [];

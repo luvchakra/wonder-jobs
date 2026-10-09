@@ -2,18 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { MarketingPage } from "@/components/landing/MarketingPage";
+import { EXTENSION_RELEASE, EXTENSION_STORE_URL } from "@/content/extensionRelease";
 
 export const metadata: Metadata = {
   title: "Browser extension",
-  description: "Fill an employer's application form with the resume and cover letter you already prepared in WonderJobs.",
+  description: "Fill an employer's application form with the details, résumé and answers you approved in WonderJobs.",
 };
 
+const BUTTON = "inline-flex items-center gap-2 rounded-[12px] bg-brand-500 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-brand-600";
+
 export default function ExtensionPage() {
+  const { version, date, changes } = EXTENSION_RELEASE;
   return (
     <MarketingPage
-      eyebrow="Browser extension"
+      eyebrow={`Browser extension · version ${version}`}
       title="Apply without retyping yourself"
-      intro="WonderJobs prepares your materials. The extension puts them into the employer's own form — your name, your email, the resume and cover letter tailored to that exact role. It submits only if you turn on Submit applications."
+      intro="WonderJobs prepares your materials. The helper puts them into the employer's own form — your details, your résumé and cover letter for that role, and the answers you approved. You review; it submits only if you turn on Submit applications."
       sections={[
         {
           id: "what-it-fills",
@@ -22,65 +26,97 @@ export default function ExtensionPage() {
             <>
               <ul>
                 <li>
-                  <strong>Name, email, phone, LinkedIn and location</strong> — from your Career Profile (and your account email).
+                  <strong>Contact and address</strong> — name, email, phone (with a separate country code where the form wants one), LinkedIn, city, state and country, from your Career Profile.
                 </li>
                 <li>
-                  <strong>Resume</strong> — the version you prepared for that specific posting, attached as a real <code>.docx</code>.
+                  <strong>Education and experience</strong> — schools, degrees, employers, titles and dates, read from your Career Profile and résumé in the form&apos;s own format.
                 </li>
                 <li>
-                  <strong>Cover letter</strong> — the one prepared for that posting, as text or as a file, whichever the form wants.
+                  <strong>Résumé and cover letter</strong> — the versions prepared for that posting, as a real file or as text, whichever the form asks for.
+                </li>
+                <li>
+                  <strong>Application answers</strong> — salary, notice period and the like, from the answers saved in your Career Profile.
                 </li>
               </ul>
               <p>
-                Anything your Career Profile doesn&apos;t hold is left blank and listed, so you know what is still yours to type — the helper never invents a value to look complete. Salary, notice period and employment status come from the Application
-                answers in your Career Profile; when you type an answer to a question the helper flagged, it remembers it for the next form. Work authorization, sponsorship, legal declarations and demographic questions are always yours to answer, and are never
-                remembered.
+                Anything your profile doesn&apos;t hold is left blank and listed for you — the helper never invents a value to look complete. If a form rejects a value&apos;s format (a phone number, say), it tries again in the format the form asks for.
+                When you type something new on a form and save it, the helper offers to keep it in your Career Profile for the next one.
               </p>
               <p>
-                With <strong>Apply with Wonder</strong> (start it from a job in WonderJobs), the helper reads the whole form, fills what matches your approved details, highlights what needs you, and presses the page&apos;s own Next or Save and continue to
-                reach the next page. It stops for sign-in, verification challenges, an unexpected site, and on the page whose button submits. There it stops and you press the employer&apos;s submit button — unless you turned on Submit applications, when it presses Submit once every required answer is yours, and logs it.
+                <strong>Sensitive questions</strong> — gender and ethnicity, work authorization and sponsorship, legal declarations and ID numbers — stay yours unless you turn that group on in Automation and confirm the exact answers. ID numbers are stored
+                encrypted and shown only masked.
               </p>
             </>
           ),
         },
         {
-          id: "where-it-works",
-          title: "Where it works",
+          id: "how-it-works",
+          title: "How it works",
           body: (
             <>
-              <p>Greenhouse, Lever, Ashby and Workday application forms run the helper automatically. On an employer&apos;s own careers site, it asks you to allow that one site first — it never requests access to every website.</p>
-              <p>It reads fields by their labels, so unfamiliar forms still get the obvious fields. It only fills after you choose Fill (or, if you turned it on, when an Apply with Wonder form opens), on the form you are looking at, page by page until the submit page.</p>
+              <p>
+                <strong>Apply with Wonder</strong> (from a job in WonderJobs): the helper opens the employer&apos;s form, fills each page, highlights what needs you, and presses the page&apos;s own Next to reach the next one. It stops for sign-in,
+                verification challenges, an unexpected site, and on the page whose button submits — where you press Submit, unless you turned on Submit applications, when it presses Submit once every required answer is yours, and logs it.
+              </p>
+              <p>
+                <strong>Any other application page</strong>: open the helper and choose Fill. It fills what it can match from your Career Profile and résumé on the form you&apos;re looking at.
+              </p>
+              <p>Greenhouse, Lever, Ashby and Workday forms run the helper automatically. On an employer&apos;s own careers site it asks you to allow that one site first — it never asks for access to every website.</p>
             </>
           ),
         },
         {
           id: "install",
           title: "Install it",
-          body: (
+          body: EXTENSION_STORE_URL ? (
             <>
               <p>
-                It isn&apos;t on the Chrome Web Store yet, so it installs directly — about thirty seconds:
+                <a href={EXTENSION_STORE_URL} className={BUTTON}>
+                  Add to Chrome
+                </a>
               </p>
+              <p>Works in Chrome, Edge, Brave and other Chromium browsers. Then open WonderJobs and sign in — the helper connects itself.</p>
+            </>
+          ) : (
+            <>
+              <p>It installs directly while its Chrome Web Store listing is in review — about thirty seconds:</p>
               {/* The shared page frame styles every `li` as a disc; `[&>li]` outranks it so these stay numbered. */}
               <ol className="ml-5 [&>li]:list-decimal">
                 <li>Download the extension and unzip it somewhere you&apos;ll keep.</li>
                 <li>
-                  Open <code>chrome://extensions</code>.
+                  Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>, top right.
                 </li>
                 <li>
-                  Turn on <strong>Developer mode</strong>, top right.
+                  Click <strong>Load unpacked</strong> and pick the folder you unzipped.
                 </li>
-                <li>
-                  Click <strong>Load unpacked</strong> and pick the folder you just unzipped.
-                </li>
-                <li>Open WonderJobs and sign in — the extension connects itself.</li>
+                <li>Open WonderJobs and sign in — the helper connects itself.</li>
               </ol>
               <p className="mt-2">
-                <a href="/wonderjobs-extension.zip" download className="inline-flex items-center gap-2 rounded-[12px] bg-brand-500 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-brand-600">
-                  <Download className="size-4" aria-hidden /> Download the extension
+                <a href="/wonderjobs-extension.zip" download className={BUTTON}>
+                  <Download className="size-4" aria-hidden /> Download version {version}
                 </a>
               </p>
-              <p>Works in Chrome, Edge, Brave and any other Chromium browser.</p>
+              <p>
+                Already installed? Your version is on <code>chrome://extensions</code>. To update, download again, replace the folder&apos;s contents, and press the reload arrow on the helper&apos;s card.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: "whats-new",
+          title: "What's new",
+          body: (
+            <>
+              <p>
+                Version {version}, {new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}.
+              </p>
+              <ul>
+                {changes.map((c) => (
+                  <li key={c.version}>
+                    <strong>{c.version}</strong> — {c.note}
+                  </li>
+                ))}
+              </ul>
             </>
           ),
         },
@@ -89,9 +125,10 @@ export default function ExtensionPage() {
           title: "What it can see",
           body: (
             <ul>
-              <li>It reads your prepared materials from WonderJobs using a read-only token that expires after thirty minutes and is refreshed whenever you have WonderJobs open. There is no password or key to paste anywhere.</li>
-              <li>The token never reaches the employer&apos;s page — only the extension&apos;s own background worker holds it.</li>
-              <li>It sends the address of the job page you are on to WonderJobs, so it can find the materials you prepared for that posting. Nothing else about your browsing leaves your machine.</li>
+              <li>It reads your prepared materials from WonderJobs with a short-lived token that is refreshed while you have WonderJobs open. There is no password or key to paste anywhere.</li>
+              <li>The token never reaches the employer&apos;s page — only the helper&apos;s own background worker holds it.</li>
+              <li>It reads a form&apos;s labels and choices to know what to fill. It never reads password, one-time-code or payment fields.</li>
+              <li>It sends the address of the application page you&apos;re on to WonderJobs, to find what you prepared for it. Nothing else about your browsing leaves your machine.</li>
               <li>
                 It submits a form only when you turned on Submit applications. Read more in <Link href="/security">Security</Link>.
               </li>

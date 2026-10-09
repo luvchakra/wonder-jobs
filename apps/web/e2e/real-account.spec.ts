@@ -112,6 +112,7 @@ test.describe("Real account — production walk-through", () => {
     await expect(page.getByText("Where this job was found")).toBeVisible();
     await page.getByRole("link", { name: "Apply with Wonder" }).click();
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Change for this job" }).click();
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible({ timeout: 20_000 });

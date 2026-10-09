@@ -55,12 +55,13 @@ test.describe("JobsLake admin", () => {
     await expect(page.getByText("Active sources", { exact: true })).toBeVisible();
   });
 
-  test("WJ-JL-014 admin views the source registry — access labels, and partnership portals marked Do not use", async ({ page }, info) => {
+  test("WJ-JL-014 admin views the source registry — access labels, and partnership portals shown as Partner API", async ({ page }, info) => {
     info.skip(info.project.name !== "chromium", "table layout is desktop");
     await page.goto(`${PORTAL}/sources`);
     const row = (name: string) => page.getByRole("row").filter({ has: page.getByRole("link", { name: new RegExp(`^${name}`) }) });
     await expect(row("Greenhouse")).toContainText("API");
-    await expect(row("LinkedIn")).toContainText("Do not use");
+    // Partner portals are configurable once a partnership hands over an endpoint and credentials; until then they need setup.
+    await expect(row("LinkedIn")).toContainText("Partner API");
   });
 
   test("WJ-JL-016/018/019 admin detects an ATS board, tests it against the real board, and activates it", async ({ page, request }) => {
