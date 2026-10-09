@@ -175,14 +175,14 @@ describe("checkout, availability and cancellation (provider APIs mocked)", () =>
     vi.stubGlobal("fetch", fetchMock);
     const { url } = await startCheckout({ tenantId: "tenant-a", email: "a@example.com", provider: "stripe", origin: "https://jobs.example" });
     expect(url).toBe("https://checkout.stripe.com/c/pay/cs_1");
-    const [calledUrl, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const [calledUrl, init] = fetchMock.mock.calls.find((c) => String((c as unknown[])[0]).includes("/checkout/sessions")) as unknown as [string, RequestInit];
     expect(calledUrl).toBe("https://api.stripe.com/v1/checkout/sessions");
     const body = decodeURIComponent(String(init.body));
     expect(body).toContain("client_reference_id=tenant-a");
     expect(body).toContain("subscription_data[metadata][tenant_id]=tenant-a");
     expect(body).toContain("line_items[0][price]=price_pro");
     expect(body).toContain("success_url=https://jobs.example/app/profile?billing=success&provider=stripe#plan");
-    expect((init.headers as Record<string, string>)["idempotency-key"]).toMatch(/^checkout:tenant-a:pro:\d+$/);
+    expect((init.headers as Record<string, string>)["idempotency-key"]).toMatch(/^checkout:tenant-a:pro:none:\d+$/);
   });
 
   it("won't start a second subscription for someone who already has Pro", async () => {

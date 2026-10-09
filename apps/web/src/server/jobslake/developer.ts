@@ -8,7 +8,8 @@
  */
 import { randomBytes } from "node:crypto";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { apiPlanConfig, decideQuota, utcDay } from "@/domain/jobslake/apiPlan";
+import { decideQuota, utcDay, type StoredApiPlan } from "@/domain/jobslake/apiPlan";
+import { cachedApiPlan, currentApiPlan } from "./apiPlanSettings";
 import { sha256Hex } from "@/server/crypto";
 import { apiStore, type ApiKeyRecord } from "./apiStore";
 import { BUILTIN_SOURCES } from "./registry";
@@ -86,11 +87,13 @@ export async function authenticateKey(key: string): Promise<{ ownerId: string; k
 /* ------------------------------------------------------------- sources */
 
 /**
- * Sources an API key may reach: only those whose terms permit redistribution. Set explicitly with
- * JOBSLAKE_API_SOURCE_IDS; by default the built-in employer career-board (ATS) sources — public
- * postings employers publish through their own ATS's public API.
+ * Sources an API key may reach: only those whose terms permit redistribution. Chosen by a billing admin
+ * (Billing → JobsLake API, stored on the platform), else JOBSLAKE_API_SOURCE_IDS; by default the built-in
+ * employer career-board (ATS) sources — public postings employers publish through their own ATS's public API.
  */
-export function apiSourceIds(env: Record<string, string | undefined> = process.env): string[] {
+export function apiSourceIds(env: Record<string, string | undefined> = process.env, stored: StoredApiPlan | undefined = cachedApiPlan()): string[] {
+  const chosen = (stored?.sourceIds ?? []).filter((s) => typeof s === "string" && s.trim());
+  if (chosen.length) return [...new Set(chosen)];
   const set = (env.JOBSLAKE_API_SOURCE_IDS ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -140,7 +143,7 @@ export async function chargeUnits(ownerId: string, units = 1, now = new Date()):
   const refund = async () => {
     await store.meter(ownerId, day, -units).catch((e) => console.error(`[jobslake-api] refund failed: ${e instanceof Error ? e.message : "unknown"}`));
   };
-  const config = apiPlanConfig();
+  const config = await currentApiPlan();
   let billingActive = false;
   if (total > config.freeMonthly) billingActive = (await store.getBilling(ownerId).catch(() => undefined))?.status === "active";
   const d = decideQuota({ totalAfter: total, units, billingActive, config });

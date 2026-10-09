@@ -61,6 +61,9 @@ export function JobsLakeShell({ actor, children }: { actor: string; children: Re
           <Link href="/platform/jobs-apply" className="mt-1 block text-white/75 hover:text-white">
             JobsApply operations
           </Link>
+          <Link href="/platform/billing" className="mt-1 block text-white/75 hover:text-white">
+            Billing
+          </Link>
           <Link href="/app" className="mt-1 inline-block text-white/75 hover:text-white">
             Back to WonderJobs
           </Link>

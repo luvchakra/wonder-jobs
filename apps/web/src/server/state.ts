@@ -18,7 +18,8 @@ export type StateStoreName = (typeof STATE_STORES)[number];
  */
 // wj.plan: a tenant's own usage counters; wj.plans: the operator's plan configuration, held under the platform tenant.
 // wj.digest: the activity digest's on/off choice and its send log (server-written; the client reads it through /api/digest).
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest"] as const;
+// wj.billingadmin / wj.apiplan: billing-admin state (automatic discounts, the money-call ledger) and JobsLake API pricing, platform tenant only.
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;

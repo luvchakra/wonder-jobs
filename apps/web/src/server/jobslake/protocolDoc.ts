@@ -2,11 +2,12 @@ import { ACCESS_LABEL, CATEGORY_LABEL, PROTOCOL_VERSION, SEARCH_MODE_META, STATU
 import { MAPPABLE_FIELDS } from "@/domain/jobslake/mapping";
 import { apiPlanConfig } from "@/domain/jobslake/apiPlan";
 import { apiSourceIds } from "./developer";
+import { cachedApiPlan } from "./apiPlanSettings";
 import { MCP_TOOLS } from "./mcp";
 
-/** GET /v1/protocol and the admin Protocols page: the contract, described — no data. */
+/** GET /v1/protocol and the admin Protocols page: the contract, described — no data. Callers `loadApiPlan()` first. */
 export function protocolDocument() {
-  const plan = apiPlanConfig();
+  const plan = apiPlanConfig(process.env, cachedApiPlan());
   return {
     name: "JobsLake Protocol",
     version: PROTOCOL_VERSION,

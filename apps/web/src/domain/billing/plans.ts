@@ -36,6 +36,8 @@ export interface PlanLimits {
 export interface PriceRefs {
   stripe?: string;
   razorpay?: string;
+  /** Ids this plan was sold under before a price change: existing subscribers keep paying them, and must keep the plan. */
+  previous?: string[];
 }
 
 export interface PlansConfig {
@@ -55,7 +57,7 @@ export const DEFAULT_PLANS: PlansConfig = {
   priceRefs: { pro: {}, max: {} },
 };
 
-const LimitsSchema = z
+export const LimitsSchema = z
   .object({
     label: z.string().trim().min(1).max(30),
     tagline: z.string().trim().max(80),
@@ -71,7 +73,7 @@ const LimitsSchema = z
     applyWithWonder: z.boolean(),
   })
   .partial();
-const RefsSchema = z.object({ stripe: z.string().trim().max(200).optional(), razorpay: z.string().trim().max(200).optional() }).partial();
+const RefsSchema = z.object({ stripe: z.string().trim().max(200).optional(), razorpay: z.string().trim().max(200).optional(), previous: z.array(z.string().trim().min(1).max(200)).max(200).optional() }).partial();
 const ConfigSchema = z
   .object({
     plans: z.object({ free: LimitsSchema, pro: LimitsSchema, max: LimitsSchema }).partial(),
@@ -102,15 +104,19 @@ export function mergePlansConfig(stored: unknown): PlansConfig {
   const clean = (v: unknown): PriceRefs => {
     const r = RefsSchema.safeParse(isRecord(v) ? v : {});
     const d = r.success ? r.data : {};
-    return { ...(d.stripe ? { stripe: d.stripe } : {}), ...(d.razorpay ? { razorpay: d.razorpay } : {}) };
+    return { ...(d.stripe ? { stripe: d.stripe } : {}), ...(d.razorpay ? { razorpay: d.razorpay } : {}), ...(d.previous?.length ? { previous: [...new Set(d.previous)] } : {}) };
   };
   const meta = ConfigSchema.pick({ updatedAt: true, updatedBy: true }).safeParse(s);
   return { plans, priceRefs: { pro: clean(storedRefs.pro), max: clean(storedRefs.max) }, ...(meta.success && meta.data.updatedAt ? { updatedAt: meta.data.updatedAt } : {}), ...(meta.success && meta.data.updatedBy ? { updatedBy: meta.data.updatedBy } : {}) };
 }
 
-/** Which paid plan a subscription's price/plan id buys. An id nobody mapped is Pro: the first paid tier, never the top one. */
+/**
+ * Which paid plan a subscription's price/plan id buys. An id nobody mapped is Pro: the first paid tier, never
+ * the top one. A price the plan was sold under before a price change still buys it — subscribers keep their price.
+ */
 export function planForRef(ref: string | undefined, cfg: PlansConfig): PaidPlanId {
-  if (ref && (ref === cfg.priceRefs.max.stripe || ref === cfg.priceRefs.max.razorpay)) return "max";
+  const max = cfg.priceRefs.max;
+  if (ref && (ref === max.stripe || ref === max.razorpay || max.previous?.includes(ref))) return "max";
   return "pro";
 }
 

@@ -10,6 +10,7 @@ import type { Caller } from "./access";
 import { publicStatus, refreshOpportunity, search, type SearchOptions } from "./core";
 import { jobsLakeFlags } from "./flags";
 import { apiSourceIds, chargeUnits, developerSources, forDeveloper } from "./developer";
+import { loadApiPlan } from "./apiPlanSettings";
 import { getSource, listSources } from "./registry";
 import { jobsLakeStore } from "./store";
 import { coverageView, listSourceViews, publicSource, sourceView } from "./views";
@@ -111,6 +112,7 @@ export async function admitSearch(caller: Caller, req: SearchRequest): Promise<R
   const gate = searchGate(caller);
   if (!gate.ok) return gate;
   if (caller.kind !== "developer") return { ok: true, value: {} };
+  await loadApiPlan();
   const onlySources = developerSources(req.sourceIds, await listSources());
   if (!onlySources.length) return err(400, "INVALID_REQUEST", `None of the requested sources are available to API keys. API keys can search: ${apiSourceIds().join(", ")}.`);
   const charge = await chargeUnits(caller.ownerId, 1);
@@ -147,6 +149,7 @@ export async function getOpportunity(id: string, caller?: Caller): Promise<Resul
   const o = await jobsLakeStore().getOpportunity(id);
   if (!o) return notFound;
   if (caller?.kind !== "developer") return { ok: true, value: o };
+  await loadApiPlan();
   const mine = forDeveloper(o, new Set(apiSourceIds()));
   return mine ? { ok: true, value: mine } : notFound;
 }

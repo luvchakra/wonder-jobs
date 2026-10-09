@@ -3,7 +3,7 @@ import { stateStore } from "@/server/state";
 import { razorpayConfig, stripeConfig } from "./config";
 
 /** The operator's plan configuration lives under a tenant no account can be: it's read by everyone, written only from the operator page. */
-const PLATFORM_TENANT = "__platform__";
+export const PLATFORM_TENANT = "__platform__";
 
 /** The current plans: stored overrides on top of the defaults, with the deployment's price ids filling any gap. */
 export async function getPlansConfig(): Promise<PlansConfig> {
@@ -16,6 +16,16 @@ export async function getPlansConfig(): Promise<PlansConfig> {
   cfg.priceRefs.max.stripe ||= s?.priceIdMax;
   cfg.priceRefs.max.razorpay ||= r?.planIdMax;
   return cfg;
+}
+
+/**
+ * The stored copy alone — no environment ids filled in — for edits, so saving never freezes the
+ * deployment's current STRIPE_PRICE_ID / RAZORPAY_PLAN_ID into the store. Throws if the store can't
+ * be read: an admin edit must start from what's really stored, not from the defaults.
+ */
+export async function getStoredPlansConfig(): Promise<PlansConfig> {
+  const doc = await stateStore.get(PLATFORM_TENANT, "wj.plans");
+  return mergePlansConfig(doc?.state ?? DEFAULT_PLANS);
 }
 
 export async function savePlansConfig(input: unknown, actor: string): Promise<PlansConfig> {

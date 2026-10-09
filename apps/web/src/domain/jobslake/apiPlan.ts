@@ -19,9 +19,21 @@ const posInt = (v: string | undefined, dflt: number, max: number) => {
   return v !== undefined && v.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= max ? n : dflt;
 };
 
-export function apiPlanConfig(env: Record<string, string | undefined> = process.env): ApiPlanConfig {
-  const freeMonthly = posInt(env.JOBSLAKE_API_FREE_SEARCHES, 100, 10_000_000);
-  const maxMonthly = Math.max(freeMonthly, posInt(env.JOBSLAKE_API_MAX_MONTHLY, 100_000, 100_000_000));
+/** What a billing admin stored on the platform (Billing → JobsLake API); any field may be unset. */
+export interface StoredApiPlan {
+  freeMonthly?: number;
+  maxMonthly?: number;
+  sourceIds?: string[];
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+const storedInt = (v: unknown, max: number) => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= max ? v : undefined);
+
+/** The plan in force: the admin's stored value first, then the environment, then the defaults. */
+export function apiPlanConfig(env: Record<string, string | undefined> = process.env, stored?: StoredApiPlan): ApiPlanConfig {
+  const freeMonthly = storedInt(stored?.freeMonthly, 10_000_000) ?? posInt(env.JOBSLAKE_API_FREE_SEARCHES, 100, 10_000_000);
+  const maxMonthly = Math.max(freeMonthly, storedInt(stored?.maxMonthly, 100_000_000) ?? posInt(env.JOBSLAKE_API_MAX_MONTHLY, 100_000, 100_000_000));
   return { freeMonthly, maxMonthly };
 }
 

@@ -9,6 +9,7 @@ import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { BILLING_PROVIDERS, type BillingProviderId, type ProviderAvailability } from "@/domain/billing/types";
 import { formatMoney } from "@/domain/billing/format";
+import { discountTerm } from "@/domain/billing/discounts";
 import { formatDate } from "@/lib/format";
 import { useBillingStore } from "@/store/billing";
 import { useAuthStore } from "@/store/auth";
@@ -187,15 +188,24 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         <ul className="mt-4 space-y-3">
           {upgrades.map((p) => {
             const l = data.plans[p];
+            const d = ready.some((r) => r.provider === "stripe") ? data.discounts?.[p] : undefined;
+            const term = d ? [discountTerm(d), ready.length > 1 ? "with Stripe" : ""].filter(Boolean).join(", ") : "";
             return (
               <li key={p} className="rounded-[14px] border border-line p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[15px] font-semibold text-ink">
                     {l.label} <span className="text-[13px] font-normal text-ink-3">· {l.tagline}</span>
                   </p>
-                  <p className="text-[14px] font-semibold text-ink">
-                    {formatMoney(l.priceMinor, l.currency)} <span className="font-normal text-ink-3">/ month</span>
-                  </p>
+                  {d ? (
+                    <p className="text-[14px] font-semibold text-ink">
+                      <s className="mr-1 font-normal text-ink-3">{formatMoney(d.regularMinor, d.currency)}</s>
+                      {formatMoney(d.amountMinor, d.currency)} <span className="font-normal text-ink-3">/ month{term ? ` · ${term}` : ""}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[14px] font-semibold text-ink">
+                      {formatMoney(l.priceMinor, l.currency)} <span className="font-normal text-ink-3">/ month</span>
+                    </p>
+                  )}
                 </div>
                 <p className="mt-1 text-[12.5px] text-ink-2">
                   {l.scheduledSearches} scheduled search{l.scheduledSearches === 1 ? "" : "es"}{l.dailySearches ? ", daily" : ", weekly"}{l.keepWatch ? ", keep watch" : ""} · {l.aiDraftsPerMonth} AI drafts a month · {l.roles} role{l.roles === 1 ? "" : "s"} · {l.resumeTemplates >= 8 ? "all" : l.resumeTemplates} résumé designs
