@@ -63,6 +63,14 @@ describe("isDue", () => {
     expect(isDue({ ...base, nextRunAt: undefined }, now)).toBe(false);
   });
 
+  it("an evening run doesn't swallow the next morning's search (the 2026-10-09 miss)", () => {
+    // Set up / run at 21:01 IST; the 08:00 IST search is due at 02:30Z; the daily cron wakes at 02:19Z with an hour's window.
+    const s = { ...base, nextRunAt: "2026-10-09T02:30:00.000Z", lastRunAt: "2026-10-08T15:31:46.454Z" };
+    expect(isDue(s, new Date("2026-10-09T02:19:59.000Z"), 60 * 60_000)).toBe(true);
+    // Once the cron took it at 02:19Z (and before nextRunAt moved on), neither scheduler fires it again.
+    expect(isDue({ ...s, lastRunAt: "2026-10-09T02:20:30.000Z" }, new Date("2026-10-09T02:31:00.000Z"))).toBe(false);
+  });
+
   it("stands down when the schedule already ran today, whoever fired it", () => {
     // The guard that lets the browser ticker and the server cron coexist without double-firing.
     expect(isDue({ ...base, lastRunAt: "2026-04-15T02:31:00.000Z" }, now)).toBe(false);
@@ -75,8 +83,10 @@ describe("isDue", () => {
     expect(isDue(base, wake, 60 * 60_000)).toBe(true);
     expect(isDue(base, wake, 5 * 60_000)).toBe(false); // ten minutes away is outside a five-minute window
     expect(isDue({ ...base, nextRunAt: "2026-04-15T03:30:00.000Z" }, wake, 60 * 60_000)).toBe(false); // more than an hour away
-    // The early window never overrides "already ran today", and a negative window means none.
-    expect(isDue({ ...base, lastRunAt: "2026-04-14T22:00:00.000Z" }, wake, 60 * 60_000)).toBe(false);
+    // A run the evening before took an earlier occurrence (or was a "Run now"): this morning's is still owed.
+    expect(isDue({ ...base, lastRunAt: "2026-04-14T22:00:00.000Z" }, wake, 60 * 60_000)).toBe(true);
+    // A run within the hour before the occurrence took it, and a negative window means none.
+    expect(isDue({ ...base, lastRunAt: "2026-04-15T01:49:00.000Z" }, wake, 60 * 60_000)).toBe(false);
     expect(isDue(base, wake, -60_000)).toBe(false);
   });
 });
