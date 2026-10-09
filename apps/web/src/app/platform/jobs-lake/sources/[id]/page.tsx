@@ -10,14 +10,17 @@ import { formatDate, relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
 import { Field, Input } from "@/components/common/Input";
 import { Tabs } from "@/components/common/Tabs";
-import { CredentialForm, MappingEditor, TestReportView } from "@/components/jobslake/SourceParts";
+import { CheckList, CredentialForm, MappingEditor, TestReportView } from "@/components/jobslake/SourceParts";
+import { PartnerActivate, PartnerConnectionEditor } from "@/components/jobslake/PartnerParts";
+import type { PartnerConnection } from "@/domain/jobslake/partners";
 import { AuditList, RunsTable } from "@/components/jobslake/Tables";
 import { AccessBadge, adminFetch, ConfirmAction, HealthChip, LoadError, Loading, Note, PageTitle, Panel, SourceStatusChip, Stat, ms, num, pct, useAdmin } from "@/components/jobslake/ui";
 
 type Detail = { source: SourceView; runs: (SourceRun & { relevant?: number; strong?: number })[]; alerts: Alert[]; audit: AuditEvent[] };
 type Tab = "overview" | "configuration" | "mapping" | "test" | "limits" | "health" | "runs" | "audit" | "advanced";
 
-const ACTIVATABLE = (s: SourceView) => s.config.kind !== "partnership" && s.config.kind !== "scraper" && s.status !== "do_not_use";
+const ACTIVATABLE = (s: SourceView) => (s.config.kind === "partnership" ? !!s.config.connection : s.config.kind !== "scraper" && s.status !== "do_not_use");
+const EMPTY_MAPPING = { itemsPath: "", fields: {} };
 
 export default function SourceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,9 +35,13 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
   if (error) return error.code === "NOT_FOUND" ? <Note tone="warning">No source with id “{id}”.</Note> : <LoadError error={error} onRetry={reload} />;
   if (!data) return <Loading rows={4} />;
   const { source: s, runs, alerts, audit } = data;
-  const mapped = s.config.kind === "json_api" || s.config.kind === "mcp";
-  const takesCredential = mapped;
+  const partnerConn: PartnerConnection | undefined = s.config.kind === "partnership" ? s.config.connection : undefined;
+  const isPartner = s.config.kind === "partnership";
+  const mapped = s.config.kind === "json_api" || s.config.kind === "mcp" || partnerConn?.format === "json_api";
+  const takesCredential = s.config.kind === "json_api" || s.config.kind === "mcp" || isPartner;
+  const testable = !isPartner || !!partnerConn;
   const testFresh = s.lastTest && now - Date.parse(s.lastTest.at) < 24 * 3_600_000;
+  const savePartner = (connection: PartnerConnection) => patch({ config: { kind: "partnership", connection } });
 
   const patch = async (body: Record<string, unknown>) => {
     const r = await adminFetch<{ source: SourceView }>(`sources/${s.id}`, { method: "PATCH", body: JSON.stringify(body) });
@@ -51,13 +58,15 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
     setTab("test");
     await reload();
   };
-  const activate = async () => {
+  const activate = async (body?: Record<string, unknown>) => {
     setActivating(true);
-    const r = await adminFetch(`sources/${s.id}/activate`, { method: "POST" });
+    const r = await adminFetch(`sources/${s.id}/activate`, { method: "POST", ...(body ? { body: JSON.stringify(body) } : {}) });
     setActivating(false);
     setFlash(r.ok ? { tone: "success", text: `${s.name} is active. It's included in searches from now on.` } : { tone: "danger", text: r.error.message });
     await reload();
+    return r.ok ? null : r.error.message;
   };
+  const activateBlocked = !s.lastTest?.ok || !testFresh;
 
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: "overview", label: "Overview" },
@@ -88,24 +97,36 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
           </span>
         }
         actions={
-          s.config.kind === "partnership" ? null : (
+          !testable ? null : (
             <>
               <Button size="sm" variant="outline" onClick={runTest} loading={testing} icon={<FlaskConical className="size-3.5" aria-hidden />}>
                 Run test
               </Button>
-              {ACTIVATABLE(s) && s.status !== "active" && (
-                <Button size="sm" onClick={activate} loading={activating} disabled={!s.lastTest?.ok || !testFresh} icon={<Power className="size-3.5" aria-hidden />} title={!s.lastTest?.ok || !testFresh ? "Needs a passing test from the last 24 hours" : undefined}>
-                  {s.activatedAt ? "Resume" : "Activate"}
-                </Button>
-              )}
+              {ACTIVATABLE(s) &&
+                s.status !== "active" &&
+                (isPartner ? (
+                  <PartnerActivate name={s.name} label={s.activatedAt ? "Resume" : "Activate"} disabled={activateBlocked || !s.credential?.present} title={!s.credential?.present ? "Store the partner's credential first" : activateBlocked ? "Needs a passing test from the last 24 hours" : undefined} onActivate={(reference) => activate({ agreementConfirmed: true, ...(reference ? { agreementReference: reference } : {}) })} />
+                ) : (
+                  <Button size="sm" onClick={() => activate()} loading={activating} disabled={activateBlocked} icon={<Power className="size-3.5" aria-hidden />} title={activateBlocked ? "Needs a passing test from the last 24 hours" : undefined}>
+                    {s.activatedAt ? "Resume" : "Activate"}
+                  </Button>
+                ))}
             </>
           )
         }
       />
-      {s.statusReason && (
+      {s.partner && s.partner.readiness.next ? (
         <div className="mb-3">
-          <Note tone={s.status === "do_not_use" ? "danger" : "warning"}>{s.statusReason}</Note>
+          <Panel title={s.statusReason ?? "Not active"}>
+            <CheckList checks={s.partner.readiness.checks} />
+          </Panel>
         </div>
+      ) : (
+        s.statusReason && (
+          <div className="mb-3">
+            <Note tone={s.status === "do_not_use" ? "danger" : "warning"}>{s.statusReason}</Note>
+          </div>
+        )
       )}
       {s.status === "active" && !s.available && (
         <div className="mb-3">
@@ -155,10 +176,10 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
 
       {tab === "configuration" && (
         <div className="flex flex-col gap-4">
-          <Panel title="Connection">{s.builtin ? <ReadOnlyConfig /> : <ConfigEditor key={s.updatedAt} s={s} onSave={patch} />}</Panel>
+          <Panel title="Connection">{isPartner ? <PartnerConnectionEditor key={s.updatedAt} name={s.name} preset={s.partner?.preset} connection={partnerConn} onSave={savePartner} /> : s.builtin ? <ReadOnlyConfig /> : <ConfigEditor key={s.updatedAt} s={s} onSave={patch} />}</Panel>
           {takesCredential && (
-            <Panel title="Credential">
-              <CredentialForm sourceId={s.id} credential={s.credential} onChanged={reload} />
+            <Panel title={partnerConn?.auth.type === "oauth2" ? "Client secret" : "Credential"}>
+              <CredentialForm sourceId={s.id} credential={s.credential} onChanged={reload} placeholder={partnerConn?.auth.type === "oauth2" ? "Paste the client secret" : undefined} />
             </Panel>
           )}
           {s.credential?.managedBy === "environment" && (
@@ -173,8 +194,8 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
         <Panel title="Response mapping">
           <MappingEditor
             sourceId={s.id}
-            initial={(s.config as Extract<SourceConfig, { kind: "json_api" }>).api?.mapping ?? (s.config as Extract<SourceConfig, { kind: "mcp" }>).mcp.mapping}
-            onSave={(mapping) => patch({ config: s.config.kind === "json_api" ? { ...s.config, api: { ...s.config.api, mapping } } : { ...(s.config as Extract<SourceConfig, { kind: "mcp" }>), mcp: { ...(s.config as Extract<SourceConfig, { kind: "mcp" }>).mcp, mapping } } })}
+            initial={partnerConn ? (partnerConn.mapping ?? EMPTY_MAPPING) : ((s.config as Extract<SourceConfig, { kind: "json_api" }>).api?.mapping ?? (s.config as Extract<SourceConfig, { kind: "mcp" }>).mcp.mapping)}
+            onSave={(mapping) => (partnerConn ? savePartner({ ...partnerConn, mapping }) : patch({ config: s.config.kind === "json_api" ? { ...s.config, api: { ...s.config.api, mapping } } : { ...(s.config as Extract<SourceConfig, { kind: "mcp" }>), mcp: { ...(s.config as Extract<SourceConfig, { kind: "mcp" }>).mcp, mapping } } }))}
           />
         </Panel>
       )}
@@ -183,7 +204,7 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
         <Panel
           title="Last test"
           action={
-            s.config.kind !== "partnership" && (
+            testable && (
               <Button size="sm" variant="outline" onClick={runTest} loading={testing}>
                 Test again
               </Button>
@@ -218,7 +239,7 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
         <Panel title="Danger zone">
           <div className="flex flex-col gap-4 text-[13px]">
             {s.status === "do_not_use" ? (
-              <p className="text-ink-3">This source has no authorized access path, so there&apos;s nothing to pause or resume.</p>
+              <p className="text-ink-3">{isPartner ? "Not active yet, so there's nothing to pause." : <>This source has no authorized access path, so there&apos;s nothing to pause or resume.</>}</p>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

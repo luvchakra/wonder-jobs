@@ -4,6 +4,7 @@
  * the Test step is what proves a source actually works.
  */
 import type { AccessStrategy, SourceCategory } from "./protocol";
+import { PARTNER_PRESETS } from "./partners";
 
 export type AtsPlatform = "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable";
 
@@ -88,7 +89,8 @@ export function detectSource(raw: string): Detection {
 
   const partner = PARTNERSHIP.find((p) => p.test.test(host));
   if (partner) {
-    return { kind: "partnership", provider: partner.provider, message: `${partner.provider} doesn't offer a public jobs API. It can only be connected through a partnership agreement — JobsLake won't scrape it or mark it active without one.` };
+    const page = PARTNER_PRESETS.some((p) => p.name === partner.provider) ? ` Once you have one, enter the endpoint and credential it gives you on ${partner.provider}'s page under Sources.` : "";
+    return { kind: "partnership", provider: partner.provider, message: `${partner.provider} doesn't offer a public jobs API. It can only be connected through a partnership agreement — JobsLake won't scrape it or mark it active without one.${page}` };
   }
   const known = KNOWN_UNSUPPORTED.find((p) => p.test.test(host));
   if (known) return { kind: "unsupported_ats", provider: known.provider, message: `This is a ${known.provider} career site. JobsLake doesn't have a ${known.provider} connector yet — you can connect it as a custom API or feed if ${known.provider} gives you one.` };

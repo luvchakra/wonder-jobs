@@ -163,7 +163,7 @@ export function MappingEditor({ sourceId, initial, onSave }: { sourceId: string;
 }
 
 /** Write-only credential form: the secret is sent once and never shown again (spec §49). */
-export function CredentialForm({ sourceId, credential, onChanged }: { sourceId: string; credential: CredentialStatus | null; onChanged: () => void }) {
+export function CredentialForm({ sourceId, credential, onChanged, placeholder }: { sourceId: string; credential: CredentialStatus | null; onChanged: () => void; placeholder?: string }) {
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "danger" | "success"; text: string } | null>(null);
@@ -198,7 +198,7 @@ export function CredentialForm({ sourceId, credential, onChanged }: { sourceId: 
           if (r.ok) onChanged();
         }}
       >
-        <Input type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={credential?.present ? "Paste a replacement" : "Paste the API key or token"} aria-label="Credential" />
+        <Input type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={credential?.present ? "Paste a replacement" : (placeholder ?? "Paste the API key or token")} aria-label="Credential" />
         <Button type="submit" size="md" loading={busy} disabled={secret.trim().length < 4}>
           {credential?.present ? "Replace" : "Save"}
         </Button>

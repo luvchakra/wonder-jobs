@@ -1,5 +1,6 @@
 import type { AccessStrategy, JobSourceDescriptor, SourceCategory, SourceStatus } from "@/domain/jobslake/protocol";
 import type { AtsPlatform } from "@/domain/jobslake/detect";
+import type { PartnerAgreement, PartnerConnection, PartnerId } from "@/domain/jobslake/partners";
 import type { FeedConfig, JsonApiConfig, McpConfig, StructuredConfig } from "./custom";
 
 /** Scraper governance (spec §46). Without an established permission a scraper is DO_NOT_USE. */
@@ -24,7 +25,8 @@ export type SourceConfig =
   | { kind: "structured"; page: StructuredConfig }
   | { kind: "mcp"; mcp: McpConfig }
   | { kind: "scraper"; governance: ScraperGovernance }
-  | { kind: "partnership" };
+  /** A partner portal: nothing until the partnership hands over an endpoint and a credential. */
+  | { kind: "partnership"; partner?: PartnerId; connection?: PartnerConnection };
 
 export interface SourceLimits {
   timeoutMs: number;
@@ -73,6 +75,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   updatedAt: string;
   activatedAt?: string;
   lastTest?: TestReport;
+  /** Partnership sources only: who confirmed, at activation, that a signed agreement permits this use. */
+  agreement?: PartnerAgreement;
 }
 
 export interface AuditEvent {

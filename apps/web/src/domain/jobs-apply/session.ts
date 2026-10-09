@@ -142,7 +142,12 @@ export function recordInspection(s: JobsApplySession, form: ApplicationForm, now
     n = { ...to(n, "BLOCKED", "helper"), failure: "PAYMENT_REQUESTED", resumeStatus: s.status === "BLOCKED" ? s.resumeStatus : s.status };
     return audit(n, now, "PAYMENT_DETECTED", "helper", "Stopped: the page asks for payment details", host);
   }
-  if (form.signals.includes("captcha")) {
+  // A challenge that is the page (an interstitial) pauses until the candidate is through it. One sitting
+  // inside the application form ("I'm not a robot" by the Submit button) doesn't stop filling — it stays the
+  // candidate's to solve, and the plan never presses Next or Submit while it's on the page (see `plan`).
+  // Pausing for it would loop: the widget stays visible after it's solved, so every re-read paused again.
+  const applicationFieldsHere = fieldsOnPage.filter((f) => f.type !== "unknown" || f.label);
+  if (form.signals.includes("captcha") && !applicationFieldsHere.length) {
     n = { ...to(n, "PAUSED", "helper"), failure: "CAPTCHA_REQUIRED", resumeStatus: s.status === "PAUSED" ? s.resumeStatus : s.status };
     return audit(n, now, "CAPTCHA_REQUIRED", "helper", undefined, host);
   }

@@ -4,16 +4,17 @@
  * catalogue, and admin-added sources. Also resolves each source to the connector that fetches it.
  *
  * A source is only ever Active because a real connection was validated — partnership portals stay
- * "Do not use" until legitimate access exists, and scrapers without established permission are
- * DO_NOT_USE (spec §46–47).
+ * "Do not use" until the partner's endpoint and credential pass a test AND an admin confirms a signed
+ * agreement permits the use; scrapers without established permission are DO_NOT_USE (spec §46–47).
  */
 import type { Job } from "@/domain/jobs/types";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { PROTOCOL_VERSION, type SourceStatus } from "@/domain/jobslake/protocol";
+import { PARTNER_PRESETS, PARTNER_STATUS_REASON } from "@/domain/jobslake/partners";
 import type { Depth } from "@/domain/jobslake/planner";
 import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
-import { fetchFeed, fetchJsonApi, fetchMcp, fetchStructured } from "./custom";
+import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured } from "./custom";
 import { readCredential } from "./credentials";
 import { jobsLakeStore } from "./store";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
@@ -45,15 +46,13 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),
 ];
 
-/** Named for honesty: these exist in the market, and JobsLake says plainly that it can't read them. */
-export const PARTNERSHIP_SOURCES: SourceRecord[] = [
-  ["linkedin", "LinkedIn"],
-  ["indeed", "Indeed"],
-  ["naukri", "Naukri"],
-  ["foundit", "foundit"],
-  ["timesjobs", "TimesJobs"],
-].map(([id, name]) =>
-  builtin({ id: `partner_${id}`, name, provider: name, category: "portal", accessStrategy: "partner_api", geography: id === "linkedin" || id === "indeed" ? ["global"] : ["IN"], capabilities: [], status: "do_not_use", statusReason: `No public jobs API. Connectable only through a ${name} partnership — until one exists JobsLake doesn't read it.`, config: { kind: "partnership" }, description: `${name} jobs — partnership required.` }),
+/**
+ * The partner portals. None has an open job-search API: each stays "Do not use" until its
+ * partnership hands over an endpoint and credential, a test passes, and an admin confirms the
+ * signed agreement at activation (admin.ts). Until then JobsLake doesn't read it — and never scrapes it.
+ */
+export const PARTNERSHIP_SOURCES: SourceRecord[] = PARTNER_PRESETS.map((p) =>
+  builtin({ id: `partner_${p.id}`, name: p.name, provider: p.name, category: "portal", accessStrategy: "partner_api", geography: p.geography, capabilities: ["Search", "Apply URL"], status: "do_not_use", statusReason: PARTNER_STATUS_REASON, config: { kind: "partnership", partner: p.id }, description: `${p.name} jobs through a ${p.name} partnership or data-licensing agreement.` }),
 );
 
 /** Every source JobsLake knows: built-ins (with any admin status override), admin-added, partnership. */
@@ -62,8 +61,16 @@ export async function listSources(): Promise<SourceRecord[]> {
   const byId = new Map(stored.map((s) => [s.id, s]));
   const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].map((b) => {
     const o = byId.get(b.id);
+    if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
-    return o ? { ...b, status: b.config.kind === "partnership" ? b.status : o.status, statusReason: o.statusReason ?? b.statusReason, limits: o.limits ?? b.limits, updatedAt: o.updatedAt, lastTest: o.lastTest, activatedAt: o.activatedAt } : b;
+    const kept = { ...b, statusReason: o.statusReason ?? b.statusReason, limits: o.limits ?? b.limits, updatedAt: o.updatedAt, lastTest: o.lastTest, activatedAt: o.activatedAt };
+    if (b.config.kind !== "partnership") return { ...kept, status: o.status };
+    // A partner portal also keeps the connection its partnership handed over, its credential ref and
+    // the agreement record. Fail closed: no connection, or "active" without an agreement, is Do not use.
+    const connection = o.config.kind === "partnership" ? o.config.connection : undefined;
+    const live = o.status === "active" || o.status === "degraded";
+    const status: SourceStatus = connection && (!live || o.agreement) ? o.status : "do_not_use";
+    return { ...kept, config: { ...b.config, connection }, secretRef: o.secretRef, agreement: o.agreement, status, statusReason: status === "do_not_use" ? PARTNER_STATUS_REASON : o.statusReason };
   });
   const added = stored.filter((s) => !s.builtin);
   return [...builtins, ...added];
@@ -84,9 +91,10 @@ export async function isAvailable(s: SourceRecord): Promise<boolean> {
       return true;
     case "json_api":
     case "mcp":
-      return s.config.kind === "json_api" ? !s.config.api.credentialHeader || !!(s.secretRef && (await readCredential(s.secretRef))) : !s.config.mcp.credentialHeader || !!(s.secretRef && (await readCredential(s.secretRef)));
-    case "scraper":
+      return s.config.kind === "json_api" ? !(s.config.api.credentialHeader || s.config.api.auth) || !!(s.secretRef && (await readCredential(s.secretRef))) : !s.config.mcp.credentialHeader || !!(s.secretRef && (await readCredential(s.secretRef)));
     case "partnership":
+      return !!s.config.connection && !!(s.secretRef && (await readCredential(s.secretRef)));
+    case "scraper":
       return false;
   }
 }
@@ -128,7 +136,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       return { jobs: await fetchAtsBoard({ platform: cfg.platform, slug: cfg.slug, company: cfg.company, domain: cfg.domain }, c, depth), warnings: [] };
     case "json_api": {
       const secret = await readCredential(s.secretRef);
-      if (cfg.api.credentialHeader && !secret) throw new NeedsSetupError("The API credential is missing.");
+      if ((cfg.api.credentialHeader || cfg.api.auth) && !secret) throw new NeedsSetupError("The API credential is missing.");
       const r = await fetchJsonApi(cfg.api, c, secret, s.limits.timeoutMs);
       return { jobs: finish(s.id, r.raws, c).slice(0, s.limits.maxResults), warnings: [], sample: r.sample, mapping: r.mapping };
     }
@@ -148,8 +156,13 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
     }
     case "scraper":
       throw new NeedsSetupError("No scraper engine is enabled on this deployment. Scraped sources can't be activated.");
-    case "partnership":
-      throw new NeedsSetupError("Partnership required.");
+    case "partnership": {
+      if (!cfg.connection) throw new NeedsSetupError(`${PARTNER_STATUS_REASON}.`);
+      const secret = await readCredential(s.secretRef);
+      if (!secret) throw new NeedsSetupError("The partner credential is missing.");
+      const r = await fetchPartner(cfg.connection, c, secret, s.limits.timeoutMs);
+      return { jobs: finish(s.id, r.raws, c).slice(0, s.limits.maxResults), warnings: [], sample: r.sample, mapping: r.mapping };
+    }
   }
 }
 

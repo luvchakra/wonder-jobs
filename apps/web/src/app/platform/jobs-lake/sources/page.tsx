@@ -9,10 +9,14 @@ import { AccessBadge, HealthChip, LoadError, Loading, PageTitle, Panel, Responsi
 
 type Filter = "all" | "active" | "setup" | "draft" | "paused" | "partnership";
 
+/** Can't be queried yet: an active source without its credentials, or a partner portal still waiting for its endpoint or credential. */
+const needsSetup = (s: SourceView) => ((s.status === "active" || s.status === "degraded") && !s.available) || s.partner?.readiness.next === "connection" || s.partner?.readiness.next === "credential";
+const statusLabel = (s: SourceView) => (needsSetup(s) ? "Needs setup" : s.statusLabel);
+
 const FILTERS: { value: Filter; label: string; test: (s: SourceView) => boolean }[] = [
   { value: "all", label: "All", test: () => true },
   { value: "active", label: "Active", test: (s) => (s.status === "active" || s.status === "degraded") && s.available },
-  { value: "setup", label: "Needs setup", test: (s) => (s.status === "active" || s.status === "degraded") && !s.available },
+  { value: "setup", label: "Needs setup", test: needsSetup },
   { value: "draft", label: "Draft / testing", test: (s) => s.status === "draft" || s.status === "testing" },
   { value: "paused", label: "Paused / disabled", test: (s) => s.status === "paused" || s.status === "disabled" },
   { value: "partnership", label: "Do not use", test: (s) => s.status === "do_not_use" },
@@ -69,7 +73,7 @@ export default function SourcesPage() {
               },
               { header: "Type", cell: (r) => r.categoryLabel },
               { header: "Access", cell: (r) => <AccessBadge label={r.accessLabel} /> },
-              { header: "Status", cell: (r) => <SourceStatusChip status={r.status} label={r.status === "active" && !r.available ? "Needs setup" : r.statusLabel} /> },
+              { header: "Status", cell: (r) => <SourceStatusChip status={r.status} label={statusLabel(r)} /> },
               { header: "Health", cell: (r) => <HealthChip state={r.health?.state} /> },
               { header: "Last run", cell: (r) => (r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "Never") },
               { header: "Retrieved (7 d)", cell: (r) => num(r.health?.retrieved ?? null), className: "tabular-nums text-right" },
@@ -82,7 +86,7 @@ export default function SourcesPage() {
                   <span className="font-medium text-ink">
                     {r.name} <AccessBadge label={r.accessLabel} />
                   </span>
-                  <SourceStatusChip status={r.status} label={r.status === "active" && !r.available ? "Needs setup" : r.statusLabel} />
+                  <SourceStatusChip status={r.status} label={statusLabel(r)} />
                 </span>
                 <span className="text-[12px] text-ink-3">
                   {r.categoryLabel} · {num(r.health?.retrieved ?? null)} retrieved (7 d) · {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)}
