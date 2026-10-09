@@ -1,7 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
+import { Bookmark, Download, Loader2, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { offeredLevel, resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
 import { destinationFor } from "@/domain/jobs-apply/destination";
@@ -447,8 +447,11 @@ export default function ApplyWithWonderPage({
           ? "fill"
           : "assisted"
         : "guided";
-    // Open the employer's tab inside the click, so no popup blocker stands in the way; it navigates once the session exists.
-    const pre = mode !== "guided" ? window.open("about:blank", "_blank") : null;
+    // No extension but a cloud browser (a phone): the employer's page opens in the cloud browser on this
+    // page, so no second tab — on a phone that tab would take the candidate away from it.
+    const viaCloud = mode !== "guided" && helperInstalled !== true && cloudAvailable === true;
+    // Otherwise open the employer's tab inside the click, so no popup blocker stands in the way; it navigates once the session exists.
+    const pre = mode !== "guided" && !viaCloud ? window.open("about:blank", "_blank") : null;
     try {
       const pack = await buildPack({
         app,
@@ -536,7 +539,10 @@ export default function ApplyWithWonderPage({
         });
       // Waiting on the candidate: a reminder they can act on from anywhere.
       useCareerStore.getState().notify({ category: "application_status", title: `Applying to ${job.company}`, body: `Opened on ${v.session.destination.domain}. When you've submitted, tell Wonder.`, href: `/app/jobs/${job.id}/apply`, action: "Mark submitted" });
-      if (mode !== "guided") {
+      if (viaCloud) {
+        // The cloud browser opens itself for a live session (see the effect above); show it from the top.
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else if (mode !== "guided") {
         await pair(v.session.id);
         if (pre) {
           pre.opener = null;
@@ -861,6 +867,11 @@ export default function ApplyWithWonderPage({
                   }}
                   onReconnect={() => startCloud(s.id)}
                 />
+              )}
+              {!guided && useCloud && !cloud && !cloudError && !cloudClosed && (
+                <p role="status" className="flex items-center gap-2 rounded-[12px] bg-surface-2 px-3 py-2 text-[13px] text-ink-2">
+                  <Loader2 className="size-4 animate-spin text-brand-600" aria-hidden /> Opening the employer&apos;s page in the cloud browser…
+                </p>
               )}
               {!guided && useCloud && !cloud && (cloudError || cloudClosed) && (
                 <p role={cloudError ? "alert" : undefined} className="flex flex-wrap items-center gap-2 rounded-[12px] bg-surface-2 px-3 py-2 text-[13px] text-ink-2">
