@@ -374,6 +374,9 @@
 
   async function inspect(force = false) {
     if (!state.sessionId || state.stopped || state.offDestination) return;
+    // Our own fills change the page; re-reading it mid-fill would plan the same fields again and loop.
+    // applyPlan reads the page once more when it's done.
+    if (state.busy && !force) return;
     const form = readForm();
     const sig = sigOf(form);
     if (!force && sig === state.lastSig) return;
@@ -519,6 +522,7 @@
   );
 
   async function applyPlan(plan) {
+    if (state.busy) return; // one fill at a time
     state.busy = true;
     render();
     const results = [];
@@ -613,6 +617,7 @@
     const s = slot();
     if (err?.error) {
       const revoked = err.error === "revoked" || err.error === "not_connected";
+      s.__wjHtml = "";
       s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>WonderJobs</h2><button class="close" id="x" aria-label="Close">&times;</button></div><p class="muted">${revoked ? "This application isn't connected any more. Reopen it from WonderJobs to continue." : "WonderJobs didn't answer. Your progress is saved — try again."}</p>${revoked ? "" : `<div class="row"><span></span><button class="pill" id="retry">Try again</button></div>`}</div>`;
       shadow().getElementById("x")?.addEventListener("click", () => (s.innerHTML = ""));
       shadow().getElementById("retry")?.addEventListener("click", () => inspect(true));
@@ -621,6 +626,7 @@
     const v = state.view;
     if (!v) return;
     if (state.minimized) {
+      s.__wjHtml = "";
       s.innerHTML = `<button class="pill" id="open">WonderJobs · ${v.progress.needsYou ? `${v.progress.needsYou} need you` : `${v.progress.filled} filled`}</button>`;
       shadow().getElementById("open").addEventListener("click", () => {
         state.minimized = false;
@@ -632,7 +638,7 @@
     const needs = (v.mappings || []).filter((m) => m.status === "needs_you");
     const fillable = p.fillable;
     const detected = v.status === "VERIFICATION";
-    s.innerHTML = `
+    const html = `
       <div class="card" role="dialog" aria-label="WonderJobs application helper">
         <div class="row" style="margin:0"><h2>Apply with Wonder</h2><button class="close" id="min" aria-label="Minimise">&minus;</button></div>
         <div class="muted">${esc(v.jobTitle)} · ${esc(v.company)}</div>
@@ -654,6 +660,9 @@
           ${v.stopped ? "" : `<button class="pill ghost" id="stop">Stop</button>`}
         </div>
       </div>`;
+    // Identical content isn't re-drawn: rebuilding the panel restarts its buttons and makes it flicker.
+    if (html === s.__wjHtml && s.firstElementChild) return;
+    s.innerHTML = s.__wjHtml = html;
     const $ = (id) => shadow().getElementById(id);
     $("min")?.addEventListener("click", () => {
       state.minimized = true;
