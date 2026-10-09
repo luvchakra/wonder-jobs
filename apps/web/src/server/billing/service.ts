@@ -9,6 +9,7 @@ import { recordServerAudit } from "../audit";
 import { isErased } from "../privacy/records";
 import { BILLING_PROVIDER_IDS, missingBillingEnv, razorpayConfig, stripeConfig } from "./config";
 import { entryFor } from "./ledger";
+import { automaticDiscount, hasActivePromotionCode } from "./live";
 import { razorpayCancelAtCycleEnd, razorpayCancelNow, razorpayPlan, razorpaySubscribe, razorpaySubscriptionStatus, verifyRazorpaySignature } from "./razorpay";
 import { billingStore, currentSubscription } from "./store";
 import { ProviderError, describeProviderError, stripeCheckout, stripePortal, stripePrice, stripeSubscriptionStatus, verifyStripeSignature } from "./stripe";
@@ -36,11 +37,15 @@ const PRICE_TTL_MS = 10 * 60_000;
 const priceCache = new Map<string, { at: number; price: PlanPrice }>();
 
 async function priceFor(provider: BillingProviderId): Promise<PlanPrice> {
-  // Keyed by the configured id too, so changing STRIPE_PRICE_ID / RAZORPAY_PLAN_ID takes effect at once.
-  const key = provider === "stripe" ? `stripe:${stripeConfig()!.priceId}:${stripeConfig()!.secretKey.slice(-6)}` : `razorpay:${razorpayConfig()!.planId}:${razorpayConfig()!.keyId}`;
+  // Pro's price as the plans now point at it (a billing admin's price change, else STRIPE_PRICE_ID /
+  // RAZORPAY_PLAN_ID). Keyed by that id too, so a change takes effect at once.
+  const ref = (await getPlansConfig()).priceRefs.pro[provider];
+  const s = { ...stripeConfig()!, ...(provider === "stripe" && ref ? { priceId: ref } : {}) };
+  const r = { ...razorpayConfig()!, ...(provider === "razorpay" && ref ? { planId: ref } : {}) };
+  const key = provider === "stripe" ? `stripe:${s.priceId}:${s.secretKey.slice(-6)}` : `razorpay:${r.planId}:${r.keyId}`;
   const hit = priceCache.get(key);
   if (hit && Date.now() - hit.at < PRICE_TTL_MS) return hit.price;
-  const price = provider === "stripe" ? await stripePrice(stripeConfig()!) : await razorpayPlan(razorpayConfig()!);
+  const price = provider === "stripe" ? await stripePrice(s) : await razorpayPlan(r);
   priceCache.set(key, { at: Date.now(), price });
   return price;
 }
@@ -117,8 +122,13 @@ export async function startCheckout(input: { tenantId: string; email?: string; p
   try {
     if (provider === "stripe") {
       // Same key for repeated clicks within a minute, so a double-click opens one checkout, not two.
-      const idempotencyKey = `checkout:${tenantId}:${plan}:${Math.floor(Date.now() / 60_000)}`;
-      const s = await stripeCheckout({ ...stripeConfig()!, priceId: ref }, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey });
+      // An automatic discount the plan has right now (valid and applicable, read from Stripe) goes on the
+      // session; Stripe then forbids the promotion-code field, which otherwise shows only while a code is active.
+      const auto = await automaticDiscount(plan, config);
+      const allowPromotionCodes = auto ? false : await hasActivePromotionCode();
+      // The key names the discount choice too: the same parameters within a minute reuse one session.
+      const idempotencyKey = `checkout:${tenantId}:${plan}:${auto ? auto.couponId : allowPromotionCodes ? "codes" : "none"}:${Math.floor(Date.now() / 60_000)}`;
+      const s = await stripeCheckout({ ...stripeConfig()!, priceId: ref }, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey, couponId: auto?.couponId, allowPromotionCodes });
       return { url: s.url };
     }
     const cfg = { ...razorpayConfig()!, planId: ref };

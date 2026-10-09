@@ -14,6 +14,14 @@ describe("apiPlanConfig", () => {
     // The cap never sits below the free allowance.
     expect(apiPlanConfig({ JOBSLAKE_API_FREE_SEARCHES: "500", JOBSLAKE_API_MAX_MONTHLY: "10" }).maxMonthly).toBe(500);
   });
+  it("takes the admin's stored value first, then the environment, then the default — field by field", () => {
+    const env = { JOBSLAKE_API_FREE_SEARCHES: "250", JOBSLAKE_API_MAX_MONTHLY: "5000" };
+    expect(apiPlanConfig(env, { freeMonthly: 40, maxMonthly: 900 })).toEqual({ freeMonthly: 40, maxMonthly: 900 });
+    expect(apiPlanConfig(env, { freeMonthly: 40 })).toEqual({ freeMonthly: 40, maxMonthly: 5000 });
+    expect(apiPlanConfig({}, { maxMonthly: 900 })).toEqual({ freeMonthly: 100, maxMonthly: 900 });
+    expect(apiPlanConfig(env, { freeMonthly: -1 })).toEqual({ freeMonthly: 250, maxMonthly: 5000 });
+    expect(apiPlanConfig({}, undefined)).toEqual({ freeMonthly: 100, maxMonthly: 100_000 });
+  });
 });
 
 describe("decideQuota", () => {

@@ -1,7 +1,8 @@
 "use client";
 import { create } from "zustand";
 import type { BillingProviderId, ProviderAvailability, SubscriptionStatus } from "@/domain/billing/types";
-import type { PlanId, PlanLimits } from "@/domain/billing/plans";
+import type { PaidPlanId, PlanId, PlanLimits } from "@/domain/billing/plans";
+import type { PlanDiscount } from "@/domain/billing/discounts";
 import { getClientMode } from "@/lib/mode";
 
 /**
@@ -14,6 +15,8 @@ export interface BillingSnapshot {
   /** What the plan allows, and every plan for the upgrade list — both from the operator's configuration. */
   limits: PlanLimits;
   plans: Record<PlanId, PlanLimits>;
+  /** A plan's automatic discount, only when Stripe's live coupon applies to its live price (Stripe checkout only). */
+  discounts?: Partial<Record<PaidPlanId, PlanDiscount>>;
   reason: string;
   until: string | null;
   subscription: { provider: BillingProviderId; status: SubscriptionStatus; cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null; canManage: boolean } | null;

@@ -12,7 +12,8 @@ import { ProviderError } from "./stripe";
 const API = "https://api.razorpay.com/v1";
 const TIMEOUT_MS = 15_000;
 
-async function call<T>(cfg: RazorpayConfig, method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<T> {
+/** One Razorpay API call; its own error text is logged server-side only. */
+export async function razorpayCall<T>(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">, method: "GET" | "POST", path: string, body?: Record<string, unknown>): Promise<T> {
   const auth = Buffer.from(`${cfg.keyId}:${cfg.keySecret}`).toString("base64");
   const res = await fetch(`${API}${path}`, {
     method,
@@ -32,7 +33,7 @@ async function call<T>(cfg: RazorpayConfig, method: "GET" | "POST", path: string
 const PERIOD: Record<string, PlanPrice["interval"]> = { daily: "day", weekly: "week", monthly: "month", yearly: "year" };
 
 export async function razorpayPlan(cfg: RazorpayConfig): Promise<PlanPrice> {
-  const p = await call<{ id: string; period: string; interval: number; item: { name: string; description?: string | null; amount: number; currency: string; active?: boolean } }>(cfg, "GET", `/plans/${encodeURIComponent(cfg.planId)}`);
+  const p = await razorpayCall<{ id: string; period: string; interval: number; item: { name: string; description?: string | null; amount: number; currency: string; active?: boolean } }>(cfg, "GET", `/plans/${encodeURIComponent(cfg.planId)}`);
   const interval = PERIOD[p.period];
   if (!interval) throw new ProviderError(`Unsupported Razorpay plan period "${p.period}"`, 400);
   return {
@@ -48,7 +49,7 @@ export async function razorpayPlan(cfg: RazorpayConfig): Promise<PlanPrice> {
 }
 
 export async function razorpaySubscribe(cfg: RazorpayConfig, input: { tenantId: string }): Promise<{ id: string; url: string }> {
-  const s = await call<{ id: string; short_url?: string }>(cfg, "POST", "/subscriptions", {
+  const s = await razorpayCall<{ id: string; short_url?: string }>(cfg, "POST", "/subscriptions", {
     plan_id: cfg.planId,
     total_count: cfg.totalCount,
     quantity: 1,
@@ -63,16 +64,16 @@ export async function razorpaySubscribe(cfg: RazorpayConfig, input: { tenantId: 
 
 /** Cancel at the end of the paid cycle: the candidate keeps what they paid for. */
 export async function razorpayCancelAtCycleEnd(cfg: RazorpayConfig, subscriptionId: string): Promise<void> {
-  await call(cfg, "POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 1 });
+  await razorpayCall(cfg, "POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 1 });
 }
 
 /** Cancel now — used only for a subscription that never took a payment. */
 export async function razorpayCancelNow(cfg: RazorpayConfig, subscriptionId: string): Promise<void> {
-  await call(cfg, "POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 0 });
+  await razorpayCall(cfg, "POST", `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, { cancel_at_cycle_end: 0 });
 }
 
 export async function razorpaySubscriptionStatus(cfg: RazorpayConfig, subscriptionId: string): Promise<{ status: SubscriptionStatus; cancelAtPeriodEnd: boolean; raw: string }> {
-  const s = await call<{ status: string; has_scheduled_changes?: boolean }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  const s = await razorpayCall<{ status: string; has_scheduled_changes?: boolean }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
   return { status: normalizeRazorpayStatus(s.status), cancelAtPeriodEnd: !!s.has_scheduled_changes, raw: s.status };
 }
 

@@ -6,6 +6,7 @@ import { isAdminSession } from "@/server/jobslake/access";
 import { getPlansConfig } from "@/server/billing/plansConfig";
 import { limitsFor } from "@/domain/billing/plans";
 import { billingStore } from "@/server/billing/store";
+import { planDiscounts } from "@/server/billing/live";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,8 @@ export async function GET() {
     .filter((r) => r.kind === "payment_succeeded" || r.kind === "payment_failed")
     .map((r) => ({ at: r.occurredAt, provider: r.provider, kind: r.kind, amount: r.amount ?? null, currency: r.currency ?? null }))
     .reverse();
+  // A discount is shown only when Stripe is ready and its live coupon applies to the plan's live price.
+  const discounts = providers.some((p) => p.provider === "stripe" && p.state === "ready") ? await planDiscounts(config).catch(() => ({})) : {};
   const sub = ent.subscription;
   return NextResponse.json(
     {
@@ -32,6 +35,7 @@ export async function GET() {
       plan: ent.plan,
       limits: limitsFor(ent.plan, config),
       plans: config.plans,
+      discounts,
       reason: ent.reason,
       until: ent.until ?? null,
       subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled" } : null,

@@ -43,11 +43,16 @@ export function formEncode(params: Record<string, unknown>, prefix = ""): string
   return out.filter(Boolean).join("&");
 }
 
-/** One Stripe API call. Exported for the JobsLake API's metered billing (server/jobslake/apiBilling.ts). */
-export async function stripeCall<T>(cfg: Pick<StripeConfig, "secretKey">, method: "GET" | "POST", path: string, body?: Record<string, unknown>, idempotencyKey?: string): Promise<T> {
+/**
+ * One Stripe API call. Exported for the JobsLake API's metered billing (server/jobslake/apiBilling.ts) and
+ * billing administration (server/billing/admin.ts). `stripeVersion` pins the API version for calls whose
+ * shape changed between versions (promotion codes); otherwise the account's default applies.
+ */
+export async function stripeCall<T>(cfg: Pick<StripeConfig, "secretKey">, method: "GET" | "POST", path: string, body?: Record<string, unknown>, idempotencyKey?: string, stripeVersion?: string): Promise<T> {
   const headers: Record<string, string> = { authorization: `Bearer ${cfg.secretKey}` };
   if (body) headers["content-type"] = "application/x-www-form-urlencoded";
   if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
+  if (stripeVersion) headers["stripe-version"] = stripeVersion;
   const res = await fetch(`${API}${path}`, { method, headers, body: body ? formEncode(body) : undefined, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } } & T;
   // Stripe's own message can quote the API key ("Invalid API Key provided: sk_…"), so it is logged
@@ -85,7 +90,12 @@ export async function stripePrice(cfg: StripeConfig): Promise<PlanPrice> {
   };
 }
 
-export async function stripeCheckout(cfg: StripeConfig, input: { tenantId: string; email?: string; successUrl: string; cancelUrl: string; idempotencyKey: string }): Promise<{ id: string; url: string }> {
+/**
+ * Hosted Checkout for a plan. Stripe refuses `discounts` together with `allow_promotion_codes` in one
+ * session, so an automatic discount (a coupon applied to every new checkout of the plan) replaces the
+ * promotion-code field; without one, the field shows only while at least one promotion code is active.
+ */
+export async function stripeCheckout(cfg: StripeConfig, input: { tenantId: string; email?: string; successUrl: string; cancelUrl: string; idempotencyKey: string; couponId?: string; allowPromotionCodes?: boolean }): Promise<{ id: string; url: string }> {
   const s = await stripeCall<{ id: string; url: string }>(
     cfg,
     "POST",
@@ -99,7 +109,7 @@ export async function stripeCheckout(cfg: StripeConfig, input: { tenantId: strin
       customer_email: input.email,
       metadata: { tenant_id: input.tenantId },
       subscription_data: { metadata: { tenant_id: input.tenantId } },
-      allow_promotion_codes: "false",
+      ...(input.couponId ? { discounts: { 0: { coupon: input.couponId } } } : { allow_promotion_codes: input.allowPromotionCodes ? "true" : "false" }),
     },
     input.idempotencyKey,
   );

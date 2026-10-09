@@ -19,6 +19,9 @@ export default async function JobsApplyAdminLayout({ children }: { children: Rea
             <Link href="/platform/jobs-lake" className="text-ink-3 hover:text-ink">
               JobsLake
             </Link>
+            <Link href="/platform/billing" className="text-ink-3 hover:text-ink">
+              Billing
+            </Link>
             <Link href="/app" className="text-ink-3 hover:text-ink">
               Back to WonderJobs
             </Link>

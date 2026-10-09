@@ -14,11 +14,12 @@
  * - The price is read from Stripe, never set here.
  */
 import { JOBSLAKE_API_PURPOSE, normalizeStripeStatus } from "@/domain/billing/events";
-import { apiPlanConfig, monthStart, overageReports, utcDay } from "@/domain/jobslake/apiPlan";
+import { monthStart, overageReports, utcDay } from "@/domain/jobslake/apiPlan";
 import { recordServerAudit } from "@/server/audit";
 import { ProviderError, describeProviderError, stripeCall } from "@/server/billing/stripe";
 import { apiStore, type ApiBillingRecord } from "./apiStore";
 import { apiSourceIds } from "./developer";
+import { currentApiPlan } from "./apiPlanSettings";
 
 export interface ApiBillingConfig {
   secretKey: string;
@@ -110,7 +111,8 @@ export async function apiAccountStatus(ownerId: string, now = new Date()): Promi
       priceProblem = e instanceof ProviderError && e.status === 400 ? e.message : describeProviderError(e, "Stripe");
     }
   }
-  const base = { month: today.slice(0, 7), usedThisMonth, freeMonthly: apiPlanConfig().freeMonthly, sources: apiSourceIds() };
+  const { freeMonthly } = await currentApiPlan();
+  const base = { month: today.slice(0, 7), usedThisMonth, freeMonthly, sources: apiSourceIds() };
   let active = billing?.status === "active";
   // Cancelled in Stripe's portal since the last daily check: turn it off now. (A failed read here is
   // left to the daily report, which treats it as not active.)
@@ -220,7 +222,7 @@ export async function reportApiUsage(now = new Date()): Promise<ApiUsageReport> 
   if (!cfg) return out;
   out.configured = true;
   const store = apiStore();
-  const { freeMonthly } = apiPlanConfig();
+  const { freeMonthly } = await currentApiPlan();
   const today = utcDay(now);
   const nowSec = Math.floor(now.getTime() / 1000);
   // Stripe accepts meter events up to 35 days old; look back 31 days, from the start of that month so the free allowance is counted right.
