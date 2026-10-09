@@ -196,7 +196,8 @@ export function Preflight(props: {
         </Card>
       </div>
 
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+      {/* When Wonder fills the form, the checklist and Start come first on a phone; on a wide screen they stay the sticky side column. */}
+      <aside className={cn("flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start", props.method === "helper" && "order-first lg:order-none")}>
         <Card aria-labelledby="wj-apply-ready">
           <h2 id="wj-apply-ready" className="text-[16px] font-semibold text-ink">
             {readiness.ok ? "Ready to apply" : "Before applying"}
