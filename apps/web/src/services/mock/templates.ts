@@ -19,12 +19,11 @@ export interface ScheduleTemplate {
   query: string;
 }
 
+/** Starting points for the advanced builder. Only searches run on a schedule (server/workflow/serverExecutors.ts); the
+ *  ready-made searches the candidate adds in one tap are in domain/workflow/searchTemplates.ts. */
 export const SCHEDULE_TEMPLATES: ScheduleTemplate[] = [
   { id: "daily_discovery", name: "Daily Job Discovery", description: "Search → Deduplicate → Analyze → Match → Rank every weekday morning. Notifies you only when there are strong matches.", frequency: "weekdays", days: [1, 2, 3, 4, 5], time: "08:00", stageKeys: ["profile", "search", "dedupe", "understand", "match", "quality", "rank"], condition: { key: "strong_matches", op: ">", value: 0 }, actions: ["notify", "save_jobs"], query: "" },
-  { id: "weekly_review", name: "Weekly Job Market Review", description: "A wider weekly sweep with a summary of what changed in your market.", frequency: "weekly", days: [1], time: "09:00", stageKeys: ["profile", "search", "dedupe", "understand", "match", "quality", "rank", "learn"], condition: { key: "always", op: ">", value: 0 }, actions: ["notify"], query: "" },
-  { id: "follow_up_check", name: "Application Follow-Up Check", description: "Reviews your open applications and prepares follow-up reminders. Never sends anything without you.", frequency: "daily", days: [0, 1, 2, 3, 4, 5, 6], time: "17:00", stageKeys: ["profile", "track"], condition: { key: "always", op: ">", value: 0 }, actions: ["notify"], query: "" },
-  { id: "resume_optimization", name: "Resume Optimization", description: "Re-tailors materials for your strongest saved roles once a week.", frequency: "weekly", days: [6], time: "10:00", stageKeys: ["profile", "prepare", "review"], condition: { key: "always", op: ">", value: 0 }, actions: ["prepare_materials"], query: "" },
-  { id: "career_progress", name: "Career Progress Review", description: "Monthly reflection: what worked, what didn't, what to change in your Career Profile.", frequency: "monthly", days: [1], time: "09:00", stageKeys: ["profile", "learn"], condition: { key: "always", op: ">", value: 0 }, actions: ["notify"], query: "" },
+  { id: "weekly_review", name: "Weekly Job Market Review", description: "A wider weekly sweep that tells you what it found, every week.", frequency: "weekly", days: [1], time: "09:00", stageKeys: ["profile", "search", "dedupe", "understand", "match", "quality", "rank"], condition: { key: "always", op: ">", value: 0 }, actions: ["notify"], query: "" },
 ];
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
