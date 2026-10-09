@@ -85,7 +85,7 @@ function JobsHome() {
         // What was searched and "Search as" live in Refine — the list stays the page.
         refineTop={
           <>
-            <WantedRole search={search} />
+            <WantedRole search={search} inline />
             {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
             {roles.length > 0 && <RoleChips roles={roles} current={pickedRole !== undefined ? pickedRole : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null)} onPick={setPickedRole} busy={false} />}
           </>
