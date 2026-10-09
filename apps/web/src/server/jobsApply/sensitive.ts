@@ -68,11 +68,12 @@ export async function packSensitive(tenantId: string): Promise<PackSensitive | u
 }
 
 /** Swap ID markers for the numbers, only in fills about to go to the candidate's own browser. */
-export async function withIdNumbers<T extends { value?: string }>(tenantId: string, fills: T[]): Promise<T[]> {
-  if (!fills.some((f) => markedId(f.value))) return fills;
+export async function withIdNumbers<T extends object>(tenantId: string, fills: T[]): Promise<T[]> {
+  const valueOf = (f: T) => ("value" in f && typeof f.value === "string" ? f.value : undefined);
+  if (!fills.some((f) => markedId(valueOf(f)))) return fills;
   const doc = await read(tenantId);
   return fills.flatMap((f) => {
-    const kind = markedId(f.value);
+    const kind = markedId(valueOf(f));
     if (!kind) return [f];
     const stored = doc.ids?.[kind];
     return stored ? [{ ...f, value: decrypt(stored.ciphertext) }] : [];

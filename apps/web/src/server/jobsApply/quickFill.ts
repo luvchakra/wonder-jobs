@@ -16,6 +16,7 @@ import type { AiHint, ApplicationField, ApplicationPackSnapshot, PackFile, Remem
 import { readClientState, readClientStateVersioned } from "@/server/clientState";
 import { resumeFileStore } from "@/server/resume/files";
 import { aiMatchFields } from "./aiMatch";
+import { packSensitive, withIdNumbers } from "./sensitive";
 
 export interface QuickPlan {
   allowed: boolean;
@@ -60,6 +61,7 @@ export async function quickPlan(tenantId: string, form: { fields: ApplicationFie
     education: educationFacts(dna),
     experience: experienceFacts(dna),
     resume,
+    sensitive: await packSensitive(tenantId),
     version: "profile",
     capturedAt: new Date(now).toISOString(),
   };
@@ -82,5 +84,6 @@ export async function quickPlan(tenantId: string, form: { fields: ApplicationFie
     const read = await resumeFileStore().read(tenantId, resume.versionId).catch(() => undefined);
     if (read) file = { filename: read.meta.filename, mime: read.meta.mime, base64: read.bytes.toString("base64") };
   }
-  return { allowed: true, fills: file ? fills : fills.filter((f) => !("file" in f)), needsYou, ...(file ? { resume: file } : {}) };
+  const ready = await withIdNumbers(tenantId, file ? fills : fills.filter((f) => !("file" in f)));
+  return { allowed: true, fills: ready, needsYou, ...(file ? { resume: file } : {}) };
 }

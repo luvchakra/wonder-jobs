@@ -388,6 +388,16 @@
         target.dispatchEvent(new Event("change", { bubbles: true }));
         return { fieldId: item.fieldId, ok: target.checked };
       }
+      // A consent box is ticked only when the plan says "checked" — the candidate turned on Legal declarations in
+      // Automation. Set by property, like a radio: nothing on the page is pressed.
+      if (type === "checkbox" && item.value === "checked") {
+        if (!el.checked) {
+          el.checked = true;
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        return { fieldId: item.fieldId, ok: el.checked };
+      }
       if (type === "checkbox" || type === "password" || type === "otp" || type === "combobox") return { fieldId: item.fieldId, ok: false, error: "rejected" };
       if (type === "select" && ![...el.options].some((o) => o.value === item.value)) return { fieldId: item.fieldId, ok: false, error: "rejected" };
       const accepted = await setChecked(el, item.value);
