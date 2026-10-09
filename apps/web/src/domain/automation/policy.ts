@@ -89,6 +89,10 @@ export function migratePolicy(saved: Partial<AutomationPolicy> | undefined, vers
 export const AUTOMATION_LEVELS = ["assist", "guided", "autonomous", "continuous"] as const;
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
 
+/** The two choices the candidate is offered (owner decision, 2026-10-09). "Help me" folds into "Work with me", "Keep watch" into "Work independently" — scheduled searches are their own section. */
+export const OFFERED_LEVELS = ["guided", "autonomous"] as const satisfies readonly AutomationLevel[];
+export const offeredLevel = (l: AutomationLevel): (typeof OFFERED_LEVELS)[number] => (l === "assist" || l === "guided" ? "guided" : "autonomous");
+
 // User-facing question: "How much should Wonder handle?" (outcome spec §21). `short` is the one-line
 // answer shown on the choice cards; `description` is the precise version shown for the selected
 // level. The level ids (assist/guided/autonomous/continuous) are internal and unchanged, so
