@@ -136,7 +136,7 @@ export function Preflight(props: {
               </label>
               {props.independent && props.fillPolicy !== "run" && (
                 <p className="mt-2 text-[12px] text-ink-3">
-                  Your <Link href="/app/automation" className="font-medium text-brand-600 hover:underline">Automation</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
+                  Your <Link href="/app/automation/settings" className="font-medium text-brand-600 hover:underline">Automation</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
                 </p>
               )}
               {props.helperInstalled === false && !props.cloudAvailable && (
