@@ -290,20 +290,22 @@ export function WantedRole({ search, className }: { search: JobSearch; className
 
   if (!editing) {
     return (
-      <p className={cn("mb-3 flex flex-wrap items-baseline gap-x-2 text-[14px] text-ink-2", className)}>
-        <span>Looking for</span>
-        <strong className="min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(role);
-            setEditing(true);
-          }}
-          className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
-        >
-          Change
-        </button>
-      </p>
+      <div className={cn("mb-3 text-[14px] text-ink-2", className)}>
+        <p className="flex items-center justify-between gap-2">
+          <span>Looking for</span>
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(role);
+              setEditing(true);
+            }}
+            className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
+          >
+            Change
+          </button>
+        </p>
+        <strong className="block min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
+      </div>
     );
   }
   return (

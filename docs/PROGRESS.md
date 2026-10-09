@@ -135,6 +135,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ On a phone, Ready to apply and Start come first when Wonder fills the form (WJ-287)
 - ✅ The apply review card is just "Did you submit the application?" (WJ-288)
 - ✅ The cloud browser says when it couldn't connect instead of spinning forever (WJ-289)
+- ✅ Find: "Looking for" and Change on one row (WJ-290)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)
 - ✅ Insights counts open what they count; Learning adds a skill to your profile in one click (WJ-278)
 - ✅ Ask Wonder opens on what needs you now (WJ-279)
