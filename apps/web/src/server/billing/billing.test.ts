@@ -99,6 +99,21 @@ describe("webhook handling end to end (in-memory store)", () => {
     expect((await entitlement("tenant-a")).plan).toBe("pro");
   });
 
+  it("a JobsLake API pay-as-you-go subscription never grants Pro", async () => {
+    const meta = { tenant_id: "tenant-a", purpose: "jobslake_api" };
+    const events = [
+      { id: "evt_api_1", type: "checkout.session.completed", created: now, data: { object: { mode: "subscription", client_reference_id: "tenant-a", subscription: "sub_api", customer: "cus_1", metadata: meta } } },
+      { id: "evt_api_2", type: "customer.subscription.updated", created: now, data: { object: { id: "sub_api", customer: "cus_1", status: "active", metadata: meta, items: { data: [{ current_period_end: now + 2592000, price: { id: "price_pro" } }] } } } },
+      { id: "evt_api_3", type: "invoice.paid", created: now, data: { object: { customer: "cus_1", amount_paid: 300, currency: "usd", parent: { subscription_details: { subscription: "sub_api", metadata: meta } } } } },
+    ];
+    for (const e of events) {
+      const body = JSON.stringify(e);
+      expect((await handleWebhook("stripe", body, stripeHeaders(body))).status).toBe(200);
+    }
+    expect((await entitlement("tenant-a")).plan).toBe("free");
+    expect(await store.subscriptionsForTenant("tenant-a")).toEqual([]);
+  });
+
   it("a redelivery is acknowledged as a duplicate and changes nothing", async () => {
     const body = subUpdated("active");
     await handleWebhook("stripe", body, stripeHeaders(body));

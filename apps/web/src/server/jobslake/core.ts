@@ -92,11 +92,13 @@ async function bookkeeping<T>(what: string, fn: () => Promise<T>): Promise<T | u
   }
 }
 
-async function warmCandidates(req: SearchRequest, allowed: Set<string> | null): Promise<CanonicalOpportunity[]> {
+async function warmCandidates(req: SearchRequest, allowed: Set<string> | null, strict = false): Promise<CanonicalOpportunity[]> {
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
   const pool = await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 3000 });
   return pool.filter((o) => {
     if (allowed && !o.sourceRecords.some((r) => allowed.has(r.sourceId))) return false;
+    // Strict (an API-key search): the posting's own fields must come from an allowed source, not just a sighting.
+    if (allowed && strict && !allowed.has((o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0])?.sourceId ?? "")) return false;
     const proj = { title: o.title, description: o.description, tags: o.enrichment.tags, skills: o.skills, location: o.locations[0] ?? "", workMode: o.workplaceType, country: o.country };
     return matchesQuery(proj, req.query.text) && matchesLocations(proj, req.query.locations);
   });
@@ -113,6 +115,12 @@ export interface SearchOptions {
   trigger: SourceRun["trigger"];
   emit?: (e: SearchEvent) => void;
   signal?: AbortSignal;
+  /**
+   * A hard restriction on which sources may be asked and which warm-pool postings may be served (an
+   * API-key search: only sources whose terms permit redistribution). Applied on top of `sourceIds`;
+   * an empty list means no source at all, never "every source".
+   */
+  onlySources?: string[];
 }
 
 export async function search(req: SearchRequest, opts: SearchOptions): Promise<{ response: SearchResponse; plan: SearchPlan }> {
@@ -120,10 +128,13 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const flags = jobsLakeFlags();
   const requestId = newId("req");
   const emit = opts.emit ?? (() => undefined);
-  const sources = await listSources();
-  const allowed = allowedIds(sources, req);
+  const only = opts.onlySources ? new Set(opts.onlySources) : null;
+  const sources = (await listSources()).filter((s) => !only || only.has(s.id));
+  const requested = allowedIds(sources, req);
+  const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
   const health = await healthBySource();
-  const plannable = await Promise.all(sources.map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography })));
+  // Restricted: the planner only ever sees the allowed sources, so an empty list plans nothing.
+  const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography })));
   const plan = planSearch({ ...req, sourceIds: allowed }, plannable, health);
   const byId = new Map(sources.map((s) => [s.id, s]));
   const planned = plan.waves.flat();
@@ -260,7 +271,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   if (flags.jobsLakeWarmPoolEnabled) {
     if (valid.length) await bookkeeping("update the warm pool", () => store.upsertOpportunities(valid));
     if (plan.useWarmPool) {
-      const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null));
+      const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only));
       const merged = mergeWithWarm(valid, warm ?? []);
       results = merged.results;
       warmCount = merged.warm;
