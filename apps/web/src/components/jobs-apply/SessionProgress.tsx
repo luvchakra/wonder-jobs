@@ -1,5 +1,8 @@
 "use client";
-import { CheckCircle2, CircleDashed, FileText, Hand, Loader2, MinusCircle, Sparkles, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, CircleDashed, FileText, Hand, Loader2, MinusCircle, Sparkles, XCircle } from "lucide-react";
+import { FORM_WAIT_MS, formWait } from "@/domain/jobs-apply/waiting";
+import { useCareerStore } from "@/store/career";
 import { PROVIDER_NAME } from "@/domain/jobs-apply/destination";
 import type { ApplyProgress } from "@/domain/jobs-apply/mapper";
 import { STATUS_LABEL } from "@/domain/jobs-apply/states";
@@ -28,8 +31,23 @@ function state(m: FieldMapping): { label: string; tone: "success" | "brand" | "w
 }
 
 /** "What Wonder did / what it couldn't / what needs you" for the live form (§31, §39, §164). */
-export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen, cloud = false }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void; /** The helper runs in the cloud browser shown above, not in the candidate's own Chrome. */ cloud?: boolean }) {
+export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen, onGuided, onStop, cloud = false }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void; onGuided?: () => void; onStop?: () => void; /** The helper runs in the cloud browser shown above, not in the candidate's own Chrome. */ cloud?: boolean }) {
   const form = session.form;
+  // Waiting for the form isn't forever: after FORM_WAIT_MS with nothing from the page, say so and offer next steps.
+  const [now, setNow] = useState(() => Date.now());
+  const [keptWaitingAt, setKeptWaitingAt] = useState<number>();
+  useEffect(() => {
+    if (form || session.stopped) return;
+    const t = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(t);
+  }, [form, session.stopped]);
+  const wait = formWait(session, now, keptWaitingAt);
+  const notified = useRef(false);
+  useEffect(() => {
+    if (wait !== "timed_out" || notified.current) return;
+    notified.current = true;
+    useCareerStore.getState().notify({ category: "application_status", title: `${session.company}: the application form didn't appear`, body: "Sign in on their page, press Apply there, or switch to Guide me.", href: `/app/jobs/${session.jobId}/apply`, action: "See next steps" });
+  }, [wait, session.company, session.jobId]);
   const shown = session.fieldMappings.filter((m) => m.category !== "CREDENTIAL");
   const steps = [...new Set(shown.map((m) => m.step ?? 1))].sort((a, b) => a - b);
   return (
@@ -44,7 +62,39 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
         <Badge tone={progress.requiredOpen ? "warning" : progress.total && progress.fillable === 0 ? "success" : "brand"}>{progress.percent}% handled</Badge>
       </div>
 
-      {!form && (
+      {!form && wait === "timed_out" && (
+        <div role="alert" className="mt-4 rounded-[14px] border border-warning-200 bg-warning-50 p-4 text-[13px] text-ink-2">
+          <p className="flex items-center gap-2 font-semibold text-ink">
+            <AlertTriangle className="size-4 shrink-0 text-warning-600" aria-hidden /> The application form hasn&apos;t appeared
+          </p>
+          <p className="mt-1">Wonder waited {Math.round(FORM_WAIT_MS / 1000)} seconds and saw no form on the employer&apos;s page. Nothing was filled or sent. Usually one of these:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>The site wants you to sign in or create an account first — do that there; the helper picks up when the form shows.</li>
+            <li>The link opened the job description or a job board — press Apply on that page.</li>
+            <li>{cloud ? "The page didn't load in the cloud browser — open it in your own browser instead." : "The helper isn't on that page — open the helper there and choose Fill, or allow the site when it asks."}</li>
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={onOpen}>
+              Open the page again
+            </Button>
+            {onGuided && (
+              <Button size="sm" variant="outline" onClick={onGuided}>
+                Guide me instead
+              </Button>
+            )}
+            {onStop && (
+              <Button size="sm" variant="ghost" onClick={onStop}>
+                Stop
+              </Button>
+            )}
+            <button type="button" className="text-[13px] font-medium text-brand-600 hover:underline" onClick={() => setKeptWaitingAt(Date.now())}>
+              Keep waiting
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!form && wait !== "timed_out" && (
         <div className="mt-4 rounded-[14px] bg-surface-2 p-4 text-[13px] text-ink-2">
           {cloud ? (
             <p className="flex items-center gap-2">
@@ -139,7 +189,7 @@ export function FilledSummary({ session, progress }: { session: PublicSession; p
           <CheckCircle2 className={`size-4 ${resumeAttached ? "text-success-600" : "text-ink-4"}`} aria-hidden /> {resumeAttached ? `Résumé attached (${session.pack.resume?.filename})` : "Résumé not attached yet"}
         </li>
         <li className="flex items-center gap-2">
-          <CheckCircle2 className="size-4 text-success-600" aria-hidden /> Nothing submitted — that&apos;s yours
+          <CheckCircle2 className="size-4 text-success-600" aria-hidden /> {session.wonderSubmittedAt ? "Submitted by Wonder, as you allowed" : "Nothing submitted yet"}
         </li>
       </ul>
       <p className="mt-4 text-[13px] font-semibold text-ink">Fields requiring your review</p>

@@ -885,6 +885,17 @@ export default function ApplyWithWonderPage({
                   }
                   onPair={() => pair(s.id)}
                   onOpen={openEmployer}
+                  onGuided={() =>
+                    withSession((id) => jobsApplyApi.setMode(id, "guided")).then(() =>
+                      track("jobsapply_guided_used", { sessionId: s.id }),
+                    )
+                  }
+                  onStop={() =>
+                    withSession(
+                      (id) => jobsApplyApi.act(id, "stop"),
+                      "Stopped. Nothing was submitted.",
+                    )
+                  }
                 />
               )}
               {!guided && (
