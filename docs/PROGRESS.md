@@ -438,6 +438,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Branded emails (WJ-294): the activity digest and contact notification share one layout (`server/email/layout.ts`) — logo header, brand accent bar, footer with why-you-got-this, settings, privacy and the existing unsubscribe link, plus a plain-text twin
 - ✅ `docs/CLAUDE.template.md`: a generic CLAUDE.md based on these working rules, for other projects
 - ✅ Refine: Change sits right beside the role you're looking for (WJ-298)
+- ✅ Landing: top navigation cut to four links (WJ-300)
 - ✅ Cloud browser moved to Mumbai (WJ-299)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
