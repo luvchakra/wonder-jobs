@@ -109,6 +109,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Searching animation: the W mark becomes a collar and tie (WJ-252)
 - ✅ JobsLake search cache: similar searches reuse each source's recent answer (WJ-253)
 - ✅ Smart search: broader phrasings at once (AI-picked from the profile); search terms on JobsLake Runs (WJ-254)
+- ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Help guide and assistant brought up to the product as it is: Finding jobs, plans, activity email, AI use, Apply with Wonder page by page, and a "When something goes wrong" section (WJ-248)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)

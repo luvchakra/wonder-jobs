@@ -225,8 +225,10 @@ function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked
   const filling = new Set(g.mappings.map((m) => m.fieldId));
   // Never in the cloud browser (a server-hosted page): final submission happens only in the candidate's own browser.
   const inCloud = !!s.cloud && !s.cloud.endedAt;
-  const submit = submitAllowed && !inCloud && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
-  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided", submit };
+  // A verification challenge on the page is the candidate's: the helper fills around it but presses nothing.
+  const challenge = !!s.form?.signals.includes("captcha");
+  const submit = submitAllowed && !challenge && !inCloud && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
+  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided" && !challenge, submit };
 }
 
 async function helperFill(ctx: HelperCtx, s: JobsApplySession = ctx.session): Promise<FillDecision> {

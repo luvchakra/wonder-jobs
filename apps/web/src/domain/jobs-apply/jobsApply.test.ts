@@ -456,15 +456,26 @@ describe("session state machine", () => {
     expect(ok.approvedAnswers.wa).toBeUndefined();
   });
 
-  it("APPLY-045/046 CAPTCHA and MFA pause; the candidate continues", () => {
+  it("APPLY-045/046 a challenge page and MFA pause; the candidate continues", () => {
     let s = S.recordInspection(fresh(), greenhouseForm(), NOW);
-    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"] }), NOW);
+    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"], fields: [] }), NOW);
     expect(s).toMatchObject({ status: "PAUSED", failure: "CAPTCHA_REQUIRED" });
     expect(fillGate(s, { host: "boards.greenhouse.io", decision: "run", candidateClicked: false }).ok).toBe(false);
     s = S.resume(s, NOW);
     expect(s.status).toBe("FORM_DETECTED");
     s = S.recordInspection(s, greenhouseForm({ signals: ["otp"] }), NOW);
     expect(s.failure).toBe("MFA_REQUIRED");
+  });
+
+  it("a challenge inside the form doesn't pause filling — re-reading the page after it's solved can't loop", () => {
+    let s = S.recordInspection(fresh(), greenhouseForm({ signals: ["captcha"] }), NOW);
+    expect(s.status).not.toBe("PAUSED");
+    expect(s.failure).toBeUndefined();
+    expect(s.fieldMappings.length).toBeGreaterThan(0);
+    expect(fillGate(s, { host: "boards.greenhouse.io", decision: "run", candidateClicked: false }).ok).toBe(true);
+    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"] }), NOW); // the widget is still there after solving
+    expect(s.status).not.toBe("PAUSED");
+    expect(s.form?.signals).toEqual(["captcha"]);
   });
 
   it("login pages ask the candidate to sign in on the employer's site (§35)", () => {
@@ -590,7 +601,7 @@ describe("pauses only the candidate can lift", () => {
   });
   it("signing in is recorded once the form appears, even after a verification pause", () => {
     let s = S.recordInspection(fresh(), { url: "https://boards.greenhouse.io/login", adapter: "generic", step: 1, signals: ["login_form"], fields: [{ id: "p", label: "Password", type: "password", required: true }] }, NOW);
-    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"] }), NOW);
+    s = S.recordInspection(s, greenhouseForm({ signals: ["captcha"], fields: [] }), NOW);
     s = S.resume(s, NOW);
     s = S.recordInspection(s, greenhouseForm(), NOW);
     expect(s.audit.filter((a) => a.event === "AUTH_COMPLETED")).toHaveLength(1);
