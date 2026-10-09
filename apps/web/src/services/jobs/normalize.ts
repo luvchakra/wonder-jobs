@@ -6,6 +6,7 @@
  */
 import type { Job, WorkMode } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
+import { employerDomainOf } from "@/domain/jobslake/companies";
 
 export interface RawPosting {
   externalId: string;
@@ -229,7 +230,8 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     externalId: String(raw.externalId),
     title,
     company: raw.company.trim() || "Unknown company",
-    companyDomain: raw.companyDomain,
+    // A domain the source reported, else the employer's own site the apply link is on — never guessed from the name.
+    companyDomain: raw.companyDomain || employerDomainOf(raw.applyUrl, raw.employerSite),
     location,
     country,
     workMode,

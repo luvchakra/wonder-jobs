@@ -161,6 +161,8 @@ export interface JobFilters {
   strictProfile?: boolean;
   sourceIds: string[];
   minFit: FitLabel | null;
+  /** Only jobs whose fit is exactly minFit (a count on Insights opens the jobs it counted). */
+  exactFit?: boolean;
   freshnessDays: number | null;
   onlySaved: boolean;
 }

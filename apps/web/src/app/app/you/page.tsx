@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, Dna, FileText, History, Sparkles, UserRoundCog } from "lucide-react";
+import { Bot, ChevronRight, Database, FileText, History, Sparkles } from "lucide-react";
 import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { useAuthStore } from "@/store/auth";
@@ -18,7 +18,7 @@ import { Avatar } from "@/components/common/Avatar";
 const LEVEL_IN_WORDS: Record<string, string> = { assist: "Asks before everything", guided: "Asks when it matters", autonomous: "Acts on your rules", continuous: "Acts and keeps watch" };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** You: who Wonder is searching for, and everything it's been told to do. One row per page, with its current value. */
+/** You: who Wonder is searching for (the Career Profile, at the top), then what it works with, in the order a search uses it. Account, plan and data are in the avatar menu. */
 export default function YouPage() {
   const dna = useCareerStore((s) => s.dna);
   const resumes = useCareerStore((s) => s.savedResumes.length);
@@ -43,13 +43,11 @@ export default function YouPage() {
   const active = Object.values(schedules).filter((x) => x.enabled).length;
 
   const rows = [
-    { href: "/app/career-dna", label: "Career Profile", value: wants ? (headline ? headline : `Looking for ${wants}`) : "Not filled in", icon: Dna },
     { href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
     { href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
-    { href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
     { href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
-    { href: "/app/profile", label: "Account", value: email ?? "", icon: UserRoundCog },
+    { href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
   ];
 
   return (
@@ -58,7 +56,8 @@ export default function YouPage() {
         <Avatar name={name} size={48} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-semibold text-ink">{name}</span>
-          <span className="block truncate text-[13px] text-ink-3">{headline || "Add your headline"}</span>
+          <span className="block truncate text-[13px] text-ink-3">{headline || (wants ? `Looking for ${wants}` : "Add your headline")}</span>
+          <span className="mt-0.5 block text-[12px] font-medium text-brand-600">Career Profile</span>
         </span>
         <ChevronRight className="size-4 text-ink-4" aria-hidden />
       </Link>

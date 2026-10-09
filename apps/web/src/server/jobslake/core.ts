@@ -22,6 +22,7 @@ import { creditsLeft, topUpBelow } from "./paid";
 import { jobsLakeStore, type CachedAnswer } from "./store";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
+import { recordCompanies } from "./companies";
 
 export const newId = (prefix: string) => `${prefix}_${randomBytes(9).toString("base64url")}`;
 
@@ -299,6 +300,9 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // a failed write is logged for operators, never turned into a failed search for the candidate.
   await bookkeeping("record runs", () => store.recordRuns(runs));
   if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache));
+
+  // Company directory: each employer's reported domain, for logos and company details.
+  if (valid.length) await bookkeeping("record companies", () => recordCompanies(valid));
 
   let results = valid;
   let warmCount = 0;
