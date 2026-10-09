@@ -534,6 +534,8 @@ export default function ApplyWithWonderPage({
           title: mode === "guided" ? HANDOFF_TITLES.guided : HANDOFF_TITLES.helper,
           detail: `On ${v.session.destination.domain}. You submit there, then confirm here.`,
         });
+      // Waiting on the candidate: a reminder they can act on from anywhere.
+      useCareerStore.getState().notify({ category: "application_status", title: `Applying to ${job.company}`, body: `Opened on ${v.session.destination.domain}. When you've submitted, tell Wonder.`, href: `/app/jobs/${job.id}/apply`, action: "Mark submitted" });
       if (mode !== "guided") {
         await pair(v.session.id);
         if (pre) {
