@@ -10,6 +10,7 @@ const LINKS: { href: string; label: string; wide?: boolean }[] = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#ask-wonder", label: "Ask Wonder" },
   { href: "#features", label: "Features" },
+  { href: "#pricing", label: "Pricing" },
   { href: "#extension", label: "Apply" },
   // Only from xl on the desktop bar (always in the mobile menu and the footer): at lg the bar is full.
   { href: "#control", label: "Control", wide: true },

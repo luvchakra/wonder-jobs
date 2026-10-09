@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BarChart3, CalendarDays, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, LayoutList, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Share2, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, KeyRound, LayoutList, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Smartphone, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
@@ -33,7 +34,7 @@ export function SourceLogoStrip() {
                 {name}
               </li>
             ))}
-            <li className="text-[13px] text-ink-4">+ 40 company career sites, each added only after a real test</li>
+            <li className="text-[13px] text-ink-4">+ companies&apos; own career sites on Greenhouse, Lever, Ashby, SmartRecruiters and JazzHR, each added only after a real test</li>
           </ul>
         </ScrollReveal>
       </div>
@@ -46,7 +47,7 @@ const AGENT_POINTS = [
   { icon: Radar, t: "Search everywhere", s: "Type any role — “psychology in Mumbai” — and every source answers it, in any form of the word." },
   { icon: Target, t: "Know the pay and the level", s: "Designation, remuneration and source on every listing — “Not listed” when the employer didn't say." },
   { icon: Zap, t: "Prepare in minutes", s: "An Application Pack and a résumé from eight ATS-friendly templates." },
-  { icon: MousePointerClick, t: "Apply without retyping", s: "Wonder fills the employer's form. You answer what's yours and press submit." },
+  { icon: MousePointerClick, t: "Apply without retyping", s: "Wonder fills the employer's form — on your computer or your phone. You answer what's yours and submit." },
   { icon: Eye, t: "See the why", s: "Every match explains itself — and so does every hidden one." },
   { icon: ShieldCheck, t: "Stay in control", s: "Wonder prepares. It submits only where you switch that on." },
 ];
@@ -90,11 +91,19 @@ export function AgentSection() {
 }
 
 /* ----------------------------------------------------------- journey */
-const JOURNEY = [
-  { key: "find", t: "Find", s: "Start with your CV", body: "Upload your CV. Wonder reads your role, place and skills, you confirm them, and your jobs are on screen. Type anything else — a role, a city — and every source is searched for it, where you say." },
-  { key: "decide", t: "Decide", s: "Know where to spend your time", body: "Every listing shows the designation, the pay and where it was found, and says why it fits. Nothing is hidden silently — the list tells you what your filters are holding back, and one tap shows it." },
-  { key: "apply", t: "Apply", s: "Your Application Pack, then your click", body: "Tailored résumé, cover letter and answers in one pack, each labelled AI draft or your edit. Apply with Wonder fills the employer's form in your browser, or guides you with every value one tap to copy. The submit click is always yours." },
-  { key: "progress", t: "Progress", s: "Keep everything moving", body: "Your pipeline first — preparing, applied, interview, outcome — then what needs you: follow-ups, interviews, replies. Scheduled searches keep watch and speak up only when something is worth your attention." },
+/**
+ * Search to submitted, step by step. Each step shows the real screen (the app in demo mode with its
+ * sample data — captured from the product, not drawn) except the employer's form, which is drawn because
+ * it's the employer's page, not ours, and says so.
+ */
+type JourneyStep = { key: string; t: string; s: string; body: string; shot?: { src: string; w: number; h: number; alt: string }; plan?: string };
+const JOURNEY: JourneyStep[] = [
+  { key: "ask", t: "Tell Wonder the role", s: "Or upload your CV and let it read the rest", body: "Type a role and a place, say it, or let your Career Profile decide. One tap searches.", shot: { src: "/landing/step-1-search.webp", w: 780, h: 620, alt: "The Find screen: what you're looking for, the search box, and the jobs found" } },
+  { key: "search", t: "It searches real job sources", s: "Employers' own career sites, job boards and feeds", body: "Every listing shows the designation, the pay and where it was found — duplicates merged, closed postings dropped.", shot: { src: "/landing/step-2-listing.webp", w: 716, h: 446, alt: "A job listing with designation, salary and source" } },
+  { key: "why", t: "Every match explains itself", s: "Why it fits, and what to weigh", body: "Wonder compares each posting with your profile and says why it ranked it there — and what might make you hesitate.", shot: { src: "/landing/step-3-why.webp", w: 716, h: 500, alt: "Wonder's take: why this job fits and why you might hesitate" } },
+  { key: "apply", t: "Tap Apply with Wonder", s: "Résumé, details and answers, checked first", body: "Wonder checks what the form will need, picks your résumé, and lists what stays yours to answer. Then one button: Start application.", shot: { src: "/landing/step-4-ready.webp", w: 716, h: 958, alt: "Ready to apply: résumé, contact details and answers checked, with a Start application button" }, plan: "Pro" },
+  { key: "fill", t: "Wonder fills the employer's form", s: "On your computer, or right in the app on your phone", body: "The browser helper fills the form on the employer's own site — on a phone, the page opens inside WonderJobs. You review and press Submit, or turn on Submit for me.", plan: "Pro" },
+  { key: "track", t: "Track it in Pipeline", s: "Follow-ups, interviews and outcomes", body: "Preparing, applied, interview, outcome — with the next step on every card, and a nudge when something needs you.", shot: { src: "/landing/step-6-pipeline.webp", w: 780, h: 606, alt: "Pipeline: counts by stage and an application with its next step" } },
 ];
 
 export function JourneySection() {
@@ -112,7 +121,7 @@ export function JourneySection() {
     return () => io.disconnect();
   }, []);
   return (
-    <section ref={parallax} id="how-it-works" className="relative overflow-hidden bg-[#0e1030] py-20 text-white md:py-28" aria-labelledby="journey-title">
+    <section ref={parallax} id="how-it-works" className="relative overflow-clip bg-[#0e1030] py-20 text-white md:py-28" aria-labelledby="journey-title">
       <div className="absolute inset-0" aria-hidden>
         <div data-depth="0.8" className="absolute inset-0 will-change-transform">
           <HeroScene variant="dusk" id="journey" className="h-full w-full opacity-70" />
@@ -121,18 +130,15 @@ export function JourneySection() {
       </div>
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal className="max-w-xl">
-          <p className="wj-eyebrow text-brand-200">Find → Decide → Apply → Progress</p>
+          <p className="wj-eyebrow text-brand-200">How it works</p>
           <h2 id="journey-title" className="mt-3 text-h2 font-semibold">
-            From your CV to your next role. <span className="wj-gradient-text">Four places, no wizard.</span>
+            From search to submitted. <span className="wj-gradient-text">A few taps.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-white/75">Find, Saved, Applied and You — that is the whole app. Wonder searches, ranks and prepares; it tells you what matters, and you decide.</p>
+          <p className="mt-4 text-[16px] text-white/75">Find, Saved, Pipeline and You — that is the whole app. Wonder searches, explains and fills; you decide and submit.</p>
         </ScrollReveal>
-        <p data-depth="-0.6" className="wj-handwritten mt-6 text-[20px] text-white/80 will-change-transform md:absolute md:right-16 md:top-0 md:rotate-[-6deg]">
-          Same you. Bigger possibilities.
-        </p>
 
         <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <ol className="relative space-y-10 lg:space-y-24" aria-label="How WonderJobs works">
+          <ol className="relative space-y-12 lg:space-y-24" aria-label="How WonderJobs works">
             <span className="absolute left-5 top-6 hidden h-[calc(100%-3rem)] w-px bg-white/15 lg:block" aria-hidden>
               <span className="block w-full wj-gradient-bg transition-[height] duration-500" style={{ height: `${(active / (JOURNEY.length - 1)) * 100}%` }} />
             </span>
@@ -146,19 +152,28 @@ export function JourneySection() {
                 className="relative flex gap-5"
               >
                 <span className={cn("relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border text-[13px] font-bold transition-all duration-300", active >= i ? "border-brand-400 bg-brand-500 text-white" : "border-white/30 bg-[#0e1030] text-white/60", active === i && "scale-110 shadow-[0_0_0_6px_rgba(109,76,245,0.25)]")}>{i + 1}</span>
-                <button type="button" onClick={() => setActive(i)} aria-pressed={active === i} className="text-left">
-                  <span className={cn("block text-[22px] font-semibold transition-colors", active === i ? "text-white" : "text-white/70")}>{j.t}</span>
-                  <span className="block text-[13px] text-brand-200">{j.s}</span>
-                  <span className={cn("mt-2 block max-w-sm text-[14px] transition-opacity duration-300", active === i ? "text-white/80 opacity-100" : "text-white/60 opacity-70")}>{j.body}</span>
-                </button>
+                <div className="min-w-0 flex-1">
+                  <button type="button" onClick={() => setActive(i)} aria-pressed={active === i} className="text-left">
+                    <span className={cn("flex flex-wrap items-center gap-2 text-[22px] font-semibold transition-colors", active === i ? "text-white" : "text-white/70")}>
+                      {j.t}
+                      {j.plan && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-100">{j.plan}</span>}
+                    </span>
+                    <span className="block text-[13px] text-brand-200">{j.s}</span>
+                    <span className={cn("mt-2 block max-w-sm text-[14px] transition-opacity duration-300", active === i ? "text-white/80 opacity-100" : "text-white/60 opacity-70")}>{j.body}</span>
+                  </button>
+                  {/* On a phone each step carries its own screen; on a wide screen they share the sticky frame. */}
+                  <div className="mt-5 lg:hidden">
+                    <StepScreen step={j} />
+                  </div>
+                </div>
               </li>
             ))}
           </ol>
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <div className="relative mx-auto h-[400px] max-w-md">
+          <div className="hidden lg:sticky lg:top-28 lg:block lg:self-start">
+            <div className="relative mx-auto h-[560px] max-w-md">
               {JOURNEY.map((j, i) => (
-                <div key={j.key} className={cn("absolute inset-0 transition-all duration-500", active === i ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-4 scale-[0.98] opacity-0")} aria-hidden={active !== i}>
-                  <OutcomeCard step={j.key} title={j.t} />
+                <div key={j.key} className={cn("absolute inset-0 flex items-center justify-center transition-all duration-500", active === i ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-4 scale-[0.98] opacity-0")} aria-hidden={active !== i}>
+                  <StepScreen step={j} />
                 </div>
               ))}
             </div>
@@ -169,124 +184,67 @@ export function JourneySection() {
   );
 }
 
-/** A faithful miniature of what the product shows at each outcome — same words the app uses. */
-function OutcomeCard({ step, title }: { step: string; title: string }) {
-  const icon = { find: Search, decide: Target, apply: FileText, progress: BarChart3 }[step] ?? Sparkles;
-  const Icon = icon;
+/** One step's screen: the real app (sample data) in a card, or — for the employer's form — a labelled drawing. */
+function StepScreen({ step }: { step: JourneyStep }) {
   return (
-    <div className="wj-glass flex h-full flex-col rounded-[28px] p-6 text-ink">
-      <div className="flex items-center gap-3">
-        <span className="flex size-11 items-center justify-center rounded-[14px] wj-gradient-bg text-white">
-          <Icon className="size-5" aria-hidden />
-        </span>
-        <div>
-          <p className="text-[12px] text-ink-3">What you see</p>
-          <p className="text-[18px] font-semibold">{title}</p>
-        </div>
+    <figure className="mx-auto w-full max-w-[380px]">
+      <div className="overflow-hidden rounded-[24px] bg-[#f5f5fb] p-2 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10">
+        {step.shot ? <Image src={step.shot.src} width={step.shot.w} height={step.shot.h} alt={step.shot.alt} className="h-auto max-h-[500px] w-full rounded-[18px] object-contain" sizes="380px" /> : <FormFillDrawing />}
       </div>
-      <div className="mt-5 flex-1 rounded-[18px] bg-white/85 p-4 text-[13px]">
-        {step === "find" && (
-          <>
-            <p className="font-semibold text-ink">“Senior product roles in Bengaluru or remote, preferably fintech”</p>
-            <dl className="mt-3 space-y-1 text-[12px]">
-              <div className="flex gap-2"><dt className="text-ink-3">Roles</dt><dd className="font-medium">“senior product”</dd><dd className="text-ink-4">from your words</dd></div>
-              <div className="flex gap-2"><dt className="text-ink-3">Where</dt><dd className="font-medium">Bengaluru, Remote</dd></div>
-              <div className="flex gap-2"><dt className="text-ink-3">Industry</dt><dd className="font-medium">Fintech</dd><dd className="text-ink-4">weighed, not a filter</dd></div>
-            </dl>
-            <ul className="mt-4 space-y-1.5">
-              {["Searching the market — 412 found", "Removing duplicates — done", "Comparing with your career profile…"].map((s, i) => (
-                <li key={s} className="flex items-center gap-2">
-                  <span className={cn("size-2 rounded-full", i < 2 ? "bg-brand-500" : "bg-brand-300 wj-animate-pulse-dot")} />
-                  <span className={i < 2 ? "text-ink" : "text-ink-2"}>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {step === "decide" && (
-          <>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold text-ink">Senior Product Manager, Payments</p>
-                <p className="text-[12px] text-ink-3">Cobalt Pay · Bengaluru · Hybrid</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-success-100 px-2 py-0.5 text-[11px] font-semibold text-success-600">Strong</span>
-            </div>
-            <p className="mt-3 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">Why Wonder surfaced this</p>
-            <ul className="mt-1 space-y-1 text-[12.5px] text-ink-2">
-              <li>✓ Strong overlap with your skills</li>
-              <li>✓ Fintech is one of your target industries</li>
-            </ul>
-            <p className="mt-2 text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">Things to consider</p>
-            <p className="mt-1 text-[12.5px] text-ink-2">⚠ Compensation isn&apos;t disclosed</p>
-            <p className="mt-3 rounded-[10px] bg-brand-50 px-2.5 py-1.5 text-[12px] text-brand-700">Wonder&apos;s next suggestion: Prepare an application</p>
-          </>
-        )}
-        {step === "apply" && (
-          <>
-            <p className="flex items-center gap-1.5 text-[15px] font-semibold text-ink">
-              <CheckCircle2 className="size-4 text-success-600" aria-hidden /> Application ready
-            </p>
-            <ul className="mt-3 space-y-1.5 text-[12.5px]">
-              {[
-                ["Tailored résumé", "Edited by you"],
-                ["Cover letter", "AI-generated draft"],
-                ["Screening answers", "AI-generated draft"],
-              ].map(([t, s]) => (
-                <li key={t} className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-ink">{t}</span>
-                  <span className="text-ink-3">{s}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 rounded-[10px] bg-surface-2 px-2.5 py-2 text-[12px] text-ink-2">
-              <strong className="text-ink">The final action is yours.</strong> Wonder fills the employer&apos;s form with these, and submits only if you turn that on.
-            </p>
-          </>
-        )}
-        {step === "progress" && (
-          <>
-            <p className="font-semibold text-ink">Your progress</p>
-            <ul className="mt-2 grid grid-cols-2 gap-2">
-              {[
-                ["3", "applications active"],
-                ["1", "interview this week"],
-                ["1", "follow-up due"],
-                ["1", "employer replied"],
-              ].map(([n, l]) => (
-                <li key={l} className="rounded-[10px] border border-line bg-white px-2.5 py-2">
-                  <span className="block text-[17px] font-semibold text-ink">{n}</span>
-                  <span className="block text-[11px] text-ink-3">{l}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-success-100/60 px-2.5 py-2 text-[12px] text-ink-2">
-              <Radar className="size-3.5 text-success-600" aria-hidden /> Wonder is working · Next search tomorrow at 8:00
-            </p>
-          </>
-        )}
+      <figcaption className="mt-2 text-center text-[11px] text-white/55">{step.shot ? "The real app · sample data" : "Illustration · the employer's own form"}</figcaption>
+    </figure>
+  );
+}
+
+/** The employer's form as the helper leaves it: filled from the candidate's own data, the rest left for them. */
+function FormFillDrawing() {
+  const rows: [string, string, "filled" | "yours"][] = [
+    ["Full name", "From your profile", "filled"],
+    ["Email · Phone", "From your profile", "filled"],
+    ["Résumé", "Your chosen résumé, attached", "filled"],
+    ["Notice period", "Your saved answer", "filled"],
+    ["Work authorization", "Yours to answer", "yours"],
+  ];
+  return (
+    <div className="rounded-[18px] bg-white p-4 text-ink">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">careers.example.com · Apply</p>
+      <ul className="mt-3 space-y-2">
+        {rows.map(([label, note, state]) => (
+          <li key={label} className={cn("flex items-center justify-between gap-3 rounded-[10px] border px-3 py-2", state === "filled" ? "border-success-600/20 bg-success-100/40" : "border-warning-600/25 bg-warning-100/60")}>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium">{label}</span>
+              <span className="block text-[11px] text-ink-3">{note}</span>
+            </span>
+            {state === "filled" ? <CheckCircle2 className="size-4 shrink-0 text-success-600" aria-label="Filled" /> : <Hand className="size-4 shrink-0 text-warning-600" aria-label="Yours to answer" />}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="text-[11px] text-ink-3">You review, then submit</span>
+        <span className="rounded-full wj-gradient-bg px-4 py-1.5 text-[12px] font-semibold text-white">Submit</span>
       </div>
-      <p className="mt-4 text-[12px] text-ink-3">Illustrative example. Every number in your account comes from real postings and your own applications.</p>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ features */
 /** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
-const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string; id?: string }[] = [
-  { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, and refreshed on their own. Type to search for something else.", href: "/sign-up" },
-  { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own data, one keystroke away.", href: "/sign-up" },
+const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string; id?: string; plan?: string }[] = [
+  { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, with each company's logo. Type or say anything else to search for it.", href: "/sign-up" },
+  { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form with your details, résumé and saved answers, and leaves what's yours to answer. You submit — or turn on Submit for me.", href: "/sign-up", plan: "Pro" },
+  { icon: Smartphone, t: "Apply from your phone", s: "No extension on a phone? The employer's page opens inside WonderJobs, Wonder fills it there, and you press submit.", href: "/sign-up", plan: "Pro" },
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/sign-up" },
-  { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
+  { icon: Radar, t: "Scheduled searches", s: "Ready-made schedules — a weekday shortlist, a weekly roundup, remote only — that run while you're away and tell you only when it's worth it.", href: "/sign-up" },
+  { icon: Bell, t: "Notifications with a next step", s: "A search finished, a draft is ready, a saved job closed — each notice says what happened and takes you straight to what to do.", href: "/sign-up" },
+  { icon: MessageCircleQuestion, t: "Ask Wonder", s: "“What should I focus on today?” — answered from your own applications, matches and follow-ups.", href: "/sign-up" },
   { icon: FileText, t: "Application Pack", s: "Résumé, cover letter and answers in one place — each labelled AI draft or yours, and yours to download as Word.", href: "/sign-up" },
-  { icon: LayoutTemplate, id: "templates", t: "Résumé templates", s: "Eight ATS-friendly designs drawn from your own facts. Preview, then download PDF or Word.", href: "/sign-up" },
-  { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form in your browser, stops for what's yours to answer. You submit.", href: "/sign-up" },
+  { icon: LayoutTemplate, id: "templates", t: "Résumé templates", s: "ATS-friendly designs drawn from your own facts — two on Free, all eight on Pro. Preview, then download PDF or Word.", href: "/sign-up" },
+  { icon: LayoutList, t: "Pipeline", s: "Preparing, applied, interview, outcome — the next step on every card, follow-ups and interviews first.", href: "/sign-up" },
+  { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
   { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
   { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderJobs AI, included.", href: "/sign-up" },
-  { icon: Radar, t: "Keep watch", s: "Schedule searches in plain words. Wonder runs them while you're away and nudges your phone when something strong turns up.", href: "/sign-up" },
-  { icon: LayoutList, t: "Track every application", s: "What needs you comes first — follow-ups due, interviews, replies — then every application from preparing to outcome.", href: "/sign-up" },
-  { icon: Share2, t: "Share a role", s: "Send a job to a friend or mentor. They see the real posting, no account needed.", href: "/sign-up" },
-  { icon: CalendarDays, t: "Your calendar and phone", s: "Subscribe from Google, Outlook or Apple Calendar, install WonderJobs like an app, and get nudges for interviews and follow-ups.", href: "/help#calendar", cta: "How it works" },
+  { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderJobs like an app for nudges.", href: "/help#calendar", cta: "How it works" },
+  { icon: KeyRound, t: "JobsLake API", s: "Search the same live job sources from your own code with an API key. A free monthly allowance, then pay as you go.", href: "/api-reference", cta: "API reference" },
 ];
 
 export function FeatureGrid() {
@@ -311,7 +269,10 @@ export function FeatureGrid() {
                 <span className="relative flex size-11 items-center justify-center rounded-[13px] bg-brand-50 text-brand-600 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:scale-105">
                   <f.icon className="size-5" aria-hidden />
                 </span>
-                <span className="relative mt-4 text-[17px] font-semibold text-ink">{f.t}</span>
+                <span className="relative mt-4 flex flex-wrap items-center gap-2 text-[17px] font-semibold text-ink">
+                  {f.t}
+                  {f.plan && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700">{f.plan}</span>}
+                </span>
                 <span className="relative mt-1.5 flex-1 text-[14px] leading-relaxed text-ink-3">{f.s}</span>
                 <span className="relative mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-600">
                   {f.cta ?? "Get started free"} <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden />
@@ -445,7 +406,7 @@ export function ExtensionSection() {
             <span className="wj-gradient-text">retyping yourself.</span>
           </h2>
           <p className="mt-5 max-w-md text-[16px] text-ink-2">
-            Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday — and helps on SmartRecruiters and Workable — with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit.
+            Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday — and helps on SmartRecruiters and Workable — with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit — or turn on Submit for me, and the helper presses it once every required field holds your own answer.
           </p>
           <ul className="mt-5 space-y-2 text-[14px] text-ink-2">
             {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderJobs", "No helper? Guided mode puts every value one tap from your clipboard, and remembers your answers"].map((t) => (
@@ -539,7 +500,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Résumé templates", href: "/#templates" },
       { label: "Apply with Wonder", href: "/#extension" },
       { label: "Browser helper", href: "/extension" },
-      { label: "Pricing & payments", href: "/terms#free", badge: "Free" },
+      { label: "Pricing", href: "/#pricing" },
     ],
   },
   {
@@ -595,7 +556,7 @@ export function MarketingFooter() {
         <div className="col-span-2">
           <WonderLogo />
           <p className="mt-2 text-[12px] text-ink-3">Find. Grow. Belong.</p>
-          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">Tell Wonder what you want. It searches real sources, explains every match, builds your résumé and fills the employer&apos;s form. It never submits on your behalf.</p>
+          <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-ink-3">Tell Wonder what you want. It searches real sources, explains every match, builds your résumé and fills the employer&apos;s form. You submit — or let it, only if you turn that on.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button href="/sign-up" size="sm" className="rounded-full">
               Get started free
