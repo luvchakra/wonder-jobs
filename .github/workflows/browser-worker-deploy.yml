@@ -38,10 +38,18 @@ jobs:
       - name: Deploy
         if: env.FLY_API_TOKEN != ''
         run: flyctl deploy . --config apps/browser-worker/fly.toml --app "$APP" --ha=false --remote-only
-      # Sessions live in one machine's memory: never more than one.
-      - name: One machine
+      # Sessions live in one machine's memory: exactly one, in fly.toml's primary_region (bom = Mumbai, near
+      # the candidates). Changing the region in fly.toml moves it: a machine is made there, others removed.
+      - name: One machine, in the primary region
         if: env.FLY_API_TOKEN != ''
-        run: flyctl scale count 1 --app "$APP" --yes
+        run: |
+          region="$(sed -n "s/^primary_region *= *['\"]\(.*\)['\"]/\1/p" apps/browser-worker/fly.toml)"
+          [ -n "$region" ] || { echo "::error::No primary_region in fly.toml"; exit 1; }
+          flyctl scale count 1 --region "$region" --app "$APP" --yes
+          for id in $(flyctl machines list --app "$APP" --json | jq -r --arg r "$region" '.[] | select(.region != $r) | .id'); do
+            flyctl machine destroy "$id" --force --app "$APP"
+          done
+          flyctl machines list --app "$APP"
       # Without public addresses <app>.fly.dev doesn't resolve. Add a shared IPv4 and an IPv6 once.
       - name: Public addresses
         if: env.FLY_API_TOKEN != ''
