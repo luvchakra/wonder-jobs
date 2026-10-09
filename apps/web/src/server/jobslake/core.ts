@@ -14,10 +14,10 @@ import { summarizeHealth, type SourceHealth, type SourceRun } from "@/domain/job
 import { planSearch, type Depth, type SearchPlan } from "@/domain/jobslake/planner";
 import { PROTOCOL_VERSION, validateOpportunity, type CanonicalOpportunity, type SearchEvent, type SearchRequest, type SearchResponse, type SourceOutcome, type SourceSearchStatus } from "@/domain/jobslake/protocol";
 import { matchesLocations, matchesQuery, titleMatches } from "@/services/jobs/normalize";
-import { ageLabel, searchKey } from "@/domain/jobslake/cache";
+import { ageLabel, mergeDelta, searchKey } from "@/domain/jobslake/cache";
 import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache";
 import { DestinationBlockedError } from "./safeFetch";
-import { isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
+import { asksSince, isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
 import { creditsLeft, topUpBelow } from "./paid";
 import { jobsLakeStore, type CachedAnswer } from "./store";
 import { jobsLakeFlags } from "./flags";
@@ -173,6 +173,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     error?: ReturnType<typeof classify>;
     cachedAt?: string;
     cacheUse?: "fresh" | "fallback";
+    /** Asked only for what's new since its earlier answer (from this time), and merged with it. */
+    since?: string;
   }
 
   // A paid source is asked once, with every phrasing as a title, for no more than its remaining credits.
@@ -184,11 +186,13 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     const hit = req.cache === "refresh" ? undefined : c.fresh.get(src.id);
     if (hit) return { jobs: hit.jobs.slice(0, src.limits.maxResults), warnings: [], called: false, cachedAt: hit.fetchedAt, cacheUse: "fresh" };
     const fetchedAt = new Date().toISOString();
+    // An earlier answer that's no longer fresh: a source that filters by date is asked only for what's new since then.
+    const earlier = req.cache === "refresh" || !asksSince(src) ? undefined : c.fallback.get(src.id);
     try {
-      const r = await withTimeout(runConnector(src, connectorCriteria(src, q), plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
-      const jobs = r.jobs.slice(0, src.limits.maxResults);
+      const r = await withTimeout(runConnector(src, { ...connectorCriteria(src, q), ...(earlier ? { since: earlier.fetchedAt } : {}) }, plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
+      const jobs = earlier ? mergeDelta(r.jobs, earlier.jobs, src.limits.maxResults) : r.jobs.slice(0, src.limits.maxResults);
       if (cacheOn) toCache.push(answerFor(src, plan.depth, criteriaFor(q), { jobs, warnings: r.warnings }, fetchedAt));
-      return { jobs, warnings: r.warnings, called: true };
+      return { jobs, warnings: r.warnings, called: true, ...(earlier ? { since: earlier.fetchedAt } : {}) };
     } catch (e) {
       const error = classify(e);
       const prior = error.outcome === "needs_setup" ? undefined : c.fallback.get(src.id);
@@ -238,6 +242,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
         cacheUse === "fallback" ? `${failed[0].error!.message} — showing its answer to the same search from ${age} ago` : "",
         !cacheUse && cached.length ? `${cached.length} of ${results.length} phrasings reused from ${age} ago` : "",
         !cacheUse && failed.length ? `${failed.length} of ${results.length} phrasings failed: ${failed[0].error!.message}` : "",
+        ...results.filter((r) => r.since && !r.error).slice(0, 1).map((r) => `Asked only for jobs new since its answer ${ageLabel(r.since!, Date.now())} ago`),
         warnings.length ? `${warnings.length} board(s) failed: ${warnings.slice(0, 2).join("; ")}` : "",
       ].filter(Boolean);
       status = { sourceId, sourceName: src.name, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, durationMs, message: notes.length ? notes.join(" · ") : undefined, ...(cacheUse ? { cachedAt: oldest, cacheUse } : {}) };

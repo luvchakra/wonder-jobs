@@ -120,6 +120,11 @@ export interface ConnectorResult {
  * being unavailable. Every job carries the source's own id (or its legacy WonderJobs id for ATS and
  * built-ins, so existing job ids never change).
  */
+/** The source can be asked for only what's new since its last answer (a built-in connector that filters by date). */
+export function asksSince(s: Pick<SourceRecord, "id" | "config">): boolean {
+  return s.config.kind === "builtin" && !!SOURCE_FETCHERS[s.id]?.delta;
+}
+
 export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: Depth): Promise<ConnectorResult> {
   const cfg = s.config;
   switch (cfg.kind) {

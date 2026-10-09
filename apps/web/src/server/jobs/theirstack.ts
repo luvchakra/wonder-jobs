@@ -161,6 +161,8 @@ export async function buildRequest(c: SearchCriteria & { titles?: string[] }, li
     else for (const cc of locationScope([p]).countries) countries.add(cc);
   }
   const body: Record<string, unknown> = { job_title_or: titles, posted_at_max_age_days: MAX_AGE_DAYS, limit, page: 0 };
+  // A repeat search: only jobs TheirStack found since its last answer (every job returned is a credit).
+  if (c.since) body.discovered_at_gte = c.since;
   if (cityIds.length) body.job_location_or = cityIds.map((id) => ({ id }));
   else if (countries.size) body.job_country_code_or = [...countries];
   else if (scope.remote && !places.length && !scope.anywhere) body.workplace_types_or = ["remote"];
@@ -210,6 +212,7 @@ export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; m
 
 export const theirstack: SourceFetcher = {
   id: "theirstack",
+  delta: true,
   available: () => theirStackKeys().length > 0 && monthlyCredits() > 0,
   fetch: (c) => fetchTheirStack(c),
 };

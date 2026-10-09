@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalJob, JobMatch } from "@/domain/jobs/types";
+import * as mode from "@/lib/mode";
 import { useJobsStore } from "./jobs";
 
 const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-10-01T00:00:00Z" }) as unknown as CanonicalJob;
@@ -53,5 +54,22 @@ describe("saved jobs outlive the search results", () => {
     expect(useJobsStore.getState().jobs.z).toBeDefined();
     expect(useJobsStore.getState().jobs.c.title).toBe("c"); // a known job isn't overwritten
     expect(useJobsStore.getState().order).toEqual(["c"]);
+  });
+});
+
+describe("the profile's results set aside under typed words", () => {
+  it("are saved with the account, so clearing the words after a reload brings them back", () => {
+    vi.spyOn(mode, "getClientMode").mockReturnValue({ mode: "user" } as ReturnType<typeof mode.getClientMode>);
+    useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined });
+    const s = useJobsStore.getState();
+    const full = (id: string, description = "A real posting.") => ({ ...job(id), description }) as CanonicalJob;
+    s.replaceCatalog([full("a", "x".repeat(3000)), full("b")]);
+    s.setMatches([match("a", 80), match("b", 70)]);
+    s.replaceCatalog([full("music")], "music");
+    const saved = useJobsStore.persist.getOptions().partialize!(useJobsStore.getState()) as { beforeWords?: { order: string[]; jobs: Record<string, CanonicalJob>; matches: Record<string, JobMatch> } };
+    expect(saved.beforeWords?.order).toEqual(["a", "b"]);
+    expect(saved.beforeWords?.matches.a.score).toBe(80);
+    expect(saved.beforeWords!.jobs.a.description.length).toBeLessThan(1600); // kept short in storage
+    vi.restoreAllMocks();
   });
 });
