@@ -140,6 +140,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Landing: the real search → apply flow with screenshots, current features, pricing, and an API reference page (WJ-295)
 - ✅ Apply with Wonder lands on Start application (WJ-293)
 - ✅ "API keys" in the avatar menu opens Account → JobsLake API (WJ-292)
+- ✅ On a phone, Start application opens the employer's page in the cloud browser instead of a new tab (WJ-297)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)
 - ✅ Insights counts open what they count; Learning adds a skill to your profile in one click (WJ-278)
 - ✅ Ask Wonder opens on what needs you now (WJ-279)
