@@ -4,7 +4,8 @@
  *
  * Rules enforced here, not just in the UI:
  * - a source becomes Active only through `activateSource`, which needs a passing test in the last
- *   24 hours — never for partnership portals or scrapers;
+ *   24 hours — never for scrapers, and for partnership portals only once their partner's endpoint
+ *   and credential are configured AND the admin confirms a signed agreement permits the use;
  * - every URL an admin enters is checked against the SSRF policy before it's stored;
  * - a credential is write-only: stored encrypted, reported masked, never returned.
  */
@@ -13,9 +14,10 @@ import { z } from "zod";
 import { ATS_META, detectSource, type AtsPlatform, type Detection } from "@/domain/jobslake/detect";
 import type { MappingResult } from "@/domain/jobslake/mapping";
 import { PROTOCOL_VERSION, type SearchRequest, type SourceStatus } from "@/domain/jobslake/protocol";
+import { checkPartnerConnection, PARTNER_STATUS_REASON, type PartnerConnection } from "@/domain/jobslake/partners";
 import { checkDestination } from "@/domain/jobslake/ssrf";
 import { audit, search, testSource } from "./core";
-import { credentialStatus, deleteCredential, saveCredential } from "./credentials";
+import { credentialStatus, deleteCredential, readCredential, saveCredential } from "./credentials";
 import { ADMIN_SETTABLE, getSource, runConnector } from "./registry";
 import { err, type Result } from "./service";
 import { jobsLakeStore } from "./store";
@@ -35,10 +37,28 @@ const Mapping = z.object({
 });
 const header = z.string().trim().regex(/^[A-Za-z0-9-]{1,60}$/, "Header names are letters, digits and dashes");
 const param = z.string().trim().regex(/^[A-Za-z0-9_.-]{1,60}$/);
+/** How a credential is sent. The secret itself never travels in a config — only through the credential store. */
+const Auth = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("header"), header, prefix: z.string().max(20).optional() }),
+  z.object({ type: z.literal("bearer") }),
+  z.object({ type: z.literal("query"), param }),
+  z.object({ type: z.literal("oauth2"), tokenUrl: text(500), clientId: text(200), scope: z.string().trim().max(300).optional(), clientAuth: z.enum(["basic", "body"]).optional() }),
+]);
+export const PartnerConnectionInput = z.object({
+  format: z.enum(["json_api", "feed"]),
+  endpoint: text(500),
+  queryParam: param.optional(),
+  locationParam: param.optional(),
+  auth: Auth,
+  mapping: Mapping.optional(),
+  defaultEmployer: z.string().trim().max(120).optional(),
+});
 
 const ConfigInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("ats_board"), platform: z.enum(["greenhouse", "lever", "ashby", "smartrecruiters", "workable"]), slug: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/), company: text(120), domain: z.string().trim().max(120).optional() }),
-  z.object({ kind: z.literal("json_api"), api: z.object({ endpoint: text(500), queryParam: param.optional(), locationParam: param.optional(), credentialHeader: header.optional(), credentialPrefix: z.string().max(20).optional(), mapping: Mapping }) }),
+  z.object({ kind: z.literal("json_api"), api: z.object({ endpoint: text(500), queryParam: param.optional(), locationParam: param.optional(), credentialHeader: header.optional(), credentialPrefix: z.string().max(20).optional(), auth: Auth.optional(), mapping: Mapping }) }),
+  /** Only for the built-in partner portals: the connection their partnership hands over. */
+  z.object({ kind: z.literal("partnership"), connection: PartnerConnectionInput }),
   z.object({ kind: z.literal("feed"), feed: z.object({ url: text(500), defaultEmployer: z.string().trim().max(120).optional() }) }),
   z.object({ kind: z.literal("structured"), page: z.object({ url: text(500) }) }),
   z.object({ kind: z.literal("mcp"), mcp: z.object({ endpoint: text(500), toolName: z.string().regex(/^[A-Za-z0-9_.-]{1,80}$/), queryArgument: param, locationArgument: param.optional(), credentialHeader: header.optional(), credentialPrefix: z.string().max(20).optional(), mapping: Mapping }) }),
@@ -89,7 +109,7 @@ export const UpdateSourceInput = z.object({
 function urlsOf(c: ConfigInput): string[] {
   switch (c.kind) {
     case "json_api":
-      return [c.api.endpoint];
+      return [c.api.endpoint, ...(c.api.auth?.type === "oauth2" ? [c.api.auth.tokenUrl] : [])];
     case "mcp":
       return [c.mcp.endpoint];
     case "feed":
@@ -105,6 +125,10 @@ function urlsOf(c: ConfigInput): string[] {
 
 /** The SSRF policy applied at input time (safeFetch applies it again, with DNS, at every request). */
 function checkUrls(c: ConfigInput): Result<null> {
+  if (c.kind === "partnership") {
+    const issue = checkPartnerConnection(c.connection as PartnerConnection)[0];
+    return issue ? err(400, issue.field === "endpoint" || issue.field === "auth.tokenUrl" ? "DESTINATION_BLOCKED" : "INVALID_REQUEST", `${issue.field}: ${issue.problem}`) : ok(null);
+  }
   for (const u of urlsOf(c)) {
     const d = checkDestination(u);
     if (!d.ok) return err(400, "DESTINATION_BLOCKED", `${u.slice(0, 120)} can't be used: ${d.reason}`);
@@ -112,7 +136,7 @@ function checkUrls(c: ConfigInput): Result<null> {
   return ok(null);
 }
 
-function describeKind(c: ConfigInput): Pick<SourceRecord, "category" | "accessStrategy" | "provider" | "capabilities"> {
+function describeKind(c: Exclude<ConfigInput, { kind: "partnership" }>): Pick<SourceRecord, "category" | "accessStrategy" | "provider" | "capabilities"> {
   switch (c.kind) {
     case "ats_board":
       return { category: "ats", accessStrategy: "official_api", provider: ATS_META[c.platform].name, capabilities: ["Search", "Job details", "Freshness", "Employer identity", "Apply URL"] };
@@ -149,6 +173,7 @@ export async function createSource(raw: unknown, actor: string): Promise<Result<
   const p = CreateSourceInput.safeParse(raw);
   if (!p.success) return err(400, "INVALID_REQUEST", p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).slice(0, 3).join("; "));
   const input = p.data;
+  if (input.config.kind === "partnership") return err(400, "INVALID_REQUEST", "Partner portals are already registered — configure them on their own source page.");
   const urls = checkUrls(input.config);
   if (!urls.ok) return urls;
   const store = jobsLakeStore();
@@ -181,7 +206,7 @@ export async function createSource(raw: unknown, actor: string): Promise<Result<
     updatedAt: now,
   };
   if (input.credential) {
-    const headerName = input.config.kind === "json_api" ? input.config.api.credentialHeader : input.config.kind === "mcp" ? input.config.mcp.credentialHeader : undefined;
+    const headerName = input.config.kind === "json_api" ? (input.config.api.credentialHeader ?? input.config.api.auth?.type) : input.config.kind === "mcp" ? input.config.mcp.credentialHeader : undefined;
     if (!headerName) return err(400, "INVALID_REQUEST", "Set the header the credential goes in before adding one.");
     rec.secretRef = await saveCredential(input.credential);
   }
@@ -196,8 +221,8 @@ export async function updateSource(id: string, raw: unknown, actor: string): Pro
   const p = UpdateSourceInput.safeParse(raw);
   if (!p.success) return err(400, "INVALID_REQUEST", p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).slice(0, 3).join("; "));
   const u = p.data;
-  if (src.config.kind === "partnership") return err(403, "FORBIDDEN", "Partnership sources can't be changed until a partnership exists.");
-  if (src.builtin && (u.config || u.name || u.description || u.geography)) return err(403, "FORBIDDEN", "Built-in sources are defined in code; only their status and limits can change here.");
+  const partner = src.config.kind === "partnership";
+  if (src.builtin && ((u.config && !partner) || u.name || u.description || u.geography)) return err(403, "FORBIDDEN", partner ? "A partner portal's name and geography are defined in code; its connection and limits can change here." : "Built-in sources are defined in code; only their status and limits can change here.");
   if (u.config && u.config.kind !== src.config.kind) return err(400, "INVALID_REQUEST", "A source's type can't change — add a new source instead.");
   if (u.config) {
     const urls = checkUrls(u.config);
@@ -211,9 +236,13 @@ export async function updateSource(id: string, raw: unknown, actor: string): Pro
   if (u.limits) next.limits = { ...src.limits, ...u.limits };
   const changes: string[] = Object.keys(u).filter((k) => k !== "status" && k !== "statusReason");
   if (u.config) {
-    next.config = u.config as SourceConfig;
-    // A changed connection must be proven again before it serves candidates.
-    if (src.status !== "do_not_use") next.status = "draft";
+    next.config = partner && src.config.kind === "partnership" && u.config.kind === "partnership" ? { kind: "partnership", partner: src.config.partner, connection: u.config.connection as PartnerConnection } : (u.config as SourceConfig);
+    // A changed connection must be proven again before it serves candidates. A partner portal goes
+    // back to Do not use: it needs a passing test and the agreement confirmed again.
+    if (partner) {
+      next.status = "do_not_use";
+      next.statusReason = PARTNER_STATUS_REASON;
+    } else if (src.status !== "do_not_use") next.status = "draft";
     next.lastTest = undefined;
   }
   if (u.status) {
@@ -223,7 +252,9 @@ export async function updateSource(id: string, raw: unknown, actor: string): Pro
   }
   await jobsLakeStore().putSource(next);
   if (u.status) await audit(actor, `source.${u.status}`, id, { from: src.status, reason: next.statusReason });
-  if (changes.length) await audit(actor, "source.updated", id, { fields: changes, statusAfter: next.status });
+  // What changed, never a secret (a partner config has none: its credential is in the credential store).
+  const how = u.config?.kind === "partnership" ? { format: u.config.connection.format, auth: u.config.connection.auth.type, host: new URL(u.config.connection.endpoint).hostname } : {};
+  if (changes.length) await audit(actor, "source.updated", id, { fields: changes, statusAfter: next.status, ...how });
   return ok(next);
 }
 
@@ -242,25 +273,43 @@ export async function removeSource(id: string, actor: string): Promise<Result<{ 
 export async function testSourceById(id: string, actor: string): Promise<Result<TestReport>> {
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
-  if (src.config.kind === "partnership") return err(409, "SOURCE_NEEDS_SETUP", "Partnership required — there's nothing JobsLake is allowed to test.", { sourceId: id });
+  if (src.config.kind === "partnership" && !src.config.connection) return err(409, "SOURCE_NEEDS_SETUP", "Save the partner's endpoint and credential first — until then there's nothing JobsLake is allowed to test.", { sourceId: id });
   const report = await testSource(src, actor);
   // A draft that has been tested is "Testing" until an admin activates it; nothing else changes status here.
   await jobsLakeStore().putSource({ ...src, lastTest: report, status: src.status === "draft" ? "testing" : src.status, updatedAt: new Date().toISOString() });
   return ok(report);
 }
 
-export async function activateSource(id: string, actor: string): Promise<Result<SourceRecord>> {
+export const ActivateInput = z
+  .object({
+    /** Partnership sources: the admin's statement that a signed agreement permits showing these jobs to candidates and linking to apply. */
+    agreementConfirmed: z.boolean().optional(),
+    agreementReference: z.string().trim().max(200).optional(),
+  })
+  .default({});
+
+export async function activateSource(id: string, actor: string, raw: unknown = {}): Promise<Result<SourceRecord>> {
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
-  if (src.config.kind === "partnership" || src.config.kind === "scraper" || src.status === "do_not_use") return err(403, "FORBIDDEN", "This source can't be activated: it has no authorized access path.", { sourceId: id });
+  const input = ActivateInput.safeParse(raw ?? {});
+  if (!input.success) return err(400, "INVALID_REQUEST", "Invalid activation request.");
+  const partner = src.config.kind === "partnership" ? src.config : null;
+  if (src.config.kind === "scraper" || (src.status === "do_not_use" && !partner)) return err(403, "FORBIDDEN", "This source can't be activated: it has no authorized access path.", { sourceId: id });
+  if (partner && !partner.connection) return err(403, "FORBIDDEN", "Save the partner's endpoint first — a partner portal is only activated once its partnership has handed over access.", { sourceId: id });
+  if (partner && !(await readCredential(src.secretRef))) return err(403, "FORBIDDEN", "Store the partner's credential first.", { sourceId: id });
   const t = src.lastTest;
   if (!t) return err(409, "VALIDATION_FAILED", "Run a test first — a source is only activated after a passing test.", { sourceId: id });
   if (!t.ok) return err(409, "VALIDATION_FAILED", `The last test failed${t.error ? `: ${t.error}` : ""}. Fix it and test again.`, { sourceId: id });
   if (Date.now() - Date.parse(t.at) > ACTIVATION_WINDOW_MS) return err(409, "VALIDATION_FAILED", "The last passing test is more than 24 hours old. Test again before activating.", { sourceId: id });
+  // The agreement is confirmed at every activation of a partner portal (including a resume): it is
+  // the admin's own statement, recorded with who and when — never assumed from an earlier one.
+  if (partner && input.data.agreementConfirmed !== true) return err(403, "FORBIDDEN", `Confirm that a signed agreement with ${src.name} permits this use before activating.`, { sourceId: id });
   const now = new Date().toISOString();
-  const next: SourceRecord = { ...src, status: "active", statusReason: undefined, activatedAt: now, updatedAt: now };
+  const agreement = partner ? { confirmedBy: actor, confirmedAt: now, ...(input.data.agreementReference ? { reference: input.data.agreementReference } : {}) } : src.agreement;
+  const next: SourceRecord = { ...src, status: "active", statusReason: undefined, activatedAt: now, updatedAt: now, agreement };
   await jobsLakeStore().putSource(next);
-  await audit(actor, "source.activated", id, { from: src.status, testedAt: t.at, discovered: t.discovered, valid: t.valid });
+  if (partner) await audit(actor, "partner.agreement_confirmed", id, { reference: input.data.agreementReference ?? null });
+  await audit(actor, "source.activated", id, { from: src.status, testedAt: t.at, discovered: t.discovered, valid: t.valid, ...(partner ? { agreementConfirmedBy: actor } : {}) });
   return ok(next);
 }
 
@@ -271,7 +320,7 @@ export async function setSourceCredential(id: string, secret: unknown, actor: st
   if (!src) return err(404, "NOT_FOUND", "No such source.");
   if (typeof secret !== "string" || secret.trim().length < 4 || secret.length > 4096) return err(400, "INVALID_REQUEST", "Enter the credential (4–4,096 characters).");
   if (src.secretRef?.startsWith("env:")) return err(409, "INVALID_REQUEST", "This credential is managed in the deployment's environment variables, not in JobsLake.");
-  if (src.config.kind !== "json_api" && src.config.kind !== "mcp") return err(400, "INVALID_REQUEST", "This kind of source doesn't take a credential.");
+  if (src.config.kind !== "json_api" && src.config.kind !== "mcp" && src.config.kind !== "partnership") return err(400, "INVALID_REQUEST", "This kind of source doesn't take a credential.");
   const replacing = !!src.secretRef;
   const ref = await saveCredential(secret, src.secretRef);
   await jobsLakeStore().putSource({ ...src, secretRef: ref, updatedAt: new Date().toISOString() });
@@ -306,13 +355,15 @@ export interface PreviewResult {
 export async function previewSource(id: string, mappingRaw: unknown, actor: string): Promise<Result<PreviewResult>> {
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
-  if (src.config.kind !== "json_api" && src.config.kind !== "mcp" && src.config.kind !== "feed" && src.config.kind !== "structured" && src.config.kind !== "ats_board") return err(400, "INVALID_REQUEST", "This source has nothing to preview.");
+  const partnerConn = src.config.kind === "partnership" ? src.config.connection : undefined;
+  if (src.config.kind !== "json_api" && src.config.kind !== "mcp" && src.config.kind !== "feed" && src.config.kind !== "structured" && src.config.kind !== "ats_board" && !partnerConn) return err(400, "INVALID_REQUEST", "This source has nothing to preview.");
   let trial = src;
   if (mappingRaw != null) {
     const m = Mapping.safeParse(mappingRaw);
     if (!m.success) return err(400, "INVALID_REQUEST", "Invalid mapping.");
     if (src.config.kind === "json_api") trial = { ...src, config: { kind: "json_api", api: { ...src.config.api, mapping: m.data } } };
     else if (src.config.kind === "mcp") trial = { ...src, config: { kind: "mcp", mcp: { ...src.config.mcp, mapping: m.data } } };
+    else if (src.config.kind === "partnership" && partnerConn?.format === "json_api") trial = { ...src, config: { ...src.config, connection: { ...partnerConn, mapping: m.data } } };
   }
   try {
     const r = await runConnector(trial, { query: "", locations: [] }, "shallow");

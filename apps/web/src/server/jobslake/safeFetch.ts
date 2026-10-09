@@ -44,11 +44,15 @@ export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promi
   const timeoutMs = opts.timeoutMs ?? 10_000;
   const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024;
   let url = await assertPublic(raw);
+  const origin = url.origin;
   const signal = AbortSignal.timeout(timeoutMs);
   for (let hop = 0; ; hop++) {
     let res: Response;
+    // Like a browser drops Authorization on a cross-origin redirect: the caller's headers (which may
+    // carry a credential) only ever go to the origin the admin configured.
+    const callerHeaders = url.origin === origin ? (opts.headers ?? {}) : {};
     try {
-      res = await fetch(url, { method: opts.method ?? "GET", body: opts.body, headers: { "user-agent": "JobsLake/1.0 (+https://wonderjobs-wonder-team4.vercel.app)", accept: "application/json, application/xml, text/xml, text/html;q=0.8", ...(opts.body ? { "content-type": "application/json" } : {}), ...(opts.headers ?? {}) }, redirect: "manual", signal, cache: "no-store" });
+      res = await fetch(url, { method: opts.method ?? "GET", body: opts.body, headers: { "user-agent": "JobsLake/1.0 (+https://wonderjobs-wonder-team4.vercel.app)", accept: "application/json, application/xml, text/xml, text/html;q=0.8", ...(opts.body ? { "content-type": "application/json" } : {}), ...callerHeaders }, redirect: "manual", signal, cache: "no-store" });
     } catch (e) {
       if (signal.aborted) throw new Error(`No response within ${Math.round(timeoutMs / 1000)}s`);
       throw new Error(`${url.hostname} could not be reached${e instanceof Error && e.message ? ` (${e.message.slice(0, 80)})` : ""}`);
