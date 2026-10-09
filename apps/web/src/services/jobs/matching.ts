@@ -6,7 +6,7 @@
 import type { CareerDNA } from "@/domain/career/types";
 import type { AlignmentReason, CanonicalJob, FitLabel, HiringConfidence, Job, JobMatch, JobQuality, JobQualitySignal, JobSource } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
-import { hasTermOrSynonym, INDUSTRY_WORDS, placeNamed, queryTerms, remoteOpenTo, SENIORITY_WORDS, stripHeadlineLabel, stripSelfReference } from "./normalize";
+import { hasTermOrSynonym, INDUSTRY_WORDS, levelOfQuery, placeNamed, queryTerms, remoteOpenTo, SENIORITY_WORDS, stripHeadlineLabel, stripSelfReference } from "./normalize";
 import { relevance } from "./relevance";
 import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learning";
 
@@ -144,8 +144,9 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
     ? 0.5
     : Math.min(1, 0.5 * (weighted / Math.min(Math.max(job.skills.length, 3), 6)) + 0.5 * (effective / Math.min(dna.skills.length, 6)) + (effective >= 4 ? 0.08 : 0));
 
-  // seniority
-  const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[dna.seniority];
+  // seniority: against the level the search names ("senior director …"), else the candidate's own level.
+  const target = (typed && levelOfQuery(ctx.searchQuery!)) || dna.seniority;
+  const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[target];
   const seniorityScore = delta === 0 ? 1 : delta === 1 ? 0.8 : delta === -1 ? 0.65 : delta > 1 ? 0.35 : 0.3;
 
   // industry
@@ -184,12 +185,15 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   // A remote role the employer restricts to another region can be worth a look, never a "strong" opportunity.
   // A posting that never names the candidate's field in its title, tags, skills or requirements is at
   // most a stretch, and one that doesn't mention it at all is a low fit — shared generic skills can't lift it.
-  const ceiling = Math.min(openTo === false ? 74 : 96, !field.length || inTitle.length || inHead.length ? 96 : inBody.length ? 64 : 54);
+  // A role below the level the candidate is after is never "strong": one level down is worth considering at
+  // most, two or more is a stretch — the right field can't make an analyst role a fit for a director.
+  const levelCeiling = delta <= -2 ? 64 : delta === -1 ? 79 : 96;
+  const ceiling = Math.min(openTo === false ? 74 : 96, levelCeiling, !field.length || inTitle.length || inHead.length ? 96 : inBody.length ? 64 : 54);
   const score = Math.round(Math.max(20, Math.min(ceiling, raw * 100 - learned.points)));
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of your skills appear in this posting (${overlap.slice(0, 3).join(", ")}).` : "Few of your skills appear in this posting." },
-    { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? "Same level as your current role." : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above your current role." : "Below your current level." },
+    { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? (target === dna.seniority ? "Same level as your current role." : "The level you searched for.") : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above what you're after." : target === dna.seniority ? "Below your current level." : "Below the level you searched for." },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
     { dimension: "career_goal", label: typed ? "Search match" : "Career-goal alignment", score: goalScore, summary: typed ? (typed.inTitle ? `The role title matches your search (${typed.matched.slice(0, 3).join(", ")}).` : typed.complete ? `Your search (${typed.matched.slice(0, 3).join(", ")}) appears in the posting, not in its title.` : `The posting doesn't mention ${typed.missing.slice(0, 3).join(", ")}.`) : !field.length ? "Add a headline or career goal to your Career Profile to sharpen this." : inTitle.length ? `The role title is in your field (${inTitle.slice(0, 3).join(", ")}).` : inHead.length ? `Your field (${inHead.slice(0, 2).join(", ")}) appears in the posting's requirements or tags, not in its title.` : inBody.length ? `Your field (${inBody.slice(0, 2).join(", ")}) is only mentioned in the description.` : `The posting doesn't mention your field (${field.slice(0, 3).join(", ")}).` },
     { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Add preferred locations to your Career Profile to sharpen this." : `${job.location} is outside your preferred locations.` },

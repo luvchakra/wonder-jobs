@@ -14,6 +14,13 @@ export async function readClientState<T>(tenantId: string, store: StateStoreName
   return wrapped?.state;
 }
 
+/** A store's data with the persist schema version it was written at (0 when it has none). */
+export async function readClientStateVersioned<T>(tenantId: string, store: StateStoreName): Promise<{ state: T; version: number } | undefined> {
+  const doc = await stateStore.get(tenantId, store);
+  const wrapped = doc?.state as { state?: T; version?: number } | undefined;
+  return wrapped?.state ? { state: wrapped.state, version: wrapped.version ?? 0 } : undefined;
+}
+
 /**
  * Writes a store's data with the given persist schema version (the same constant the client's
  * `persist(..., { version })` call for that store uses — check the store file, it's not derivable).

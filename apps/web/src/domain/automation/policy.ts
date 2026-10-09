@@ -42,7 +42,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   rank_opportunities: { key: "rank_opportunities", label: "Rank opportunities", description: "Order matches by fit with your Career Profile and goals.", risk: "low", external: false, default: "automatic" },
   generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "automatic" },
   generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "automatic" },
-  save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "automatic" },
+  // Off by default: the saved list is the candidate's own picks (the owner found strong matches filling Saved unasked, 2026-10-09). Strong matches
+  // are already one tap away under "Strong"; turning this on adds them to Saved automatically.
+  save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "off" },
   // Wonder never contacts a recruiter or sends an email on its own — it has no recruiter address to reach
   // and no code path that does. Each of these describes the real hand-off: Wonder prepares everything and
   // opens/queues it for the candidate's own action. Submitting to an employer is `final_submit` below.
@@ -65,6 +67,20 @@ export type AutomationPolicy = Record<Capability, PolicyMode>;
 
 export function defaultPolicy(): AutomationPolicy {
   return Object.fromEntries(CAPABILITIES.map((c) => [c, CAPABILITY_META[c].default])) as AutomationPolicy;
+}
+
+/** The saved policy's schema version. 2 (2026-10-09): save_jobs defaults to off. */
+export const POLICY_VERSION = 2;
+
+/**
+ * A saved policy brought up to date: capabilities added since take their default, and a version-1 policy
+ * still holding save_jobs' old default ("automatic", written whole on first save — never a separate
+ * choice before this change) moves to the new default, off.
+ */
+export function migratePolicy(saved: Partial<AutomationPolicy> | undefined, version: number): AutomationPolicy {
+  const out = { ...defaultPolicy(), ...(saved ?? {}) };
+  if (version < 2 && out.save_jobs === "automatic") out.save_jobs = "off";
+  return out;
 }
 
 export const AUTOMATION_LEVELS = ["assist", "guided", "autonomous", "continuous"] as const;

@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
-import { defaultPolicy, type AutomationLevel, type AutomationPolicy, type Capability, type PolicyMode } from "@/domain/automation/policy";
+import { defaultPolicy, migratePolicy, POLICY_VERSION, type AutomationLevel, type AutomationPolicy, type Capability, type PolicyMode } from "@/domain/automation/policy";
 import { track } from "@/lib/analytics";
 
 interface AutomationState {
@@ -29,7 +29,11 @@ export const useAutomationStore = create<AutomationState>()(
       name: "wj.automation",
       storage: createRemoteStorage(),
       skipHydration: true,
-      version: 1,
+      version: POLICY_VERSION,
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<AutomationState>;
+        return { ...p, policy: migratePolicy(p.policy, version) } as AutomationState;
+      },
       // A capability added after the policy was saved (e.g. fill_application) takes its default, which is
       // never more permissive than "ask" for anything medium or high risk.
       merge: (persisted, current) => {
