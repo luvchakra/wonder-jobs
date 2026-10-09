@@ -137,6 +137,8 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ The cloud browser says when it couldn't connect instead of spinning forever (WJ-289)
 - ✅ Find: "Looking for" and Change on one row (WJ-290)
 - ✅ No repeat search when typed words are cleared; repeat searches fetch only what's new from TheirStack and Adzuna (WJ-291)
+- ✅ Apply with Wonder lands on Start application (WJ-293)
+- ✅ "API keys" in the avatar menu opens Account → JobsLake API (WJ-292)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)
 - ✅ Insights counts open what they count; Learning adds a skill to your profile in one click (WJ-278)
 - ✅ Ask Wonder opens on what needs you now (WJ-279)
