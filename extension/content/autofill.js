@@ -900,7 +900,61 @@
       filled.push("Cover letter");
     }
     const missing = plan.needsYou.map((n) => n.label).filter((l) => !(cover && application?.coverLetter?.text && /cover\s?letter/i.test(l)));
-    return { filled, missing, application };
+    // Fields left for the candidate that may be offered for saving once they've typed into them.
+    const learnable = plan.needsYou.filter((n) => n.learn && fieldEls.get(n.fieldId)?.length).map((n) => ({ fieldId: n.fieldId, label: n.label, els: fieldEls.get(n.fieldId) }));
+    return { filled, missing, application, learnable };
+  }
+
+  /* ------------------------------------------------ remember what the candidate typed */
+
+  /** What a person entered in a field, as they'd read it: the text, the chosen option's words, the picked radio's label. */
+  function typedValue(els) {
+    const el = els[0];
+    if (!el?.isConnected) return "";
+    if (el.type === "radio") {
+      const on = els.find((r) => r.checked);
+      return on ? clean(labelOf(on)) || clean(on.value) : "";
+    }
+    if (el.tagName === "SELECT") return el.selectedIndex > 0 || (el.selectedIndex === 0 && el.value) ? clean(el.selectedOptions?.[0]?.textContent) : "";
+    return String(el.value || "").trim();
+  }
+
+  /**
+   * Watch only the fields Wonder left for the candidate. When they've typed into some, the card offers to
+   * keep those answers for next time — each one shown, each one untickable. Nothing leaves the page until Save.
+   */
+  function offerToRemember(learnable) {
+    if (!learnable?.length) return;
+    const box = shadow().getElementById("learn");
+    if (!box) return;
+    const answers = new Map();
+    const draw = () => {
+      if (!answers.size) {
+        box.innerHTML = "";
+        return;
+      }
+      const rows = [...answers.entries()].map(([id, a]) => `<label class="row" style="justify-content:flex-start;gap:6px;margin:2px 0"><input type="checkbox" data-learn="${esc(id)}" checked> <span><strong>${esc(a.label)}</strong>: ${esc(a.value.length > 60 ? `${a.value.slice(0, 57)}…` : a.value)}</span></label>`).join("");
+      box.innerHTML = `<p class="muted" style="margin-top:8px">Save for next time?</p>${rows}<button class="pill" id="learn-save">Save ${answers.size} to your profile</button>`;
+      shadow()
+        .getElementById("learn-save")
+        .addEventListener("click", async () => {
+          const chosen = [...box.querySelectorAll("input[data-learn]")].filter((c) => c.checked).map((c) => answers.get(c.getAttribute("data-learn"))).filter(Boolean);
+          if (!chosen.length) return;
+          box.innerHTML = `<p class="muted">Saving…</p>`;
+          const r = await ask("remember", { items: chosen.map((a) => ({ label: a.label, type: a.type, value: a.value })) });
+          const saved = r?.data?.saved?.length ?? 0;
+          const skipped = r?.data?.skipped ?? [];
+          box.innerHTML = r?.data ? `<p class="muted">${saved ? `Saved ${saved} answer${saved === 1 ? "" : "s"} — Wonder fills ${saved === 1 ? "it" : "them"} next time.` : "Nothing new to save."}${skipped.length ? ` Not saved: ${skipped.map((s) => esc(s.label)).join(", ")}.` : ""}</p>` : `<p class="muted">Couldn't save — check you're signed in to WonderJobs.</p>`;
+          answers.clear();
+        });
+    };
+    const read = (item) => {
+      const value = typedValue(item.els);
+      if (value) answers.set(item.fieldId, { label: item.label, type: typeOf(item.els[0]), value: value.slice(0, 500) });
+      else answers.delete(item.fieldId);
+      draw();
+    };
+    for (const item of learnable) for (const el of item.els) el.addEventListener("change", () => read(item));
   }
 
   function legacyButton() {
@@ -923,7 +977,8 @@
     if (r.error) {
       s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.error === "not_connected" ? "Not connected" : "Couldn't fill this page"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.error === "not_connected" ? "Open WonderJobs and sign in — the extension picks it up from there automatically." : "WonderJobs didn't answer. Check you're signed in, then try again."}</p></div>`;
     } else {
-      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.blocked ? esc(r.blocked) : r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "From your Career Profile, CV and saved answers."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Left for you: ${r.missing.slice(0, 6).map(esc).join(", ")}${r.missing.length > 6 ? ` and ${r.missing.length - 6} more` : ""}.</p>` : ""}<p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderJobs.</p></div>`;
+      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.blocked ? esc(r.blocked) : r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "From your Career Profile, CV and saved answers."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Left for you: ${r.missing.slice(0, 6).map(esc).join(", ")}${r.missing.length > 6 ? ` and ${r.missing.length - 6} more` : ""}.</p>` : ""}<div id="learn"></div><p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderJobs.</p></div>`;
+      offerToRemember(r.learnable);
     }
     shadow().getElementById("x")?.addEventListener("click", legacyButton);
   }

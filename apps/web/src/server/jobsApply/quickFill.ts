@@ -21,7 +21,8 @@ export interface QuickPlan {
   allowed: boolean;
   reason?: string;
   fills: ({ fieldId: string; label: string; value: string } | { fieldId: string; label: string; file: "resume" })[];
-  needsYou: { label: string; reason: string }[];
+  /** `learn`: what the candidate types here may be offered for saving to their profile (never for sensitive questions). */
+  needsYou: { fieldId: string; label: string; reason: string; learn: boolean }[];
   resume?: { filename: string; mime: string; base64: string };
 }
 
@@ -75,7 +76,10 @@ export async function quickPlan(tenantId: string, form: { fields: ApplicationFie
     if (m.file === "resume" && resume) fills.push({ fieldId: m.fieldId, label: m.label, file: "resume" });
     else if (m.value !== undefined && !m.file) fills.push({ fieldId: m.fieldId, label: m.label, value: m.value });
   }
-  const needsYou = mapped.mappings.filter((m) => m.status === "needs_you").map((m) => ({ label: m.label, reason: m.reason ?? "Wonder needs your answer." }));
+  const types = new Map(form.fields.map((x) => [x.id, x.type]));
+  const needsYou = mapped.mappings
+    .filter((m) => m.status === "needs_you")
+    .map((m) => ({ fieldId: m.fieldId, label: m.label, reason: m.reason ?? "Wonder needs your answer.", learn: m.classification !== "human-only" && types.get(m.fieldId) !== "file" && types.get(m.fieldId) !== "checkbox" }));
 
   let file: QuickPlan["resume"];
   if (resume && fills.some((f) => "file" in f)) {
