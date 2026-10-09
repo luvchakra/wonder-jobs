@@ -24,7 +24,7 @@ jobs:
           node-version: 22
       - name: Pack for the store
         run: node scripts/pack-extension.mjs --store
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: wonderjobs-helper
           path: dist/*.zip
