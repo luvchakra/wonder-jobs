@@ -290,6 +290,76 @@
     return new File([bytes], filename, { type: mime });
   }
 
+  /* --------------------------------------------- the form's own verdict on a value */
+
+  const ERR_TEXT = /\b(invalid|not valid|enter a valid|valid (format|number|phone|date|email)|incorrect|wrong format|format|must be|should be)\b/i;
+
+  /** The form's own complaint about a field just filled: browser validity, aria-invalid, or an error shown beside it. */
+  function fieldError(el) {
+    if (el.willValidate && el.validity && !el.validity.valid && !el.validity.valueMissing) return true;
+    if (el.getAttribute("aria-invalid") === "true") return true;
+    for (const id of (el.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean)) {
+      if (ERR_TEXT.test(document.getElementById(id)?.textContent || "")) return true;
+    }
+    let box = el.parentElement;
+    for (let i = 0; box && i < 4; i++, box = box.parentElement) {
+      // Stop before a container that holds other fields — their errors aren't this field's.
+      if (box.querySelectorAll("input, textarea, select").length > 1) break;
+      const err = [...box.querySelectorAll("[role=alert], [aria-live], .error, [class*='error' i], [data-automation-id*='error' i]")].find((e) => !e.contains(el) && visible(e) && ERR_TEXT.test(e.textContent || ""));
+      if (err) return true;
+    }
+    return false;
+  }
+
+  /** Other ways to write the same value: a phone without its country code or spaces, a month and year another way round. */
+  function formatVariants(value) {
+    const v = String(value).trim();
+    const out = [];
+    const intl = /^\+(\d{1,3})[\s.-]*([\d\s().-]{6,})$/.exec(v);
+    if (intl) {
+      const n = intl[2].replace(/\D/g, "");
+      out.push(n, `+${intl[1]}${n}`, `${intl[1]}${n}`, `+${intl[1]}-${n}`, `0${n}`);
+    } else if (/^[\d\s().-]{8,}$/.test(v) && /\D/.test(v)) out.push(v.replace(/\D/g, ""));
+    const my = /^(\d{2})\/(\d{4})$/.exec(v);
+    if (my) out.push(`${my[2]}-${my[1]}`, `${my[1]}-${my[2]}`, `${my[1]}${my[2]}`);
+    return [...new Set(out)].filter((x) => x && x !== v);
+  }
+
+  /** Does a value fit the field's own declared limits (maxlength, pattern)? */
+  function fitsField(el, x) {
+    if (el.maxLength > 0 && x.length > el.maxLength) return false;
+    if (el.pattern) {
+      try {
+        return new RegExp(`^(?:${el.pattern})$`).test(x);
+      } catch {
+        return true;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Put a value in, then let the form judge it. When the form flags it and the value has other
+   * spellings, try them — the field's declared limits first — and keep the first the form accepts.
+   * Same value, other format: nothing is invented. When none is accepted, the candidate's own value stays.
+   */
+  async function setChecked(el, value) {
+    const variants = formatVariants(value);
+    setNative(el, value);
+    if (!variants.length || el.tagName === "SELECT") return el.value === value;
+    await new Promise((r) => setTimeout(r, 350));
+    if (el.value === value && !fieldError(el)) return true;
+    const ordered = [...variants.filter((x) => fitsField(el, x)), ...variants.filter((x) => !fitsField(el, x))];
+    for (const candidate of ordered) {
+      setNative(el, candidate);
+      if (el.value !== candidate) continue;
+      await new Promise((r) => setTimeout(r, 350));
+      if (!fieldError(el)) return true;
+    }
+    setNative(el, value);
+    return false;
+  }
+
   async function fillOne(sessionId, item) {
     const els = fieldEls.get(item.fieldId);
     if (!els?.length || !els[0].isConnected) return { fieldId: item.fieldId, ok: false, error: "not_found" };
@@ -320,8 +390,8 @@
       }
       if (type === "checkbox" || type === "password" || type === "otp" || type === "combobox") return { fieldId: item.fieldId, ok: false, error: "rejected" };
       if (type === "select" && ![...el.options].some((o) => o.value === item.value)) return { fieldId: item.fieldId, ok: false, error: "rejected" };
-      setNative(el, item.value);
-      return { fieldId: item.fieldId, ok: el.value === item.value, ...(el.value === item.value ? {} : { error: "rejected" }) };
+      const accepted = await setChecked(el, item.value);
+      return { fieldId: item.fieldId, ok: accepted, ...(accepted ? {} : { error: "rejected" }) };
     } catch {
       return { fieldId: item.fieldId, ok: false, error: "rejected" };
     }

@@ -195,6 +195,8 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
   const interventions: InterventionItem[] = [];
   const hasCover = !!pack.coverLetter;
   const first = form.fields.map((f) => classifyField(f, { hasCoverLetter: hasCover }));
+  // A form with its own country-code field wants only the national number in the phone box.
+  const separateCode = first.some((c) => keyOf(c) === "phoneCountryCode");
   const contexts = neighbourContexts(form.fields, first);
   const classes = form.fields.map((f, i) => (contexts[i] ? classifyField(f, { hasCoverLetter: hasCover, context: contexts[i] }) : first[i]));
   // How many times each key was asked before this field: the n-th education block reads the n-th entry.
@@ -265,7 +267,7 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
 
     switch (c.target.kind) {
       case "profile": {
-        const key = c.target.key;
+        const key = c.target.key === "phone" && separateCode && pack.profile.phoneNational ? "phoneNational" : c.target.key;
         const n = occurrence[i];
         const pv = valueAt(key, n, c, pack);
         const label = PROFILE_LABEL[key];

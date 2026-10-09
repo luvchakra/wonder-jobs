@@ -83,6 +83,8 @@ type Rule = { re: RegExp; reject?: RegExp; key: ProfileKey; category: QuestionCa
 const CATEGORY_OF: Partial<Record<ProfileKey, QuestionCategory>> = {
   email: "CONTACT",
   phone: "CONTACT",
+  phoneCountryCode: "CONTACT",
+  phoneNational: "CONTACT",
   websiteUrl: "CONTACT",
   linkedinUrl: "CONTACT",
   portfolioUrl: "CONTACT",
@@ -177,7 +179,8 @@ const PROFILE_RULES: Rule[] = [
   { re: /\b(last|family) ?name\b|\bsurname\b|\blname\b/, reject: /preferred|maiden/, key: "lastName", category: "IDENTITY" },
   { re: /\b(full ?name|your name|legal name|candidate name|applicant name)\b|^name\*?$|^name\b/, reject: /company|employer|user ?name|file|referr|school|univers|college|institut|degree|manager|recruiter|reference|emergency|preferred|nick|first|last|middle|sponsor|job|position|role/, key: "fullName", category: "IDENTITY" },
   { re: /e-?mail/, reject: /referr|reference|manager|recruiter|confirm your|emergency|alternate|secondary/, key: "email", category: "CONTACT" },
-  { re: /\b(phone|mobile|telephone|cell|contact number|whatsapp)\b/, reject: /referr|reference|emergency|alternate|secondary|country code only/, key: "phone", category: "CONTACT" },
+  { re: /\b(country (phone )?code|phone (country )?code|dial(ling)? code|calling code|isd code|country calling)\b/, key: "phoneCountryCode", category: "CONTACT" },
+  { re: /\b(phone|mobile|telephone|cell|contact number|whatsapp)\b/, reject: /referr|reference|emergency|alternate|secondary|country code only|\bcode\b|extension/, key: "phone", category: "CONTACT" },
   { re: /linked ?in/, key: "linkedinUrl", category: "CONTACT" },
   { re: /git ?hub/, key: "githubUrl", category: "CONTACT" },
   { re: /\bportfolio\b/, reject: /upload|attach|file/, key: "portfolioUrl", category: "CONTACT" },

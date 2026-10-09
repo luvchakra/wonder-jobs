@@ -27,6 +27,8 @@ export const PROFILE_KEYS = [
   "fullName",
   "email",
   "phone",
+  "phoneCountryCode",
+  "phoneNational",
   "addressLine1",
   "addressLine2",
   "city",
