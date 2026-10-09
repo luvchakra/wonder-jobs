@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, CreditCard, Download, LayoutDashboard, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, CreditCard, Database, Download, LayoutDashboard, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -52,6 +52,20 @@ export function TopBar() {
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(notifRef, () => setNotifOpen(false));
   useOutside(profileRef, () => setProfileOpen(false));
+
+  // Platform admins get an Admin link (the JobsLake portal); everyone else never sees it.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (mode !== "user") return;
+    let alive = true;
+    fetch("/api/admin/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { admin?: boolean } | null) => alive && setIsAdmin(!!d?.admin))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [mode, userId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -151,6 +165,7 @@ export function TopBar() {
                     { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
                   ]
                 : []),
+              ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
               { href: "/help", label: "Get Help", icon: LifeBuoy },
             ].map((m) => (
               <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
