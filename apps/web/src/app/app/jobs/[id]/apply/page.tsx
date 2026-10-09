@@ -2,7 +2,7 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
-import { resolveCapability } from "@/domain/automation/policy";
+import { offeredLevel, resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
 import { destinationFor } from "@/domain/jobs-apply/destination";
 import {
@@ -167,7 +167,8 @@ export default function ApplyWithWonderPage({
   const [helperConnected, setHelperConnected] = useState<boolean | null>(null);
   const [method, setMethod] = useState<Method>("helper");
   const [methodTouched, setMethodTouched] = useState(false);
-  const [independent, setIndependent] = useState(false);
+  // Set once in Automation: the default method, and whether the helper fills as soon as a form opens.
+  const defaultMethod = useAutomationStore((s) => s.applyMethod) ?? "helper";
   const [includeCover, setIncludeCover] = useState(true);
   const resumeOptions = useMemo(() => {
     const art = app?.artifacts.find((a) => a.type === "resume");
@@ -215,11 +216,12 @@ export default function ApplyWithWonderPage({
 
   const fillPolicy = fillDecision(policy, level);
   const handoffPolicy = handoffDecision(policy, level);
+  const independent = offeredLevel(level) === "autonomous";
   const chosenMethod: Method = methodTouched
     ? method
-    : (helperInstalled === false && cloudAvailable !== true) || fillPolicy === "skip"
+    : defaultMethod === "helper" && ((helperInstalled === false && cloudAvailable !== true) || fillPolicy === "skip")
       ? "guided"
-      : "helper";
+      : defaultMethod;
 
   // Load: an unfinished session for this job is offered for recovery (§71).
   useEffect(() => {
@@ -1046,8 +1048,6 @@ export default function ApplyWithWonderPage({
               setMethod(m);
               setMethodTouched(true);
             }}
-            independent={independent}
-            onIndependent={setIndependent}
             fillPolicy={fillPolicy}
             handoffPolicy={handoffPolicy}
             helperInstalled={helperInstalled}

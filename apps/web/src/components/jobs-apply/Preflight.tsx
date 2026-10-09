@@ -9,9 +9,13 @@ import type { ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 export type Method = "helper" | "guided" | "pack";
+
+/** Short names for the one-line summary and the Automation choice. */
+export const METHOD_LABEL: Record<Method, string> = { helper: "Fill it in with the browser helper", guided: "Guide me", pack: "Application Pack only" };
 export { resumeOptionsFor, type ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 
 const METHODS: { key: Method; title: string; body: string; points: string[]; icon: React.ReactNode }[] = [
@@ -59,8 +63,6 @@ export function Preflight(props: {
   onIncludeCover: (v: boolean) => void;
   method: Method;
   onMethod: (m: Method) => void;
-  independent: boolean;
-  onIndependent: (v: boolean) => void;
   fillPolicy: FillDecision;
   handoffPolicy: FillDecision;
   helperInstalled: boolean | null;
@@ -71,6 +73,7 @@ export function Preflight(props: {
   onStart: () => void;
 }) {
   const { readiness, destination } = props;
+  const [showMethods, setShowMethods] = useState(false);
   const blocked = !readiness.ok || !destination || props.handoffPolicy === "skip" || !!props.blockedReason;
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -80,6 +83,18 @@ export function Preflight(props: {
             How would you like to apply?
           </h2>
           <p className="mt-1 text-[13px] text-ink-3">You submit on {props.company}&apos;s own site — or Wonder&apos;s helper does, only if Submit for me is on.</p>
+          {/* Set once in Automation; changed here only for this job. */}
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-2">
+            <CheckCircle2 className="size-4 shrink-0 text-brand-600" aria-hidden />
+            <strong className="font-medium text-ink">{METHOD_LABEL[props.method]}</strong>
+            <span className="text-ink-3">— your default in <Link href="/app/automation/settings" className="text-brand-600 hover:underline">Automation</Link></span>
+            {!showMethods && (
+              <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => setShowMethods(true)}>
+                Change for this job
+              </button>
+            )}
+          </p>
+          {showMethods && (
           <div role="radiogroup" aria-label="Application method" className="mt-4 grid gap-3 sm:grid-cols-3">
             {METHODS.map((m) => {
               const selected = props.method === m.key;
@@ -117,34 +132,12 @@ export function Preflight(props: {
               );
             })}
           </div>
+          )}
 
-          {props.method === "helper" && (
-            <fieldset className="mt-4 rounded-[14px] bg-surface-2 p-3">
-              <legend className="sr-only">How much should Wonder do?</legend>
-              <p className="text-[13px] font-medium text-ink">How much should Wonder do?</p>
-              <label className="mt-2 flex items-start gap-2 text-[13px] text-ink-2">
-                <input type="radio" name="wj-independent" checked={!props.independent} onChange={() => props.onIndependent(false)} className="mt-1" />
-                <span>
-                  <strong className="font-medium text-ink">Fill forms for me</strong> — Wonder shows what it found and fills when you click Fill.
-                </span>
-              </label>
-              <label className="mt-1 flex items-start gap-2 text-[13px] text-ink-2">
-                <input type="radio" name="wj-independent" checked={props.independent} onChange={() => props.onIndependent(true)} className="mt-1" />
-                <span>
-                  <strong className="font-medium text-ink">Work more independently</strong> — fill safe fields as soon as the form opens.
-                </span>
-              </label>
-              {props.independent && props.fillPolicy !== "run" && (
-                <p className="mt-2 text-[12px] text-ink-3">
-                  Your <Link href="/app/automation/settings" className="font-medium text-brand-600 hover:underline">Automation</Link> setting for “Fill application forms” is “Ask”, so Wonder will still wait for your click.
-                </p>
-              )}
-              {props.helperInstalled === false && !props.cloudAvailable && (
-                <p className="mt-2 text-[12px] text-ink-2">
-                  <Link href="/extension" className="font-medium text-brand-600 hover:underline">Install the browser helper</Link> for the fastest experience — or choose Guide me; nothing is blocked either way.
-                </p>
-              )}
-            </fieldset>
+          {props.method === "helper" && props.helperInstalled === false && !props.cloudAvailable && (
+            <p className="mt-3 text-[12px] text-ink-2">
+              <Link href="/extension" className="font-medium text-brand-600 hover:underline">Install the browser helper</Link> for the fastest experience — or choose Guide me; nothing is blocked either way.
+            </p>
           )}
 
           {destination && (
