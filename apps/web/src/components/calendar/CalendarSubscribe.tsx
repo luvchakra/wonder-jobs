@@ -6,6 +6,20 @@ import { Modal } from "@/components/common/Modal";
 import { Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { useAuthStore } from "@/store/auth";
+import { calendarSubscribeLinks } from "@/lib/calendarLinks";
+
+const APPS = [
+  { key: "google", label: "Google Calendar" },
+  { key: "apple", label: "Apple Calendar" },
+  { key: "outlook", label: "Outlook.com" },
+  { key: "office365", label: "Outlook (work)" },
+] as const;
+
+/** webcal:// opens the Calendar app in place; the web calendars open in a new tab. */
+function openLink(link: string) {
+  if (link.startsWith("webcal:")) window.location.href = link;
+  else window.open(link, "_blank", "noopener");
+}
 
 /**
  * "Subscribe" to a live-updating feed of real interviews, follow-ups and scheduled runs from Google,
@@ -19,6 +33,7 @@ export function CalendarSubscribe() {
   const [busy, setBusy] = useState(false);
 
   if (mode !== "user") return null;
+  const links = url ? calendarSubscribeLinks(url) : null;
 
   const load = async () => {
     setOpen(true);
@@ -52,24 +67,24 @@ export function CalendarSubscribe() {
       <Button variant="outline" icon={<CalendarPlus className="size-4" aria-hidden />} onClick={load}>
         Subscribe
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Subscribe from your calendar app" description="A live feed of your real interviews, follow-ups and scheduled searches — no export, no re-copying.">
-        <div className="flex items-center gap-2">
-          <Input readOnly value={busy ? "Creating your link…" : (url ?? "")} onFocus={(e) => e.currentTarget.select()} aria-label="Calendar feed URL" />
-          <Button variant="outline" icon={<Copy className="size-4" aria-hidden />} disabled={!url} onClick={copy}>
-            Copy
-          </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Subscribe from your calendar app" description="A live feed of your real interviews, follow-ups and scheduled searches. Pick your calendar and confirm there.">
+        {/* One click per app: each opens that app's own subscribe screen with the feed filled in. */}
+        <div className="grid grid-cols-2 gap-2">
+          {APPS.map((a) => (
+            <Button key={a.key} variant="outline" disabled={!links} onClick={() => links && openLink(links[a.key])}>
+              {a.label}
+            </Button>
+          ))}
         </div>
-        <ol className="mt-4 list-decimal space-y-1.5 pl-5 text-[13px] text-ink-2">
-          <li>
-            <strong>Google Calendar:</strong> Other calendars → + → From URL → paste it.
-          </li>
-          <li>
-            <strong>Outlook:</strong> Add calendar → Subscribe from web → paste it.
-          </li>
-          <li>
-            <strong>Apple Calendar:</strong> File → New Calendar Subscription → paste it.
-          </li>
-        </ol>
+        <details className="mt-4 text-[13px] text-ink-2">
+          <summary className="cursor-pointer text-ink-3">Another app? Copy the link</summary>
+          <div className="mt-2 flex items-center gap-2">
+            <Input readOnly value={busy ? "Creating your link…" : (url ?? "")} onFocus={(e) => e.currentTarget.select()} aria-label="Calendar feed URL" />
+            <Button variant="outline" icon={<Copy className="size-4" aria-hidden />} disabled={!url} onClick={copy}>
+              Copy
+            </Button>
+          </div>
+        </details>
         <p className="mt-3 text-[12px] text-ink-4">Treat this link like a password — anyone with it can see your upcoming interviews and follow-ups. Calendar apps refresh it every 30 minutes or so; it&apos;s not instant.</p>
       </Modal>
     </>
