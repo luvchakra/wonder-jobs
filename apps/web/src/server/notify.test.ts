@@ -117,6 +117,9 @@ describe("contact notifications over the operator's own mailbox (SMTP)", () => {
       expect(sink.seen.data).toMatch(/^From: WonderJobs <connect@wonderapps\.biz>$/m);
       expect(sink.seen.data).toMatch(/^Reply-To: visitor@example\.com$/m);
       expect(sink.seen.data).toContain("test message from the landing page");
+      // Plain text plus the branded HTML (server/email/layout.ts).
+      expect(sink.seen.data).toMatch(/^Content-Type: text\/plain/m);
+      expect(sink.seen.data).toMatch(/^Content-Type: text\/html/m);
     } finally {
       sink.close();
     }
