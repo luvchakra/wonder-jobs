@@ -121,6 +121,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Fix: Credentials shows TheirStack's deployment keys as set, with how many (WJ-267)
 - ✅ Helper fills fully from the Career Profile and CV on pages not started from WonderJobs (WJ-268)
 - ✅ Helper handles separate phone country codes and retries a value in another format when the form rejects it (WJ-269)
+- ✅ Two automation choices; how you apply is set once in Automation, not per job (WJ-272)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
 - ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)
