@@ -7,7 +7,7 @@ COPY apps/browser-worker/package.json apps/browser-worker/tsconfig.json ./
 COPY apps/browser-worker/src ./src
 # The very same helper the Chrome extension runs on an employer's page.
 COPY extension/content/autofill.js ./helper/autofill.js
-RUN npm install --no-audit --no-fund && npm run build && npm prune --omit=dev
+RUN npm install --no-audit --no-fund --include=dev && npm run build && npm prune --omit=dev
 USER pwuser
 EXPOSE 4100
 CMD ["node", "dist/server.js"]
