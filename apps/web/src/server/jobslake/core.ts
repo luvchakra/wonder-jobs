@@ -14,7 +14,7 @@ import { summarizeHealth, type SourceHealth, type SourceRun } from "@/domain/job
 import { planSearch, type Depth, type SearchPlan } from "@/domain/jobslake/planner";
 import { PROTOCOL_VERSION, validateOpportunity, type CanonicalOpportunity, type SearchEvent, type SearchRequest, type SearchResponse, type SourceOutcome, type SourceSearchStatus } from "@/domain/jobslake/protocol";
 import { matchesLocations, matchesQuery } from "@/services/jobs/normalize";
-import { ageLabel } from "@/domain/jobslake/cache";
+import { ageLabel, searchKey } from "@/domain/jobslake/cache";
 import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache";
 import { DestinationBlockedError } from "./safeFetch";
 import { isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
@@ -129,31 +129,54 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const planned = plan.waves.flat();
   emit({ type: "search_started", requestId, plannedSources: planned.map((p) => ({ id: p.id, name: p.name })), searchMode: req.searchMode });
 
-  const criteria = { query: req.query.text, locations: req.query.locations };
   const observations: Observation[] = [];
   const statuses: SourceSearchStatus[] = [];
   const runs: SourceRun[] = [];
   const jobsBySource = new Map<string, Job[]>();
   let retrieved = 0;
 
+  // Smart search: the request's own words plus up to three broader phrasings of them, each asked of
+  // every planned source at once; a source's answers are merged and deduplicated.
+  const phrasings = [req.query.text, ...(req.query.variants ?? [])].filter((q, i, all) => q.trim() && all.findIndex((x) => searchKey({ query: x, locations: [] }) === searchKey({ query: q, locations: [] })) === i).slice(0, 4);
+  const criteriaFor = (q: string) => ({ query: q, locations: req.query.locations });
+  const runSearch = { query: req.query.text.slice(0, 120), places: req.query.locations.slice(0, 5).map((l) => l.slice(0, 60)), phrasings: phrasings.length };
+
   // The search cache: a recent answer from the same source to the same search (however worded) is
   // reused instead of asking again; a source that fails now falls back to its last answer, labelled.
   // A failed cache read just means every source is asked.
   const cacheOn = flags.jobsLakeCacheEnabled;
-  const cache: CacheLookup = (cacheOn ? await bookkeeping("read the search cache", () => lookupAnswers(planned.map((p) => byId.get(p.id)!), plan.depth, criteria)) : undefined) ?? { fresh: new Map(), fallback: new Map() };
+  const noCache: CacheLookup = { fresh: new Map(), fallback: new Map() };
+  const caches = new Map<string, CacheLookup>(
+    await Promise.all(phrasings.map(async (q) => [q, (cacheOn ? await bookkeeping("read the search cache", () => lookupAnswers(planned.map((p) => byId.get(p.id)!), plan.depth, criteriaFor(q))) : undefined) ?? noCache] as const)),
+  );
   const toCache: CachedAnswer[] = [];
   let fromCache = 0;
 
-  const serveCached = (src: SourceRecord, hit: CachedAnswer, use: "fresh" | "fallback", started: number, failure?: string): SourceSearchStatus => {
-    const jobs = hit.jobs.slice(0, src.limits.maxResults);
-    jobsBySource.set(src.id, jobs);
-    for (const job of jobs) observations.push({ source: src, job });
-    retrieved += jobs.length;
-    fromCache++;
-    emit({ type: "jobs_retrieved", sourceId: src.id, count: jobs.length, totalRetrieved: retrieved });
-    const age = ageLabel(hit.fetchedAt, Date.now());
-    const message = use === "fresh" ? `Reused its answer to the same search from ${age} ago` : `${failure ?? "Didn't answer"} — showing its answer to the same search from ${age} ago`;
-    return { sourceId: src.id, sourceName: src.name, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, durationMs: Date.now() - started, message, cachedAt: hit.fetchedAt, cacheUse: use };
+  interface Attempt {
+    jobs: Job[];
+    warnings: string[];
+    /** The source was actually asked (not a fresh cache hit). */
+    called: boolean;
+    error?: ReturnType<typeof classify>;
+    cachedAt?: string;
+    cacheUse?: "fresh" | "fallback";
+  }
+
+  const attempt = async (src: SourceRecord, q: string): Promise<Attempt> => {
+    const c = caches.get(q) ?? noCache;
+    const hit = req.cache === "refresh" ? undefined : c.fresh.get(src.id);
+    if (hit) return { jobs: hit.jobs.slice(0, src.limits.maxResults), warnings: [], called: false, cachedAt: hit.fetchedAt, cacheUse: "fresh" };
+    const fetchedAt = new Date().toISOString();
+    try {
+      const r = await withTimeout(runConnector(src, criteriaFor(q), plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
+      const jobs = r.jobs.slice(0, src.limits.maxResults);
+      if (cacheOn) toCache.push(answerFor(src, plan.depth, criteriaFor(q), { jobs, warnings: r.warnings }, fetchedAt));
+      return { jobs, warnings: r.warnings, called: true };
+    } catch (e) {
+      const error = classify(e);
+      const prior = error.outcome === "needs_setup" ? undefined : c.fallback.get(src.id);
+      return prior ? { jobs: prior.jobs.slice(0, src.limits.maxResults), warnings: [], called: true, error, cachedAt: prior.fetchedAt, cacheUse: "fallback" } : { jobs: [], warnings: [], called: true, error };
+    }
   };
 
   const runOne = async (sourceId: string) => {
@@ -161,35 +184,47 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     emit({ type: "source_started", sourceId, sourceName: src.name });
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
-    let status: SourceSearchStatus;
-    const hit = req.cache === "refresh" ? undefined : cache.fresh.get(sourceId);
-    if (hit) {
-      // The source wasn't asked, so no run is recorded: its health only reflects real calls.
-      status = serveCached(src, hit, "fresh", started);
-      statuses.push(status);
-      emit({ type: "source_completed", status });
-      return;
+    const results = await Promise.all(phrasings.map((q) => attempt(src, q)));
+    const durationMs = Date.now() - started;
+    const seen = new Set<string>();
+    const jobs: Job[] = [];
+    for (const r of results) for (const j of r.jobs) if (!seen.has(j.id) && seen.add(j.id)) jobs.push(j);
+
+    // A run records real calls only: fresh cache hits never asked the source, so they leave its health alone.
+    const called = results.filter((r) => r.called);
+    const answered = called.filter((r) => !r.error);
+    const failed = called.filter((r) => r.error);
+    if (called.length) {
+      const liveJobs = answered.flatMap((r) => r.jobs);
+      const err = !answered.length ? failed[0].error! : undefined;
+      runs.push({ id: newId("run"), sourceId, trigger: opts.trigger, requestId, startedAt, durationMs, outcome: err ? err.outcome : liveJobs.length ? "ok" : "empty", retrieved: err ? 0 : liveJobs.length, valid: liveJobs.filter(basicValid).length, duplicates: 0, errorCode: err?.code, message: err?.message, search: runSearch });
     }
-    try {
-      const r = await withTimeout(runConnector(src, criteria, plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
-      const jobs = r.jobs.slice(0, src.limits.maxResults);
+
+    let status: SourceSearchStatus;
+    const cached = results.filter((r) => r.cacheUse);
+    const oldest = cached.map((r) => r.cachedAt!).sort()[0];
+    if (!jobs.length && !answered.length && !cached.length) {
+      const err = failed[0].error!;
+      status = { sourceId, sourceName: src.name, outcome: err.outcome, retrieved: 0, durationMs, message: err.message };
+    } else {
       jobsBySource.set(sourceId, jobs);
       for (const job of jobs) observations.push({ source: src, job });
       retrieved += jobs.length;
-      if (cacheOn) toCache.push(answerFor(src, plan.depth, criteria, { jobs, warnings: r.warnings }, startedAt));
-      status = { sourceId, sourceName: src.name, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, durationMs: Date.now() - started, message: r.warnings.length ? `${r.warnings.length} board(s) failed: ${r.warnings.slice(0, 2).join("; ")}` : undefined };
+      if (cached.length) fromCache++;
       emit({ type: "jobs_retrieved", sourceId, count: jobs.length, totalRetrieved: retrieved });
-    } catch (e) {
-      const c = classify(e);
-      // The failure is real and recorded as such; the candidate still gets this source's last answer if there is one.
-      runs.push({ id: newId("run"), sourceId, trigger: opts.trigger, requestId, startedAt, durationMs: Date.now() - started, outcome: c.outcome, retrieved: 0, valid: 0, duplicates: 0, errorCode: c.code, message: c.message });
-      const prior = c.outcome === "needs_setup" ? undefined : cache.fallback.get(sourceId);
-      status = prior ? serveCached(src, prior, "fallback", started, c.message) : { sourceId, sourceName: src.name, outcome: c.outcome, retrieved: 0, durationMs: Date.now() - started, message: c.message };
-      statuses.push(status);
-      emit({ type: "source_completed", status });
-      return;
+      // "fallback": the source didn't answer at all now; "fresh": every phrasing was a recent answer reused.
+      const cacheUse = !answered.length && cached.some((r) => r.cacheUse === "fallback") ? "fallback" : cached.length === results.length && cached.every((r) => r.cacheUse === "fresh") ? "fresh" : undefined;
+      const age = oldest ? ageLabel(oldest, Date.now()) : "";
+      const warnings = results.flatMap((r) => r.warnings);
+      const notes = [
+        cacheUse === "fresh" ? `Reused its answer to the same search from ${age} ago` : "",
+        cacheUse === "fallback" ? `${failed[0].error!.message} — showing its answer to the same search from ${age} ago` : "",
+        !cacheUse && cached.length ? `${cached.length} of ${results.length} phrasings reused from ${age} ago` : "",
+        !cacheUse && failed.length ? `${failed.length} of ${results.length} phrasings failed: ${failed[0].error!.message}` : "",
+        warnings.length ? `${warnings.length} board(s) failed: ${warnings.slice(0, 2).join("; ")}` : "",
+      ].filter(Boolean);
+      status = { sourceId, sourceName: src.name, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, durationMs, message: notes.length ? notes.join(" · ") : undefined, ...(cacheUse ? { cachedAt: oldest, cacheUse } : {}) };
     }
-    runs.push({ id: newId("run"), sourceId, trigger: opts.trigger, requestId, startedAt, durationMs: status.durationMs, outcome: status.outcome, retrieved: status.retrieved, valid: (jobsBySource.get(sourceId) ?? []).filter(basicValid).length, duplicates: 0, message: status.message });
     statuses.push(status);
     emit({ type: "source_completed", status });
   };
@@ -251,6 +286,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
       warm: warmCount,
       live: valid.length,
       cached: fromCache,
+      phrasings,
     },
   };
   emit({ type: "search_completed", response });

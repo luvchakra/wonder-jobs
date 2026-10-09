@@ -19,6 +19,8 @@ export interface SourceRun {
   duplicates: number;
   errorCode?: string;
   message?: string;
+  /** What a search run asked for: the request's own words, its places, and how many phrasings ran. Admin-only. */
+  search?: { query: string; places: string[]; phrasings: number };
 }
 
 export type HealthState = "healthy" | "degraded" | "down" | "no_data";

@@ -18,7 +18,9 @@ import { useApplicationsStore } from "@/store/applications";
 import { track } from "@/lib/analytics";
 import { getClientMode } from "@/lib/mode";
 import type { SearchEvent, SearchResponse, SourceSearchStatus } from "@/domain/jobslake/protocol";
-import { breadthEvidence, contributionBySource, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import { breadthEvidence, contributionBySource, phrasingEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
+import { MAX_VARIANTS, ruleVariants } from "@/domain/jobs/variants";
+import { historyOf } from "@/domain/career/history";
 import { JobsLakeError, reportContribution, searchJobs, searchJobsStream } from "@/services/jobs/jobsLakeClient";
 import { jobsLakeCapability, setJobsLakeCapability } from "@/services/jobs/jobsLakeMode";
 
@@ -519,6 +521,23 @@ export function seedCachesFromCatalog(runId: string) {
 
 /* ------------------------------------------------------------- JobsLake */
 
+/**
+ * Smart search: broader phrasings to search alongside the candidate's words — AI-proposed and checked
+ * against their own vocabulary on the server, or the rules alone when that doesn't answer.
+ */
+async function smartPhrasings(query: string): Promise<{ variants: string[]; fromAi: string[] }> {
+  const dna = useCareerStore.getState().dna;
+  const profile = { roleWanted: dna.careerGoal.slice(0, 200), headline: dna.headline.slice(0, 200), titles: historyOf(dna).experience.slice(0, 10).map((e) => e.title.slice(0, 120)), skills: dna.skills.slice(0, 25).map((k) => k.name.slice(0, 80)) };
+  try {
+    const r = await fetch("/api/ai/variants", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query: query.slice(0, 160), profile }), signal: AbortSignal.timeout(8000) });
+    const d = r.ok ? ((await r.json()) as { variants?: unknown; fromAi?: unknown }) : null;
+    if (d && Array.isArray(d.variants)) return { variants: d.variants.filter((v): v is string => typeof v === "string").slice(0, MAX_VARIANTS), fromAi: Array.isArray(d.fromAi) ? d.fromAi.filter((v): v is string => typeof v === "string") : [] };
+  } catch {
+    // fall through to the rules
+  }
+  return { variants: ruleVariants(query).slice(0, MAX_VARIANTS), fromAi: [] };
+}
+
 function warnFor(ctx: StageContext, s: SourceSearchStatus) {
   if (s.outcome === "needs_setup") ctx.warn(`${s.sourceName} isn't configured on this deployment yet, so it was skipped.`);
   else if (s.outcome === "timeout" || s.outcome === "unavailable") ctx.warn(`${s.sourceName}: ${s.message ?? "temporarily unavailable"}.`);
@@ -530,7 +549,9 @@ function warnFor(ctx: StageContext, s: SourceSearchStatus) {
  * caller then searches each source directly, and the evidence says which path ran.
  */
 async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promise<{ response: SearchResponse; jobs: CanonicalJob[] } | null> {
-  const req = searchRequestFor(ctx.run.config.searchCriteria, sourceIds, "balanced", 500);
+  const phrasings = await smartPhrasings(ctx.run.config.searchCriteria.query);
+  const req = searchRequestFor({ ...ctx.run.config.searchCriteria, variants: phrasings.variants }, sourceIds, "balanced", 500);
+
   const abort = new AbortController();
   let control: unknown = null;
   const onEvent = async (e: SearchEvent) => {
@@ -541,7 +562,12 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
       abort.abort();
       throw sig;
     }
-    if (e.type === "search_started") ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${e.plannedSources.length} sources planned`, tone: "info" });
+    if (e.type === "search_started") {
+      ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${e.plannedSources.length} sources planned`, tone: "info" });
+      // Only once JobsLake is searching them: the direct fallback path searches the candidate's words alone.
+      const said = phrasingEvidence(phrasings.variants, phrasings.fromAi);
+      if (said) ctx.addEvidence(said);
+    }
     else if (e.type === "jobs_retrieved") {
       ctx.setProgress(e.totalRetrieved, null);
       ctx.setCounts({ discovered: e.totalRetrieved });

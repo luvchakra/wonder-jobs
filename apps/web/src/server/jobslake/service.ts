@@ -33,6 +33,7 @@ export const SearchRequestSchema = z.object({
     skills: z.array(str(60)).max(20).optional(),
     locations: z.array(str(80)).max(10).default([]),
     seniority: z.array(str(30)).max(6).optional(),
+    variants: z.array(str(120)).max(3).optional(),
   }),
   filters: z.object({ freshnessDays: z.number().int().min(1).max(365).optional(), workplaceTypes: z.array(WorkMode).max(3).optional() }).optional(),
   sourceIds: z.array(str(80)).max(60).optional(),

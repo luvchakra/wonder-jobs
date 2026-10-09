@@ -299,3 +299,37 @@ describe("JobsLake search cache — the next similar search reuses each source's
     log.mockRestore();
   });
 });
+
+describe("JobsLake smart search — broader phrasings searched at once", () => {
+  it("asks each source every phrasing, merges and deduplicates, and reports what it searched", async () => {
+    connector.mockImplementation(async (src: { id: string }, c: { query: string }) => {
+      if (src.id !== "greenhouse") return { jobs: [], warnings: [] };
+      if (c.query === "senior director identity access") return { jobs: [], warnings: [] };
+      if (c.query === "identity access") return { jobs: [job({}), job({ id: "careers_2", externalId: "gh:acme:2", title: "Head of Identity", applyUrl: "https://boards.greenhouse.io/acme/jobs/2" })], warnings: [] };
+      return { jobs: [job({})], warnings: [] }; // "identity": the same posting again
+    });
+    const { response } = await search(req({ query: { text: "senior director identity access", locations: ["Singapore"], variants: ["identity access", "identity", "Identity Access"] } }), { trigger: "search" });
+    const asked = connector.mock.calls.filter((c) => (c[0] as { id: string }).id === "greenhouse").map((c) => (c[1] as { query: string }).query);
+    expect(asked.sort()).toEqual(["identity", "identity access", "senior director identity access"]); // the repeat phrasing isn't asked twice
+    expect(response.metadata.phrasings).toEqual(["senior director identity access", "identity access", "identity"]);
+    expect(response.sources.find((s) => s.sourceId === "greenhouse")).toMatchObject({ outcome: "ok", retrieved: 2 });
+    expect(response.results).toHaveLength(2);
+    // One run per source per search, however many phrasings it was asked — and it says what was searched.
+    const ghRuns = (await jobsLakeStore().listRuns()).filter((r) => r.sourceId === "greenhouse");
+    expect(ghRuns).toHaveLength(1);
+    expect(ghRuns[0].search).toEqual({ query: "senior director identity access", places: ["Singapore"], phrasings: 3 });
+  });
+
+  it("a phrasing that fails doesn't fail the source when another phrasing answered", async () => {
+    connector.mockImplementation(async (src: { id: string }, c: { query: string }) => {
+      if (src.id !== "greenhouse") return { jobs: [], warnings: [] };
+      if (c.query === "identity") throw new Error("boards.greenhouse.io responded 429");
+      return { jobs: [job({})], warnings: [] };
+    });
+    const { response } = await search(req({ query: { text: "identity security", locations: [], variants: ["identity"] } }), { trigger: "search" });
+    const gh = response.sources.find((s) => s.sourceId === "greenhouse")!;
+    expect(gh).toMatchObject({ outcome: "ok", retrieved: 1 });
+    expect(gh.message).toBe("1 of 2 phrasings failed: boards.greenhouse.io responded 429");
+    expect((await jobsLakeStore().listRuns()).find((r) => r.sourceId === "greenhouse")).toMatchObject({ outcome: "ok" });
+  });
+});
