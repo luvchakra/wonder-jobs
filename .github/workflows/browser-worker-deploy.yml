@@ -1,0 +1,42 @@
+# Redeploys the cloud browser (apps/browser-worker) to Fly.io. The worker bakes in the extension's helper
+# script, so a change to either ships here too. First deploy (app, shared secret) is
+# scripts/deploy-browser-worker.sh; this needs only the FLY_API_TOKEN repository secret
+# (`fly tokens create deploy --app wonderjobs-browser-worker`) and is skipped until it's set.
+name: Deploy cloud browser
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - apps/browser-worker/**
+      - extension/content/autofill.js
+
+concurrency:
+  group: browser-worker-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Skip until FLY_API_TOKEN is set
+        if: env.FLY_API_TOKEN == ''
+        run: echo "::notice::FLY_API_TOKEN isn't set; the cloud browser wasn't redeployed."
+      - uses: actions/checkout@v4
+        if: env.FLY_API_TOKEN != ''
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: env.FLY_API_TOKEN != ''
+      - name: Deploy
+        if: env.FLY_API_TOKEN != ''
+        run: flyctl deploy . --config apps/browser-worker/fly.toml --ha=false --remote-only
+      - name: Health check
+        if: env.FLY_API_TOKEN != ''
+        run: |
+          for _ in $(seq 1 12); do curl -fsS --max-time 10 https://wonderjobs-browser-worker.fly.dev/health && exit 0; sleep 5; done
+          echo "::error::The worker didn't answer /health"; exit 1

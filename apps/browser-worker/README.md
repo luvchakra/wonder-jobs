@@ -37,16 +37,31 @@ CLOUD_BROWSER_SECRET=<same>
 
 ## Deploy (Fly.io)
 
+One command, from anywhere in the repository, signed in to Fly (`fly auth login`):
+
 ```bash
-fly launch --no-deploy --copy-config --config apps/browser-worker/fly.toml --dockerfile apps/browser-worker/Dockerfile
-fly secrets set CLOUD_BROWSER_SECRET=<secret> WONDERJOBS_ORIGIN=https://<app domain>
-fly deploy --config apps/browser-worker/fly.toml --dockerfile apps/browser-worker/Dockerfile
+scripts/deploy-browser-worker.sh
 ```
 
-Then in Vercel set `CLOUD_BROWSER_URL=https://wonderjobs-browser-worker.fly.dev` and `CLOUD_BROWSER_SECRET=<secret>`.
+It creates the app (`wonderjobs-browser-worker`, Mumbai — next to the app's `bom1` functions) if it
+doesn't exist, makes the shared secret the first time (set on Fly, and written to
+`~/.wonderjobs-cloud-browser-secret` for you — never printed or committed), deploys **one** machine and
+checks `/health`. Then in Vercel (Production) set `CLOUD_BROWSER_URL=https://wonderjobs-browser-worker.fly.dev`
+and `CLOUD_BROWSER_SECRET=<that value>` (Sensitive), redeploy, and delete the file.
+
+- Sessions live in the machine's memory, so it runs as exactly one machine (`--ha=false`); it stops when
+  idle and starts on the next request.
+- Later deploys: run the script again, or let the **Deploy cloud browser** workflow do it — it redeploys
+  on every push to `main` that changes the worker or `extension/content/autofill.js` (the worker bakes the
+  helper in) once the `FLY_API_TOKEN` repository secret is set (`fly tokens create deploy --app wonderjobs-browser-worker`).
+- New secret: `ROTATE=1 scripts/deploy-browser-worker.sh`, then update it in Vercel. Another app name or
+  org: `FLY_APP=… FLY_ORG=…`.
+- By hand, from the repository root (the build context must be the root so the helper comes along):
+  `fly deploy . --config apps/browser-worker/fly.toml --ha=false`.
+
 Any host that runs a long-lived Node process with Chromium works the same way (Railway, Render, a VM) —
 the Vercel functions can't, which is why this is a separate service.
 
-Environment: `CLOUD_BROWSER_SECRET`, `WONDERJOBS_ORIGIN`, `PORT` (4100), `CLOUD_BROWSER_ALLOWED_ORIGINS`
+Environment: `CLOUD_BROWSER_SECRET`, `WONDERJOBS_ORIGIN` (set in `fly.toml`), `PORT` (4100), `CLOUD_BROWSER_ALLOWED_ORIGINS`
 (defaults to the app origin), `CLOUD_BROWSER_MAX_SESSIONS` (6), `CLOUD_BROWSER_IDLE_MS` (10 min),
 `CLOUD_BROWSER_MAX_MS` (45 min), `PW_CHROMIUM_PATH` (optional).
