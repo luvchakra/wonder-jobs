@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, Loader2, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -13,6 +13,7 @@ import { useJobsStore } from "@/store/jobs";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useWorkflowStore } from "@/store/workflow";
 import { Button } from "@/components/common/Button";
+import { WonderSearching } from "@/components/brand/WonderSearching";
 import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
@@ -339,7 +340,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
     const found = active.stages.find((s) => s.key === "search")?.counts?.discovered;
     return (
       <p role="status" className="mb-4 flex items-center gap-2 text-[13px] text-ink-2">
-        <Loader2 className="size-4 animate-spin text-brand-600" aria-hidden />
+        <WonderSearching size={18} />
         <span>
           {stage?.activeLabel ?? "Searching"} for “{active.config.searchCriteria.query}”{found ? ` · ${found.toLocaleString("en-IN")} found so far` : ""}
         </span>
@@ -374,11 +375,19 @@ export function JobsEmpty({ search }: { search: JobSearch }) {
   const { active, last } = search;
   if (active || (!last && !search.readiness.blocker)) {
     return (
-      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading jobs">
-        {Array.from({ length: 6 }, (_, i) => (
-          <li key={i} className="wj-card h-36 animate-pulse bg-bg-soft" />
-        ))}
-      </ul>
+      <>
+        {active && (
+          <div className="mb-4 flex flex-col items-center gap-3 py-6 text-center">
+            <WonderSearching size={88} />
+            <p className="text-[13px] text-ink-3">Finding roles worth dressing up for…</p>
+          </div>
+        )}
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading jobs">
+          {Array.from({ length: 6 }, (_, i) => (
+            <li key={i} className="wj-card h-36 animate-pulse bg-bg-soft" />
+          ))}
+        </ul>
+      </>
     );
   }
   if (last && foundNothing(last)) {
