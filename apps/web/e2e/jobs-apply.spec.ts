@@ -106,7 +106,8 @@ async function openApply(page: Page) {
 
 /** Start with the browser helper; returns the employer tab it opened. */
 async function startWithHelper(page: Page, context: BrowserContext): Promise<Page> {
-  await expect(page.getByRole("radio", { name: /Fill it in with the browser helper/ })).toHaveAttribute("aria-checked", "true");
+  // The helper is the default way to apply, set once in Automation (WJ-272) and shown as a summary line.
+  await expect(page.getByText("Fill it in with the browser helper", { exact: true })).toBeVisible();
   const [employer] = await Promise.all([context.waitForEvent("page"), page.getByRole("button", { name: "Start application" }).click()]);
   await employer.waitForLoadState("domcontentloaded");
   await expect(employer).toHaveURL(/^https:\/\//, { timeout: 15_000 });
@@ -198,7 +199,7 @@ test.describe("JobsApply with the browser helper", () => {
     for (const v of ["Alex", "alex.morgan@example.com", "90000", "identity platform with the team"]) expect(audit).not.toContain(v);
   });
 
-  test("GJ2 / APPLY-045…047: sign in on the employer's site, verification challenge pauses, password never reaches WonderJobs", async ({ page, context, portal }) => {
+  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderJobs", async ({ page, context, portal }) => {
     portal.set("mock-login.html");
     await openApply(page);
     const employer = await startWithHelper(page, context);
@@ -208,12 +209,10 @@ test.describe("JobsApply with the browser helper", () => {
     await employer.locator("#u").fill("alex.morgan@example.com");
     await employer.locator("#p").fill("hunter2-secret-pw");
     await employer.locator("#signin").click();
-    await expect(panel(employer).getByText("Verification required")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Verification required").first()).toBeVisible({ timeout: 15_000 });
-    // The candidate completes the challenge (here: it goes away), then continues.
-    await employer.locator("#captcha").evaluate((f) => f.remove());
-    await panel(employer).getByRole("button", { name: "I've completed it" }).click();
-    await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click();
+    // A verification widget beside the form doesn't stop filling (WJ-257): the helper fills around it and
+    // leaves the challenge and the employer's button to the candidate.
+    await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
+    await expect(panel(employer).getByText("Complete the page's verification, then press the employer's button yourself.")).toBeVisible({ timeout: 15_000 });
     await expect(employer.locator("#first_name")).toHaveValue("Alex", { timeout: 15_000 });
     const json = await sessionJson(page);
     expect(json).not.toContain("hunter2");
@@ -380,6 +379,8 @@ web.describe("JobsApply in WonderJobs", () => {
   web("GJ4 / APPLY-072…077: guided mode — copy, download, open, then the candidate confirms", async ({ page }, info) => {
     await page.goto(APPLY);
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
+    // How you apply is set once in Automation; this job changes it here (WJ-272).
+    await page.getByRole("button", { name: "Change for this job" }).click();
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
     await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
@@ -405,6 +406,7 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.goto(APPLY);
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await page.getByRole("button", { name: "Change for this job" }).click();
     await expect(page.getByRole("radiogroup", { name: "Application method" })).toBeVisible();
     await expect(page.getByRole("list", { name: "Application steps" })).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Résumé to use" })).toBeVisible();

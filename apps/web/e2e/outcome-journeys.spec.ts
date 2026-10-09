@@ -332,14 +332,16 @@ test.describe("AUTOMATION", () => {
     return page.locator("#scheduled li", { hasText: `Keep watch — ${what.toLowerCase().replace(/ roles$/, "")}` }).first();
   }
   async function runNow(page: Page, row: Locator) {
-    await row.getByRole("link").first().click();
+    // A search opens in place (WJ-276); its own page has Run now, which goes to the run.
+    await row.getByRole("button").first().click();
+    await row.getByRole("link", { name: "Change what it searches" }).click();
     await page.waitForURL(/\/app\/automation\/scheduled\/[^/]+$/);
     await page.getByRole("button", { name: "Run now" }).click();
   }
 
   test("AUTOMATION-001 a scheduled search is created through the simple chooser", async ({ page }) => {
     const row = await createKeepWatch(page, "Designer roles");
-    await expect(row).toContainText(/only if strong matches > 0/i);
+    await expect(row).toContainText(/only if strong matches/i);
     await page.goto("/app");
     await openRefine(page);
     await expect(page.locator("#main")).toContainText("checks again on schedule");

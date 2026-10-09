@@ -37,3 +37,6 @@ yarn-error.log*
 
 # Cloud browser worker build output
 apps/browser-worker/dist
+
+# extension store packages
+dist/
