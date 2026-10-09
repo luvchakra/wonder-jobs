@@ -8,6 +8,7 @@
  * never be mistaken for a name field. A human-only field never gets a target — there is nothing
  * Wonder is allowed to put in it.
  */
+import { sensitiveKindOf, type SensitiveGroup, type SensitiveKey } from "./sensitive";
 import type { ApplicationField, Classification, Confidence, MemoryKey, ProfileKey, QuestionCategory } from "./types";
 
 export type FieldTarget =
@@ -18,6 +19,7 @@ export type FieldTarget =
   | { kind: "pack_answer" }
   | { kind: "draft" }
   | { kind: "metric" }
+  | { kind: "sensitive"; group: SensitiveGroup; key: SensitiveKey }
   | { kind: "none" };
 
 /** The part of the form a field sits in, when the page or its neighbours say: "Start date" under Education is the course's start, not the candidate's. */
@@ -220,7 +222,7 @@ const BEHAVIORAL = /\b(describe (a|an|your)|tell (us|me) about|give (us )?an exa
 const QUANTIFY = /\b(quantif|measurable|metric|impact in numbers|by how much|percentage|\bkpi)/;
 const TECHNICAL = /\b(years of experience (with|in)|experience (with|in|using)|proficien|familiar with|hands-on|tech stack|programming|framework)\b/;
 
-export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: boolean; context?: FormContext } = {}): FieldClass {
+export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: boolean; context?: FormContext; sensitive?: SensitiveGroup[] } = {}): FieldClass {
   const { visible, attrs, all } = fieldText(f);
   const ac = (f.hints?.autocomplete ?? "").toLowerCase().trim().split(/\s+/).pop() ?? "";
 
@@ -234,12 +236,18 @@ export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: bool
   if (ac.startsWith("cc-")) return { category: "CREDENTIAL", classification: "human-only", target: { kind: "none" }, confidence: "HIGH", reason: "Wonder never enters payment information." };
 
   // 2. Human-only questions (§21–§22) — recognised before anything that could look like a profile field.
+  // A group the candidate turned on in Automation is answered from their own saved answers instead.
+  const optedIn = (category: QuestionCategory, reason: string): FieldClass => {
+    const kind = opts.sensitive?.length ? sensitiveKindOf(visible || attrs) : undefined;
+    if (kind && opts.sensitive!.includes(kind.group)) return { category, classification: "safe", target: { kind: "sensitive", group: kind.group, key: kind.key }, confidence: "HIGH" };
+    return { category, classification: "human-only", target: { kind: "none" }, confidence: "HIGH", reason };
+  };
   for (const [category, re, reason] of HUMAN) {
-    if (re.test(visible) || (!visible && re.test(attrs))) return { category, classification: "human-only", target: { kind: "none" }, confidence: "HIGH", reason };
+    if (re.test(visible) || (!visible && re.test(attrs))) return optedIn(category, reason);
   }
   // A consent checkbox with a non-descript label is still a declaration.
   if (f.type === "checkbox" && /\b(agree|consent|confirm|accept|acknowledge)\b/.test(all)) {
-    return { category: "LEGAL", classification: "human-only", target: { kind: "none" }, confidence: "HIGH", reason: "Consents and declarations need your own decision." };
+    return optedIn("LEGAL", "Consents and declarations need your own decision.");
   }
 
   // 3. Documents (§27–§30).

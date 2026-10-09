@@ -137,6 +137,8 @@ export interface ApplicationPackSnapshot {
   resume?: PackFile;
   coverLetter?: PackFile & { text?: string };
   answers: PackAnswer[];
+  /** Sensitive groups the candidate turned on, with their own answers — set by the server, never by the client. */
+  sensitive?: import("./sensitive").PackSensitive;
   /** Every education entry and role, for forms that ask for more than the latest one. */
   education?: EducationFact[];
   experience?: ExperienceFact[];

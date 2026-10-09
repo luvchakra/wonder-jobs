@@ -8,7 +8,8 @@
  * the candidate approved. Human-only fields never carry a value, even an approved one.
  */
 import { classifyField, fieldText, type FieldClass, type FormContext } from "./classify";
-import { shapeProfileValue } from "./fieldValue";
+import { matchChoice, shapeProfileValue } from "./fieldValue";
+import { markedId, sensitiveAnswer } from "./sensitive";
 import { freshMemory, MEMORY_LABEL, PROFILE_LABEL } from "./profile";
 import type { AiHint, ApplicationField, ApplicationForm, ApplicationPackSnapshot, ApplicationValue, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, ProfileKey, RememberedAnswer } from "./types";
 
@@ -194,11 +195,12 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
   const mappings: FieldMapping[] = [];
   const interventions: InterventionItem[] = [];
   const hasCover = !!pack.coverLetter;
-  const first = form.fields.map((f) => classifyField(f, { hasCoverLetter: hasCover }));
+  const sensitive = pack.sensitive?.allowed.length ? pack.sensitive.allowed : undefined;
+  const first = form.fields.map((f) => classifyField(f, { hasCoverLetter: hasCover, sensitive }));
   // A form with its own country-code field wants only the national number in the phone box.
   const separateCode = first.some((c) => keyOf(c) === "phoneCountryCode");
   const contexts = neighbourContexts(form.fields, first);
-  const classes = form.fields.map((f, i) => (contexts[i] ? classifyField(f, { hasCoverLetter: hasCover, context: contexts[i] }) : first[i]));
+  const classes = form.fields.map((f, i) => (contexts[i] ? classifyField(f, { hasCoverLetter: hasCover, context: contexts[i], sensitive }) : first[i]));
   // How many times each key was asked before this field: the n-th education block reads the n-th entry.
   const seen = new Map<string, number>();
   const occurrence = classes.map((c, i) => {
@@ -294,6 +296,15 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
         if (file === "resume" && chosenResumeField && chosenResumeField !== field.id) return push({ status: "skipped", reason: "You chose another field for your résumé." });
         if (c.confidence !== "HIGH" && !(chosenResumeField === field.id)) return push({ status: "needs_you", reason: "Wonder isn't sure this field wants your résumé." }, interventionFor(field, c, "choose_file_field"));
         return push({ status: "pending", file, source: "application-pack", sourcePath: `pack.${file}` });
+      }
+      case "sensitive": {
+        // Only reachable when the candidate turned this group on; the answer is always their own saved one.
+        const words = pack.sensitive ? sensitiveAnswer({ group: c.target.group, key: c.target.key }, `${base.label} ${fieldText(field).visible}`, pack.sensitive, field.type) : undefined;
+        const marker = markedId(words);
+        const value = words === undefined ? undefined : marker || field.type === "checkbox" ? words : matchChoice(field, words);
+        if (value !== undefined) return push({ status: "pending", value, source: "user-entered", sourcePath: `sensitive.${c.target.key}` });
+        const reason = words === undefined ? "You haven't saved an answer for this in Automation → Sensitive questions." : `None of the choices matches your saved answer “${words}”.`;
+        return field.required ? push({ status: "needs_you", reason }, interventionFor(field, c, "unknown_field")) : push({ status: "skipped", reason: `${reason} Optional — left empty.` });
       }
       case "cover_text":
         return push({ status: "pending", value: pack.coverLetter?.text ?? "", source: "application-pack", sourcePath: "pack.coverLetter" });

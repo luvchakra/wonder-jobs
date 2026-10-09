@@ -1,4 +1,5 @@
 "use client";
+import { SENSITIVE_GROUPS } from "@/domain/jobs-apply/sensitive";
 import { CAPABILITIES, CAPABILITY_META, type AutomationPolicy as Policy, type Capability, type PolicyMode } from "@/domain/automation/policy";
 import { Badge } from "@/components/common/Badge";
 import { Segmented } from "@/components/common/Input";
@@ -24,7 +25,8 @@ export function AutomationPolicyEditor({ policy, onChange, className }: { policy
           </div>
           <p className="mb-2 text-[12px] text-ink-3">{g.blurb}</p>
           <ul className="divide-y divide-line rounded-[16px] border border-line bg-surface">
-            {CAPABILITIES.filter((c) => CAPABILITY_META[c].risk === g.risk).map((c) => {
+            {/* Sensitive questions are turned on only through their own confirmation (SensitiveQuestions). */}
+            {CAPABILITIES.filter((c) => CAPABILITY_META[c].risk === g.risk && !(SENSITIVE_GROUPS as readonly string[]).includes(c)).map((c) => {
               const meta = CAPABILITY_META[c];
               return (
                 <li key={c} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
