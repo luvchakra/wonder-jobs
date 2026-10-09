@@ -206,6 +206,10 @@ const handlers = {
   async quickPlan({ form }) {
     return api("/api/extension/quick-plan", form);
   },
+  /** Only on the candidate's Save: answers they typed on the form, kept for the next form. */
+  async remember({ items }) {
+    return api("/api/extension/remember", { items });
+  },
   async disconnect() {
     await chrome.storage.local.remove([STORAGE_KEY, SESSIONS_KEY]);
     return { ok: true };
