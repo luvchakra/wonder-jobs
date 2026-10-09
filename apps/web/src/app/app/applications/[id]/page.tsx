@@ -27,6 +27,7 @@ import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
+import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
 const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
 
@@ -81,6 +82,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const automationPolicy = useAutomationStore((s) => s.policy);
   const automationLevel = useAutomationStore((s) => s.defaultLevel);
   const job = useJobsStore((s) => (app ? s.jobs[app.jobId] : undefined));
+  useRecoverJobs([app?.jobId]);
   const [note, setNote] = useState("");
   const [fuDate, setFuDate] = useState("");
   const [fuKind, setFuKind] = useState<"follow_up" | "interview" | "thank_you">("follow_up");

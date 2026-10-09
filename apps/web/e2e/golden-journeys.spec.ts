@@ -123,7 +123,7 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
 
   test("GJ-008 the bottom bar shows the four places directly, with no menu drawer or More catch-all", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    for (const label of ["Find", "Saved", "Applied", "You"]) {
+    for (const label of ["Find", "Saved", "Pipeline", "You"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(bottomBar.getByRole("link")).toHaveCount(4);
@@ -137,13 +137,13 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
 
   test("GJ-009 a place's own pages are tabs at its top; You lists every settings page as a row", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    await bottomBar.getByRole("link", { name: "Applied" }).click();
+    await bottomBar.getByRole("link", { name: "Pipeline" }).click();
     await page.waitForURL(/\/app\/applications$/);
-    const tabs = page.getByRole("navigation", { name: "Applied" });
+    const tabs = page.getByRole("navigation", { name: "Pipeline" });
     await expect(tabs.getByRole("link", { name: "Applications" })).toHaveAttribute("aria-current", "page");
     await tabs.getByRole("link", { name: "Calendar" }).click();
     await page.waitForURL(/\/app\/calendar$/);
-    await expect(bottomBar.getByRole("link", { name: "Applied" })).toHaveAttribute("aria-current", "page");
+    await expect(bottomBar.getByRole("link", { name: "Pipeline" })).toHaveAttribute("aria-current", "page");
 
     await bottomBar.getByRole("link", { name: "You" }).click();
     await page.waitForURL(/\/app\/you$/);

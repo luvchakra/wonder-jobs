@@ -15,6 +15,8 @@ import { applyReadiness, findDuplicate } from "@/domain/jobs-apply/readiness";
 import { stepOf, TERMINAL } from "@/domain/jobs-apply/states";
 import type { ApplyMode, InterventionItem } from "@/domain/jobs-apply/types";
 import { useApplicationsStore } from "@/store/applications";
+import { HANDOFF_TITLES } from "@/domain/applications/types";
+import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { useActionsStore } from "@/store/actions";
 import { useAuthStore } from "@/store/auth";
 import { useAutomationStore } from "@/store/automation";
@@ -120,6 +122,7 @@ export default function ApplyWithWonderPage({
 }) {
   const { id: jobId } = use(params);
   const job = useJobsStore((s) => s.jobs[jobId]);
+  useRecoverJobs([jobId]);
   const jobs = useJobsStore((s) => s.jobs);
   const saved = useJobsStore((s) => !!s.saved[jobId]);
   const saveJob = useJobsStore((s) => s.save);
@@ -528,10 +531,7 @@ export default function ApplyWithWonderPage({
         .getState()
         .addEvent(app.id, {
           type: "note",
-          title:
-            mode === "guided"
-              ? "Application opened in guided mode"
-              : "Application opened with Wonder's browser helper",
+          title: mode === "guided" ? HANDOFF_TITLES.guided : HANDOFF_TITLES.helper,
           detail: `On ${v.session.destination.domain}. You submit there, then confirm here.`,
         });
       if (mode !== "guided") {

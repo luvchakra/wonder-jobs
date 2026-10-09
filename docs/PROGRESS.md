@@ -126,6 +126,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Two automation choices; how you apply is set once in Automation, not per job (WJ-272)
 - ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
+- ✅ Application cards keep their job (found again when it left the results), show location, pay and progress, and reopen Apply with Wonder (WJ-275)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
 - ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)
