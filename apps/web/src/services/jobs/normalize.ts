@@ -80,14 +80,29 @@ export function extractSkills(text: string, max = 12): string[] {
   return found;
 }
 
+/** Level words, highest first: "Associate Director" is a director, "Senior Associate" is senior. */
+const LEVEL_RULES: [Job["seniority"], RegExp][] = [
+  ["director", /\b(director|vp|svp|evp|vice president|head of|chief|cxo|cpo|cto|ceo|coo|cio|ciso|c[_ -]level)\b/],
+  // A people manager leads; a product, project or account manager is usually an individual role.
+  ["lead", /\b(lead|principal|staff|group product manager|gpm|manager of|engineering manager|architect)\b|(?<!\b(product|project|program|programme|account|relationship|community|office|case|social media|content|marketing|sales) )\bmanager\b/],
+  ["senior", /\b(senior|sr\.?|experienced|specialist ii|iii)\b/],
+  ["junior", /\b(intern|internship|trainee|graduate|entry[- ]level|junior|jr\.?|associate)\b/],
+  // A role named without a level word ("Analyst", "Engineer") is an individual role, whatever a source's label says.
+  ["mid", /\b(mid[- _]?level|analyst|administrator|coordinator|assistant|consultant|engineer|developer|specialist|executive|officer|representative)\b/],
+];
+
+/**
+ * A posting's level, read from its title. A source's own level label ("senior" on an "Analyst" role)
+ * is used only when the title says nothing about level — the title is what the employer wrote.
+ */
 export function inferSeniority(title: string, hint?: string | null): Job["seniority"] {
-  const t = `${title} ${hint ?? ""}`.toLowerCase();
-  if (/\b(intern|internship|trainee|graduate|entry[- ]level|junior|jr\.?|associate)\b/.test(t)) return "junior";
-  if (/\b(director|vp|svp|evp|vice president|head of|chief|cxo|cpo|cto|ceo|coo|cio|ciso)\b/.test(t)) return "director";
-  if (/\b(lead|principal|staff|group product manager|gpm|manager of|engineering manager|architect)\b/.test(t)) return "lead";
-  if (/\b(senior|sr\.?|experienced|specialist ii|iii)\b/.test(t)) return "senior";
-  if (/\bmid[- ]?level\b/.test(t)) return "mid";
-  return "mid";
+  const read = (t: string) => LEVEL_RULES.find(([, re]) => re.test(t.toLowerCase()))?.[0];
+  return read(title) ?? (hint ? read(hint) : undefined) ?? "mid";
+}
+
+/** The level a search's own words ask for ("senior director identity" → director), if they name one. */
+export function levelOfQuery(query: string): Job["seniority"] | undefined {
+  return LEVEL_RULES.find(([, re]) => re.test(query.toLowerCase()))?.[0];
 }
 
 const INDUSTRY_RULES: [string, RegExp][] = [

@@ -111,7 +111,8 @@ async function seed(over: { schedule?: WorkflowSchedule; workflows?: Record<stri
   await writeClientState<WorkflowDoc>(TENANT, "wj.workflow", PERSIST_VERSION.workflow, { runs: over.runs ?? {}, workflows: over.workflows ?? { [workflow.id]: workflow }, schedules: { [s.id]: s } });
   await writeClientState<CareerDoc>(TENANT, "wj.career", PERSIST_VERSION.career, { dna: DNA, onboarded: true, activity: [], notifications: [] });
   await writeClientState<JobsDoc>(TENANT, "wj.jobs", PERSIST_VERSION.jobs, { sources: JOB_SOURCES.map((x) => ({ ...x, enabled: x.id === "remotive" })), jobs: {}, order: [], matches: {}, quality: {}, saved: {}, rejected: {} });
-  await writeClientState(TENANT, "wj.automation", PERSIST_VERSION.automation, { policy: defaultPolicy() });
+  // Auto-save is off by default; this schedule test turns it on to check saving still works when chosen.
+  await writeClientState(TENANT, "wj.automation", PERSIST_VERSION.automation, { policy: { ...defaultPolicy(), save_jobs: "automatic" } });
 }
 
 const later = new Date("2026-04-15T03:00:00.000Z");

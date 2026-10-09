@@ -5,9 +5,9 @@ import type { LearnedSignal } from "@/domain/career/learning";
 import type { CanonicalJob, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import type { AutomationPolicy } from "@/domain/automation/policy";
-import { defaultPolicy } from "@/domain/automation/policy";
+import { migratePolicy, POLICY_VERSION } from "@/domain/automation/policy";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
-import { readClientState, writeClientState } from "@/server/clientState";
+import { readClientState, readClientStateVersioned, writeClientState } from "@/server/clientState";
 
 /**
  * A tenant's product state, loaded into memory so a scheduled run can execute on the server the way
@@ -46,7 +46,7 @@ export interface AutomationDoc {
 }
 
 /** Persist schema versions, mirroring each store's `persist(..., { version })`. Keep in step with the stores. */
-export const PERSIST_VERSION = { career: 1, jobs: 2, workflow: 1, automation: 1 } as const;
+export const PERSIST_VERSION = { career: 1, jobs: 2, workflow: 1, automation: POLICY_VERSION } as const;
 
 /** The browser trims the catalog before persisting; the server must too, or documents grow without bound. */
 const PERSISTED_CATALOG = 300;
@@ -65,7 +65,7 @@ export async function loadTenantSnapshot(tenantId: string): Promise<TenantSnapsh
     readClientState<Partial<CareerDoc>>(tenantId, "wj.career"),
     readClientState<Partial<JobsDoc>>(tenantId, "wj.jobs"),
     readClientState<Partial<WorkflowDoc>>(tenantId, "wj.workflow"),
-    readClientState<Partial<AutomationDoc>>(tenantId, "wj.automation"),
+    readClientStateVersioned<Partial<AutomationDoc>>(tenantId, "wj.automation"),
   ]);
   return {
     tenantId,
@@ -82,7 +82,8 @@ export async function loadTenantSnapshot(tenantId: string): Promise<TenantSnapsh
       ...jobs,
     } as JobsDoc,
     workflow: { runs: workflow?.runs ?? {}, workflows: workflow?.workflows ?? {}, schedules: workflow?.schedules ?? {}, ...workflow } as WorkflowDoc,
-    automation: { policy: automation?.policy ?? defaultPolicy(), ...automation } as AutomationDoc,
+    // The same migration the browser applies, so a scheduled run never acts on an out-of-date policy.
+    automation: { ...automation?.state, policy: migratePolicy(automation?.state.policy, automation?.version ?? POLICY_VERSION) } as AutomationDoc,
   };
 }
 
