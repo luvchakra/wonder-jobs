@@ -298,7 +298,8 @@
     try {
       if (item.file) {
         if (type !== "file") return { fieldId: item.fieldId, ok: false, error: "changed" };
-        const r = await api(sessionId, `/api/jobs-apply/extension/file?kind=${item.file}`);
+        // Without a session the plan carries the file itself (the candidate's own latest résumé).
+        const r = item.fileData ? { data: item.fileData } : await api(sessionId, `/api/jobs-apply/extension/file?kind=${item.file}`);
         if (!r?.data?.base64) return { fieldId: item.fieldId, ok: false, error: "file_failed" };
         const dt = new DataTransfer();
         dt.items.add(b64ToFile(r.data.base64, r.data.filename, r.data.mime));
@@ -793,58 +794,43 @@
     setInterval(() => location.href !== state.lastUrl && later(), 1000);
   }
 
-  /* ------------------------------------------------------- legacy fallback */
+  /* ------------------------------------------------ fill without an application */
 
-  const LEGACY = {
-    firstName: /\bfirst[\s_-]*name\b|\bgiven[\s_-]*name\b/i,
-    lastName: /\blast[\s_-]*name\b|\bsurname\b|\bfamily[\s_-]*name\b/i,
-    fullName: /\b(full[\s_-]*name|your[\s_-]*name|^name\*?$)/i,
-    email: /e-?mail/i,
-    phone: /\b(phone|mobile|telephone)\b/i,
-    linkedin: /linked\s?in/i,
-  };
-  const REJECT = /company|employer|referr|school|university|manager|recruiter|emergency|preferred|sponsor/i;
-
-  function legacyFind(re, file) {
-    return readFormEls().find((el) => (file ? el.type === "file" && re.test(labelOf(el) + " " + el.name) : el.type !== "file" && re.test(labelOf(el)) && !REJECT.test(labelOf(el))));
-  }
+  /** Visible fields a person types into — enough of them means this page is a form worth offering Fill on. */
   function readFormEls() {
     return [...document.querySelectorAll("input, textarea")].filter((el) => visible(el) && !["submit", "button", "checkbox", "radio", "password", "hidden"].includes(el.type));
   }
 
+  /**
+   * Fill on a page WonderJobs has no application for: the form's structure goes to WonderJobs, which
+   * reads every field the way Apply with Wonder does and answers with what the candidate's own Career
+   * Profile, CV history, saved answers and latest résumé fill. Filled by the same routine as a session:
+   * values set on fields, nothing pressed, nothing submitted.
+   */
   async function legacyFill() {
-    const [profileReply, applicationReply] = await Promise.all([ask("profile"), ask("application", { url: location.href })]);
-    if (profileReply?.error === "not_connected") return { error: "not_connected" };
-    const profile = profileReply?.data;
-    if (!profile) return { error: "request_failed" };
+    const form = readForm();
+    const [planReply, applicationReply] = await Promise.all([ask("quickPlan", { form }), ask("application", { url: location.href })]);
+    if (planReply?.error === "not_connected") return { error: "not_connected" };
+    const plan = planReply?.data;
+    if (!plan) return { error: "request_failed" };
+    if (!plan.allowed) return { filled: [], missing: [], blocked: plan.reason };
+    // A posting with prepared materials in WonderJobs uses its tailored résumé and cover letter.
     const application = applicationReply?.data?.matched ? applicationReply.data : null;
+    const tailored = application?.resume ? { filename: application.resume.filename, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", base64: application.resume.base64 } : null;
     const filled = [];
-    const put = (el, value, label) => {
-      if (el && value && !(el.value && el.value.trim())) {
-        setNative(el, value);
-        filled.push(label);
-      }
-    };
-    const first = legacyFind(LEGACY.firstName);
-    const last = legacyFind(LEGACY.lastName);
-    if (first && last) {
-      put(first, profile.firstName, "First name");
-      put(last, profile.lastName, "Last name");
-    } else put(legacyFind(LEGACY.fullName), profile.fullName, "Name");
-    put(legacyFind(LEGACY.email), profile.email, "Email");
-    put(legacyFind(LEGACY.phone), profile.phone, "Phone");
-    put(legacyFind(LEGACY.linkedin), profile.linkedinUrl, "LinkedIn");
-    const resumeInput = legacyFind(/resume|\bcv\b|curriculum/i, true);
-    if (resumeInput && application?.resume) {
-      const dt = new DataTransfer();
-      dt.items.add(b64ToFile(application.resume.base64, application.resume.filename, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
-      resumeInput.files = dt.files;
-      resumeInput.dispatchEvent(new Event("change", { bubbles: true }));
-      filled.push(`Résumé (${application.resume.filename})`);
+    for (const item of plan.fills) {
+      const fileData = item.file ? tailored ?? plan.resume : undefined;
+      if (item.file && !fileData) continue;
+      const res = await fillOne(null, item.file ? { ...item, fileData } : item);
+      if (res.ok) filled.push(item.file ? `${item.label} (${fileData.filename})` : item.label);
     }
-    const cover = [...document.querySelectorAll("textarea")].find((el) => visible(el) && /cover\s?letter/i.test(labelOf(el)));
-    if (cover && application?.coverLetter?.text) put(cover, application.coverLetter.text, "Cover letter");
-    return { filled, missing: profile.missing ?? [], application };
+    const cover = [...document.querySelectorAll("textarea")].find((el) => visible(el) && /cover\s?letter/i.test(labelOf(el)) && !(el.value && el.value.trim()));
+    if (cover && application?.coverLetter?.text) {
+      setNative(cover, application.coverLetter.text);
+      filled.push("Cover letter");
+    }
+    const missing = plan.needsYou.map((n) => n.label).filter((l) => !(cover && application?.coverLetter?.text && /cover\s?letter/i.test(l)));
+    return { filled, missing, application };
   }
 
   function legacyButton() {
@@ -867,7 +853,7 @@
     if (r.error) {
       s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.error === "not_connected" ? "Not connected" : "Couldn't fill this page"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.error === "not_connected" ? "Open WonderJobs and sign in — the extension picks it up from there automatically." : "WonderJobs didn't answer. Check you're signed in, then try again."}</p></div>`;
     } else {
-      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "WonderJobs has no application for this posting, so only your profile was used."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Fill these yourself — your Career Profile doesn't hold them: ${r.missing.map(esc).join(", ")}.</p>` : ""}<p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderJobs.</p></div>`;
+      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.blocked ? esc(r.blocked) : r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "From your Career Profile, CV and saved answers."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Left for you: ${r.missing.slice(0, 6).map(esc).join(", ")}${r.missing.length > 6 ? ` and ${r.missing.length - 6} more` : ""}.</p>` : ""}<p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderJobs.</p></div>`;
     }
     shadow().getElementById("x")?.addEventListener("click", legacyButton);
   }

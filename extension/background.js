@@ -51,15 +51,16 @@ async function connection() {
   return (await liveConnection()) ?? (await refreshFromSession());
 }
 
-async function api(path) {
+async function api(path, body) {
   const conn = await connection();
   if (!conn) return { error: "not_connected" };
-  const res = await fetch(`${conn.origin}${path}`, { headers: { authorization: `Bearer ${conn.token}` }, cache: "no-store" });
+  const init = (token) => ({ method: body ? "POST" : "GET", headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store" });
+  const res = await fetch(`${conn.origin}${path}`, init(conn.token));
   if (res.status === 401) {
     // The token aged out between checks; one retry with a fresh one.
     const fresh = await refreshFromSession();
     if (!fresh) return { error: "not_connected" };
-    const retry = await fetch(`${fresh.origin}${path}`, { headers: { authorization: `Bearer ${fresh.token}` }, cache: "no-store" });
+    const retry = await fetch(`${fresh.origin}${path}`, init(fresh.token));
     if (!retry.ok) return { error: "request_failed", status: retry.status };
     return { data: await retry.json() };
   }
@@ -200,6 +201,10 @@ const handlers = {
   },
   async application({ url }) {
     return api(`/api/extension/application?url=${encodeURIComponent(url)}`);
+  },
+  /** A page with no Apply with Wonder application: the form's structure in, what the candidate's own data fills out. */
+  async quickPlan({ form }) {
+    return api("/api/extension/quick-plan", form);
   },
   async disconnect() {
     await chrome.storage.local.remove([STORAGE_KEY, SESSIONS_KEY]);
