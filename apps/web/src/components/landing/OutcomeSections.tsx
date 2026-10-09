@@ -265,7 +265,7 @@ export function ControlSection() {
                       Submit your application
                     </th>
                     <td className="py-2.5 text-right">
-                      <span className="inline-block whitespace-nowrap rounded-full bg-brand-500/30 px-2.5 py-0.5 text-[12px] font-semibold text-brand-100">Never — your click</span>
+                      <span className="inline-block whitespace-nowrap rounded-full bg-brand-500/30 px-2.5 py-0.5 text-[12px] font-semibold text-brand-100">Only if you turn it on</span>
                     </td>
                   </tr>
                 </tbody>

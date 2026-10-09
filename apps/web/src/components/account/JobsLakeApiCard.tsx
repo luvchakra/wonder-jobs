@@ -189,7 +189,7 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
             </div>
           )}
 
-          <a href="/api/jobs-lake/v1/protocol" target="_blank" rel="noreferrer" className="text-[12px] text-brand-600 hover:underline">
+          <a href="/api-reference" target="_blank" rel="noreferrer" className="text-[12px] text-brand-600 hover:underline">
             API reference — endpoints, MCP and the sources a key can reach
           </a>
         </div>
