@@ -199,7 +199,7 @@ test.describe("JobsApply with the browser helper", () => {
     for (const v of ["Alex", "alex.morgan@example.com", "90000", "identity platform with the team"]) expect(audit).not.toContain(v);
   });
 
-  test("GJ2 / APPLY-045…047: sign in on the employer's site, verification challenge pauses, password never reaches WonderJobs", async ({ page, context, portal }) => {
+  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderJobs", async ({ page, context, portal }) => {
     portal.set("mock-login.html");
     await openApply(page);
     const employer = await startWithHelper(page, context);
@@ -209,12 +209,10 @@ test.describe("JobsApply with the browser helper", () => {
     await employer.locator("#u").fill("alex.morgan@example.com");
     await employer.locator("#p").fill("hunter2-secret-pw");
     await employer.locator("#signin").click();
-    await expect(panel(employer).getByText("Verification required")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Verification required").first()).toBeVisible({ timeout: 15_000 });
-    // The candidate completes the challenge (here: it goes away), then continues.
-    await employer.locator("#captcha").evaluate((f) => f.remove());
-    await panel(employer).getByRole("button", { name: "I've completed it" }).click();
-    await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click();
+    // A verification widget beside the form doesn't stop filling (WJ-257): the helper fills around it and
+    // leaves the challenge and the employer's button to the candidate.
+    await panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ }).click({ timeout: 20_000 });
+    await expect(panel(employer).getByText("Complete the page's verification, then press the employer's button yourself.")).toBeVisible({ timeout: 15_000 });
     await expect(employer.locator("#first_name")).toHaveValue("Alex", { timeout: 15_000 });
     const json = await sessionJson(page);
     expect(json).not.toContain("hunter2");
