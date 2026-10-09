@@ -1,0 +1,54 @@
+# Packs the browser helper for the Chrome Web Store and, once the store secrets exist, uploads and
+# publishes it. Run by hand (Actions → "Publish browser helper" → Run workflow) after bumping
+# extension/manifest.json. See docs/CHROME_WEB_STORE.md for the one-time setup.
+name: Publish browser helper
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Submit for review and publish (otherwise only build the package)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pack for the store
+        run: node scripts/pack-extension.mjs --store
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wonderjobs-helper
+          path: dist/*.zip
+      - name: Upload and publish
+        if: ${{ inputs.publish }}
+        env:
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CWS_EXTENSION_ID}" ] || [ -z "${CWS_REFRESH_TOKEN}" ]; then
+            echo "::error::Chrome Web Store secrets are not set. Do the one-time setup in docs/CHROME_WEB_STORE.md."
+            exit 1
+          fi
+          ZIP=$(ls dist/*.zip)
+          TOKEN=$(curl -fsS https://oauth2.googleapis.com/token \
+            -d client_id="${CWS_CLIENT_ID}" -d client_secret="${CWS_CLIENT_SECRET}" \
+            -d refresh_token="${CWS_REFRESH_TOKEN}" -d grant_type=refresh_token | jq -r .access_token)
+          echo "::add-mask::${TOKEN}"
+          curl -fsS -X PUT -H "Authorization: Bearer ${TOKEN}" -H "x-goog-api-version: 2" -T "${ZIP}" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${CWS_EXTENSION_ID}" | tee upload.json
+          jq -e '.uploadState == "SUCCESS"' upload.json >/dev/null || { echo "::error::Upload was not accepted"; exit 1; }
+          curl -fsS -X POST -H "Authorization: Bearer ${TOKEN}" -H "x-goog-api-version: 2" -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${CWS_EXTENSION_ID}/publish" | tee publish.json
+          jq -e '.status | index("OK") or index("ITEM_PENDING_REVIEW")' publish.json >/dev/null || { echo "::error::Publish was not accepted"; exit 1; }
