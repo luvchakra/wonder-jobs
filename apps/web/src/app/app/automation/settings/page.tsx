@@ -12,6 +12,8 @@ import { AutomationLevelSelector } from "@/components/automation/AutomationLevel
 import { toast } from "@/components/feedback/Toast";
 import { ScheduledSearchList } from "@/components/automation/ScheduledSearchList";
 import { METHOD_LABEL } from "@/components/jobs-apply/Preflight";
+import { SensitiveQuestions } from "@/components/automation/SensitiveQuestions";
+import { SENSITIVE_GROUPS } from "@/domain/jobs-apply/sensitive";
 
 // Shown in the order a search happens, in plain words. The internal pipeline steps are folded into one.
 const SHOWN: { keys: Capability[]; label: string }[] = [
@@ -33,7 +35,8 @@ const GROUPS = [
   { kind: "skip", title: "Off", icon: X, tone: "text-ink-4" },
 ] as const;
 
-const KNOWN = new Set<Capability>(SHOWN.flatMap((s) => s.keys));
+// Sensitive questions have their own section below.
+const KNOWN = new Set<Capability>([...SHOWN.flatMap((s) => s.keys), ...SENSITIVE_GROUPS]);
 
 /**
  * Automation: how much Wonder does on its own — and exactly what that means, read from the same rules the
@@ -95,6 +98,7 @@ export default function AutomationSettingsPage() {
           <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Never, at any level: submitting an application, or sending an email or message. Wonder drafts and opens; you press send.
         </p>
       </Card>
+      <SensitiveQuestions />
       <Fold title="Change one action" hint="Automatic, Ask me or Off for each thing Wonder does" className="mb-8">
         <AutomationPolicyEditor policy={policy} onChange={setCapability} />
         <Button

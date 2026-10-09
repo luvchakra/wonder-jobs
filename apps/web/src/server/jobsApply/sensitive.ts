@@ -55,7 +55,8 @@ export async function packSensitive(tenantId: string): Promise<PackSensitive | u
   try {
     const [automation, career, doc] = await Promise.all([readClientStateVersioned<{ policy?: Record<string, string>; defaultLevel?: AutomationLevel }>(tenantId, "wj.automation"), readClientState<{ dna?: CareerDNA }>(tenantId, "wj.career"), getSensitive(tenantId)]);
     const policy = migratePolicy(automation?.state.policy as never, automation?.version ?? POLICY_VERSION);
-    const level = automation?.state.defaultLevel ?? "guided";
+    // No saved level fails closed: "assist" asks for every medium-risk capability, so nothing is allowed.
+    const level = automation?.state.defaultLevel ?? "assist";
     // Each group is the candidate's explicit opt-in: it fills only when set to Automatic and allowed at this level.
     const allowed = SENSITIVE_GROUPS.filter((g: SensitiveGroup) => policy[g] === "automatic" && resolveCapability(g, policy, level) === "run");
     if (!allowed.length) return undefined;
