@@ -67,8 +67,14 @@ describe("AI suggestions and the email", () => {
     expect(mail.html).toContain("Suggested by AI");
     expect(mail.html).toContain('href="https://jobs.example/app/jobs?fit=strong"');
     expect(mail.html).toContain("Jobs reviewed");
-    expect(mail.html).toMatch(/<td width="100%" style="background:#4f46e5/); // the largest funnel stage fills its row
+    expect(mail.html).toMatch(/<td width="100%" style="background:#5b3ae0/); // the largest funnel stage fills its row
     expect(mail.text).toContain("Reviewed: 60 · Strong matches: 0");
     expect(mail.text).toContain("Stop these emails: https://jobs.example/api/digest/unsubscribe?u=x&s=y");
+    // The shared brand frame: logo, footer reason, settings, privacy and the existing unsubscribe link.
+    expect(mail.html).toContain('src="https://jobs.example/brand/wonderjobs-logo-light.png"');
+    expect(mail.html).toContain("You get this activity digest when there&#39;s been activity");
+    expect(mail.html).toContain('href="https://jobs.example/app/profile#notifications"');
+    expect(mail.html).toContain('href="https://jobs.example/api/digest/unsubscribe?u=x&amp;s=y"');
+    expect(mail.text).toContain("Notification settings: https://jobs.example/app/profile#notifications");
   });
 });
