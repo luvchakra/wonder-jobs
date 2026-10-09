@@ -110,6 +110,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JobsLake search cache: similar searches reuse each source's recent answer (WJ-253)
 - ✅ Smart search: broader phrasings at once (AI-picked from the profile); search terms on JobsLake Runs (WJ-254)
 - ✅ Billing admin: plans & features, live prices with "Change price", Stripe promo codes and automatic discounts, JobsLake API pricing, audited history (WJ-258)
+- ✅ Fix: scheduled searches run the next morning even after an evening run (WJ-259)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
 - ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)

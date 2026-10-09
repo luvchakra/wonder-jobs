@@ -94,18 +94,28 @@ export function nextScheduledRun(s: ScheduleShape, from: Date = new Date()): str
 }
 
 /**
- * The shortest gap between two legitimate firings of any schedule this product can express is a day
- * (daily, weekdays, weekly, monthly), so a schedule that ran within this window has already had its
- * turn. Both the browser's ticker and the server cron check it before firing, which is what lets the
- * two coexist on deployments where the cron is only a daily backstop: whoever gets there first wins and
- * the other stands down, however stale its copy of `nextRunAt` happens to be.
+ * Whether the occurrence `nextRunAt` names has already been taken. A scheduler may take an occurrence
+ * up to an hour early (the once-a-day cron; see `isDue`), so a run at or after `nextRunAt` minus that
+ * hour (plus a little slack) took it — whoever ran it, and however stale the other scheduler's copy of
+ * `nextRunAt` is. That's what lets the browser's ticker and the server cron coexist without firing
+ * twice. A run before that took an earlier occurrence (or was a "Run now"), so this one is still owed.
+ *
+ * A take only counts while it's fresh (12 h): an older one means `nextRunAt` was left on an occurrence
+ * that's long gone, and the schedule catches up instead of waiting forever.
+ *
+ * (This replaced a flat "ran in the last 12 hours" guard, which skipped the next morning's run of any
+ * schedule set up or run after ~8 pm the evening before.)
  */
-const ALREADY_RAN_MS = 12 * 60 * 60 * 1000;
+export const TAKE_WINDOW_MS = 65 * 60 * 1000;
+/** A take older than this can't be today's: `nextRunAt` was left pointing at a past occurrence, so catch up. */
+const TAKE_FRESH_MS = 12 * 60 * 60 * 1000;
 
-export function ranRecently(s: Pick<WorkflowSchedule, "lastRunAt">, now: Date = new Date()): boolean {
-  if (!s.lastRunAt) return false;
-  const at = new Date(s.lastRunAt).getTime();
-  return Number.isFinite(at) && now.getTime() - at < ALREADY_RAN_MS;
+export function tookOccurrence(s: Pick<WorkflowSchedule, "lastRunAt" | "nextRunAt">, now: Date = new Date()): boolean {
+  if (!s.lastRunAt || !s.nextRunAt) return false;
+  const ran = new Date(s.lastRunAt).getTime();
+  const due = new Date(s.nextRunAt).getTime();
+  if (!Number.isFinite(ran) || !Number.isFinite(due)) return false;
+  return ran >= due - TAKE_WINDOW_MS && now.getTime() - ran < TAKE_FRESH_MS;
 }
 
 /**
@@ -119,7 +129,7 @@ export function ranRecently(s: Pick<WorkflowSchedule, "lastRunAt">, now: Date = 
 export function isDue(s: Pick<WorkflowSchedule, "enabled" | "trigger" | "nextRunAt" | "lastRunAt">, now: Date = new Date(), earlyMs = 0): boolean {
   if (!s.enabled || s.trigger !== "schedule" || !s.nextRunAt) return false;
   if (new Date(s.nextRunAt).getTime() > now.getTime() + Math.max(0, earlyMs)) return false;
-  return !ranRecently(s, now);
+  return !tookOccurrence(s, now);
 }
 
 /**
