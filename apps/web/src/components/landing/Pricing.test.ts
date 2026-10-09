@@ -14,3 +14,10 @@ describe("pricing on the landing page", () => {
     expect(planPoints(DEFAULT_PLANS.plans.max).join(" ")).not.toMatch(/ATS/);
   });
 });
+
+describe("lines the operator added in Plans & features", () => {
+  it("follow the plan's own points, as written", () => {
+    const pts = planPoints({ ...DEFAULT_PLANS.plans.pro, highlights: ["Priority support"] });
+    expect(pts.at(-1)).toBe("Priority support");
+  });
+});

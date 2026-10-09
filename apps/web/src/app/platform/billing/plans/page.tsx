@@ -3,6 +3,7 @@ import { useState } from "react";
 import { PLAN_IDS, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
+import { Plus, X } from "lucide-react";
 import { Input, Switch } from "@/components/common/Input";
 import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
@@ -23,7 +24,8 @@ const FLAGS: { key: FlagKey; label: string }[] = [
   { key: "applyWithWonder", label: "Apply with Wonder" },
   { key: "atsReport", label: "ATS report" },
 ];
-const FEATURE_KEYS = ["label", "tagline", ...NUMBERS.map((n) => n.key), ...FLAGS.map((f) => f.key)] as const;
+const FEATURE_KEYS = ["label", "tagline", ...NUMBERS.map((n) => n.key), ...FLAGS.map((f) => f.key), "highlights"] as const;
+const MAX_HIGHLIGHTS = 10;
 
 type Data = { config: PlansConfig; enforcedAt: Record<string, string> };
 
@@ -45,7 +47,8 @@ function Editor({ data }: { data: Data }) {
   const setPlan = (id: PlanId, patch: Partial<PlanLimits>) => setDraft((d) => ({ ...d, plans: { ...d.plans, [id]: { ...d.plans[id], ...patch } } }));
   const save = async () => {
     setBusy(true);
-    const plans = Object.fromEntries(PLAN_IDS.map((id) => [id, Object.fromEntries(FEATURE_KEYS.map((k) => [k, draft.plans[id][k]]))]));
+    // Blank feature lines are dropped rather than saved.
+    const plans = Object.fromEntries(PLAN_IDS.map((id) => [id, Object.fromEntries(FEATURE_KEYS.map((k) => [k, k === "highlights" ? draft.plans[id].highlights.map((h) => h.trim()).filter(Boolean) : draft.plans[id][k]]))]));
     const r = await adminFetch<{ config: PlansConfig; changes: unknown[] }>("/api/billing/admin/plans", { method: "PUT", body: JSON.stringify({ plans }) });
     setBusy(false);
     if (!r.ok) return toast.error("Couldn't save", r.error.message);
@@ -96,13 +99,30 @@ function Editor({ data }: { data: Data }) {
                   <Switch checked={l[f.key]} onChange={(v) => setPlan(id, { [f.key]: v })} label={`${l.label}: ${f.label}`} />
                 </div>
               ))}
+              <div className="border-t border-line pt-3">
+                <p className={label}>More features on pricing</p>
+                <p className="mb-2 text-[12px] text-ink-3">Shown as written after the limits above. Display only — keep each line true for {l.label}.</p>
+                <ul className="flex flex-col gap-2">
+                  {l.highlights.map((h, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Input aria-label={`${l.label}: feature ${i + 1}`} value={h} maxLength={90} placeholder="e.g. Priority support" onChange={(e) => setPlan(id, { highlights: l.highlights.map((x, j) => (j === i ? e.target.value : x)) })} />
+                      <Button size="sm" variant="ghost" aria-label={`Remove feature ${i + 1}`} icon={<X className="size-4" aria-hidden />} onClick={() => setPlan(id, { highlights: l.highlights.filter((_, j) => j !== i) })} />
+                    </li>
+                  ))}
+                </ul>
+                {l.highlights.length < MAX_HIGHLIGHTS && (
+                  <Button size="sm" variant="outline" className="mt-2" icon={<Plus className="size-4" aria-hidden />} onClick={() => setPlan(id, { highlights: [...l.highlights, ""] })}>
+                    Add a feature
+                  </Button>
+                )}
+              </div>
             </Card>
           );
         })}
       </div>
       <Fold className="mt-4" title="Where each limit is enforced" hint="Server-checked limits can't be bypassed from the browser.">
         <ul className="flex flex-col gap-1.5 text-[13px] text-ink-2">
-          {[...NUMBERS, ...FLAGS].map((f) => (
+          {[...NUMBERS, ...FLAGS, { key: "highlights", label: "More features on pricing" }].map((f) => (
             <li key={f.key}>
               <span className="font-medium text-ink">{f.label}</span> — {data.enforcedAt[f.key] ?? "—"}
             </li>

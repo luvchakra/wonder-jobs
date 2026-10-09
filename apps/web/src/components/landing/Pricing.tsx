@@ -9,7 +9,7 @@ const ORDER: PlanId[] = ["free", "pro", "max"];
 /** ₹499 rather than ₹499.00 when the price is whole; otherwise as billing shows it. */
 const wholePrice = (minor: number, currency: string) => (minor % 100 === 0 ? new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(minor / 100) : formatMoney(minor, currency));
 
-/** What a plan gives, in its own numbers — read from the plan configuration checkout uses, never written here. */
+/** What a plan gives, in its own numbers — read from the plan configuration checkout uses — then the lines an operator added in Plans & features. */
 export function planPoints(l: PlansConfig["plans"][PlanId]): string[] {
   return [
     `${l.roles} role${l.roles === 1 ? "" : "s"} to search for`,
@@ -18,6 +18,7 @@ export function planPoints(l: PlansConfig["plans"][PlanId]): string[] {
     `${l.aiDraftsPerMonth} AI drafts a month`,
     l.resumeTemplates >= 8 ? "All résumé designs" : `${l.resumeTemplates} résumé design${l.resumeTemplates === 1 ? "" : "s"}`,
     ...(l.applyWithWonder ? ["Apply with Wonder — fills employer forms, on computer and phone"] : []),
+    ...(l.highlights ?? []),
   ];
 }
 

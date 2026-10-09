@@ -51,3 +51,15 @@ describe("scheduleAllowance", () => {
     expect(scheduleAllowance("free", DEFAULT_PLANS, 5, "manual")).toEqual({ ok: true });
   });
 });
+
+describe("plan highlights — extra feature lines an operator adds", () => {
+  it("keeps valid lines and drops a bad list, leaving the default (none)", () => {
+    const ok = mergePlansConfig({ plans: { pro: { highlights: ["Priority support", "Early access to new features"] } } });
+    expect(ok.plans.pro.highlights).toEqual(["Priority support", "Early access to new features"]);
+    expect(ok.plans.free.highlights).toEqual([]);
+    const tooLong = mergePlansConfig({ plans: { pro: { highlights: ["x".repeat(91)] } } });
+    expect(tooLong.plans.pro.highlights).toEqual([]);
+    const tooMany = mergePlansConfig({ plans: { pro: { highlights: Array.from({ length: 11 }, (_, i) => `Line ${i}`) } } });
+    expect(tooMany.plans.pro.highlights).toEqual([]);
+  });
+});
