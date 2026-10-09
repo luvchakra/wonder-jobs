@@ -112,6 +112,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Billing admin: plans & features, live prices with "Change price", Stripe promo codes and automatic discounts, JobsLake API pricing, audited history (WJ-258)
 - ✅ Fix: scheduled searches run the next morning even after an evening run (WJ-259)
 - ✅ Fix: helper no longer flickers or re-fills while filling (WJ-260)
+- ✅ Helper understands education, address and work-history questions and fills them from the Career Profile (WJ-261)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
 - ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)

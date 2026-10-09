@@ -20,6 +20,9 @@ export type FieldTarget =
   | { kind: "metric" }
   | { kind: "none" };
 
+/** The part of the form a field sits in, when the page or its neighbours say: "Start date" under Education is the course's start, not the candidate's. */
+export type FormContext = "education" | "experience" | "address";
+
 export interface FieldClass {
   category: QuestionCategory;
   classification: Classification;
@@ -27,6 +30,8 @@ export interface FieldClass {
   confidence: Confidence;
   /** Plain-language reason shown when Wonder leaves a field for the candidate. */
   reason?: string;
+  /** The section the field was read in, when that decided what it asks. */
+  context?: FormContext;
 }
 
 /** "first_name", "firstName", "applicant.first-name" → "first name applicant". */
@@ -61,7 +66,12 @@ const AC_PROFILE: Record<string, ProfileKey> = {
   email: "email",
   tel: "phone",
   "tel-national": "phone",
+  "street-address": "addressLine1",
+  "address-line1": "addressLine1",
+  "address-line2": "addressLine2",
   "address-level2": "city",
+  "address-level1": "state",
+  "postal-code": "postalCode",
   "country-name": "country",
   country: "country",
   organization: "currentEmployer",
@@ -70,16 +80,112 @@ const AC_PROFILE: Record<string, ProfileKey> = {
 };
 
 type Rule = { re: RegExp; reject?: RegExp; key: ProfileKey; category: QuestionCategory };
+const CATEGORY_OF: Partial<Record<ProfileKey, QuestionCategory>> = {
+  email: "CONTACT",
+  phone: "CONTACT",
+  websiteUrl: "CONTACT",
+  linkedinUrl: "CONTACT",
+  portfolioUrl: "CONTACT",
+  githubUrl: "CONTACT",
+  addressLine1: "LOCATION",
+  addressLine2: "LOCATION",
+  city: "LOCATION",
+  state: "LOCATION",
+  postalCode: "LOCATION",
+  country: "LOCATION",
+  location: "LOCATION",
+  currentEmployer: "EXPERIENCE",
+  currentTitle: "EXPERIENCE",
+  jobStartDate: "EXPERIENCE",
+  jobEndDate: "EXPERIENCE",
+  hasWorkExperience: "EXPERIENCE",
+  yearsOfExperience: "EXPERIENCE",
+  university: "EDUCATION",
+  degreeName: "EDUCATION",
+  degreeType: "EDUCATION",
+  fieldOfStudy: "EDUCATION",
+  educationStartDate: "EDUCATION",
+  educationEndDate: "EDUCATION",
+};
+const categoryOf = (k: ProfileKey): QuestionCategory => CATEGORY_OF[k] ?? "IDENTITY";
+
+/** What a section heading says the part of the form is about. */
+export function contextOfSection(section: string | undefined): FormContext | undefined {
+  const t = (section ?? "").toLowerCase();
+  if (!t) return undefined;
+  if (/\b(education|academic|qualifications?|school|universit|degree)/.test(t)) return "education";
+  if (/\b(work experience|experience|employment|work history|career history|previous (jobs|roles|employers)|job history|positions? held)\b/.test(t)) return "experience";
+  if (/\baddress\b/.test(t)) return "address";
+  return undefined;
+}
+
+/** Education facts, asked in any part of the form. Order matters: "Type of degree" before "Degree". */
+const EDUCATION_RULES: Rule[] = [
+  { re: /\b(type of (degree|qualification|education)|degree type|degree level|level of (education|degree|study|qualification)|highest (level of )?(education|degree|qualification|academic)|education(al)? (level|qualification|attainment)|qualification level)\b/, reject: /\b(gpa|grade|percentage|year|date|universit|college|school name)\b/, key: "degreeType", category: "EDUCATION" },
+  { re: /\b(graduation (date|year)|year of (passing|completion|graduation)|passing year|passed out|date of graduation|graduated (in|on)|when did you graduate)\b/, key: "educationEndDate", category: "EDUCATION" },
+  { re: /\b(universit(y|ies)|college|institut(e|ion)|alma mater|school or university|school name|name of (the )?school)\b/, reject: /\b(high school|secondary|type|level|degree|gpa|grade|percentage|city|country|location|state|address|year|date|email|e-mail)\b/, key: "university", category: "EDUCATION" },
+  { re: /\b(field of study|fields? of (study|education)|major|speciali[sz](ation|ed in)|discipline|area of study|concentration|course of study|stream of study)\b/, reject: /\b(accomplish|achievement|project|bank|minor|incident)\b/, key: "fieldOfStudy", category: "EDUCATION" },
+  { re: /\b(degree|qualification|diploma)( name| title| obtained| earned| awarded| received)?\b/, reject: /\b(type|level|highest|gpa|grade|class|percentage|year|date|universit|college|school|field|major|required|minimum|do you have|360)\b/, key: "degreeName", category: "EDUCATION" },
+];
+
+/** "Do you have past working experience?" — not "experience with Python", not "worked for us before". */
+const HAS_EXPERIENCE = /\b(do|did) you have (any )?((past|previous|prior|professional|full[- ]time|paid|relevant) )*(work(ing)?|professional|employment|job|industry) experience\b|\bhave you (ever )?(been (gainfully )?employed|worked)( before| previously)?\s*[?*:]*\s*$/;
+const HAS_EXPERIENCE_NOT = /experience (in|with|using|as|at|of|on|for)\b|\b(us|our|this company|here)\b/;
+const TOTAL_YEARS = /\b(total|overall) (years of )?(work |professional |relevant |industry )?(experience|exp)\b|\byears of (total |overall |professional |work )?experience\s*[?*:]*\s*$|\bhow many years (of (professional |work )?experience )?(have you (been )?(worked|working)|do you have)\s*[?*:]*\s*$|\bexperience \(in years\)|\bexperience in years\b/;
+const TOTAL_YEARS_NOT = /experience (in|with|using|as|on|of) [a-z]/;
+
+const AVAILABILITY_DATE = /\b(when can you|earliest|expected|preferred|available|availability|joining date|date of joining|can (you )?join|notice)\b/;
+const START = /\b(start|from|begin|began|commenced|joined|since)\b/;
+const END = /\b(end|to|until|till|finish(ed)?|completed?|completion|graduat\w*|left|leaving)\b/;
+
+/** A field whose meaning comes from the section it's in: dates, a bare "Name" or "Title", "Line 1". */
+function byContext(f: ApplicationField, visible: string, ctx: FormContext | undefined, strong: boolean): FieldClass | undefined {
+  if (!ctx || f.type === "checkbox") return undefined;
+  const confidence: Confidence = strong ? "HIGH" : "MEDIUM";
+  const reason = strong ? undefined : "Wonder read this from the fields around it — confirm it's right.";
+  const hit = (key: ProfileKey): FieldClass => ({ category: categoryOf(key), classification: "safe", target: { kind: "profile", key }, confidence, reason, context: ctx });
+  const dateish = f.type === "date" || /\b(date|month|year)\b/.test(visible) || /^(from|to|since|until|start|end)\b/.test(visible);
+  // Where the school or the job was — not where the candidate lives.
+  if (strong && ctx !== "address" && /\b(city|town|country|location|state|province)\b/.test(visible) && !dateish) {
+    return { category: categoryOf(ctx === "education" ? "university" : "currentEmployer"), classification: "confirm", target: { kind: "none" }, confidence: "LOW", reason: ctx === "education" ? "Where you studied — check it yourself." : "Where this job was — check it yourself.", context: ctx };
+  }
+  if (ctx === "education") {
+    if (dateish && !AVAILABILITY_DATE.test(visible)) {
+      if (START.test(visible)) return hit("educationStartDate");
+      if (END.test(visible)) return hit("educationEndDate");
+    }
+    if (/^(name|institution|school)\b/.test(visible)) return hit("university");
+    if (/^(course|field|subject|branch|stream)\b/.test(visible)) return hit("fieldOfStudy");
+  }
+  if (ctx === "experience") {
+    if (dateish && !AVAILABILITY_DATE.test(visible)) {
+      if (START.test(visible)) return hit("jobStartDate");
+      if (END.test(visible)) return hit("jobEndDate");
+    }
+    if (/\b(job title|title|position|role|designation)\b/.test(visible) && !/\b(desired|applying|preferred)\b/.test(visible)) return hit("currentTitle");
+    if (/\b(company|employer|organi[sz]ation)\b/.test(visible)) return hit("currentEmployer");
+  }
+  if (ctx === "address") {
+    if (/\bline ?1\b|^street\b|^address\b/.test(visible)) return hit("addressLine1");
+    if (/\bline ?2\b/.test(visible)) return hit("addressLine2");
+  }
+  return undefined;
+}
+
 const PROFILE_RULES: Rule[] = [
   { re: /\b(first|given) ?name\b|\bfname\b|\bforename\b/, reject: /preferred|legal first|middle|nick/, key: "firstName", category: "IDENTITY" },
   { re: /\b(last|family) ?name\b|\bsurname\b|\blname\b/, reject: /preferred|maiden/, key: "lastName", category: "IDENTITY" },
-  { re: /\b(full ?name|your name|legal name|candidate name|applicant name)\b|^name\*?$|^name\b/, reject: /company|employer|user ?name|file|referr|school|univers|college|manager|recruiter|reference|emergency|preferred|nick|first|last|middle|sponsor|job|position|role/, key: "fullName", category: "IDENTITY" },
+  { re: /\b(full ?name|your name|legal name|candidate name|applicant name)\b|^name\*?$|^name\b/, reject: /company|employer|user ?name|file|referr|school|univers|college|institut|degree|manager|recruiter|reference|emergency|preferred|nick|first|last|middle|sponsor|job|position|role/, key: "fullName", category: "IDENTITY" },
   { re: /e-?mail/, reject: /referr|reference|manager|recruiter|confirm your|emergency|alternate|secondary/, key: "email", category: "CONTACT" },
   { re: /\b(phone|mobile|telephone|cell|contact number|whatsapp)\b/, reject: /referr|reference|emergency|alternate|secondary|country code only/, key: "phone", category: "CONTACT" },
   { re: /linked ?in/, key: "linkedinUrl", category: "CONTACT" },
   { re: /git ?hub/, key: "githubUrl", category: "CONTACT" },
   { re: /\bportfolio\b/, reject: /upload|attach|file/, key: "portfolioUrl", category: "CONTACT" },
   { re: /\b(personal )?(website|web site|homepage|blog)\b|\bother url\b/, key: "websiteUrl", category: "CONTACT" },
+  { re: /\baddress (line )?2\b|\bapartment\b|\bsuite\b|\bapt\b/, reject: /e-?mail|web|url|\bip\b|billing/, key: "addressLine2", category: "LOCATION" },
+  { re: /\baddress (line )?1\b|\bstreet( address)?\b|\b(residential|home|current|permanent|postal|mailing|correspondence|street) address\b|^address\b/, reject: /e-?mail|web|url|\bip\b|billing|\bmac\b|line 2/, key: "addressLine1", category: "LOCATION" },
+  { re: /\b(zip|postal|post ?code|postcode|pin ?code|pincode)\b/, reject: /country code|phone/, key: "postalCode", category: "LOCATION" },
+  { re: /\b(state|province|county|prefecture|territory)\b|^region\b/, reject: /statement|united states|state of|status|estate|authori|eligib|visa|citizen|willing|relocat|preferred|which states/, key: "state", category: "LOCATION" },
   { re: /\bcity\b|\btown\b/, reject: /birth/, key: "city", category: "LOCATION" },
   { re: /\bcountry\b/, reject: /code|citizenship|birth|passport|authori/, key: "country", category: "LOCATION" },
   { re: /\b(current )?location\b|where are you (based|located)|\bbased in\b/, reject: /preferred|willing|relocat|office|job location/, key: "location", category: "LOCATION" },
@@ -111,7 +217,7 @@ const BEHAVIORAL = /\b(describe (a|an|your)|tell (us|me) about|give (us )?an exa
 const QUANTIFY = /\b(quantif|measurable|metric|impact in numbers|by how much|percentage|\bkpi)/;
 const TECHNICAL = /\b(years of experience (with|in)|experience (with|in|using)|proficien|familiar with|hands-on|tech stack|programming|framework)\b/;
 
-export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: boolean } = {}): FieldClass {
+export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: boolean; context?: FormContext } = {}): FieldClass {
   const { visible, attrs, all } = fieldText(f);
   const ac = (f.hints?.autocomplete ?? "").toLowerCase().trim().split(/\s+/).pop() ?? "";
 
@@ -145,10 +251,24 @@ export function classifyField(f: ApplicationField, opts: { hasCoverLetter?: bool
 
   // 4. Profile facts, by autocomplete first (the page's own statement of what the field is).
   const acKey = AC_PROFILE[ac];
-  if (acKey) return { category: acKey === "email" || acKey === "phone" || acKey === "websiteUrl" ? "CONTACT" : acKey === "city" || acKey === "country" ? "LOCATION" : acKey === "currentEmployer" || acKey === "currentTitle" ? "EXPERIENCE" : "IDENTITY", classification: "safe", target: { kind: "profile", key: acKey }, confidence: "HIGH" };
+  if (acKey) return { category: categoryOf(acKey), classification: "safe", target: { kind: "profile", key: acKey }, confidence: "HIGH" };
 
   if (/preferred (first )?name|nick ?name|middle name|maiden/.test(visible)) {
     return { category: "IDENTITY", classification: "unknown", target: { kind: "none" }, confidence: "LOW", reason: "Only you know how you'd like to be addressed." };
+  }
+
+  // 4b. Where the field sits decides what a bare "Start date", "Name" or "Line 1" means. The page's own section
+  // heading is a strong signal; the fields around it (worked out by the mapper) are a weaker one.
+  const sectionCtx = contextOfSection(f.hints?.section);
+  const inContext = byContext(f, visible, sectionCtx ?? opts.context, !!sectionCtx);
+  if (inContext) return inContext;
+  if (f.type !== "checkbox") {
+    for (const r of EDUCATION_RULES) {
+      if (r.re.test(visible) && !(r.reject && r.reject.test(visible))) return { category: "EDUCATION", classification: "safe", target: { kind: "profile", key: r.key }, confidence: "HIGH" };
+    }
+    if (HAS_EXPERIENCE.test(visible) && !HAS_EXPERIENCE_NOT.test(visible)) return { category: "EXPERIENCE", classification: "safe", target: { kind: "profile", key: "hasWorkExperience" }, confidence: "HIGH" };
+    // Counted from the role dates — offered for the candidate to confirm, never filled on its own.
+    if (TOTAL_YEARS.test(visible) && !TOTAL_YEARS_NOT.test(visible)) return { category: "EXPERIENCE", classification: "confirm", target: { kind: "profile", key: "yearsOfExperience" }, confidence: "LOW", reason: "Counted from the dates in your Career Profile — confirm the number." };
   }
 
   // 5. Volatile preferences — confirm before fill (§21, §85). Checked before profile rules so "expected salary (city)" isn't a city.

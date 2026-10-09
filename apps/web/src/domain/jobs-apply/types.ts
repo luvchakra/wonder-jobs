@@ -21,10 +21,63 @@ export interface ApplicationValue<T = string> {
 }
 
 /** The profile keys a form field can be mapped to. */
-export const PROFILE_KEYS = ["firstName", "lastName", "fullName", "email", "phone", "city", "country", "location", "linkedinUrl", "portfolioUrl", "githubUrl", "websiteUrl", "currentEmployer", "currentTitle"] as const;
+export const PROFILE_KEYS = [
+  "firstName",
+  "lastName",
+  "fullName",
+  "email",
+  "phone",
+  "addressLine1",
+  "addressLine2",
+  "city",
+  "state",
+  "postalCode",
+  "country",
+  "location",
+  "linkedinUrl",
+  "portfolioUrl",
+  "githubUrl",
+  "websiteUrl",
+  "currentEmployer",
+  "currentTitle",
+  "jobStartDate",
+  "jobEndDate",
+  "hasWorkExperience",
+  "yearsOfExperience",
+  "university",
+  "degreeName",
+  "degreeType",
+  "fieldOfStudy",
+  "educationStartDate",
+  "educationEndDate",
+] as const;
 export type ProfileKey = (typeof PROFILE_KEYS)[number];
 
 export type ApplicationProfile = Partial<Record<ProfileKey, ApplicationValue>>;
+
+/** One education entry from the Career Profile, highest level first — a form's 2nd education block reads the 2nd entry. */
+export interface EducationFact {
+  institution: string;
+  degree?: string;
+  /** "Bachelor's", "Master's", "Doctorate", "Diploma", "High school" — read from the degree's own words. */
+  degreeType?: string;
+  field?: string;
+  /** "YYYY-MM" or "YYYY". */
+  startDate?: string;
+  endDate?: string;
+  provenance: ValueProvenance;
+}
+
+/** One role from the Career Profile, most recent first — a form's 2nd work-history block reads the 2nd role. */
+export interface ExperienceFact {
+  employer: string;
+  title: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  provenance: ValueProvenance;
+}
 
 /* ------------------------------------------------------ answer memory */
 
@@ -82,6 +135,9 @@ export interface ApplicationPackSnapshot {
   resume?: PackFile;
   coverLetter?: PackFile & { text?: string };
   answers: PackAnswer[];
+  /** Every education entry and role, for forms that ask for more than the latest one. */
+  education?: EducationFact[];
+  experience?: ExperienceFact[];
   /** Hash of the snapshot contents, so a session can say exactly which pack it used. */
   version: string;
   capturedAt: string;
@@ -113,7 +169,7 @@ export interface ApplicationField {
   required: boolean;
   options?: { label: string; value: string }[];
   /** Attribute hints the helper saw (name, id, autocomplete, placeholder, aria-label). */
-  hints?: { name?: string; id?: string; autocomplete?: string; placeholder?: string; aria?: string };
+  hints?: { name?: string; id?: string; autocomplete?: string; placeholder?: string; aria?: string; section?: string };
   /** Page step it belongs to (multi-step forms, §31). */
   step?: number;
   /** Whether the field currently holds anything — a boolean, never the content. */

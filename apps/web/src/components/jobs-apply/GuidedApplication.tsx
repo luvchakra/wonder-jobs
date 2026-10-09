@@ -20,7 +20,7 @@ async function copy(text: string): Promise<boolean> {
   }
 }
 
-const ORDER = ["firstName", "lastName", "fullName", "email", "phone", "location", "city", "country", "linkedinUrl", "portfolioUrl", "githubUrl", "websiteUrl", "currentEmployer", "currentTitle"] as const;
+const ORDER = ["firstName", "lastName", "fullName", "email", "phone", "location", "addressLine1", "addressLine2", "city", "state", "postalCode", "country", "linkedinUrl", "portfolioUrl", "githubUrl", "websiteUrl", "currentEmployer", "currentTitle", "university", "degreeName", "fieldOfStudy"] as const;
 
 /** "coinbase.com/careers/positions/8155366" — the place, without the scheme, "www." or tracking query. */
 function shortUrl(url: string): string {

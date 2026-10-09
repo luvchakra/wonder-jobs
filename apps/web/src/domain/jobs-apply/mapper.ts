@@ -7,9 +7,10 @@
  * in the page — a SAFE field matched with HIGH confidence to the candidate's own data, or a value
  * the candidate approved. Human-only fields never carry a value, even an approved one.
  */
-import { classifyField, fieldText, type FieldClass } from "./classify";
+import { classifyField, fieldText, type FieldClass, type FormContext } from "./classify";
+import { shapeProfileValue } from "./fieldValue";
 import { freshMemory, MEMORY_LABEL, PROFILE_LABEL } from "./profile";
-import type { AiHint, ApplicationField, ApplicationForm, ApplicationPackSnapshot, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, RememberedAnswer } from "./types";
+import type { AiHint, ApplicationField, ApplicationForm, ApplicationPackSnapshot, ApplicationValue, FieldMapping, InterventionItem, JobsApplySession, MappingSource, MemoryKey, ProfileKey, RememberedAnswer } from "./types";
 
 export interface MapResult {
   mappings: FieldMapping[];
@@ -110,6 +111,61 @@ function parseAmount(s: string): { rupees: number; lakhs: number } | undefined {
   return { rupees: Math.round(rupees), lakhs };
 }
 
+const EDUCATION_KEYS = new Set<ProfileKey>(["university", "degreeName", "degreeType", "fieldOfStudy", "educationStartDate", "educationEndDate"]);
+const ROLE_KEYS = new Set<ProfileKey>(["currentEmployer", "currentTitle", "jobStartDate", "jobEndDate"]);
+const keyOf = (c: FieldClass): ProfileKey | undefined => (c.target.kind === "profile" ? c.target.key : undefined);
+
+/**
+ * The section each field sits in, read from its neighbours when the page has no heading for it: a
+ * "Start date" two fields from "Degree" is the course's start; one beside "Company" and "Job title" is
+ * the role's. Neighbours are fields on the same step within three places.
+ */
+export function neighbourContexts(fields: ApplicationField[], classes: FieldClass[]): (FormContext | undefined)[] {
+  const ADDRESS = new Set<ProfileKey | undefined>(["addressLine1", "addressLine2", "city", "state", "postalCode", "country"]);
+  return fields.map((f, i) => {
+    const at = (j: number) => (j >= 0 && j < fields.length && fields[j].step === f.step ? classes[j] : undefined);
+    // The nearest recognised neighbour decides: education or address.
+    for (let d = 1; d <= 3; d++) {
+      for (const c of [at(i - d), at(i + d)]) {
+        if (!c) continue;
+        if (c.category === "EDUCATION") return "education";
+        if (ADDRESS.has(keyOf(c))) return "address";
+      }
+    }
+    // A role needs both its company and its title nearby — "Current company" alone sits beside anything.
+    const keys = new Set([-3, -2, -1, 1, 2, 3].map((d) => at(i + d)).map((c) => (c ? keyOf(c) : undefined)));
+    if (keys.has("currentEmployer") && keys.has("currentTitle")) return "experience";
+    return undefined;
+  });
+}
+
+/** "Education 2", "Work Experience 3" → the block's place (1, 2), when the page numbers its blocks. */
+const blockOf = (section: string | undefined): number | undefined => {
+  const m = /(\d{1,2})\s*$/.exec((section ?? "").trim());
+  return m && Number(m[1]) >= 1 ? Number(m[1]) - 1 : undefined;
+};
+
+/** The candidate's value for the n-th time a form asks this (a 2nd education block reads the 2nd entry). */
+function valueAt(key: ProfileKey, n: number, c: FieldClass, pack: ApplicationPackSnapshot): ApplicationValue | undefined {
+  const of = (value: string | undefined, provenance: ApplicationValue["provenance"], confidence = 1) => (value?.trim() ? { value: value.trim(), provenance, confidence } : undefined);
+  if (EDUCATION_KEYS.has(key) && n > 0) {
+    const e = pack.education?.[n];
+    if (!e) return undefined;
+    const pick: Record<string, string | undefined> = { university: e.institution, degreeName: e.degree, degreeType: e.degreeType, fieldOfStudy: e.field, educationStartDate: e.startDate, educationEndDate: e.endDate };
+    return key === "degreeType" ? of(e.degreeType, "AI_DERIVED", 0.9) : of(pick[key], e.provenance);
+  }
+  if (ROLE_KEYS.has(key) && c.context === "experience" && pack.experience?.length) {
+    const r = pack.experience[n];
+    if (!r) return undefined;
+    const pick: Record<string, string | undefined> = { currentEmployer: r.employer, currentTitle: r.title, jobStartDate: r.startDate, jobEndDate: r.current ? undefined : r.endDate };
+    return of(pick[key], r.provenance);
+  }
+  return pack.profile[key];
+}
+
+const fullAddress = (p: ApplicationPackSnapshot["profile"]) =>
+  p.addressLine1 ? [p.addressLine1, p.addressLine2, p.city, p.state, p.postalCode, p.country].map((x) => x?.value).filter(Boolean).join(", ") : undefined;
+
 function interventionFor(field: ApplicationField, c: FieldClass, kind: InterventionItem["kind"], suggestion?: InterventionItem["suggestion"]): InterventionItem {
   return { id: `iv_${field.id}`, fieldId: field.id, label: field.label || fieldText(field).visible || "Unlabelled field", category: c.category, required: field.required, kind, suggestion, status: "open" };
 }
@@ -122,7 +178,8 @@ export function hintValue(field: ApplicationField, hint: AiHint | undefined, pac
   if (!hint || hint.kind === "none" || field.type === "checkbox" || field.type === "file") return undefined;
   if (hint.kind === "profile") {
     const pv = pack.profile[hint.key];
-    return pv ? pickOption(field, pv.value) : undefined;
+    const shaped = pv ? shapeProfileValue(field, hint.key, pv.value, { fullAddress: fullAddress(pack.profile) }) : undefined;
+    return shaped?.exact ? shaped.value : undefined;
   }
   if (hint.kind === "memory") {
     if (hint.key === "workAuthorization" || hint.key === "sponsorship" || hint.key === "custom") return undefined;
@@ -137,7 +194,21 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
   const mappings: FieldMapping[] = [];
   const interventions: InterventionItem[] = [];
   const hasCover = !!pack.coverLetter;
-  const classes = form.fields.map((f) => classifyField(f, { hasCoverLetter: hasCover }));
+  const first = form.fields.map((f) => classifyField(f, { hasCoverLetter: hasCover }));
+  const contexts = neighbourContexts(form.fields, first);
+  const classes = form.fields.map((f, i) => (contexts[i] ? classifyField(f, { hasCoverLetter: hasCover, context: contexts[i] }) : first[i]));
+  // How many times each key was asked before this field: the n-th education block reads the n-th entry.
+  const seen = new Map<string, number>();
+  const occurrence = classes.map((c, i) => {
+    const key = keyOf(c);
+    if (!key || !(EDUCATION_KEYS.has(key) || (ROLE_KEYS.has(key) && c.context === "experience"))) return 0;
+    const block = blockOf(form.fields[i].hints?.section);
+    if (block !== undefined) return block;
+    const id = `${key}:${c.context ?? ""}`;
+    const n = seen.get(id) ?? 0;
+    seen.set(id, n + 1);
+    return n;
+  });
   // §30: several fields that could take the résumé → ask which, unless the candidate already chose.
   const resumeFields = form.fields.filter((_, i) => classes[i].target.kind === "file" && (classes[i].target as { file: string }).file === "resume");
   const chosenResumeField = resumeFields.find((f) => approved[f.id]?.value === "resume")?.id;
@@ -194,18 +265,24 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
 
     switch (c.target.kind) {
       case "profile": {
-        const pv = pack.profile[c.target.key];
-        const label = PROFILE_LABEL[c.target.key];
+        const key = c.target.key;
+        const n = occurrence[i];
+        const pv = valueAt(key, n, c, pack);
+        const label = PROFILE_LABEL[key];
+        const path = n > 0 ? `${EDUCATION_KEYS.has(key) ? "education" : "experience"}[${n}].${key}` : `profile.${key}`;
         if (!pv) {
-          const reason = `${label} isn't in your Career Profile.`;
+          const list = EDUCATION_KEYS.has(key) ? pack.education : c.context === "experience" ? pack.experience : undefined;
+          const reason = n > 0 && list ? `Your Career Profile has ${list.length} ${EDUCATION_KEYS.has(key) ? "education entr" + (list.length === 1 ? "y" : "ies") : "role" + (list.length === 1 ? "" : "s")}.` : `${label} isn't in your Career Profile.`;
           return field.required ? push({ status: "needs_you", reason }, interventionFor(field, c, "unknown_field")) : push({ status: "skipped", reason: `${reason} Optional — left empty.` });
         }
-        const value = pickOption(field, pv.value);
-        if (value === undefined) return push({ status: "needs_you", reason: `None of the choices matches “${pv.value}”.` }, interventionFor(field, c, "confirm_value", { value: pv.value, provenance: pv.provenance }));
+        const shaped = shapeProfileValue(field, key, pv.value, { fullAddress: fullAddress(pack.profile) });
+        const value = shaped.value;
+        if (value === undefined) return push({ status: "needs_you", reason: field.options?.length ? `None of the choices matches “${pv.value}”.` : `“${pv.value}” doesn't fit this field's format.` }, interventionFor(field, c, "confirm_value", { value: pv.value, provenance: pv.provenance }));
         const source: MappingSource = pv.provenance === "RESUME_IMPORTED" ? "resume" : "career-profile";
-        // Only HIGH-confidence safe fields fill without review (§20); anything less is offered to confirm.
-        if (c.confidence === "HIGH" && pv.confidence >= 0.85) return push({ status: "pending", value, source, sourcePath: `profile.${c.target.key}` });
-        return push({ status: "needs_you", source, sourcePath: `profile.${c.target.key}`, reason: c.reason ?? `Confirm your ${label.toLowerCase()} fits this field.` }, interventionFor(field, c, "confirm_value", { value: pv.value, provenance: pv.provenance }));
+        // Only HIGH-confidence safe fields fill without review (§20); anything less — or a value that had to be
+        // reshaped with an assumption, like the 1st of the month — is offered to confirm.
+        if (c.confidence === "HIGH" && pv.confidence >= 0.85 && shaped.exact) return push({ status: "pending", value, source, sourcePath: path });
+        return push({ status: "needs_you", source, sourcePath: path, reason: c.reason ?? (shaped.exact ? `Confirm your ${label.toLowerCase()} fits this field.` : `Wonder set the day to the 1st — confirm the date.`) }, interventionFor(field, c, "confirm_value", { value, provenance: pv.provenance }));
       }
       case "file": {
         const file = c.target.file;

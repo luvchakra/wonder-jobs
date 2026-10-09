@@ -111,6 +111,24 @@
     return "";
   }
 
+  /**
+   * The heading of the part of the form a field sits in ("Education 1", "Work Experience", "Address"): the
+   * nearest heading before it, walking out through its containers. It tells "Start date" under Education
+   * from the date you can start. Structure only — never a value.
+   */
+  const HEADING = "h1, h2, h3, h4, h5, legend, [role=heading], [data-automation-id*='sectionheader' i]";
+  function sectionOf(el, label) {
+    let box = el.parentElement;
+    for (let i = 0; box && box !== document.body && i < 10; i++, box = box.parentElement) {
+      const before = [...box.querySelectorAll(HEADING)].filter((h) => !h.contains(el) && h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+      for (let j = before.length - 1; j >= 0; j--) {
+        const t = cleanLabel(textOf(before[j]));
+        if (t && t !== label && t.length <= 80) return t;
+      }
+    }
+    return "";
+  }
+
   function groupLabel(inputs) {
     const fs = inputs[0].closest("fieldset");
     const legend = fs?.querySelector("legend");
@@ -225,6 +243,8 @@
       if (el.getAttribute("autocomplete")) hints.autocomplete = el.getAttribute("autocomplete").slice(0, 70);
       if (el.getAttribute("placeholder")) hints.placeholder = el.getAttribute("placeholder").slice(0, 190);
       if (el.getAttribute("aria-label")) hints.aria = el.getAttribute("aria-label").slice(0, 290);
+      const section = sectionOf(el, label);
+      if (section) hints.section = section.slice(0, 190);
       if (Object.keys(hints).length) f.hints = hints;
       if (type === "select") f.options = [...el.options].filter((o) => o.value !== "" || o.index > 0).slice(0, 290).map((o) => ({ label: clean(o.text).slice(0, 190), value: String(o.value).slice(0, 190) }));
       const hv = hasValue(el, type);
@@ -235,6 +255,7 @@
       const id = uid(name || `radio${fields.length}`);
       fieldEls.set(id, group);
       const label = groupLabel(group);
+      const section = sectionOf(group[0], label);
       fields.push({
         id,
         label: label.slice(0, 480),
@@ -243,7 +264,7 @@
         step,
         options: group.slice(0, 290).map((r) => ({ label: labelOf(r).slice(0, 190) || r.value, value: String(r.value).slice(0, 190) })),
         hasValue: group.some((r) => r.checked),
-        ...(name ? { hints: { name: name.slice(0, 190) } } : {}),
+        ...(name || section ? { hints: { ...(name ? { name: name.slice(0, 190) } : {}), ...(section ? { section: section.slice(0, 190) } : {}) } } : {}),
       });
     }
     const p = provider();

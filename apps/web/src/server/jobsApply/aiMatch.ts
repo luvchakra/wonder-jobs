@@ -46,12 +46,12 @@ export async function aiMatchFields(s: JobsApplySession, now = Date.now()): Prom
 
   const questions = open.map((m) => {
     const f = fields.get(m.fieldId)!;
-    return { field: m.fieldId, question: (m.label || f.label || "").slice(0, 200), type: f.type, ...(f.options?.length ? { choices: f.options.slice(0, 15).map((o) => o.label.slice(0, 60)) } : {}) };
+    return { field: m.fieldId, question: (m.label || f.label || "").slice(0, 200), type: f.type, ...(f.hints?.section ? { section: f.hints.section.slice(0, 80) } : {}), ...(f.options?.length ? { choices: f.options.slice(0, 15).map((o) => o.label.slice(0, 60)) } : {}) };
   });
   const reply = await assist({
     task: "form_questions",
     instructions:
-      'Match each job-application form question to the one saved fact that answers exactly what it asks, or "none". Only match when the question asks for that same fact — "Total experience" is not "Notice period", "Expected salary" is not "Current salary", "Preferred location" is not "Current location". When unsure, answer "none". Shape: {"matches":[{"field":"<question field>","source":"<a source id from the list, or none>"}]}.',
+      'Match each job-application form question to the one saved fact that answers exactly what it asks, or "none". Only match when the question asks for that same fact — "Total experience" is not "Notice period", "Expected salary" is not "Current salary", "Preferred location" is not "Current location". Read a question in its section: "Start date" under Education is the education start date, not availability; "Name" under Education is the university. "Type of degree" is the degree level, "Degree name" is the degree. When unsure, answer "none". Shape: {"matches":[{"field":"<question field>","source":"<a source id from the list, or none>"}]}.',
     data: JSON.stringify({ questions, sources: offered }),
     schema: Reply,
     maxTokens: 800,
