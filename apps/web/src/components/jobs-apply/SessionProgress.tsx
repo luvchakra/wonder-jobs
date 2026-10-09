@@ -132,6 +132,12 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
             {progress.needsYou > 0 && <> · <strong className="font-medium text-warning-600">{progress.needsYou} need{progress.needsYou === 1 ? "s" : ""} you</strong></>}
           </p>
           {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{cloud ? "Choose Fill above." : `Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderJobs panel on the employer's page.`}</p>}
+          {/* The cloud browser shows the page above; the extension's page is in another tab — the way back to it. */}
+          {!cloud && (
+            <button type="button" className="mt-1 text-[12px] font-medium text-brand-600 hover:underline" onClick={onOpen}>
+              Open the employer&apos;s page
+            </button>
+          )}
           {steps.map((step) => (
             <div key={step} className="mt-4">
               {steps.length > 1 && <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Step {step}</p>}

@@ -919,8 +919,6 @@ export default function ApplyWithWonderPage({
               )}
               <ApplicationReview
                 session={s}
-                progress={view.progress}
-                onOpen={openEmployer}
                 onConfirm={confirm}
                 busy={busy}
               />

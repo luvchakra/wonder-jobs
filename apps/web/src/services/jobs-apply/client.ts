@@ -175,7 +175,7 @@ export function pairHelper(sessionId: string, timeoutMs = 4000): Promise<{ ok: b
   });
 }
 
-/** Opens (or re-focuses) the employer's page in one named tab per session, so "Submit on the employer site" returns to it. */
+/** Opens (or re-focuses) the employer's page in one named tab per session, so "Open the employer's page" returns to it. */
 export function openDestination(sessionId: string, url: string) {
   window.open(url, `wj-apply-${sessionId}`, "noopener=no");
 }
