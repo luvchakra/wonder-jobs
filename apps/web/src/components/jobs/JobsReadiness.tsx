@@ -338,16 +338,26 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
   if (active) {
     const stage = active.currentStage ? STAGES[active.currentStage] : undefined;
     const found = active.stages.find((s) => s.key === "search")?.counts?.discovered;
+    // A search in progress is the most important thing on the page until it ends: a tinted banner with
+    // the moving mark, what's happening, a live count and a progress sweep — not a line of grey text.
     return (
-      <p role="status" className="mb-4 flex items-center gap-2 text-[13px] text-ink-2">
-        <WonderSearching size={18} />
-        <span>
-          {stage?.activeLabel ?? "Searching"} for “{active.config.searchCriteria.query}”{found ? ` · ${found.toLocaleString("en-IN")} found so far` : ""}
-        </span>
-        <Link href={`/app/runs/${active.id}`} className="text-ink-3 underline-offset-2 hover:underline">
-          Details
-        </Link>
-      </p>
+      <div role="status" aria-live="polite" className="mb-4 overflow-hidden rounded-2xl border border-brand-300 bg-brand-50">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <WonderSearching size={32} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold text-ink">
+              {stage?.activeLabel ?? "Searching"}…{found ? <span className="ml-2 font-normal text-brand-700">{found.toLocaleString("en-IN")} found so far</span> : null}
+            </p>
+            <p className="truncate text-[13px] text-ink-2">For “{active.config.searchCriteria.query}” — results appear here as they arrive.</p>
+          </div>
+          <Link href={`/app/runs/${active.id}`} className="shrink-0 text-[13px] font-medium text-brand-700 underline-offset-2 hover:underline">
+            Details
+          </Link>
+        </div>
+        <div className="h-1 w-full overflow-hidden bg-brand-200" aria-hidden>
+          <div className="wj-sweep h-full w-2/5 rounded-full bg-brand-500" />
+        </div>
+      </div>
     );
   }
   if (!last) return null;
