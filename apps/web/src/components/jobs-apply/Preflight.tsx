@@ -9,7 +9,7 @@ import type { ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
 export type Method = "helper" | "guided" | "pack";
@@ -74,6 +74,13 @@ export function Preflight(props: {
 }) {
   const { readiness, destination } = props;
   const [showMethods, setShowMethods] = useState(false);
+  // Arriving here ("Apply with Wonder" and every other way in), the next step is Start: bring it into view
+  // when it's below the fold — on a phone it sits under the title and the steps.
+  const startRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = startRef.current;
+    if (el && el.getBoundingClientRect().bottom > window.innerHeight) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
   const blocked = !readiness.ok || !destination || props.handoffPolicy === "skip" || !!props.blockedReason;
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -216,10 +223,12 @@ export function Preflight(props: {
           {props.handoffPolicy === "skip" && <p className="mt-3 text-[12px] text-danger-600">“Hand off application” is turned off in Automation, so Wonder won&apos;t open employer pages for you.</p>}
           {!destination && <p className="mt-3 text-[12px] text-danger-600">This job has no application link Wonder can open.</p>}
           {props.blockedReason && <p className="mt-3 text-[12px] text-warning-600">{props.blockedReason}</p>}
-          <Button full size="lg" className="mt-4" onClick={props.onStart} disabled={blocked || props.busy} loading={props.busy}>
-            {props.method === "pack" ? "Download Application Pack" : "Start application"}
-          </Button>
-          <p className="mt-2 text-center text-[11px] text-ink-4">Wonder fills. You review and submit.</p>
+          <div ref={startRef}>
+            <Button full size="lg" className="mt-4" onClick={props.onStart} disabled={blocked || props.busy} loading={props.busy}>
+              {props.method === "pack" ? "Download Application Pack" : "Start application"}
+            </Button>
+            <p className="mt-2 text-center text-[11px] text-ink-4">Wonder fills. You review and submit.</p>
+          </div>
         </Card>
       </aside>
     </div>
