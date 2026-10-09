@@ -44,8 +44,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   deduplicate: { key: "deduplicate", label: "Deduplicate", description: "Collapse the same role posted on several platforms.", risk: "low", external: false, default: "automatic" },
   analyze_jobs: { key: "analyze_jobs", label: "Analyze jobs", description: "Read postings and extract requirements, seniority and signals.", risk: "low", external: false, default: "automatic" },
   rank_opportunities: { key: "rank_opportunities", label: "Rank opportunities", description: "Order matches by fit with your Career Profile and goals.", risk: "low", external: false, default: "automatic" },
-  generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "automatic" },
-  generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "automatic" },
+  // "Ask me" by default: each draft is a paid AI call, made when the candidate wants one (owner decision, 2026-10-09).
+  generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "ask" },
+  generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "ask" },
   // Off by default: the saved list is the candidate's own picks (the owner found strong matches filling Saved unasked, 2026-10-09). Strong matches
   // are already one tap away under "Strong"; turning this on adds them to Saved automatically.
   save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "off" },
@@ -78,8 +79,8 @@ export function defaultPolicy(): AutomationPolicy {
   return Object.fromEntries(CAPABILITIES.map((c) => [c, CAPABILITY_META[c].default])) as AutomationPolicy;
 }
 
-/** The saved policy's schema version. 2 (2026-10-09): save_jobs defaults to off. */
-export const POLICY_VERSION = 2;
+/** The saved policy's schema version. 2 (2026-10-09): save_jobs defaults to off. 3: résumé and cover-letter drafts default to "ask". */
+export const POLICY_VERSION = 3;
 
 /**
  * A saved policy brought up to date: capabilities added since take their default, and a version-1 policy
@@ -89,6 +90,8 @@ export const POLICY_VERSION = 2;
 export function migratePolicy(saved: Partial<AutomationPolicy> | undefined, version: number): AutomationPolicy {
   const out = { ...defaultPolicy(), ...(saved ?? {}) };
   if (version < 2 && out.save_jobs === "automatic") out.save_jobs = "off";
+  // Version 3: drafts became "ask" by default; a policy still holding the old default moves with it.
+  if (version < 3) for (const c of ["generate_resume", "generate_cover_letter"] as const) if (out[c] === "automatic") out[c] = "ask";
   return out;
 }
 

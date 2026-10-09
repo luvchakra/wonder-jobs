@@ -124,6 +124,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Answers typed on a form are saved to the Career Profile on the candidate's Save and filled next time (WJ-270)
 - ✅ Fix: the Automation link on the apply page opens Automation (WJ-271)
 - ✅ Two automation choices; how you apply is set once in Automation, not per job (WJ-272)
+- ✅ Résumé and cover-letter drafts ask first by default (WJ-273)
 - ✅ Helper fills forms that carry a verification checkbox; you solve it and press Submit (WJ-257)
 - ✅ Partner portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs) configurable in the admin portal once a partnership hands over an endpoint and credentials; activation needs a passing test and a confirmed agreement (WJ-256)
 - ✅ JobsLake API for developers: API keys (REST + MCP), free monthly searches, then Stripe pay-as-you-go per search (WJ-255)
