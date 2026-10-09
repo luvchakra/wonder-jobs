@@ -130,7 +130,7 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" description="Your last 7 days, from your own account." actions={<Button href={digest.cta.href} iconRight={<ArrowRight className="size-4" aria-hidden />}>{digest.cta.label}</Button>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Strong matches waiting" value={fact("waiting.strongMatches")} hint="Not yet saved, applied to or turned down" href="/app/jobs" />
+        <Kpi label="Strong matches waiting" value={fact("waiting.strongMatches")} hint="Not yet saved, applied to or turned down" href="/app/jobs?fit=strong" />
         <Kpi label="Applications sent" value={fact("activity.applied")} hint="Last 7 days" href="/app/applications" />
         <Kpi label="Interviews ahead" value={fact("waiting.interviewsThisWeek")} hint="Next 7 days" href="/app/calendar" />
         <Kpi label="Jobs reviewed" value={fact("activity.jobsReviewed")} hint={`${formatNumber(fact("activity.strongFound"))} strong · last 7 days`} href="/app/runs" />

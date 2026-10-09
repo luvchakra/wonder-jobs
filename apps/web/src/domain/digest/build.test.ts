@@ -33,6 +33,7 @@ describe("buildDigest — only what happened, from the account's own data", () =
     expect(d.keyDetails[0].text).toBe("1 search reviewed 60 jobs and found 4 strong matches."); // the older run is outside the period
     expect(d.headsUp[0].text).toMatch(/^Interview for IAM Director at Acme on /);
     expect(d.headsUp.map((h) => h.text)).toContain("1 strong match is waiting for you to decide.");
+    expect(d.headsUp.find((h) => h.text.startsWith("1 strong match"))?.href).toBe("/app/jobs?fit=strong");
     expect(d.cta).toEqual({ label: "Prepare for your interview", href: "/app/applications/a1" });
     expect(d.dependencies.map((x) => x.text)).toEqual(expect.arrayContaining(["Add the role you want — searches need it."]));
     expect(d.goingWell[0].text).toBe("Wonder found 4 strong matches for you.");
