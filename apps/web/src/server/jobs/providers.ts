@@ -24,10 +24,27 @@ const UA = "WonderJobs/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job sea
 const REVALIDATE = 900;
 const MAX_PER_SOURCE = 150;
 
+/** Identical GETs started within a few seconds share one request — a smart search asks a feed-style source several phrasings at once. */
+const inflight = new Map<string, { at: number; p: Promise<unknown> }>();
+const SHARE_MS = 10_000;
+
 export async function getJson<T>(url: string, init: RequestInit & { revalidate?: number } = {}): Promise<T> {
-  const res = await fetch(url, { ...init, headers: { accept: "application/json", "user-agent": UA, ...(init.headers ?? {}) }, next: { revalidate: init.revalidate ?? REVALIDATE } });
-  if (!res.ok) throw new Error(`${new URL(url).host} responded ${res.status}`);
-  return (await res.json()) as T;
+  const shareable = (!init.method || init.method === "GET") && !init.body && !init.signal;
+  const key = shareable ? `${url}|${JSON.stringify(init.headers ?? {})}` : "";
+  const now = Date.now();
+  const hit = key ? inflight.get(key) : undefined;
+  if (hit && now - hit.at < SHARE_MS) return hit.p as Promise<T>;
+  const p = (async () => {
+    const res = await fetch(url, { ...init, headers: { accept: "application/json", "user-agent": UA, ...(init.headers ?? {}) }, next: { revalidate: init.revalidate ?? REVALIDATE } });
+    if (!res.ok) throw new Error(`${new URL(url).host} responded ${res.status}`);
+    return (await res.json()) as T;
+  })();
+  if (key) {
+    for (const [k, v] of inflight) if (now - v.at >= SHARE_MS) inflight.delete(k);
+    inflight.set(key, { at: now, p });
+    p.catch(() => inflight.delete(key));
+  }
+  return p;
 }
 
 export function finish(sourceId: string, raws: RawPosting[], criteria: SearchCriteria): Job[] {

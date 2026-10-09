@@ -11,9 +11,15 @@ import type { Evidence } from "@/domain/workflow/types";
 import { ageLabel } from "./cache";
 import { ACCESS_LABEL, type CanonicalOpportunity, type SearchMetadata, type SearchMode, type SearchRequest, type SourceSearchStatus } from "./protocol";
 
-export function searchRequestFor(criteria: { query: string; locations: string[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
-  // Only what JobsLake needs to search (spec §57): terms, places and which sources — nothing about the candidate.
-  return { query: { text: criteria.query, locations: criteria.locations }, sourceIds, searchMode, limit };
+export function searchRequestFor(criteria: { query: string; locations: string[]; variants?: string[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
+  // Only what JobsLake needs to search (spec §57): terms, broader phrasings of them, places and which sources — nothing about the candidate.
+  return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}) }, sourceIds, searchMode, limit };
+}
+
+/** Evidence for the phrasings a smart search ran alongside the candidate's own words. */
+export function phrasingEvidence(variants: string[], fromAi: string[]): Evidence | null {
+  if (!variants.length) return null;
+  return { label: "Also searched", value: `${variants.map((v) => `“${v}”`).join(", ")}${fromAi.length ? ` · ${fromAi.length === variants.length ? "picked" : `${fromAi.length} picked`} by AI from your Career Profile` : ""}`, tone: "info" };
 }
 
 export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {

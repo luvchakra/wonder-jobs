@@ -169,6 +169,8 @@ export interface SearchRequest {
     skills?: string[];
     locations: string[];
     seniority?: string[];
+    /** Smart search: up to three broader phrasings of `text`, searched at the same time on every source. */
+    variants?: string[];
   };
   filters?: { freshnessDays?: number; workplaceTypes?: WorkMode[] };
   /** Restrict to these sources (the candidate's own source choices). */
@@ -210,6 +212,8 @@ export interface SearchMetadata {
   live: number;
   /** Sources whose jobs came from the search cache (fresh or fallback) instead of a fetch just now. */
   cached?: number;
+  /** Every phrasing searched: the request's own words first, then its variants. */
+  phrasings?: string[];
 }
 
 export interface SearchResponse {

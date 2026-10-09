@@ -289,7 +289,7 @@ describe("runDueSchedules", () => {
       expect(report?.outcome).toBe("completed");
       expect(searchSource).not.toHaveBeenCalled();
       // Only search terms, places and the candidate's own source choices reach JobsLake.
-      expect(lakeSearch.mock.calls[0][0]).toEqual({ query: { text: "product manager", locations: ["Bengaluru"] }, sourceIds: ["remotive"], searchMode: "balanced", limit: 500 });
+      expect(lakeSearch.mock.calls[0][0]).toEqual({ query: { text: "product manager", locations: ["Bengaluru"], variants: ["product"] }, sourceIds: ["remotive"], searchMode: "balanced", limit: 500 });
 
       const jobs = (await stateStore.get(TENANT, "wj.jobs"))!.state as { state: JobsDoc };
       expect([...jobs.state.order].sort()).toEqual(["job-1", "job-2", "job-3"]);

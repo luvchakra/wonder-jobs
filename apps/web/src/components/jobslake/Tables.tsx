@@ -5,6 +5,13 @@ import type { AuditEvent } from "@/server/jobslake/types";
 import { relativeTime } from "@/lib/format";
 import { OutcomeChip, ResponsiveTable, ms, num } from "./ui";
 
+/** “senior director identity access” · Singapore · +3 phrasings */
+function searchLabel(r: SourceRun): string {
+  if (!r.search) return "";
+  const extra = r.search.phrasings - 1;
+  return [`“${r.search.query}”`, r.search.places.join(", ") || "anywhere", extra > 0 ? `+${extra} phrasing${extra === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ");
+}
+
 export function RunsTable({ runs, showSource }: { runs: (SourceRun & { relevant?: number; strong?: number })[]; showSource?: boolean }) {
   return (
     <ResponsiveTable
@@ -15,6 +22,7 @@ export function RunsTable({ runs, showSource }: { runs: (SourceRun & { relevant?
         { header: "When", cell: (r) => <span title={r.startedAt}>{relativeTime(r.startedAt)}</span> },
         ...(showSource ? [{ header: "Source", cell: (r: SourceRun) => <Link href={`/platform/jobs-lake/sources/${r.sourceId}`} className="hover:underline">{r.sourceId}</Link> }] : []),
         { header: "Trigger", cell: (r) => r.trigger },
+        { header: "Search", cell: (r) => <span className="line-clamp-1 max-w-[260px] text-[12px] text-ink-2" title={searchLabel(r)}>{searchLabel(r) || "—"}</span> },
         { header: "Outcome", cell: (r) => <OutcomeChip outcome={r.outcome} /> },
         { header: "Jobs", cell: (r) => num(r.retrieved), className: "tabular-nums text-right" },
         { header: "Valid", cell: (r) => num(r.valid), className: "tabular-nums text-right" },
@@ -31,7 +39,8 @@ export function RunsTable({ runs, showSource }: { runs: (SourceRun & { relevant?
           </span>
           <span className="text-[12px] text-ink-3">
             {showSource ? `${relativeTime(r.startedAt)} · ` : ""}
-            {r.trigger} · {num(r.retrieved)} jobs · {num(r.valid)} valid · {ms(r.durationMs)}
+            {r.trigger}
+            {r.search ? ` · ${searchLabel(r)}` : ""} · {num(r.retrieved)} jobs · {num(r.valid)} valid · {ms(r.durationMs)}
             {r.relevant != null ? ` · ${r.relevant} / ${r.strong ?? 0} relevant / strong` : ""}
           </span>
           {r.message && <span className="text-[12px] text-ink-4">{r.message}</span>}

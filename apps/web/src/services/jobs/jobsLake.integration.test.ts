@@ -144,11 +144,13 @@ describe("search stage (signed in)", () => {
     });
     const { c, evidence, warnings } = ctx();
     const out = await executors.search(c);
-    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
-    // Only sources that are on and searchable here (Adzuna has no credentials), and only search terms and places.
-    expect(body).toEqual({ query: { text: "identity security", locations: ["Bengaluru"] }, sourceIds: ["careers", "remoteok"], searchMode: "balanced", limit: 500 });
+    const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith("/search/stream"))!;
+    const body = JSON.parse(String((call[1] as RequestInit).body));
+    // Only sources that are on and searchable here (Adzuna has no credentials), and only search terms, broader phrasings of them and places.
+    // (The AI phrasing route answered nothing usable here, so the rules picked the phrasing.)
+    expect(body).toEqual({ query: { text: "identity security", locations: ["Bengaluru"], variants: ["identity"] }, sourceIds: ["careers", "remoteok"], searchMode: "balanced", limit: 500 });
     expect(out.data).toMatchObject({ jobIds: ["careers_1"], searchedWith: "JobsLake", requestId: "req_abcdef01" });
-    expect(evidence.map((e) => `${e.label}: ${e.value}`)).toEqual(["Searched with: JobsLake · 3 sources planned", "Greenhouse: 1 jobs", "Remote OK: 1 jobs", "Adzuna India: Needs setup", "Sources searched: 2 of 3 answered"]);
+    expect(evidence.map((e) => `${e.label}: ${e.value}`)).toEqual(["Searched with: JobsLake · 3 sources planned", "Also searched: “identity”", "Greenhouse: 1 jobs", "Remote OK: 1 jobs", "Adzuna India: Needs setup", "Sources searched: 2 of 3 answered"]);
     expect(warnings).toEqual(["Adzuna India isn't configured on this deployment yet, so it was skipped."]);
 
     const d = await executors.dedupe(c);
@@ -163,6 +165,7 @@ describe("search stage (signed in)", () => {
     const { c, evidence } = ctx();
     const out = await executors.search(c);
     expect(evidence[0]).toEqual({ label: "JobsLake", value: "Didn't answer — searched each source directly", tone: "warning" });
+    expect(evidence.some((e) => e.label === "Also searched")).toBe(false); // the direct path searched only the candidate's words
     expect(out.data).not.toHaveProperty("searchedWith");
   });
 
