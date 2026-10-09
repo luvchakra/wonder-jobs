@@ -173,6 +173,18 @@ describe("JobsApply server", () => {
     expect((await svc.helperFillPlan(await helper(tok), { host: "evil.example.net", clicked: true })).body).toMatchObject({ allowed: false });
   });
 
+  it("a verification challenge inside the form: the helper fills around it but presses neither Next nor Submit", async () => {
+    const t = tenant();
+    await setAutomation(t, "automatic", "guided");
+    const { token } = await started(t, "fill");
+    const clear = (await svc.helperInspect(await helper(token), form())).body as { plan: { allowed: boolean; advance: boolean } };
+    expect(clear.plan).toMatchObject({ allowed: true, advance: true });
+    const withChallenge = (await svc.helperInspect(await helper(token), form({ signals: ["captcha"] }))).body as { status: string; plan: { allowed: boolean; advance: boolean; submit: boolean; fills: unknown[] } };
+    expect(withChallenge.status).not.toBe("PAUSED");
+    expect(withChallenge.plan).toMatchObject({ allowed: true, advance: false, submit: false });
+    expect(withChallenge.plan.fills.length).toBeGreaterThan(0);
+  });
+
   it("fill policy: automatic fills on detection only when the session mode also allows it", async () => {
     const t = tenant();
     await setAutomation(t, "automatic", "guided");
