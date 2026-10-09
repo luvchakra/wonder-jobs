@@ -17,7 +17,7 @@ const Reply = z.object({ matches: z.array(z.object({ field: z.string().max(200),
  * and can only choose from that list. Its reply is checked against it; anything else becomes "none".
  * Returns null when no model is configured or the call fails: the rules' result stands.
  */
-export async function aiMatchFields(s: JobsApplySession, now = Date.now()): Promise<Record<string, AiHint> | null> {
+export async function aiMatchFields(s: Pick<JobsApplySession, "formFields" | "fieldMappings" | "pack" | "aiHints">, now = Date.now()): Promise<Record<string, AiHint> | null> {
   const asked = s.aiHints ?? {};
   const fields = new Map(s.formFields.map((f) => [f.id, f]));
   const open = s.fieldMappings.filter((m) => m.status === "needs_you" && m.classification !== "human-only" && !(m.fieldId in asked) && fields.has(m.fieldId)).slice(0, 25);
