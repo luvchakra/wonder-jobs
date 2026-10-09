@@ -1,13 +1,13 @@
 import type { Digest, DigestItem } from "@/domain/digest/build";
+import { EMAIL_COLORS, EMAIL_GRADIENT, escapeHtml as esc, renderEmailLayout } from "@/server/email/layout";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
-const INK = "#111827";
-const MUTED = "#6b7280";
-const LINE = "#e5e7eb";
-const BRAND = "#4f46e5";
-const FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
+const INK = EMAIL_COLORS.ink;
+const MUTED = EMAIL_COLORS.muted;
+const LINE = EMAIL_COLORS.line;
+const BRAND = EMAIL_COLORS.brand600;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Each section's accent, icon and tint — the icon and title carry meaning, the colour only supports it. */
 const SECTIONS: { key: keyof Pick<Digest, "headsUp" | "keyDetails" | "dependencies" | "goingWell" | "needsImprovement" | "suggestions">; title: string; icon: string; accent: string; tint: string }[] = [
@@ -20,8 +20,8 @@ const SECTIONS: { key: keyof Pick<Digest, "headsUp" | "keyDetails" | "dependenci
 ];
 
 /**
- * The digest as an email: table layout with inline styles (mail clients drop stylesheets and flexbox), no
- * images or scripts, and a plain-text twin. Every tile, bar and card is drawn from the digest's own counts.
+ * The digest as an email, inside the shared branded frame (`server/email/layout.ts`): table layout with
+ * inline styles, and a plain-text twin. Every tile, bar and card is drawn from the digest's own counts.
  */
 export function renderDigestEmail(d: Digest, opts: { origin: string; name?: string; unsubscribeUrl: string }): { subject: string; html: string; text: string } {
   const abs = (href?: string) => (href ? new URL(href, opts.origin).toString() : undefined);
@@ -58,7 +58,7 @@ export function renderDigestEmail(d: Digest, opts: { origin: string; name?: stri
           d.topMatches
             .map(
               (m, i) =>
-                `<a href="${esc(abs(m.href)!)}" style="display:block;text-decoration:none;color:${INK};padding:10px 0;${i ? `border-top:1px solid ${LINE};` : ""}"><div style="font-size:14px;font-weight:600">${esc(m.title)}</div><div style="font-size:13px;color:${MUTED}">${esc([m.company, m.location].filter(Boolean).join(" · "))} &nbsp;<span style="display:inline-block;background:#eef2ff;color:${BRAND};border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600">Strong match</span></div></a>`,
+                `<a href="${esc(abs(m.href)!)}" style="display:block;text-decoration:none;color:${INK};padding:10px 0;${i ? `border-top:1px solid ${LINE};` : ""}"><div style="font-size:14px;font-weight:600">${esc(m.title)}</div><div style="font-size:13px;color:${MUTED}">${esc([m.company, m.location].filter(Boolean).join(" · "))} &nbsp;<span style="display:inline-block;background:${EMAIL_COLORS.brand50};color:${BRAND};border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600">Strong match</span></div></a>`,
             )
             .join(""),
       )
@@ -79,18 +79,15 @@ export function renderDigestEmail(d: Digest, opts: { origin: string; name?: stri
     )
     .join("\n");
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;background:#f3f4f6;font-family:${FONT};color:${INK}">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
-<tr><td style="background:${BRAND};background-image:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;padding:24px 22px;color:#fff">
-<div style="font-size:13px;opacity:.85;margin:0 0 6px">WonderJobs · ${esc(period)}</div>
+  // The update's own hero: a gradient card (solid brand colour where a mail app drops gradients).
+  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="${EMAIL_COLORS.brand500}" style="background:${EMAIL_COLORS.brand500};background-image:${EMAIL_GRADIENT};border-radius:14px;padding:22px 20px;color:#ffffff">
+<div style="font-size:13px;opacity:.85;margin:0 0 6px">${esc(period)}</div>
 <div style="font-size:22px;font-weight:700;margin:0 0 16px">${esc(opts.name ? `Hi ${opts.name}, here's your update` : "Here's your update")}</div>
-<a href="${esc(abs(d.cta.href)!)}" style="display:inline-block;background:#fff;color:${BRAND};text-decoration:none;padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px">${esc(d.cta.label)} →</a>
-</td></tr>
-<tr><td style="padding:12px 0 0">${tiles}</td></tr>
-<tr><td>${funnel}${matches}${sections}</td></tr>
-<tr><td style="font-size:12px;color:${MUTED};padding:16px 4px 0;line-height:1.5">Every number here comes from your own WonderJobs account. You get this when there's been activity, at most once a day. <a href="${esc(opts.unsubscribeUrl)}" style="color:${MUTED}">Stop these emails</a>.</td></tr>
-</table></td></tr></table></body></html>`;
+<a href="${esc(abs(d.cta.href)!)}" style="display:inline-block;background:#ffffff;color:${BRAND};text-decoration:none;padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px">${esc(d.cta.label)} →</a>
+</td></tr></table>
+<div style="padding:12px 0 0">${tiles}</div>
+${funnel}${matches}${sections}
+<div style="font-size:12px;color:${MUTED};padding:16px 4px 0">Every number here comes from your own WonderJobs account.</div>`;
 
   const text = [
     opts.name ? `Hi ${opts.name}, here's your WonderJobs update (${period}).` : `Here's your WonderJobs update (${period}).`,
@@ -101,10 +98,18 @@ export function renderDigestEmail(d: Digest, opts: { origin: string; name?: stri
     ...(d.topMatches.length ? ["", "STRONG MATCHES WAITING FOR YOU", ...d.topMatches.map((m) => `- ${m.title} at ${m.company}${m.location ? ` (${m.location})` : ""} ${abs(m.href)}`)] : []),
     ...SECTIONS.filter((x) => d[x.key].length).flatMap((x) => ["", x.title.toUpperCase(), ...d[x.key].map((i) => `- ${i.text}${i.origin === "ai" ? " (suggested by AI)" : ""}${i.href ? ` ${abs(i.href)}` : ""}`)]),
     "",
-    "Every number here comes from your own WonderJobs account. You get this when there's been activity, at most once a day.",
-    `Stop these emails: ${opts.unsubscribeUrl}`,
+    "Every number here comes from your own WonderJobs account.",
   ].join("\n");
-  return { subject: d.subject, html, text };
+  const preheader = [plural(s.strongMatches, "strong match", "strong matches"), `${s.applied} applied`, period].join(" · ");
+  const mail = renderEmailLayout({
+    origin: opts.origin,
+    preheader,
+    bodyHtml: body,
+    bodyText: text,
+    reason: "You get this activity digest when there's been activity on your WonderJobs account, at most once a day.",
+    links: [{ label: "Stop these emails", href: opts.unsubscribeUrl }],
+  });
+  return { subject: d.subject, ...mail };
 }
 
 /** A white card, with an optional coloured left edge and tint. */
