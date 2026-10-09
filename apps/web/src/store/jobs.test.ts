@@ -38,3 +38,20 @@ describe("clearing typed words", () => {
     expect(useJobsStore.getState().restoreProfileCatalog()).toBe(false);
   });
 });
+
+describe("saved jobs outlive the search results", () => {
+  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined }));
+
+  it("keeps a saved job's details when a new search replaces the results, and restores lost ones without listing them", () => {
+    const s = useJobsStore.getState();
+    s.replaceCatalog([job("a"), job("b")]);
+    useJobsStore.setState({ saved: { a: "2026-10-09T00:00:00Z" } });
+    s.replaceCatalog([job("c")]);
+    expect(Object.keys(useJobsStore.getState().jobs).sort()).toEqual(["a", "c"]);
+    expect(useJobsStore.getState().order).toEqual(["c"]);
+    s.restoreJobs([job("z"), { ...job("c"), title: "stale copy" }]);
+    expect(useJobsStore.getState().jobs.z).toBeDefined();
+    expect(useJobsStore.getState().jobs.c.title).toBe("c"); // a known job isn't overwritten
+    expect(useJobsStore.getState().order).toEqual(["c"]);
+  });
+});

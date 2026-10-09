@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
-import type { Application, ApplicationArtifact, ApplicationEvent, ApplicationStatus, ArtifactType, ArtifactVersion } from "@/domain/applications/types";
+import { applicationJobOf, type Application, type ApplicationArtifact, type ApplicationEvent, type ApplicationJob, type ApplicationStatus, type ArtifactType, type ArtifactVersion } from "@/domain/applications/types";
 import { newId } from "@/lib/ids";
 import { interactionFor, useJobsStore } from "./jobs";
 import { useCareerStore } from "./career";
@@ -22,6 +22,8 @@ interface ApplicationsState {
   completeFollowUp: (id: string, followUpId: string) => void;
   addFollowUp: (id: string, f: { dueAt: string; kind: "follow_up" | "interview" | "thank_you"; note: string }) => void;
   remove: (id: string) => void;
+  /** Keep a copy of the job on applications that don't have one yet (jobId → its facts). */
+  keepJobs: (byJobId: Record<string, ApplicationJob>) => void;
 }
 
 export const useApplicationsStore = create<ApplicationsState>()(
@@ -41,6 +43,8 @@ export const useApplicationsStore = create<ApplicationsState>()(
           followUps: [],
           submissionKey: `submit:${jobId}:me`,
         };
+        const job = useJobsStore.getState().jobs[jobId];
+        if (job) app.job = applicationJobOf(job);
         app.events[0].applicationId = app.id;
         set((s) => ({ applications: { ...s.applications, [app.id]: app } }));
         return app;
@@ -56,6 +60,12 @@ export const useApplicationsStore = create<ApplicationsState>()(
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
       },
+      keepJobs: (byJobId) =>
+        set((s) => {
+          const missing = Object.values(s.applications).filter((a) => !a.job && byJobId[a.jobId]);
+          if (!missing.length) return s;
+          return { applications: { ...s.applications, ...Object.fromEntries(missing.map((a) => [a.id, { ...a, job: byJobId[a.jobId] }])) } };
+        }),
       setAutoSubmit: (id, choice) =>
         set((s) => {
           const a = s.applications[id];

@@ -25,6 +25,7 @@ import { Badge } from "@/components/common/Badge";
 import { EmptyState, ErrorState } from "@/components/common/States";
 import { ArtifactEditor } from "@/components/applications/ArtifactEditor";
 import { toast } from "@/components/feedback/Toast";
+import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
 type Tab = ArtifactType | "review";
 
@@ -38,6 +39,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const setStatus = useApplicationsStore((s) => s.setStatus);
   const setNextAction = useApplicationsStore((s) => s.setNextAction);
   const job = useJobsStore((s) => (app ? s.jobs[app.jobId] : undefined));
+  useRecoverJobs([app?.jobId]);
   const match = useJobsStore((s) => (app ? s.matches[app.jobId] : undefined));
   const quality = useJobsStore((s) => (app ? s.quality[app.jobId] : undefined));
   const dna = useCareerStore((s) => s.dna);
