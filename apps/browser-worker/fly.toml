@@ -1,42 +1,38 @@
-# Fly.io deployment for the cloud browser worker. Deploy with scripts/deploy-browser-worker.sh from the
-# repository root (or the "Deploy cloud browser" workflow). By hand, from the repository root — the build
-# context must be the root so the helper script (extension/content/autofill.js) comes along:
-#   fly deploy . --config apps/browser-worker/fly.toml --ha=false
-app = "wonderjobs-browser-worker"
-# Mumbai, next to the app's Vercel functions (bom1).
-primary_region = "bom"
+# fly.toml app configuration file generated for wonderjobs-browser-worker on 2026-10-09T13:41:17Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'wonderjobs-browser-worker'
+primary_region = 'lhr'
 
 [build]
-  # Relative to this file.
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  PORT = "4100"
-  WONDERJOBS_ORIGIN = "https://jobs.wonderapps.biz"
-  CLOUD_BROWSER_MAX_SESSIONS = "6"
+  CLOUD_BROWSER_MAX_SESSIONS = '6'
+  PORT = '4100'
+  WONDERJOBS_ORIGIN = 'https://jobs.wonderapps.biz'
 
-# Sessions live in this one machine's memory: run exactly one (deploy with --ha=false). It stops when
-# nobody is using it and starts on the next request; a session open when it stops is reported to the
-# candidate as closed ("Open it again").
 [http_service]
   internal_port = 4100
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "connections"
-    soft_limit = 50
+    type = 'connections'
     hard_limit = 100
+    soft_limit = 50
 
   [[http_service.checks]]
-    method = "GET"
-    path = "/health"
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "20s"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '20s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  size = "shared-cpu-2x"
-  memory = "2gb"
+  size = 'shared-cpu-2x'
+  memory = '2gb'
