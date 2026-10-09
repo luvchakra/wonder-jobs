@@ -50,7 +50,21 @@ describe("paid sources — asked last, only to top up, within budget", () => {
     connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "greenhouse" ? Array.from({ length: 20 }, () => job("greenhouse")) : [], warnings: [] }));
     const { response } = await search(req(), { trigger: "search" });
     expect(paidCalls()).toHaveLength(0);
-    expect(response.sources.find((s) => s.sourceId === "theirstack")).toMatchObject({ outcome: "skipped", message: expect.stringMatching(/enough without paid sources/) });
+    expect(response.sources.find((s) => s.sourceId === "theirstack")).toMatchObject({ outcome: "skipped", message: expect.stringMatching(/^Not needed — free sources found \d+ matching jobs$/), paid: true });
+  });
+
+  it("counts only jobs whose title is what was searched — loose matches from a broad phrasing don't stop the top-up", async () => {
+    connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "greenhouse" ? Array.from({ length: 20 }, () => ({ ...job("greenhouse"), title: "Senior Graphic Designer (Brand Identity)" })) : [], warnings: [] }));
+    const events: { type: string; status?: { sourceId: string } }[] = [];
+    await search(req(), { trigger: "search", emit: (e) => events.push(e as never) });
+    expect(paidCalls()).toHaveLength(1);
+  });
+
+  it("streams a skipped paid source's row, so the candidate sees why it wasn't asked", async () => {
+    connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "greenhouse" ? Array.from({ length: 20 }, () => job("greenhouse")) : [], warnings: [] }));
+    const events: { type: string; status?: { sourceId: string; paid?: boolean } }[] = [];
+    await search(req(), { trigger: "search", emit: (e) => events.push(e as never) });
+    expect(events.find((e) => e.type === "source_completed" && e.status?.sourceId === "theirstack")?.status).toMatchObject({ paid: true });
   });
 
   it("tops up a thin search: asked once, with every phrasing, for no more than the credits left", async () => {
@@ -74,7 +88,7 @@ describe("paid sources — asked last, only to top up, within budget", () => {
     connector.mockResolvedValue({ jobs: [], warnings: [] });
     const { response } = await search(req(), { trigger: "search" });
     expect(paidCalls()).toHaveLength(0);
-    expect(response.sources.find((s) => s.sourceId === "theirstack")?.message).toBe("Monthly credit limit reached (25 of 25 used)");
+    expect(response.sources.find((s) => s.sourceId === "theirstack")?.message).toBe("Not asked — monthly credit limit reached (25 of 25 used)");
   });
 
   it("fails closed when the budget can't be read", async () => {

@@ -76,7 +76,8 @@ export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {
 
 /**
  * The search stage's evidence for one source, as JobsLake reported it. Skipped sources (not asked,
- * by plan) aren't evidence of anything and return null.
+ * by plan) aren't evidence of anything and return null — except a paid source, which always says why
+ * it wasn't asked, so the candidate can see it was considered.
  */
 export function sourceEvidence(s: SourceSearchStatus): Evidence | null {
   switch (s.outcome) {
@@ -95,7 +96,7 @@ export function sourceEvidence(s: SourceSearchStatus): Evidence | null {
     case "unavailable":
       return { label: s.sourceName, value: "Unavailable", tone: "danger" };
     case "skipped":
-      return null;
+      return s.paid && s.message ? { label: s.sourceName, value: s.message, tone: "neutral" } : null;
   }
 }
 
