@@ -38,7 +38,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
       <div className="flex items-start gap-3">
-        <CompanyLogo name={job.company} color={companyColor(job.company)} size={compact ? 38 : 44} />
+        <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 44} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold leading-tight text-ink">
             <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">

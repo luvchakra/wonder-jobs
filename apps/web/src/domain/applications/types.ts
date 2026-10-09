@@ -108,3 +108,12 @@ export function handedOffAt(a: Pick<Application, "events">): ApplicationEvent | 
   const titles: string[] = Object.values(HANDOFF_TITLES);
   return [...a.events].reverse().find((e) => e.type === "note" && titles.includes(e.title));
 }
+
+/** The application funnel (Insights): each stage counts every application that reached it, and the Pipeline list opens on the same set (?stage=). */
+export const FUNNEL_STAGES: { key: string; label: string; statuses: ApplicationStatus[] | null }[] = [
+  { key: "all", label: "Saved", statuses: null },
+  { key: "prepared", label: "Prepared", statuses: ["ready_for_review", "submitted", "under_review", "interview", "offer", "rejected", "withdrawn"] },
+  { key: "submitted", label: "Submitted", statuses: ["submitted", "under_review", "interview", "offer", "rejected", "withdrawn"] },
+  { key: "interview", label: "Interview", statuses: ["interview", "offer"] },
+  { key: "offer", label: "Offer", statuses: ["offer"] },
+];
