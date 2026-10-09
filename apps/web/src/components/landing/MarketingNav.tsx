@@ -5,19 +5,12 @@ import { WonderLogo } from "@/components/brand/WonderLogo";
 import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 
-const LINKS: { href: string; label: string; wide?: boolean }[] = [
-  { href: "#product", label: "Product" },
+// Four links; every other section is in the footer.
+const LINKS: { href: string; label: string }[] = [
   { href: "#how-it-works", label: "How it works" },
-  { href: "#ask-wonder", label: "Ask Wonder" },
   { href: "#features", label: "Features" },
   { href: "#pricing", label: "Pricing" },
-  { href: "#extension", label: "Apply" },
-  // Only from xl on the desktop bar (always in the mobile menu and the footer): at lg the bar is full.
-  { href: "#control", label: "Control", wide: true },
-  { href: "#ai", label: "Your AI", wide: true },
-  { href: "#trust", label: "Trust" },
   { href: "/help", label: "Help" },
-  { href: "#contact", label: "Contact" },
 ];
 
 export function MarketingNav() {
@@ -33,9 +26,9 @@ export function MarketingNav() {
     <header className={cn("fixed inset-x-0 top-0 z-50 transition-colors", scrolled || open ? "bg-white/80 shadow-xs backdrop-blur-md" : "bg-transparent")}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <WonderLogo />
-        <nav aria-label="Marketing" className="hidden items-center gap-5 lg:flex xl:gap-7">
+        <nav aria-label="Marketing" className="hidden items-center gap-7 lg:flex">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className={cn("whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink", l.wide && "hidden xl:inline")}>
+            <a key={l.href} href={l.href} className="whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink">
               {l.label}
             </a>
           ))}
