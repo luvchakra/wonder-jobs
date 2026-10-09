@@ -337,7 +337,7 @@ const SCREENS: Screen[] = [
   { id: "home", label: "Find", title: "Your jobs, the moment you open it", body: "Signed in means looking at relevant jobs: designation, pay and source on every card, best match first. Type a role and a place to search every source for it.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
   { id: "find", label: "Search", title: "Real progress, in plain words", body: "Wonder says what it's searching, where, and what each source returned. Stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
   { id: "jobs", label: "Job", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile and your search. Each one says why Wonder ranked it there and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Pipeline", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; submitting is always yours.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "applications", label: "Pipeline", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; you submit, or turn on Submit for me.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
 /** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
@@ -354,7 +354,7 @@ export function ShowcaseSection() {
           <h2 id="screens-title" className="mt-3 text-h2 font-semibold text-ink">
             The same Wonder, <span className="wj-gradient-text">on every screen.</span>
           </h2>
-          <p className="mt-4 text-[16px] text-ink-2">Four places — Find, Saved, Applied, You — on your laptop and on your phone. Everything syncs to your account.</p>
+          <p className="mt-4 text-[16px] text-ink-2">Four places — Find, Saved, Pipeline, You — on your laptop and on your phone. Everything syncs to your account.</p>
         </ScrollReveal>
 
         <div className="mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Product screens">
@@ -398,6 +398,7 @@ export function ShowcaseSection() {
         <p className="mt-16 flex items-center justify-center gap-2 text-[13px] text-ink-3">
           <MonitorSmartphone className="size-4" aria-hidden /> Installable on iOS and Android as a web app. Desktop, tablet and phone layouts are all first-class.
         </p>
+        <p className="mt-2 text-center text-[12px] text-ink-4">Screens above are illustrations with sample data; in your account every job, number and match is real.</p>
       </div>
     </section>
   );

@@ -79,7 +79,7 @@ export function ParallaxHero() {
             <span className="wj-gradient-text">Wonder finds it.</span>
           </h1>
           <p className="wj-hero-in mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2" style={{ "--wj-i": 2 } as CSSProperties}>
-            Upload your CV and see your jobs in a minute. Wonder searches real job sources, shows the designation, pay and source on every listing, explains every match, prepares the application and fills the employer&apos;s form — you make the final call.
+            Tell Wonder the role — or upload your CV — and your jobs are on screen in a minute. Every listing shows the pay and the source and explains the match. Tap Apply with Wonder and it fills the employer&apos;s form, on your computer or your phone. You review and submit.
           </p>
           <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>
@@ -109,6 +109,7 @@ export function ParallaxHero() {
             <li>More control</li>
             <li className="font-semibold text-ink">A brighter you</li>
           </ul>
+          <p className="absolute -bottom-6 left-6 text-[11px] text-ink-4">Illustration · sample data</p>
           {/* Floating product UI — three layers at different depths so the scene reads in 3D on scroll. */}
           <div data-parallax={FACTORS.pill} className="absolute left-10 top-14 z-10 w-[330px] will-change-transform">
             <div className="wj-float-slow">
@@ -127,7 +128,7 @@ export function ParallaxHero() {
                   <CheckCircle2 className="size-4 text-success-600" aria-hidden /> Application ready
                 </p>
                 <p className="mt-0.5 text-[11px] text-ink-3">Résumé · cover letter · answers</p>
-                <p className="mt-1.5 text-[10.5px] font-medium text-brand-700">The final action is yours</p>
+                <p className="mt-1.5 text-[10.5px] font-medium text-brand-700">You review and submit</p>
               </div>
             </div>
           </div>
