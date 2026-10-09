@@ -26,6 +26,7 @@ export const JOB_SOURCES: JobSource[] = [
   { id: "remoteok", name: "Remote OK", short: "ok", integrated: true, enabled: true, reliability: "medium", color: "#ff4742", website: "https://remoteok.com", note: "Remote jobs, latest 100 per search." },
   { id: "himalayas", name: "Himalayas", short: "hm", integrated: true, enabled: true, reliability: "medium", color: "#0ea5e9", website: "https://himalayas.app", note: "Large remote-jobs feed; Wonder scans the newest postings for your search." },
   { id: "arbeitnow", name: "Arbeitnow", short: "an", integrated: true, enabled: false, reliability: "medium", color: "#111827", website: "https://www.arbeitnow.com", note: "Europe-focused (mostly Germany). Off by default." },
+  { id: "theirstack", name: "TheirStack", short: "ts", integrated: true, enabled: true, reliability: "high", color: "#0f766e", website: "https://theirstack.com", requiresSetup: true, note: "Licensed jobs from LinkedIn, Indeed, ATS boards and company career sites worldwide. Paid per job, so Wonder asks it only when the free sources find too few. Needs THEIRSTACK_API_KEY on the server." },
   { id: "adzuna_in", name: "Adzuna India", short: "ad", integrated: true, enabled: true, reliability: "high", color: "#1e8f5a", website: "https://www.adzuna.in", requiresSetup: true, note: "India-wide postings across job boards. Needs ADZUNA_APP_ID and ADZUNA_APP_KEY on the server (free tier)." },
 ];
 

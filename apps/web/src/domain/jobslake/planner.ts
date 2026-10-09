@@ -16,13 +16,16 @@ export interface PlannableSource {
   available: boolean;
   /** "global", "remote", or ISO country codes like "IN". */
   geography: string[];
+  /** Charged per result: planned in its own last wave, run only when the free sources found too few. */
+  paid?: boolean;
 }
 
 export interface PlannedSource {
   id: string;
   name: string;
-  wave: 1 | 2 | 3;
+  wave: 1 | 2 | 3 | 4;
   reason: string;
+  paid?: boolean;
 }
 
 export interface SkippedSource {
@@ -94,7 +97,9 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
     }
     eligible.push(s);
   }
-  const ranked = eligible.map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
+  // Paid sources never compete for the free waves: they top up at the end, if at all.
+  const paid = eligible.filter((s) => s.paid);
+  const ranked = eligible.filter((s) => !s.paid).map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
   const why = (x: (typeof ranked)[number]) => `${x.fit ? "Covers your locations" : "Outside your locations — discovery"} · ${pct(health[x.s.id]?.successRate ?? null)}`;
   const fits = ranked.filter((x) => x.fit);
   const misses = ranked.filter((x) => !x.fit);
@@ -112,6 +117,8 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
     if (fits.length > 4) waves.push(fits.slice(4).map((x) => ({ id: x.s.id, name: x.s.name, wave: 2, reason: why(x) })));
     if (misses.length) waves.push(misses.map((x) => ({ id: x.s.id, name: x.s.name, wave: 3, reason: why(x) })));
   }
+  if (req.searchMode === "fast") for (const s of paid) skipped.push({ id: s.id, name: s.name, reason: "Fast mode doesn't use paid sources" });
+  else if (paid.length) waves.push(paid.map((s) => ({ id: s.id, name: s.name, wave: 4, paid: true, reason: "Paid — asked only when the free sources find too few" })));
   return {
     mode: req.searchMode,
     depth: req.searchMode === "fast" ? "shallow" : req.searchMode === "balanced" ? "normal" : "deep",
