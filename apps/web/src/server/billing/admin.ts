@@ -172,6 +172,7 @@ export const ENFORCED_AT: Record<string, string> = {
   resumeTemplates: "Browser: the Résumé studio gallery.",
   atsReport: "Server: /api/resume-files/[id]/ats.",
   applyWithWonder: "Server: /api/jobs-apply/sessions.",
+  highlights: "Nowhere — shown on pricing (landing page, Account) exactly as written. Keep each line true for the plan.",
 };
 
 export async function savePlanFeatures(raw: unknown, actor: string): Promise<{ config: PlansConfig; changes: ReturnType<typeof diffPlans> }> {

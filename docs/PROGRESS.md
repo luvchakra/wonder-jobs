@@ -138,6 +138,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Find: "Looking for" and Change on one row (WJ-290)
 - ✅ No repeat search when typed words are cleared; repeat searches fetch only what's new from TheirStack and Adzuna (WJ-291)
 - ✅ Landing: the real search → apply flow with screenshots, current features, pricing, and an API reference page (WJ-295)
+- ✅ Plans & features: add your own feature lines to each plan's pricing (WJ-296)
 - ✅ Apply with Wonder lands on Start application (WJ-293)
 - ✅ "API keys" in the avatar menu opens Account → JobsLake API (WJ-292)
 - ✅ On a phone, Start application opens the employer's page in the cloud browser instead of a new tab (WJ-297)
