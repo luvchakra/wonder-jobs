@@ -265,7 +265,7 @@ function NoteBody({ note }: { note: RelevanceNote }) {
  * The role Wonder searches for, said up front with one tap to change it — the Career Profile's "Role you
  * want", edited in place. Saving searches for the new role straight away.
  */
-export function WantedRole({ search, className }: { search: JobSearch; className?: string }) {
+export function WantedRole({ search, className, inline = false }: { search: JobSearch; className?: string; /** Change right after the role (a wide panel, where the far edge is easy to miss). */ inline?: boolean }) {
   const dna = useCareerStore((s) => s.dna);
   const updateDNA = useCareerStore((s) => s.updateDNA);
   const [editing, setEditing] = useState(false);
@@ -288,21 +288,35 @@ export function WantedRole({ search, className }: { search: JobSearch; className
     updateDNA({ careerGoal: goal });
   };
 
+  const change = (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(role);
+        setEditing(true);
+      }}
+      className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
+    >
+      Change
+    </button>
+  );
+  if (!editing && inline) {
+    return (
+      <div className={cn("mb-3 text-[14px] text-ink-2", className)}>
+        <span>Looking for</span>
+        <p className="flex flex-wrap items-center gap-x-3">
+          <strong className="min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
+          {change}
+        </p>
+      </div>
+    );
+  }
   if (!editing) {
     return (
       <div className={cn("mb-3 text-[14px] text-ink-2", className)}>
         <p className="flex items-center justify-between gap-2">
           <span>Looking for</span>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(role);
-              setEditing(true);
-            }}
-            className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
-          >
-            Change
-          </button>
+          {change}
         </p>
         <strong className="block min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
       </div>
