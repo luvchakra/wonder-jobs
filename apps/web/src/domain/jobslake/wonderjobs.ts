@@ -8,6 +8,7 @@
  */
 import type { CanonicalJob, JobSourceSighting } from "@/domain/jobs/types";
 import type { Evidence } from "@/domain/workflow/types";
+import { ageLabel } from "./cache";
 import { ACCESS_LABEL, type CanonicalOpportunity, type SearchMetadata, type SearchMode, type SearchRequest, type SourceSearchStatus } from "./protocol";
 
 export function searchRequestFor(criteria: { query: string; locations: string[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
@@ -74,8 +75,13 @@ export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {
 export function sourceEvidence(s: SourceSearchStatus): Evidence | null {
   switch (s.outcome) {
     case "ok":
-    case "empty":
-      return { label: s.sourceName, value: `${s.retrieved.toLocaleString("en-IN")} jobs`, tone: "success" };
+    case "empty": {
+      const n = `${s.retrieved.toLocaleString("en-IN")} jobs`;
+      // A cached answer says how old it is; one standing in for a failed source says that too.
+      if (s.cachedAt && s.cacheUse === "fallback") return { label: s.sourceName, value: `Didn't answer — ${n} from its answer ${ageLabel(s.cachedAt, Date.now())} ago`, tone: "warning" };
+      if (s.cachedAt) return { label: s.sourceName, value: `${n} · from the same search ${ageLabel(s.cachedAt, Date.now())} ago`, tone: "success" };
+      return { label: s.sourceName, value: n, tone: "success" };
+    }
     case "needs_setup":
       return { label: s.sourceName, value: "Needs setup", tone: "warning" };
     case "timeout":

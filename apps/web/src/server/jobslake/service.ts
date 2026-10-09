@@ -39,6 +39,7 @@ export const SearchRequestSchema = z.object({
   searchMode: z.enum(["fast", "balanced", "maximum_coverage"]).default("balanced"),
   limit: z.number().int().min(1).max(500).default(100),
   correlationId: z.string().max(80).optional(),
+  cache: z.enum(["use", "refresh"]).optional(),
 });
 
 /**

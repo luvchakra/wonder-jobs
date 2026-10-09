@@ -203,3 +203,99 @@ describe("custom source parsers", () => {
     fetchMock.mockRestore();
   });
 });
+
+describe("JobsLake search cache — the next similar search reuses each source's answer", () => {
+  const only = (id: string, jobs: Job[]) => async (src: { id: string }) => (src.id === id ? { jobs, warnings: [] } : { jobs: [], warnings: [] });
+
+  it("reuses a fresh answer for the same search worded differently, without asking the source or recording a run", async () => {
+    connector.mockImplementation(only("greenhouse", [job({})]));
+    const first = await search(req({ query: { text: "Identity Security", locations: ["Bangalore"] } }), { trigger: "search" });
+    expect(first.response.metadata.cached).toBe(0);
+    const calls = connector.mock.calls.length;
+    const runs = (await jobsLakeStore().listRuns()).length;
+
+    const second = await search(req({ query: { text: "security, identity", locations: ["Bengaluru, Karnataka"] } }), { trigger: "search" });
+    expect(connector.mock.calls.length).toBe(calls); // no source was asked again
+    expect((await jobsLakeStore().listRuns()).length).toBe(runs);
+    expect(second.response.results).toHaveLength(1);
+    const gh = second.response.sources.find((s) => s.sourceId === "greenhouse")!;
+    expect(gh).toMatchObject({ outcome: "ok", retrieved: 1, cacheUse: "fresh" });
+    expect(gh.cachedAt).toBeTruthy();
+    expect(publicStatus(gh)).toMatchObject({ cachedAt: gh.cachedAt, cacheUse: "fresh" }); // candidates see where it came from
+    expect(second.response.metadata.cached).toBeGreaterThan(0);
+  });
+
+  it("a different search, cache: refresh, or the cache turned off asks the sources again", async () => {
+    connector.mockImplementation(only("greenhouse", [job({})]));
+    await search(req(), { trigger: "search" });
+    let calls = connector.mock.calls.length;
+    await search(req({ query: { text: "identity governance", locations: [] } }), { trigger: "search" });
+    expect(connector.mock.calls.length).toBeGreaterThan(calls);
+    calls = connector.mock.calls.length;
+    await search(req({ cache: "refresh" }), { trigger: "search" });
+    expect(connector.mock.calls.length).toBeGreaterThan(calls);
+    calls = connector.mock.calls.length;
+    process.env.JOBSLAKE_CACHE_ENABLED = "false";
+    try {
+      await search(req(), { trigger: "search" });
+      expect(connector.mock.calls.length).toBeGreaterThan(calls);
+    } finally {
+      delete process.env.JOBSLAKE_CACHE_ENABLED;
+    }
+  });
+
+  it("a source that fails now stands in with its last answer, labelled, and still counts as failed", async () => {
+    connector.mockImplementation(only("greenhouse", [job({})]));
+    await search(req(), { trigger: "search" });
+    // Age the cached answer past fresh, so the source is asked again — and fails.
+    const store = jobsLakeStore() as InstanceType<typeof __MemoryStore>;
+    for (const e of store.answers.values()) e.fetchedAt = new Date(Date.now() - 8 * 3_600_000).toISOString();
+    connector.mockImplementation(async (src: { id: string }) => {
+      if (src.id === "greenhouse") throw new Error("boards.greenhouse.io responded 503");
+      return { jobs: [], warnings: [] };
+    });
+    const { response } = await search(req(), { trigger: "search" });
+    expect(response.results).toHaveLength(1);
+    const gh = response.sources.find((s) => s.sourceId === "greenhouse")!;
+    expect(gh).toMatchObject({ outcome: "ok", cacheUse: "fallback" });
+    expect(gh.message).toMatch(/^boards\.greenhouse\.io responded 503 — showing its answer to the same search from 8 h ago$/);
+    expect(response.metadata.sourcesFailed).toBeGreaterThanOrEqual(1);
+    expect((await jobsLakeStore().listRuns()).find((r) => r.sourceId === "greenhouse" && r.outcome === "unavailable")).toBeTruthy();
+  });
+
+  it("editing a source retires its cached answers", async () => {
+    const { answerKey } = await import("./cache");
+    expect(answerKey({ id: "greenhouse", updatedAt: "2026-10-01T00:00:00Z" }, "normal", "v1|q=identity|l=")).not.toBe(answerKey({ id: "greenhouse", updatedAt: "2026-10-09T00:00:00Z" }, "normal", "v1|q=identity|l="));
+    expect(answerKey({ id: "greenhouse", updatedAt: "x" }, "normal", "v1|q=identity|l=")).toMatch(/^[0-9a-f]{40}$/); // no query text stored
+  });
+
+  it("answers over a day old are never served", async () => {
+    connector.mockImplementation(only("greenhouse", [job({})]));
+    await search(req(), { trigger: "search" });
+    const store = jobsLakeStore() as InstanceType<typeof __MemoryStore>;
+    for (const e of store.answers.values()) e.fetchedAt = new Date(Date.now() - 25 * 3_600_000).toISOString();
+    connector.mockImplementation(async () => {
+      throw new Error("down");
+    });
+    const { response } = await search(req(), { trigger: "search" });
+    expect(response.sources.every((s) => !s.cachedAt)).toBe(true);
+    expect(response.metadata.cached).toBe(0);
+  });
+
+  it("a broken cache store means every source is asked — never a failed search", async () => {
+    const broken = new __MemoryStore();
+    broken.getCachedAnswers = async () => {
+      throw new Error("JobsLake could not read the search cache: relation does not exist");
+    };
+    broken.putCachedAnswers = async () => {
+      throw new Error("JobsLake could not write the search cache: timeout");
+    };
+    __setJobsLakeStore(broken);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    connector.mockImplementation(only("greenhouse", [job({})]));
+    const { response } = await search(req(), { trigger: "search" });
+    expect(response.results).toHaveLength(1);
+    expect(response.metadata.cached).toBe(0);
+    log.mockRestore();
+  });
+});

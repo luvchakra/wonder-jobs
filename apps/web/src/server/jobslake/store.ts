@@ -8,7 +8,20 @@
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { SourceRun } from "@/domain/jobslake/health";
 import { getSupabaseAdmin } from "@/server/supabase";
+import type { Job } from "@/domain/jobs/types";
 import type { AuditEvent, SourceRecord, StoredCredential } from "./types";
+
+/** One source's answer to one search, as the search cache keeps it (domain/jobslake/cache.ts). */
+export interface CachedAnswer {
+  /** Hash of (source, its config version, depth, normalized search) — see server/jobslake/cache.ts. */
+  key: string;
+  sourceId: string;
+  depth: string;
+  jobs: Job[];
+  retrieved: number;
+  warnings: string[];
+  fetchedAt: string;
+}
 
 export interface StoreStatus {
   backend: "supabase" | "memory";
@@ -32,6 +45,10 @@ export interface JobsLakeStore {
   upsertOpportunities(opps: CanonicalOpportunity[]): Promise<void>;
   getOpportunity(id: string): Promise<CanonicalOpportunity | undefined>;
   listOpportunities(opts?: { limit?: number; sinceIso?: string }): Promise<CanonicalOpportunity[]>;
+  getCachedAnswers(keys: string[]): Promise<CachedAnswer[]>;
+  putCachedAnswers(entries: CachedAnswer[]): Promise<void>;
+  /** Drops answers fetched before `beforeIso`; returns how many. */
+  pruneCachedAnswers(beforeIso: string): Promise<number>;
 }
 
 type RunRow = SourceRun & { relevant?: number; strong?: number };
@@ -42,6 +59,7 @@ class MemoryStore implements JobsLakeStore {
   audit: AuditEvent[] = [];
   creds = new Map<string, StoredCredential>();
   opps = new Map<string, CanonicalOpportunity>();
+  answers = new Map<string, CachedAnswer>();
   constructor(private reason = "No database configured — JobsLake history is kept in memory and resets when the server restarts.") {}
   async status(): Promise<StoreStatus> {
     return { backend: "memory", durable: false, message: this.reason };
@@ -96,6 +114,21 @@ class MemoryStore implements JobsLakeStore {
       .filter((o) => !opts.sinceIso || o.freshness.lastObservedAt >= opts.sinceIso)
       .sort((a, b) => b.freshness.lastObservedAt.localeCompare(a.freshness.lastObservedAt))
       .slice(0, opts.limit ?? 500);
+  }
+  async getCachedAnswers(keys: string[]) {
+    return keys.flatMap((k) => (this.answers.has(k) ? [structuredClone(this.answers.get(k)!)] : []));
+  }
+  async putCachedAnswers(entries: CachedAnswer[]) {
+    for (const e of entries) this.answers.set(e.key, structuredClone(e));
+    if (this.answers.size > 2000) {
+      const oldest = [...this.answers.values()].sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt)).slice(0, this.answers.size - 2000);
+      for (const e of oldest) this.answers.delete(e.key);
+    }
+  }
+  async pruneCachedAnswers(beforeIso: string) {
+    let n = 0;
+    for (const [k, e] of this.answers) if (e.fetchedAt < beforeIso && this.answers.delete(k)) n++;
+    return n;
   }
 }
 
@@ -235,6 +268,29 @@ class SupabaseStore implements JobsLakeStore {
     const { data, error } = await q;
     if (error) this.fail("load the warm pool", error);
     return (data ?? []).map((r) => r.data as CanonicalOpportunity);
+  }
+  async getCachedAnswers(keys: string[]) {
+    const fb = await this.ready();
+    if (fb) return fb.getCachedAnswers(keys);
+    if (!keys.length) return [];
+    const { data, error } = await this.sb().from("jobslake_search_cache").select("*").in("key", keys);
+    if (error) this.fail("read the search cache", error);
+    return (data ?? []).map((r) => ({ key: r.key, sourceId: r.source_id, depth: r.depth, jobs: r.jobs as Job[], retrieved: r.retrieved, warnings: (r.warnings ?? []) as string[], fetchedAt: new Date(r.fetched_at).toISOString() }));
+  }
+  async putCachedAnswers(entries: CachedAnswer[]) {
+    const fb = await this.ready();
+    if (fb) return fb.putCachedAnswers(entries);
+    if (!entries.length) return;
+    const rows = entries.map((e) => ({ key: e.key, source_id: e.sourceId, depth: e.depth, jobs: e.jobs, retrieved: e.retrieved, warnings: e.warnings, fetched_at: e.fetchedAt }));
+    const { error } = await this.sb().from("jobslake_search_cache").upsert(rows);
+    if (error) this.fail("write the search cache", error);
+  }
+  async pruneCachedAnswers(beforeIso: string) {
+    const fb = await this.ready();
+    if (fb) return fb.pruneCachedAnswers(beforeIso);
+    const { error, count } = await this.sb().from("jobslake_search_cache").delete({ count: "exact" }).lt("fetched_at", beforeIso);
+    if (error) this.fail("prune the search cache", error);
+    return count ?? 0;
   }
 }
 
