@@ -370,24 +370,30 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
   );
 }
 
+/** The empty list while a search runs: the mark dressing up, centred, and what's being searched. */
+export function SearchingPanel({ search }: { search: JobSearch }) {
+  if (!search.active) return null;
+  const c = search.active.config.searchCriteria;
+  return (
+    <div role="status" className="flex flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center">
+      <WonderSearching size={88} />
+      <p className="text-base font-semibold text-ink">Searching for “{c.query}”{c.locations.length ? ` in ${c.locations.join(", ")}` : ""}</p>
+      <p className="text-[13px] text-ink-3">Finding roles worth dressing up for…</p>
+    </div>
+  );
+}
+
 /** What the list shows before there's anything in it: searching, or why nothing was found. */
 export function JobsEmpty({ search }: { search: JobSearch }) {
   const { active, last } = search;
   if (active || (!last && !search.readiness.blocker)) {
+    if (active) return <SearchingPanel search={search} />;
     return (
-      <>
-        {active && (
-          <div className="mb-4 flex flex-col items-center gap-3 py-6 text-center">
-            <WonderSearching size={88} />
-            <p className="text-[13px] text-ink-3">Finding roles worth dressing up for…</p>
-          </div>
-        )}
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading jobs">
-          {Array.from({ length: 6 }, (_, i) => (
-            <li key={i} className="wj-card h-36 animate-pulse bg-bg-soft" />
-          ))}
-        </ul>
-      </>
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading jobs">
+        {Array.from({ length: 6 }, (_, i) => (
+          <li key={i} className="wj-card h-36 animate-pulse bg-bg-soft" />
+        ))}
+      </ul>
     );
   }
   if (last && foundNothing(last)) {
