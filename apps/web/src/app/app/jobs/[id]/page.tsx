@@ -112,7 +112,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         <div className="min-w-0">
           <Card className="mb-4">
             <div className="flex items-start gap-4">
-              <CompanyLogo name={job.company} color={companyColor(job.company)} size={56} />
+              <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={56} />
               <div className="min-w-0 flex-1">
                 <p className="text-[17px] font-semibold text-ink">{job.company}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
