@@ -468,7 +468,8 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       await ctx.checkpoint();
       ctx.setProgress(1, 1);
       ctx.addEvidence({ label: "Insight", value: text });
-      const suggestion = ctx.policy("change_search_preferences") === "run" ? undefined : { text: "Wonder suggests narrowing your search to senior product roles. Update your preferences?", href: "/app/career-dna" };
+      // No canned advice: the insight is the model's read of this run; changing preferences stays the candidate's call.
+      const suggestion = ctx.policy("change_search_preferences") === "run" ? undefined : { text: "Review your search preferences in light of this?", href: "/app/career-dna" };
       useCareerStore.getState().setInsights([{ id: `ins_${ctx.run.id}`, title: "From this run", body: text, suggestion }, ...useCareerStore.getState().insights.filter((i) => !i.id.startsWith("ins_run")).slice(0, 2)]);
       return { data: { insight: text, topTitles: top } };
     },
