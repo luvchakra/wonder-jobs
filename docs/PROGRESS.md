@@ -105,6 +105,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Dashboard: KPIs, heads up, actions required, charts and suggestions, from the avatar menu (WJ-247)
 - ✅ Optional final submission: Submit applications setting + per-application/per-job Submit for me (WJ-249)
 - ✅ Visual activity email; Dashboard strong-match count matches the Jobs list (WJ-250)
+- ✅ Admin link in the avatar menu, admins only (WJ-251)
 - ✅ Help guide and assistant brought up to the product as it is: Finding jobs, plans, activity email, AI use, Apply with Wonder page by page, and a "When something goes wrong" section (WJ-248)
 
 ## Payments, privacy, financial controls & security (built, 2026-10-02 — WJ-166)
