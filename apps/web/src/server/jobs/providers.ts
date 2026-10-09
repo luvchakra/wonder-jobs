@@ -16,6 +16,8 @@ export interface SearchCriteria {
   titles?: string[];
   /** At most this many results — a paid source's remaining budget. */
   maxResults?: number;
+  /** Only postings the source first listed at or after this time (ISO) — set when it last answered this search; see `SourceFetcher.delta`. */
+  since?: string;
 }
 
 export interface SourceFetcher {
@@ -23,6 +25,8 @@ export interface SourceFetcher {
   /** False when required credentials are missing on this deployment. */
   available(): boolean;
   fetch(criteria: SearchCriteria): Promise<Job[]>;
+  /** The source can be asked for only what's new since a time (`criteria.since`), so a repeat search fetches the difference. */
+  delta?: boolean;
 }
 
 const UA = "WonderJobs/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
@@ -155,9 +159,12 @@ const arbeitnow: SourceFetcher = {
 };
 
 /* ---------- Adzuna (India) ---------- */
+/** Whole days back to `since`, at least one — Adzuna's `max_days_old` counts days, so a day's overlap is merged away by id. */
+export const daysSince = (since: string, now = Date.now()) => Math.max(1, Math.ceil((now - Date.parse(since)) / 86_400_000));
 interface AdzunaJob { id: string; title: string; company?: { display_name?: string }; location?: { display_name?: string; area?: string[] }; description: string; redirect_url: string; created: string; salary_min?: number; salary_max?: number; category?: { label?: string }; contract_type?: string }
 const adzunaIn: SourceFetcher = {
   id: "adzuna_in",
+  delta: true,
   available: () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY),
   async fetch(c) {
     const id = process.env.ADZUNA_APP_ID;
@@ -165,7 +172,7 @@ const adzunaIn: SourceFetcher = {
     if (!id || !key) return [];
     const where = c.locations.find((l) => !/remote|anywhere/i.test(l)) ?? "";
     const pages = await Promise.all(
-      [1, 2].map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] }))),
+      [1, 2].map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] }))),
     );
     return finish(
       "adzuna_in",

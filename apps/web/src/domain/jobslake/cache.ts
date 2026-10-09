@@ -103,6 +103,17 @@ export function pickEntry<T extends { fetchedAt: string; retrieved: number }>(en
 }
 
 /** "12 min" / "3 h" — how old a cached answer is, for the label beside it. */
+/**
+ * A source's answer to a repeat search asked only for what's new since its last answer: the new jobs
+ * first, then the earlier answer's, each job once, at most `max`.
+ */
+export function mergeDelta<T extends { id: string }>(added: T[], earlier: T[], max: number): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const j of [...added, ...earlier]) if (!seen.has(j.id) && seen.add(j.id) && out.length < max) out.push(j);
+  return out;
+}
+
 export function ageLabel(fetchedAt: string, now: number): string {
   const min = Math.max(1, Math.round((now - Date.parse(fetchedAt)) / 60_000));
   return min < 60 ? `${min} min` : `${Math.round(min / 60)} h`;

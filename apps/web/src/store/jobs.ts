@@ -76,6 +76,8 @@ const savedJobs = (s: { jobs: Record<string, CanonicalJob>; saved: Record<string
 /** How much of the catalog a signed-in account keeps between sessions (the rest is re-discovered by runs). */
 const PERSISTED_CATALOG = 300;
 const PERSISTED_DESCRIPTION = 1500;
+/** How many of the profile's results set aside under a typed search are kept between sessions. */
+const PERSISTED_ASIDE = 150;
 
 export const useJobsStore = create<JobsState>()(
   persist(
@@ -255,7 +257,18 @@ export const useJobsStore = create<JobsState>()(
           if (s.quality[id]) quality[id] = s.quality[id];
         }
         const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
-        return { ...base, jobs, order, matches, quality, aiFits };
+        // The profile's results set aside while typed words are searched: kept too, so clearing the words after
+        // the phone reloads the tab brings them back instead of searching again.
+        const aside = s.beforeWords;
+        const asideOrder = aside ? [...aside.order].sort((a, b) => (aside.matches[b]?.score ?? 0) - (aside.matches[a]?.score ?? 0)).slice(0, PERSISTED_ASIDE).filter((id) => aside.jobs[id]) : [];
+        const beforeWords = aside && asideOrder.length
+          ? {
+              order: aside.order.filter((id) => asideOrder.includes(id)),
+              jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
+              matches: Object.fromEntries(asideOrder.flatMap((id) => (aside.matches[id] ? [[id, aside.matches[id]] as const] : []))),
+            }
+          : undefined;
+        return { ...base, jobs, order, matches, quality, aiFits, beforeWords };
       },
     },
   ),

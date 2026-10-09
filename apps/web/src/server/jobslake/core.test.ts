@@ -244,6 +244,31 @@ describe("JobsLake search cache — the next similar search reuses each source's
     }
   });
 
+  it("a repeat search asks a date-filterable source only for what's new since its last answer, and merges the two", async () => {
+    const a = job({ id: "adzuna_in_1", sourceId: "adzuna_in", externalId: "1", applyUrl: "https://www.adzuna.in/land/ad/1" });
+    const b = job({ id: "adzuna_in_2", sourceId: "adzuna_in", externalId: "2", title: "Director, Identity Security", applyUrl: "https://www.adzuna.in/land/ad/2" });
+    connector.mockImplementation(async (src: { id: string }) => (src.id === "adzuna_in" ? { jobs: [a], warnings: [] } : src.id === "greenhouse" ? { jobs: [job({})], warnings: [] } : { jobs: [], warnings: [] }));
+    await search(req(), { trigger: "search" });
+    const store = jobsLakeStore() as InstanceType<typeof __MemoryStore>;
+    const earlier = new Date(Date.now() - 8 * 3_600_000).toISOString();
+    for (const e of store.answers.values()) e.fetchedAt = earlier;
+    connector.mockReset();
+    connector.mockImplementation(async (src: { id: string }) => (src.id === "adzuna_in" ? { jobs: [b], warnings: [] } : src.id === "greenhouse" ? { jobs: [job({})], warnings: [] } : { jobs: [], warnings: [] }));
+    const { response } = await search(req(), { trigger: "search" });
+    const asked = (id: string) => connector.mock.calls.find((c) => (c[0] as { id: string }).id === id)?.[1] as { since?: string } | undefined;
+    expect(asked("adzuna_in")?.since).toBe(earlier); // only what's new since its last answer
+    expect(asked("greenhouse")?.since).toBeUndefined(); // a board can't filter by date: asked in full
+    const az = response.sources.find((s) => s.sourceId === "adzuna_in")!;
+    expect(az).toMatchObject({ outcome: "ok", retrieved: 2 });
+    expect(az.message).toMatch(/Asked only for jobs new since its answer 8 h ago/);
+    expect(response.results.map((r) => r.sourceRecords.map((x) => x.sourceId)).flat()).toEqual(expect.arrayContaining(["adzuna_in"]));
+    // The merged answer is what the next search reuses.
+    connector.mockReset();
+    connector.mockImplementation(async () => ({ jobs: [], warnings: [] }));
+    const third = await search(req(), { trigger: "search" });
+    expect(third.response.sources.find((s) => s.sourceId === "adzuna_in")).toMatchObject({ retrieved: 2, cacheUse: "fresh" });
+  });
+
   it("a source that fails now stands in with its last answer, labelled, and still counts as failed", async () => {
     connector.mockImplementation(only("greenhouse", [job({})]));
     await search(req(), { trigger: "search" });

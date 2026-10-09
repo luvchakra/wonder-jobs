@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageLabel, cacheState, EMPTY_FRESH_MS, FRESH_MS, pickEntry, placeTokens, queryTokens, searchKey, servingDepths, STALE_MS } from "./cache";
+import { ageLabel, cacheState, mergeDelta, EMPTY_FRESH_MS, FRESH_MS, pickEntry, placeTokens, queryTokens, searchKey, servingDepths, STALE_MS } from "./cache";
 
 describe("searchKey — the same question, however it's worded", () => {
   it("ignores case, order, punctuation, filler words and plural endings", () => {
@@ -44,5 +44,14 @@ describe("cacheState — how long an answer is good for", () => {
   it("a deeper fetch can answer a shallower request, not the other way round", () => {
     expect(servingDepths("shallow")).toEqual(["shallow", "normal", "deep"]);
     expect(servingDepths("deep")).toEqual(["deep"]);
+  });
+});
+
+describe("mergeDelta — a repeat search's new jobs on top of the earlier answer", () => {
+  it("puts the new jobs first, keeps each job once and stops at the source's limit", () => {
+    const j = (id: string) => ({ id });
+    expect(mergeDelta([j("c"), j("a")], [j("a"), j("b")], 10).map((x) => x.id)).toEqual(["c", "a", "b"]);
+    expect(mergeDelta([j("c")], [j("a"), j("b")], 2).map((x) => x.id)).toEqual(["c", "a"]);
+    expect(mergeDelta([], [j("a")], 5).map((x) => x.id)).toEqual(["a"]);
   });
 });

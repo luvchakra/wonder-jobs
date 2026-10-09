@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { __resetKeys, fetchTheirStack, keyOrder, theirStackKeys } from "./theirstack";
+import { __resetKeys, buildRequest, fetchTheirStack, keyOrder, theirStackKeys } from "./theirstack";
 
 const job = (id: number) => ({ id, job_title: "IAM Director", final_url: `https://boards.greenhouse.io/acme/jobs/${id}`, company: "Acme", location: "Remote", date_posted: "2026-10-01" });
 const used: string[] = [];
@@ -67,5 +67,14 @@ describe("TheirStack keys", () => {
     fakeTheirStack({});
     expect(await fetchTheirStack(criteria, [])).toEqual([]);
     expect(used).toEqual([]);
+  });
+});
+
+describe("TheirStack repeat searches", () => {
+  it("asks only for jobs TheirStack discovered since the last answer", async () => {
+    const since = "2026-10-09T10:20:00.000Z";
+    const body = await buildRequest({ query: "iam director", locations: ["Remote"], since }, 10, "k", async () => null);
+    expect(body).toMatchObject({ discovered_at_gte: since, posted_at_max_age_days: 21 });
+    expect(await buildRequest({ query: "iam director", locations: ["Remote"] }, 10, "k", async () => null)).not.toHaveProperty("discovered_at_gte");
   });
 });
