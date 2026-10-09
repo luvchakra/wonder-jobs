@@ -8,6 +8,7 @@ import { WorkflowEngine } from "@/domain/workflow/engine";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import { isActive } from "@/domain/workflow/status";
 import type { RunConfig, WorkflowRun } from "@/domain/workflow/types";
+import type { Notification } from "@/domain/career/types";
 import { FallbackProvider, TemplateAIService, WonderJobsAIProvider, type AIService } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { createExecutors, inheritCaches, seedCachesFromCatalog } from "./executors";
@@ -64,8 +65,11 @@ class WorkflowService {
             const strong = run.summary.strongMatches;
             track("find_completed", { runId: run.id, strong, retained: run.summary.jobsRetained, trigger: run.trigger, silent: !!run.silent });
             career.addActivity({ kind: "run_completed", title: "Search finished", subtitle: strong ? `${strong} strong match${strong === 1 ? "" : "es"}` : "No new strong matches", href: `/app/runs/${run.id}` });
-            // Silence is a valid outcome: only notify when there is something worth attention.
-            if (!run.silent && (run.config.notify === "always" || (run.config.notify === "strong_matches_only" && strong > 0))) {
+            if (run.trigger !== "schedule") {
+              // A search the candidate started: always say how it went, naming what was searched, with the next step.
+              career.notify(searchFinishedNotice(run));
+            } else if (!run.silent && (run.config.notify === "always" || (run.config.notify === "strong_matches_only" && strong > 0))) {
+              // Silence is a valid outcome for a scheduled search: only notify when there is something worth attention.
               career.notify({ category: strong ? "strong_opportunity" : "workflow_completed", title: strong ? `${strong} new strong match${strong === 1 ? "" : "es"}` : "Search finished", body: strong ? "Wonder found roles that fit your Career Profile." : "Nothing new worth your attention this time.", href: strong ? "/app/jobs?fit=strong" : `/app/runs/${run.id}` });
             }
             break;
@@ -181,4 +185,14 @@ let instance: WorkflowService | null = null;
 export function getWorkflowService() {
   if (!instance) instance = new WorkflowService();
   return instance;
+}
+
+/** How a search the candidate started went, as one actionable notification. Distinct per query, so searches don't fold into one. */
+export function searchFinishedNotice(run: Pick<WorkflowRun, "id" | "summary" | "config">): Omit<Notification, "id" | "at" | "read"> {
+  const q = run.config.searchCriteria.query.trim();
+  const what = q ? ` for “${q}”` : "";
+  const { strongMatches: strong, jobsRetained: found } = run.summary;
+  if (strong) return { category: "strong_opportunity", title: `${strong} strong match${strong === 1 ? "" : "es"}${what}`, body: `Out of ${found} job${found === 1 ? "" : "s"} found. The best fits are at the top.`, href: "/app/jobs?fit=strong", action: "Review matches" };
+  if (found) return { category: "workflow_completed", title: `${found} job${found === 1 ? "" : "s"} found${what}`, body: "None is a strong match yet; the closest are at the top.", href: "/app/jobs", action: "See jobs" };
+  return { category: "workflow_completed", title: `No jobs found${what}`, body: "Try fewer words or more places.", href: `/app/runs/${run.id}`, action: "Change search" };
 }

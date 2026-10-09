@@ -77,9 +77,13 @@ export interface Notification {
     | "interview_upcoming"
     | "provider_issue"
     | "scheduled_run_failed"
-    | "application_status";
+    | "application_status"
+    | "materials_ready"
+    | "job_closed";
   title: string;
   body: string;
   href: string;
+  /** The button's words, when this notification's action is more specific than its category's. */
+  action?: string;
   read: boolean;
 }

@@ -94,7 +94,11 @@ export const useJobsStore = create<JobsState>()(
       markClosed: (jobId, reason) =>
         set((s) => {
           const closed = { ...s.closed, [jobId]: { at: new Date().toISOString(), reason } };
-          if (s.saved[jobId]) return { closed };
+          if (s.saved[jobId]) {
+            const j = s.jobs[jobId];
+            if (!s.closed[jobId] && j) useCareerStore.getState().notify({ category: "job_closed", title: `A saved job closed: ${j.company}`, body: `${j.title} — ${reason}`, href: "/app/saved", action: "See saved jobs" });
+            return { closed };
+          }
           return { closed, order: s.order.filter((id) => id !== jobId) };
         }),
       setOrigins: (byJob) => set((s) => ({ origins: { ...s.origins, ...byJob } })),

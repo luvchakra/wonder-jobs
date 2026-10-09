@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import { applicationJobOf, type Application, type ApplicationArtifact, type ApplicationEvent, type ApplicationJob, type ApplicationStatus, type ArtifactType, type ArtifactVersion } from "@/domain/applications/types";
+import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
 import { interactionFor, useJobsStore } from "./jobs";
 import { useCareerStore } from "./career";
@@ -56,6 +57,8 @@ export const useApplicationsStore = create<ApplicationsState>()(
           const events = event ? [...a.events, { ...event, id: newId("ev"), applicationId: id, at: new Date().toISOString() }] : a.events;
           return { applications: { ...s.applications, [id]: { ...a, status, events, appliedAt: status === "submitted" ? new Date().toISOString() : a.appliedAt } } };
         });
+        const a = get().applications[id];
+        if (a && STATUS_NOTICE[status]) useCareerStore.getState().notify(statusNotice(a, status));
         // Applying is the strongest evidence of what the candidate wants: learned like saving.
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
@@ -82,6 +85,12 @@ export const useApplicationsStore = create<ApplicationsState>()(
         }),
       addVersion: (id, type, version) => {
         const v: ArtifactVersion = { ...version, id: newId("ver"), createdAt: new Date().toISOString() };
+        // A draft the model wrote is for the candidate to review before it's used.
+        const owner = get().applications[id];
+        if (owner && v.provenance === "AI_GENERATED" && type !== "answers") {
+          const j = owner.job ?? useJobsStore.getState().jobs[owner.jobId];
+          useCareerStore.getState().notify({ category: "materials_ready", title: `${type === "resume" ? "Résumé" : "Cover letter"} drafted${j ? ` for ${j.company}` : ""}`, body: "AI-generated — review and edit it before you use it.", href: `/app/applications/${id}/prepare`, action: "Review draft" });
+        }
         set((s) => {
           const a = s.applications[id];
           if (!a) return s;
@@ -149,3 +158,17 @@ export const useApplicationsStore = create<ApplicationsState>()(
     { name: "wj.applications", storage: createRemoteStorage(), skipHydration: true, version: 1 },
   ),
 );
+
+const STATUS_NOTICE: Partial<Record<ApplicationStatus, { title: string; action: string }>> = {
+  submitted: { title: "Application submitted", action: "Open application" },
+  interview: { title: "Interview stage", action: "Prepare" },
+  offer: { title: "Offer", action: "Open application" },
+  rejected: { title: "Application closed", action: "Open application" },
+};
+
+/** An application's status changed: say which one, and where to go next. */
+function statusNotice(a: Application, status: ApplicationStatus): Omit<Notification, "id" | "at" | "read"> {
+  const meta = STATUS_NOTICE[status]!;
+  const j = a.job ?? useJobsStore.getState().jobs[a.jobId];
+  return { category: status === "interview" ? "interview_upcoming" : "application_status", title: j ? `${meta.title}: ${j.company}` : meta.title, body: j ? j.title : "Your application moved on.", href: status === "interview" ? "/app/interview-prep" : `/app/applications/${a.id}`, action: meta.action };
+}

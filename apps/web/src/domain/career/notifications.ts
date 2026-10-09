@@ -10,6 +10,8 @@ export const NOTIFICATION_ACTION: Record<Notification["category"], string> = {
   provider_issue: "Check AI settings",
   scheduled_run_failed: "See what happened",
   application_status: "Open application",
+  materials_ready: "Review draft",
+  job_closed: "See saved jobs",
 };
 
 const sameMessage = (a: Pick<Notification, "category" | "title" | "body">, b: Pick<Notification, "category" | "title" | "body">) => a.category === b.category && a.title === b.title && a.body === b.body;
