@@ -20,6 +20,8 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
   const [frame, setFrame] = useState<Frame | null>(null);
   const [link, setLink] = useState<Link>("connecting");
   const [host, setHost] = useState("");
+  /** Whether this stream ever connected — a link that never came up is a different failure from one that dropped. */
+  const [everLive, setEverLive] = useState(false);
   const [text, setText] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,7 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
   useEffect(() => {
     let gone = false;
     let attempts = 0;
+    let refreshed = 0;
     let current = stream;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const connect = () => {
@@ -40,6 +43,8 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
       wsRef.current = ws;
       ws.onopen = () => {
         attempts = 0;
+        refreshed = 0;
+        setEverLive(true);
         setLink("live");
       };
       ws.onmessage = (e) => {
@@ -58,9 +63,9 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
       };
       ws.onclose = () => {
         if (gone) return;
-        // A dropped connection: the same token a few times, then a fresh one, then say so.
+        // A dropped connection: the same token a few times, then one fresh token, then say so — never retry forever.
         if (attempts++ < 4) timer = setTimeout(connect, 600 * attempts);
-        else if (onReconnect)
+        else if (onReconnect && refreshed++ < 1)
           void onReconnect().then((next) => {
             if (gone) return;
             if (next) {
@@ -114,7 +119,7 @@ export function CloudBrowser({ stream, fillable, fillDecision, busy, onFill, onE
   };
 
   const ratio = frame ? `${frame.w} / ${frame.h}` : `${stream.viewport.width} / ${stream.viewport.height}`;
-  const status = link === "live" ? (host ? `Live on ${host}` : "Live") : link === "connecting" ? "Connecting to the cloud browser…" : link === "lost" ? "Lost the connection to the cloud browser." : "This cloud browser has closed.";
+  const status = link === "live" ? (host ? `Live on ${host}` : "Live") : link === "connecting" ? "Connecting to the cloud browser…" : link === "lost" ? (everLive ? "Lost the connection to the cloud browser." : "Couldn't connect to the cloud browser. Try Reconnect, or choose Guide me.") : "This cloud browser has closed.";
 
   return (
     <Card aria-labelledby="wj-cloud">
