@@ -31,7 +31,7 @@ jobs:
       - name: Skip until FLY_API_TOKEN is set
         if: env.FLY_API_TOKEN == ''
         run: echo "::notice::FLY_API_TOKEN isn't set; the cloud browser wasn't redeployed."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.FLY_API_TOKEN != ''
       - uses: superfly/flyctl-actions/setup-flyctl@master
         if: env.FLY_API_TOKEN != ''
