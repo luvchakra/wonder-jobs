@@ -15,7 +15,39 @@ const API = "https://api.theirstack.com";
 export const PER_SEARCH = 25;
 const MAX_AGE_DAYS = 21;
 
-export const theirStackKey = () => process.env.THEIRSTACK_API_KEY?.trim() || undefined;
+/**
+ * Every configured key: THEIRSTACK_API_KEYS (comma-separated) and/or THEIRSTACK_API_KEY. Several keys
+ * are used with TheirStack's agreement (owner confirmed with TheirStack, 2026-10-09). Never logged.
+ */
+export function theirStackKeys(env: Record<string, string | undefined> = process.env): string[] {
+  const all = [...(env.THEIRSTACK_API_KEYS ?? "").split(","), env.THEIRSTACK_API_KEY ?? ""].map((k) => k.trim()).filter(Boolean);
+  return [...new Set(all)];
+}
+
+/**
+ * Keys take turns, one per search. A key TheirStack rejects or reports out of credits is set aside
+ * until the next calendar month (UTC) on this server instance; the others carry on.
+ */
+const setAsideUntil = new Map<string, string>();
+let turn = Math.floor(Math.random() * 1000);
+const monthOf = (now: number) => new Date(now).toISOString().slice(0, 7);
+
+export function keyOrder(keys: string[], now = Date.now()): string[] {
+  const live = keys.filter((k) => setAsideUntil.get(k) !== monthOf(now));
+  if (!live.length) return [];
+  const start = turn++ % live.length;
+  return [...live.slice(start), ...live.slice(0, start)];
+}
+
+export function setKeyAside(key: string, now = Date.now()) {
+  setAsideUntil.set(key, monthOf(now));
+}
+
+/** Test hook. */
+export function __resetKeys() {
+  setAsideUntil.clear();
+  turn = 0;
+}
 
 /** Credits WonderJobs may spend a calendar month (UTC); 0 turns the source off. */
 export function monthlyCredits(env: Record<string, string | undefined> = process.env): number {
@@ -138,17 +170,31 @@ export async function buildRequest(c: SearchCriteria & { titles?: string[] }, li
 export class TheirStackError extends Error {}
 
 /** Ask TheirStack for at most `limit` jobs. Every job returned is a credit spent, so nothing is filtered away afterwards. */
-export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; maxResults?: number }): Promise<Job[]> {
-  const key = theirStackKey();
-  if (!key) return [];
+export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; maxResults?: number }, keys = theirStackKeys()): Promise<Job[]> {
+  if (!keys.length) return [];
+  const order = keyOrder(keys);
+  if (!order.length) throw new TheirStackError("Every TheirStack API key is out of credits or was rejected this month");
   const limit = Math.max(1, Math.min(PER_SEARCH, c.maxResults ?? PER_SEARCH));
-  const body = await buildRequest(c, limit, key);
-  const res = await fetch(`${API}/v1/jobs/search`, { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body), cache: "no-store" });
-  if (res.status === 401 || res.status === 403) throw new TheirStackError("TheirStack rejected the API key");
-  if (res.status === 402) throw new TheirStackError("TheirStack account is out of API credits");
-  if (res.status === 429) throw new TheirStackError("TheirStack rate limit reached — try again shortly");
-  if (!res.ok) throw new TheirStackError(`TheirStack responded ${res.status}`);
-  const data = ((await res.json()) as { data?: TheirStackJob[] }).data ?? [];
+  let data: TheirStackJob[] | undefined;
+  let last = "";
+  // Keys take turns; a rejected or exhausted key is set aside and the next one is asked.
+  for (const key of order) {
+    const body = await buildRequest(c, limit, key);
+    const res = await fetch(`${API}/v1/jobs/search`, { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+    if (res.status === 401 || res.status === 402 || res.status === 403) {
+      setKeyAside(key);
+      last = res.status === 402 ? "out of API credits" : "API key rejected";
+      continue;
+    }
+    if (res.status === 429) {
+      last = "rate limit reached";
+      continue;
+    }
+    if (!res.ok) throw new TheirStackError(`TheirStack responded ${res.status}`);
+    data = ((await res.json()) as { data?: TheirStackJob[] }).data ?? [];
+    break;
+  }
+  if (!data) throw new TheirStackError(`TheirStack: ${last} on all ${order.length} key(s)`);
   const seen = new Set<string>();
   const out: Job[] = [];
   for (const j of data.slice(0, limit)) {
@@ -164,6 +210,6 @@ export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; m
 
 export const theirstack: SourceFetcher = {
   id: "theirstack",
-  available: () => !!theirStackKey() && monthlyCredits() > 0,
+  available: () => theirStackKeys().length > 0 && monthlyCredits() > 0,
   fetch: (c) => fetchTheirStack(c),
 };
