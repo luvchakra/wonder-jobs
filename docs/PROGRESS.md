@@ -128,6 +128,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Sensitive questions (EEO, work authorization, declarations, ID numbers) answered only when you turn each group on and confirm your answers (WJ-274)
 - ✅ Menus without overlap: You, the avatar menu and Pipeline each hold their own things (WJ-281)
 - ✅ Notifications as things happen — searches, applications, drafts, closed jobs — each with its next step (WJ-282)
+- ✅ Cloud browser ready to deploy on Fly.io in one command, so autofill can work on phones (WJ-286)
 - ✅ Calendar subscribe in one click for Google, Apple and Outlook (WJ-277)
 - ✅ Insights counts open what they count; Learning adds a skill to your profile in one click (WJ-278)
 - ✅ Ask Wonder opens on what needs you now (WJ-279)
