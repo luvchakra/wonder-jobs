@@ -1,3 +1,4 @@
+import { theirStackKeys } from "@/server/jobs/theirstack";
 import { randomBytes } from "node:crypto";
 import { decrypt, encrypt } from "@/server/secrets";
 import { jobsLakeStore } from "./store";
@@ -19,8 +20,17 @@ export interface CredentialStatus {
   replacedAt?: string;
 }
 
-const ENV_REFS: Record<string, { vars: string[]; label: string }> = {
-  "env:ADZUNA": { vars: ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"], label: "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
+/** Deployment-managed credentials: whether they're set, and a description that never includes a value. */
+const ENV_REFS: Record<string, { present: (env: Record<string, string | undefined>) => boolean; label: (env: Record<string, string | undefined>) => string }> = {
+  "env:ADZUNA": { present: (e) => !!e.ADZUNA_APP_ID && !!e.ADZUNA_APP_KEY, label: () => "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
+  // Either variable may hold the keys; only how many are set is ever shown.
+  "env:THEIRSTACK": {
+    present: (e) => theirStackKeys(e).length > 0,
+    label: (e) => {
+      const n = theirStackKeys(e).length;
+      return n ? `THEIRSTACK_API_KEYS / THEIRSTACK_API_KEY — ${n} key${n === 1 ? "" : "s"}` : "THEIRSTACK_API_KEYS or THEIRSTACK_API_KEY";
+    },
+  },
 };
 
 /** Stricter than the BYOK mask: no prefix, and nothing at all from a short secret. */
@@ -46,12 +56,12 @@ export async function readCredential(ref: string | undefined): Promise<string | 
   return c ? decrypt(c.ciphertext) : undefined;
 }
 
-export async function credentialStatus(ref: string | undefined): Promise<CredentialStatus | null> {
+export async function credentialStatus(ref: string | undefined, envVars: Record<string, string | undefined> = process.env): Promise<CredentialStatus | null> {
   if (!ref) return null;
   const env = ENV_REFS[ref];
   if (env) {
-    const present = env.vars.every((v) => !!process.env[v]);
-    return { ref, masked: present ? `Set in the deployment (${env.label})` : `Not set (${env.label})`, managedBy: "environment", present };
+    const present = env.present(envVars);
+    return { ref, masked: present ? `Set in the deployment (${env.label(envVars)})` : `Not set (${env.label(envVars)})`, managedBy: "environment", present };
   }
   const c = await jobsLakeStore().getCredential(ref);
   return c ? { ref, masked: c.masked, managedBy: "jobslake", present: true, createdAt: c.createdAt, replacedAt: c.replacedAt } : { ref, masked: "Missing", managedBy: "jobslake", present: false };
