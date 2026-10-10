@@ -7,7 +7,9 @@
 # deploy that doesn't wait in the queue behind it. Rules, in order:
 #   1. Previews of Dependabot branches: skipped. CI checks those PRs; nobody opens their previews, and
 #      Dependabot rebases every open PR after each merge, which used to queue several builds right
-#      behind production. (Also disabled in vercel.json `git.deploymentEnabled`; this is the backstop.)
+#      behind production. (vercel.json `git.deploymentEnabled` `"*/**": false` already stops every
+#      prefixed branch from deploying; this is the backstop. A skipped build still counts toward the
+#      daily deployment cap, so the vercel.json rule is the one that saves slots.)
 #   2. Previews of a squash-merge commit ("… (#123)"): skipped. Production builds that exact commit.
 #   3. Only docs/Markdown changed since the last deployment: skipped (production included). A preview
 #      whose last deployment is gone from history (branch reset after a merge) compares with main.
