@@ -23,7 +23,8 @@ export function MarketingNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   return (
-    <header className={cn("fixed inset-x-0 top-0 z-50 transition-colors", scrolled || open ? "bg-white/80 shadow-xs backdrop-blur-md" : "bg-transparent")}>
+    // `top` follows the install banner (WJ-301) while it's on screen, so the banner never sits under this bar.
+    <header style={{ top: "var(--wj-install-offset, 0px)" }} className={cn("fixed inset-x-0 z-50 transition-colors", scrolled || open ? "bg-white/80 shadow-xs backdrop-blur-md" : "bg-transparent")}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <WonderLogo />
         <nav aria-label="Marketing" className="hidden items-center gap-7 lg:flex">

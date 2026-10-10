@@ -288,6 +288,15 @@
   .wj-animate-spin { animation: wj-spin 900ms linear infinite; }
   .wj-animate-pulse-dot { animation: wj-pulse-dot 1.6s ease-in-out infinite; }
   .wj-animate-fade-up { animation: wj-fade-up var(--wj-dur-slow) var(--wj-ease) both; }
+  /* Install banner (WJ-301): grows open from zero height, so the page below slides down rather than jumps. */
+  @keyframes wj-install-in {
+    from { grid-template-rows: 0fr; opacity: 0; }
+    to { grid-template-rows: 1fr; opacity: 1; }
+  }
+  .wj-install-banner { display: grid; grid-template-rows: 1fr; animation: wj-install-in var(--wj-dur-slow) var(--wj-ease) both; }
+  @media print {
+    .wj-install-banner { display: none !important; }
+  }
   @keyframes wj-hero-in {
     from { opacity: 0; transform: translateY(22px); filter: blur(6px); }
     to { opacity: 1; transform: none; filter: blur(0); }
@@ -352,6 +361,7 @@
     .wj-collar-left, .wj-collar-right, .wj-collar-tie, .wj-collar-knot { animation: none; }
     .wj-collar-knot { opacity: 0; }
     .wj-hero-in { animation: none; opacity: 1; }
+    .wj-install-banner { animation: none; }
     .wj-sweep { animation: none; transform: none; width: 100%; opacity: 0.5; }
   }
 }
