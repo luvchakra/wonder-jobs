@@ -55,11 +55,22 @@ Every page stays minimal. Before adding a control, look for one to remove.
 
 The owner tests changes themselves, so getting a change in front of them fast beats exhaustive pre-push verification.
 
-- **Fastest path to something testable:** commit, push the branch, open a PR, and share the preview URL (`<preview URL pattern>`). Merge (squash) as soon as CI is green, then confirm the production deploy is ready.
+- **Fastest path to something testable:** commit, push the branch, open a PR, merge (squash) as soon as CI is green, then confirm the production deploy is ready. Use branch previews only if the host's deployment budget allows them (see "Build-slot budget").
 - **Before pushing, run only fast, relevant checks:** typecheck (`<typecheck command>`), lint on the files you changed, and unit tests for the areas you touched (`<test command> <paths>`). CI runs the full suite (`<full check command>`); let it.
 - **Don't run** end-to-end, accessibility or full-app walkthroughs unless asked or the change is genuinely risky. A quick look at the one screen you changed is enough.
 - **Notify the owner when a task is done** (merged, or blocked on something only they can do), with a one-line outcome. Send one notification per finished task, not one per step.
 - **Still required, because they're cheap and protect trust:** the rules above, plus a unit test for any change to the permission gate, any workflow that gates AI-touching or external-effect actions, billing, or any database query or migration (check the tenant filter explicitly).
+
+## Build-slot budget
+
+Hosting platforms often cap deployments per day (Vercel's free plan: 100) and count every deployment they create, including ones an ignored-build step cancels. Running out blocks production, so deployments are a budget, production first.
+
+1. **Create no deployment you don't need.** Turn automatic deployments off for working branches at the platform level (Vercel: `vercel.json` → `"git": {"deploymentEnabled": {"*/**": false}}`, with working branches always named `prefix/topic`). An ignore script that cancels the build still uses a slot. Keep previews off unless someone will open them, and don't link a second project to the same repository.
+2. **One merge to main = one production deployment, so merge in bigger pieces.** Squash-merge; put docs, changelog, tracker and test updates in the same PR as the code. No docs-only PRs while a code PR is open or about to open.
+3. **Tests on the hosting platform cost a slot per run.** Run end-to-end tests on the CI runner. Run pre-merge platform tests only for security-sensitive changes (auth, permissions, database rules, integrations). Keep scheduled suites few, and skip them when main hasn't changed since the last green run. Never re-run a failed run hoping it passes.
+4. **Verify before pushing.** Typecheck, lint, the touched unit tests and a local production build; push a branch once, when it's ready.
+5. **Watch the budget.** Count the last 24 hours' deployments before deployment-heavy work. Above ~70% of the cap, stop test runs and docs-only merges; keep the rest for production and hotfixes.
+6. **When the cap is hit:** stop pushing to branches that deploy (refused deployments aren't queued), wait until the oldest counted deployment is 24 hours old, then redeploy only the latest main, once. Treat "rate limited" statuses as infrastructure, not test failures.
 
 ## Working conventions
 
