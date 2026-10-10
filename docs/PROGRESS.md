@@ -407,7 +407,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - 🟡 Insights: derived from real runs/applications; trend history grows with use
 - ✅ Calendar subscribe feed: signed, cookie-less iCalendar URL that Google/Outlook/Apple Calendar poll — real interviews, follow-ups and scheduled runs, no OAuth app to register — WJ-091
 - ⬜ Two-way calendar sync (writing back to Google/Microsoft) — needs an OAuth client per provider
-- ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API, so nothing renders there rather than faking it), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
+- ✅ PWA installability: manifest, generated icons (192/512/maskable), "Install app" in the avatar menu (Chromium only — iOS/Firefox have no install-prompt API; on phones and tablets the install banner adds iOS's Add to Home Screen steps, WJ-301), a deliberately non-caching service worker (this app is local-first and real-time already; a caching SW would risk stale job/application data) — WJ-090
 - ✅ Push notifications: RFC 8291/8292 Web Push with no dependency (verified against the RFC's own test vector), per-browser subscriptions in Postgres, opt-in from Profile, delivered by the scheduled-run cron — WJ-096
 - ✅ Follow-up and interview reminders are raised by the cron too, so they arrive with the app closed; the browser still raises them while open and neither repeats the other — WJ-097
 
@@ -438,6 +438,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Branded emails (WJ-294): the activity digest and contact notification share one layout (`server/email/layout.ts`) — logo header, brand accent bar, footer with why-you-got-this, settings, privacy and the existing unsubscribe link, plus a plain-text twin
 - ✅ `docs/CLAUDE.template.md`: a generic CLAUDE.md based on these working rules, for other projects
 - ✅ Refine: Change sits right beside the role you're looking for (WJ-298)
+- ✅ "Install the app" banner on phones and tablets: one-tap Install on Chromium, Share → Add to Home Screen steps on iPhone/iPad, never on desktop or once installed (WJ-301)
 - ✅ Landing: top navigation cut to four links (WJ-300)
 - ✅ Cloud browser moved to Singapore, nearest Fly region to India — Mumbai is closed on Fly (WJ-299)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)

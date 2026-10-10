@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { INSTALL_EARLY_CAPTURE } from "@/lib/installBanner";
 import { siteUrl } from "@/lib/siteUrl";
 import "./globals.css";
 
@@ -21,6 +23,9 @@ export const metadata: Metadata = {
   // manifest.ts and apple-icon.tsx are picked up automatically by their file names; this fills in the
   // iOS-specific "add to home screen" tags that a web manifest alone doesn't cover.
   appleWebApp: { capable: true, title: "WonderJobs", statusBarStyle: "default" },
+  // Next now writes `capable` as the standard `mobile-web-app-capable`; older iOS versions only read the
+  // Apple-prefixed tag, so it's set explicitly too (WJ-301).
+  other: { "apple-mobile-web-app-capable": "yes" },
   // `opengraph-image.tsx` supplies the image itself, by file convention, for every page that doesn't
   // override it. `title`/`description` are deliberately *not* pinned here: leaving them out lets each
   // page's own title and description flow into og:title/og:description, so a shared link names the
@@ -39,7 +44,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        {/* Holds Chromium's install prompt if it fires before the app's JavaScript loads (WJ-301). */}
+        <script dangerouslySetInnerHTML={{ __html: INSTALL_EARLY_CAPTURE }} />
+      </head>
       <body className="min-h-full flex flex-col">
+        {/* Phones and tablets only, when this browser can install the app and it isn't installed. */}
+        <InstallBanner />
         {children}
         <RegisterServiceWorker />
       </body>
