@@ -47,7 +47,7 @@ repack the direct download (`node scripts/pack-extension.mjs`), merge, then run 
   that one site.
 
 - **Privacy policy URL:** https://jobs.wonderapps.biz/privacy
-- **Single purpose:** Fill a job application form with the user's own approved WonderJobs details.
+- **Single purpose:** Help the user apply to the job they're viewing: score it against their WonderJobs profile, save it to their Pipeline, and fill its application form with their own approved details.
 
 ### Permission justifications
 
@@ -55,13 +55,15 @@ repack the direct download (`node scripts/pack-extension.mjs`), merge, then run 
 |---|---|
 | `storage` | Keeps the short-lived WonderJobs session token and the user's per-site choices. |
 | `scripting` | Runs the form filler on an employer site the user has just allowed. |
-| `activeTab` | Fills the form on the tab the user is looking at when they press Fill. |
+| `activeTab` | Reads the job on the tab the user clicked the icon on (to score it), and fills the form there when they press Fill. |
+| `sidePanel` | The helper opens beside the page, so the user can read the job and its score together. |
 | Host: `jobs.wonderapps.biz` | Talks to the user's own WonderJobs account. |
 | Host: Greenhouse, Lever, Ashby, Workday | Recognise and fill application forms on these hiring platforms. |
-| Optional host: `https://*/*` | Requested one site at a time, only when the user allows a company's own careers site. |
+| Optional host: `https://*/*` | Requested one site at a time, only when the user allows a company's own careers site — or LinkedIn and Naukri together, when the user chooses "Always read jobs on LinkedIn and Naukri". |
 
 ### Data use disclosures
 
-Collects *personally identifiable information* and *website content* (form labels on the application page),
-used only to fill the form the user asked it to fill; not sold, not used for anything unrelated, not used for
+Collects *personally identifiable information* and *website content* (the job posting the user is viewing while the
+helper's panel is open, to score it, kept only if they press Save; form labels on an application page, to fill it),
+used only for that; not sold, not used for anything unrelated, not used for
 credit decisions.

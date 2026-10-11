@@ -75,9 +75,15 @@ describe("browser helper — structural no-submit guarantee", () => {
   });
   it("the manifest asks only for narrow permissions (§46)", () => {
     const m = JSON.parse(readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
-    expect(m.permissions.sort()).toEqual(["activeTab", "scripting", "storage"]);
+    // sidePanel: the helper's home beside the page (owner decision 2026-10-11, WJ-304).
+    expect(m.permissions.sort()).toEqual(["activeTab", "scripting", "sidePanel", "storage"]);
     expect(m.host_permissions).not.toContain("<all_urls>");
     expect(m.host_permissions).not.toContain("https://*/*");
     expect(m.optional_host_permissions).toEqual(["https://*/*"]);
+  });
+
+  it("the side panel's job reader only reads: it presses, types and submits nothing", () => {
+    const src = readFileSync(path.join(ROOT, "content/read-job.js"), "utf8");
+    expect(src).not.toMatch(/\.click\(|\.submit\(|requestSubmit|dispatchEvent|\.value\s*=|\.checked\s*=|innerHTML\s*=|\.focus\(|fetch\(|chrome\.runtime|localStorage|document\.cookie/);
   });
 });

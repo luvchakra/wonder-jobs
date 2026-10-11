@@ -70,7 +70,7 @@ An in-page, shadow-DOM panel docked at the bottom right. It shows:
 - pause messages (sign-in, verification, unexpected site, payment);
 - Stop.
 
-The Chrome Side Panel API is not used yet: it needs another permission and store review.
+The Chrome Side Panel is the helper's home since 0.3.0 (WJ-304): it reads the job on the tab the candidate clicked the icon on (`content/read-job.js`), scores and saves it — see `docs/EXTENSION_BEYOND_AUTOFILL.md`.
 
 ## Legacy mode
 

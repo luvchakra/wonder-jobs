@@ -48,3 +48,12 @@ window.addEventListener("wonderjobs:jobsapply-pair", async (event) => {
     reply(false, "WonderJobs couldn't be reached.");
   }
 });
+
+/**
+ * The side panel saved a job (another tab, the helper's Save). The page takes it from its own account's
+ * server copy; only the two ids pass through here.
+ */
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== "jobSaved" || typeof message.jobId !== "string" || typeof message.applicationId !== "string") return;
+  window.dispatchEvent(new CustomEvent("wonderjobs:job-saved", { detail: { jobId: message.jobId, applicationId: message.applicationId } }));
+});

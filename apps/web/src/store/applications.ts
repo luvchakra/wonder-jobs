@@ -25,6 +25,8 @@ interface ApplicationsState {
   remove: (id: string) => void;
   /** Keep a copy of the job on applications that don't have one yet (jobId → its facts). */
   keepJobs: (byJobId: Record<string, ApplicationJob>) => void;
+  /** An application made elsewhere for this account (the browser helper's Save), taken in as it is — unless this job already has one. */
+  adopt: (app: Application) => void;
 }
 
 export const useApplicationsStore = create<ApplicationsState>()(
@@ -63,6 +65,8 @@ export const useApplicationsStore = create<ApplicationsState>()(
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
       },
+      adopt: (app) =>
+        set((s) => (s.applications[app.id] || Object.values(s.applications).some((a) => a.jobId === app.jobId) ? s : { applications: { ...s.applications, [app.id]: app } })),
       keepJobs: (byJobId) =>
         set((s) => {
           const missing = Object.values(s.applications).filter((a) => !a.job && byJobId[a.jobId]);

@@ -13,6 +13,7 @@ import { useCareerStore } from "@/store/career";
 import { useAuthStore } from "@/store/auth";
 import { PageLoading } from "@/components/common/States";
 import { PrivacyNoticeGate } from "@/components/privacy/PrivacyNoticeGate";
+import { useHelperSaves } from "@/components/extension/useHelperSaves";
 
 /**
  * Renders product pages once local state is hydrated. A signed-in account
@@ -21,6 +22,7 @@ import { PrivacyNoticeGate } from "@/components/privacy/PrivacyNoticeGate";
  */
 function Gate({ children }: { children: React.ReactNode }) {
   const hydrated = useHydration((s) => s.hydrated);
+  useHelperSaves();
   const onboarded = useCareerStore((s) => s.onboarded);
   const mode = useAuthStore((s) => s.mode);
   const router = useRouter();
