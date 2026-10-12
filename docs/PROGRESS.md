@@ -444,6 +444,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Build-slot budget: only main deploys on Vercel; rules in CLAUDE.md (WJ-302)
 - ✅ Merge and build only on "merge now" / "build now" (WJ-303)
 - ✅ Browser helper side panel: score the job you're viewing and save it to Pipeline (WJ-304)
+- ✅ Dependabot: no more major-version PRs (WJ-305)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
