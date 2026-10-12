@@ -182,6 +182,28 @@ async function jobsApplyCall({ sessionId, path, method = "GET", body }) {
   return { data };
 }
 
+/* ------------------------------------------------------------ Side panel */
+
+/**
+ * The toolbar icon opens the side panel (docs/EXTENSION_BEYOND_AUTOFILL.md) and records which tab was
+ * clicked: that click is what lets the panel read the job on that tab (activeTab), once. Chrome without
+ * the side panel keeps the old popup.
+ */
+if (chrome.sidePanel?.open) {
+  chrome.action.onClicked.addListener((tab) => {
+    chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => undefined);
+    if (tab.id != null) chrome.storage.session.set({ "wj.clicked": { tabId: tab.id, at: Date.now() } }).catch(() => undefined);
+  });
+} else {
+  chrome.action.setPopup({ popup: "popup/popup.html?popup=1" });
+}
+
+/** After a Save, open WonderJobs tabs take the job from the server copy (the message carries ids only). */
+async function tellWonderJobsTabs(message) {
+  const tabs = await chrome.tabs.query({ url: WONDERJOBS_ORIGINS.map((o) => `${o}/*`) }).catch(() => []);
+  for (const t of tabs) if (t.id != null) chrome.tabs.sendMessage(t.id, message).catch(() => undefined);
+}
+
 const handlers = {
   /** Called by the bridge content script running on WonderJobs itself. */
   async storeToken({ origin, token, expiresAt }) {
@@ -209,6 +231,16 @@ const handlers = {
   /** Only on the candidate's Save: answers they typed on the form, kept for the next form. */
   async remember({ items }) {
     return api("/api/extension/remember", { items });
+  },
+  /** The job the side panel read from the candidate's tab: scored against their Career DNA. Reads only. */
+  async jobRead({ page }) {
+    return api("/api/extension/job/read", page);
+  },
+  /** The candidate pressed Save in the side panel. */
+  async jobSave({ page }) {
+    const r = await api("/api/extension/job/save", page);
+    if (r.data?.created && r.data.application?.id) await tellWonderJobsTabs({ type: "jobSaved", jobId: r.data.jobId, applicationId: r.data.application.id });
+    return r;
   },
   async disconnect() {
     await chrome.storage.local.remove([STORAGE_KEY, SESSIONS_KEY]);

@@ -70,8 +70,9 @@ all sites at once.
 
 1. A content script on WonderJobs' own pages calls `GET /api/extension/token`
    with the normal session cookie.
-2. That returns a short-lived, read-only bearer token (30 minutes), which the
-   service worker stores.
+2. That returns a short-lived bearer token (30 minutes) for this account, which the
+   service worker stores. It reads the profile and application materials, scores and
+   saves the job in the side panel, and keeps answers the candidate chose to save.
 3. On an employer's site the content script asks the service worker for data;
    only the worker ever holds the token, and only it talks to WonderJobs.
 
@@ -101,7 +102,8 @@ Chrome Web Store submission.
 | `background.js` | Service worker — holds the token, the only thing that calls WonderJobs |
 | `content/wonderjobs-bridge.js` | Runs on WonderJobs; mints the token |
 | `content/autofill.js` | Runs on employers' sites; finds fields, fills them, shows the panel |
-| `popup/*` | Toolbar popup: connection status and a manual "fill this tab" |
+| `content/read-job.js` | Read-only: the job on the tab the side panel reads (schema.org JobPosting, LinkedIn, Naukri, else the page's main text) |
+| `popup/*` | The side panel (and the popup on Chrome without one): the job on this tab — score, Save, status — connection, and "fill this tab" |
 
 ## Repacking after a change
 
