@@ -9,7 +9,7 @@ See `docs/testing/README.md`. In short: pull requests run Lint (changed files), 
 related to the changed files, Build and Dependency audit in parallel, about a minute; a PR that changes
 dependencies, config or CI files runs the whole lint and every unit test. Pushes to `main` run
 everything except E2E. The Playwright suite runs only in `.github/workflows/e2e-nightly.yml`, nightly
-at 02:47 IST and by hand.
+at 03:00 IST and by hand.
 
 ### WJ-307 (2026-10-16): E2E off every pull request
 

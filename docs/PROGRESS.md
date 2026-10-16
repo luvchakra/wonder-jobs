@@ -445,6 +445,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Merge and build only on "merge now" / "build now" (WJ-303)
 - ✅ PRs merge automatically once CI is green (WJ-306, replaces WJ-303)
 - ✅ Fast PR CI (changed-files lint, related unit tests); E2E runs nightly and by hand, never on PRs (WJ-307)
+- ✅ Nightly E2E at 03:00 IST in three parts (local, signed-in, production); every change via an auto-merged PR (WJ-308)
 - ✅ Browser helper side panel: score the job you're viewing and save it to Pipeline (WJ-304)
 - ✅ Dependabot: no more major-version PRs (WJ-305)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
