@@ -243,7 +243,7 @@ const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?:
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
   { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
   { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderJobs AI, included.", href: "/sign-up" },
-  { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderJobs like an app for nudges.", href: "/help#calendar", cta: "How it works" },
+  { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderJobs like an app for nudges.", href: "/sign-up" },
   { icon: KeyRound, t: "JobsLake API", s: "Search the same live job sources from your own code with an API key. A free monthly allowance, then pay as you go.", href: "/api-reference", cta: "API reference" },
 ];
 
@@ -506,13 +506,8 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
   {
     title: "Resources",
     links: [
-      { label: "Help center", href: "/help" },
-      { label: "User guide", href: "/help#getting-started" },
-      { label: "FAQ", href: "/help#faq" },
-      { label: "Roadmap", href: "/help#roadmap" },
-      { label: "Job sources", href: "/help#sources" },
-      { label: "Ask Wonder guide", href: "/help#ask-wonder" },
-      { label: "Calendar & notifications", href: "/help#calendar" },
+      // The help center is for signed-in accounts (WJ-309): "Get Help" in the app's avatar menu.
+      { label: "API reference", href: "/api-reference" },
       { label: "Learning", href: "/app/learning" },
     ],
   },
@@ -537,7 +532,6 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "AI settings", href: "/app/settings/ai" },
       { label: "Plan & billing", href: "/app/profile#plan" },
       { label: "Your data (export / delete)", href: "/app/profile#your-data" },
-      { label: "Get help", href: "/help" },
     ],
   },
 ];

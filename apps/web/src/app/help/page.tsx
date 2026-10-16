@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { HELP_FAQ, HELP_SECTIONS } from "@/content/help";
 import { HelpAssistant } from "@/components/help/HelpAssistant";
 import { HelpBackLink } from "@/components/help/HelpBackLink";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { MarketingFooter } from "@/components/landing/Sections";
+import { helpAccess } from "@/server/helpAccess";
 
 export const metadata: Metadata = {
   title: "Help & user guide",
   description: "How WonderJobs finds, scores and prepares opportunities, what it never does without you, what to do when something goes wrong, and answers to common questions.",
+  // Signed-in only (WJ-309): never indexed.
+  robots: { index: false, follow: false },
 };
 
-/** Public help center: FAQ + user guide + an assistant that answers from the guide. Linked from the avatar menu as "Get Help". */
-export default function HelpPage() {
+// Rendered per request for a signed-in reader, never prerendered or cached publicly.
+export const dynamic = "force-dynamic";
+
+/** Help center for signed-in accounts: FAQ + user guide + an assistant that answers from the guide. Linked from the avatar menu as "Get Help". */
+export default async function HelpPage() {
+  if ((await helpAccess()) !== "allowed") redirect("/sign-in?next=%2Fhelp");
   return (
     <div className="bg-white text-ink">
       <MarketingNav />
@@ -71,6 +79,7 @@ export default function HelpPage() {
                   {s.title}
                 </h2>
                 <p className="mt-1 text-[14px] text-ink-3">{s.summary}</p>
+                <p className="mt-1 text-[12px] text-ink-4">Last updated {updatedLabel(s.updated)}</p>
                 <div className="mt-4 flex flex-col gap-3 text-[15px] leading-relaxed text-ink-2">
                   {groupBullets(s.body).map((block, i) =>
                     Array.isArray(block) ? (
@@ -100,6 +109,11 @@ export default function HelpPage() {
       <MarketingFooter />
     </div>
   );
+}
+
+/** "2026-10-16" → "16 Oct 2026", the same on the server and in every time zone. */
+function updatedLabel(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 /** Consecutive "- " lines become one list. */

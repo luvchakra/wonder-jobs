@@ -11,7 +11,8 @@ import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken }
  * that merely aged out. The verified user id is mirrored into a JS-readable
  * cookie so the client can namespace its local state before any request.
  */
-const PROTECTED = [/^\/app(\/|$)/, /^\/onboarding(\/|$)/];
+// The help center is for signed-in accounts too (WJ-309); app/help/page.tsx checks the session again.
+const PROTECTED = [/^\/app(\/|$)/, /^\/onboarding(\/|$)/, /^\/help(\/|$)/];
 const AUTH_PAGES = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/forgot-password(\/|$)/];
 
 function writeSessionCookies(res: NextResponse, req: NextRequest, session: StoredSession) {
@@ -71,5 +72,5 @@ export const config = {
   // /platform is matched only so an admin's session is refreshed there; it isn't in PROTECTED, because
   // the admin portal answers 404 to anyone who isn't an admin rather than revealing a sign-in page.
   // /api is matched only for the CSRF check above; it returns before any session work.
-  matcher: ["/app/:path*", "/onboarding", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*", "/api/:path*"],
+  matcher: ["/app/:path*", "/onboarding", "/help", "/help/:path*", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*", "/api/:path*"],
 };

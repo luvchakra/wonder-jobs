@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { HELP_FAQ, HELP_SECTIONS, bestFaq, searchHelp } from "./help";
+
+const WEB = path.resolve(__dirname, "../..");
+
+/** Every file under a directory, recursively (no node_modules, no build output). */
+function files(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    if (name === "node_modules" || name.startsWith(".")) return [];
+    const full = path.join(dir, name);
+    return statSync(full).isDirectory() ? files(full) : [full];
+  });
+}
+
+/** The app's routes as path patterns: route groups dropped, a [dynamic] segment matching any one segment. */
+function appRoutes(): RegExp[] {
+  const app = path.join(WEB, "src/app");
+  return files(app)
+    .filter((f) => /\/(page|route)\.tsx?$/.test(f))
+    .map((f) => {
+      const segs = path.relative(app, path.dirname(f)).split(path.sep).filter((x) => x && !/^\(.*\)$/.test(x));
+      const body = segs.map((x) => (/^\[.*\]$/.test(x) ? "[^/]+" : x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join("/");
+      return new RegExp(`^/${body}$`);
+    });
+}
 
 function answer(question: string) {
   const best = searchHelp(question, 1)[0]?.section;
@@ -22,9 +47,30 @@ describe("help guide", () => {
     expect(new Set(qs).size).toBe(qs.length);
   });
 
-  it("keeps the anchors the rest of the site links to", () => {
-    const ids = new Set(HELP_SECTIONS.map((s) => s.id));
-    for (const id of ["getting-started", "roadmap", "sources", "ask-wonder", "calendar"]) expect(ids.has(id), id).toBe(true);
+  it("every link to a help section anywhere in the app points at a section that exists", () => {
+    const ids = new Set(["faq", ...HELP_SECTIONS.map((s) => s.id)]);
+    const sources = [...files(path.join(WEB, "src")), ...files(path.join(WEB, "e2e")), ...files(path.join(WEB, "scripts"))].filter((f) => /\.(tsx?|mjs)$/.test(f));
+    const broken: string[] = [];
+    for (const f of sources) for (const m of readFileSync(f, "utf8").matchAll(/\/help#([a-z0-9-]+)/g)) if (!ids.has(m[1])) broken.push(`${path.relative(WEB, f)} → /help#${m[1]}`);
+    expect(broken).toEqual([]);
+  });
+
+  it("every app address the guide mentions is a real route", () => {
+    const routes = appRoutes();
+    expect(routes.some((r) => r.test("/help"))).toBe(true);
+    const text = [...HELP_SECTIONS.flatMap((s) => [s.summary, ...s.body]), ...HELP_FAQ.map((f) => f.a)].join("\n");
+    const mentioned = [...text.matchAll(/(?<![\w.:/])\/(?:app|sign-in|sign-up|forgot-password|reset-password|help|extension|api-reference|privacy|terms|cookies|security|about)(?:\/[a-z0-9-]+)*/g)].map((m) => m[0]);
+    const missing = mentioned.filter((p) => !routes.some((r) => r.test(p)));
+    expect(missing).toEqual([]);
+  });
+
+  it("every section says when it was last checked against the app", () => {
+    const today = new Date().toISOString().slice(0, 10);
+    for (const s of HELP_SECTIONS) {
+      expect(s.updated, s.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isNaN(Date.parse(s.updated)), s.id).toBe(false);
+      expect(s.updated <= today, `${s.id} is dated in the future`).toBe(true);
+    }
   });
 
   it("every section leads with a sentence of its own, because the assistant falls back to it", () => {

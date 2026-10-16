@@ -10,7 +10,8 @@ const LINKS: { href: string; label: string }[] = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#features", label: "Features" },
   { href: "#pricing", label: "Pricing" },
-  { href: "/help", label: "Help" },
+  // The help center is for signed-in accounts (WJ-309); signed-out visitors reach a person instead.
+  { href: "/#contact", label: "Contact" },
 ];
 
 export function MarketingNav() {

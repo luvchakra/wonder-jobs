@@ -24,8 +24,8 @@ function Shell({ title, sub, children }: { title: string; sub: string; children:
         </div>
         <p className="mt-4 text-center text-[13px] text-white/70">
           Need a hand?{" "}
-          <Link href="/help" className="font-semibold text-white hover:underline">
-            Read the guide
+          <Link href="/#contact" className="font-semibold text-white hover:underline">
+            Contact us
           </Link>
         </p>
       </main>

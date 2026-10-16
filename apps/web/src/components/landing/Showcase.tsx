@@ -449,7 +449,7 @@ export function ContactSection() {
           <p className="mt-4 text-[16px] text-ink-2">Questions, feedback, a job source we should add, or something that isn&apos;t working. Messages land with the team and we reply by email.</p>
           <ul className="mt-8 space-y-4 text-[14.5px] text-ink-2">
             {[
-              { icon: Sparkles, t: "Quick answers first", s: "The help center answers most questions instantly.", href: "/help", cta: "Open the help center" },
+              { icon: Sparkles, t: "Already using WonderJobs?", s: "Sign in and open Get Help in your avatar menu — the guide answers most questions instantly.", href: "/sign-in?next=%2Fhelp", cta: "Sign in for help" },
               { icon: Target, t: "Something not working?", s: "Say which page and what you expected; a screenshot helps.", href: null, cta: null },
               { icon: Mail, t: "Typical reply time", s: "Within two working days.", href: null, cta: null },
             ].map((r) => (
