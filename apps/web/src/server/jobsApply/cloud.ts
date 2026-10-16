@@ -47,8 +47,13 @@ async function worker(path: string, method: "POST" | "DELETE", body: unknown): P
 
 const UNAVAILABLE = "The cloud browser isn't answering right now. Try again in a moment, or choose Guide me.";
 
-/** Opens (or returns) the cloud browser for a started session. Tenant-checked through the session's own token mint. */
-export async function startCloud(tenantId: string, id: string): Promise<ApiResult> {
+/**
+ * Opens (or returns) the cloud browser for a started session. Tenant-checked through the session's own token mint.
+ * `headless`: a background fill (WJ-311) — the page is never streamed to anyone, and only the candidate's
+ * "Submit this application" in WonderJobs can submit it. Opening it to watch (the Apply page) clears that.
+ */
+export async function startCloud(tenantId: string, id: string, opts: { headless?: boolean } = {}): Promise<ApiResult> {
+  const headless = opts.headless === true;
   const c = config();
   if (!c) return err(503, "NOT_CONFIGURED", "The cloud browser isn't set up on this deployment — choose Guide me.");
   // Same rules as pairing the extension: started, not stopped, not ended; the token is this session's and nobody else's.
@@ -62,7 +67,7 @@ export async function startCloud(tenantId: string, id: string): Promise<ApiResul
   if (r.status === 429) return err(429, "BUSY", String(r.data?.message ?? "The cloud browser is at capacity right now. Try again in a few minutes, or choose Guide me."));
   if ((r.status !== 200 && r.status !== 201) || !r.data) return err(503, "UNAVAILABLE", UNAVAILABLE);
   const d = r.data as { cloudId: string; streamToken: string; viewport: { width: number; height: number }; streamPath: string; reused?: boolean };
-  if (s.cloud?.id !== d.cloudId || s.cloud?.endedAt) await mutateSession(tenantId, id, (x) => openCloud(x, nowIso(), d.cloudId));
+  if (s.cloud?.id !== d.cloudId || s.cloud?.endedAt || !!s.cloud?.headless !== headless) await mutateSession(tenantId, id, (x) => openCloud(x, nowIso(), d.cloudId, headless));
   const stream: CloudStream = { cloudId: d.cloudId, streamUrl: `${c.url.replace(/^http/, "ws")}${d.streamPath}`, streamToken: d.streamToken, viewport: d.viewport, reused: !!d.reused };
   return ok(stream);
 }

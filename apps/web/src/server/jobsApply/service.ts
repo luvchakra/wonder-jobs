@@ -220,17 +220,20 @@ export function helperView(s: JobsApplySession, fill: FillDecision) {
 
 function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked: boolean, fieldIds?: string[], submitAllowed = false) {
   const g = fillGate(s, { host, decision, candidateClicked: clicked, fieldIds });
-  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false, submit: false };
+  if (!g.ok) return { allowed: false as const, reason: g.reason, fills: [], advance: false, submit: false, cloudSubmit: false };
   // Whoever may fill this page may also press its next-page button (the helper's own classifier tells them apart).
   // The final Submit only under "Submit applications" (WJ-249): never in guided mode, once per job, and only when
   // every required question is answered with the candidate's own value — the helper re-checks the page itself.
   const filling = new Set(g.mappings.map((m) => m.fieldId));
-  // Never in the cloud browser (a server-hosted page): final submission happens only in the candidate's own browser.
+  // In the cloud browser (a server-hosted page) only a background fill may submit, and only after the candidate
+  // pressed "Submit this application" for this one application in WonderJobs (WJ-311) — never from an account
+  // default. A cloud page someone watches is theirs to submit, as in their own browser.
   const inCloud = !!s.cloud && !s.cloud.endedAt;
+  const cloudSubmit = inCloud && !!s.cloud?.headless && s.submitOverride === "on";
   // A verification challenge on the page is the candidate's: the helper fills around it but presses nothing.
   const challenge = !!s.form?.signals.includes("captcha");
-  const submit = submitAllowed && !challenge && !inCloud && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
-  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided" && !challenge, submit };
+  const submit = submitAllowed && !challenge && (!inCloud || cloudSubmit) && s.mode !== "guided" && !s.wonderSubmittedAt && submitReady(s, filling);
+  return { allowed: true as const, fills: g.mappings.map((m) => ({ fieldId: m.fieldId, ...(m.file ? { file: m.file } : { value: m.value }) })), advance: s.mode !== "guided" && !challenge, submit, cloudSubmit: submit && inCloud };
 }
 
 async function helperFill(ctx: HelperCtx, s: JobsApplySession = ctx.session): Promise<FillDecision> {
@@ -261,7 +264,7 @@ export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Prom
   }
   const fill = await helperFill(ctx, out);
   // Under an "automatic" policy the plan comes back with the inspection; otherwise the helper waits for the candidate's click.
-  const auto = fill === "run" ? await withNumbers(ctx.tenantId, plan(out, hostOf(form.url) ?? "", fill, false, undefined, await submitFor(ctx.tenantId, out))) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false, submit: false };
+  const auto = fill === "run" ? await withNumbers(ctx.tenantId, plan(out, hostOf(form.url) ?? "", fill, false, undefined, await submitFor(ctx.tenantId, out))) : { allowed: false as const, reason: fill === "skip" ? "Filling forms is turned off in Automation — use guided mode." : "Choose Fill to continue.", fills: [], advance: false, submit: false, cloudSubmit: false };
   return ok({ ...helperView(out, fill), plan: auto });
 }
 
@@ -287,6 +290,9 @@ export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSc
           break;
         case "STEP_ADVANCED":
           s = S.recordStepAdvanced(s, e.label, now);
+          break;
+        case "FINAL_STEP":
+          s = S.recordFinalStep(s, e.label, e.waiting, now);
           break;
         case "APPLICATION_SUBMITTED":
           s = S.recordWonderSubmitted(s, e.label, now);

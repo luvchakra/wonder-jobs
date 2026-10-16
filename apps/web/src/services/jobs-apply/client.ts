@@ -67,7 +67,8 @@ export const jobsApplyApi = {
   /** The cloud browser: Fill for me without the extension (phones). "available: false" means this deployment has none. */
   cloud: {
     available: () => call<{ available: boolean }>("/api/jobs-apply/cloud"),
-    start: (id: string) => call<CloudStream>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "POST", body: {} }),
+    /** `headless`: a background fill nobody watches (Apply for this job, WJ-311) — the stream is never opened. */
+    start: (id: string, opts: { headless?: boolean } = {}) => call<CloudStream>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "POST", body: opts.headless ? { headless: true } : {} }),
     fill: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud/fill`, { method: "POST", body: {} }),
     end: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "DELETE", body: {} }),
   },

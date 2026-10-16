@@ -4,10 +4,11 @@
  * to `changes` when the helper changes.
  */
 export const EXTENSION_RELEASE = {
-  version: "0.3.0",
-  date: "2026-10-11",
+  version: "0.3.1",
+  date: "2026-10-16",
   /** What changed in recent versions, newest first — the page shows these. */
   changes: [
+    { version: "0.3.1", note: "Tells WonderJobs when it reaches a form's last page, so Apply for this job can offer Submit this application." },
     { version: "0.3.0", note: "Opens beside the page: scores the job you're viewing against your profile and saves it to your Pipeline in one click." },
     { version: "0.2.13", note: "Store-ready package; clearer description of when it submits." },
     { version: "0.2.12", note: "Answers gender, ethnicity, work authorization, declarations and ID numbers — only the groups you turn on in Automation, with the answers you confirmed." },

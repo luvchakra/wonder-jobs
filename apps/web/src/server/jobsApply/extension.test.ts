@@ -42,11 +42,14 @@ describe("browser helper — structural no-submit guarantee", () => {
       }
     }
   });
-  it("submits only from plan.submit, on a complete page, once, reporting before the press", () => {
+  it("submits only from plan.submit (in the cloud also plan.cloudSubmit), on a complete page, once, reporting before the press", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
     // state.submit is only ever set from WonderJobs' plan.
-    for (const m of src.matchAll(/state\.submit = ([^;]+);/g)) expect(m[1]).toMatch(/^(false|!IN_CLOUD && !!r\.data\.(plan\.)?submit)$/);
-    // Never inside the cloud browser (a server-hosted page): submission is only in the candidate's own browser.
+    const sets = [...src.matchAll(/state\.submit = ([^;]+);/g)].map((m) => m[1]);
+    expect(sets.length).toBeGreaterThan(0);
+    for (const v of sets) expect(v).toMatch(/^(false|\(!IN_CLOUD \|\| !!r\.data\.(plan\.)?cloudSubmit\) && !!r\.data\.(plan\.)?submit)$/);
+    // In the cloud browser (a server-hosted page) only when WonderJobs' plan says cloudSubmit: a background fill
+    // whose candidate pressed "Submit this application" for that application (WJ-311). The server test holds that.
     expect(src).toMatch(/const IN_CLOUD = !!\(window\.chrome && window\.chrome\.runtime && window\.chrome\.runtime\.__wonder\);/);
     expect(src).toMatch(/if \(state\.submit && !waiting\.length && final\.length === 1 && pageComplete\(final\[0\]\)\) return submitFinal\(/);
     const fn = src.slice(src.indexOf("async function submitFinal("), src.indexOf("// Learning:"));

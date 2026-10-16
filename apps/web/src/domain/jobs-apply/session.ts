@@ -326,7 +326,22 @@ export function stop(s: JobsApplySession, now: string, nonce: string, actor: Act
  */
 export function recordStepAdvanced(s: JobsApplySession, label: string, now: string): JobsApplySession {
   assertActive(s);
-  return audit(s, now, "STEP_ADVANCED", "helper", `Pressed “${label.slice(0, 60)}” to go to the next page`);
+  const { finalStep: _gone, ...rest } = s;
+  void _gone;
+  return audit(rest, now, "STEP_ADVANCED", "helper", `Pressed “${label.slice(0, 60)}” to go to the next page`);
+}
+
+/**
+ * The helper is on the form's last page — the one its step classifier says ends in a final Submit — with
+ * `waiting` required questions still empty (WJ-311). Only facts the helper saw; Wonder decides nothing
+ * from it except whether to offer "Submit this application". Audited once per change.
+ */
+export function recordFinalStep(s: JobsApplySession, label: string, waiting: number, now: string): JobsApplySession {
+  assertActive(s);
+  const prev = s.finalStep;
+  const n = { ...s, finalStep: { at: now, label: label.slice(0, 80), waiting: Math.max(0, Math.min(300, Math.floor(waiting))) } };
+  if (prev && prev.label === n.finalStep.label && prev.waiting === n.finalStep.waiting) return n;
+  return audit(n, now, "FINAL_STEP_REACHED", "helper", n.finalStep.waiting ? `Last page — ${n.finalStep.waiting} required question${n.finalStep.waiting === 1 ? "" : "s"} still need${n.finalStep.waiting === 1 ? "s" : ""} the candidate` : `Last page — ready for “${n.finalStep.label.slice(0, 40)}”`);
 }
 
 /**
@@ -455,9 +470,10 @@ export function setMode(s: JobsApplySession, mode: ApplyMode, now: string): Jobs
 }
 
 /** The cloud browser opened for this session (the helper runs there instead of in the candidate's own Chrome). */
-export function openCloud(s: JobsApplySession, now: string, cloudId: string): JobsApplySession {
+export function openCloud(s: JobsApplySession, now: string, cloudId: string, headless = false): JobsApplySession {
   assertActive(s);
-  return audit({ ...s, cloud: { id: cloudId, startedAt: now } }, now, "CLOUD_BROWSER_OPENED", "wonder", "Cloud browser opened — its cookies and storage are discarded when it closes");
+  // A background fill (WJ-311): nobody watches the page, so only "Submit this application" in WonderJobs can submit it.
+  return audit({ ...s, cloud: { id: cloudId, startedAt: now, ...(headless ? { headless: true } : {}) } }, now, "CLOUD_BROWSER_OPENED", "wonder", headless ? "Filling in the background — a cloud browser nobody watches; its cookies and storage are discarded when it closes" : "Cloud browser opened — its cookies and storage are discarded when it closes");
 }
 
 /** The cloud browser closed: context, cookies and page gone. Idempotent. */

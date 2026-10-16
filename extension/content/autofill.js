@@ -19,7 +19,8 @@
  *     turned on "Submit applications" for this application or their account (WJ-249) — and only once
  *     every required field on the page has something in it and the form says it's valid. Once per page
  *     session; reported to WonderJobs (APPLICATION_SUBMITTED) before the press.
- * Never in WonderJobs' cloud browser. Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
+ * In WonderJobs' cloud browser only for a background fill, after the candidate pressed "Submit this application"
+ * in WonderJobs for that application (`plan.cloudSubmit`, WJ-311). Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
  * unit test in the web app holds the helper to exactly these two guarded presses.
  *
  * It reads what the candidate types only into questions WonderJobs flagged as needing them (never a
@@ -491,10 +492,11 @@
     highlight(state.view);
     if (r.data.plan?.allowed) {
       state.advance = !!r.data.plan.advance;
-      state.submit = !IN_CLOUD && !!r.data.plan.submit;
+      state.submit = (!IN_CLOUD || !!r.data.plan.cloudSubmit) && !!r.data.plan.submit;
     }
     if (r.data.plan?.allowed && r.data.plan.fills.length) return applyPlan(r.data.plan);
     render();
+    reportFinalStep();
     // The candidate chose Fill on an earlier page of this form: keep filling page after page.
     if (state.keepGoing && !r.data.plan?.allowed && (r.data.progress?.fillable ?? 0) > 0) return fillClicked();
     if (state.advance) scheduleAdvance();
@@ -533,6 +535,23 @@
     });
   }
 
+  /**
+   * On the form's last page — its way on is a final Submit — tell WonderJobs, with how many required questions
+   * still wait for the candidate (WJ-311). Facts only, once per change; it presses nothing.
+   */
+  let lastFinal = "";
+  function reportFinalStep() {
+    if (!state.sessionId || state.stopped || state.offDestination || state.submitted || window.top !== window) return;
+    const { final } = stepButtons();
+    if (!final.length) return;
+    const label = clean(final[0].textContent || final[0].value || final[0].getAttribute("aria-label")).slice(0, 80) || "Submit";
+    const waiting = openRequired().length;
+    const key = `${location.href}|${label}|${waiting}`;
+    if (key === lastFinal) return;
+    lastFinal = key;
+    void sendEvent({ type: "FINAL_STEP", label, waiting });
+  }
+
   let advanceTimer = null;
   function scheduleAdvance() {
     clearTimeout(advanceTimer);
@@ -550,6 +569,7 @@
       const finalLabel = clean(final[0].textContent || final[0].value || final[0].getAttribute("aria-label")).slice(0, 80);
       if (state.submit && !waiting.length && final.length === 1 && pageComplete(final[0])) return submitFinal(final[0], finalLabel);
       state.keepGoing = false;
+      reportFinalStep();
       state.notice = state.submit
         ? `Last step: ${waiting.length ? `answer ${answer} — ` : "fill every required field — "}Wonder submits once the form is complete.`
         : `Last step: ${waiting.length ? `answer ${answer}, ` : ""}review the form, then press “${finalLabel.slice(0, 40)}” yourself.`;
@@ -650,7 +670,7 @@
     }
     state.keepGoing = true;
     state.advance = !!r.data.advance;
-    state.submit = !IN_CLOUD && !!r.data.submit;
+    state.submit = (!IN_CLOUD || !!r.data.cloudSubmit) && !!r.data.submit;
     await applyPlan(r.data);
   }
 
