@@ -2,7 +2,7 @@ import { test as base, expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueTestEmail, testPassword } from "../utils/testUser";
 import { PRIVACY_NOTICE_VERSION } from "../../src/content/privacy";
-import { isProductionSupabase } from "../cleanup";
+import { supabaseUsable } from "../cleanup";
 
 export interface TestAccount {
   id: string;
@@ -15,12 +15,12 @@ let cachedAdmin: SupabaseClient | null | undefined;
 /** Null when the environment this test run inherited has no Supabase admin credentials — every
  *  account-dependent spec checks this and reports BLOCKED rather than faking a pass (see AGENTS note:
  *  "If a feature is absent, report NOT_APPLICABLE or BLOCKED; do not fake coverage"). Also null for the
- *  production project: E2E never creates accounts or writes data there. */
+ *  production project unless E2E_ALLOW_PRODUCTION=true (pre-launch only). */
 function adminClient(): SupabaseClient | null {
   if (cachedAdmin !== undefined) return cachedAdmin;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cachedAdmin = url && key && !isProductionSupabase(url) ? createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
+  cachedAdmin = url && key && supabaseUsable(url) ? createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
   return cachedAdmin;
 }
 

@@ -11,7 +11,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  *   keyed by their id — the same tables e2e/fixtures/auth.ts `deleteTestAccount` clears;
  * - JobsLake sources the admin journeys add, named "Remotive API <ms>", "Credentialed <ms>",
  *   "Audited <ms>" (e2e/jobslake.spec.ts).
- * Nothing else. It does nothing without Supabase admin credentials, and refuses the production project.
+ * Nothing else. It does nothing without Supabase admin credentials, and leaves the production project
+ * alone unless E2E_ALLOW_PRODUCTION=true (pre-launch only: see docs/testing/README.md).
  */
 
 export const TEST_EMAIL = /^wj-e2e-[a-z0-9-]+@example\.com$/;
@@ -19,11 +20,22 @@ export const TEST_SOURCE_NAME = /^(Remotive API|Credentialed|Audited) \d{13}$/;
 const MAX_AGE_MS = 2 * 60 * 60 * 1000;
 const TENANT_TABLES = ["app_state", "action_audit", "push_subscriptions", "ai_provider_secrets", "resume_files"];
 
-/** The production project's ref. Kept here as well as in the workflow so a local run can't hit it either. */
+/** The production project's ref. Kept here as well as in the workflow so a local run can't hit it by accident. */
 export const FORBIDDEN_SUPABASE_REFS = (process.env.E2E_FORBIDDEN_SUPABASE_REFS ?? "tybkklggpifpsmsidhok").split(/\s+/).filter(Boolean);
 
 export function isProductionSupabase(url: string | undefined): boolean {
   return !!url && FORBIDDEN_SUPABASE_REFS.some((ref) => url.includes(ref));
+}
+
+/** Pre-launch switch (owner, 2026-10-16): the app isn't live, so E2E may create disposable accounts in
+ *  the production project when this is "true". Turn it off at launch. */
+export function productionAllowed(): boolean {
+  return process.env.E2E_ALLOW_PRODUCTION === "true";
+}
+
+/** Whether E2E may write to this Supabase project: any project but production, or production pre-launch. */
+export function supabaseUsable(url: string | undefined): boolean {
+  return !!url && (!isProductionSupabase(url) || productionAllowed());
 }
 
 export function isStale(createdAt: string | undefined, now = Date.now()): boolean {
@@ -61,8 +73,8 @@ export default async function cleanup(): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return;
-  if (isProductionSupabase(url)) {
-    console.log("[e2e cleanup] Supabase points at production: not touching it (signed-in specs report BLOCKED).");
+  if (!supabaseUsable(url)) {
+    console.log("[e2e cleanup] Supabase points at production and E2E_ALLOW_PRODUCTION isn't set: not touching it (signed-in specs report BLOCKED).");
     return;
   }
   const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
