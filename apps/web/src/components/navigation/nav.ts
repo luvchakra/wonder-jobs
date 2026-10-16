@@ -57,7 +57,7 @@ export function sectionFor(pathname: string) {
 }
 
 export const RESOURCES_NAV: NavItem[] = [
-  // Public page: reachable signed out too, which is the point — people need it most when they can't get in.
+  // Signed-in accounts only (WJ-309). Signed-out visitors get sign-in, password reset and Contact us instead.
   { href: "/help", label: "Help & Guide", icon: LifeBuoy },
 ];
 

@@ -28,7 +28,7 @@ test.describe("AUTH — landing and sign-up UI (no account needed)", () => {
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Show password" })).toBeVisible();
     await expect(page.getByRole("button", { name: /get started/i })).toBeVisible();
-    await expect(page.getByRole("link", { name: /read the guide/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /contact us/i })).toBeVisible();
   });
 
   test("AUTH-004 invalid sign-up email is rejected by the browser's own validation", async ({ page }) => {

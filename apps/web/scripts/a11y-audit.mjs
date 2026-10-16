@@ -23,8 +23,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(fileURLToPath(import.meta.url)) + "/..";
 const AXE_SOURCE = readFileSync(new URL("../../../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
 
-const PUBLIC_PAGES = ["/", "/sign-in", "/sign-up", "/forgot-password", "/help", "/about", "/privacy", "/terms", "/security", "/cookies"];
+const PUBLIC_PAGES = ["/", "/sign-in", "/sign-up", "/forgot-password", "/about", "/privacy", "/terms", "/security", "/cookies"];
 const DEMO_PAGES = [
+  "/help",
   "/app",
   "/app/jobs",
   "/app/runs",

@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 
 type Turn = { role: "user" | "assistant"; text: string; sectionId?: string | null; sectionTitle?: string | null; source?: "guide" | "model" };
 
-const SUGGESTIONS = ["Where do the jobs come from?", "Does Wonder apply for me?", "How do I reset my password?", "Why is a remote job only 'worth considering'?"];
+const SUGGESTIONS = ["Where do the jobs come from?", "Does Wonder apply for me?", "Can Wonder submit an application for me?", "Why is a remote job only 'worth considering'?"];
 
 /** Asks the guide. Answers always link to the section they came from. */
 export function HelpAssistant({ className }: { className?: string }) {
@@ -25,6 +25,7 @@ export function HelpAssistant({ className }: { className?: string }) {
     try {
       const res = await fetch("/api/help/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: text }) });
       const data = (await res.json().catch(() => ({}))) as Partial<Turn> & { error?: string; answer?: string };
+      if (res.status === 401) throw new Error("Your session has ended. Sign in again to ask the guide.");
       if (!res.ok) throw new Error(data.error ?? "Something went wrong");
       setTurns((t) => [...t, { role: "assistant", text: data.answer ?? "", sectionId: data.sectionId, sectionTitle: data.sectionTitle, source: data.source }]);
     } catch (e) {

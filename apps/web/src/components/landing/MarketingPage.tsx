@@ -48,10 +48,6 @@ export function MarketingPage({ eyebrow, title, intro, updated, sections, childr
           Questions about any of this?{" "}
           <Link href="/#contact" className="font-semibold text-brand-600 hover:underline">
             Contact us
-          </Link>{" "}
-          or read the{" "}
-          <Link href="/help" className="font-semibold text-brand-600 hover:underline">
-            help center
           </Link>
           .
         </p>
