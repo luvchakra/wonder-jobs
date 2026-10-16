@@ -39,11 +39,13 @@ const chromiumProxyArgs = proxyServer ? ["--ignore-certificate-errors"] : [];
 
 export default defineConfig({
   testDir: "./e2e",
+  // Deletes throwaway data earlier runs left in the test Supabase project (never production).
+  globalSetup: "./e2e/cleanup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }], ["json", { outputFile: "playwright-report/results.json" }]],
+  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }], ["json", { outputFile: "e2e-results.json" }]],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {

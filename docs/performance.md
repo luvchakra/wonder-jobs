@@ -3,27 +3,26 @@
 How long a change takes from push to live, where that time goes, and what runs when. Every number
 here comes from a real run (GitHub Actions job and step timings, Vercel build logs), not an estimate.
 
-## What runs when (since WJ-227)
+## What runs when (since WJ-307)
 
-| Trigger | Runs | Gates the merge? |
-|---|---|---|
-| Pull request touching code | Changes → Lint, Typecheck, Unit tests, Build, Dependency audit (parallel) → `CI` | Yes, `CI` |
-| Pull request touching only docs/Markdown | Changes → `CI` (the five jobs are skipped, which counts as passed) | Yes, `CI` |
-| Pull request with the `e2e` label | the above plus E2E, 2 shards → `E2E` and `CI` | Yes, a red E2E fails `CI` |
-| Pull request changing `.github/workflows` or `.github/scripts` | everything, E2E included | Yes |
-| Push to `main` (a merge) | same as the PR; also saves the build caches PRs restore | No (already merged) |
-| Nightly, 02:47 IST | everything, E2E included, on `main` | No; a failure opens or comments on one issue |
-| Actions → CI → Run workflow | everything, E2E included | No; same alert |
+See `docs/testing/README.md`. In short: pull requests run Lint (changed files), Typecheck, unit tests
+related to the changed files, Build and Dependency audit in parallel, about a minute; a PR that changes
+dependencies, config or CI files runs the whole lint and every unit test. Pushes to `main` run
+everything except E2E. The Playwright suite runs only in `.github/workflows/e2e-nightly.yml`, nightly
+at 02:47 IST and by hand.
 
-E2E runs the Chromium desktop and Pixel 7 projects. Specs that need a real Supabase account report
-BLOCKED (skipped) unless the repository has `E2E_SUPABASE_URL`, `E2E_SUPABASE_PUBLISHABLE_KEY` and
-`E2E_SUPABASE_SERVICE_ROLE_KEY` secrets.
+### WJ-307 (2026-10-16): E2E off every pull request
 
-**Force the full suite on a PR:** add the `e2e` label. **On main:** Actions → CI → Run workflow.
+Before, measured on the last 25 completed PR runs: a code PR took 52–103 s (median about 62 s) to a
+green `CI`; a PR touching `.github/` also ran E2E and took 233–311 s; the `e2e` label did the same. The
+nightly ran in `ci.yml` with E2E in two shards (shard 1: 109 passed, 23 skipped in 3.8 min; shard 2: 85
+passed, 47 skipped in 2.8 min, on 2026-10-15). Lint and unit tests always ran in full (1,571 tests).
 
-**Vercel** builds production for every merge to `main`, and a preview for every push to a working
-branch. It no longer builds previews of Dependabot branches, of a squash-merge commit, or of a change
-that only touches docs (production skips docs-only changes too).
+After: no pull request runs E2E, so a CI-file PR drops from ~4–5 min to ~1 min. A code PR runs only the
+unit tests related to what it changed (a change to `domain/automation/policy.ts`: 26 test files and 291
+tests instead of 133 files and 1,571) and lints only the changed files.
+
+The sections below describe WJ-227, which this replaced in part.
 
 ## Before (measured 2026-10-05, the last five merges, #67–#71)
 
