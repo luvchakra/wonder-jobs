@@ -1,32 +1,30 @@
 name: CI
 
-# What runs when (numbers and the reasoning: docs/performance.md):
+# What runs when (numbers and the reasoning: docs/performance.md, docs/testing/README.md):
 #
 #   pull request   Changes → Lint, Typecheck, Unit tests, Build, Dependency audit in parallel → CI.
+#                  Lint checks only the changed files and Unit tests runs only the tests related to them
+#                  (`vitest related`), unless the PR changes package.json, the lockfile, tsconfig, the
+#                  test/lint/build config or CI files: then the whole lint and every unit test.
 #                  Docs/Markdown-only PRs run none of them (CI still reports, as passed).
-#                  The `e2e` label, or any change to .github/workflows or .github/scripts, adds E2E.
-#   push to main   the same, for the merged commit; also saves the build caches PRs restore from.
-#   nightly        everything, E2E included, on main. A failure opens (or comments on) one issue.
-#   manual         Actions → CI → Run workflow: everything, E2E included.
+#   push to main   everything: the whole lint, every unit test; also saves the caches PRs restore from.
+#
+# No E2E here, ever: the Playwright suite runs nightly and on demand in e2e-nightly.yml.
 #
 # `CI` is the single check branch protection points at: it passes when every job above passed or was
-# skipped as not needed, and fails on any failure or cancellation. `E2E` summarises the E2E shards the
-# same way, so it can be made required later without renaming anything.
+# skipped as not needed, and fails on any failure or cancellation.
 on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
-  schedule:
-    - cron: "17 21 * * *" # 02:47 IST
-  workflow_dispatch:
+    types: [opened, synchronize, reopened]
 
-# Least privilege: these jobs only read the repository (the alert job asks for issues: write itself).
+# Least privilege: these jobs only read the repository.
 permissions:
   contents: read
 
 # A new push to a PR cancels that PR's older run. Pushes to main are never cancelled (each merged commit
-# keeps its own result), and the event name keeps a nightly or manual run from cancelling a merge's run.
+# keeps its own result).
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -38,7 +36,10 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.decide.outputs.code }}
-      e2e: ${{ steps.decide.outputs.e2e }}
+      full: ${{ steps.decide.outputs.full }}
+      lint_files: ${{ steps.decide.outputs.lint_files }}
+      web_files: ${{ steps.decide.outputs.web_files }}
+      worker: ${{ steps.decide.outputs.worker }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,8 +52,6 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
 
   lint:
     name: Lint
@@ -74,8 +73,17 @@ jobs:
           path: apps/web/.next/cache/eslint
           key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-${{ github.sha }}
           restore-keys: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'apps/web/eslint.config.*') }}-
-      - run: npx eslint --cache --cache-strategy content --cache-location .next/cache/eslint/
+      - name: Lint everything
+        if: needs.changes.outputs.full == 'true'
+        run: npx eslint --cache --cache-strategy content --cache-location .next/cache/eslint/
         working-directory: apps/web
+      # Only the files this PR changed (a deleted file has nothing to lint; none changed → nothing to do).
+      - name: Lint the changed files
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.lint_files != ''
+        run: npx eslint --no-warn-ignored --cache --cache-strategy content --cache-location .next/cache/eslint/ $LINT_FILES
+        working-directory: apps/web
+        env:
+          LINT_FILES: ${{ needs.changes.outputs.lint_files }}
       - if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
@@ -125,7 +133,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test
+      - name: Every unit test
+        if: needs.changes.outputs.full == 'true'
+        run: npm run test
+      # The tests that import a changed file, directly or through other modules, plus changed tests.
+      - name: Unit tests related to the changed files
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.web_files != ''
+        run: npx vitest related --run --passWithNoTests $WEB_FILES
+        working-directory: apps/web
+        env:
+          WEB_FILES: ${{ needs.changes.outputs.web_files }}
+      - name: Browser worker unit tests
+        if: needs.changes.outputs.full != 'true' && needs.changes.outputs.worker == 'true'
+        run: npm run test -w @wonder/browser-worker
 
   build:
     name: Build
@@ -172,76 +192,11 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm audit --audit-level=critical
 
-  # Playwright, off the merge gate (nightly, manual, `e2e` label, CI-file changes). Chromium projects
-  # (desktop and Pixel 7), the ones this repo verifies; specs that need Supabase report BLOCKED (skipped)
-  # unless the three Supabase secrets below exist in the repository.
-  e2e:
-    name: E2E (${{ matrix.shard }}/2)
-    needs: changes
-    if: needs.changes.outputs.e2e == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-        working-directory: apps/web
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
-      - run: npx playwright install --with-deps chromium
-        working-directory: apps/web
-      # Full Chromium, as where the suite was written: headless Playwright otherwise picks its headless
-      # shell, which can't load the browser-helper extension and renders the visual baselines differently.
-      - run: echo "PW_CHROMIUM_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
-        working-directory: apps/web
-      - uses: actions/cache/restore@v4
-        with:
-          path: apps/web/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
-          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
-      - run: npx playwright test --project=chromium --project="Mobile Chrome" --shard=${{ matrix.shard }}/2
-        working-directory: apps/web
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ matrix.shard }}
-          path: apps/web/playwright-report
-          retention-days: 7
-
-  e2e-summary:
-    name: E2E
-    if: always()
-    needs: [changes, e2e]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Pass when E2E passed or wasn't needed
-        env:
-          RESULT: ${{ needs.e2e.result }}
-        run: |
-          echo "E2E: $RESULT"
-          case "$RESULT" in success|skipped) exit 0 ;; *) exit 1 ;; esac
-
   # The single required status check. A job skipped because the change didn't need it counts as passed.
   ci:
     name: CI
     if: always()
-    needs: [changes, lint, typecheck, test, build, audit, e2e]
+    needs: [changes, lint, typecheck, test, build, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -252,27 +207,3 @@ jobs:
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           bad=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')
           if [ -n "$bad" ]; then echo "Did not pass: $bad"; exit 1; fi
-
-  # Off-gate runs have nobody watching them: a failed nightly or manual run opens one issue, or comments
-  # on the one already open, with the run link.
-  alert:
-    name: Alert on failure
-    if: always() && needs.ci.result == 'failure' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-    needs: [changes, lint, typecheck, test, build, audit, e2e, ci]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      issues: write
-    steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          NEEDS: ${{ toJSON(needs) }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          title="CI failing on main (nightly / manual run)"
-          failed=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key) (\(.value.result))"] | join(", ")')
-          body=$(printf '%s run on `%s` failed: %s\n\n%s' "$EVENT" "${GITHUB_SHA:0:7}" "$failed" "$RUN_URL")
-          n=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
-          if [ -n "$n" ]; then gh issue comment "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi

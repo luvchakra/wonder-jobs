@@ -6,6 +6,7 @@ node_modules/
 # testing
 coverage/
 apps/web/playwright-report/
+apps/web/e2e-results.json
 apps/web/test-results/
 apps/web/blob-report/
 

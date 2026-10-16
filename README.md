@@ -12,6 +12,7 @@ Monorepo (npm workspaces). The web app lives in `apps/web` (Next.js 16, App Rout
 npm install
 npm run dev        # http://localhost:3000
 npm run check      # lint + typecheck + tests + production build
+npm run e2e -- e2e/auth.spec.ts --project=chromium   # chosen Playwright specs against a local build (docs/testing/README.md)
 npm run a11y       # axe-core accessibility audit against a production build (needs Chromium: `npx playwright install chromium`, or set PW_CHROMIUM_PATH)
 ```
 
@@ -109,5 +110,6 @@ Apply the schema once per Supabase project, either:
 
 ## Docs
 
+- `docs/testing/README.md` — what runs where: fast CI on pull requests, the nightly E2E suite, E2E on your machine.
 - `docs/PROGRESS.md` — high-level progress tracker: every epic and story, done or not, updated after each story.
 - `docs/IMPLEMENTATION_TRACKER.md` — requirement-by-requirement status and deviations.

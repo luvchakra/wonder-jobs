@@ -1,0 +1,141 @@
+name: E2E nightly
+
+# The whole Playwright suite, off the merge gate (docs/testing/README.md):
+#
+#   nightly   02:47 IST on main, against a fresh production build of that commit.
+#   manual    Actions → E2E nightly → Run workflow. Pick the branch; optionally list spec files
+#             (e.g. "e2e/auth.spec.ts e2e/jobs-apply.spec.ts") to run only those.
+#
+# One part today: the suite takes ~6 min of test time on 2 workers (measured 2026-10-15), far under the
+# ~30 min that would justify splitting. To split later, add entries to `matrix.part` below, each with its
+# own spec list, balanced by the per-spec times this workflow prints in its summary.
+#
+# A failed, flaky or cut-short run opens one issue (or comments on the open one). A red nightly is fixed
+# before anything else merges (CLAUDE.md).
+on:
+  schedule:
+    - cron: "17 21 * * *" # 02:47 IST
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Spec files to run, space separated (empty: the whole suite)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The production Supabase project. E2E never runs against it: the guard step below refuses it, and
+  # e2e/fixtures/auth.ts treats it as "not configured" (signed-in specs report BLOCKED).
+  E2E_FORBIDDEN_SUPABASE_REFS: tybkklggpifpsmsidhok
+
+jobs:
+  e2e:
+    name: E2E (${{ matrix.part.name }})
+    runs-on: ubuntu-latest
+    # The part's own budget (below) ends the run cleanly first; this is only the backstop.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: all
+            specs: ""
+            budget_ms: 1800000 # 30 min
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Refuse production data
+        env:
+          SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+        run: |
+          for ref in $E2E_FORBIDDEN_SUPABASE_REFS; do
+            case "$SUPABASE_URL" in *"$ref"*) echo "::error::E2E_SUPABASE_URL points at the production project ($ref). Use a separate test project."; exit 1 ;; esac
+          done
+          if [ -z "$SUPABASE_URL" ]; then echo "No E2E Supabase project configured: signed-in specs will report BLOCKED (skipped)."; fi
+      - id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        working-directory: apps/web
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      # Full Chromium, as where the suite was written: headless Playwright otherwise picks its headless
+      # shell, which can't load the browser-helper extension and renders the visual baselines differently.
+      - run: echo "PW_CHROMIUM_PATH=$(node -p "require('@playwright/test').chromium.executablePath()")" >> "$GITHUB_ENV"
+        working-directory: apps/web
+      # No build cache restored: playwright.config.ts builds the app from scratch before starting it.
+      # The run's global setup first deletes throwaway data earlier runs left behind (e2e/cleanup.ts).
+      - name: Playwright
+        id: run
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+          SPECS: ${{ inputs.specs || matrix.part.specs }}
+          BUDGET_MS: ${{ matrix.part.budget_ms }}
+        # --global-timeout stops starting tests when the budget runs out and still writes the reports,
+        # so the summary below can say what didn't run instead of the job being killed.
+        run: |
+          for s in $SPECS; do
+            case "$s" in *[!A-Za-z0-9_./-]*) echo "::error::Not a spec path: $s"; exit 1 ;; esac
+          done
+          set +e
+          npx playwright test --project=chromium --project="Mobile Chrome" --global-timeout="$BUDGET_MS" $SPECS
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+      - name: Summary
+        if: always()
+        working-directory: apps/web
+        run: node e2e/summary.mjs e2e-results.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the report and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.part.name }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/web/e2e-results.json
+          retention-days: 14
+          if-no-files-found: ignore
+      # Pass only when nothing failed, nothing was flaky and nothing was left unrun.
+      - name: Verdict
+        if: always()
+        working-directory: apps/web
+        run: node e2e/summary.mjs e2e-results.json --verdict
+
+  # Nobody watches a nightly: a failed, flaky or cut-short run opens one issue, or comments on the one
+  # already open, with the run link.
+  alert:
+    name: Alert on failure
+    if: always() && needs.e2e.result != 'success' && needs.e2e.result != 'skipped'
+    needs: [e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RESULT: ${{ needs.e2e.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref_name }}
+        run: |
+          title="E2E nightly failing"
+          body=$(printf '%s run on `%s` (`%s`): %s — failed, flaky or not run; the run summary lists which.\n\n%s' "$EVENT" "$REF" "${GITHUB_SHA:0:7}" "$RESULT" "$RUN_URL")
+          n=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ -n "$n" ]; then gh issue comment "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
