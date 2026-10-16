@@ -7,13 +7,17 @@ export const maxDuration = 30;
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** POST → open (or rejoin) the cloud browser for this session: a stream address and a token for this candidate only. */
+/**
+ * POST → open (or rejoin) the cloud browser for this session: a stream address and a token for this candidate only.
+ * Body `{ headless: true }`: a background fill nobody watches (WJ-311); the stream address is still returned, unused.
+ */
 export async function POST(req: Request, ctx: Ctx) {
   const t = await webTenant(req, true);
   if (t instanceof NextResponse) return t;
   const { id } = await ctx.params;
+  const body = (await req.json().catch(() => ({}))) as { headless?: unknown };
   try {
-    return send(await startCloud(t, id));
+    return send(await startCloud(t, id, { headless: body?.headless === true }));
   } catch (e) {
     return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't open the cloud browser.");
   }

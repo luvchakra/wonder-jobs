@@ -5,6 +5,7 @@
  *
  * Wonder's part — reading the form and filling what the candidate's own profile can fill — happens
  * inside the helper script, gated by the app on every call. Nothing in this file clicks or submits.
+ * With no viewer attached nothing is streamed: that is a background fill (WJ-311), driven from WonderJobs.
  */
 import { randomUUID } from "node:crypto";
 import type { Browser, BrowserContext, CDPSession, Page } from "playwright";
@@ -81,6 +82,8 @@ export class CloudSession {
 
   /** `chrome.runtime.sendMessage` from the helper script, routed like the extension's background script would. */
   private async ask(raw: string): Promise<string | null> {
+    // The helper working on the page is activity: a background fill nobody watches (WJ-311) isn't idle.
+    this.lastActivity = Date.now();
     let m: { type?: string; payload?: Record<string, unknown> };
     try {
       m = JSON.parse(raw);

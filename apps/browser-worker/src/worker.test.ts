@@ -31,7 +31,9 @@ describe("the worker never acts on the page by itself", () => {
     const script = pageScript();
     expect(script.startsWith(SHIM)).toBe(true);
     expect(script).toContain("window.__wonderjobsHelper");
-    expect(script).toContain("Never in WonderJobs' cloud browser");
+    // In the cloud the helper submits only when WonderJobs' plan says so for a background fill the candidate
+    // asked to submit (WJ-311); the extension's own unit test holds the rest of that gate.
+    expect(script).toContain("state.submit = (!IN_CLOUD || !!r.data.plan.cloudSubmit) && !!r.data.plan.submit;");
   });
 });
 

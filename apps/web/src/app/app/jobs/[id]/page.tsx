@@ -33,6 +33,8 @@ import { planThatAllows } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
+import { jobsApplyApi } from "@/services/jobs-apply/client";
+import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
 import { cn } from "@/lib/cn";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
@@ -58,6 +60,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
   const { limits, plans } = usePlan();
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
+  // Apply for this job fills the form in the background cloud browser (WJ-311); without one, the Apply page.
+  const [background, setBackground] = useState(false);
+  useEffect(() => {
+    if (!canApply) return;
+    let off = false;
+    jobsApplyApi.cloud
+      .available()
+      .then((r) => !off && setBackground(r.available))
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [canApply]);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [expanded, setExpanded] = useState(false);
@@ -280,9 +295,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <Card className="flex flex-col gap-2">
             {canApply ? (
               <>
-                <Button size="lg" full href={`/app/jobs/${job.id}/apply`}>
-                  Apply with Wonder
-                </Button>
+                {background ? (
+                  <BackgroundApply jobId={job.id} />
+                ) : (
+                  <Button size="lg" full href={`/app/jobs/${job.id}/apply`}>
+                    Apply with Wonder
+                  </Button>
+                )}
                 <Button variant="outline" full onClick={prepare}>
                   Open application pack
                 </Button>

@@ -355,6 +355,7 @@ export type JobsApplyEventType =
   | "DOMAIN_APPROVED"
   | "READY_FOR_REVIEW"
   | "STEP_ADVANCED"
+  | "FINAL_STEP_REACHED"
   | "ANSWER_LEARNED"
   | "SUBMISSION_STARTED"
   | "APPLICATION_SUBMITTED"
@@ -410,7 +411,12 @@ export interface JobsApplySession {
   evidence: SubmissionEvidence[];
   audit: JobsApplyAuditEntry[];
   /** The cloud browser (apps/browser-worker) opened for this session, when the candidate has no extension. Its id only; the stream token is never stored. */
-  cloud?: { id: string; startedAt: string; endedAt?: string; reason?: string };
+  cloud?: { id: string; startedAt: string; endedAt?: string; reason?: string; headless?: boolean };
+  /**
+   * The helper reached the page whose way on is the final Submit (WJ-311): what that button says, and how
+   * many required questions on it were still waiting for the candidate. Cleared when the form moves on.
+   */
+  finalStep?: { at: string; label: string; waiting: number };
   /** The candidate's "Submit for me" choice for this application (WJ-249); absent = their account default. */
   submitOverride?: "on" | "off";
   /** When the helper pressed the employer's Submit under that setting — once per job (key submit:{jobId}:me). */

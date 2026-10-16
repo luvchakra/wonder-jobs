@@ -124,4 +124,74 @@ describe("cloud browser sessions", () => {
     expect((await cloud.fillCloud(t, id)).status).toBe(409);
     expect((await cloud.endCloud(t, id, "again")).body).toEqual({ ok: true, ended: false });
   });
+
+  it("WJ-311 in the cloud the helper may submit only in a background fill, after the candidate's own Submit for this application", async () => {
+    process.env.CLOUD_BROWSER_URL = "https://worker.test";
+    process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
+    const t = tenant();
+    const id = await started(t);
+    const token = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    const helper = async () => {
+      const ctx = await svc.helperAuth(token);
+      if (!("session" in ctx)) throw new Error("auth");
+      return ctx;
+    };
+    // A one-page form Wonder can fill completely from the candidate's own profile.
+    const form = { url: "https://boards.greenhouse.io/example/jobs/7", provider: "greenhouse" as const, adapter: "adapter:greenhouse", step: 1, signals: [], fields: [{ id: "first_name", label: "First Name", type: "text" as const, required: true }, { id: "email", label: "Email", type: "email" as const, required: true }] };
+    const plan = async () => {
+      await svc.helperInspect(await helper(), form);
+      return (await svc.helperFillPlan(await helper(), { host: "boards.greenhouse.io", clicked: true })).body as { allowed: boolean; submit: boolean; cloudSubmit: boolean };
+    };
+
+    // Watched cloud browser (the Apply page's stream): never Wonder's to submit, even with Submit for me on.
+    workerAnswers(201, { cloudId: "33333333-3333-4333-8333-333333333333", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
+    await cloud.startCloud(t, id);
+    await svc.act(t, id, "submit", { submit: "on" });
+    expect(await plan()).toMatchObject({ allowed: true, submit: false, cloudSubmit: false });
+
+    // Background fill, but no Submit pressed yet (the account default doesn't count in the cloud).
+    await svc.act(t, id, "submit", { submit: "default" });
+    workerAnswers(201, { cloudId: "33333333-3333-4333-8333-333333333333", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream", reused: true });
+    await cloud.startCloud(t, id, { headless: true });
+    expect((await store.getSession(t, id))?.cloud?.headless).toBe(true);
+    expect(await plan()).toMatchObject({ allowed: true, submit: false, cloudSubmit: false });
+
+    // "Never" for this application always wins.
+    await svc.act(t, id, "submit", { submit: "off" });
+    expect(await plan()).toMatchObject({ submit: false, cloudSubmit: false });
+
+    // The candidate pressed "Submit this application": now, and only now, the helper may press the employer's Submit.
+    await svc.act(t, id, "submit", { submit: "on" });
+    expect(await plan()).toMatchObject({ allowed: true, submit: true, cloudSubmit: true });
+
+    // Once per job: after Wonder submitted, never again.
+    await svc.helperEvents(await helper(), { events: [{ type: "APPLICATION_SUBMITTED", label: "Submit application" }] });
+    expect(((await svc.helperFillPlan(await helper(), { host: "boards.greenhouse.io", clicked: true })).body as { submit?: boolean }).submit ?? false).toBe(false);
+
+    // Reopened to watch (the Apply page): the background flag goes, and with it the cloud submit.
+    workerAnswers(201, { cloudId: "33333333-3333-4333-8333-333333333333", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream", reused: true });
+    await cloud.startCloud(t, id);
+    expect((await store.getSession(t, id))?.cloud?.headless).toBeUndefined();
+  });
+
+  it("WJ-311 the helper reports the form's last page, with what still waits for the candidate; moving on clears it", async () => {
+    const t = tenant();
+    const id = await started(t);
+    const token = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    const ctx = await svc.helperAuth(token);
+    if (!("session" in ctx)) throw new Error("auth");
+    await svc.helperEvents(ctx, { events: [{ type: "FINAL_STEP", label: "Submit application", waiting: 2 }] });
+    let s = await store.getSession(t, id);
+    expect(s?.finalStep).toMatchObject({ label: "Submit application", waiting: 2 });
+    expect(s?.audit.at(-1)).toMatchObject({ event: "FINAL_STEP_REACHED" });
+    const audits = s!.audit.length;
+    // The same report again changes nothing in the audit trail.
+    await svc.helperEvents(ctx, { events: [{ type: "FINAL_STEP", label: "Submit application", waiting: 2 }] });
+    expect((await store.getSession(t, id))!.audit.length).toBe(audits);
+    await svc.helperEvents(ctx, { events: [{ type: "FINAL_STEP", label: "Submit application", waiting: 0 }] });
+    expect((await store.getSession(t, id))?.finalStep?.waiting).toBe(0);
+    await svc.helperEvents(ctx, { events: [{ type: "STEP_ADVANCED", label: "Next" }] });
+    s = await store.getSession(t, id);
+    expect(s?.finalStep).toBeUndefined();
+  });
 });

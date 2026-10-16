@@ -98,6 +98,7 @@ export const HelperEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("NAVIGATION_CHANGED"), url: str(2000).url(), passwordField: z.boolean().optional() }).strict(),
   z.object({ type: z.literal("SUBMIT_CLICKED") }).strict(),
   z.object({ type: z.literal("STEP_ADVANCED"), label: str(80) }).strict(),
+  z.object({ type: z.literal("FINAL_STEP"), label: str(80), waiting: z.number().int().min(0).max(300) }).strict(),
   z.object({ type: z.literal("APPLICATION_SUBMITTED"), label: str(80) }).strict(),
   z.object({ type: z.literal("ANSWER_LEARNED"), fieldId: str(200), value: str(500).min(1) }).strict(),
   z.object({ type: z.literal("SUBMISSION_DETECTED"), url: str(2000).url(), excerpt: str(400).optional(), confirmationId: str(80).optional() }).strict(),
