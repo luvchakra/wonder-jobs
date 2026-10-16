@@ -88,3 +88,16 @@ describe("candidate input", () => {
     expect(parseInput("tap", vp)).toBeNull();
   });
 });
+
+describe("the deploy image matches the code", () => {
+  // The worker runs the Chromium baked into the Playwright image. A playwright bump without the image
+  // (Dependabot #170, 2026-10-15) launches no browser at all, and the deploy dies at its health check.
+  it("Dockerfile's Playwright image is the version package.json pins", () => {
+    const pkg = JSON.parse(readFileSync(path.join(SRC, "../package.json"), "utf8")) as { dependencies: Record<string, string> };
+    const pinned = pkg.dependencies.playwright;
+    expect(pinned, "pin playwright to an exact version so the image can match it").toMatch(/^\d+\.\d+\.\d+$/);
+    const docker = readFileSync(path.join(SRC, "../Dockerfile"), "utf8");
+    const image = docker.match(/^FROM mcr\.microsoft\.com\/playwright:v(\d+\.\d+\.\d+)-/m)?.[1];
+    expect(image, "Dockerfile FROM mcr.microsoft.com/playwright:v<version>-…").toBe(pinned);
+  });
+});

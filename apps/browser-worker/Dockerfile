@@ -1,6 +1,6 @@
 # Build from the repository root so the helper script comes along:
 #   docker build -f apps/browser-worker/Dockerfile -t wonderjobs-browser-worker .
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+FROM mcr.microsoft.com/playwright:v1.64.0-noble
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 NODE_ENV=production PORT=4100
 WORKDIR /app
 COPY apps/browser-worker/package.json apps/browser-worker/tsconfig.json ./

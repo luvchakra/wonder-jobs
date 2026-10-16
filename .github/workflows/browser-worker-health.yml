@@ -1,0 +1,41 @@
+# Is the cloud browser answering? Once a day (and by hand), outside any deploy, so a worker that stops
+# between deploys is noticed. It wakes the machine for a moment (it stops itself again when idle).
+# Down → opens (or comments on) the "Cloud browser down" issue; back up → closes it.
+name: Cloud browser health
+
+on:
+  schedule:
+    - cron: "41 2 * * *" # 08:11 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    env:
+      APP: wonderjobs-browser-worker
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Check /health
+        run: |
+          title="Cloud browser down"
+          n=$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          # A stopped machine takes a few seconds to start: give it two minutes.
+          for _ in $(seq 1 12); do
+            if curl -fsS --max-time 10 "https://$APP.fly.dev/health"; then
+              echo; echo "Cloud browser is up."
+              if [ -n "$n" ]; then gh issue close "$n" --comment "Answering /health again. $RUN_URL"; fi
+              exit 0
+            fi
+            sleep 10
+          done
+          body=$(printf 'The cloud browser did not answer /health for two minutes.\n\n%s' "$RUN_URL")
+          if [ -n "$n" ]; then gh issue comment "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
+          exit 1
