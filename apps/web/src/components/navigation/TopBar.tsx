@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -108,6 +108,8 @@ export function TopBar() {
             ]
           : []),
         ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
+        // The sidebar's Analytics, for phones (no sidebar there).
+        { href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
         { href: "/help", label: "Get Help", icon: LifeBuoy },
       ].map((m) => (
         <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
