@@ -87,7 +87,8 @@ export async function mutateSession(tenantId: string, id: string, fn: (s: JobsAp
     if (!cur || cur.tenantId !== tenantId) return undefined;
     const next = fn(cur);
     if (next.tenantId !== tenantId || next.id !== id) throw new Error("tenant mismatch");
-    if (next === cur) return cur;
+    // Nothing changed (the helper re-read the same page): no write.
+    if (next === cur || JSON.stringify(next) === JSON.stringify(cur)) return cur;
     doc.sessions[id] = next;
     await stateStore.put(tenantId, STORE, fit(doc));
     return next;

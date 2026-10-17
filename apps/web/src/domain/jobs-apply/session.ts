@@ -187,8 +187,13 @@ export function recordInspection(s: JobsApplySession, form: ApplicationForm, now
   const stepM = n.fieldMappings.filter((m) => (m.step ?? 1) === step);
   const willFill = stepM.filter((m) => m.status === "pending" && (m.value !== undefined || m.file)).length;
   const needs = n.interventions.filter((i) => i.status === "open" && stepM.some((m) => m.fieldId === i.fieldId)).length;
-  n = audit(n, now, "FORM_DETECTED", "helper", `${form.provider ? PROVIDER_NAME[form.provider] : "Generic"} form${form.stepCount ? ` · step ${step} of ${form.stepCount}` : step > 1 ? ` · step ${step}` : ""} · ${fieldsOnPage.length} fields`, host);
-  return audit(n, now, "FORM_ANALYZED", "wonder", `${willFill} can be filled · ${needs} need you`);
+  const detected = `${form.provider ? PROVIDER_NAME[form.provider] : "Generic"} form${form.stepCount ? ` · step ${step} of ${form.stepCount}` : step > 1 ? ` · step ${step}` : ""} · ${fieldsOnPage.length} fields`;
+  const analyzed = `${willFill} can be filled · ${needs} need you`;
+  // The helper re-reads the page every few seconds: the same page with the same result adds nothing to Progress.
+  const [d, a] = n.audit.slice(-2);
+  if (d?.event === "FORM_DETECTED" && d.detail === detected && d.where === host && a?.event === "FORM_ANALYZED" && a.detail === analyzed) return n;
+  n = audit(n, now, "FORM_DETECTED", "helper", detected, host);
+  return audit(n, now, "FORM_ANALYZED", "wonder", analyzed);
 }
 
 function safePath(url: string): string {
