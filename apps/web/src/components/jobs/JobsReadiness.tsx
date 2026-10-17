@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -310,8 +310,13 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
             {role || "No role yet"}
           </p>
         </div>
-        <Link href="/app/career-dna?from=find" className="ml-auto inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
-          Update Career Profile <ChevronRight className="hidden size-3.5 sm:block" aria-hidden />
+        <Link href="/app/career-dna?from=find" aria-label="Update Career Profile" className="group ml-auto flex shrink-0 flex-col items-center gap-0.5 rounded-[10px] px-1 py-0.5">
+          <span className="text-[10.5px] font-medium leading-none text-ink-3 group-hover:text-ink-2">Update</span>
+          <span className="rounded-[8px] border border-brand-200 bg-brand-50 px-2 py-0.5 text-center text-[12px] font-medium leading-[1.15] text-brand-700 group-hover:bg-brand-100">
+            Career
+            <br />
+            Profile
+          </span>
         </Link>
       </div>
     );
