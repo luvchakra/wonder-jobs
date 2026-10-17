@@ -63,6 +63,9 @@ export async function startCloud(tenantId: string, id: string, opts: { headless?
   const s = await getSession(tenantId, id);
   if (!s) return err(404, "NOT_FOUND", "Application session not found.");
   if (s.mode === "guided") return err(409, "NOT_ALLOWED", "Guide me doesn't use the cloud browser.");
+  // A background fill only where the link is an applicant-tracking system's own job page: a job board's or careers
+  // site's listing holds the board's own forms (search, job alerts), never the application (WJ-314).
+  if (headless && s.destination.type !== "ats") return err(409, "NOT_FILLABLE", "Wonder can fill this one in the background only on the employer's application system. Open the employer's page and use Guide me.");
   const r = await worker("/sessions", "POST", { sessionId: id, tenantId, url: destination.url, helperToken: token, domains: [destination.domain, ...destination.relatedDomains, ...s.approvedDomains].filter(Boolean) });
   if (r.status === 429) return err(429, "BUSY", String(r.data?.message ?? "The cloud browser is at capacity right now. Try again in a few minutes, or choose Guide me."));
   if ((r.status !== 200 && r.status !== 201) || !r.data) return err(503, "UNAVAILABLE", UNAVAILABLE);

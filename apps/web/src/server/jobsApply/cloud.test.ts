@@ -30,8 +30,8 @@ const pack = (): ApplicationPackSnapshot => ({
   capturedAt: NOW,
 });
 
-async function started(t: string, mode: "guided" | "assisted" = "assisted") {
-  const c = await svc.create(t, { job: job(), pack: pack(), mode });
+async function started(t: string, mode: "guided" | "assisted" = "assisted", j = job()) {
+  const c = await svc.create(t, { job: j, pack: { ...pack(), jobId: j.id }, mode });
   const id = (c.body as { session: JobsApplySession }).session.id;
   expect((await svc.act(t, id, "start", {})).status).toBe(200);
   return id;
@@ -54,6 +54,20 @@ describe("cloud browser sessions", () => {
     calls.length = 0;
     delete process.env.CLOUD_BROWSER_URL;
     delete process.env.CLOUD_BROWSER_SECRET;
+  });
+
+  it("fills in the background only on an applicant-tracking system's page, never a job board's listing (WJ-314)", async () => {
+    process.env.CLOUD_BROWSER_URL = "https://cloud.example";
+    process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
+    const t = tenant();
+    const board = { ...job(), id: "job_adzuna_1", applyUrl: "https://www.adzuna.in/details/5929200593" };
+    const id = await started(t, "assisted", board);
+    workerAnswers(201, { cloudId: "44444444-4444-4444-8444-444444444444", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
+    const r = await cloud.startCloud(t, id, { headless: true });
+    expect(r.status).toBe(409);
+    expect((r.body as { error: { code: string } }).error.code).toBe("NOT_FILLABLE");
+    expect(calls).toHaveLength(0); // the worker was never asked to open it
+    expect((await store.getSession(t, id))?.cloud).toBeUndefined();
   });
 
   it("is 'needs setup' without a worker, and never pretends otherwise", async () => {
