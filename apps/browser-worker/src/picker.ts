@@ -8,7 +8,8 @@
  *   - chooses an answer: the same, then one click on the single option whose text is exactly the answer the
  *     helper sent (WonderJobs' fill plan: the candidate's own answer). No exact match, no click.
  *
- * Never Enter, never Tab, never typing, never a click on anything but that option. Every other gesture in the
+ * For a search-as-you-type dropdown, the answer is typed into that dropdown's own text box to list its choices.
+ * Never Enter, never Tab, no other typing, never a click on anything but that option. Every other gesture in the
  * worker is the candidate's own (input.ts). worker.test.ts holds this file to exactly these.
  */
 import type { Frame } from "playwright";
@@ -23,7 +24,8 @@ async function comboBox(frame: Frame, mark: string) {
   if (!/^[\w-]{1,80}$/.test(mark)) return null;
   const box = frame.locator(`[${MARK}="${mark}"]`);
   if ((await box.count()) !== 1) return null;
-  const ok = await box.evaluate((el) => el.tagName === "INPUT" && el.getAttribute("role") === "combobox").catch(() => false);
+  // A combobox's own text box, or Lever's location box (type, then pick a suggestion).
+  const ok = await box.evaluate((el) => el.tagName === "INPUT" && (el.getAttribute("role") === "combobox" || el.matches("input[data-qa='location-input']"))).catch(() => false);
   return ok ? box : null;
 }
 
@@ -36,7 +38,7 @@ function listedOptions(frame: Frame, mark: string): Promise<string[]> {
       const own = document.getElementById(el.getAttribute("aria-controls") || "");
       let opts: Element[] = own ? Array.from(own.querySelectorAll("[role=option]")) : [];
       let box = el.parentElement;
-      for (let i = 0; !opts.length && box && i < 6; i++, box = box.parentElement) opts = Array.from(box.querySelectorAll("[role=option], [class*='__option']"));
+      for (let i = 0; !opts.length && box && i < 6; i++, box = box.parentElement) opts = Array.from(box.querySelectorAll("[role=option], [class*='__option'], .dropdown-results > *"));
       return opts.filter((o) => !o.closest(".iti")).map((o) => (o.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 290);
     },
     [MARK, mark] as const,
@@ -69,16 +71,54 @@ export async function comboOptions(frame: Frame, mark: string): Promise<string[]
   return opts;
 }
 
-/** Choose the option whose text is exactly `value`. True when it was chosen; nothing is pressed otherwise. */
-export async function comboPick(frame: Frame, mark: string, value: string): Promise<boolean> {
-  if (typeof value !== "string" || !value.trim() || value.length > 500) return false;
-  const opts = await open(frame, mark);
-  if (!opts) return false;
+/**
+ * Which listed option is the answer: the one whose text is exactly it, else — for a value like a city — the one
+ * option that begins with it ("Bengaluru" → "Bengaluru, Karnataka, India"). More than one candidate: none.
+ */
+export function optionFor(opts: string[], value: string): string | null {
   const want = norm(value);
-  if (opts.filter((o) => norm(o) === want).length !== 1) {
-    await close(frame, mark);
-    return false;
+  const exact = opts.filter((o) => norm(o) === want);
+  if (exact.length) return exact.length === 1 ? exact[0] : null;
+  const prefix = opts.filter((o) => norm(o).startsWith(`${want},`) || norm(o).startsWith(`${want} `));
+  if (prefix.length) return prefix.length === 1 ? prefix[0] : null;
+  // "Bengaluru, India" → "Bengaluru, Karnataka, India": starts with the first part and holds every other part.
+  const parts = want.split(",").map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const spread = opts.filter((o) => norm(o).startsWith(parts[0]) && parts.every((x) => norm(o).includes(x)));
+  return spread.length === 1 ? spread[0] : null;
+}
+
+/**
+ * Choose the option that is the answer (optionFor). `ok` when it was chosen; nothing is pressed otherwise, and the
+ * choices the dropdown listed come back so WonderJobs can ask the candidate with them.
+ */
+export async function comboPick(frame: Frame, mark: string, value: string): Promise<{ ok: boolean; options?: string[] }> {
+  if (typeof value !== "string" || !value.trim() || value.length > 500) return { ok: false };
+  const opts = await open(frame, mark);
+  if (!opts) return { ok: false };
+  let target = optionFor(opts, value);
+  let found: string[] = opts;
+  if (!target) {
+    // A search-as-you-type dropdown (a city, a school): its choices appear for what's typed in its own box.
+    const box = await comboBox(frame, mark);
+    if (!box) return { ok: false };
+    // Typed key by key: some (Lever's location box) search only on key presses, not on pasted text.
+    await box.fill("");
+    // A place is searched by its first part ("Bengaluru, Karnataka, IND" → "Bengaluru"); the pick is still exact.
+    const query = value.split(",")[0].trim() || value;
+    await box.pressSequentially(query, { delay: 40 });
+    for (let i = 0; i < 15 && !target; i++) {
+      await frame.waitForTimeout(250);
+      found = await listedOptions(frame, mark);
+      target = optionFor(found, value);
+    }
+    if (!target) {
+      await box.fill("");
+      await close(frame, mark);
+      return { ok: false, options: found.slice(0, 50) };
+    }
   }
+  const want = norm(target);
   // Mark that one option in the open list, then press it — the only click this file makes.
   const marked = await frame.evaluate(
     ([attr, chosen, m, w]) => {
@@ -88,7 +128,7 @@ export async function comboPick(frame: Frame, mark: string, value: string): Prom
       const own = document.getElementById(el.getAttribute("aria-controls") || "");
       let opts: Element[] = own ? Array.from(own.querySelectorAll("[role=option]")) : [];
       let box = el.parentElement;
-      for (let i = 0; !opts.length && box && i < 6; i++, box = box.parentElement) opts = Array.from(box.querySelectorAll("[role=option], [class*='__option']"));
+      for (let i = 0; !opts.length && box && i < 6; i++, box = box.parentElement) opts = Array.from(box.querySelectorAll("[role=option], [class*='__option'], .dropdown-results > *"));
       const hit = opts.filter((o) => !o.closest(".iti")).filter((o) => (o.textContent || "").replace(/\s+/g, " ").trim().toLowerCase() === w);
       if (hit.length !== 1) return false;
       hit[0].setAttribute(chosen, "1");
@@ -98,8 +138,8 @@ export async function comboPick(frame: Frame, mark: string, value: string): Prom
   );
   if (!marked) {
     await close(frame, mark);
-    return false;
+    return { ok: false, options: found.slice(0, 50) };
   }
   await frame.locator(`[${CHOSEN}="1"]`).click({ timeout: 3000 });
-  return true;
+  return { ok: true };
 }

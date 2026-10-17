@@ -38,7 +38,8 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     idleMs: Number(env.CLOUD_BROWSER_IDLE_MS ?? 10 * 60_000),
     maxMs: Number(env.CLOUD_BROWSER_MAX_MS ?? 45 * 60_000),
     chromiumPath: env.PW_CHROMIUM_PATH || undefined,
-    // A phone-sized page: what the candidate sees in the app is what the employer's form lays out for.
-    viewport: { width: 412, height: 860 },
+    // A desktop-sized page: nobody watches the cloud browser any more (WJ-314), and phone layouts hide parts of
+    // some forms behind their own "Apply" toggles (JazzHR's mobile apply button, 2026-10-17).
+    viewport: { width: 1280, height: 900 },
   };
 }

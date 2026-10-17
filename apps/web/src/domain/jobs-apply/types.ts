@@ -149,7 +149,7 @@ export interface ApplicationPackSnapshot {
 
 /* ------------------------------------------------------ destination */
 
-export type AtsProvider = "greenhouse" | "lever" | "ashby" | "workday" | "smartrecruiters" | "workable" | "teamtailor" | "recruitee" | "personio";
+export type AtsProvider = "greenhouse" | "lever" | "ashby" | "workday" | "smartrecruiters" | "workable" | "teamtailor" | "recruitee" | "personio" | "jazzhr";
 
 export interface ApplyDestination {
   url: string;

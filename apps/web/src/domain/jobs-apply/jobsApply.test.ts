@@ -4,7 +4,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
 import type { Application } from "@/domain/applications/types";
 import { classifyField } from "./classify";
-import { backgroundFillable, checkDomain, destinationFor, followedDestination, workdayApplyUrl, detectProvider, registrableDomain } from "./destination";
+import { backgroundFillable, checkDomain, destinationFor, followedDestination, greenhouseFormUrl, workdayApplyUrl, detectProvider, registrableDomain } from "./destination";
 import { mapForm, matchPackAnswer, memoryValueFor, progressOf } from "./mapper";
 import { fillDecision, fillGate, handoffDecision, portalSignInDecision, submitDecision, submitReady } from "./policy";
 import { buildApplicationProfile, freshMemory, missingProfileFields, splitName } from "./profile";
@@ -296,8 +296,10 @@ describe("destination (APPLY-008/010, SEC-010/011)", () => {
   it("classifies a move as expected, related, SSO, approved or unexpected (§72)", () => {
     const d = destinationFor({ applyUrl: "https://boards.greenhouse.io/acme/jobs/1", companyDomain: "acme.com", onEmployerSite: false })!;
     expect(d).toMatchObject({ provider: "greenhouse", type: "ats", applicationMethod: "browser" });
-    expect(checkDomain("boards.greenhouse.io", d)).toBe("expected");
-    expect(checkDomain("job-boards.greenhouse.io", d)).toBe("related");
+    // Greenhouse jobs open at Greenhouse's own form (WJ-317); its other hosts stay part of the application.
+    expect(d.url).toBe("https://job-boards.greenhouse.io/embed/job_app?for=acme&token=1");
+    expect(checkDomain("job-boards.greenhouse.io", d)).toBe("expected");
+    expect(checkDomain("boards.greenhouse.io", d)).toBe("related");
     expect(checkDomain("careers.acme.com", d)).toBe("related");
     expect(checkDomain("accounts.google.com", d)).toBe("sso");
     expect(checkDomain("acme-careers-login.xyz", d)).toBe("unexpected");
@@ -309,10 +311,20 @@ describe("destination (APPLY-008/010, SEC-010/011)", () => {
   it("fills in the background only an ATS's own job page, never a job board's or careers site's listing (WJ-311)", () => {
     expect(backgroundFillable({ applyUrl: "https://boards.greenhouse.io/acme/jobs/1", onEmployerSite: false })).toBe(true);
     expect(backgroundFillable({ applyUrl: "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/1", onEmployerSite: true })).toBe(true);
-    // A job board's listing: its own Apply link is followed to the employer first (WJ-315).
-    expect(backgroundFillable({ applyUrl: "https://www.naukri.com/job-listings-vp-141026013239", onEmployerSite: false })).toBe(true);
+    // A job board's listing whose Apply link opens for the cloud browser is followed to the employer (WJ-315)…
     expect(backgroundFillable({ applyUrl: "https://www.arbeitnow.co.uk/jobs/companies/samba-tv/director-264022", onEmployerSite: false })).toBe(true);
-    expect(backgroundFillable({ applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api", onEmployerSite: false })).toBe(true);
+    // Boards whose Apply link doesn't open for the cloud browser are job boards, but not offered (tested 2026-10-17).
+    for (const u of ["https://jobicy.com/jobs/153270-chief-information-security-officer-2", "https://remoteOK.com/remote-jobs/remote-designer-crevtus-1134739", "https://himalayas.app/companies/softswiss/jobs/iam-security-operations-engineer-middle", "https://www.themuse.com/jobs/flexport/senior-systems-engineer-identity-and-access-b3e5e6"]) {
+      expect(destinationFor({ applyUrl: u, onEmployerSite: false })?.type, u).toBe("aggregator");
+      expect(backgroundFillable({ applyUrl: u, onEmployerSite: false }), u).toBe(false);
+    }
+    // …but never one that keeps applying behind its own login or refuses automated browsers (tested 2026-10-17).
+    expect(backgroundFillable({ applyUrl: "https://www.naukri.com/job-listings-vp-141026013239", onEmployerSite: false })).toBe(false);
+    expect(backgroundFillable({ applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api", onEmployerSite: false })).toBe(false);
+    expect(backgroundFillable({ applyUrl: "https://www.linkedin.com/jobs/view/4472553349/", onEmployerSite: false })).toBe(false);
+    // JazzHR's own forms, and company career pages that embed Greenhouse, are applicant-tracking systems.
+    expect(backgroundFillable({ applyUrl: "https://axiomcloud.applytojob.com/apply/4KchornRQq/Software-Engineer-Fully-Remote", onEmployerSite: false })).toBe(true);
+    expect(backgroundFillable({ applyUrl: "https://www.coinbase.com/careers/positions/7773776?gh_jid=7773776", onEmployerSite: true })).toBe(true);
     expect(backgroundFillable({ applyUrl: "https://careers.acme.com/jobs/1", onEmployerSite: true })).toBe(false);
     expect(backgroundFillable({ applyUrl: "", onEmployerSite: false })).toBe(false);
   });
@@ -717,5 +729,17 @@ describe("sign-in connections gate (WJ-316)", () => {
     expect(workdayApplyUrl("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/X_R-1/apply")).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/X_R-1/apply");
     expect(workdayApplyUrl("https://boards.greenhouse.io/acme/jobs/1")).toBe("https://boards.greenhouse.io/acme/jobs/1");
     expect(workdayApplyUrl("https://amgen.wd1.myworkdayjobs.com/en-US/Careers")).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers");
+  });
+});
+
+describe("Greenhouse's own form (WJ-317)", () => {
+  it("opens the form Greenhouse serves, not the page that frames it", () => {
+    expect(greenhouseFormUrl("https://boards.greenhouse.io/cloudflare/jobs/8124227?gh_jid=8124227")).toBe("https://job-boards.greenhouse.io/embed/job_app?for=cloudflare&token=8124227");
+    expect(greenhouseFormUrl("https://job-boards.greenhouse.io/gitlab/jobs/8638232002")).toBe("https://job-boards.greenhouse.io/embed/job_app?for=gitlab&token=8638232002");
+    expect(greenhouseFormUrl("https://www.coinbase.com/careers/positions/7773776?gh_jid=7773776")).toBe("https://job-boards.greenhouse.io/embed/job_app?for=coinbase&token=7773776");
+    expect(greenhouseFormUrl("https://job-boards.greenhouse.io/embed/job_app?for=stripe&token=1")).toBe("https://job-boards.greenhouse.io/embed/job_app?for=stripe&token=1");
+    expect(greenhouseFormUrl("https://careers.acme.com/jobs/1")).toBe("https://careers.acme.com/jobs/1");
+    expect(greenhouseFormUrl("https://x.example.com/job?gh_jid=abc")).toBe("https://x.example.com/job?gh_jid=abc");
+    expect(destinationFor({ applyUrl: "https://www.coinbase.com/careers/positions/7773776?gh_jid=7773776", companyDomain: "coinbase.com", onEmployerSite: true })).toMatchObject({ type: "ats", provider: "greenhouse", domain: "job-boards.greenhouse.io" });
   });
 });

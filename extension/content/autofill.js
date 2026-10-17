@@ -164,6 +164,8 @@
     if (el.tagName === "SELECT") return "select";
     // A searchable dropdown (React Select and the like): its text box only filters the list, so it isn't text.
     if (el.getAttribute("role") === "combobox") return "combobox";
+    // Lever's location box: you type, then pick one of its suggestions (a hidden field keeps the pick).
+    if (el.matches("input[data-qa='location-input']")) return "combobox";
     const t = (el.getAttribute("type") || "text").toLowerCase();
     if (t === "tel") return "phone";
     if (["text", "email", "url", "number", "date", "file", "password", "radio", "checkbox"].includes(t)) return t;
@@ -257,7 +259,7 @@
       const id = uid(el.id || el.name || `f${fields.length}`);
       fieldEls.set(id, [el]);
       const label = labelOf(el);
-      const f = { id, label: label.slice(0, 480), type, required: !!(el.required || el.getAttribute("aria-required") === "true" || /\*\s*$/.test(label) || (type === "combobox" && requiredStandIn(el))), step };
+      const f = { id, label: label.slice(0, 480), type, required: !!(el.required || el.getAttribute("aria-required") === "true" || /\*\s*$/.test(label) || /✱/.test(label) || (type === "combobox" && requiredStandIn(el))), step };
       const hints = {};
       if (el.name) hints.name = el.name.slice(0, 190);
       if (el.id) hints.id = el.id.slice(0, 190);
@@ -403,13 +405,14 @@
       const standIn = box.querySelector("input[aria-hidden='true']");
       if (standIn) return clean(standIn.value);
     }
-    return "";
+    // A box that shows the pick itself (Lever's location box, which also keeps it in a hidden field).
+    return el.matches("input[data-qa='location-input']") && el.parentElement?.querySelector("input[type=hidden][name=selectedLocation]")?.value ? clean(el.value) : "";
   }
 
   /** Each dropdown's choices, read once, so WonderJobs can match answers and ask with the employer's own options. */
   async function probeCombos() {
     if (!IN_CLOUD) return;
-    const combos = [...document.querySelectorAll("input[role=combobox]")].filter((el) => visible(el) && !el.closest(".iti") && !comboChoices.has(el));
+    const combos = [...document.querySelectorAll("input[role=combobox], input[data-qa='location-input']")].filter((el) => visible(el) && !el.closest(".iti") && !comboChoices.has(el));
     for (const el of combos.slice(0, 40)) {
       const r = await ask("comboOptions", { mark: comboMark(el) });
       comboChoices.set(el, Array.isArray(r?.options) ? r.options.slice(0, 290) : []);
@@ -455,10 +458,19 @@
         return { fieldId: item.fieldId, ok: el.checked };
       }
       if (type === "combobox") {
-        if (!IN_CLOUD || !comboChoices.get(el)?.includes(item.value)) return { fieldId: item.fieldId, ok: false, error: "rejected" };
+        // The worker picks only an option that is the answer (exact, or the one that begins with it); a dropdown
+        // with no listed choices yet is searched by typing the answer into its own box.
+        if (!IN_CLOUD) return { fieldId: item.fieldId, ok: false, error: "rejected" };
         const r = await ask("comboPick", { mark: comboMark(el), value: item.value });
         await new Promise((res) => setTimeout(res, 200));
-        const picked = !!r?.ok && comboValue(el).toLowerCase() === clean(item.value).toLowerCase();
+        // More than one choice fits (or none): the dropdown's own choices go to WonderJobs, to ask with.
+        if (!r?.ok && Array.isArray(r?.options) && r.options.length) {
+          comboChoices.set(el, r.options.slice(0, 290));
+          state.lastSig = "";
+        }
+        const shown = comboValue(el).toLowerCase();
+        const want = clean(item.value).toLowerCase();
+        const picked = !!r?.ok && (shown === want || shown.startsWith(`${want},`) || shown.startsWith(`${want} `));
         return { fieldId: item.fieldId, ok: picked, ...(picked ? {} : { error: "rejected" }) };
       }
       if (type === "checkbox" || type === "password" || type === "otp") return { fieldId: item.fieldId, ok: false, error: "rejected" };
@@ -590,7 +602,8 @@
 
   function stepButtons() {
     const out = { next: [], final: [] };
-    for (const b of document.querySelectorAll("button, input[type=submit], input[type=button], [role=button]")) {
+    // Some forms style a link as their button (JazzHR's "Submit Application" is an <a class="btn">).
+    for (const b of document.querySelectorAll("button, input[type=submit], input[type=button], [role=button], a[class*='btn' i], a[class*='button' i]")) {
       if (b.closest(`#${PANEL_ID}`) || b.disabled || b.getAttribute("aria-disabled") === "true" || !b.getClientRects().length) continue;
       const kind = stepKind(b.textContent || b.value || b.getAttribute("aria-label"));
       if (kind) out[kind].push(b);
@@ -601,8 +614,10 @@
   /** Required questions on this page that are still empty — Wonder waits for them. */
   function openRequired() {
     return (state.view?.mappings ?? []).filter((m) => {
-      if (!m.required || m.status !== "needs_you") return false;
+      if (!m.required || (m.status !== "needs_you" && m.status !== "failed")) return false;
       const els = fieldEls.get(m.fieldId) ?? [];
+      // The form refused what was typed: whatever is in the box isn't an answer it accepts.
+      if (m.status === "failed") return els.length > 0;
       if (!els.length) return false;
       return !els.some((el) => (el.type === "checkbox" || el.type === "radio" ? el.checked : el.type === "file" ? (el.files?.length ?? 0) > 0 : !!(el.value && String(el.value).trim())));
     });
@@ -1090,6 +1105,9 @@
 
   async function boot() {
     const s = await ask("jobsApplyFor", { url: location.href });
+    // A third-party frame inside the employer's page (a file picker, a tracker, a bot check): not the
+    // application, so it stays out of it entirely rather than reporting the session as "elsewhere".
+    if (s?.sessionId && s.offDestination && window.top !== window) return;
     if (s?.sessionId) {
       state.offDestination = !!s.offDestination;
       return startSession(s.sessionId);
@@ -1123,7 +1141,9 @@
       return false;
     }
     if (message?.type === "jobsApplyPaired" && message.sessionId) {
-      if (!state.sessionId) void startSession(message.sessionId);
+      // In a frame, ask first: a third-party frame (a file picker, a tracker) isn't part of the application.
+      if (!state.sessionId && window.top !== window) void boot();
+      else if (!state.sessionId) void startSession(message.sessionId);
       else if (state.sessionId === message.sessionId) {
         // Continued from WonderJobs after a stop: re-read the page with the fresh connection.
         state.stopped = false;
