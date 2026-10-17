@@ -140,6 +140,18 @@ describe("cloud browser sessions", () => {
     expect(s.listingFollowed).toBeUndefined();
   });
 
+  it("a listing that showed the cloud browser a bot check says so in one plain line, without the raw address", async () => {
+    const t = tenant();
+    const board = { ...job(), id: "job_arbeitnow_9", applyUrl: "https://www.arbeitnow.ch/jobs/companies/acme/architect-1" };
+    const id = await started(t, "assisted", board);
+    const token = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    const c = await svc.helperAuth(token);
+    if (!("session" in c)) throw new Error("auth");
+    await svc.helperEvents(c, { events: [{ type: "LISTING_FOLLOWED", url: board.applyUrl, note: `no single Apply link on “Just a moment...” at ${board.applyUrl}` }] });
+    const s = (await store.getSession(t, id))!;
+    expect(s.audit.at(-1)?.detail).toBe("arbeitnow.ch showed a bot check, so Wonder couldn't reach its Apply link");
+  });
+
   it("WJ-316 signs in or creates the portal account only through a background fill, once per portal, never echoing the password", async () => {
     process.env.CLOUD_BROWSER_URL = "https://cloud.example";
     process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);

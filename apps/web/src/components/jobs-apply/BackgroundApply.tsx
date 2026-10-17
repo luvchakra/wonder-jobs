@@ -81,7 +81,9 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
               ? `${pickOnPortal(s).length === 1 ? "One required question" : `${pickOnPortal(s).length} required questions`} on ${company}'s form ${pickOnPortal(s).length === 1 ? "is a dropdown" : "are dropdowns"} Wonder can't pick from yet. ${progress?.filled ? `${progress.filled} fields are filled; ` : ""}nothing has been sent.`
               : s.failure === "FORM_NOT_FOUND"
               ? s.destination.type === "aggregator"
-                ? `${s.destination.domain.replace(/^www\./, "")} keeps this application on its own site. Open the listing and apply from there. Nothing has been filled or sent.`
+                ? s.audit.some((a) => a.event === "LISTING_FOLLOWED" && a.detail?.includes("bot check"))
+                  ? `${s.destination.domain.replace(/^www\./, "")} blocked Wonder with a bot check. Nothing was filled or sent — apply from the listing.`
+                  : `Wonder couldn't reach the employer's form from ${s.destination.domain.replace(/^www\./, "")}. Nothing was filled or sent — apply from the listing.`
                 : `${s.destination.domain} opened a job listing, not an application form. Nothing has been filled or sent.`
               : s.status === "FAILED"
               ? "Wonder couldn't find the application form on that page."
@@ -165,7 +167,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
             {steps.map((a, i) => (
               <li key={`${a.at}-${i}`} className="flex gap-2">
                 <span className="shrink-0 text-ink-4">{new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
-                <span>{a.detail}</span>
+                <span className="min-w-0 break-words">{a.detail}</span>
               </li>
             ))}
             {spinning && (

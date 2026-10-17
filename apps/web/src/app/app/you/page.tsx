@@ -53,7 +53,7 @@ export default function YouPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <Link href="/app/career-dna" className="mb-4 flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:bg-surface-2">
-        <Avatar name={name} size={48} />
+        <Avatar name={name} size={48} self />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-semibold text-ink">{name}</span>
           <span className="block truncate text-[13px] text-ink-3">{headline || (wants ? `Looking for ${wants}` : "Add your headline")}</span>

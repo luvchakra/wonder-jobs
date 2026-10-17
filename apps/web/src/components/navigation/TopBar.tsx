@@ -225,7 +225,7 @@ export function TopBar() {
 
       <div className="relative order-first md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-bg-soft">
-          <Avatar name={displayName} size={34} />
+          <Avatar name={displayName} size={34} self />
           <span className="hidden text-left lg:block">
             <span className="block text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
             <span className="block text-[11px] leading-tight text-ink-3">{mode === "demo" ? "Demo mode" : careerStatus}</span>

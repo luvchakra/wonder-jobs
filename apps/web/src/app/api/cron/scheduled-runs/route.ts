@@ -11,6 +11,7 @@ import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 import { sendDigest } from "@/server/digest/send";
 import { stateStore } from "@/server/state";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { loadScheduler, recordCronRun } from "@/server/scheduler/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,8 +20,7 @@ export const maxDuration = 300;
 
 /** Leave room to finish writing state and answer, rather than being killed mid-save. */
 const INVOCATION_BUDGET_MS = 240_000;
-const TENANT_BUDGET_MS = 60_000;
-const MAX_TENANTS = 200;
+// How many tenants a run takes and how long each may use: platform admin → Scheduler (defaults 200 and 60 s).
 
 /**
  * Fires every tenant's due scheduled runs, and raises every due reminder (spec §18, §45).
@@ -39,6 +39,13 @@ export async function GET(req: Request) {
 
   const startedAt = Date.now();
   const now = new Date();
+  const settings = (await loadScheduler()).scheduledRuns;
+  const MAX_TENANTS = settings.maxTenants;
+  const TENANT_BUDGET_MS = settings.tenantBudgetSec * 1000;
+  if (!settings.enabled) {
+    await recordCronRun({ job: "scheduled-runs", trigger: "cron", startedAt: now.toISOString(), finishedAt: new Date().toISOString(), outcome: "skipped", summary: "Turned off in Scheduler" });
+    return NextResponse.json({ ok: true, skipped: "turned off in Scheduler", at: now.toISOString() });
+  }
   // Once a day (Hobby), also take what falls due in the next hour rather than leaving it a whole day.
   const earlyMs = cronEarlyWindowMs();
   const reports: ScheduledRunReport[] = [];
@@ -48,6 +55,7 @@ export async function GET(req: Request) {
     tenants = await listTenantsWithDueSchedules(now, MAX_TENANTS, earlyMs);
   } catch (e) {
     console.error("[cron] due-schedule lookup failed:", e instanceof Error ? e.message : "unknown");
+    await recordCronRun({ job: "scheduled-runs", trigger: "cron", startedAt: now.toISOString(), finishedAt: new Date().toISOString(), outcome: "failed", summary: "Could not look for due schedules" });
     return NextResponse.json({ ok: false, error: "Could not look for due schedules" }, { status: 502 });
   }
 
@@ -71,27 +79,29 @@ export async function GET(req: Request) {
   // when the schedule pass used most of the budget — a missed interview reminder is worse than a late run.
   let reminded = 0;
   let remindedTenants = 0;
-  try {
-    for (const tenantId of await listTenantsWithDueReminders(now, MAX_TENANTS)) {
-      if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
-      try {
-        const report = await raiseDueReminders(tenantId, now);
-        if (!report.raised) continue;
-        remindedTenants++;
-        reminded += report.raised;
-        for (const push of report.pushes) await notifyTenant(tenantId, push);
-      } catch (e) {
-        failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
+  if (settings.reminders) {
+    try {
+      for (const tenantId of await listTenantsWithDueReminders(now, MAX_TENANTS)) {
+        if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
+        try {
+          const report = await raiseDueReminders(tenantId, now);
+          if (!report.raised) continue;
+          remindedTenants++;
+          reminded += report.raised;
+          for (const push of report.pushes) await notifyTenant(tenantId, push);
+        } catch (e) {
+          failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
+        }
       }
+    } catch (e) {
+      failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
     }
-  } catch (e) {
-    failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
   }
 
   // Activity digests: after the runs above, so a digest includes what they just found. Only for accounts
   // with a sign-in email; each tenant at most once a day and only when something happened (sendDigest).
   const digests = { sent: 0, skipped: 0, notSent: 0 };
-  if (getSupabaseAdmin()) {
+  if (settings.digests && getSupabaseAdmin()) {
     try {
       for (const tenantId of await stateStore.listTenants("wj.career", MAX_TENANTS)) {
         if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
@@ -130,6 +140,14 @@ export async function GET(req: Request) {
     failures.push({ tenantId: "*", error: `retention purge: ${e instanceof Error ? e.message : String(e)}` });
   }
 
+  await recordCronRun({
+    job: "scheduled-runs",
+    trigger: "cron",
+    startedAt: now.toISOString(),
+    finishedAt: new Date().toISOString(),
+    outcome: failures.length && !reports.length ? "failed" : "ok",
+    summary: [`${tenants.length} with schedules due`, `${reports.length} ran`, deferred && `${deferred} deferred`, settings.reminders ? `${reminded} reminders` : "reminders off", settings.digests ? `${digests.sent} digests` : "digests off", failures.length && `${failures.length} failures`].filter(Boolean).join(" · "),
+  });
   return NextResponse.json({
     ok: true,
     billing,
