@@ -4,7 +4,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
 import type { Application } from "@/domain/applications/types";
 import { classifyField } from "./classify";
-import { backgroundFillable, checkDomain, destinationFor, detectProvider, registrableDomain } from "./destination";
+import { backgroundFillable, checkDomain, destinationFor, followedDestination, detectProvider, registrableDomain } from "./destination";
 import { mapForm, matchPackAnswer, memoryValueFor, progressOf } from "./mapper";
 import { fillDecision, fillGate, handoffDecision, submitDecision, submitReady } from "./policy";
 import { buildApplicationProfile, freshMemory, missingProfileFields, splitName } from "./profile";
@@ -309,10 +309,25 @@ describe("destination (APPLY-008/010, SEC-010/011)", () => {
   it("fills in the background only an ATS's own job page, never a job board's or careers site's listing (WJ-311)", () => {
     expect(backgroundFillable({ applyUrl: "https://boards.greenhouse.io/acme/jobs/1", onEmployerSite: false })).toBe(true);
     expect(backgroundFillable({ applyUrl: "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/1", onEmployerSite: true })).toBe(true);
-    expect(backgroundFillable({ applyUrl: "https://www.naukri.com/job-listings-vp-141026013239", onEmployerSite: false })).toBe(false);
-    expect(backgroundFillable({ applyUrl: "https://www.arbeitnow.co.uk/jobs/companies/samba-tv/director-264022", onEmployerSite: false })).toBe(false);
+    // A job board's listing: its own Apply link is followed to the employer first (WJ-315).
+    expect(backgroundFillable({ applyUrl: "https://www.naukri.com/job-listings-vp-141026013239", onEmployerSite: false })).toBe(true);
+    expect(backgroundFillable({ applyUrl: "https://www.arbeitnow.co.uk/jobs/companies/samba-tv/director-264022", onEmployerSite: false })).toBe(true);
+    expect(backgroundFillable({ applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api", onEmployerSite: false })).toBe(true);
     expect(backgroundFillable({ applyUrl: "https://careers.acme.com/jobs/1", onEmployerSite: true })).toBe(false);
     expect(backgroundFillable({ applyUrl: "", onEmployerSite: false })).toBe(false);
+  });
+
+  it("a listing's Apply link leads to a new destination only off the job boards (WJ-315)", () => {
+    const board = destinationFor({ applyUrl: "https://www.adzuna.in/details/1", onEmployerSite: false })!;
+    expect(board.type).toBe("aggregator");
+    const wd = followedDestination(board, "https://amgen.wd1.myworkdayjobs.com/Careers/job/Hyderabad/Director_R-123/apply")!;
+    expect(wd).toMatchObject({ domain: "amgen.wd1.myworkdayjobs.com", type: "ats", provider: "workday" });
+    expect(wd.relatedDomains).toContain("myworkdayjobs.com");
+    expect(wd.relatedDomains.some((d) => d.includes("adzuna"))).toBe(false);
+    expect(followedDestination(board, "https://careers.amgen.com/job/1")).toMatchObject({ type: "employer", domain: "careers.amgen.com" });
+    expect(followedDestination(board, "https://www.adzuna.in/land/ad/1")).toBeNull();
+    expect(followedDestination(board, "https://in.indeed.com/viewjob?jk=1")).toBeNull();
+    expect(followedDestination(board, "javascript:alert(1)")).toBeNull();
   });
 });
 

@@ -10,7 +10,7 @@ import crypto from "node:crypto";
 import type { z } from "zod";
 import type { Application } from "@/domain/applications/types";
 import type { AutomationLevel, AutomationPolicy } from "@/domain/automation/policy";
-import { destinationFor, hostOf } from "@/domain/jobs-apply/destination";
+import { checkDomain, destinationFor, hostOf } from "@/domain/jobs-apply/destination";
 import { progressOf } from "@/domain/jobs-apply/mapper";
 import { effectiveFill, fillDecision, fillGate, handoffDecision, submitDecision, submitReady, type FillDecision } from "@/domain/jobs-apply/policy";
 import { findDuplicate } from "@/domain/jobs-apply/readiness";
@@ -251,6 +251,12 @@ async function withNumbers<P extends { fills: { fieldId: string; value?: string;
 }
 
 export async function helperInspect(ctx: HelperCtx, form: ApplicationForm): Promise<ApiResult> {
+  // A job board's own listing page: its search and alert forms are never the application, so nothing there is
+  // read or filled. In the cloud browser its Apply link is followed to the employer next (WJ-315).
+  const host = hostOf(form.url) ?? "";
+  if (ctx.session.destination.type === "aggregator" && ["expected", "related"].includes(checkDomain(host, ctx.session.destination, ctx.session.approvedDomains))) {
+    return ok({ ...helperView(ctx.session, await helperFill(ctx)), plan: { allowed: false as const, reason: "This is the job board's listing, not the application.", fills: [], advance: false, submit: false, cloudSubmit: false } });
+  }
   // Each new page reads the candidate's current sensitive-question choices, so turning a group off takes effect now.
   const sensitive = await packSensitive(ctx.tenantId);
   let out = await mutate(ctx.tenantId, ctx.session.id, (s) => S.recordInspection({ ...s, pack: { ...s.pack, sensitive } }, form, nowIso()));
@@ -312,6 +318,9 @@ export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSc
           break;
         case "APPROVE_DOMAIN":
           s = S.approveDomain(s, e.host, now);
+          break;
+        case "LISTING_FOLLOWED":
+          s = S.followListing(s, e.url, now);
           break;
       }
     }

@@ -56,18 +56,67 @@ describe("cloud browser sessions", () => {
     delete process.env.CLOUD_BROWSER_SECRET;
   });
 
-  it("fills in the background only on an applicant-tracking system's page, never a job board's listing (WJ-314)", async () => {
+  it("fills in the background only on an applicant-tracking system's page or from a job board's listing (WJ-314, WJ-315)", async () => {
     process.env.CLOUD_BROWSER_URL = "https://cloud.example";
     process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
     const t = tenant();
-    const board = { ...job(), id: "job_adzuna_1", applyUrl: "https://www.adzuna.in/details/5929200593" };
-    const id = await started(t, "assisted", board);
+    const careers = { ...job(), id: "job_careers_1", applyUrl: "https://careers.example.com/jobs/7", onEmployerSite: true };
+    const id = await started(t, "assisted", careers);
     workerAnswers(201, { cloudId: "44444444-4444-4444-8444-444444444444", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
     const r = await cloud.startCloud(t, id, { headless: true });
     expect(r.status).toBe(409);
     expect((r.body as { error: { code: string } }).error.code).toBe("NOT_FILLABLE");
     expect(calls).toHaveLength(0); // the worker was never asked to open it
     expect((await store.getSession(t, id))?.cloud).toBeUndefined();
+  });
+
+  it("WJ-315 a listing's background fill asks the worker to follow its Apply link, then moves to the employer once", async () => {
+    process.env.CLOUD_BROWSER_URL = "https://cloud.example";
+    process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
+    const t = tenant();
+    const board = { ...job(), id: "job_adzuna_2", applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api" };
+    const id = await started(t, "assisted", board);
+    workerAnswers(201, { cloudId: "55555555-5555-4555-8555-555555555555", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
+    expect((await cloud.startCloud(t, id, { headless: true })).status).toBe(200);
+    expect(JSON.parse(String(calls[0].init.body))).toMatchObject({ url: board.applyUrl, followListing: true });
+
+    const token = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    const ctx = async () => {
+      const c = await svc.helperAuth(token);
+      if (!("session" in c)) throw new Error("auth");
+      return c;
+    };
+    // The board's own search and alert forms: never read, never filled.
+    const boardForm = { url: "https://www.adzuna.in/details/5929200593", adapter: "generic", step: 1, signals: [], fields: [{ id: "email", label: "Email me jobs like this", type: "email" as const, required: false }, { id: "q", label: "What", type: "text" as const, required: false }] };
+    const r = (await svc.helperInspect(await ctx(), boardForm)).body as { plan: { allowed: boolean; fills: unknown[] } };
+    expect(r.plan).toMatchObject({ allowed: false, fills: [] });
+    expect((await store.getSession(t, id))?.formFields).toHaveLength(0);
+
+    // The worker reports where the listing's Apply link led: the employer's Workday becomes the destination.
+    await svc.helperEvents(await ctx(), { events: [{ type: "LISTING_FOLLOWED", url: "https://amgen.wd1.myworkdayjobs.com/Careers/job/R-1/apply" }] });
+    let s = (await store.getSession(t, id))!;
+    expect(s.destination).toMatchObject({ domain: "amgen.wd1.myworkdayjobs.com", type: "ats", provider: "workday" });
+    expect(s.listingFollowed).toMatchObject({ from: "www.adzuna.in", to: "amgen.wd1.myworkdayjobs.com" });
+    expect(s.audit.at(-1)).toMatchObject({ event: "LISTING_FOLLOWED", detail: "Followed www.adzuna.in's Apply link to amgen.wd1.myworkdayjobs.com" });
+
+    // Once only: a second report changes nothing.
+    await svc.helperEvents(await ctx(), { events: [{ type: "LISTING_FOLLOWED", url: "https://elsewhere.example/apply" }] });
+    s = (await store.getSession(t, id))!;
+    expect(s.destination.domain).toBe("amgen.wd1.myworkdayjobs.com");
+  });
+
+  it("WJ-315 a listing whose Apply link leads nowhere new stops with no form found", async () => {
+    const t = tenant();
+    const board = { ...job(), id: "job_naukri_1", applyUrl: "https://www.naukri.com/job-listings-vp-1" };
+    const id = await started(t, "assisted", board);
+    const token = ((await svc.act(t, id, "token", {})).body as { token: string }).token;
+    const c = await svc.helperAuth(token);
+    if (!("session" in c)) throw new Error("auth");
+    await svc.helperEvents(c, { events: [{ type: "LISTING_FOLLOWED", url: "https://www.naukri.com/nlogin/login" }] });
+    const s = (await store.getSession(t, id))!;
+    expect(s.destination.domain).toBe("www.naukri.com");
+    expect(s.failure).toBe("FORM_NOT_FOUND");
+    expect(s.listingFollowed).toBeUndefined();
   });
 
   it("is 'needs setup' without a worker, and never pretends otherwise", async () => {

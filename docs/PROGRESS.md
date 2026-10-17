@@ -453,6 +453,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Apply for this job: background fill, in-app questions, Submit this application (WJ-311)
 - ✅ Background fill answers searchable dropdowns with the employer's options (WJ-313)
 - ✅ Cloud browser never shown; Apply page uses the background fill for ATS links (WJ-314)
+- ✅ Background fill follows a job board listing's Apply link to the employer (WJ-315)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

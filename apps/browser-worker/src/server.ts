@@ -32,6 +32,8 @@ const StartSchema = z.object({
     .refine((u) => /^https?:\/\//i.test(u), "http(s) only"),
   helperToken: z.string().min(10).max(4096),
   domains: z.array(z.string().max(253)).max(50).default([]),
+  /** A job board's listing: follow its own Apply link to the employer before anything is read (WJ-315). */
+  followListing: z.boolean().optional(),
 });
 const TenantSchema = z.object({ tenantId: z.string().min(1).max(200) });
 

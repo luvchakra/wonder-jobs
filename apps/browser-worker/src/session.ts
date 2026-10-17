@@ -16,6 +16,7 @@ import type { Config } from "./config.js";
 import { pageScript } from "./helperScript.js";
 import { parseInput, relayInput } from "./input.js";
 import { comboOptions, comboPick } from "./picker.js";
+import { followListing } from "./listing.js";
 
 export interface SessionInit {
   /** The WonderJobs Apply with Wonder session this browser belongs to. */
@@ -26,6 +27,8 @@ export interface SessionInit {
   helperToken: string;
   /** Destination, related and approved hosts: pages elsewhere are reported as off-destination, never read. */
   domains: string[];
+  /** A job board's listing: its own Apply link is followed to the employer first (listing.ts, WJ-315). */
+  followListing?: boolean;
 }
 
 type ServerMessage = { t: "frame"; data: string; w: number; h: number } | { t: "status"; url: string; host: string } | { t: "ended"; reason: string };
@@ -39,6 +42,8 @@ export class CloudSession {
   private page!: Page;
   private cdp: CDPSession | null = null;
   private domains: Set<string>;
+  /** Following a listing's Apply link: the helper stays out of every page until the employer's page is known. */
+  private following = false;
 
   private constructor(
     readonly init: SessionInit,
@@ -57,7 +62,9 @@ export class CloudSession {
     s.wire(s.page);
     // A sign-in or an ATS that opens the form in a new tab: the stream follows the newest page.
     context.on("page", (p) => void s.use(p));
-    s.page.goto(init.url, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+    s.following = !!init.followListing;
+    const opened = s.page.goto(init.url, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+    if (init.followListing) void opened.then(() => s.followListingLink());
     return s;
   }
 
@@ -71,6 +78,22 @@ export class CloudSession {
   }
 
   /* ----------------------------------------------------------- helper line */
+
+  /** Open the listing's Apply link, tell WonderJobs where it led, then let the helper start on that page. */
+  private async followListingLink(): Promise<void> {
+    try {
+      const landed = (await followListing(this.page).catch(() => null)) ?? this.page.url();
+      try {
+        this.domains.add(new URL(landed).hostname.toLowerCase());
+      } catch {
+        /* about:blank */
+      }
+      await jobsApplyCall(this.config.appOrigin, this.init.helperToken, "/api/jobs-apply/extension/events", "POST", { events: [{ type: "LISTING_FOLLOWED", url: landed }] });
+    } finally {
+      this.following = false;
+      await this.deliver({ type: "jobsApplyPaired", sessionId: this.init.sessionId });
+    }
+  }
 
   private onDestination(url: unknown): boolean {
     if (!this.domains.size) return true;
@@ -92,7 +115,7 @@ export class CloudSession {
     } catch {
       return null;
     }
-    if (m.type === "jobsApplyFor") return JSON.stringify({ sessionId: this.init.sessionId, offDestination: !this.onDestination(m.payload?.url) });
+    if (m.type === "jobsApplyFor") return JSON.stringify(this.following ? { sessionId: null } : { sessionId: this.init.sessionId, offDestination: !this.onDestination(m.payload?.url) });
     if (m.type === "jobsApplyCall") {
       const p = m.payload ?? {};
       const r = await jobsApplyCall(this.config.appOrigin, this.init.helperToken, p.path, typeof p.method === "string" ? p.method : "GET", p.body);
