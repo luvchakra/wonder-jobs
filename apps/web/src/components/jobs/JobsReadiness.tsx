@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileUp, MapPin, RefreshCw, Sparkles, Target, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -288,37 +288,29 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
     updateDNA({ careerGoal: goal });
   };
 
-  const change = (
-    <button
-      type="button"
-      onClick={() => {
-        setDraft(role);
-        setEditing(true);
-      }}
-      className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline"
-    >
-      Change
-    </button>
-  );
-  if (!editing && inline) {
-    return (
-      <div className={cn("mb-3 text-[14px] text-ink-2", className)}>
-        <span>Looking for</span>
-        <p className="flex flex-wrap items-center gap-x-3">
-          <strong className="min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
-          {change}
-        </p>
-      </div>
-    );
-  }
   if (!editing) {
+    // One quiet row: what Wonder searches for, and the one way to change it.
     return (
-      <div className={cn("mb-3 text-[14px] text-ink-2", className)}>
-        <p className="flex items-center justify-between gap-2">
-          <span>Looking for</span>
-          {change}
-        </p>
-        <strong className="block min-w-0 font-semibold text-ink">{role || "no role yet"}</strong>
+      <div className={cn("mb-3 flex items-center gap-3 rounded-[16px] border border-line bg-surface px-3.5 py-2.5", inline && "sm:max-w-xl", className)}>
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-600" aria-hidden>
+          <Target className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Looking for</p>
+          <p className={cn("line-clamp-2 text-[15px] font-semibold leading-snug first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
+            {role || "No role yet"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(role);
+            setEditing(true);
+          }}
+          className="inline-flex h-8 shrink-0 items-center rounded-full border border-line px-3 text-[13px] font-medium text-brand-600 hover:border-brand-200 hover:bg-brand-50"
+        >
+          Change
+        </button>
       </div>
     );
   }
