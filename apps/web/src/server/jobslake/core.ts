@@ -24,6 +24,7 @@ import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { recordCompanies } from "./companies";
 import { boardRef, closedRefs } from "@/server/jobs/origin";
+import { postingTooOld } from "@/domain/jobs/age";
 
 export const newId = (prefix: string) => `${prefix}_${randomBytes(9).toString("base64url")}`;
 
@@ -330,6 +331,11 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     results = results.filter((_, i) => !boardRefs[i] || !gone.has(boardRefs[i]!));
     console.info(`[jobslake] left out ${before - results.length} posting(s) found closed`);
   }
+  // Only postings from the last two weeks are served; older ones are counted as too old, never shown.
+  const beforeAge = results.length;
+  const searchedAt = Date.now();
+  results = results.filter((o) => !postingTooOld(o.freshness.postedAt, searchedAt));
+  const tooOld = beforeAge - results.length;
   results = applyFilters(results, req).slice(0, req.limit);
 
   const response: SearchResponse = {
@@ -348,6 +354,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
       sourcesSucceeded: statuses.filter((s) => (s.outcome === "ok" || s.outcome === "empty") && s.cacheUse !== "fallback").length,
       sourcesFailed: statuses.filter((s) => s.outcome === "timeout" || s.outcome === "unavailable" || s.outcome === "needs_setup" || s.cacheUse === "fallback").length,
       warm: warmCount,
+      ...(tooOld ? { tooOld } : {}),
       live: valid.length,
       cached: fromCache,
       phrasings,

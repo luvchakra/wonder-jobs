@@ -12,12 +12,14 @@
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
 import { relevance } from "@/services/jobs/relevance";
 import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
+import { postingTooOld } from "@/domain/jobs/age";
 
-export type FilterReason = "rejected" | "not_saved" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
   not_saved: "not saved (Saved only is on)",
+  too_old: "posted more than 2 weeks ago",
   work_mode: "a different work mode",
   source: "a different source",
   min_fit: "below your minimum fit",
@@ -62,6 +64,8 @@ export function inProfileField(job: Pick<CanonicalJob, "title" | "skills" | "tag
 function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, query: string, now: number, rel?: (score: number) => void, field: string[] = [], inPipeline = false): FilterReason | null {
   if (rejected) return "rejected";
   if (filters.onlySaved && !isSaved) return "not_saved";
+  // Too old to trust: a job board's listing often outlives the employer's page. Saved jobs are kept.
+  if (!filters.includeOld && !isSaved && postingTooOld(job.postedAt, now)) return "too_old";
   if (filters.workModes.length && !filters.workModes.includes(job.workMode)) return "work_mode";
   if (filters.sourceIds.length && !job.sourceIds.some((s) => filters.sourceIds.includes(s))) return "source";
   if (filters.minFit && (!match || (filters.exactFit ? match.fit !== filters.minFit : FIT_RANK[match.fit] < FIT_RANK[filters.minFit]))) return "min_fit";
@@ -140,6 +144,7 @@ export function explainJobVisibility(
 export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFilters> | "unreject"; preference: { label: string; href: string } }> = {
   rejected: { showAnyway: "unreject", preference: { label: "Review what Wonder learned", href: "/app/career-dna" } },
   not_saved: { showAnyway: { onlySaved: false }, preference: { label: "See all jobs", href: "/app/jobs" } },
+  too_old: { showAnyway: { includeOld: true }, preference: { label: "See recent jobs", href: "/app/jobs" } },
   work_mode: { showAnyway: { workModes: [] }, preference: { label: "Change work modes", href: "/app/career-dna" } },
   source: { showAnyway: { sourceIds: [] }, preference: { label: "Change sources", href: "/app/jobs" } },
   min_fit: { showAnyway: { minFit: null }, preference: { label: "Change minimum fit", href: "/app/jobs" } },

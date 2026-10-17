@@ -212,6 +212,8 @@ export interface SearchMetadata {
   sourcesFailed: number;
   warm: number;
   live: number;
+  /** Postings left out because they were posted more than two weeks ago (`domain/jobs/age.ts`). */
+  tooOld?: number;
   /** Sources whose jobs came from the search cache (fresh or fallback) instead of a fetch just now. */
   cached?: number;
   /** Every phrasing searched: the request's own words first, then its variants. */
