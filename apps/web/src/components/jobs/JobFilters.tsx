@@ -253,7 +253,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
