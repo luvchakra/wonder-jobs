@@ -67,9 +67,26 @@ export function detectProvider(url: string): AtsProvider | undefined {
 }
 
 /** The destination for a job: the canonical apply URL JobsLake chose, its provider, and the hosts it may use. */
+/**
+ * Workday's job page holds only an Apply button; the application itself lives at the job's own
+ * "/apply/applyManually" address (its sign-in or Create Account, then the form). Opening that address is
+ * navigation, not a press.
+ */
+export function workdayApplyUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (detectProvider(url) !== "workday" || !/\/job\//.test(u.pathname) || /\/apply(\/|$)/.test(u.pathname)) return url;
+    u.pathname = `${u.pathname.replace(/\/$/, "")}/apply/applyManually`;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): ApplyDestination | null {
   const canonical = job.lake?.sightings.find((s) => s.canonical && s.employerSource)?.url;
-  const url = job.applyUrl || canonical;
+  const raw = job.applyUrl || canonical;
+  const url = raw ? workdayApplyUrl(raw) : raw;
   if (!url) return null;
   const host = hostOf(url);
   if (!host) return null;
@@ -112,7 +129,7 @@ export function followedDestination(prev: ApplyDestination, url: string): ApplyD
   const provider = detectProvider(url);
   const related = new Set<string>([...prev.relatedDomains.filter((d) => !isAggregatorHost(d)), registrableDomain(host)]);
   if (provider) PROVIDER_HOSTS[provider].forEach((d) => related.add(d));
-  return { url, domain: host, type: provider ? "ats" : "employer", provider, applicationMethod: "browser", relatedDomains: [...related].sort() };
+  return { url: workdayApplyUrl(url), domain: host, type: provider ? "ats" : "employer", provider, applicationMethod: "browser", relatedDomains: [...related].sort() };
 }
 
 export type DomainVerdict = "expected" | "related" | "sso" | "approved" | "unexpected";

@@ -36,6 +36,8 @@ const StartSchema = z.object({
   followListing: z.boolean().optional(),
 });
 const TenantSchema = z.object({ tenantId: z.string().min(1).max(200) });
+/** A sign-in for this session's portal page (portal.ts, WJ-316). Never logged. */
+const SignInSchema = TenantSchema.extend({ mode: z.enum(["sign_in", "create"]), email: z.string().email().max(254), password: z.string().min(6).max(200) });
 
 const sessions = new Map<string, CloudSession>();
 const browser = await chromium.launch({ headless: true, executablePath: config.chromiumPath });
@@ -110,9 +112,10 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  const m = url.pathname.match(/^\/sessions\/([0-9a-f-]{36})(?:\/(fill|continue))?$/);
+  const m = url.pathname.match(/^\/sessions\/([0-9a-f-]{36})(?:\/(fill|continue|sign-in))?$/);
   if (!m) return json(res, 404, { error: "not_found" });
-  const body = TenantSchema.safeParse(await readBody(req));
+  const raw = await readBody(req);
+  const body = TenantSchema.safeParse(raw);
   if (!body.success) return json(res, 400, { error: "invalid" });
   const s = sessionOf(m[1], body.data.tenantId);
   if (!s) return json(res, 404, { error: "not_found" });
@@ -125,6 +128,11 @@ const server = http.createServer(async (req, res) => {
     // The app already applied the candidate's fill policy; the helper asks it again for the plan before it touches a field.
     await s.deliver({ type: "fillNow" });
     return json(res, 200, { ok: true });
+  }
+  if (req.method === "POST" && m[2] === "sign-in") {
+    const si = SignInSchema.safeParse(raw);
+    if (!si.success) return json(res, 400, { error: "invalid" });
+    return json(res, 200, await s.signIn(si.data.mode, si.data.email, si.data.password));
   }
   if (req.method === "POST" && m[2] === "continue") {
     await s.deliver({ type: "jobsApplyPaired", sessionId: s.init.sessionId });

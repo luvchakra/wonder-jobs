@@ -60,6 +60,7 @@ export type AnalyticsEvent =
   | "jobsapply_candidate_submitted"
   | "jobsapply_wonder_submitted"
   | "jobsapply_background_submit"
+  | "jobsapply_portal_sign_in"
   | "jobsapply_submission_unknown"
   | "jobsapply_guided_used"
   | "jobsapply_pack_exported";

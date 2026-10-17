@@ -11,6 +11,7 @@ import { useBackgroundApply } from "@/lib/useBackgroundApply";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { InterventionQueue } from "@/components/jobs-apply/InterventionQueue";
+import { PortalSignIn } from "@/components/jobs-apply/PortalSignIn";
 
 /**
  * Apply for this job (WJ-311). One button that becomes the whole application: it fills the employer's form
@@ -19,7 +20,7 @@ import { InterventionQueue } from "@/components/jobs-apply/InterventionQueue";
  * last page is complete. Nothing reaches the employer until that press.
  */
 export function BackgroundApply({ jobId }: { jobId: string }) {
-  const { job, app, resume, view, phase, error, busyId, start, resolve, submit, cancel } = useBackgroundApply(jobId);
+  const { job, app, resume, view, phase, error, busyId, start, resolve, submit, cancel, signIn, signing, signOutcome, connection } = useBackgroundApply(jobId);
   const policy = useAutomationStore((s) => s.policy);
   const level = useAutomationStore((s) => s.defaultLevel);
   const dna = useCareerStore((s) => s.dna);
@@ -136,7 +137,10 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
         </p>
       )}
 
-      {(phase === "blocked" || formMissing) && blockedReason && (
+      {phase === "blocked" && s?.status === "AUTHENTICATION_REQUIRED" && policy.portal_sign_in !== "off" && (
+        <PortalSignIn company={company} host={s.destination.domain} email={s.pack.profile.email?.value} connection={connection} busy={signing} outcome={signOutcome} onSignIn={(b) => void signIn(b)} />
+      )}
+      {(phase === "blocked" || formMissing) && blockedReason && !(s?.status === "AUTHENTICATION_REQUIRED" && policy.portal_sign_in !== "off") && (
         <div role="alert" className="flex flex-col gap-2 rounded-[12px] bg-warning-100/50 px-3 py-2 text-[13px] text-ink-2">
           <p>{blockedReason}</p>
           <div className="flex flex-wrap gap-2">

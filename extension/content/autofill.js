@@ -252,6 +252,8 @@
       }
       if (type === "password" || type === "otp") continue; // noticed via signals only; never read
       if ((el.getAttribute("autocomplete") || "").startsWith("cc-")) continue;
+      // A trap for bots ("for robots only, do not enter"): never read, never filled.
+      if (/beecatcher|honeypot/i.test(`${el.name} ${el.id}`) || /robots only|for robots|leave (this )?(field )?(blank|empty)|do not (fill|enter|complete)/i.test(labelOf(el))) continue;
       const id = uid(el.id || el.name || `f${fields.length}`);
       fieldEls.set(id, [el]);
       const label = labelOf(el);
@@ -574,9 +576,12 @@
   // A page's way on, by its button's words. "final" is never pressed; "next" may be, after filling.
   const STEP_FINAL = /\b(submit|apply|send|finish|complete|confirm|done|pay|purchase|place order|sign)\b/i;
   const STEP_NEXT = /^(next|continue|proceed|save (and|&) (continue|next|proceed)|next (step|page)|go to (the )?next (step|page)|continue to [a-z ]{1,30})$/i;
+  // A portal's own account buttons are never a step: signing in happens only through WonderJobs (WJ-316).
+  const STEP_ACCOUNT = /^(sign in|sign on|log ?in|create (an |my )?account|register|sign up)$/i;
   function stepKind(label) {
     const t = String(label || "").replace(/[›»→>]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
     if (!t || t.length > 40) return null;
+    if (STEP_ACCOUNT.test(t)) return null;
     if (STEP_FINAL.test(t)) return "final";
     if (STEP_NEXT.test(t)) return "next";
     return null;

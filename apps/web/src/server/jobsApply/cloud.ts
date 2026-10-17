@@ -7,8 +7,10 @@
  * This module is the only place the app talks to the worker. The shared secret never reaches the
  * browser; the candidate gets a short-lived stream token for one session, minted by the worker.
  */
-import { closeCloud, openCloud } from "@/domain/jobs-apply/session";
-import { act, type ApiResult } from "./service";
+import { closeCloud, openCloud, recordPortalSignIn } from "@/domain/jobs-apply/session";
+import { portalSignInDecision } from "@/domain/jobs-apply/policy";
+import { credentialFor, generatePassword, recordConnectionResult, saveConnection, ConnectionError } from "@/server/connections";
+import { act, automationOf, type ApiResult } from "./service";
 import { getSession, mutateSession } from "./store";
 
 const ok = (body: unknown, status = 200): ApiResult => ({ status, body });
@@ -100,4 +102,65 @@ export async function endCloud(tenantId: string, id: string, reason: string): Pr
   if (config()) await worker(`/sessions/${s.cloud.id}`, "DELETE", { tenantId });
   await mutateSession(tenantId, id, (x) => closeCloud(x, nowIso(), reason));
   return ok({ ok: true, ended: true });
+}
+
+export type SignInRequest = { mode: "sign_in" } | { mode: "create" } | { mode: "save"; email: string; password: string };
+
+/**
+ * Sign in to the employer's portal in a background fill, or create the account (WJ-316). Runs only on the
+ * candidate's press for this application (`portal_sign_in`, "Off" always wins). "create" makes one account per
+ * portal — never a second while a connection exists — with the candidate's own email and a generated password,
+ * saved encrypted before the cloud browser uses it. "save" is the candidate's existing sign-in. The password goes
+ * to the cloud browser for this one sign-in and nowhere else.
+ */
+export async function signInCloud(tenantId: string, id: string, req: SignInRequest): Promise<ApiResult> {
+  const c = config();
+  if (!c) return err(503, "NOT_CONFIGURED", "The cloud browser isn't set up on this deployment.");
+  const s = await getSession(tenantId, id);
+  if (!s) return err(404, "NOT_FOUND", "Application session not found.");
+  if (!s.cloud || s.cloud.endedAt || !s.cloud.headless) return err(409, "NO_CLOUD", "Start Apply for this job first.");
+  const a = await automationOf(tenantId);
+  if (portalSignInDecision(a.policy, a.level) === "skip") return err(403, "NOT_ALLOWED", "Signing in to job portals is turned off in Automation.");
+  const host = s.destination.domain;
+
+  let email: string;
+  let password: string;
+  let connectionId: string;
+  try {
+    if (req.mode === "save") {
+      const saved = await saveConnection(tenantId, { host, provider: s.destination.provider, email: req.email, password: req.password, createdBy: "candidate" });
+      ({ email, password } = { email: req.email.trim(), password: req.password });
+      connectionId = saved.id;
+    } else if (req.mode === "sign_in") {
+      const cred = await credentialFor(tenantId, host);
+      if (!cred) return err(409, "NO_CONNECTION", `There's no saved sign-in for ${host}.`);
+      ({ email, password } = cred);
+      connectionId = cred.connection.id;
+    } else {
+      // One account per portal: an existing connection signs in instead of creating a second.
+      if (await credentialFor(tenantId, host)) return err(409, "CONNECTION_EXISTS", `You already have a saved sign-in for ${host} — sign in with it.`);
+      const own = s.pack.profile.email?.value?.trim();
+      if (!own) return err(409, "NO_EMAIL", "Add your email to your Career Profile first.");
+      email = own;
+      password = generatePassword();
+      const saved = await saveConnection(tenantId, { host, provider: s.destination.provider, email, password, createdBy: "wonder" });
+      connectionId = saved.id;
+    }
+  } catch (e) {
+    if (e instanceof ConnectionError) return err(400, "INVALID", e.message);
+    throw e;
+  }
+
+  const mode = req.mode === "create" ? "create" : "sign_in";
+  const r = await worker(`/sessions/${s.cloud.id}/sign-in`, "POST", { tenantId, mode, email, password });
+  if (r.status === 404) {
+    await mutateSession(tenantId, id, (x) => closeCloud(x, nowIso(), "worker_lost"));
+    return err(409, "NO_CLOUD", "That cloud browser has closed. Start again.");
+  }
+  if (r.status !== 200 || !r.data) return err(503, "UNAVAILABLE", UNAVAILABLE);
+  const result = String(r.data.result ?? "failed") as "signed_in" | "needs_verification" | "failed" | "no_form";
+  const message = typeof r.data.message === "string" ? r.data.message : undefined;
+  await recordConnectionResult(tenantId, connectionId, result === "signed_in" ? "active" : result === "needs_verification" ? "needs_verification" : "failed", result === "signed_in" ? (mode === "create" ? "Account created" : "Signed in") : (message ?? "Didn't sign in"));
+  await mutateSession(tenantId, id, (x) => recordPortalSignIn(x, mode, host, email, result, message, nowIso()));
+  return ok({ result, ...(message ? { message } : {}), host, email });
 }

@@ -63,6 +63,8 @@ describe("browser helper — structural no-submit guarantee", () => {
     for (const label of ["Next", "Continue", "Save and continue", "Save & Continue", "Next step", "Continue to review", "Proceed", "Next ›"]) expect(stepKind(label), label).toBe("next");
     for (const label of ["Submit", "Submit application", "Apply", "Apply now", "Send", "Send application", "Finish", "Complete", "Confirm", "Done", "Continue to submit", "Continue to apply", "Save and submit", "Pay now", "Sign and submit"]) expect(stepKind(label), label).toBe("final");
     for (const label of ["Back", "Cancel", "Upload", "Choose file", "Review application", "Save", "Clear", ""]) expect(stepKind(label), label).toBeNull();
+    // A portal's account buttons are never a step the helper presses (WJ-316): only WonderJobs' sign-in does.
+    for (const label of ["Sign In", "Log in", "Create Account", "Register", "Sign up"]) expect(stepKind(label), label).toBeNull();
   });
   it("the content script never reads a password, one-time-code or payment field's value", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");

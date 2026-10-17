@@ -156,7 +156,9 @@ export function recordInspection(s: JobsApplySession, form: ApplicationForm, now
     return audit(n, now, "MFA_REQUIRED", "helper", undefined, host);
   }
   const applicationFields = fieldsOnPage.filter((f) => f.type !== "unknown" || f.label);
-  if (form.signals.includes("login_form") && applicationFields.length <= 2) {
+  // A sign-in or create-account page: a password box beside little more than the account's email and a consent box.
+  const accountField = (f: ApplicationField) => f.type === "email" || f.type === "checkbox" || /e-?mail|user ?name|log ?in/i.test(`${f.label} ${f.hints?.id ?? ""} ${f.hints?.name ?? ""}`);
+  if (form.signals.includes("login_form") && applicationFields.filter((f) => !accountField(f)).length <= 1) {
     n = { ...to(n, "AUTHENTICATION_REQUIRED", "helper"), failure: "AUTH_REQUIRED" };
     return audit(n, now, "AUTH_REQUIRED", "helper", "Sign-in page — the candidate signs in on the employer's site", host);
   }
@@ -308,6 +310,20 @@ export function followListing(s: JobsApplySession, url: string, now: string): Jo
   if (!next) return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", `${s.destination.domain}'s Apply link didn't lead to the employer's site`, hostOf(url) ?? undefined);
   const n: JobsApplySession = { ...s, destination: next, listingFollowed: { at: now, from: s.destination.domain, to: next.domain }, form: undefined, formFields: [], fieldMappings: [], interventions: s.interventions.filter((i) => i.status !== "open"), failure: undefined, finalStep: undefined };
   return audit(n, now, "LISTING_FOLLOWED", "wonder", `Followed ${s.destination.domain}'s Apply link to ${next.domain}`, next.domain);
+}
+
+/** How a cloud sign-in at the employer's portal went (WJ-316). The audit names the portal and email, never a password. */
+export function recordPortalSignIn(s: JobsApplySession, mode: "sign_in" | "create", host: string, email: string, result: "signed_in" | "needs_verification" | "failed" | "no_form", message: string | undefined, now: string): JobsApplySession {
+  const event = result === "signed_in" ? (mode === "create" ? "PORTAL_ACCOUNT_CREATED" : "PORTAL_SIGNED_IN") : result === "needs_verification" ? "PORTAL_VERIFY_EMAIL" : "PORTAL_SIGN_IN_FAILED";
+  const detail =
+    result === "signed_in"
+      ? mode === "create"
+        ? `Created your account on ${host} with ${email}`
+        : `Signed in to ${host} as ${email}`
+      : result === "needs_verification"
+        ? `${host} sent a verification email to ${email}`
+        : `Couldn't ${mode === "create" ? "create the account" : "sign in"} on ${host}${message ? `: ${message}` : ""}`;
+  return audit(s, now, event, "wonder", detail.slice(0, 240), host);
 }
 
 export function approveDomain(s: JobsApplySession, host: string, now: string): JobsApplySession {
