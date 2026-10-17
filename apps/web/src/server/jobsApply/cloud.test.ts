@@ -5,6 +5,10 @@ import type { ApplicationPackSnapshot, JobsApplySession } from "@/domain/jobs-ap
 
 process.env.SECRET_ENCRYPTION_KEY = "test-secret-for-jobsapply-tokens-0123456789";
 
+// A listing's Apply link is resolved on the server before the application opens; no real request in tests.
+const resolveListing = vi.hoisted(() => vi.fn<(url: string) => Promise<string | null>>(async () => null));
+vi.mock("./listing", async (orig) => ({ ...(await orig<typeof import("./listing")>()), resolveListing }));
+
 let svc: typeof import("./service");
 let cloud: typeof import("./cloud");
 let store: typeof import("./store");
@@ -108,6 +112,18 @@ describe("cloud browser sessions", () => {
     await svc.helperEvents(await ctx(), { events: [{ type: "LISTING_FOLLOWED", url: "https://elsewhere.example/apply" }] });
     s = (await store.getSession(t, id))!;
     expect(s.destination.domain).toBe("amgen.wd1.myworkdayjobs.com");
+  });
+
+  it("WJ-315 a listing whose Apply link the server can read opens at the employer's page from the start", async () => {
+    resolveListing.mockResolvedValueOnce("https://job-boards.greenhouse.io/bridgebio/jobs/5265678007?utm_source=arbeitnow.ch&ref=arbeitnow.ch");
+    const t = tenant();
+    const board = { ...job(), id: "job_arbeitnow_3", applyUrl: "https://www.arbeitnow.ch/jobs/companies/bridgebio/director-it-business-solutions-partner-international-zug-457094" };
+    const c = await svc.create(t, { job: board, pack: { ...pack(), jobId: board.id }, mode: "assisted" });
+    const s = (c.body as { session: JobsApplySession }).session;
+    expect(resolveListing).toHaveBeenCalledWith(board.applyUrl);
+    expect(s.destination).toMatchObject({ domain: "job-boards.greenhouse.io", type: "ats", provider: "greenhouse" });
+    expect(s.listingFollowed).toMatchObject({ from: "www.arbeitnow.ch", to: "job-boards.greenhouse.io" });
+    expect(s.audit.at(-1)).toMatchObject({ event: "LISTING_FOLLOWED" });
   });
 
   it("WJ-315 a listing whose Apply link leads nowhere new stops with no form found", async () => {

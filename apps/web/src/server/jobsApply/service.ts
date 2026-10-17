@@ -10,7 +10,7 @@ import crypto from "node:crypto";
 import type { z } from "zod";
 import type { Application } from "@/domain/applications/types";
 import type { AutomationLevel, AutomationPolicy } from "@/domain/automation/policy";
-import { checkDomain, destinationFor, hostOf } from "@/domain/jobs-apply/destination";
+import { checkDomain, destinationFor, hostOf, isFollowableBoard } from "@/domain/jobs-apply/destination";
 import { progressOf } from "@/domain/jobs-apply/mapper";
 import { effectiveFill, fillDecision, fillGate, handoffDecision, submitDecision, submitReady, type FillDecision } from "@/domain/jobs-apply/policy";
 import { findDuplicate } from "@/domain/jobs-apply/readiness";
@@ -20,6 +20,7 @@ import type { ApplicationForm, JobsApplySession } from "@/domain/jobs-apply/type
 import { buildDocxBytes } from "@/lib/docx";
 import { readClientState } from "@/server/clientState";
 import type { ConfirmSchema, CreateSchema, EventsSchema, FillPlanSchema, InterventionSchema } from "./schemas";
+import { resolveListing } from "./listing";
 import { getSession, insertSession, listSessions, mutateSession } from "./store";
 import { newNonce, signHelperToken, verifyHelperToken } from "./token";
 import { resumeFileStore } from "../resume/files";
@@ -121,7 +122,15 @@ export async function create(tenantId: string, input: z.infer<typeof CreateSchem
   if (active && input.startOver) await mutateSession(tenantId, active.id, (s) => S.cancel(s, now, newNonce()));
 
   // Sensitive answers come from the server's own store, only for groups the candidate turned on — never from the client.
-  const session = S.createSession({ id: `jas_${crypto.randomBytes(9).toString("base64url")}`, tenantId, nonce: newNonce(), destination: dest, pack: { ...input.pack, sensitive: await packSensitive(tenantId) }, mode: input.mode, now, submit: input.submit });
+  let session = S.createSession({ id: `jas_${crypto.randomBytes(9).toString("base64url")}`, tenantId, nonce: newNonce(), destination: dest, pack: { ...input.pack, sensitive: await packSensitive(tenantId) }, mode: input.mode, now, submit: input.submit });
+  // A job board's listing (arbeitnow): open the employer's page its Apply link leads to, not the listing (WJ-315).
+  if (dest.type === "aggregator" && isFollowableBoard(dest.domain)) {
+    const landed = await resolveListing(dest.url);
+    if (landed) {
+      const followed = S.followListing(session, landed, now);
+      if (followed.listingFollowed) session = followed;
+    }
+  }
   await insertSession(tenantId, session);
   return ok({ ...view(session, decisions), resumed: false }, 201);
 }
