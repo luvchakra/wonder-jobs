@@ -132,8 +132,11 @@ test.describe("JobsApply with the browser helper", () => {
 
   test("GJ1 / APPLY-004…060: fill safe fields, stop for what's yours, draft an answer, submit on the employer's site, confirm, tracked", async ({ page, context }) => {
     await openApply(page);
+    // Documents and where the form lives are folded under Start.
+    await page.getByText("Documents", { exact: true }).click();
     await expect(page.getByRole("radiogroup", { name: "Résumé to use" }).getByText("Tailored résumé for this role (DOCX)")).toBeVisible();
-    await expect(page.getByText(/Application destination:/)).toBeVisible();
+    await page.getByText("Where you'll apply", { exact: true }).click();
+    await expect(page.getByText(/the apply link points to|the helper reads the form/)).toBeVisible();
     const employer = await startWithHelper(page, context);
 
     // The helper read the form and offers to fill — nothing is filled until the candidate chooses Fill (policy "Ask").
@@ -409,6 +412,7 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.getByRole("button", { name: "Change for this job" }).click();
     await expect(page.getByRole("radiogroup", { name: "Application method" })).toBeVisible();
     await expect(page.getByRole("list", { name: "Application steps" })).toBeVisible();
+    await page.getByText("Documents", { exact: true }).click();
     await expect(page.getByRole("radiogroup", { name: "Résumé to use" })).toBeVisible();
   });
 

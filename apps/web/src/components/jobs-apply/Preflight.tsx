@@ -9,6 +9,7 @@ import type { ResumeOption } from "@/domain/jobs-apply/resumeOptions";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
+import { Fold } from "@/components/common/Fold";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
@@ -82,27 +83,34 @@ export function Preflight(props: {
     if (el && el.getBoundingClientRect().bottom > window.innerHeight) el.scrollIntoView({ block: "center", behavior: "smooth" });
   }, []);
   const blocked = !readiness.ok || !destination || props.handoffPolicy === "skip" || !!props.blockedReason;
+  const chosen = props.resumeOptions.find((o) => o.key === props.resumeKey);
+  const readyCount = readiness.items.filter((i) => i.state === "ok").length;
+  const toDo = readiness.items.filter((i) => i.state === "warn" || i.state === "blocker").length;
+  // One card with the choice that matters and Start; documents, the checklist and where the form lives are folded below.
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex min-w-0 flex-col gap-5">
-        <Card aria-labelledby="wj-apply-method">
-          <h2 id="wj-apply-method" className="text-[18px] font-semibold text-ink">
-            How would you like to apply?
-          </h2>
-          <p className="mt-1 text-[13px] text-ink-3">You submit on {props.company}&apos;s own site — or Wonder&apos;s helper does, only if Submit for me is on.</p>
-          {/* Set once in Automation; changed here only for this job. */}
-          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-2">
-            <CheckCircle2 className="size-4 shrink-0 text-brand-600" aria-hidden />
-            <strong className="font-medium text-ink">{METHOD_LABEL[props.method]}</strong>
-            <span className="text-ink-3">— your default in <Link href="/app/automation/settings" className="text-brand-600 hover:underline">Automation</Link></span>
-            {!showMethods && (
-              <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => setShowMethods(true)}>
-                Change for this job
-              </button>
-            )}
-          </p>
-          {showMethods && (
-          <div role="radiogroup" aria-label="Application method" className="mt-4 grid gap-3 sm:grid-cols-3">
+    <div className="mx-auto flex max-w-2xl flex-col gap-3">
+      <Card aria-labelledby="wj-apply-method">
+        <h2 id="wj-apply-method" className="mb-2 text-[15px] font-semibold text-ink">
+          How would you like to apply?
+        </h2>
+        {/* Set once in Automation; changed here only for this job. */}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-ink-2">
+          <CheckCircle2 className="size-4 shrink-0 text-brand-600" aria-hidden />
+          <strong className="font-medium text-ink">{METHOD_LABEL[props.method]}</strong>
+          <span className="text-[13px] text-ink-3">
+            — your default in{" "}
+            <Link href="/app/automation/settings" className="text-brand-600 hover:underline">
+              Automation
+            </Link>
+          </span>
+          {!showMethods && (
+            <button type="button" className="text-[13px] font-medium text-brand-600 hover:underline" onClick={() => setShowMethods(true)}>
+              Change for this job
+            </button>
+          )}
+        </p>
+        {showMethods && (
+          <div role="radiogroup" aria-label="Application method" className="mt-3 flex flex-col gap-2">
             {METHODS.map((m) => {
               const selected = props.method === m.key;
               const helperReady = props.helperInstalled === true || props.cloudAvailable === true;
@@ -116,121 +124,138 @@ export function Preflight(props: {
                   aria-checked={selected}
                   disabled={disabled}
                   onClick={() => props.onMethod(m.key)}
-                  className={cn("relative flex min-w-0 flex-col gap-2 rounded-[16px] border p-4 text-left transition-colors", selected ? "border-brand-500 bg-brand-50/60 ring-2 ring-brand-200" : "border-line bg-surface hover:border-line-strong", disabled && "cursor-not-allowed opacity-60")}
+                  className={cn("flex min-w-0 items-start gap-3 rounded-[12px] border p-3 text-left transition-colors", selected ? "border-brand-500 bg-brand-50/60" : "border-line bg-surface hover:border-line-strong", disabled && "cursor-not-allowed opacity-60")}
                 >
-                  <span className="flex h-6 items-center justify-between">
-                    <span className="text-brand-600">{m.icon}</span>
-                    {recommended && <Badge tone="brand">Recommended</Badge>}
+                  <span className={cn("mt-0.5", selected ? "text-brand-600" : "text-ink-4")}>{selected ? <CheckCircle2 className="size-5" aria-hidden /> : <Circle className="size-5" aria-hidden />}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+                      {m.title} {recommended && <Badge tone="brand">Recommended</Badge>}
+                    </span>
+                    <span className="block text-[12px] text-ink-3">{m.body}</span>
+                    {m.key === "helper" && props.helperInstalled === false && !props.cloudAvailable && <span className="mt-1 block text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
+                    {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 block text-[12px] text-ink-3">Wonder fills it in the background and asks you here</span>}
+                    {disabled && <span className="mt-1 block text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   </span>
-                  <span className="text-[14px] font-semibold text-ink">{m.title}</span>
-                  <span className="text-[12px] text-ink-3">{m.body}</span>
-                  <ul className="mt-1 flex flex-col gap-1">
-                    {m.points.map((p) => (
-                      <li key={p} className="flex items-start gap-1.5 text-[12px] text-ink-2">
-                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success-600" aria-hidden /> {p}
-                      </li>
-                    ))}
-                  </ul>
-                  {m.key === "helper" && props.helperInstalled === false && !props.cloudAvailable && <span className="mt-1 text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
-                  {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 text-[12px] text-ink-3">Wonder fills it in the background and asks you here</span>}
-                  {disabled && <span className="mt-1 text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
-                  <span className={cn("absolute bottom-3 right-3", selected ? "text-brand-600" : "text-ink-4")}>{selected ? <CheckCircle2 className="size-5" aria-hidden /> : <Circle className="size-5" aria-hidden />}</span>
                 </button>
               );
             })}
           </div>
-          )}
-
-          {props.method === "helper" && props.helperInstalled === false && !props.cloudAvailable && (
-            <p className="mt-3 text-[12px] text-ink-2">
-              <Link href="/extension" className="font-medium text-brand-600 hover:underline">Install the browser helper</Link> for the fastest experience — or choose Guide me; nothing is blocked either way.
-            </p>
-          )}
-
-          {destination && (
-            <div className="mt-4 flex items-start gap-3 rounded-[14px] border border-brand-100 bg-brand-50/50 p-3 text-[13px] text-ink-2">
-              <ClipboardList className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
-              <p className="min-w-0">
-                Application destination: <strong className="break-all font-medium text-ink">{destination.domain}</strong>
-                {destination.provider ? (
-                  <>
-                    {" "}
-                    — the apply link points to a {PROVIDER_NAME[destination.provider]} form.
-                    {props.adapterName ? ` The helper has a ${props.adapterName} adapter` : " The helper reads it like any other form"}; it fills what it can identify with confidence and leaves the rest for you.
-                  </>
-                ) : (
-                  " — the helper reads the form by its labels and fills what it can identify with confidence."
-                )}
-                {destination.type === "aggregator" && " This link is a job board, not the employer's own form; the board may send you on to the employer."}
+        )}
+        {props.method === "helper" && props.helperInstalled === false && !props.cloudAvailable && (
+          <p className="mt-2 text-[12px] text-ink-2">
+            <Link href="/extension" className="font-medium text-brand-600 hover:underline">
+              Install the browser helper
+            </Link>{" "}
+            — or choose Guide me; nothing is blocked either way.
+          </p>
+        )}
+        <p className="mt-2 truncate text-[13px] text-ink-3">
+          Résumé: <span className="text-ink-2">{chosen?.label ?? "none yet"}</span>
+          {props.hasCover && props.includeCover ? " · with cover letter" : ""}
+        </p>
+        {props.handoffPolicy === "skip" && <p className="mt-2 text-[12px] text-danger-600">“Hand off application” is turned off in Automation, so Wonder won&apos;t open employer pages for you.</p>}
+        {!destination && <p className="mt-2 text-[12px] text-danger-600">This job has no application link Wonder can open.</p>}
+        {props.blockedReason && <p className="mt-2 text-[12px] text-warning-600">{props.blockedReason}</p>}
+        {!readiness.ok &&
+          readiness.items
+            .filter((i) => i.state === "blocker")
+            .map((i) => (
+              <p key={i.key} className="mt-2 flex items-start gap-2 text-[12px] text-danger-600">
+                <span className="mt-0.5">{ICON.blocker}</span> {i.label}
+                {i.detail ? ` — ${i.detail}` : ""}
               </p>
-            </div>
-          )}
-        </Card>
-
-        <Card aria-labelledby="wj-apply-docs">
-          <h2 id="wj-apply-docs" className="text-[16px] font-semibold text-ink">
-            Documents
-          </h2>
-          <p className="mt-1 text-[13px] font-medium text-ink-2">Résumé</p>
-          {props.resumeOptions.length ? (
-            <div role="radiogroup" aria-label="Résumé to use" className="mt-2 flex flex-col gap-2">
-              {props.resumeOptions.map((o) => (
-                <label key={o.key} className={cn("flex cursor-pointer items-start gap-3 rounded-[12px] border p-3", props.resumeKey === o.key ? "border-brand-400 bg-brand-50/40" : "border-line")}>
-                  <input type="radio" name="wj-resume" checked={props.resumeKey === o.key} onChange={() => props.onResume(o.key)} className="mt-1" />
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-ink">{o.label}</span>
-                    <span className="block text-[12px] text-ink-3">{o.detail}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-1 text-[13px] text-ink-3">
-              No résumé yet. <Link href="/app/resume-studio" className="font-medium text-brand-600 hover:underline">Upload the résumé you already use</Link>, <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">prepare one in the Application Pack</Link> or <Link href="/app/resume-studio?tab=templates" className="font-medium text-brand-600 hover:underline">generate one from a template</Link>.
-            </p>
-          )}
-          <p className="mt-4 text-[13px] font-medium text-ink-2">Cover letter</p>
-          {props.hasCover ? (
-            <label className="mt-1 flex items-center gap-2 text-[13px] text-ink-2">
-              <input type="checkbox" checked={props.includeCover} onChange={(e) => props.onIncludeCover(e.target.checked)} />
-              Include my cover letter when the form asks for one
-            </label>
-          ) : (
-            <p className="mt-1 text-[13px] text-ink-3">
-              Optional — none prepared. <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">Draft one</Link> if you&apos;d like to include it.
-            </p>
-          )}
-        </Card>
-      </div>
-
-      {/* When Wonder fills the form, the checklist and Start come first on a phone; on a wide screen they stay the sticky side column. */}
-      <aside className={cn("flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start", props.method === "helper" && "order-first lg:order-none")}>
-        <Card aria-labelledby="wj-apply-ready">
-          <h2 id="wj-apply-ready" className="text-[16px] font-semibold text-ink">
-            {readiness.ok ? "Ready to apply" : "Before applying"}
-          </h2>
-          <ul className="mt-3 flex flex-col gap-2">
-            {readiness.items.map((i) => (
-              <li key={i.key} className="flex items-start gap-2 text-[13px]">
-                <span className="mt-0.5">{ICON[i.state]}</span>
-                <span className="min-w-0">
-                  <span className="text-ink">{i.label}</span>
-                  {i.detail && <span className="block text-[12px] text-ink-3">{i.detail}</span>}
-                </span>
-              </li>
             ))}
-          </ul>
-          {props.handoffPolicy === "skip" && <p className="mt-3 text-[12px] text-danger-600">“Hand off application” is turned off in Automation, so Wonder won&apos;t open employer pages for you.</p>}
-          {!destination && <p className="mt-3 text-[12px] text-danger-600">This job has no application link Wonder can open.</p>}
-          {props.blockedReason && <p className="mt-3 text-[12px] text-warning-600">{props.blockedReason}</p>}
-          <div ref={startRef}>
-            <Button full size="lg" className="mt-4" onClick={props.onStart} disabled={blocked || props.busy} loading={props.busy}>
-              {props.method === "pack" ? "Download Application Pack" : "Start application"}
-            </Button>
-            <p className="mt-2 text-center text-[11px] text-ink-4">Wonder fills. You review and submit.</p>
+        <div ref={startRef}>
+          <Button full size="lg" className="mt-3" onClick={props.onStart} disabled={blocked || props.busy} loading={props.busy}>
+            {props.method === "pack" ? "Download Application Pack" : "Start application"}
+          </Button>
+          <p className="mt-2 text-center text-[11px] text-ink-4">Wonder fills. You review and submit.</p>
+        </div>
+      </Card>
+
+      <Fold title="Documents" hint={`${chosen ? chosen.label : "No résumé yet"}${props.hasCover ? (props.includeCover ? " · cover letter" : " · no cover letter") : ""}`}>
+        <p className="text-[13px] font-medium text-ink-2">Résumé</p>
+        {props.resumeOptions.length ? (
+          <div role="radiogroup" aria-label="Résumé to use" className="mt-2 flex flex-col gap-2">
+            {props.resumeOptions.map((o) => (
+              <label key={o.key} className={cn("flex cursor-pointer items-start gap-3 rounded-[12px] border p-3", props.resumeKey === o.key ? "border-brand-400 bg-brand-50/40" : "border-line")}>
+                <input type="radio" name="wj-resume" checked={props.resumeKey === o.key} onChange={() => props.onResume(o.key)} className="mt-1" />
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-medium text-ink">{o.label}</span>
+                  <span className="block text-[12px] text-ink-3">{o.detail}</span>
+                </span>
+              </label>
+            ))}
           </div>
-        </Card>
-      </aside>
+        ) : (
+          <p className="mt-1 text-[13px] text-ink-3">
+            No résumé yet.{" "}
+            <Link href="/app/resume-studio" className="font-medium text-brand-600 hover:underline">
+              Upload the résumé you already use
+            </Link>
+            ,{" "}
+            <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">
+              prepare one in the Application Pack
+            </Link>{" "}
+            or{" "}
+            <Link href="/app/resume-studio?tab=templates" className="font-medium text-brand-600 hover:underline">
+              generate one from a template
+            </Link>
+            .
+          </p>
+        )}
+        <p className="mt-4 text-[13px] font-medium text-ink-2">Cover letter</p>
+        {props.hasCover ? (
+          <label className="mt-1 flex items-center gap-2 text-[13px] text-ink-2">
+            <input type="checkbox" checked={props.includeCover} onChange={(e) => props.onIncludeCover(e.target.checked)} />
+            Include my cover letter when the form asks for one
+          </label>
+        ) : (
+          <p className="mt-1 text-[13px] text-ink-3">
+            Optional — none prepared.{" "}
+            <Link href={props.prepareHref} className="font-medium text-brand-600 hover:underline">
+              Draft one
+            </Link>{" "}
+            if you&apos;d like to include it.
+          </p>
+        )}
+      </Fold>
+
+      <Fold title={readiness.ok ? "Ready to apply" : "Before applying"} hint={toDo ? `${toDo} to check` : `${readyCount} of ${readiness.items.length} ready`} open={!readiness.ok}>
+        <ul className="flex flex-col gap-2" aria-labelledby="wj-apply-ready">
+          {readiness.items.map((i) => (
+            <li key={i.key} className="flex items-start gap-2 text-[13px]">
+              <span className="mt-0.5">{ICON[i.state]}</span>
+              <span className="min-w-0">
+                <span className="text-ink">{i.label}</span>
+                {i.detail && <span className="block text-[12px] text-ink-3">{i.detail}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Fold>
+
+      {destination && (
+        <Fold title="Where you'll apply" hint={destination.domain}>
+          <p className="flex items-start gap-3 text-[13px] text-ink-2">
+            <ClipboardList className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
+            <span className="min-w-0">
+              <strong className="break-all font-medium text-ink">{destination.domain}</strong>
+              {destination.provider ? (
+                <>
+                  {" "}
+                  — the apply link points to a {PROVIDER_NAME[destination.provider]} form.
+                  {props.adapterName ? ` The helper has a ${props.adapterName} adapter` : " The helper reads it like any other form"}; it fills what it can identify with confidence and leaves the rest for you.
+                </>
+              ) : (
+                " — the helper reads the form by its labels and fills what it can identify with confidence."
+              )}
+              {destination.type === "aggregator" && " This link is a job board, not the employer's own form; the board may send you on to the employer."}
+              <span className="mt-1 block text-ink-3">You submit on {props.company}&apos;s own site — or Wonder&apos;s helper does, only if Submit for me is on.</span>
+            </span>
+          </p>
+        </Fold>
+      )}
     </div>
   );
 }
