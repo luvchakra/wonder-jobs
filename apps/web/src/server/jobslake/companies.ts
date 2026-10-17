@@ -16,6 +16,8 @@ export interface CompanyStore {
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
+  /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
+  needingLogo(limit: number, staleBefore: string): Promise<string[]>;
 }
 
 class MemoryCompanies implements CompanyStore {
@@ -23,7 +25,7 @@ class MemoryCompanies implements CompanyStore {
   async upsert(records: CompanyRecord[]) {
     for (const r of records) {
       const old = this.rows.get(r.domain);
-      this.rows.set(r.domain, old ? { ...old, name: r.name, nameKey: r.nameKey, sources: [...new Set([...old.sources, ...r.sources])], lastSeenAt: r.lastSeenAt } : r);
+      this.rows.set(r.domain, old ? { ...old, name: r.name, nameKey: r.nameKey, sources: [...new Set([...old.sources, ...r.sources])], lastSeenAt: r.lastSeenAt, ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}) } : r);
     }
   }
   async byDomain(domain: string) {
@@ -36,10 +38,17 @@ class MemoryCompanies implements CompanyStore {
     const r = this.rows.get(domain);
     if (r) this.rows.set(domain, { ...r, logo, logoCheckedAt: checkedAt });
   }
+  async needingLogo(limit: number, staleBefore: string) {
+    return [...this.rows.values()]
+      .filter((r) => !r.logoCheckedAt || r.logoCheckedAt < staleBefore)
+      .sort((a, b) => (a.logoCheckedAt ?? "").localeCompare(b.logoCheckedAt ?? ""))
+      .slice(0, limit)
+      .map((r) => r.domain);
+  }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -53,7 +62,8 @@ class SupabaseCompanies implements CompanyStore {
     const { data: existing, error: e1 } = await this.sb().select("domain, sources, first_seen_at").in("domain", records.map((r) => r.domain));
     if (e1) throw new Error(e1.message);
     const old = new Map((existing ?? []).map((r: { domain: string; sources: string[]; first_seen_at: string }) => [r.domain, r]));
-    const rows = records.map((r) => ({ domain: r.domain, name: r.name, name_key: r.nameKey, sources: [...new Set([...(old.get(r.domain)?.sources ?? []), ...r.sources])], first_seen_at: old.get(r.domain)?.first_seen_at ?? r.firstSeenAt, last_seen_at: r.lastSeenAt }));
+    // Counts come only from the daily refresh; a search's upsert leaves them as they were.
+    const rows = records.map((r) => ({ domain: r.domain, name: r.name, name_key: r.nameKey, sources: [...new Set([...(old.get(r.domain)?.sources ?? []), ...r.sources])], first_seen_at: old.get(r.domain)?.first_seen_at ?? r.firstSeenAt, last_seen_at: r.lastSeenAt, ...(r.openJobs !== undefined ? { open_jobs: r.openJobs, counted_at: r.countedAt } : {}) }));
     const { error } = await this.sb().upsert(rows, { onConflict: "domain" });
     if (error) throw new Error(error.message);
   }
@@ -70,6 +80,10 @@ class SupabaseCompanies implements CompanyStore {
   async setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
     const { error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain);
     if (error) throw new Error(error.message);
+  }  async needingLogo(limit: number, staleBefore: string) {
+    const { data, error } = await this.sb().select("domain").or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { domain: string }) => r.domain);
   }
 }
 
@@ -116,7 +130,7 @@ function imageType(bytes: Uint8Array): string | undefined {
 /** Where a logo is looked for, best first: a 128px icon from Google's favicon service (404 when it has none), then the site's own touch icon. */
 export const logoUrls = (domain: string) => [`https://www.google.com/s2/favicons?domain=${domain}&sz=128`, `https://${domain}/apple-touch-icon.png`];
 
-async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"]> {
+export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"]> {
   for (const url of logoUrls(domain)) {
     try {
       const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8" } });

@@ -57,4 +57,7 @@ export interface CompanyRecord {
   logo?: { data: string; type: string; from: string } | null;
   /** When a logo was last looked for (found or not). */
   logoCheckedAt?: string;
+  /** How many of its postings JobsLake saw in the last two weeks — set by the daily refresh only. */
+  openJobs?: number;
+  countedAt?: string;
 }
