@@ -106,6 +106,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
   const prepare = () => openPack(job.id);
   const decision = describeDecision(job, match, quality, application);
+  const longDescription = job.description.length > 280 || job.description.split("\n").length > 6;
+  const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
+  // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
@@ -124,41 +127,30 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         </div>
       )}
       <HiddenJobNotice job={job} className="mb-4" />
-      {job.foundAs && <p className="mb-4 text-[13px] text-ink-3">Found by your &ldquo;{job.foundAs.title}&rdquo; search.</p>}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
-          <Card className="mb-4">
-            <div className="flex items-start gap-4">
-              <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={56} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[17px] font-semibold text-ink">{job.company}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-x-5">
+        <Card className="min-w-0 lg:col-start-1">
+          <div className="flex items-start gap-3">
+            <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={40} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold text-ink">{job.company}</p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5" aria-hidden /> {job.location}
+                </span>
+                <span>{WORK_MODE_LABEL[job.workMode]}</span>
+                {salary && (
                   <span className="inline-flex items-center gap-1">
-                    <MapPin className="size-3.5" aria-hidden /> {job.location}
+                    <Wallet className="size-3.5" aria-hidden /> {salary}
                   </span>
-                  <span>•</span>
-                  <span>{WORK_MODE_LABEL[job.workMode]}</span>
-                  {salary && (
-                    <>
-                      <span>•</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Wallet className="size-3.5" aria-hidden /> {salary}
-                      </span>
-                    </>
-                  )}
-                  <span>•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3.5" aria-hidden /> Posted {relativeTime(job.postedAt)}
-                  </span>
-                  <span>•</span>
-                  <span>
-                    {origin ? `On ${origin}, via ` : "via "}
-                    {sources.map((s) => s.name).join(", ")}
-                  </span>
-                </div>
+                )}
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="size-3.5" aria-hidden /> {relativeTime(job.postedAt)}
+                </span>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+          </div>
+          {(match || application || rejected) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {match && <MatchBadge match={match} showLabel />}
               {application && (
                 <Link href={`/app/applications/${application.id}`} aria-label={`Application: ${APPLICATION_STATUS_META[application.status].label}`}>
@@ -167,133 +159,26 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               )}
               {rejected && <Badge tone="neutral">Marked not for me</Badge>}
             </div>
-          </Card>
-
-          {(decision.why.length > 0 || decision.consider.length > 0) && (
-            <Card className="mb-4">
-              <h2 className="mb-3 text-[15px] font-semibold text-ink">Wonder&apos;s take</h2>
-              <JobDecision decision={decision} variant="detail" />
-            </Card>
           )}
+          <h2 className="mt-4 text-[15px] font-semibold text-ink">Job description</h2>
+          <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{job.description}</p>
+          {longDescription && (
+            <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
+              {expanded ? "Less" : "More"}
+            </button>
+          )}
+          {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
+          {(expanded || !longDescription) && /(…|\.\.\.)\s*$/.test(job.description) && (
+            <p className="mt-1 text-[13px] text-ink-3">
+              This is the part the source shares.{" "}
+              <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-medium text-brand-600 hover:underline">
+                Read the full description <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            </p>
+          )}
+        </Card>
 
-          <Card className="mb-4">
-              <h2 className="text-[15px] font-semibold text-ink">Job description</h2>
-              <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-3")}>{job.description}</p>
-              {job.description.length > 240 && (
-                <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
-                  {expanded ? "Show less" : "Show more"}
-                </button>
-              )}
-              {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
-              {expanded && /(…|\.\.\.)\s*$/.test(job.description) && (
-                <p className="mt-1 text-[13px] text-ink-3">
-                  This is the part the source shares.{" "}
-                  <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-medium text-brand-600 hover:underline">
-                    Read the full description <ExternalLink className="size-3.5" aria-hidden />
-                  </a>
-                </p>
-              )}
-              <h2 className="mt-6 text-[15px] font-semibold text-ink">Key requirements</h2>
-              <ul className="mt-2 flex flex-col gap-2">
-                {job.requirements.map((r) => (
-                  <li key={r} className="flex items-start gap-2 text-[14px] text-ink-2">
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden /> {r}
-                  </li>
-                ))}
-              </ul>
-              {job.niceToHave.length > 0 && (
-                <>
-                  <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Nice to have</h3>
-                  <ul className="mt-1 flex flex-wrap gap-1.5">
-                    {job.niceToHave.map((n) => (
-                      <li key={n}>
-                        <Badge>{n}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-              <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Skills</h3>
-              <ul className="mt-1 flex flex-wrap gap-1.5">
-                {job.skills.map((s) => (
-                  <li key={s}>
-                    <Badge tone="brand">{s}</Badge>
-                  </li>
-                ))}
-              </ul>
-          </Card>
-
-          <Fold title="Why it fits" hint={match ? undefined : "Not compared with your profile yet"} open={requestedTab === "why"} className="mb-3">
-              {match ? (
-                <ul className="mt-3 flex flex-col gap-3">
-                  {match.reasons.map((r) => (
-                    <li key={r.dimension} className="flex gap-3">
-                      <div className="mt-1.5 h-2 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
-                        <div className={cn("h-full rounded-full", r.score >= 0.8 ? "bg-success-600" : r.score >= 0.55 ? "bg-brand-500" : "bg-warning-600")} style={{ width: `${Math.round(r.score * 100)}%` }} />
-                      </div>
-                      <div>
-                        <p className="text-[14px] font-medium text-ink">
-                          {r.label} <span className="ml-1 text-[12px] font-normal text-ink-3">{r.score >= 0.8 ? "Strong" : r.score >= 0.55 ? "Good" : "Weak"}</span>
-                        </p>
-                        <p className="text-[13px] text-ink-3">{r.summary}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
-              )}
-          </Fold>
-
-          <Fold title="Company" open={requestedTab === "company"} className="mb-3">
-              <div className="flex items-center gap-3">
-                <CompanyLogo name={job.company} color={company?.color} size={44} />
-                <div>
-                  <h2 className="text-[15px] font-semibold text-ink">{job.company}</h2>
-                  <p className="text-[13px] text-ink-3">
-                    {job.industry} · {company ? (company.size === "enterprise" ? "Large company" : company.size === "scaleup" ? "Scale-up" : "Startup") : "Company size not listed"} · HQ {company?.hq ?? job.location}
-                  </p>
-                </div>
-              </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
-                <div className="rounded-[12px] bg-surface-2 p-3">
-                  <dt className="text-ink-3">Website</dt>
-                  <dd className="font-medium text-ink">{job.companyDomain ?? "—"}</dd>
-                </div>
-                <div className="rounded-[12px] bg-surface-2 p-3">
-                  <dt className="text-ink-3">Industry</dt>
-                  <dd className="font-medium text-ink">{job.industry}</dd>
-                </div>
-              </dl>
-          </Fold>
-
-          <Fold title="Sources & hiring signals" open={requestedTab === "sources"}>
-            {job.lake && (
-              <div className="mb-4">
-                <JobSourcesCard lake={job.lake} />
-              </div>
-            )}
-            {quality ? (
-              <>
-                <JobQualityBadge quality={quality} />
-                <p className="mt-2 text-[14px] text-ink-2">{quality.summary}</p>
-                <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">
-                  {quality.signals.map((s) => (
-                    <li key={s.key} className="flex items-center justify-between gap-3 p-3 text-[13px]">
-                      <span className="text-ink-2">{s.label}</span>
-                      <span className={cn("font-medium", s.sentiment === "positive" ? "text-success-600" : s.sentiment === "caution" ? "text-warning-600" : "text-ink")}>{s.value}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-3 text-[12px] text-ink-4">Observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
-              </>
-            ) : (
-              <p className="text-[13px] text-ink-3">No hiring signals collected yet.</p>
-            )}
-          </Fold>
-        </div>
-
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <Card className="flex flex-col gap-2">
             {canApply ? (
               <>
@@ -320,6 +205,117 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </a>
           </Card>
         </aside>
+
+        <div className="flex min-w-0 flex-col gap-3 lg:col-start-1">
+          <Fold title="Why it fits" hint={match ? undefined : "Not compared with your profile yet"} open={requestedTab === "why"}>
+            {(decision.why.length > 0 || decision.consider.length > 0) && <JobDecision decision={decision} variant="detail" className="mb-4" />}
+            {match ? (
+              <ul className="flex flex-col gap-3">
+                {match.reasons.map((r) => (
+                  <li key={r.dimension} className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
+                      <div className={cn("h-full rounded-full", r.score >= 0.8 ? "bg-success-600" : r.score >= 0.55 ? "bg-brand-500" : "bg-warning-600")} style={{ width: `${Math.round(r.score * 100)}%` }} />
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium text-ink">
+                        {r.label} <span className="ml-1 text-[12px] font-normal text-ink-3">{r.score >= 0.8 ? "Strong" : r.score >= 0.55 ? "Good" : "Weak"}</span>
+                      </p>
+                      <p className="text-[13px] text-ink-3">{r.summary}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
+            )}
+          </Fold>
+
+          {hasRequirements && (
+            <Fold title="Requirements and skills">
+              {job.requirements.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {job.requirements.map((r) => (
+                    <li key={r} className="flex items-start gap-2 text-[14px] text-ink-2">
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden /> {r}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {job.niceToHave.length > 0 && (
+                <>
+                  <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Nice to have</h3>
+                  <ul className="mt-1 flex flex-wrap gap-1.5">
+                    {job.niceToHave.map((n) => (
+                      <li key={n}>
+                        <Badge>{n}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {job.skills.length > 0 && (
+                <>
+                  <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Skills</h3>
+                  <ul className="mt-1 flex flex-wrap gap-1.5">
+                    {job.skills.map((s) => (
+                      <li key={s}>
+                        <Badge tone="brand">{s}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </Fold>
+          )}
+
+          <Fold title="Company" open={requestedTab === "company"}>
+            <div className="flex items-center gap-3">
+              <CompanyLogo name={job.company} color={company?.color} size={44} />
+              <div>
+                <h2 className="text-[15px] font-semibold text-ink">{job.company}</h2>
+                <p className="text-[13px] text-ink-3">
+                  {job.industry} · {company ? (company.size === "enterprise" ? "Large company" : company.size === "scaleup" ? "Scale-up" : "Startup") : "Company size not listed"} · HQ {company?.hq ?? job.location}
+                </p>
+              </div>
+            </div>
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
+              <div className="rounded-[12px] bg-surface-2 p-3">
+                <dt className="text-ink-3">Website</dt>
+                <dd className="font-medium text-ink">{job.companyDomain ?? "—"}</dd>
+              </div>
+              <div className="rounded-[12px] bg-surface-2 p-3">
+                <dt className="text-ink-3">Industry</dt>
+                <dd className="font-medium text-ink">{job.industry}</dd>
+              </div>
+            </dl>
+          </Fold>
+
+          <Fold title="Sources & hiring signals" hint={`${origin ? `On ${origin}, via ` : "Via "}${sources.map((s) => s.name).join(", ")}`} open={requestedTab === "sources"}>
+            {job.foundAs && <p className="mb-3 text-[13px] text-ink-3">Found by your &ldquo;{job.foundAs.title}&rdquo; search.</p>}
+            {job.lake && (
+              <div className="mb-4">
+                <JobSourcesCard lake={job.lake} />
+              </div>
+            )}
+            {quality ? (
+              <>
+                <JobQualityBadge quality={quality} />
+                <p className="mt-2 text-[14px] text-ink-2">{quality.summary}</p>
+                <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">
+                  {quality.signals.map((s) => (
+                    <li key={s.key} className="flex items-center justify-between gap-3 p-3 text-[13px]">
+                      <span className="text-ink-2">{s.label}</span>
+                      <span className={cn("font-medium", s.sentiment === "positive" ? "text-success-600" : s.sentiment === "caution" ? "text-warning-600" : "text-ink")}>{s.value}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[12px] text-ink-4">Observations, not claims about the employer&apos;s intent. Last observed {formatDate(job.observedAt)}.</p>
+              </>
+            ) : (
+              <p className="text-[13px] text-ink-3">No hiring signals collected yet.</p>
+            )}
+          </Fold>
+        </div>
       </div>
     </div>
   );
