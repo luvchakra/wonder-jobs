@@ -34,7 +34,23 @@ export interface RawPosting {
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", "#39": "'", "#x27": "'", "#x2F": "/", "#8217": "’", "#8211": "–", "#8212": "—", ndash: "–", mdash: "—", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", hellip: "…", bull: "•" };
 
+const TAG = /<\/?[a-z][a-z0-9-]*(\s[^<>]*)?\/?>/i;
+const ESCAPED_TAG = /&(amp;)*lt;\/?[a-z]/i;
+
+/**
+ * A description as plain text. Some sources (Arbeitnow) send HTML that is itself entity-escaped
+ * ("&lt;div&gt;…", sometimes twice), so one pass only uncovers the tags: it repeats while tags remain.
+ */
 export function htmlToText(html: string): string {
+  let text = htmlOnce(html);
+  for (let i = 0; i < 3 && (TAG.test(text) || ESCAPED_TAG.test(text)); i++) text = htmlOnce(text);
+  return text;
+}
+
+/** True when text still reads as markup — a description stored before it was cleaned. */
+export const looksLikeHtml = (text: string) => TAG.test(text) || ESCAPED_TAG.test(text) || /&(gt|quot|amp|#\d+);/i.test(text);
+
+function htmlOnce(html: string): string {
   if (!html) return "";
   return html
     .replace(/<\s*(br|\/p|\/div|\/li|\/h[1-6]|\/tr)\s*>/gi, "\n")

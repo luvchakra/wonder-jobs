@@ -37,6 +37,7 @@ import { jobsApplyApi } from "@/services/jobs-apply/client";
 import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
 import { backgroundFillable } from "@/domain/jobs-apply/destination";
 import { cn } from "@/lib/cn";
+import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -106,7 +107,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
   const prepare = () => openPack(job.id);
   const decision = describeDecision(job, match, quality, application);
-  const longDescription = job.description.length > 280 || job.description.split("\n").length > 6;
+  // A posting saved before its HTML was cleaned (Arbeitnow escapes its markup) still reads as plain text.
+  const description = looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
+  const longDescription = description.length > 280 || description.split("\n").length > 6;
   const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
   // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
   return (
@@ -161,14 +164,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </div>
           )}
           <h2 className="mt-4 text-[15px] font-semibold text-ink">Job description</h2>
-          <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{job.description}</p>
+          <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{description}</p>
           {longDescription && (
             <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
               {expanded ? "Less" : "More"}
             </button>
           )}
           {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
-          {(expanded || !longDescription) && /(…|\.\.\.)\s*$/.test(job.description) && (
+          {(expanded || !longDescription) && /(…|\.\.\.)\s*$/.test(description) && (
             <p className="mt-1 text-[13px] text-ink-3">
               This is the part the source shares.{" "}
               <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-medium text-brand-600 hover:underline">
