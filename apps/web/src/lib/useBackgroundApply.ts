@@ -144,8 +144,6 @@ export function useBackgroundApply(jobId: string) {
     setError(null);
     setSubmitRequested(false);
     try {
-      const jobsState = useJobsStore.getState();
-      if (!jobsState.saved[jobId]) jobsState.save(jobId);
       const application = app ?? useApplicationsStore.getState().create(jobId, "preparing");
       const pack = await buildPack({
         app: application,

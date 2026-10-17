@@ -490,8 +490,6 @@ export default function ApplyWithWonderPage({
 
   function appOrNew() {
     if (app) return app;
-    const jobsState = useJobsStore.getState();
-    if (!jobsState.saved[jobId]) jobsState.save(jobId);
     return useApplicationsStore.getState().create(jobId, "preparing");
   }
 
