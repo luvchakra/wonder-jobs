@@ -16,6 +16,9 @@ export interface JobOrigin {
   host: string | null;
   finalUrl: string | null;
   resolvedAt: string;
+  /** Set when the posting was found closed where it lives; every candidate's search then drops it. */
+  closedAt?: string | null;
+  closedReason?: string | null;
 }
 
 /** A link that stayed on the board is tried again after a week (the posting may move); a found site is kept. */
@@ -49,7 +52,16 @@ export function originHost(finalUrl: string | undefined): string | null {
 
 export interface JobOriginStore {
   get(refs: string[]): Promise<Map<string, JobOrigin>>;
-  put(ref: string, origin: Omit<JobOrigin, "resolvedAt">): Promise<void>;
+  put(ref: string, origin: Pick<JobOrigin, "host" | "finalUrl">): Promise<void>;
+  /** The posting was found closed (a definite answer from its own page): recorded for everyone. */
+  markClosed(ref: string, reason: string): Promise<void>;
+}
+
+/** The refs among these that are recorded closed — what a search leaves out. */
+export async function closedRefs(refs: string[], store: JobOriginStore = jobOriginStore()): Promise<Set<string>> {
+  if (!refs.length) return new Set();
+  const rows = await store.get(refs);
+  return new Set([...rows].filter(([, o]) => !!o.closedAt).map(([r]) => r));
 }
 
 export class MemoryJobOriginStore implements JobOriginStore {
@@ -57,10 +69,15 @@ export class MemoryJobOriginStore implements JobOriginStore {
   async get(refs: string[]) {
     return new Map(refs.flatMap((r) => (this.rows.has(r) ? [[r, this.rows.get(r)!] as const] : [])));
   }
-  async put(ref: string, o: Omit<JobOrigin, "resolvedAt">) {
+  async put(ref: string, o: Pick<JobOrigin, "host" | "finalUrl">) {
     // A site already found is never replaced by "stayed on the board" (a blocked or odd later follow).
-    if (!o.host && this.rows.get(ref)?.host) return;
-    this.rows.set(ref, { ...o, resolvedAt: new Date().toISOString() });
+    const prev = this.rows.get(ref);
+    if (!o.host && prev?.host) return;
+    this.rows.set(ref, { ...prev, ...o, resolvedAt: new Date().toISOString() });
+  }
+  async markClosed(ref: string, reason: string) {
+    const prev = this.rows.get(ref) ?? { host: null, finalUrl: null, resolvedAt: new Date().toISOString() };
+    this.rows.set(ref, { ...prev, closedAt: new Date().toISOString(), closedReason: reason });
   }
 }
 
@@ -72,19 +89,24 @@ export class SupabaseJobOriginStore implements JobOriginStore {
     const out = new Map<string, JobOrigin>();
     if (!refs.length) return out;
     // Shared catalogue of public facts: keyed by the board's ad id only, no tenant column by design.
-    const { data, error } = await this.sb.from("job_origins").select("source_ref, origin_host, final_url, resolved_at").in("source_ref", refs);
+    const { data, error } = await this.sb.from("job_origins").select("source_ref, origin_host, final_url, resolved_at, closed_at, closed_reason").in("source_ref", refs);
     if (error) {
       console.warn("[job-origins] read failed:", error.message);
       return out;
     }
-    for (const r of (data ?? []) as { source_ref: string; origin_host: string | null; final_url: string | null; resolved_at: string }[]) out.set(r.source_ref, { host: r.origin_host, finalUrl: r.final_url, resolvedAt: r.resolved_at });
+    for (const r of (data ?? []) as { source_ref: string; origin_host: string | null; final_url: string | null; resolved_at: string; closed_at: string | null; closed_reason: string | null }[]) out.set(r.source_ref, { host: r.origin_host, finalUrl: r.final_url, resolvedAt: r.resolved_at, closedAt: r.closed_at, closedReason: r.closed_reason });
     return out;
   }
-  async put(ref: string, o: Omit<JobOrigin, "resolvedAt">) {
+  async put(ref: string, o: Pick<JobOrigin, "host" | "finalUrl">) {
     const row = { source_ref: ref, origin_host: o.host, final_url: o.finalUrl, resolved_at: new Date().toISOString() };
     // "Stayed on the board" only fills an empty slot; a site already found is kept.
     const { error } = o.host ? await this.sb.from("job_origins").upsert(row, { onConflict: "source_ref" }) : await this.sb.from("job_origins").upsert(row, { onConflict: "source_ref", ignoreDuplicates: true });
     if (error) console.warn("[job-origins] write failed:", error.message);
+  }
+  async markClosed(ref: string, reason: string) {
+    const at = new Date().toISOString();
+    const { error } = await this.sb.from("job_origins").upsert({ source_ref: ref, closed_at: at, closed_reason: reason, resolved_at: at }, { onConflict: "source_ref" });
+    if (error) console.warn("[job-origins] close failed:", error.message);
   }
 }
 
@@ -115,20 +137,39 @@ export async function checkLinksWithOrigins(urls: string[], deps: { store?: JobO
   const one = async (url: string): Promise<CheckedLink> => {
     const ref = refOf.get(url);
     const k = ref ? known.get(ref) : undefined;
+    // Already found closed where it lives: say so without fetching again.
+    if (k?.closedAt) return { status: "closed", reason: k.closedReason ?? undefined, ...(k.host ? { origin: k.host } : {}) };
+    const closed = async (r: CheckedLink) => {
+      if (ref && r.status === "closed") await db.markClosed(ref, r.reason ?? "the posting's page says it has closed");
+      return r;
+    };
     if (k?.host && k.finalUrl) {
       const r = await check(k.finalUrl);
-      return { status: r.status, reason: r.reason, origin: k.host };
+      return closed({ status: r.status, reason: r.reason, origin: k.host });
     }
-    const { finalUrl, ...r } = await check(url);
-    if (!ref) return r;
-    const host = originHost(finalUrl);
+    const { finalUrl, applyHref, ...listing } = await check(url);
+    if (!ref) return listing;
+    let r: LinkCheck = listing;
+    let host = originHost(finalUrl);
+    let landed = finalUrl;
+    // The board's own listing stays up after the employer's page goes: follow its one Apply link to where
+    // the posting lives, and judge that page (a plain request, like the listing's; nothing is clicked).
+    if (!host && applyHref && listing.status === "open") {
+      const there = await check(applyHref);
+      const toHost = originHost(there.finalUrl);
+      if (toHost) {
+        host = toHost;
+        landed = there.finalUrl;
+        r = { status: there.status, ...(there.reason ? { reason: there.reason } : {}) };
+      }
+    }
     const stale = !k || (!k.host && now - Date.parse(k.resolvedAt) > RETRY_UNRESOLVED_MS);
     // Record only what the follow actually showed: a site, or (when the board's own page answered) that it stayed there.
-    if (host) await db.put(ref, { host, finalUrl: finalUrl ?? null });
+    if (host) await db.put(ref, { host, finalUrl: landed ?? null });
     else if (finalUrl && r.status !== "unknown" && stale) await db.put(ref, { host: null, finalUrl });
-    console.info(`[job-origins] ${ref} → ${host ?? k?.host ?? "stayed on the board / unknown"}`);
+    console.info(`[job-origins] ${ref} → ${host ?? k?.host ?? "stayed on the board / unknown"}${applyHref && !host ? " (apply link not followed)" : ""} · ${r.status}`);
     const origin = host ?? k?.host ?? undefined;
-    return origin ? { ...r, origin } : r;
+    return closed(origin ? { ...r, origin } : r);
   };
 
   const out: Record<string, CheckedLink> = {};

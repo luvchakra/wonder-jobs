@@ -456,6 +456,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Background fill follows a job board listing's Apply link to the employer (WJ-315)
 - ✅ Sign-in connections: Wonder signs in to or creates employer portal accounts (WJ-316)
 - ✅ Apply for this job tested end to end on 23 real postings; fixes for Greenhouse, Lever, JazzHR and job boards (WJ-317)
+- ✅ Dead job-board postings found on the employer's own page and left out of JobsLake for everyone (WJ-318)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

@@ -23,6 +23,7 @@ import { jobsLakeStore, type CachedAnswer } from "./store";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { recordCompanies } from "./companies";
+import { boardRef, closedRefs } from "@/server/jobs/origin";
 
 export const newId = (prefix: string) => `${prefix}_${randomBytes(9).toString("base64url")}`;
 
@@ -319,6 +320,15 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
       results = merged.results;
       warmCount = merged.warm;
     }
+  }
+  // Postings found closed where they actually live (a board ad whose employer page says "not found"):
+  // recorded once in the shared job_origins catalogue, left out of every search after that.
+  const boardRefs = results.map((o) => boardRef(o.canonicalApplyUrl) ?? o.sourceRecords.map((r) => boardRef(r.url)).find(Boolean) ?? null);
+  const gone = (await bookkeeping("read closed postings", () => closedRefs(boardRefs.filter((r): r is string => !!r)))) ?? new Set<string>();
+  if (gone.size) {
+    const before = results.length;
+    results = results.filter((_, i) => !boardRefs[i] || !gone.has(boardRefs[i]!));
+    console.info(`[jobslake] left out ${before - results.length} posting(s) found closed`);
   }
   results = applyFilters(results, req).slice(0, req.limit);
 
