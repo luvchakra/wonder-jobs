@@ -157,26 +157,21 @@ describe("search stage (signed in)", () => {
     expect(d.counts).toEqual({ unique: 1, duplicates: 1 });
   });
 
-  it("falls back to searching each source directly when JobsLake fails, and says so", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url).includes("/api/jobs-lake/")) return new Response(JSON.stringify({ error: { code: "INTERNAL", message: "down", retryable: true } }), { status: 500 });
-      return new Response(JSON.stringify({ jobs: [job({ id: "remoteok_1", sourceId: "remoteok" })] }));
-    });
+  it("never searches a source directly: when JobsLake fails the search fails and says so", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ error: { code: "INTERNAL", message: "down", retryable: true } }), { status: 500 }));
     const { c, evidence } = ctx();
-    const out = await executors.search(c);
-    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Didn't answer — searched each source directly", tone: "warning" });
-    expect(evidence.some((e) => e.label === "Also searched")).toBe(false); // the direct path searched only the candidate's words
-    expect(out.data).not.toHaveProperty("searchedWith");
+    await expect(executors.search(c)).rejects.toThrow(/JobsLake didn't answer/);
+    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Didn't answer", tone: "warning" });
+    // Only JobsLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
+    expect(fetchSpy.mock.calls.map(([url]) => String(url)).filter((u) => !u.includes("/api/jobs-lake/") && !u.startsWith("/api/ai/"))).toEqual([]);
   });
 
-  it("a disabled JobsLake is used as the direct path without a warning", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url).includes("/api/jobs-lake/")) return new Response(JSON.stringify({ error: { code: "FEATURE_DISABLED", message: "off", retryable: false } }), { status: 404 });
-      return new Response(JSON.stringify({ jobs: [job({ id: "remoteok_1", sourceId: "remoteok" })] }));
-    });
-    const { c, evidence, warnings } = ctx();
-    await executors.search(c);
-    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Off — searched each source directly", tone: "info" });
-    expect(warnings.some((w) => w.includes("JobsLake"))).toBe(false);
+  it("a disabled JobsLake means no search, said plainly, and no source is asked directly", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ error: { code: "FEATURE_DISABLED", message: "off", retryable: false } }), { status: 404 }));
+    const { c, evidence } = ctx();
+    await expect(executors.search(c)).rejects.toThrow(/JobsLake didn't answer/);
+    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Off", tone: "warning" });
+    // Only JobsLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
+    expect(fetchSpy.mock.calls.map(([url]) => String(url)).filter((u) => !u.includes("/api/jobs-lake/") && !u.startsWith("/api/ai/"))).toEqual([]);
   });
 });

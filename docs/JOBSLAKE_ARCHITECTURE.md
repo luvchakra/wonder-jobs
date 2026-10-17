@@ -61,9 +61,10 @@ token see the upstream message.
   JobsLake · N sources planned" and "Sources searched: X of N answered" say how broad the search was.
   The dedupe stage uses JobsLake's merge ("Cross-posted duplicates merged"). After matching, per-source
   relevant/strong counts go to `/v1/telemetry` (counts only).
-- **Fallback:** if JobsLake is switched off the stage searches each source directly and says "JobsLake:
-  Off — searched each source directly"; if it fails, the same path runs with a warning.
-- **Scheduled runs** (`server/workflow/serverExecutors.ts`) call `core.search` in-process, same fallback.
+- **No fallback (owner, 2026-10-17):** every job search goes through JobsLake. If it's switched off or
+  doesn't answer, the search stage fails and says so ("JobsLake: Off" / "Didn't answer"); nothing
+  searches a source directly, and the old `/api/jobs/search` endpoint is gone.
+- **Scheduled runs** (`server/workflow/serverExecutors.ts`) call `core.search` in-process, same rule.
 - **Job detail → Sources & signals → "Where this job was found"**: every sighting, which one is shown,
   access type, employer site, which source supplied title / apply link / date / salary, and a
   "Check <source> now" refresh. Unknown JobsLake source ids render by name.
@@ -92,8 +93,8 @@ token see the upstream message.
 
 | Variable | Default | Off means |
 |---|---|---|
-| `JOBSLAKE_ENABLED` | on | Everything below is off; WonderJobs searches each source directly |
-| `JOBSLAKE_SEARCH_ENABLED` | on | WonderJobs searches each source directly; v1 search answers `FEATURE_DISABLED` |
+| `JOBSLAKE_ENABLED` | on | Everything below is off; signed-in searches don't run (they say JobsLake is off) |
+| `JOBSLAKE_SEARCH_ENABLED` | on | Searches don't run and say so; v1 search answers `FEATURE_DISABLED` |
 | `JOBSLAKE_STREAMING_ENABLED` | on | The client uses the plain search endpoint |
 | `JOBSLAKE_WARM_POOL_ENABLED` | on | Nothing is stored; every search is live only |
 | `JOBSLAKE_MCP_ENABLED` | **off** | The MCP endpoint answers 404 |
