@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Activity, AlertTriangle, BarChart3, Database, FileCode2, KeyRound, LayoutDashboard, Lightbulb, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, CalendarClock, Database, FileCode2, KeyRound, LayoutDashboard, Lightbulb, ListChecks, PlusCircle, Search, Settings, ShieldCheck, Waves } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const NAV = [
@@ -16,6 +16,7 @@ export const NAV = [
   { href: "/health", label: "Health", icon: Activity },
   { href: "/runs", label: "Runs", icon: BarChart3 },
   { href: "/alerts", label: "Alerts", icon: AlertTriangle },
+  { href: "/scheduler", label: "Scheduler", icon: CalendarClock },
   { href: "/protocols", label: "Protocols", icon: FileCode2 },
   { href: "/credentials", label: "Credentials", icon: KeyRound },
   { href: "/settings", label: "Settings", icon: Settings },

@@ -14,7 +14,7 @@ import { YourDataCard } from "@/components/privacy/YourDataCard";
 import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
 import { ConnectionsCard } from "@/components/account/ConnectionsCard";
 import { useBillingStore } from "@/store/billing";
-import { Avatar } from "@/components/common/Avatar";
+import { ProfilePhoto } from "@/components/account/ProfilePhoto";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { PageLoading } from "@/components/common/States";
@@ -119,7 +119,7 @@ function ProfileInner() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Account" />
       <Card className="flex items-center gap-4">
-        <Avatar name={displayName} size={56} />
+        <ProfilePhoto name={displayName} size={56} />
         <div className="min-w-0 flex-1">
           <p className="text-[17px] font-semibold text-ink">{displayName}</p>
           <p className="truncate text-[13px] text-ink-3">{dna.headline || email || (mode === "demo" ? "Sample candidate" : "")}</p>

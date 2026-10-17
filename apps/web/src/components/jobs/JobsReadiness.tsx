@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, MapPin, RefreshCw, Sparkles, Target, X } from "lucide-react";
+import { ChevronRight, FileUp, MapPin, RefreshCw, Sparkles, Target, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -300,6 +300,9 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
           <p className={cn("line-clamp-2 text-[15px] font-semibold leading-snug first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
             {role || "No role yet"}
           </p>
+          <Link href="/app/career-dna" className="mt-0.5 inline-flex items-center gap-0.5 text-[12px] font-medium text-brand-600 hover:underline">
+            Update Career Profile <ChevronRight className="size-3.5" aria-hidden />
+          </Link>
         </div>
         <button
           type="button"

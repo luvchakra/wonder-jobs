@@ -322,7 +322,12 @@ export function followListing(s: JobsApplySession, url: string, now: string, not
   if (s.destination.type !== "aggregator" || s.listingFollowed) return s;
   const next = followedDestination(s.destination, url);
   // No Apply link, or it led back to a job board: the candidate finishes on the listing (the page says so).
-  if (!next) return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", `${s.destination.domain}'s Apply link didn't lead to the employer's site${note ? ` (${note.slice(0, 160)})` : ""}`, hostOf(url) ?? undefined);
+  if (!next) {
+    const board = s.destination.domain.replace(/^www\./, "");
+    // The worker's note says what it saw; the candidate gets one plain line, never a raw address.
+    const detail = note && /just a moment|security|verif|captcha|attention required|access denied/i.test(note) ? `${board} showed a bot check, so Wonder couldn't reach its Apply link` : `${board}'s Apply link didn't lead to the employer's site`;
+    return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", detail, hostOf(url) ?? undefined);
+  }
   const n: JobsApplySession = { ...s, destination: next, listingFollowed: { at: now, from: s.destination.domain, to: next.domain }, form: undefined, formFields: [], fieldMappings: [], interventions: s.interventions.filter((i) => i.status !== "open"), failure: undefined, finalStep: undefined };
   return audit(n, now, "LISTING_FOLLOWED", "wonder", `Followed ${s.destination.domain}'s Apply link to ${next.domain}`, next.domain);
 }
