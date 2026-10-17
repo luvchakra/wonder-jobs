@@ -4,6 +4,7 @@ import { baseResumeFor } from "@/domain/career/roles";
 import { resumeOptionsFor } from "@/domain/jobs-apply/resumeOptions";
 import { FILLABLE, TERMINAL } from "@/domain/jobs-apply/states";
 import type { InterventionItem } from "@/domain/jobs-apply/types";
+import { pickOnPortal } from "@/domain/jobs-apply/waiting";
 import { useApplicationsStore } from "@/store/applications";
 import { useAuthStore } from "@/store/auth";
 import { useCareerStore } from "@/store/career";
@@ -224,6 +225,7 @@ export function useBackgroundApply(jobId: string) {
     // The page opened but holds no application form (a job listing): waiting longer won't change that.
     if (BLOCKED.has(s.status) || s.stopped || s.failure === "FORM_NOT_FOUND") return "blocked";
     if (view?.decisions?.fill === "skip") return "blocked";
+    if (pickOnPortal(s).length) return "blocked";
     if (s.interventions.some((i) => i.status === "open" && i.required)) return "needs_you";
     if (s.finalStep && s.finalStep.waiting === 0 && (view?.progress.fillable ?? 0) === 0 && FILLABLE.has(s.status)) return "ready";
     return error ? "error" : "filling";

@@ -33,6 +33,10 @@
 (() => {
   if (window.__wonderjobsHelper) return;
   window.__wonderjobsHelper = true;
+  // A verification widget's own frame (reCAPTCHA, hCaptcha, Turnstile) is never the application: the page
+  // around it notices the check (signals) and leaves it to the candidate. Reading it would report a foreign site.
+  if (window.top !== window && /(^|\.)(recaptcha\.net|hcaptcha\.com|challenges\.cloudflare\.com)$/.test(location.hostname)) return;
+  if (window.top !== window && /(^|\.)google\.com$/.test(location.hostname) && location.pathname.startsWith("/recaptcha")) return;
 
   const PANEL_ID = "wonderjobs-autofill-root";
   const ask = (type, payload) => chrome.runtime.sendMessage({ type, payload }).catch(() => null);
@@ -51,6 +55,8 @@
       const host = el.parentElement;
       return !host || (typeof host.checkVisibility === "function" ? host.checkVisibility() : host.getClientRects().length > 0);
     }
+    // A stand-in a dropdown widget keeps for the browser's own "required" check, hidden from people.
+    if (el.getAttribute("aria-hidden") === "true" && el.tabIndex < 0) return false;
     const style = getComputedStyle(el);
     if (style.visibility === "hidden" || style.display === "none") return false;
     const rect = el.getBoundingClientRect();
@@ -141,12 +147,23 @@
     return cleanLabel(lab?.textContent) || cleanLabel(nearestLabel(inputs[0])) || clean(inputs[0].name);
   }
 
+  /** A dropdown widget whose "required" lives on its hidden stand-in input (React Select). */
+  function requiredStandIn(el) {
+    let box = el.parentElement;
+    for (let i = 0; box && i < 5; i++, box = box.parentElement) {
+      if (box.querySelector("input[aria-hidden='true'][required]")) return true;
+      if (box.matches("form, fieldset")) return false;
+    }
+    return false;
+  }
+
   function typeOf(el) {
     const ac = (el.getAttribute("autocomplete") || "").toLowerCase();
     if (ac === "one-time-code") return "otp";
     if (el.tagName === "TEXTAREA") return "textarea";
     if (el.tagName === "SELECT") return "select";
-    if (el.getAttribute("role") === "combobox" && el.tagName !== "INPUT") return "combobox";
+    // A searchable dropdown (React Select and the like): its text box only filters the list, so it isn't text.
+    if (el.getAttribute("role") === "combobox") return "combobox";
     const t = (el.getAttribute("type") || "text").toLowerCase();
     if (t === "tel") return "phone";
     if (["text", "email", "url", "number", "date", "file", "password", "radio", "checkbox"].includes(t)) return t;
@@ -237,7 +254,7 @@
       const id = uid(el.id || el.name || `f${fields.length}`);
       fieldEls.set(id, [el]);
       const label = labelOf(el);
-      const f = { id, label: label.slice(0, 480), type, required: !!(el.required || el.getAttribute("aria-required") === "true" || /\*\s*$/.test(label)), step };
+      const f = { id, label: label.slice(0, 480), type, required: !!(el.required || el.getAttribute("aria-required") === "true" || /\*\s*$/.test(label) || (type === "combobox" && requiredStandIn(el))), step };
       const hints = {};
       if (el.name) hints.name = el.name.slice(0, 190);
       if (el.id) hints.id = el.id.slice(0, 190);

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { resolveCapability } from "@/domain/automation/policy";
-import { formWait } from "@/domain/jobs-apply/waiting";
+import { formWait, pickOnPortal } from "@/domain/jobs-apply/waiting";
 import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useAIService } from "@/lib/useAIService";
@@ -72,7 +72,9 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
           ? `${company}'s site is asking for a verification check only you can do.`
           : s.status === "PAUSED" && s.failure === "DOMAIN_CHANGED"
             ? "The application moved to a different site, so Wonder paused."
-            : s.failure === "FORM_NOT_FOUND"
+            : pickOnPortal(s).length
+              ? `${pickOnPortal(s).length === 1 ? "One required question" : `${pickOnPortal(s).length} required questions`} on ${company}'s form ${pickOnPortal(s).length === 1 ? "is a dropdown" : "are dropdowns"} Wonder can't pick from yet. ${progress?.filled ? `${progress.filled} fields are filled; ` : ""}nothing has been sent.`
+              : s.failure === "FORM_NOT_FOUND"
               ? `${s.destination.domain} opened a job listing, not an application form. Nothing has been filled or sent.`
               : s.status === "FAILED"
               ? "Wonder couldn't find the application form on that page."
