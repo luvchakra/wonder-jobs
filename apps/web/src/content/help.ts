@@ -113,7 +113,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Searches and how Wonder works",
     summary: "What you see while Wonder searches, and the twelve steps under “See how Wonder worked”.",
     keywords: ["run", "workflow", "stages", "progress", "pause", "resume", "stop", "restart", "rerun", "logs", "evidence", "timeline", "waiting", "search history", "details"],
-    updated: "2026-10-16",
+    updated: "2026-10-17",
     body: [
       "While a search runs you see plain-language progress — searching the market, removing duplicates, checking relevant roles, comparing opportunities with your Career Profile, prioritizing — each ticked only when that work has actually finished, plus a real count of opportunities found so far. When it's done: “Your search is ready” with strong / worth considering / other counts and, after your second search, how many are new since the last one. Every search is listed under You → Search history.",
       "- Pause keeps everything and waits (“Wonder is paused”, Continue). Stop finishes safely: “Search stopped. Everything already found is still available.” When Wonder needs you — for example to review prepared applications — it says “Wonder needs your input” with the reason, and Continue carries on.",
@@ -125,7 +125,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Understanding opportunities — reads each posting: skills, seniority, industry, work mode, salary, requirements.",
       "- Matching with your career goals — scores every posting against your Career Profile and explains each dimension. Where WonderJobs AI is connected, the evidence also shows “Read by AI” with how many postings it read.",
       "- Checking job quality — freshness, reposts, duplicates, where the application goes, salary transparency, source reliability and, where AI read the posting, any warning signs it found.",
-      "- Prioritizing opportunities — the shortlist above your minimum match; strong matches are saved for you only if you set Save strong matches to Automatic (it starts Off).",
+      "- Prioritizing opportunities — the shortlist above your minimum match; strong matches are saved for you only if you set Save strong matches to Automatic (it starts Off; Ask me never saves on its own). Preparing a job's Application Pack or applying to it also keeps it in Saved, so you can track it.",
       "A search from Find runs the steps above and stops there — every source at once, so the slowest source decides how long it takes. Scheduled searches stop there too. The steps below run only in an advanced automation you build yourself, and only while WonderJobs is open — a scheduled search never prepares or hands off an application:",
       "- Preparing application materials — résumé, cover letter and screening answers for the top three (strong first, then the best of the shortlist).",
       "- Waiting for your review — the run pauses. Closing the app is fine: come back and press Continue.",

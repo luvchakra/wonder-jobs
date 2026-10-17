@@ -19,6 +19,14 @@ describe("describeApplicationPack", () => {
     expect(s.items.every((i) => !i.ready && !i.source)).toBe(true);
   });
 
+  it("counts the candidate's own résumé when they chose it instead of a draft", () => {
+    const s = describeApplicationPack(app([]), { resumeOnFile: "Resume.pdf" });
+    expect(s.title).toBe("1 of 3 materials ready");
+    expect(s.items.find((i) => i.type === "resume")).toMatchObject({ ready: true, source: "Resume.pdf" });
+    // A draft that exists always wins over the file.
+    expect(describeApplicationPack(app([artifact("resume", "AI_GENERATED")]), { resumeOnFile: "Resume.pdf" }).items[0].source).toBe("AI-generated draft");
+  });
+
   it("counts only materials that actually exist", () => {
     const s = describeApplicationPack(app([artifact("resume", "AI_GENERATED")]));
     expect(s.title).toBe("1 of 3 materials ready");

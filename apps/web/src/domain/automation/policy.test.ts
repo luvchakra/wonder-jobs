@@ -10,6 +10,10 @@ describe("save_jobs — the saved list is the candidate's own unless they turn a
     const p = defaultPolicy();
     expect(resolveCapability("save_jobs", { ...p, save_jobs: "automatic" }, "guided")).toBe("run");
   });
+  it("never saves on its own when set to Ask me, at any level", () => {
+    const p = { ...defaultPolicy(), save_jobs: "ask" as const };
+    for (const level of ["assist", "guided", "autonomous", "continuous"] as const) expect(resolveCapability("save_jobs", p, level)).toBe("ask");
+  });
 });
 
 describe("migratePolicy — a policy saved before auto-save became opt-in", () => {

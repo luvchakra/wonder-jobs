@@ -1,11 +1,14 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
 import { describeDecision } from "@/domain/jobs/decision";
+import { resumeOptionsFor } from "@/domain/jobs-apply/resumeOptions";
+import { baseResumeFor } from "@/domain/career/roles";
+import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
@@ -50,6 +53,21 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<{ message: string; provider: string; type: ArtifactType } | null>(null);
   const [approved, setApproved] = useState(false);
+  // The résumé already in the system (the one Apply would attach first): offered, preselected, instead of "No resume yet".
+  const savedResumes = useCareerStore((s) => s.savedResumes);
+  const accountBase = useCareerStore((s) => s.baseResume);
+  const roles = useCareerStore((s) => s.roles);
+  const uploads = useResumeFilesStore((s) => s.files);
+  const loadUploads = useResumeFilesStore((s) => s.load);
+  useEffect(() => {
+    void loadUploads();
+  }, [loadUploads]);
+  const onFile = useMemo(() => {
+    if (!app) return undefined;
+    const { ref, role } = baseResumeFor(roles, job?.foundAs, accountBase);
+    return resumeOptionsFor({ jobId: app.jobId, hasTailored: false, saved: savedResumes, uploads, base: ref, baseRoleTitle: role?.title })[0];
+  }, [app, job?.foundAs, roles, accountBase, savedResumes, uploads]);
+  const [resumeChoice, setResumeChoice] = useState<"current" | "generate">("current");
 
   if (!app || !job) {
     return (
@@ -100,7 +118,9 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
     }
   };
 
-  const pack = describeApplicationPack(app);
+  const hasResumeDraft = !!artifact("resume");
+  const useOnFile = !hasResumeDraft && !!onFile && resumeChoice === "current";
+  const pack = describeApplicationPack(app, { resumeOnFile: useOnFile ? onFile.label : undefined });
   const allReady = pack.ready;
   const concerns = describeDecision(job, match, quality).consider;
   // What the employer's form will ask for that the Career Profile doesn't hold (email falls back to the sign-in address).
@@ -130,10 +150,10 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
           </>
         }
       />
-      <Card className="mb-5" aria-labelledby="wj-pack-summary">
+      <Card className="mb-4" aria-labelledby="wj-pack-summary">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id="wj-pack-summary" className="flex items-center gap-2 text-[18px] font-semibold text-ink">
+            <h2 id="wj-pack-summary" className="flex items-center gap-2 text-[16px] font-semibold text-ink">
               {pack.ready && <CheckCircle2 className="size-5 text-success-600" aria-hidden />}
               {pack.title}
             </h2>
@@ -152,13 +172,9 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
           </p>
         )}
         {concerns.length > 0 && (
-          <ul className="mt-3 flex flex-col gap-1.5">
-            {concerns.map((c) => (
-              <li key={c} className="flex items-start gap-2 text-[13px] text-ink-2">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-600" aria-hidden /> {c}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-2 flex items-start gap-2 text-[13px] text-ink-2">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning-600" aria-hidden /> {concerns.join(" · ")}
+          </p>
         )}
       </Card>
       <div>
@@ -188,6 +204,28 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               // and edit mode active — a "Save version" click right after switching would then attribute
               // the previous artifact's edited text to whichever type the tab just changed to.
               <>
+              {tab === "resume" && !hasResumeDraft && !busy.resume ? (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-2 text-[15px] font-semibold text-ink">Résumé for this application</legend>
+                  {onFile && (
+                    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-[12px] border border-line px-3 py-2 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                      <input type="radio" name="wj-resume" className="size-4 shrink-0 accent-[var(--color-brand-600)]" checked={resumeChoice === "current"} onChange={() => setResumeChoice("current")} />
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{onFile.label}</span>
+                    </label>
+                  )}
+                  <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-[12px] border border-line px-3 py-2 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                    <input type="radio" name="wj-resume" className="size-4 shrink-0 accent-[var(--color-brand-600)]" checked={!onFile || resumeChoice === "generate"} onChange={() => setResumeChoice("generate")} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] text-ink">Generate a résumé for this role</span>
+                      <span className="block text-[12px] text-ink-3">AI drafts one from your Career Profile and this job; you review it first.</span>
+                    </span>
+                  </label>
+                  <Link href={`/app/resume-studio?job=${encodeURIComponent(app.jobId)}&app=${encodeURIComponent(app.id)}`} className="mt-1 text-[12px] font-medium text-brand-600 hover:underline">
+                    Or choose a designed template
+                  </Link>
+                </fieldset>
+              ) : (
+              <>
               {tab === "resume" && (
                 <Link href={`/app/resume-studio?job=${encodeURIComponent(app.jobId)}&app=${encodeURIComponent(app.id)}`} className="mb-4 inline-block text-[13px] font-medium text-brand-600 hover:underline">
                   Want a designed PDF or Word file? Choose a résumé template
@@ -205,6 +243,8 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
                   toast.success("Version restored");
                 }}
               />
+              </>
+              )}
               </>
             ) : (
               <div>
@@ -241,14 +281,19 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
               </div>
             )}
           </Card>
-          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {tab !== "review" ? (
+          {/* Kept above the bottom bar on phones, so the next step is never cut off. */}
+          <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] z-10 mt-4 flex flex-col-reverse gap-2 bg-bg pt-2 sm:flex-row sm:justify-end md:bottom-2">
+            {tab === "resume" && !hasResumeDraft && (!onFile || resumeChoice === "generate") ? (
+              <Button size="lg" onClick={() => void generate("resume")} loading={!!busy.resume}>
+                Generate résumé
+              </Button>
+            ) : tab !== "review" ? (
               <Button size="lg" onClick={() => setTab((t) => (t === "resume" ? "cover_letter" : t === "cover_letter" ? "answers" : "review"))}>
-                {artifact(tab) ? "Continue" : "Skip for now"}
+                {artifact(tab) || (tab === "resume" && useOnFile) ? "Continue" : "Skip for now"}
               </Button>
             ) : (
               <>
-                <Button size="lg" variant="outline" href={`/app/jobs/${job.id}/apply`} disabled={!approved || !app.artifacts.some((a) => a.type === "resume")}>
+                <Button size="lg" variant="outline" href={`/app/jobs/${job.id}/apply`} disabled={!approved || !(hasResumeDraft || useOnFile)}>
                   Apply with Wonder
                 </Button>
                 <Button size="lg" onClick={finish} disabled={!approved || !allReady} iconRight={<ExternalLink className="size-4" aria-hidden />}>
