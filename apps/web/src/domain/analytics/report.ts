@@ -46,10 +46,21 @@ function submittedAt(a: Application): number | undefined {
   return t ? Date.parse(t) : undefined;
 }
 
+/** How many weeks back "All time" reaches: to the week of the oldest application or search (at least 1). */
+export function weeksSinceFirst(input: { applications: Pick<Application, "createdAt">[]; runs: Pick<WorkflowRun, "createdAt">[] }, now = Date.now()): number {
+  const first = Math.min(now, ...input.applications.map((a) => Date.parse(a.createdAt)), ...input.runs.map((r) => Date.parse(r.createdAt)));
+  return Math.max(1, Math.round((mondayOf(now) - mondayOf(first)) / WEEK) + 1);
+}
+
+/** `weeks`: the range — only applications started, jobs saved and searches run in the last that many weeks (this week included) count. */
 export function analyticsReport(input: { applications: Application[]; jobs: Record<string, CanonicalJob>; matches: Record<string, JobMatch>; saved: Record<string, string>; runs: WorkflowRun[]; now?: number; weeks?: number; sourceName?: (id: string) => string }): AnalyticsReport {
   const now = input.now ?? Date.now();
-  const apps = input.applications;
-  const done = input.runs.filter((r) => r.status === "COMPLETED" || r.status === "COMPLETED_WITH_WARNINGS");
+  const n = input.weeks ?? 8;
+  const since = mondayOf(now) - (n - 1) * WEEK;
+  const inRange = (iso: string) => Date.parse(iso) >= since;
+  const apps = input.applications.filter((a) => inRange(a.createdAt));
+  const done = input.runs.filter((r) => (r.status === "COMPLETED" || r.status === "COMPLETED_WITH_WARNINGS") && inRange(r.createdAt));
+  const saved = Object.values(input.saved).filter((at) => !Number.isFinite(Date.parse(at)) || inRange(at)).length;
   const submitted = apps.filter((a) => SUBMITTED.has(a.status));
 
   // Response: any reply, interview or outcome event after it was submitted.
@@ -76,8 +87,7 @@ export function analyticsReport(input: { applications: Application[]; jobs: Reco
   const counts = stages.map(([, s]) => reached(s));
   const funnel = stages.map(([label], i) => ({ label, n: counts[i], ofPrevious: i && counts[i - 1] ? counts[i] / counts[i - 1] : null }));
 
-  // The last N weeks, oldest first.
-  const n = input.weeks ?? 8;
+  // The range's weeks, oldest first.
   const thisWeek = mondayOf(now);
   const weeks: WeekBucket[] = Array.from({ length: n }, (_, i) => ({ week: new Date(thisWeek - (n - 1 - i) * WEEK).toISOString().slice(0, 10), started: 0, submitted: 0, searches: 0 }));
   const bucket = (t: number | undefined) => {
@@ -115,7 +125,7 @@ export function analyticsReport(input: { applications: Application[]; jobs: Reco
       submitted: submitted.length,
       interviews: apps.filter((a) => a.status === "interview" || a.status === "offer").length,
       offers: apps.filter((a) => a.status === "offer").length,
-      saved: Object.keys(input.saved).length,
+      saved,
       searches: done.length,
       jobsFound: done.reduce((s, r) => s + (r.summary?.jobsDiscovered ?? 0), 0),
     },
