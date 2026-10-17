@@ -1,10 +1,10 @@
 "use client";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Download, Loader2, PauseCircle, RefreshCw, XCircle } from "lucide-react";
+import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { offeredLevel, resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
-import { destinationFor } from "@/domain/jobs-apply/destination";
+import { backgroundFillable, destinationFor } from "@/domain/jobs-apply/destination";
 import {
   effectiveFill,
   fillDecision,
@@ -47,7 +47,7 @@ import { Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { ApplyStepper } from "@/components/jobs-apply/ApplyStepper";
 import { ApplicationReview } from "@/components/jobs-apply/ApplicationReview";
-import { CloudBrowser } from "@/components/jobs-apply/CloudBrowser";
+import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
 import { GuidedApplication } from "@/components/jobs-apply/GuidedApplication";
 import {
   InterventionQueue,
@@ -58,7 +58,6 @@ import {
   resumeOptionsFor,
   type Method,
 } from "@/components/jobs-apply/Preflight";
-import type { CloudStream } from "@/services/jobs-apply/client";
 import {
   FilledSummary,
   SessionProgress,
@@ -162,13 +161,8 @@ export default function ApplyWithWonderPage({
     : (resumeOptions[0]?.key ?? "");
   const windowRef = useRef<Window | null>(null);
 
-  // The cloud browser (no extension needed — phones): offered when this deployment has one.
+  // The cloud browser (no extension needed — phones): Wonder fills there in the background, never shown (WJ-314).
   const [cloudAvailable, setCloudAvailable] = useState<boolean | null>(null);
-  // Kept with its session id, so a stream never outlives the session it was opened for.
-  const [cloudFor, setCloudFor] = useState<{ sessionId: string; stream: CloudStream } | null>(null);
-  const [cloudBusy, setCloudBusy] = useState(false);
-  const [cloudError, setCloudError] = useState<string | null>(null);
-  const [cloudClosed, setCloudClosed] = useState(false);
   useEffect(() => {
     jobsApplyApi.cloud
       .available()
@@ -176,12 +170,14 @@ export default function ApplyWithWonderPage({
       .catch(() => setCloudAvailable(false));
   }, []);
 
+  // Without the extension, Wonder fills only in the background, and only an applicant-tracking system's own page.
+  const backgroundReady = cloudAvailable === true && !!job && backgroundFillable(job);
   const fillPolicy = fillDecision(policy, level);
   const handoffPolicy = handoffDecision(policy, level);
   const independent = offeredLevel(level) === "autonomous";
   const chosenMethod: Method = methodTouched
     ? method
-    : defaultMethod === "helper" && ((helperInstalled === false && cloudAvailable !== true) || fillPolicy === "skip")
+    : defaultMethod === "helper" && ((helperInstalled === false && !backgroundReady) || fillPolicy === "skip")
       ? "guided"
       : defaultMethod;
 
@@ -259,34 +255,6 @@ export default function ApplyWithWonderPage({
     return () => clearInterval(t);
   }, [sessionId, live, helperMode, helperInstalled]);
 
-  // No extension here (a phone, or Chrome without it): the helper runs in the cloud browser instead.
-  const useCloud = helperMode && helperInstalled === false && cloudAvailable === true;
-  const startCloud = useCallback(async (id: string): Promise<CloudStream | null> => {
-    try {
-      const st = await jobsApplyApi.cloud.start(id);
-      setCloudError(null);
-      setCloudClosed(false);
-      // Rejoining keeps the same browser; only a new one replaces the stream (and reconnects).
-      setCloudFor((cur) => (cur && cur.sessionId === id && cur.stream.cloudId === st.cloudId ? cur : { sessionId: id, stream: st }));
-      return st;
-    } catch (e) {
-      setCloudError(e instanceof Error ? e.message : "Couldn't open the cloud browser.");
-      return null;
-    }
-  }, []);
-  const cloud = cloudFor && cloudFor.sessionId === sessionId && live ? cloudFor.stream : null;
-  useEffect(() => {
-    if (!useCloud || !sessionId || !live || cloud || cloudError || cloudClosed) return;
-    const t = setTimeout(() => void startCloud(sessionId), 0);
-    return () => clearTimeout(t);
-  }, [useCloud, sessionId, live, cloud, cloudError, cloudClosed, startCloud]);
-  // The helper's token in the cloud page lasts 30 minutes; rejoining refreshes it.
-  useEffect(() => {
-    if (!useCloud || !sessionId || !live || !cloud) return;
-    const t = setInterval(() => void startCloud(sessionId), 20 * 60_000);
-    return () => clearInterval(t);
-  }, [useCloud, sessionId, live, cloud, startCloud]);
-
   const openEmployer = useCallback(() => {
     if (!view) return;
     // Return to the tab the candidate is filling rather than reloading it (which would lose their input).
@@ -321,13 +289,7 @@ export default function ApplyWithWonderPage({
       alive = false;
     };
   }, [sessionId, live, helperMode, helperInstalled]);
-  const connect = useCallback(
-    async (id: string) => {
-      if (helperInstalled === false && cloudAvailable === true) return !!(await startCloud(id));
-      return pair(id);
-    },
-    [helperInstalled, cloudAvailable, startCloud, pair],
-  );
+  const connect = useCallback((id: string) => pair(id), [pair]);
 
   if (!job) {
     return (
@@ -406,11 +368,8 @@ export default function ApplyWithWonderPage({
           ? "fill"
           : "assisted"
         : "guided";
-    // No extension but a cloud browser (a phone): the employer's page opens in the cloud browser on this
-    // page, so no second tab — on a phone that tab would take the candidate away from it.
-    const viaCloud = mode !== "guided" && helperInstalled !== true && cloudAvailable === true;
-    // Otherwise open the employer's tab inside the click, so no popup blocker stands in the way; it navigates once the session exists.
-    const pre = mode !== "guided" && !viaCloud ? window.open("about:blank", "_blank") : null;
+    // Open the employer's tab inside the click, so no popup blocker stands in the way; it navigates once the session exists.
+    const pre = mode !== "guided" ? window.open("about:blank", "_blank") : null;
     try {
       const pack = await buildPack({
         app,
@@ -469,10 +428,7 @@ export default function ApplyWithWonderPage({
         });
       // Waiting on the candidate: a reminder they can act on from anywhere.
       useCareerStore.getState().notify({ category: "application_status", title: `Applying to ${job.company}`, body: `Opened on ${v.session.destination.domain}. When you've submitted, tell Wonder.`, href: `/app/jobs/${job.id}/apply`, action: "Mark submitted" });
-      if (viaCloud) {
-        // The cloud browser opens itself for a live session (see the effect above); show it from the top.
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } else if (mode !== "guided") {
+      if (mode !== "guided") {
         await pair(v.session.id);
         if (pre) {
           pre.opener = null;
@@ -692,6 +648,15 @@ export default function ApplyWithWonderPage({
             }}
           />
         </>
+      ) : helperInstalled === false && backgroundReady && chosenMethod === "helper" && !(s && inSession && s.mode === "guided") ? (
+        // No extension: Wonder fills the form in the background and asks here; the page itself is never shown.
+        <Card className="mx-auto flex max-w-xl flex-col gap-3">
+          {duplicateCard}
+          <BackgroundApply jobId={job.id} />
+          <button type="button" className="self-start text-[13px] font-medium text-brand-600 hover:underline" onClick={() => { setMethod("guided"); setMethodTouched(true); }}>
+            Guide me instead
+          </button>
+        </Card>
       ) : s &&
         inSession &&
         (s.status === "SUBMITTED" || s.status === "TRACKED") ? (
@@ -777,48 +742,11 @@ export default function ApplyWithWonderPage({
           />
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="flex min-w-0 flex-col gap-5">
-              {!guided && useCloud && cloud && (
-                <CloudBrowser
-                  stream={cloud}
-                  fillable={view.progress.fillable}
-                  fillDecision={view.decisions ? effectiveFill(view.decisions.fill, s.mode) : undefined}
-                  busy={cloudBusy}
-                  onFill={() => {
-                    setCloudBusy(true);
-                    jobsApplyApi.cloud
-                      .fill(s.id)
-                      .catch((e) => toast.error("Couldn't fill", e instanceof Error ? e.message : undefined))
-                      .finally(() => setCloudBusy(false));
-                  }}
-                  onEnd={() => {
-                    setCloudClosed(true);
-                    setCloudFor(null);
-                    jobsApplyApi.cloud.end(s.id).catch(() => undefined);
-                  }}
-                  onReconnect={() => startCloud(s.id)}
-                />
-              )}
-              {!guided && useCloud && !cloud && !cloudError && !cloudClosed && (
-                <p role="status" className="flex items-center gap-2 rounded-[12px] bg-surface-2 px-3 py-2 text-[13px] text-ink-2">
-                  <Loader2 className="size-4 animate-spin text-brand-600" aria-hidden /> Opening the employer&apos;s page in the cloud browser…
-                </p>
-              )}
-              {!guided && useCloud && !cloud && (cloudError || cloudClosed) && (
-                <p role={cloudError ? "alert" : undefined} className="flex flex-wrap items-center gap-2 rounded-[12px] bg-surface-2 px-3 py-2 text-[13px] text-ink-2">
-                  {cloudError ?? "The cloud browser is closed."}
-                  <Button size="sm" variant="outline" onClick={() => void startCloud(s.id)}>
-                    {cloudError ? "Try again" : "Open the cloud browser"}
-                  </Button>
-                </p>
-              )}
               {!guided && (
                 <SessionProgress
                   session={s}
                   progress={view.progress}
-                  cloud={useCloud && !!cloud}
-                  helperConnected={
-                    useCloud ? !!cloud : helperInstalled === false ? false : helperConnected
-                  }
+                  helperConnected={helperInstalled === false ? false : helperConnected}
                   fillDecision={
                     view.decisions
                       ? effectiveFill(view.decisions.fill, s.mode)
@@ -869,7 +797,7 @@ export default function ApplyWithWonderPage({
               {!guided && (
                 <FilledSummary session={s} progress={view.progress} />
               )}
-              {helperInstalled === false && !guided && cloudAvailable !== true && (
+              {helperInstalled === false && !guided && (
                 <p className="text-[12px] text-ink-2">
                   The browser helper isn&apos;t installed.{" "}
                   <Link href="/extension" className="font-medium text-brand-600 hover:underline">
@@ -1003,7 +931,7 @@ export default function ApplyWithWonderPage({
             fillPolicy={fillPolicy}
             handoffPolicy={handoffPolicy}
             helperInstalled={helperInstalled}
-            cloudAvailable={cloudAvailable === true}
+            cloudAvailable={backgroundReady}
             busy={busy}
             blockedReason={
               shownDuplicate

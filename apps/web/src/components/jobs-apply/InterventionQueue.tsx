@@ -25,7 +25,7 @@ const CATEGORY: Partial<Record<InterventionItem["category"], string>> = {
  * `headless` (Apply for this job, WJ-311): nobody sees the employer's form, so every answer is given here —
  * with the form's own choices when it has them — and "answer on the form" points to finishing that one step.
  */
-export function InterventionQueue({ session, onResolve, onDraft, onRemember, busyId, headless = false, finishHref }: { session: PublicSession; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busyId?: string | null; headless?: boolean; finishHref?: string }) {
+export function InterventionQueue({ session, onResolve, onDraft, onRemember, busyId, headless = false, onFinish }: { session: PublicSession; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busyId?: string | null; headless?: boolean; onFinish?: () => void }) {
   const open = session.interventions.filter((i) => i.status === "open");
   const done = session.interventions.filter((i) => i.status !== "open");
   if (!session.interventions.length) return null;
@@ -37,7 +37,7 @@ export function InterventionQueue({ session, onResolve, onDraft, onRemember, bus
       <p className="mt-1 text-[13px] text-ink-3">{open.length ? (headless ? "Wonder needs these to finish the form. Your answers go only into this application." : "The application is asking for things only you can provide. Answer here, or directly on the employer's form.") : "Everything that needed you is handled."}</p>
       <ol className="mt-4 flex flex-col gap-3">
         {open.map((item, i) => (
-          <InterventionCard key={item.id} n={i + 1} item={item} field={session.formFields.find((f) => f.id === item.fieldId)} memoryKey={memoryKeyOf(session, item)} onResolve={onResolve} onDraft={onDraft} onRemember={onRemember} busy={busyId === item.id} headless={headless} finishHref={finishHref} />
+          <InterventionCard key={item.id} n={i + 1} item={item} field={session.formFields.find((f) => f.id === item.fieldId)} memoryKey={memoryKeyOf(session, item)} onResolve={onResolve} onDraft={onDraft} onRemember={onRemember} busy={busyId === item.id} headless={headless} onFinish={onFinish} />
         ))}
       </ol>
       {done.length > 0 && (
@@ -72,7 +72,7 @@ function choicesOf(field?: ApplicationField): string[] | null {
 
 const INPUT_TYPE: Partial<Record<ApplicationField["type"], string>> = { date: "date", number: "number", email: "email", url: "url", phone: "tel" };
 
-function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRemember, busy, headless, finishHref }: { n: number; item: InterventionItem; field?: ApplicationField; memoryKey?: MemoryKey; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busy: boolean; headless: boolean; finishHref?: string }) {
+function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRemember, busy, headless, onFinish }: { n: number; item: InterventionItem; field?: ApplicationField; memoryKey?: MemoryKey; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busy: boolean; headless: boolean; onFinish?: () => void }) {
   const [value, setValue] = useState(item.suggestion?.value ?? "");
   const [aiText, setAiText] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
@@ -124,8 +124,8 @@ function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRem
             .
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {finishHref && (
-              <Button size="sm" variant="outline" href={finishHref}>
+            {onFinish && (
+              <Button size="sm" variant="outline" onClick={onFinish}>
                 Answer it on the employer&apos;s page
               </Button>
             )}

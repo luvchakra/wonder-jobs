@@ -132,7 +132,7 @@ export function Preflight(props: {
                     ))}
                   </ul>
                   {m.key === "helper" && props.helperInstalled === false && !props.cloudAvailable && <span className="mt-1 text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
-                  {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 text-[12px] text-ink-3">Opens the employer&apos;s page in a cloud browser, right here</span>}
+                  {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 text-[12px] text-ink-3">Wonder fills it in the background and asks you here</span>}
                   {disabled && <span className="mt-1 text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   <span className={cn("absolute bottom-3 right-3", selected ? "text-brand-600" : "text-ink-4")}>{selected ? <CheckCircle2 className="size-5" aria-hidden /> : <Circle className="size-5" aria-hidden />}</span>
                 </button>

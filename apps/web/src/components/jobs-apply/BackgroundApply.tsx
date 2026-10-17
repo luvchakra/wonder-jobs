@@ -25,7 +25,8 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
   const dna = useCareerStore((s) => s.dna);
   const rememberAnswer = useCareerStore((s) => s.rememberAnswer);
   const ai = useAIService();
-  const finishHref = `/app/jobs/${jobId}/apply`;
+  // Where the candidate finishes what Wonder can't: the employer's own page, in their own browser.
+  const finish = () => s && window.open(s.destination.url, "_blank", "noopener,noreferrer");
   const s = view?.session;
 
   // The form never appeared (a sign-in first, or a job description instead of a form): say so after a while.
@@ -139,8 +140,8 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
         <div role="alert" className="flex flex-col gap-2 rounded-[12px] bg-warning-100/50 px-3 py-2 text-[13px] text-ink-2">
           <p>{blockedReason}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" href={finishHref}>
-              Finish on {company}&apos;s page
+            <Button size="sm" variant="outline" onClick={finish}>
+              Open {company}&apos;s page
             </Button>
             <Button size="sm" variant="ghost" onClick={() => void cancel()}>
               Cancel
@@ -174,7 +175,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       )}
 
       {s && (phase === "needs_you" || s.interventions.some((i) => i.status === "open")) && phase !== "submitted" && (
-        <InterventionQueue session={s} onResolve={resolve} onDraft={draft} onRemember={rememberAnswer} busyId={busyId} headless finishHref={finishHref} />
+        <InterventionQueue session={s} onResolve={resolve} onDraft={draft} onRemember={rememberAnswer} busyId={busyId} headless onFinish={finish} />
       )}
     </div>
   );
