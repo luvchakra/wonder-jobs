@@ -83,13 +83,14 @@ export class CloudSession {
   /** Open the listing's Apply link, tell WonderJobs where it led, then let the helper start on that page. */
   private async followListingLink(): Promise<void> {
     try {
-      const landed = (await followListing(this.page).catch(() => null)) ?? this.page.url();
+      const followed = await followListing(this.page).catch((e: unknown) => ({ url: null, note: `follow failed: ${e instanceof Error ? e.message.slice(0, 120) : "error"}` }));
+      const landed = followed.url ?? this.page.url();
       try {
         this.domains.add(new URL(landed).hostname.toLowerCase());
       } catch {
         /* about:blank */
       }
-      await jobsApplyCall(this.config.appOrigin, this.init.helperToken, "/api/jobs-apply/extension/events", "POST", { events: [{ type: "LISTING_FOLLOWED", url: landed }] });
+      await jobsApplyCall(this.config.appOrigin, this.init.helperToken, "/api/jobs-apply/extension/events", "POST", { events: [{ type: "LISTING_FOLLOWED", url: landed, ...(followed.note ? { note: followed.note } : {}) }] });
     } finally {
       this.following = false;
       await this.deliver({ type: "jobsApplyPaired", sessionId: this.init.sessionId });

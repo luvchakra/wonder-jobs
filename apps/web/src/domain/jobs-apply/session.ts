@@ -312,12 +312,12 @@ export function recordNavigation(s: JobsApplySession, url: string, now: string, 
  * employer's page becomes the destination, once per application. What was read on the listing (its search and
  * alert forms) is dropped; nothing there was ever the application.
  */
-export function followListing(s: JobsApplySession, url: string, now: string): JobsApplySession {
+export function followListing(s: JobsApplySession, url: string, now: string, note?: string): JobsApplySession {
   assertActive(s);
   if (s.destination.type !== "aggregator" || s.listingFollowed) return s;
   const next = followedDestination(s.destination, url);
   // No Apply link, or it led back to a job board: the candidate finishes on the listing (the page says so).
-  if (!next) return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", `${s.destination.domain}'s Apply link didn't lead to the employer's site`, hostOf(url) ?? undefined);
+  if (!next) return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", `${s.destination.domain}'s Apply link didn't lead to the employer's site${note ? ` (${note.slice(0, 160)})` : ""}`, hostOf(url) ?? undefined);
   const n: JobsApplySession = { ...s, destination: next, listingFollowed: { at: now, from: s.destination.domain, to: next.domain }, form: undefined, formFields: [], fieldMappings: [], interventions: s.interventions.filter((i) => i.status !== "open"), failure: undefined, finalStep: undefined };
   return audit(n, now, "LISTING_FOLLOWED", "wonder", `Followed ${s.destination.domain}'s Apply link to ${next.domain}`, next.domain);
 }

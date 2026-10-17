@@ -106,7 +106,7 @@ export const HelperEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("RESUME") }).strict(),
   z.object({ type: z.literal("APPROVE_DOMAIN"), host: str(253) }).strict(),
   /** The cloud browser followed a job board listing's own Apply link; where it landed (WJ-315). */
-  z.object({ type: z.literal("LISTING_FOLLOWED"), url: str(2000).url() }).strict(),
+  z.object({ type: z.literal("LISTING_FOLLOWED"), url: str(2000).url(), note: str(200).optional() }).strict(),
 ]);
 
 export const EventsSchema = z.object({ events: z.array(HelperEventSchema).min(1).max(20) }).strict();
