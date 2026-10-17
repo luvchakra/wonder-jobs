@@ -49,7 +49,7 @@ describe("job origins", () => {
   });
 
   it("leaves links that aren't a board's untouched", async () => {
-    const store = { get: vi.fn(), put: vi.fn(), markClosed: vi.fn() };
+    const store = { get: vi.fn(), put: vi.fn(), markClosed: vi.fn(), noteCheck: vi.fn() };
     const check = vi.fn(async (): Promise<FollowedLinkCheck> => ({ status: "closed", reason: "gone", finalUrl: "https://acme.com/jobs/1" }));
     const r = await checkLinksWithOrigins(["https://acme.com/jobs/1"], { store, check });
     expect(r["https://acme.com/jobs/1"]).toEqual({ status: "closed", reason: "gone" });
@@ -88,6 +88,7 @@ describe("job origins", () => {
     const r = await checkLinksWithOrigins([DETAILS], { store, check });
     expect(r[DETAILS]).toEqual({ status: "closed", reason: "the posting's page says “Job not found”", origin: "jobspire.in" });
     expect(check).toHaveBeenCalledWith(LAND);
+    expect(store.notes.get("adzuna:5905435731")).toBe("listing open (no answer) · apply link → jobspire.in closed (no answer)");
     expect(await closedRefs(["adzuna:5905435731", "adzuna:1"], store)).toEqual(new Set(["adzuna:5905435731"]));
 
     // The next candidate is told without another request.
@@ -102,6 +103,7 @@ describe("job origins", () => {
     const check = vi.fn(async (url: string): Promise<FollowedLinkCheck> => (url === DETAILS ? { status: "open", finalUrl: DETAILS, applyHref: "https://www.adzuna.in/land/ad/777777" } : { status: "unknown" }));
     expect((await checkLinksWithOrigins([DETAILS], { store, check }))[DETAILS]).toEqual({ status: "open" });
     expect((await closedRefs(["adzuna:777777"], store)).size).toBe(0);
+    expect(store.notes.get("adzuna:777777")).toBe("listing open (no answer) · apply link → stayed on the board unknown (no answer)");
   });
 
   it("reads exactly one Apply link off an Adzuna listing, and none elsewhere", () => {

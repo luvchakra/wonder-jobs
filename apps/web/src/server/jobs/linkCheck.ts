@@ -51,7 +51,7 @@ export function classifyLink(r: { status: number; text: string }): LinkCheck {
 
 const TTL: Record<LinkStatus, number> = { open: 6 * 3_600_000, closed: 24 * 3_600_000, unknown: 30 * 60_000 };
 /** A check plus where the link finally landed (after redirects), when it could be followed. Server-side only. */
-export type FollowedLinkCheck = LinkCheck & { finalUrl?: string; /** On a job board's own listing: its one Apply link, which forwards to where the posting lives. */ applyHref?: string };
+export type FollowedLinkCheck = LinkCheck & { finalUrl?: string; /** On a job board's own listing: its one Apply link, which forwards to where the posting lives. */ applyHref?: string; /** The HTTP status the page answered with (absent when nothing answered). */ httpStatus?: number };
 
 const BOARD_PAGE = /(^|\.)adzuna\.[a-z.]+$/i;
 /** The Apply link on an Adzuna listing ("/land/ad/…"), absolute; only when the page has exactly one such address. */
@@ -82,7 +82,7 @@ export async function checkJobLink(url: string, now = Date.now()): Promise<Follo
   let check: FollowedLinkCheck;
   try {
     const r = await safeFetch(url, { timeoutMs: 7_000, maxBytes: 600_000, maxRedirects: 5, headers: { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml" } });
-    check = { ...classifyLink(r), finalUrl: r.finalUrl, applyHref: boardApplyHref(r.text, r.finalUrl) };
+    check = { ...classifyLink(r), finalUrl: r.finalUrl, applyHref: boardApplyHref(r.text, r.finalUrl), httpStatus: r.status };
   } catch {
     check = { status: "unknown" }; // unreachable or blocked destination: say nothing rather than guess
   }

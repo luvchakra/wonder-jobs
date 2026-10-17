@@ -55,6 +55,8 @@ export interface JobOriginStore {
   put(ref: string, origin: Pick<JobOrigin, "host" | "finalUrl">): Promise<void>;
   /** The posting was found closed (a definite answer from its own page): recorded for everyone. */
   markClosed(ref: string, reason: string): Promise<void>;
+  /** What the last check saw, in a few words — so whether a board's Apply link can be followed is visible without server logs. */
+  noteCheck(ref: string, note: string): Promise<void>;
 }
 
 /** The refs among these that are recorded closed — what a search leaves out. */
@@ -78,6 +80,10 @@ export class MemoryJobOriginStore implements JobOriginStore {
   async markClosed(ref: string, reason: string) {
     const prev = this.rows.get(ref) ?? { host: null, finalUrl: null, resolvedAt: new Date().toISOString() };
     this.rows.set(ref, { ...prev, closedAt: new Date().toISOString(), closedReason: reason });
+  }
+  notes = new Map<string, string>();
+  async noteCheck(ref: string, note: string) {
+    this.notes.set(ref, note);
   }
 }
 
@@ -107,6 +113,11 @@ export class SupabaseJobOriginStore implements JobOriginStore {
     const at = new Date().toISOString();
     const { error } = await this.sb.from("job_origins").upsert({ source_ref: ref, closed_at: at, closed_reason: reason, resolved_at: at }, { onConflict: "source_ref" });
     if (error) console.warn("[job-origins] close failed:", error.message);
+  }
+  async noteCheck(ref: string, note: string) {
+    // Only a row that exists is annotated (update, not upsert): a note never creates a posting's record.
+    const { error } = await this.sb.from("job_origins").update({ checked_at: new Date().toISOString(), check_note: note.slice(0, 300) }).eq("source_ref", ref);
+    if (error) console.warn("[job-origins] note failed:", error.message);
   }
 }
 
@@ -147,8 +158,10 @@ export async function checkLinksWithOrigins(urls: string[], deps: { store?: JobO
       const r = await check(k.finalUrl);
       return closed({ status: r.status, reason: r.reason, origin: k.host });
     }
-    const { finalUrl, applyHref, ...listing } = await check(url);
+    const { finalUrl, applyHref, httpStatus, ...listing } = await check(url);
     if (!ref) return listing;
+    const said = (c: { status: string; httpStatus?: number }) => `${c.status}${c.httpStatus ? ` (${c.httpStatus})` : " (no answer)"}`;
+    let note = `listing ${said({ status: listing.status, httpStatus })}${applyHref ? "" : " · no apply link read"}`;
     let r: LinkCheck = listing;
     let host = originHost(finalUrl);
     let landed = finalUrl;
@@ -157,6 +170,7 @@ export async function checkLinksWithOrigins(urls: string[], deps: { store?: JobO
     if (!host && applyHref && listing.status === "open") {
       const there = await check(applyHref);
       const toHost = originHost(there.finalUrl);
+      note += ` · apply link → ${toHost ?? "stayed on the board"} ${said(there)}`;
       if (toHost) {
         host = toHost;
         landed = there.finalUrl;
@@ -168,6 +182,7 @@ export async function checkLinksWithOrigins(urls: string[], deps: { store?: JobO
     if (host) await db.put(ref, { host, finalUrl: landed ?? null });
     else if (finalUrl && r.status !== "unknown" && stale) await db.put(ref, { host: null, finalUrl });
     console.info(`[job-origins] ${ref} → ${host ?? k?.host ?? "stayed on the board / unknown"}${applyHref && !host ? " (apply link not followed)" : ""} · ${r.status}`);
+    await db.noteCheck(ref, note);
     const origin = host ?? k?.host ?? undefined;
     return closed(origin ? { ...r, origin } : r);
   };
