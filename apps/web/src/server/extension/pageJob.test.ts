@@ -133,3 +133,23 @@ describe("routes: token, validation and tenant isolation", () => {
     expect(other.application).toBeNull();
   });
 });
+
+describe("the side panel's company logo", () => {
+  it("comes from JobsLake's directory for a company it recorded, and is absent otherwise", async () => {
+    const { __MemoryCompanies, __setCompanyStore } = await import("@/server/jobslake/companies");
+    const store = new __MemoryCompanies();
+    __setCompanyStore(store);
+    try {
+      const before = await readPageJob("t-pj-logo", page(), now);
+      expect(before.logo).toBeUndefined();
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, ...new Array(300).fill(1)]).toString("base64");
+      const company = page().company;
+      await store.upsert([{ domain: "acme-identity.com", name: company, nameKey: (await import("@/domain/jobslake/companies")).companyKey(company), sources: ["greenhouse"], firstSeenAt: "2026-10-01T00:00:00Z", lastSeenAt: "2026-10-01T00:00:00Z" }]);
+      await store.setLogo("acme-identity.com", { data: png, type: "image/png", from: "acme-identity.com" }, new Date(now).toISOString());
+      const after = await readPageJob("t-pj-logo", page(), Date.now());
+      expect(after.logo).toBe(`data:image/png;base64,${png}`);
+    } finally {
+      __setCompanyStore(undefined);
+    }
+  });
+});

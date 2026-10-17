@@ -15,7 +15,7 @@ function show(connected, profile, origin) {
   $("disconnect").hidden = !connected;
   if (connected) {
     $("status").textContent = `Connected to ${new URL(origin).host}`;
-    $("name").textContent = profile?.fullName || "Not set in Career DNA";
+    $("name").textContent = profile?.fullName || "Not set in Career Profile";
     $("email").textContent = profile?.email || "Not available";
   } else {
     $("status").textContent = "Not connected";
@@ -118,6 +118,11 @@ function render(v) {
   $("job").hidden = false;
   setText("job-from", `Read from ${v.readFrom}`);
   setText("job-title", v.title);
+  // The company's logo from JobsLake when it has one; nothing is shown otherwise.
+  const logo = $("job-logo");
+  logo.hidden = !v.logo;
+  if (v.logo && v.logo.startsWith("data:image/")) logo.src = v.logo;
+  else logo.removeAttribute("src");
   setText("job-sub", [v.company, v.location].filter(Boolean).join(" · "));
   const fit = $("job-fit");
   fit.replaceChildren();
@@ -128,7 +133,7 @@ function render(v) {
     fit.append(score, document.createTextNode(v.match.fitLabel));
   } else {
     const link = document.createElement("a");
-    link.href = `${appOrigin}/app/profile`;
+    link.href = `${appOrigin}/app/career-dna`;
     link.target = "_blank";
     link.rel = "noreferrer";
     link.textContent = "Add your role and skills to your profile";

@@ -861,7 +861,7 @@
         }
         ${state.notice ? `<p class="muted">${esc(state.notice)}</p>` : ""}
         ${fillable && !v.stopped && v.fill !== "skip" && !v.failure ? `<div class="row"><button class="pill" id="fill" ${state.busy ? "disabled" : ""}>${state.busy ? "Filling…" : `Fill ${fillable} field${fillable === 1 ? "" : "s"}`}</button></div>` : ""}
-        ${v.fill === "skip" ? `<p class="muted">Filling forms is off in What Wonder can do — use guided mode in WonderJobs.</p>` : ""}
+        ${v.fill === "skip" ? `<p class="muted">Filling forms is off in Automation — use Guide me in WonderJobs.</p>` : ""}
         ${needs.length ? `<h3>Needs you</h3><ul>${needs.map((m) => `<li><button data-field="${esc(m.fieldId)}">${esc(m.label || "Unlabelled field")}</button>${m.classification === "human-only" ? ' <span class="muted">— only you can answer</span>' : ""}</li>`).join("")}</ul><p class="muted">Answer here on the form, or in WonderJobs.</p>` : ""}
         ${v.resume ? `<h3>Résumé</h3><div>${esc(v.resume.filename)}</div>` : ""}
         ${detected ? `<div class="box" style="background:#dcfce7"><strong>Looks like it went through.</strong><div>Confirm in WonderJobs that you submitted it.</div></div>` : ""}

@@ -8,6 +8,7 @@ import { jobIdFromAtsUrl } from "@/services/jobs/atsUrl";
 import { canonicalKey, computeMatch } from "@/services/jobs/matching";
 import { normalizePosting } from "@/services/jobs/normalize";
 import { readClientState, writeClientState } from "@/server/clientState";
+import { companyLogo } from "@/server/jobslake/companies";
 
 /**
  * A job the candidate is looking at in their own browser, read by the helper's side panel
@@ -102,6 +103,14 @@ export interface PageJobView {
   needsProfile: boolean;
   /** The candidate's application for this job, when there is one. */
   application: { id: string; status: ApplicationStatus; statusLabel: string; since: string } | null;
+  /** The company's logo from JobsLake's directory (a data: URL), when it has one; the panel shows the initial otherwise. */
+  logo?: string;
+}
+
+/** The company's logo from JobsLake — only for a company it recorded from a real posting; never looked up by guessing. */
+async function logoOf(job: CanonicalJob): Promise<string | undefined> {
+  const l = await companyLogo({ domain: job.companyDomain, name: job.company }).catch(() => undefined);
+  return l ? `data:${l.type};base64,${l.data.toString("base64")}` : undefined;
 }
 
 /** An application for this job: by id, else by the same posting address (a job found by a search and then opened in the browser). */
@@ -150,7 +159,8 @@ export async function readPageJob(tenantId: string, page: PageJob, now = Date.no
   const { dna, jobs, apps } = await load(tenantId);
   const job = jobFromPage(page, now);
   const match = canMatch(dna) ? computeMatch(job, { dna }, now) : null;
-  return view(job, page, match, findApplication(apps, jobs, job));
+  const logo = await logoOf(job);
+  return { ...view(job, page, match, findApplication(apps, jobs, job)), ...(logo ? { logo } : {}) };
 }
 
 /**
