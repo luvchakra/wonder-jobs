@@ -109,11 +109,20 @@ describe("applyJobFilters", () => {
   });
 
   it("counts a job hidden by freshness", () => {
-    const jobs = { a: job("a", { postedAt: new Date(NOW - DAYms(30)).toISOString() }) };
+    const jobs = { a: job("a", { postedAt: new Date(NOW - DAYms(10)).toISOString() }) };
     const matches = { a: match("a") };
     const filters: JobFilters = { ...DEFAULT_FILTERS, freshnessDays: 7 };
     const r = applyJobFilters(["a"], jobs, matches, {}, {}, filters, NOW);
     expect(r.hiddenByReason).toEqual({ freshness: 1 });
+  });
+
+  it("hides postings older than two weeks as too old, unless saved or asked for", () => {
+    const jobs = { a: job("a", { postedAt: new Date(NOW - DAYms(15)).toISOString() }), b: job("b", { postedAt: new Date(NOW - DAYms(13)).toISOString() }), c: job("c", { postedAt: new Date(NOW - DAYms(40)).toISOString() }) };
+    const matches = { a: match("a"), b: match("b"), c: match("c") };
+    const r = applyJobFilters(["a", "b", "c"], jobs, matches, {}, { c: new Date(NOW).toISOString() }, DEFAULT_FILTERS, NOW);
+    expect(r.visibleIds).toEqual(["b", "c"]); // c is saved
+    expect(r.hiddenByReason).toEqual({ too_old: 1 });
+    expect(applyJobFilters(["a"], jobs, matches, {}, {}, { ...DEFAULT_FILTERS, includeOld: true }, NOW).visibleIds).toEqual(["a"]);
   });
 
   it("counts a job hidden by minimum salary, converting non-INR to INR the same way the page does", () => {

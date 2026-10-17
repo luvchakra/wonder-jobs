@@ -87,7 +87,7 @@ export function getUniverse(): Universe {
     const currency = loc.country === "IN" ? "INR" : loc.country === "GB" ? "GBP" : "USD";
     const skillPool = SKILLS[t.track];
     const skills = base.skills ?? rand.sample(skillPool, Math.min(skillPool.length, rand.int(4, 7)));
-    const posted = base.postedAt ?? new Date(now - rand.int(0, 45) * DAY - rand.int(0, 23) * 3_600_000).toISOString();
+    const posted = base.postedAt ?? new Date(now - rand.int(0, 13) * DAY - rand.int(0, 23) * 3_600_000).toISOString();
     const onEmployerSite = base.onEmployerSite ?? rand.chance(0.7);
     const applyPath = onEmployerSite ? "employer_site" : rand.chance(0.8) ? "platform" : rand.chance(0.5) ? "email" : "unknown";
     const reqs = REQ_BY_TRACK[t.track];

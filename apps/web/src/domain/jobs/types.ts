@@ -161,6 +161,8 @@ export interface JobFilters {
   strictProfile?: boolean;
   /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
   hideInPipeline?: boolean;
+  /** Show postings older than two weeks too (they're hidden as "too old" otherwise; saved ones always show). */
+  includeOld?: boolean;
   sourceIds: string[];
   minFit: FitLabel | null;
   /** Only jobs whose fit is exactly minFit (a count on Insights opens the jobs it counted). */

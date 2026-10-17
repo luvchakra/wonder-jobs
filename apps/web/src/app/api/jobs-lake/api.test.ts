@@ -32,9 +32,13 @@ import { POST as detect } from "./admin/detect/route";
 import { POST as playground } from "./admin/playground/route";
 import { GET as overview } from "./admin/overview/route";
 
+// Recent, fixed once per run: postings older than two weeks are left out of every search (domain/jobs/age.ts).
+const RECENT_POSTED = new Date(Date.now() - 2 * 86_400_000).toISOString();
+const RECENT_OBSERVED = new Date(Date.now() - 86_400_000).toISOString();
+
 const LONG = "We are hiring an experienced leader to build our identity platform. You will own strategy, roadmap and delivery across teams, partner with security engineering, and grow a world class organization serving millions of customers every single day.";
 function job(over: Partial<Job> = {}): Job {
-  return { id: "careers_1", sourceId: "careers", externalId: "gh:acme:1", title: "Senior Director, Identity Security", company: "Acme", location: "Bengaluru, India", country: "IN", workMode: "hybrid", currency: "INR", postedAt: "2026-09-22T00:00:00Z", observedAt: "2026-09-24T00:00:00Z", description: LONG, requirements: [], niceToHave: [], skills: [], seniority: "director", industry: "Technology", applyUrl: "https://boards.greenhouse.io/acme/jobs/1", applyPath: "employer_site", onEmployerSite: true, repostCount: 0, tags: [], ...over };
+  return { id: "careers_1", sourceId: "careers", externalId: "gh:acme:1", title: "Senior Director, Identity Security", company: "Acme", location: "Bengaluru, India", country: "IN", workMode: "hybrid", currency: "INR", postedAt: RECENT_POSTED, observedAt: RECENT_OBSERVED, description: LONG, requirements: [], niceToHave: [], skills: [], seniority: "director", industry: "Technology", applyUrl: "https://boards.greenhouse.io/acme/jobs/1", applyPath: "employer_site", onEmployerSite: true, repostCount: 0, tags: [], ...over };
 }
 
 const ADMIN = "ops@wonderjobs.test";
