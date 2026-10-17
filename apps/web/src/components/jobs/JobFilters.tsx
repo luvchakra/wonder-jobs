@@ -78,7 +78,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.hideInPipeline ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
@@ -205,6 +205,10 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               </Link>
             </span>
           </label>
+          <label className="-mt-2 flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+            <span>Hide jobs already in your Pipeline</span>
+          </label>
           {/* One action for everything above: search every source with these words and places, then show the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
             {sourceSearch && (
@@ -241,7 +245,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"

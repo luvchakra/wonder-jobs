@@ -13,7 +13,7 @@ import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
 import { relevance } from "@/services/jobs/relevance";
 import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
 
-export type FilterReason = "rejected" | "not_saved" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "company" | "location" | "profile" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
@@ -28,6 +28,7 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   company: "a different company",
   location: "outside the places you picked",
   profile: "outside your Career Profile",
+  in_pipeline: "already in your Pipeline",
   search_text: "doesn't match your search text",
 };
 
@@ -58,7 +59,7 @@ export function inProfileField(job: Pick<CanonicalJob, "title" | "skills" | "tag
   return field.some((w) => hasTermOrSynonym(text, w));
 }
 
-function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, query: string, now: number, rel?: (score: number) => void, field: string[] = []): FilterReason | null {
+function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejected: string | undefined, isSaved: boolean, filters: JobFilters, query: string, now: number, rel?: (score: number) => void, field: string[] = [], inPipeline = false): FilterReason | null {
   if (rejected) return "rejected";
   if (filters.onlySaved && !isSaved) return "not_saved";
   if (filters.workModes.length && !filters.workModes.includes(job.workMode)) return "work_mode";
@@ -71,6 +72,7 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
   if (filters.company?.trim() && !job.company.toLowerCase().includes(filters.company.trim().toLowerCase())) return "company";
   if (filters.locations?.length && !inPlaces(job, filters.locations)) return "location";
   if (filters.strictProfile && !inProfileField(job, field)) return "profile";
+  if (filters.hideInPipeline && inPipeline) return "in_pipeline";
   if (query) {
     // Every role or field word somewhere in the posting, as any form of it ("psychology" ↔ "Psychologist").
     const r = relevance(job, query);
@@ -90,6 +92,8 @@ export function applyJobFilters(
   now: number,
   /** The candidate's field words (`fieldTerms`), for "Search strictly within your Career Profile". */
   field: string[] = [],
+  /** Jobs with an application past Saved, for "Hide jobs already in your Pipeline". */
+  inPipeline: ReadonlySet<string> = new Set(),
 ): FilterResult {
   const query = filters.query.trim();
   const visibleIds: string[] = [];
@@ -101,7 +105,7 @@ export function applyJobFilters(
     const j = jobs[id];
     if (!j) continue; // not a catalog gap the candidate can act on — the id is simply stale
     totalCatalog++;
-    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r), field);
+    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r), field, inPipeline.has(id));
     if (reason) hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
     else visibleIds.push(id);
   }
@@ -146,5 +150,6 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   company: { showAnyway: { company: "" }, preference: { label: "Change filters", href: "/app/jobs" } },
   location: { showAnyway: { locations: [] }, preference: { label: "Change your places", href: "/app/career-dna" } },
   profile: { showAnyway: { strictProfile: false }, preference: { label: "Edit your Career Profile", href: "/app/career-dna" } },
+  in_pipeline: { showAnyway: { hideInPipeline: false }, preference: { label: "Open your Pipeline", href: "/app/applications" } },
   search_text: { showAnyway: { query: "" }, preference: { label: "Change the search", href: "/app/jobs" } },
 };

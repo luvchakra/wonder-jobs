@@ -45,8 +45,8 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "finding-jobs",
     title: "Finding jobs",
     summary: "The Find screen: the role Wonder searches for, the search box, views and Refine.",
-    keywords: ["find", "search", "search box", "mic", "microphone", "dictate", "say", "speak", "voice", "refine", "location", "level", "work mode", "posted", "sort", "search as", "role you want", "looking for", "change", "strictly", "career profile search", "views", "for you", "strong", "all", "nothing found", "no results", "widen", "zero results", "stale", "searched", "sources", "closed", "posting closed", "refresh", "search again", "type", "typing", "press search"],
-    updated: "2026-10-16",
+    keywords: ["find", "search", "search box", "mic", "microphone", "dictate", "say", "speak", "voice", "refine", "location", "level", "work mode", "posted", "sort", "search as", "role you want", "looking for", "change", "strictly", "career profile search", "views", "for you", "strong", "all", "nothing found", "no results", "widen", "zero results", "stale", "searched", "sources", "closed", "posting closed", "refresh", "search again", "type", "typing", "press search", "pipeline", "already applied", "hide applied"],
+    updated: "2026-10-17",
     body: [
       "Find is your ranked list of real postings, and it always says what Wonder is looking for: the top row reads “Looking for”, with Change at its right and your role on the line below. Change edits Role you want in place — one role and its field, never a level alone (“director” needs a field) — and searches for it straight away. Refine has the same Change right beside the role.",
       "Wonder searches on its own when you open Find: the first time, when your Career Profile's search changes, when nothing is left in your list, and when the last search is more than 12 hours old. A search that failed in the last ten minutes isn't retried on its own — its reason is shown instead. A search you typed yourself, or ran as one of your roles, stands until it is that old.",
@@ -59,6 +59,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Search as — if you've added roles in your Career Profile, they're listed here. Tapping a role only picks it; the search runs when you press Search.",
       "- Location (places separated by commas; “Remote” counts), Level, Work mode, Posted, Minimum salary and Sort (best match, newest, salary).",
       "- Search strictly within your Career Profile keeps only jobs whose title, skills, tags or requirements name your field and hides the rest as “outside your Career Profile”.",
+      "- Hide jobs already in your Pipeline (in Refine) takes out jobs you're already preparing, have applied to or are interviewing for; they stay in Pipeline. Jobs you have only saved still show.",
       "- Search runs a search with the words and places set in Refine; Show N jobs just closes it. Compare jobs and Clear refinements are the quiet links at the bottom.",
       "Each card shows the company's logo (or its first letter when Wonder has no logo for it), the designation and level, the salary (Not listed when the employer didn't say), the fit label and “via <source> · posted …”. For board postings it also names the site the job lives on once Wonder has followed the link, for example “naukri.com via Adzuna India”. A card has one action: Save. Tap the card to open the job.",
       "Wonder checks the jobs on screen against their own sites. A posting that has closed leaves your list — the job's page says why, and it stays in Saved if you saved it.",
