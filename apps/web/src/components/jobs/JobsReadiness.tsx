@@ -310,7 +310,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
             {role || "No role yet"}
           </p>
         </div>
-        <Link href="/app/career-dna" className="ml-auto inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
+        <Link href="/app/career-dna?from=find" className="ml-auto inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
           Update Career Profile <ChevronRight className="hidden size-3.5 sm:block" aria-hidden />
         </Link>
       </div>
