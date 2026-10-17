@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
@@ -146,6 +146,10 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Back to the list without changing anything typed here. */}
+          <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-9 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
+            <ArrowLeft className="size-4" aria-hidden /> Back to jobs
+          </button>
           {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Location
