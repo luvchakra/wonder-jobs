@@ -30,6 +30,17 @@ describe("the candidate's analytics", () => {
     expect(r.sources).toEqual([{ name: "Adzuna India", n: 2 }, { name: "Greenhouse", n: 1 }]);
   });
 
+  it("counts only what falls inside the chosen range, and All time reaches the oldest week", async () => {
+    const { weeksSinceFirst } = await import("./report");
+    const apps = [app("old", "saved", "2026-08-01T10:00:00Z"), app("new", "saved", "2026-10-13T10:00:00Z")];
+    const short = analyticsReport({ applications: apps, jobs: {}, matches: {}, saved: { a: "2026-08-02T00:00:00Z", b: "2026-10-14T00:00:00Z" }, runs: [], now, weeks: 4 });
+    expect(short.totals).toMatchObject({ applications: 1, saved: 1 });
+    expect(short.weeks).toHaveLength(4);
+    const all = weeksSinceFirst({ applications: apps, runs: [] }, now);
+    expect(all).toBe(12);
+    expect(analyticsReport({ applications: apps, jobs: {}, matches: {}, saved: {}, runs: [], now, weeks: all }).totals.applications).toBe(2);
+  });
+
   it("says nothing it can't compute", () => {
     const r = analyticsReport({ applications: [], jobs: {}, matches: {}, saved: {}, runs: [], now });
     expect(r.responseRate).toBeNull();
