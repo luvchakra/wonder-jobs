@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Bookmark, Bot, CalendarDays, Database, Dna, FileText, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, ChartNoAxesColumn, Bookmark, Bot, CalendarDays, Database, Dna, FileText, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -55,6 +55,9 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
 export function sectionFor(pathname: string) {
   return SECTION_TABS.find((s) => s.items.some((i) => isActivePath(pathname, i)));
 }
+
+/** Below the four places in the desktop sidebar (and in the account menu on phones): the candidate's own numbers. */
+export const REPORT_NAV: NavItem[] = [{ href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn }];
 
 export const RESOURCES_NAV: NavItem[] = [
   // Signed-in accounts only (WJ-309). Signed-out visitors get sign-in, password reset and Contact us instead.

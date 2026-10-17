@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
-import { PRIMARY_NAV, isActivePath, type NavItem } from "./nav";
+import { PRIMARY_NAV, REPORT_NAV, isActivePath, type NavItem } from "./nav";
 
 function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = isActivePath(pathname, item);
@@ -28,7 +28,7 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
 }
 
 /**
- * Desktop sidebar: the logo and the four places, nothing else. Icons only on tablet widths, icons
+ * Desktop sidebar: the logo, the four places, and Analytics below them. Icons only on tablet widths, icons
  * and labels from 1024px up. Help, account and sign-out are in the avatar menu; each place's own
  * pages are tabs at its top. Below 768px the bottom bar (MobileNav) takes over.
  */
@@ -42,6 +42,11 @@ export function Sidebar() {
       </div>
       <nav aria-label="Primary" className="mt-4 flex flex-col gap-0.5">
         {PRIMARY_NAV.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
+        ))}
+      </nav>
+      <nav aria-label="Reports" className="mt-3 flex flex-col gap-0.5 border-t border-line pt-3">
+        {REPORT_NAV.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
         ))}
       </nav>
