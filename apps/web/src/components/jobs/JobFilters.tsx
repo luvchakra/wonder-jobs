@@ -78,7 +78,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.hideInPipeline ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
@@ -132,15 +132,20 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
         {views &&
           VIEWS.map((v) => (
-            <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="shrink-0">
+            <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="shrink-0 px-3">
               {v.label}
             </Chip>
           ))}
-        <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0" icon={<SlidersHorizontal className="size-3.5" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more}>
-          Refine{activeCount ? ` · ${activeCount}` : ""}
+        {/* Jobs you're already applying to: hidden with one tap, without opening Refine. */}
+        <label className={cn("inline-flex h-10 shrink-0 cursor-pointer select-none items-center gap-2 rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
+          <input type="checkbox" className="size-4 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+          Hide Pipeline
+        </label>
+        <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0 rounded-full px-3" icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${activeCount ? `, ${activeCount} set` : ""}`} title="Refine">
+          {activeCount ? String(activeCount) : null}
         </Button>
         <span className={cn("ml-auto hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
@@ -208,10 +213,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
                 Career Profile
               </Link>
             </span>
-          </label>
-          <label className="-mt-2 flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-            <span>Hide jobs already in your Pipeline</span>
           </label>
           {/* One action for everything above: search every source with these words and places, then show the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
