@@ -320,7 +320,7 @@ export async function helperEvents(ctx: HelperCtx, body: z.infer<typeof EventsSc
           s = S.approveDomain(s, e.host, now);
           break;
         case "LISTING_FOLLOWED":
-          s = S.followListing(s, e.url, now);
+          s = S.followListing(s, e.url, now, e.note);
           break;
       }
     }

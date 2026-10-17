@@ -24,12 +24,25 @@ export function applyLinkOf(page: Page): Promise<string | null> {
   });
 }
 
-/** Open the listing's Apply link; where the page ends up after redirects, or null when there is no such link. */
-export async function followListing(page: Page): Promise<string | null> {
+/** What following the listing gave: where the page ended up, or why it couldn't (shown to the candidate's audit). */
+export interface Followed {
+  url: string | null;
+  note?: string;
+}
+
+/** Open the listing's Apply link; where the page ends up after redirects, or why there was nothing to follow. */
+export async function followListing(page: Page): Promise<Followed> {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-  await page.waitForTimeout(1500);
-  const href = await applyLinkOf(page).catch(() => null);
-  if (!href) return null;
+  // A slow listing (or one still loading in a far region) may not show its Apply link at once: look for up to 10 s.
+  let href: string | null = null;
+  for (let waited = 0; waited <= 10_000 && !href; waited += 500) {
+    await page.waitForTimeout(500);
+    href = await applyLinkOf(page).catch(() => null);
+  }
+  if (!href) {
+    const title = await page.title().catch(() => "");
+    return { url: null, note: `no single Apply link on “${title.slice(0, 80) || "an untitled page"}” at ${page.url().slice(0, 100)}` };
+  }
   await page.goto(href, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
   // Boards often hop through a redirect page or two; settle on where it stays.
   await page.waitForTimeout(3000);
@@ -40,7 +53,7 @@ export async function followListing(page: Page): Promise<string | null> {
     await page.goto(landed, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2000);
   }
-  return page.url();
+  return { url: page.url() };
 }
 
 export function workdayApplyUrl(url: string): string {
