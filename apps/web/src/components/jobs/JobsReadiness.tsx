@@ -289,30 +289,30 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   };
 
   if (!editing) {
-    // One quiet, compact row: what Wonder searches for on the left; changing it, or the profile behind it, on the right.
+    // One compact row: what Wonder searches for, with Change beside its label; the profile behind it on the right.
     return (
       <div className={cn("mb-3 flex items-center gap-3 rounded-[14px] border border-line bg-surface px-3.5 py-2", inline && "sm:max-w-xl", className)}>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Looking for</p>
+          <p className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+            Looking for
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(role);
+                setEditing(true);
+              }}
+              className="rounded-full px-1.5 py-0.5 text-[11.5px] font-semibold normal-case tracking-normal text-brand-600 hover:bg-brand-50"
+            >
+              Change
+            </button>
+          </p>
           <p className={cn("truncate text-[14px] first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
             {role || "No role yet"}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(role);
-              setEditing(true);
-            }}
-            className="inline-flex h-7 items-center rounded-full border border-line px-3 text-[12.5px] font-medium text-brand-600 hover:border-brand-200 hover:bg-brand-50"
-          >
-            Change
-          </button>
-          <Link href="/app/career-dna" className="inline-flex items-center text-[11.5px] font-medium text-ink-3 hover:text-brand-600">
-            Career Profile <ChevronRight className="size-3" aria-hidden />
-          </Link>
-        </div>
+        <Link href="/app/career-dna" className="inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
+          Update Career Profile <ChevronRight className="hidden size-3.5 sm:block" aria-hidden />
+        </Link>
       </div>
     );
   }
