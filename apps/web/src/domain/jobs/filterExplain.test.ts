@@ -75,6 +75,16 @@ describe("applyJobFilters", () => {
     expect(r.hiddenByReason).toEqual({ work_mode: 1 });
   });
 
+  it("hides jobs already in the Pipeline only when asked", () => {
+    const jobs = { a: job("a"), b: job("b") };
+    const matches = { a: match("a"), b: match("b") };
+    const inPipeline = new Set(["a"]);
+    expect(applyJobFilters(["a", "b"], jobs, matches, {}, {}, DEFAULT_FILTERS, NOW, [], inPipeline).visibleIds).toEqual(["a", "b"]);
+    const r = applyJobFilters(["a", "b"], jobs, matches, {}, {}, { ...DEFAULT_FILTERS, hideInPipeline: true }, NOW, [], inPipeline);
+    expect(r.visibleIds).toEqual(["b"]);
+    expect(r.hiddenByReason).toEqual({ in_pipeline: 1 });
+  });
+
   it("counts a job hidden by source", () => {
     const jobs = { a: job("a", { sourceIds: ["adzuna"] }) };
     const matches = { a: match("a") };

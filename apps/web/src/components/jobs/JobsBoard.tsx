@@ -85,7 +85,8 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const headline = useCareerStore((s) => s.dna.headline);
   const goal = useCareerStore((s) => s.dna.careerGoal);
   const field = useMemo(() => fieldTerms(headline, goal), [headline, goal]);
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now, field), [order, jobs, matches, rejected, saved, effective, now, field]);
+  const inPipeline = useMemo(() => new Set([...appByJob.values()].filter((a) => a.status !== "saved").map((a) => a.jobId)), [appByJob]);
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now, field, inPipeline), [order, jobs, matches, rejected, saved, effective, now, field, inPipeline]);
   const results = useMemo(() => {
     const list = [...filterResult.visibleIds];
     list.sort((a, b) => {

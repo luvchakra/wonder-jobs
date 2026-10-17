@@ -159,6 +159,8 @@ export interface JobFilters {
   company?: string;
   /** Only jobs in the candidate's own field — their Career Profile's headline and goal named in the title, skills, tags or requirements. */
   strictProfile?: boolean;
+  /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
+  hideInPipeline?: boolean;
   sourceIds: string[];
   minFit: FitLabel | null;
   /** Only jobs whose fit is exactly minFit (a count on Insights opens the jobs it counted). */
