@@ -39,6 +39,9 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
     return () => clearInterval(t);
   }, [working]);
   const formMissing = !!s && phase === "filling" && formWait(s, now) === "timed_out";
+  // Progress opens by itself once Wonder starts working, so each step shows as it happens; it stays open after.
+  const [showProgress, setShowProgress] = useState(false);
+  if (working && !showProgress) setShowProgress(true);
 
   if (!job) return null;
   const company = job.company;
@@ -157,7 +160,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       )}
 
       {s && phase !== "idle" && phase !== "submitted" && (
-        <Fold title="Progress" hint={progress?.total ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : phase === "blocked" ? "No form found" : "Looking for the form"}>
+        <Fold title="Progress" open={showProgress || undefined} hint={progress?.total ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : phase === "blocked" ? "No form found" : "Looking for the form"}>
           <ol className="flex flex-col gap-1.5 text-[12.5px] text-ink-2" aria-live="polite">
             {steps.map((a, i) => (
               <li key={`${a.at}-${i}`} className="flex gap-2">
