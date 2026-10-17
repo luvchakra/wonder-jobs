@@ -73,3 +73,16 @@ describe("the profile's results set aside under typed words", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("Hide Pipeline", () => {
+  it("is saved with the account and comes back after a reload", () => {
+    useJobsStore.getState().setFilters({ hideInPipeline: true });
+    const opts = useJobsStore.persist.getOptions();
+    const saved = opts.partialize!(useJobsStore.getState()) as { hideInPipeline?: boolean };
+    expect(saved.hideInPipeline).toBe(true);
+    const fresh = { ...useJobsStore.getState(), filters: { ...useJobsStore.getState().filters, hideInPipeline: false } };
+    expect((opts.merge!(saved, fresh) as { filters: { hideInPipeline?: boolean } }).filters.hideInPipeline).toBe(true);
+    useJobsStore.getState().setFilters({ hideInPipeline: false });
+    expect((opts.partialize!(useJobsStore.getState()) as { hideInPipeline?: boolean }).hideInPipeline).toBe(false);
+  });
+});
