@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { boardRef, checkLinksWithOrigins, MemoryJobOriginStore, originHost, SupabaseJobOriginStore } from "./origin";
-import type { FollowedLinkCheck } from "./linkCheck";
+import { boardRef, checkLinksWithOrigins, closedRefs, MemoryJobOriginStore, originHost, SupabaseJobOriginStore } from "./origin";
+import { boardApplyHref, classifyLink, type FollowedLinkCheck } from "./linkCheck";
 
 const AD = "https://www.adzuna.in/land/ad/4398123456?se=abc&utm_medium=api&utm_source=app&v=XYZ";
 const NAUKRI = "https://www.naukri.com/job-listings-iam-architect-acme-mumbai-4398123456";
@@ -49,7 +49,7 @@ describe("job origins", () => {
   });
 
   it("leaves links that aren't a board's untouched", async () => {
-    const store = { get: vi.fn(), put: vi.fn() };
+    const store = { get: vi.fn(), put: vi.fn(), markClosed: vi.fn() };
     const check = vi.fn(async (): Promise<FollowedLinkCheck> => ({ status: "closed", reason: "gone", finalUrl: "https://acme.com/jobs/1" }));
     const r = await checkLinksWithOrigins(["https://acme.com/jobs/1"], { store, check });
     expect(r["https://acme.com/jobs/1"]).toEqual({ status: "closed", reason: "gone" });
@@ -76,5 +76,40 @@ describe("job origins", () => {
     expect(Object.keys(found.args[0] as object).sort()).toEqual(["final_url", "origin_host", "resolved_at", "source_ref"]);
     expect(found.args[1]).toEqual({ onConflict: "source_ref" });
     expect(miss.args[1]).toEqual({ onConflict: "source_ref", ignoreDuplicates: true });
+  });
+  it("follows a listing's one Apply link when the board's page stays up, and records the employer's closed page for everyone", async () => {
+    const DETAILS = "https://www.adzuna.in/details/5905435731";
+    const LAND = "https://www.adzuna.in/land/ad/5905435731?se=x";
+    const EMPLOYER = "https://jobspire.in/job/manager-enterprise-security";
+    const store = new MemoryJobOriginStore();
+    const check = vi.fn(async (url: string): Promise<FollowedLinkCheck> =>
+      url === DETAILS ? { status: "open", finalUrl: DETAILS, applyHref: LAND } : { status: "closed", reason: "the posting's page says “Job not found”", finalUrl: EMPLOYER },
+    );
+    const r = await checkLinksWithOrigins([DETAILS], { store, check });
+    expect(r[DETAILS]).toEqual({ status: "closed", reason: "the posting's page says “Job not found”", origin: "jobspire.in" });
+    expect(check).toHaveBeenCalledWith(LAND);
+    expect(await closedRefs(["adzuna:5905435731", "adzuna:1"], store)).toEqual(new Set(["adzuna:5905435731"]));
+
+    // The next candidate is told without another request.
+    check.mockClear();
+    expect((await checkLinksWithOrigins([DETAILS], { store, check }))[DETAILS].status).toBe("closed");
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it("never marks a posting closed from an unclear answer (blocked Apply link, challenge page)", async () => {
+    const DETAILS = "https://www.adzuna.in/details/777777";
+    const store = new MemoryJobOriginStore();
+    const check = vi.fn(async (url: string): Promise<FollowedLinkCheck> => (url === DETAILS ? { status: "open", finalUrl: DETAILS, applyHref: "https://www.adzuna.in/land/ad/777777" } : { status: "unknown" }));
+    expect((await checkLinksWithOrigins([DETAILS], { store, check }))[DETAILS]).toEqual({ status: "open" });
+    expect((await closedRefs(["adzuna:777777"], store)).size).toBe(0);
+  });
+
+  it("reads exactly one Apply link off an Adzuna listing, and none elsewhere", () => {
+    const page = "https://www.adzuna.in/details/5905435731";
+    expect(boardApplyHref('<a class="btn" href="/land/ad/5905435731?se=a&amp;v=b">Apply for this job</a> <a href="/land/ad/5905435731?se=c">Apply</a>', page)).toBe("https://www.adzuna.in/land/ad/5905435731?se=a&v=b");
+    expect(boardApplyHref('<a href="/land/ad/1">A</a><a href="/land/ad/2">B</a>', page)).toBeUndefined();
+    expect(boardApplyHref('<a href="https://evil.example/land/ad/1">A</a>', page)).toBeUndefined();
+    expect(boardApplyHref('<a href="/land/ad/1">A</a>', "https://acme.com/jobs/1")).toBeUndefined();
+    expect(classifyLink({ status: 200, text: "<h1>Job not found - Manager</h1><p>We apologize, but the job you were looking for could not be found.</p>" }).status).toBe("closed");
   });
 });

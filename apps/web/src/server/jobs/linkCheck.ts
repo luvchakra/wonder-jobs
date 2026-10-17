@@ -24,7 +24,7 @@ const CLOSED_TEXT = [
   /(?:job|posting|position|vacancy|listing) (?:has )?expired/i,
   /(?:job|position|posting|role) (?:you(?:'re| are) looking for )?(?:is )?no longer available/i,
   /this job post is closed/i,
-  /the (?:job|page|position) you(?:'re| are) looking for (?:is no longer|doesn't exist|does not exist|could not be found|can(?:no|')t be found)/i,
+  /the (?:job|page|position) you(?:'re| are| were) looking for (?:is no longer|doesn't exist|does not exist|could not be found|can(?:no|')t be found)/i,
   /\b(?:job|position|posting) not found\b/i,
   /applications? (?:for this (?:job|role|position) )?(?:are|is) (?:now )?closed/i,
 ];
@@ -51,7 +51,28 @@ export function classifyLink(r: { status: number; text: string }): LinkCheck {
 
 const TTL: Record<LinkStatus, number> = { open: 6 * 3_600_000, closed: 24 * 3_600_000, unknown: 30 * 60_000 };
 /** A check plus where the link finally landed (after redirects), when it could be followed. Server-side only. */
-export type FollowedLinkCheck = LinkCheck & { finalUrl?: string };
+export type FollowedLinkCheck = LinkCheck & { finalUrl?: string; /** On a job board's own listing: its one Apply link, which forwards to where the posting lives. */ applyHref?: string };
+
+const BOARD_PAGE = /(^|\.)adzuna\.[a-z.]+$/i;
+/** The Apply link on an Adzuna listing ("/land/ad/…"), absolute; only when the page has exactly one such address. */
+export function boardApplyHref(html: string, pageUrl: string): string | undefined {
+  let base: URL;
+  try {
+    base = new URL(pageUrl);
+  } catch {
+    return undefined;
+  }
+  if (!BOARD_PAGE.test(base.hostname)) return undefined;
+  // Every Apply link must name the same ad; the first one's full address (its query included) is followed.
+  const byPath = new Map<string, string>();
+  for (const m of html.matchAll(/href\s*=\s*["']([^"']*\/land\/ad\/[^"']+)["']/gi)) {
+    try {
+      const u = new URL(m[1].replace(/&amp;/g, "&"), base);
+      if (BOARD_PAGE.test(u.hostname) && !byPath.has(u.pathname)) byPath.set(u.pathname, u.toString());
+    } catch {}
+  }
+  return byPath.size === 1 ? [...byPath.values()][0] : undefined;
+}
 const cache = new Map<string, { check: FollowedLinkCheck; at: number }>();
 const MAX_CACHE = 5_000;
 
@@ -61,7 +82,7 @@ export async function checkJobLink(url: string, now = Date.now()): Promise<Follo
   let check: FollowedLinkCheck;
   try {
     const r = await safeFetch(url, { timeoutMs: 7_000, maxBytes: 600_000, maxRedirects: 5, headers: { "user-agent": BROWSER_UA, accept: "text/html,application/xhtml+xml" } });
-    check = { ...classifyLink(r), finalUrl: r.finalUrl };
+    check = { ...classifyLink(r), finalUrl: r.finalUrl, applyHref: boardApplyHref(r.text, r.finalUrl) };
   } catch {
     check = { status: "unknown" }; // unreachable or blocked destination: say nothing rather than guess
   }

@@ -4,6 +4,7 @@ import { isJobSourceId } from "@/domain/jobs/sources";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { searchSource, SourceNeedsSetupError } from "@/server/jobs/search";
+import { boardRef, closedRefs } from "@/server/jobs/origin";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -29,7 +30,12 @@ export async function GET(req: Request) {
   if (!parsed.success || !isJobSourceId(parsed.data.source)) return NextResponse.json({ error: "Invalid search" }, { status: 400 });
   const locations = (parsed.data.locations ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   try {
-    const { jobs, cached } = await searchSource(parsed.data.source, { query: parsed.data.q, locations });
+    const found = await searchSource(parsed.data.source, { query: parsed.data.q, locations });
+    // Board postings already found closed where they live (shared, no tenant) are left out for everyone.
+    const refs = found.jobs.map((j) => boardRef(j.applyUrl));
+    const gone = await closedRefs(refs.filter((r): r is string => !!r)).catch(() => new Set<string>());
+    const jobs = gone.size ? found.jobs.filter((_, i) => !refs[i] || !gone.has(refs[i]!)) : found.jobs;
+    const cached = found.cached;
     return NextResponse.json({ source: parsed.data.source, jobs, cached, fetchedAt: new Date().toISOString() }, { headers: { "cache-control": "private, max-age=60" } });
   } catch (e) {
     if (e instanceof SourceNeedsSetupError) return NextResponse.json({ error: "This source needs credentials on the server.", kind: "needs_setup" }, { status: 409 });
