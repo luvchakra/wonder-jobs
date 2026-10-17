@@ -8,7 +8,9 @@ process.env.SECRET_ENCRYPTION_KEY = "test-secret-for-jobsapply-tokens-0123456789
 let svc: typeof import("./service");
 let cloud: typeof import("./cloud");
 let store: typeof import("./store");
+let conns: typeof import("@/server/connections");
 beforeAll(async () => {
+  conns = await import("@/server/connections");
   svc = await import("./service");
   cloud = await import("./cloud");
   store = await import("./store");
@@ -117,6 +119,68 @@ describe("cloud browser sessions", () => {
     expect(s.destination.domain).toBe("www.naukri.com");
     expect(s.failure).toBe("FORM_NOT_FOUND");
     expect(s.listingFollowed).toBeUndefined();
+  });
+
+  it("WJ-316 signs in or creates the portal account only through a background fill, once per portal, never echoing the password", async () => {
+    process.env.CLOUD_BROWSER_URL = "https://cloud.example";
+    process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
+    conns.resetConnectionsForTests();
+    const t = tenant();
+    const wd = { ...job(), id: "job_wd_1", applyUrl: "https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/Hyderabad/Director_R-1" };
+    const id = await started(t, "assisted", wd);
+    expect((await store.getSession(t, id))!.destination.url).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/Hyderabad/Director_R-1/apply/applyManually");
+
+    // No background fill open yet: nothing to sign in to.
+    expect((await cloud.signInCloud(t, id, { mode: "create" })).status).toBe(409);
+
+    workerAnswers(201, { cloudId: "66666666-6666-4666-8666-666666666666", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
+    expect((await cloud.startCloud(t, id, { headless: true })).status).toBe(200);
+
+    // Create: the candidate's own email, a generated password saved encrypted before the cloud browser uses it.
+    calls.length = 0;
+    workerAnswers(200, { result: "signed_in" });
+    const r = await cloud.signInCloud(t, id, { mode: "create" });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ result: "signed_in", host: "amgen.wd1.myworkdayjobs.com", email: "priya@example.com" });
+    const sent = JSON.parse(String(calls[0].init.body));
+    expect(calls[0].url).toBe("https://cloud.example/sessions/66666666-6666-4666-8666-666666666666/sign-in");
+    expect(sent).toMatchObject({ tenantId: t, mode: "create", email: "priya@example.com" });
+    expect(sent.password).toHaveLength(20);
+    expect(JSON.stringify(r.body)).not.toContain(sent.password);
+    const saved = await conns.credentialFor(t, "amgen.wd1.myworkdayjobs.com");
+    expect(saved).toMatchObject({ email: "priya@example.com", password: sent.password, connection: { createdBy: "wonder", status: "active", lastResult: "Account created" } });
+    const s = (await store.getSession(t, id))!;
+    expect(s.audit.at(-1)).toMatchObject({ event: "PORTAL_ACCOUNT_CREATED", detail: "Created your account on amgen.wd1.myworkdayjobs.com with priya@example.com" });
+    expect(JSON.stringify(s)).not.toContain(sent.password);
+
+    // Once per portal: a second "create" refuses and points at signing in; sign_in uses the saved one.
+    expect((await cloud.signInCloud(t, id, { mode: "create" })).body).toMatchObject({ error: { code: "CONNECTION_EXISTS" } });
+    calls.length = 0;
+    workerAnswers(200, { result: "needs_verification", message: "The portal sent a verification email." });
+    expect((await cloud.signInCloud(t, id, { mode: "sign_in" })).body).toMatchObject({ result: "needs_verification" });
+    expect(JSON.parse(String(calls[0].init.body))).toMatchObject({ mode: "sign_in", password: sent.password });
+    expect((await conns.connectionFor(t, "amgen.wd1.myworkdayjobs.com"))?.status).toBe("needs_verification");
+
+    // Another tenant has no sign-in here, and can't reach this session.
+    expect((await cloud.signInCloud(tenant(), id, { mode: "sign_in" })).status).toBe(404);
+  });
+
+  it("WJ-316 the candidate's own sign-in is saved for that portal and used at once", async () => {
+    process.env.CLOUD_BROWSER_URL = "https://cloud.example";
+    process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
+    conns.resetConnectionsForTests();
+    const t = tenant();
+    const id = await started(t, "assisted", { ...job(), id: "job_wd_2", applyUrl: "https://acme.wd5.myworkdayjobs.com/External/job/X_R-9" });
+    workerAnswers(201, { cloudId: "77777777-7777-4777-8777-777777777777", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
+    await cloud.startCloud(t, id, { headless: true });
+    expect((await cloud.signInCloud(t, id, { mode: "sign_in" })).body).toMatchObject({ error: { code: "NO_CONNECTION" } });
+    calls.length = 0;
+    workerAnswers(200, { result: "failed", message: "Wrong email or password." });
+    const r = await cloud.signInCloud(t, id, { mode: "save", email: "me@example.com", password: "My-own-pass1" });
+    expect(r.body).toMatchObject({ result: "failed", message: "Wrong email or password." });
+    expect(JSON.parse(String(calls[0].init.body))).toMatchObject({ mode: "sign_in", email: "me@example.com", password: "My-own-pass1" });
+    expect(await conns.connectionFor(t, "acme.wd5.myworkdayjobs.com")).toMatchObject({ createdBy: "candidate", status: "failed", lastResult: "Wrong email or password." });
+    expect((await store.getSession(t, id))!.audit.at(-1)).toMatchObject({ event: "PORTAL_SIGN_IN_FAILED" });
   });
 
   it("is 'needs setup' without a worker, and never pretends otherwise", async () => {

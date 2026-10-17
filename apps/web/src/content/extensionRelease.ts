@@ -4,10 +4,11 @@
  * to `changes` when the helper changes.
  */
 export const EXTENSION_RELEASE = {
-  version: "0.3.3",
+  version: "0.3.4",
   date: "2026-10-17",
   /** What changed in recent versions, newest first — the page shows these. */
   changes: [
+    { version: "0.3.4", note: "Never treats a portal's Sign In or Create Account button as a step, and skips hidden fields meant for bots." },
     { version: "0.3.3", note: "In a background fill, answers searchable dropdowns (Greenhouse's newer forms) with the employer's own options." },
     { version: "0.3.2", note: "Reads Greenhouse's newer forms correctly: dropdown questions, no duplicate blank questions, and verification checks no longer pause filling." },
     { version: "0.3.1", note: "Tells WonderJobs when it reaches a form's last page, so Apply for this job can offer Submit this application." },

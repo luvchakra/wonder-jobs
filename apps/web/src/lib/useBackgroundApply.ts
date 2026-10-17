@@ -15,6 +15,9 @@ import { buildPack, jobsApplyApi, JobsApplyApiError, type SessionView } from "@/
 import { recordHandoff, recordSubmission } from "@/services/jobs-apply/record";
 import type { ResolveBody } from "@/components/jobs-apply/InterventionQueue";
 import { track } from "@/lib/analytics";
+import { connectionsApi } from "@/services/connections/client";
+import type { PortalConnection } from "@/domain/connections/types";
+import type { SignInBody, SignInOutcome } from "@/components/jobs-apply/PortalSignIn";
 
 /**
  * Apply for this job (WJ-311): Wonder fills the employer's form in a cloud browser nobody watches, shows
@@ -49,6 +52,9 @@ export function useBackgroundApply(jobId: string) {
   const [submitRequested, setSubmitRequested] = useState(false);
   const [error, setError] = useState<{ message: string; applicationId?: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [signing, setSigning] = useState(false);
+  const [signOutcome, setSignOutcome] = useState<SignInOutcome | null>(null);
+  const [connection, setConnection] = useState<PortalConnection | undefined>();
   const lastNudge = useRef(0);
   const recorded = useRef<string | null>(null);
 
@@ -208,6 +214,40 @@ export function useBackgroundApply(jobId: string) {
     }
   }, [id, app, nudge]);
 
+  // The portal wants an account (WJ-316): the candidate's saved sign-in for it, if there is one.
+  const host = s?.destination.domain;
+  const needsSignIn = s?.status === "AUTHENTICATION_REQUIRED";
+  useEffect(() => {
+    if (!needsSignIn || !host) return;
+    let off = false;
+    connectionsApi
+      .list()
+      .then((l) => !off && setConnection(l.find((c) => c.host === host)))
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [needsSignIn, host, signOutcome]);
+
+  /** The candidate pressed Sign in / Create an account for me / saved their own sign-in. */
+  const signIn = useCallback(
+    async (body: SignInBody) => {
+      if (!id) return;
+      setSigning(true);
+      try {
+        const r = await jobsApplyApi.cloud.signIn(id, body);
+        setSignOutcome(r);
+        lastNudge.current = 0;
+        track("jobsapply_portal_sign_in", { sessionId: id, mode: body.mode, result: r.result });
+      } catch (e) {
+        setSignOutcome({ result: "failed", message: e instanceof Error ? e.message : "Couldn't sign in right now." });
+      } finally {
+        setSigning(false);
+      }
+    },
+    [id],
+  );
+
   const cancel = useCallback(async () => {
     if (!id) return;
     await jobsApplyApi.cloud.end(id).catch(() => undefined);
@@ -231,5 +271,5 @@ export function useBackgroundApply(jobId: string) {
     return error ? "error" : "filling";
   }, [starting, s, error, submitRequested, view]);
 
-  return { job, app, resume, view, phase, error, busyId, start, resolve, submit, cancel };
+  return { job, app, resume, view, phase, error, busyId, start, resolve, submit, cancel, signIn, signing, signOutcome, connection };
 }

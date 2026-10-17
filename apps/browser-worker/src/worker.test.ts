@@ -14,12 +14,12 @@ const SECRET = "x".repeat(40);
 describe("the worker never acts on the page by itself", () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
-  it("only input.ts (what the candidate sent) and picker.ts (a dropdown the helper asked about) drive the page", () => {
+  it("only input.ts (what the candidate sent), picker.ts (a dropdown) and portal.ts (a portal sign-in) drive the page", () => {
     const acts = /\.(click|dblclick|press|tap|fill|type|check|selectOption|setInputFiles|submit|focus)\(|\bkeyboard\.|\bmouse\.|dispatchEvent\(/;
     for (const f of files) {
       const src = readFileSync(path.join(SRC, f), "utf8");
       if (f === "input.ts") expect(src).toMatch(/relayInput/);
-      else if (f !== "picker.ts") expect(src, f).not.toMatch(acts);
+      else if (f !== "picker.ts" && f !== "portal.ts") expect(src, f).not.toMatch(acts);
     }
     // And input.ts relays exactly the four candidate gestures — no scripted sequence, no submit.
     const input = readFileSync(path.join(SRC, "input.ts"), "utf8");
@@ -47,8 +47,9 @@ describe("the worker never acts on the page by itself", () => {
   it("listing.ts only reads a job board's one Apply link and navigates to it: nothing pressed, typed or submitted (WJ-315)", () => {
     const src = readFileSync(path.join(SRC, "listing.ts"), "utf8");
     expect(src).not.toMatch(/\.(click|dblclick|press|tap|fill|type|check|selectOption|setInputFiles|submit|focus|dispatchEvent)\(|keyboard\.|mouse\./);
-    expect([...src.matchAll(/\.goto\(/g)]).toHaveLength(1);
+    expect([...src.matchAll(/\.goto\(/g)]).toHaveLength(2);
     expect(src).toMatch(/await page\.goto\(href, /);
+    expect(src).toMatch(/await page\.goto\(landed, /);
     // Only a plain <a href> whose whole text is an apply phrase, and only when every such link agrees.
     expect(src).toMatch(/document\.querySelectorAll\("a\[href\]"\)/);
     expect(src).toMatch(/return hrefs\.size === 1 \? \[\.\.\.hrefs\]\[0\] : null;/);
@@ -56,6 +57,25 @@ describe("the worker never acts on the page by itself", () => {
     const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
     expect(session).toMatch(/if \(init\.followListing\) void opened\.then\(\(\) => s\.followListingLink\(\)\);/);
     expect(session).toMatch(/this\.following \? \{ sessionId: null \}/);
+  });
+
+  it("portal.ts types only the sign-in's email and password, ticks only the account form's consent box, presses only Sign In / Create Account, logs nothing (WJ-316)", () => {
+    const src = readFileSync(path.join(SRC, "portal.ts"), "utf8");
+    expect([...src.matchAll(/[\w[\]]+\.fill\([^)]*\)/g)].map((m) => m[0])).toEqual(["emailBox.fill(email)", "pw[0].fill(password)", "pw[1].fill(password)"]);
+    expect([...src.matchAll(/\.check\(/g)]).toHaveLength(1);
+    expect(src).toMatch(/first\(page, \["\[data-automation-id=createAccountCheckbox\]"\]\)/);
+    expect([...src.matchAll(/(\w+)\.click\(/g)].map((m) => m[1])).toEqual(["link", "button"]);
+    expect(src).toMatch(/const link = await first\(page, \["\[data-automation-id=signInLink\]"\]\);/);
+    // The button is the form's own: Workday's id, or the single button whose words are Sign In / Create Account.
+    expect(src).toMatch(/return hits\.length === 1 \? hits\[0\] : null;/);
+    expect(src).not.toMatch(/console\.|\.press\(|\.type\(|keyboard\.|mouse\.|dispatchEvent|setInputFiles|selectOption|evaluate\(/);
+    // Only visible fields: a hidden honeypot is never filled.
+    expect(src).toMatch(/\.filter\(\{ visible: true \}\)/);
+    // The session signs in only on the application's own site; the server never logs the body.
+    const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
+    expect(session).toMatch(/if \(!this\.onDestination\(this\.page\.url\(\)\)\) return \{ result: "no_form"/);
+    const server = readFileSync(path.join(SRC, "server.ts"), "utf8");
+    expect(server).not.toMatch(/log\([^)]*password/i);
   });
 
   it("runs the extension's own helper script behind a message shim", () => {

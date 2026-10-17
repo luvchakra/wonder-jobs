@@ -17,6 +17,7 @@ import { pageScript } from "./helperScript.js";
 import { parseInput, relayInput } from "./input.js";
 import { comboOptions, comboPick } from "./picker.js";
 import { followListing } from "./listing.js";
+import { portalSignIn, type SignInMode, type SignInResult } from "./portal.js";
 
 export interface SessionInit {
   /** The WonderJobs Apply with Wonder session this browser belongs to. */
@@ -135,6 +136,17 @@ export class CloudSession {
     // The legacy "Fill with WonderJobs" button has no place here: every cloud page belongs to a session.
     if (m.type === "profile" || m.type === "application") return JSON.stringify({ error: "not_connected" });
     return null;
+  }
+
+  /** Sign in (or create the account) on the portal page this session is on — only on the application's own site. */
+  async signIn(mode: SignInMode, email: string, password: string): Promise<SignInResult> {
+    if (this.ended) return { result: "failed", message: "The cloud browser closed." };
+    if (!this.onDestination(this.page.url())) return { result: "no_form", message: "This page isn't the application's site." };
+    this.lastActivity = Date.now();
+    const r = await portalSignIn(this.page, mode, email, password).catch(() => ({ result: "failed" as const, message: "The sign-in didn't go through." }));
+    // The helper reads the page it lands on (the application form, or a verification notice).
+    await this.deliver({ type: "jobsApplyPaired", sessionId: this.init.sessionId });
+    return r;
   }
 
   /** A message to the helper in every frame: `fillNow` (the candidate chose Fill in the app) or `jobsApplyPaired` (continue after a stop). */

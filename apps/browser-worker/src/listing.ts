@@ -33,5 +33,23 @@ export async function followListing(page: Page): Promise<string | null> {
   await page.goto(href, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
   // Boards often hop through a redirect page or two; settle on where it stays.
   await page.waitForTimeout(3000);
+  // A Workday job page holds only an Apply button; its application has its own address (the app's
+  // workdayApplyUrl does the same).
+  const landed = workdayApplyUrl(page.url());
+  if (landed !== page.url()) {
+    await page.goto(landed, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+    await page.waitForTimeout(2000);
+  }
   return page.url();
+}
+
+export function workdayApplyUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)(myworkdayjobs|myworkdaysite)\.com$/.test(u.hostname) || !/\/job\//.test(u.pathname) || /\/apply(\/|$)/.test(u.pathname)) return url;
+    u.pathname = `${u.pathname.replace(/\/$/, "")}/apply/applyManually`;
+    return u.toString();
+  } catch {
+    return url;
+  }
 }

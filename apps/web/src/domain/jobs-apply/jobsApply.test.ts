@@ -4,9 +4,9 @@ import type { CareerDNA } from "@/domain/career/types";
 import { EMPTY_DNA } from "@/domain/career/types";
 import type { Application } from "@/domain/applications/types";
 import { classifyField } from "./classify";
-import { backgroundFillable, checkDomain, destinationFor, followedDestination, detectProvider, registrableDomain } from "./destination";
+import { backgroundFillable, checkDomain, destinationFor, followedDestination, workdayApplyUrl, detectProvider, registrableDomain } from "./destination";
 import { mapForm, matchPackAnswer, memoryValueFor, progressOf } from "./mapper";
-import { fillDecision, fillGate, handoffDecision, submitDecision, submitReady } from "./policy";
+import { fillDecision, fillGate, handoffDecision, portalSignInDecision, submitDecision, submitReady } from "./policy";
 import { buildApplicationProfile, freshMemory, missingProfileFields, splitName } from "./profile";
 import { applyReadiness, findDuplicate } from "./readiness";
 import * as S from "./session";
@@ -508,6 +508,14 @@ describe("session state machine", () => {
     expect(s.formFields.some((x) => x.type === "password")).toBe(false);
   });
 
+  it("WJ-316 Workday's Create Account page (email, consent box, passwords) is a sign-in, not a form to fill", () => {
+    const s = S.recordInspection(fresh(), { url: "https://boards.greenhouse.io/apply/applyManually", adapter: "adapter:workday", step: 1, stepCount: 6, signals: ["login_form"], fields: [{ id: "input-4", label: "Email Address", type: "text", required: true, hints: { id: "input-4" } }, { id: "input-9", label: "I consent to the use of my personal data", type: "checkbox", required: false }] }, NOW);
+    expect(s).toMatchObject({ status: "AUTHENTICATION_REQUIRED", failure: "AUTH_REQUIRED" });
+    // A real application page that happens to show a password box is still a form.
+    const form = S.recordInspection(fresh(), { url: "https://boards.greenhouse.io/apply", adapter: "generic", step: 1, signals: ["login_form"], fields: [{ id: "fn", label: "First name", type: "text", required: true }, { id: "ln", label: "Last name", type: "text", required: true }, { id: "e", label: "Email", type: "email", required: true }] }, NOW);
+    expect(form.status).not.toBe("AUTHENTICATION_REQUIRED");
+  });
+
   it("APPLY-051 a payment request blocks", () => {
     const s = S.recordInspection(fresh(), greenhouseForm({ signals: ["payment"] }), NOW);
     expect(s).toMatchObject({ status: "BLOCKED", failure: "PAYMENT_REQUESTED" });
@@ -692,5 +700,22 @@ describe("final submission (WJ-249): the candidate's opt-in, through resolveCapa
     s = S.setSubmitOverride(s, "default", NOW);
     expect(s.submitOverride).toBeUndefined();
     expect(S.createSession({ id: "y", tenantId: "t", nonce: "n", destination: dest, pack: pack(), mode: "fill", now: NOW, submit: "off" }).submitOverride).toBe("off");
+  });
+});
+
+describe("sign-in connections gate (WJ-316)", () => {
+  it("runs only on the candidate's press, and Off in Automation always wins", () => {
+    const p = defaultPolicy();
+    expect(p.portal_sign_in).toBe("ask");
+    expect(portalSignInDecision(p, "guided")).toBe("run");
+    expect(portalSignInDecision(p, "autonomous")).toBe("run");
+    expect(portalSignInDecision({ ...p, portal_sign_in: "off" }, "autonomous")).toBe("skip");
+    expect(portalSignInDecision(undefined, undefined)).toBe("run");
+  });
+  it("opens Workday's application address, not its job page", () => {
+    expect(workdayApplyUrl("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/India---Hyderabad/Senior-Manager_R-257462")).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/India---Hyderabad/Senior-Manager_R-257462/apply/applyManually");
+    expect(workdayApplyUrl("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/X_R-1/apply")).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers/job/X_R-1/apply");
+    expect(workdayApplyUrl("https://boards.greenhouse.io/acme/jobs/1")).toBe("https://boards.greenhouse.io/acme/jobs/1");
+    expect(workdayApplyUrl("https://amgen.wd1.myworkdayjobs.com/en-US/Careers")).toBe("https://amgen.wd1.myworkdayjobs.com/en-US/Careers");
   });
 });
