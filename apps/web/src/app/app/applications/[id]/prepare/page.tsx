@@ -2,6 +2,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useBottomBar } from "@/components/navigation/MobileNav";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
@@ -35,6 +36,8 @@ type Tab = ArtifactType | "review";
 export default function PrepareApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  // This page keeps its next step in a bar at the bottom: the floating menu button stays out of its way.
+  useBottomBar();
   const app = useApplicationsStore((s) => s.applications[id]);
   const addVersion = useApplicationsStore((s) => s.addVersion);
   const updateVersionContent = useApplicationsStore((s) => s.updateVersionContent);

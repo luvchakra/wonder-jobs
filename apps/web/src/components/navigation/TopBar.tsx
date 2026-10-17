@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bell, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -22,6 +23,8 @@ import { RunningIndicator } from "./RunningIndicator";
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
     const h = (e: MouseEvent) => {
+      // The phone's floating menu button, and the menu it opens, handle their own clicks.
+      if ((e.target as Element | null)?.closest?.("[data-menu-trigger]")) return;
       if (ref.current && !ref.current.contains(e.target as Node)) onOut();
     };
     document.addEventListener("mousedown", h);
@@ -34,7 +37,10 @@ export function TopBar() {
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const applications = useApplicationsStore((s) => s.applications);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const menu = useUIStore((s) => s.menu);
+  const setMenu = useUIStore((s) => s.setMenu);
+  const profileOpen = menu !== null;
+  const setProfileOpen = (v: boolean | ((open: boolean) => boolean)) => setMenu((typeof v === "function" ? v(profileOpen) : v) ? "top" : null);
   const hydrated = useHydration((s) => s.hydrated);
   const mode = useAuthStore((s) => s.mode);
   const userId = useAuthStore((s) => s.userId);
@@ -78,6 +84,84 @@ export function TopBar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setCmd]);
+
+  // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
+  const accountMenu = (
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
+      {mode === "demo" && (
+        <p className="px-3 pb-2 pt-1.5 text-[11px] leading-snug text-ink-3">
+          You&apos;re exploring sample data. Nothing here is saved to an account.
+        </p>
+      )}
+      {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
+      {[
+        // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
+        { href: "/app/profile", label: "Account", icon: User },
+        // The Account page's main sections, one tap from anywhere (signed-in accounts only).
+        ...(mode === "user"
+          ? [
+              { href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
+              { href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
+              { href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
+              { href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
+              { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
+            ]
+          : []),
+        ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
+        { href: "/help", label: "Get Help", icon: LifeBuoy },
+      ].map((m) => (
+        <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+          <m.icon className="size-4" aria-hidden /> {m.label}
+        </Link>
+      ))}
+      {canInstall && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={async () => {
+            setProfileOpen(false);
+            const outcome = await promptInstall();
+            if (outcome === "accepted") toast.success("Installing WonderJobs", "Find it on your home screen or app launcher.");
+          }}
+          className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
+        >
+          <Download className="size-4" aria-hidden /> Install app
+        </button>
+      )}
+      <div className="my-1 border-t border-line" />
+      {mode === "demo" ? (
+        <>
+          <a role="menuitem" href="/sign-up" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+            <UserPlus className="size-4" aria-hidden /> Create your account
+          </a>
+          <a role="menuitem" href="/demo/exit?next=/sign-in" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+            <LogIn className="size-4" aria-hidden /> Exit demo &amp; sign in
+          </a>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={async () => {
+              setProfileOpen(false);
+              // Send any still-debounced write (e.g. just-completed onboarding) while the session
+              // is still valid — signOutEverywhere wipes this account's local copy immediately
+              // after, so anything not yet on the server by then never arrives.
+              await flushRemote(false);
+              await signOutEverywhere(userId);
+              // Full reload on purpose: drops every in-memory store before another account can sign in.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+              window.location.href = "/";
+            }}
+            className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
+          >
+            <LogOut className="size-4" aria-hidden /> Sign out
+          </button>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
@@ -148,82 +232,7 @@ export function TopBar() {
           </span>
           <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>
-        {profileOpen && (
-          <div role="menu" className="absolute left-0 top-12 w-60 md:left-auto md:right-0 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
-            {mode === "demo" && (
-              <p className="px-3 pb-2 pt-1.5 text-[11px] leading-snug text-ink-3">
-                You&apos;re exploring sample data. Nothing here is saved to an account.
-              </p>
-            )}
-            {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
-            {[
-              // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
-              { href: "/app/profile", label: "Account", icon: User },
-              // The Account page's main sections, one tap from anywhere (signed-in accounts only).
-              ...(mode === "user"
-                ? [
-                    { href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
-                    { href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
-                    { href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
-                    { href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
-                    { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
-                  ]
-                : []),
-              ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
-              { href: "/help", label: "Get Help", icon: LifeBuoy },
-            ].map((m) => (
-              <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-                <m.icon className="size-4" aria-hidden /> {m.label}
-              </Link>
-            ))}
-            {canInstall && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={async () => {
-                  setProfileOpen(false);
-                  const outcome = await promptInstall();
-                  if (outcome === "accepted") toast.success("Installing WonderJobs", "Find it on your home screen or app launcher.");
-                }}
-                className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
-              >
-                <Download className="size-4" aria-hidden /> Install app
-              </button>
-            )}
-            <div className="my-1 border-t border-line" />
-            {mode === "demo" ? (
-              <>
-                <a role="menuitem" href="/sign-up" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-                  <UserPlus className="size-4" aria-hidden /> Create your account
-                </a>
-                <a role="menuitem" href="/demo/exit?next=/sign-in" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-                  <LogIn className="size-4" aria-hidden /> Exit demo &amp; sign in
-                </a>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={async () => {
-                    setProfileOpen(false);
-                    // Send any still-debounced write (e.g. just-completed onboarding) while the session
-                    // is still valid — signOutEverywhere wipes this account's local copy immediately
-                    // after, so anything not yet on the server by then never arrives.
-                    await flushRemote(false);
-                    await signOutEverywhere(userId);
-                    // Full reload on purpose: drops every in-memory store before another account can sign in.
-                    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-                    window.location.href = "/";
-                  }}
-                  className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
-                >
-                  <LogOut className="size-4" aria-hidden /> Sign out
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>
       <CommandPalette open={cmd} onClose={() => setCmd(false)} />
     </header>
