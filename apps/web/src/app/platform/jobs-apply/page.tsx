@@ -113,7 +113,7 @@ export default function JobsApplyAdminPage() {
               <BarList rows={entries(data.byStatus)} empty="No sessions yet" />
             </Panel>
             <Panel title="How candidates chose to apply">
-              <BarList rows={entries(data.byMode).map((r) => ({ ...r, key: r.key === "guided" ? "Guide me" : r.key === "assisted" ? "Fill for me" : "Independently" }))} empty="No sessions yet" />
+              <BarList rows={entries(data.byMode).map((r) => ({ ...r, key: r.key === "guided" ? "Guide me" : r.key === "assisted" ? "Fill for me (waits for a click)" : "Fill for me" }))} empty="No sessions yet" />
             </Panel>
           </div>
 
