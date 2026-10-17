@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronDown, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -49,6 +49,17 @@ export default function CareerDNAPage() {
   }, [dna, draft]);
   const set = <K extends keyof CareerDNA>(k: K, v: CareerDNA[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
+  // Opened from Find: Back returns there, and when the profile changed here (edits not yet saved are saved
+  // first), Find searches again with it.
+  const fromFind = params.get("from") === "find";
+  const arrived = useRef({ dna, roles: JSON.stringify(useCareerStore.getState().roles ?? []) });
+  const backToFind = () => {
+    if (dirty) updateDNA(draft);
+    const now = useCareerStore.getState();
+    const changed = profileChanged(now.dna, arrived.current.dna) || JSON.stringify(now.roles ?? []) !== arrived.current.roles;
+    router.push(changed ? "/app/jobs?refresh=1" : "/app/jobs");
+  };
+
   // Covers a closed tab or reload; an in-app Link click still navigates freely, but the visible "Unsaved
   // changes" note by Save (below) is the fallback for that case.
   useEffect(() => {
@@ -60,6 +71,11 @@ export default function CareerDNAPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      {fromFind && (
+        <button type="button" onClick={backToFind} className="mb-1 inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
+          <ArrowLeft className="size-4" aria-hidden /> Back to Find
+        </button>
+      )}
       <PageHeader
         title="Career Profile"
         className="mb-2 md:mb-3"

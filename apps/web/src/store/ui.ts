@@ -15,6 +15,9 @@ interface UIState {
   /** Bumped when the candidate changes their profile photo, so every avatar reloads it. */
   photoVersion: number;
   bumpPhoto: () => void;
+  /** Find's Refine panel — opened from its own button or from "Refine search options" when nothing shows. */
+  refineOpen: boolean;
+  setRefineOpen: (v: boolean | ((open: boolean) => boolean)) => void;
 }
 
 /** Cross-cutting UI state: whether the Ask Wonder field and the account menu are open. It's a momentary overlay, not a device
@@ -31,6 +34,8 @@ export const useUIStore = create<UIState>()(
       addBottomBar: (d) => set((s) => ({ bottomBars: Math.max(0, s.bottomBars + d) })),
       photoVersion: 0,
       bumpPhoto: () => set((s) => ({ photoVersion: s.photoVersion + 1 })),
+      refineOpen: false,
+      setRefineOpen: (v) => set((s) => ({ refineOpen: typeof v === "function" ? v(s.refineOpen) : v })),
     }),
     { name: "wj.ui", storage: createRemoteStorage(), skipHydration: true, version: 1, partialize: () => ({}) },
   ),

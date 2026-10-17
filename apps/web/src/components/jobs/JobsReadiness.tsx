@@ -291,7 +291,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   if (!editing) {
     // One compact row: what Wonder searches for, with Change beside its label; the profile behind it on the right.
     return (
-      <div className={cn("mb-3 flex items-center gap-3 rounded-[14px] border border-line bg-surface px-3.5 py-2", inline && "sm:max-w-xl", className)}>
+      <div className={cn("mb-3 flex items-center gap-2 rounded-[14px] border border-line bg-surface py-2 pl-3.5 pr-1.5 sm:gap-3 sm:pr-2", inline && "sm:max-w-xl", className)}>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
             Looking for
@@ -310,7 +310,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
             {role || "No role yet"}
           </p>
         </div>
-        <Link href="/app/career-dna" className="inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
+        <Link href="/app/career-dna?from=find" className="ml-auto inline-flex h-8 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-brand-200 bg-brand-50 px-3 text-[12px] font-medium text-brand-700 hover:bg-brand-100 sm:pr-2 sm:text-[12.5px]">
           Update Career Profile <ChevronRight className="hidden size-3.5 sm:block" aria-hidden />
         </Link>
       </div>

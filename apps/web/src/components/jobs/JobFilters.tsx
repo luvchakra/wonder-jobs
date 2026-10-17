@@ -6,6 +6,7 @@ import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/doma
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
+import { useUIStore } from "@/store/ui";
 import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
@@ -55,7 +56,10 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * freshness, salary, sources, compare — in Refine.
  */
 export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
-  const [more, setMore] = useState(false);
+  const more = useUIStore((s) => s.refineOpen);
+  const setMore = useUIStore((s) => s.setRefineOpen);
+  // Refine is Find's own panel: leaving Find closes it.
+  useEffect(() => () => setMore(false), [setMore]);
   useBottomBar(more);
   // Typing only changes the box; Search (or Enter) applies the words. Kept in step when something else
   // changes them (a link with ?q=, "clear" in the list).

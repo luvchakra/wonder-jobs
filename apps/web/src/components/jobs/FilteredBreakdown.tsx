@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
-import { EyeOff, Search, SlidersHorizontal } from "lucide-react";
+import { EyeOff, Search, SlidersHorizontal, UserRound } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import type { FilterReason, FilterResult } from "@/domain/jobs/filterExplain";
 import { FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
+import { useUIStore } from "@/store/ui";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
@@ -67,8 +68,19 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", s
           <Button size="sm" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
             Show me anyway
           </Button>
-          <Button size="sm" variant="outline" href="/app/career-dna" icon={<SlidersHorizontal className="size-4" aria-hidden />}>
-            Change my preferences
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<SlidersHorizontal className="size-4" aria-hidden />}
+            onClick={() => {
+              useUIStore.getState().setRefineOpen(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            Refine search options
+          </Button>
+          <Button size="sm" variant="ghost" href="/app/career-dna?from=find" icon={<UserRound className="size-4" aria-hidden />}>
+            Update my Career Profile preferences
           </Button>
         </div>
         {showAnywayNote && <p className="mt-2 max-w-sm text-[12px] text-ink-4">{showAnywayNote}</p>}
@@ -91,8 +103,8 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", s
         <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
           Show me anyway
         </button>
-        <Link href="/app/career-dna" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
-          Change preferences
+        <Link href="/app/career-dna?from=find" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
+          Update Career Profile preferences
         </Link>
       </span>
     </div>
