@@ -243,7 +243,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "How much Wonder handles",
     summary: "Work with me or Work independently, how you apply, sensitive questions, and per-action rules.",
     keywords: ["automation", "level", "help me", "work with me", "work independently", "keep watch", "assist", "guided", "autonomous", "continuous", "policy", "permission", "ask me", "risk", "capability", "change one action", "restore defaults", "does on its own"],
-    updated: "2026-10-16",
+    updated: "2026-10-17",
     body: [
       "You → Automation asks “How much should Wonder handle?” with two choices: Work with me (recommended) and Work independently. Under it, the page lists exactly what Wonder does on its own, asks you first, and never — read from the same rule the app enforces, so it can't drift from what happens. Sending is never Wonder's — not an email, not a message — and it submits an application only where you set Submit for me to Always.",
       "- Work with me: searching, comparing and drafting happen on their own where you allow them, and Wonder asks before anything that matters.",
@@ -251,7 +251,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- A level saved earlier as Help me or Keep watch shows as the nearer of the two.",
       "How you apply sets your default method for Apply with Wonder (the browser helper, Guide me, or the Application Pack only); you can still change it for one job on its Apply page.",
       "Change one action (folded under the level) sets a rule per action — Automatic, Ask me or Off: search and rank jobs, save strong matches (starts Off), draft a tailored résumé and draft a cover letter (both start Ask me, because each draft is an AI request), fill an employer's form in your browser, open the employer's page with your materials, draft a follow-up email, draft a recruiter message, change your Career Profile, and change what it searches for. Restore defaults puts them back.",
-      "Sensitive questions has four groups, each Off until you turn it on: equal-opportunity questions, work authorization and sponsorship, legal declarations, and ID numbers. Turning one on opens a dialog where you enter and confirm the exact answers it may use; Wonder never infers them.",
+      "Sensitive questions has four groups, each Off until you turn it on: equal-opportunity questions, work authorization and sponsorship, legal declarations, and ID numbers. Turning one on opens a dialog where you confirm the exact answers it may use — equal-opportunity questions offer the usual answers in a dropdown, or Something else… for your own words; Wonder never infers them.",
       "- Fill application forms (Apply with Wonder) starts as Ask me. Even on Automatic it only fills fields and, page by page, presses the form's own Next — it doesn't submit. Submitting is Submit for me on the Apply page or the application's page: Default (off), Always or Never for that application.",
       "- Low-risk work (reading and scoring) can run unattended. Medium-risk work (drafting) can run unattended but is always reviewable. High-risk work with external side effects (anything that reaches an employer) always follows your policy and is audited.",
       "- Whatever the level, nothing is ever sent to an employer without your approval.",

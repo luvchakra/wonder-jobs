@@ -91,6 +91,18 @@ const authorizedFor = (answers: SensitiveAnswers, country: string | undefined) =
 };
 
 /**
+ * Common choices for the demographic answers, worded the way most US-style EEO sections (Greenhouse, Lever,
+ * Workday) word them. A suggestion list only: the candidate may type any answer of their own instead.
+ */
+export const DEMOGRAPHIC_CHOICES: Record<"gender" | "pronouns" | "ethnicity" | "veteran" | "disability", string[]> = {
+  gender: ["Male", "Female", "Non-binary", "Decline to self-identify"],
+  pronouns: ["he/him", "she/her", "they/them", "Decline to self-identify"],
+  ethnicity: ["Asian", "Black or African American", "Hispanic or Latino", "White", "Native American or Alaska Native", "Native Hawaiian or Other Pacific Islander", "Two or more races", "Decline to self-identify"],
+  veteran: ["I am not a protected veteran", "I identify as one or more of the classifications of protected veteran", "I don't wish to answer"],
+  disability: ["No, I do not have a disability and have not had one in the past", "Yes, I have a disability, or have had one in the past", "I do not want to answer"],
+};
+
+/**
  * The candidate's own answer to a sensitive question, as words ("Yes", "Female", "checked") — or undefined
  * when they haven't saved one. ID numbers are never resolved here (see ID_MARKER).
  */
