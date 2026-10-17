@@ -1,4 +1,4 @@
-import type { JobsApplySession } from "./types";
+import type { InterventionItem, JobsApplySession } from "./types";
 
 /** How long the apply page waits for the helper to see a form before saying so and offering next steps. */
 export const FORM_WAIT_MS = 90_000;
@@ -14,4 +14,13 @@ export function formWait(session: Pick<JobsApplySession, "form" | "status" | "st
   if (session.form || session.stopped || !OPENING.has(session.status)) return "not_waiting";
   const since = Math.max(Date.parse(session.updatedAt) || 0, keptWaitingAt ?? 0);
   return now - since >= FORM_WAIT_MS ? "timed_out" : "waiting";
+}
+
+/**
+ * Required questions that are searchable dropdowns (React Select and the like): the helper can't pick an
+ * option in one, so in the background they can only be answered on the employer's page.
+ */
+export function pickOnPortal(s: Pick<JobsApplySession, "formFields" | "interventions">): InterventionItem[] {
+  const combo = new Set(s.formFields.filter((f) => f.type === "combobox" && !f.options?.length).map((f) => f.id));
+  return s.interventions.filter((i) => i.status === "open" && i.required && !!i.fieldId && combo.has(i.fieldId));
 }

@@ -35,6 +35,7 @@ import { PlanGate } from "@/components/billing/PlanGate";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
 import { jobsApplyApi } from "@/services/jobs-apply/client";
 import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
+import { backgroundFillable } from "@/domain/jobs-apply/destination";
 import { cn } from "@/lib/cn";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
@@ -62,8 +63,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
   // Apply for this job fills the form in the background cloud browser (WJ-311); without one, the Apply page.
   const [background, setBackground] = useState(false);
+  const fillable = !!job && backgroundFillable(job);
   useEffect(() => {
-    if (!canApply) return;
+    if (!canApply || !fillable) return;
     let off = false;
     jobsApplyApi.cloud
       .available()
@@ -72,7 +74,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     return () => {
       off = true;
     };
-  }, [canApply]);
+  }, [canApply, fillable]);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [expanded, setExpanded] = useState(false);
@@ -295,7 +297,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <Card className="flex flex-col gap-2">
             {canApply ? (
               <>
-                {background ? (
+                {background && fillable ? (
                   <BackgroundApply jobId={job.id} />
                 ) : (
                   <Button size="lg" full href={`/app/jobs/${job.id}/apply`}>

@@ -4,10 +4,11 @@
  * to `changes` when the helper changes.
  */
 export const EXTENSION_RELEASE = {
-  version: "0.3.1",
-  date: "2026-10-16",
+  version: "0.3.2",
+  date: "2026-10-17",
   /** What changed in recent versions, newest first — the page shows these. */
   changes: [
+    { version: "0.3.2", note: "Reads Greenhouse's newer forms correctly: dropdown questions, no duplicate blank questions, and verification checks no longer pause filling." },
     { version: "0.3.1", note: "Tells WonderJobs when it reaches a form's last page, so Apply for this job can offer Submit this application." },
     { version: "0.3.0", note: "Opens beside the page: scores the job you're viewing against your profile and saves it to your Pipeline in one click." },
     { version: "0.2.13", note: "Store-ready package; clearer description of when it submits." },
