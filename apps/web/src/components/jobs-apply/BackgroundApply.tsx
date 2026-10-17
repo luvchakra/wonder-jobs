@@ -39,6 +39,9 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
     return () => clearInterval(t);
   }, [working]);
   const formMissing = !!s && phase === "filling" && formWait(s, now) === "timed_out";
+  // Progress opens by itself once Wonder starts working, so each step shows as it happens; it stays open after.
+  const [showProgress, setShowProgress] = useState(false);
+  if (working && !showProgress) setShowProgress(true);
 
   if (!job) return null;
   const company = job.company;
@@ -157,7 +160,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       )}
 
       {s && phase !== "idle" && phase !== "submitted" && (
-        <Fold title="Progress" hint={progress?.total ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : phase === "blocked" ? "No form found" : "Looking for the form"}>
+        <Fold title="Progress" open={showProgress || undefined} hint={progress?.total ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : phase === "blocked" ? "No form found" : "Looking for the form"}>
           <ol className="flex flex-col gap-1.5 text-[12.5px] text-ink-2" aria-live="polite">
             {steps.map((a, i) => (
               <li key={`${a.at}-${i}`} className="flex gap-2">
@@ -180,9 +183,46 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
         </Fold>
       )}
 
+      {s && phase !== "idle" && <FormFields session={s} />}
+
       {s && (phase === "needs_you" || s.interventions.some((i) => i.status === "open")) && phase !== "submitted" && (
         <InterventionQueue session={s} onResolve={resolve} onDraft={draft} onRemember={rememberAnswer} busyId={busyId} headless onFinish={finish} />
       )}
     </div>
+  );
+}
+
+/** Every field Wonder read on the employer's form, by what happened to it: filled, required and still open, optional and left empty. */
+function FormFields({ session }: { session: NonNullable<ReturnType<typeof useBackgroundApply>["view"]>["session"] }) {
+  const fields = session.fieldMappings.filter((m) => m.category !== "CREDENTIAL");
+  if (!fields.length) return null;
+  const filled = fields.filter((m) => m.status === "filled");
+  const required = fields.filter((m) => m.status !== "filled" && m.required);
+  const optional = fields.filter((m) => m.status !== "filled" && !m.required);
+  const shown = (m: (typeof fields)[number]) => (m.file ? (m.file === "resume" ? "Your résumé" : "Your cover letter") : m.category === "EEO" ? undefined : m.value);
+  const group = (title: string, list: typeof fields, tone: string) =>
+    list.length > 0 && (
+      <div>
+        <h3 className={`text-[12.5px] font-semibold ${tone}`}>
+          {title} · {list.length}
+        </h3>
+        <ul className="mt-1 flex flex-col gap-1 text-[12.5px] text-ink-2">
+          {list.map((m) => (
+            <li key={m.fieldId} className="flex min-w-0 gap-2">
+              <span className="min-w-0 flex-1 truncate">{m.label}</span>
+              <span className="max-w-[50%] shrink-0 truncate text-ink-3">{m.status === "filled" ? (shown(m) ?? "Filled") : (m.reason ?? (m.status === "needs_you" ? "Needs you" : "Not filled"))}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  return (
+    <Fold title="Form fields" hint={`${filled.length} filled${required.length ? ` · ${required.length} required to go` : ""}${optional.length ? ` · ${optional.length} optional left empty` : ""}`}>
+      <div className="flex flex-col gap-3">
+        {group("Required, not filled yet", required, "text-warning-600")}
+        {group("Filled", filled, "text-success-600")}
+        {group("Optional, left empty", optional, "text-ink-3")}
+      </div>
+    </Fold>
   );
 }
