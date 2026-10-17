@@ -74,7 +74,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       : s.status === "AUTHENTICATION_REQUIRED"
         ? `${company}'s site wants you to sign in before the form.`
         : s.status === "VERIFICATION" || s.failure === "CAPTCHA_REQUIRED" || s.failure === "MFA_REQUIRED" || s.form?.signals.includes("captcha")
-          ? `${company}'s site is asking for a verification check only you can do.`
+          ? `${company}'s form has an “I'm not a robot” check only you can do, so Wonder can't submit it. Nothing has been sent — open their page to finish and submit it yourself.`
           : s.status === "PAUSED" && s.failure === "DOMAIN_CHANGED"
             ? "The application moved to a different site, so Wonder paused."
             : pickOnPortal(s).length

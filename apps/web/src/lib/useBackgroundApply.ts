@@ -260,8 +260,11 @@ export function useBackgroundApply(jobId: string) {
     if (!s) return error ? "error" : "idle";
     if (s.status === "SUBMITTED" || s.status === "TRACKED") return "submitted";
     if (s.status === "CANCELLED") return error ? "error" : "idle";
-    if (s.status === "SUBMITTING" || (submitRequested && !s.wonderSubmittedAt)) return "submitting";
+    if (s.status === "SUBMITTING") return "submitting";
     if (TERMINAL.has(s.status)) return "error";
+    // An "I'm not a robot" check on the form is the candidate's alone: Wonder never presses Submit past it.
+    if (s.form?.signals.includes("captcha")) return "blocked";
+    if (submitRequested && !s.wonderSubmittedAt) return "submitting";
     // The page opened but holds no application form (a job listing): waiting longer won't change that.
     if (BLOCKED.has(s.status) || s.stopped || s.failure === "FORM_NOT_FOUND") return "blocked";
     if (view?.decisions?.fill === "skip") return "blocked";

@@ -437,6 +437,17 @@ describe("session state machine", () => {
     expect(s.pack.memory.filter((m) => m.key === "noticePeriod").map((m) => m.value)).toEqual(["30 days"]);
   });
 
+  it("a re-read of the same page with the same result adds nothing to the audit, and leaves the session unchanged", () => {
+    const once = S.recordInspection(fresh(), greenhouseForm(), NOW);
+    const later = new Date(Date.parse(NOW) + 5_000).toISOString();
+    const again = S.recordInspection(once, greenhouseForm(), later);
+    expect(again.audit).toHaveLength(once.audit.length);
+    expect(JSON.stringify(again)).toBe(JSON.stringify(once));
+    // A different page (another step) is still recorded.
+    const step2 = S.recordInspection(again, greenhouseForm({ step: 2 }), later);
+    expect(step2.audit.length).toBe(once.audit.length + 2);
+  });
+
   it("records each next-page press in the audit, with the button's words", () => {
     const s = S.recordStepAdvanced(S.recordInspection(fresh(), greenhouseForm(), NOW), "Save and continue", NOW);
     expect(s.audit.at(-1)).toMatchObject({ event: "STEP_ADVANCED", actor: "helper", detail: expect.stringContaining("Save and continue") });
