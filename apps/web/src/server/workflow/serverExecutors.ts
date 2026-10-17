@@ -15,7 +15,6 @@ import type { CanonicalJob, Job, JobMatch, JobQuality, JobSource } from "@/domai
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { aiRankJobs } from "@/server/ai/rank";
-import { searchSource, SourceNeedsSetupError } from "@/server/jobs/search";
 import { breadthEvidence, phrasingEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
 import { MAX_VARIANTS, ruleVariants } from "@/domain/jobs/variants";
 import type { SearchResponse } from "@/domain/jobslake/protocol";
@@ -66,22 +65,21 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const wanted = ctx.run.config.sourceIds;
       const sources: JobSource[] = snapshot.jobs.sources.filter((s) => s.enabled && (wanted.length ? wanted.includes(s.id) : true));
       const criteria = { query: ctx.run.config.searchCriteria.query, locations: ctx.run.config.searchCriteria.locations };
-      const perSource: Record<string, number> = {};
-      const failures: string[] = [];
       ctx.setProgress(0, null);
-      // Through JobsLake when it's on: the same core search the browser's stream uses, called in-process.
-      if (jobsLakeFlags().jobsLakeSearchEnabled && sources.length) {
-        try {
-          // Scheduled runs search the same broader phrasings by rule (no model call on the cron).
-          const variants = ruleVariants(criteria.query).slice(0, MAX_VARIANTS);
-          const { response } = await jobsLakeSearch(searchRequestFor({ ...criteria, variants }, sources.map((s) => s.id), "balanced", 500), { trigger: "search" });
-          const said = phrasingEvidence(variants, []);
-          if (said) ctx.addEvidence(said);
-          lake = response;
-        } catch (e) {
-          ctx.addEvidence({ label: "JobsLake", value: "Didn't answer — searched each source directly", tone: "warning" });
-          ctx.warn(`JobsLake failed (${e instanceof Error ? e.message : String(e)}), so this run searched each source directly.`);
-        }
+      // Only through JobsLake (owner, 2026-10-17): the same core search the browser's stream uses, called
+      // in-process. When it's off or fails, the run says so; it never goes to a source directly.
+      if (!sources.length) ctx.fail({ category: "fatal", message: "No job sources are switched on for this schedule.", actions: ["fix_config", "stop"] });
+      if (!jobsLakeFlags().jobsLakeSearchEnabled) ctx.fail({ category: "fatal", message: "JobsLake search is switched off on this deployment, so this scheduled search didn't run.", actions: ["retry", "stop"] });
+      try {
+        // Scheduled runs search the same broader phrasings by rule (no model call on the cron).
+        const variants = ruleVariants(criteria.query).slice(0, MAX_VARIANTS);
+        const { response } = await jobsLakeSearch(searchRequestFor({ ...criteria, variants }, sources.map((s) => s.id), "balanced", 500), { trigger: "search" });
+        const said = phrasingEvidence(variants, []);
+        if (said) ctx.addEvidence(said);
+        lake = response;
+      } catch (e) {
+        ctx.addEvidence({ label: "JobsLake", value: "Didn't answer", tone: "warning" });
+        ctx.fail({ category: "fatal", message: `JobsLake didn't answer (${e instanceof Error ? e.message : String(e)}). The next scheduled search will try again.`, actions: ["retry", "stop"] });
       }
       if (lake) {
         ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${lake.metadata.sourcesPlanned} sources planned`, tone: "info" });
@@ -106,39 +104,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
         }
         return { data: { jobIds: canonical.map((j) => j.id), perSource: Object.fromEntries(lake.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved])), searchedWith: "JobsLake", requestId: lake.requestId }, counts: { discovered, sources: lake.metadata.sourcesSucceeded } };
       }
-      // Sequential on purpose: sources are third-party APIs and a cron has no reason to burst them.
-      for (const src of sources) {
-        await ctx.checkpoint();
-        try {
-          const { jobs } = await searchSource(src.id, criteria);
-          raw.push(...jobs);
-          perSource[src.id] = jobs.length;
-          ctx.addEvidence({ label: src.name, value: `${jobs.length.toLocaleString("en-IN")} jobs`, tone: "success" });
-        } catch (e) {
-          if (e instanceof SourceNeedsSetupError) {
-            ctx.addEvidence({ label: src.name, value: "Needs setup", tone: "warning" });
-            ctx.warn(`${src.name} isn't configured on this deployment yet, so it was skipped.`);
-          } else {
-            failures.push(src.name);
-            ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
-            ctx.warn(`${src.name} is temporarily unavailable: ${e instanceof Error ? e.message : String(e)}`);
-          }
-        }
-        ctx.setProgress(raw.length, null);
-        ctx.setCounts({ discovered: raw.length, sources: Object.keys(perSource).length });
-      }
-      ctx.setProgress(raw.length, raw.length);
-      if (!raw.length) {
-        // Fatal rather than recoverable: the browser downgrades this to a warning because someone is
-        // watching and can retry, but a scheduled run with nothing to show has simply failed, and saying
-        // so is what puts it in front of the candidate. The next tick is the retry.
-        ctx.fail({
-          category: "fatal",
-          message: failures.length ? `Every source failed (${failures.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
-          actions: ["retry", "fix_config", "stop"],
-        });
-      }
-      return { data: { jobIds: raw.map((j) => j.id), perSource }, counts: { discovered: raw.length, sources: sources.length } };
+      return ctx.fail({ category: "fatal", message: "JobsLake didn't answer. The next scheduled search will try again.", actions: ["retry", "stop"] });
     },
 
     dedupe: async (ctx) => {

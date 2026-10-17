@@ -73,11 +73,14 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const sourceIds = ctx.run.config.sourceIds.length ? ctx.run.config.sourceIds : useJobsStore.getState().sources.filter((s) => s.enabled).map((s) => s.id);
       const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && s.available !== false && sourceIds.includes(s.id));
       ctx.setProgress(0, null);
-      // Signed in: search through JobsLake — one request, every source, deduplicated with provenance.
-      // If JobsLake is off or doesn't answer, the direct per-source path below runs instead, and says so.
-      if (getClientMode().mode === "user" && jobsLakeCapability().search && enabled.length) {
+      // Signed in: search only through JobsLake — one request, every source, deduplicated with provenance.
+      // When JobsLake is off or doesn't answer, the run says so; it never goes to a source directly.
+      if (getClientMode().mode === "user") {
+        if (!enabled.length) ctx.fail({ category: "user_action_required", message: "No job sources are switched on. Turn one on and search again.", actions: ["fix_config", "stop"] });
+        if (!jobsLakeCapability().search) ctx.fail({ category: "recoverable", message: "JobsLake search is switched off on this deployment, so Wonder can't search right now.", actions: ["retry", "stop"] });
         const lake = await searchWithJobsLake(ctx, enabled.map((s) => s.id));
-        if (lake) {
+        if (!lake) ctx.fail({ category: "recoverable", message: "JobsLake didn't answer, so no new jobs were found. Retry in a moment.", actions: ["retry", "stop"] });
+        else {
           lakeCache.set(ctx.run.id, lake);
           rawCache.delete(ctx.run.id);
           const m = lake.response.metadata;
@@ -601,8 +604,8 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
     if (e instanceof StopSignal || e instanceof RestartSignal) throw e;
     const disabled = e instanceof JobsLakeError && e.body?.code === "FEATURE_DISABLED";
     if (disabled) setJobsLakeCapability({ search: false });
-    ctx.addEvidence({ label: "JobsLake", value: disabled ? "Off — searched each source directly" : "Didn't answer — searched each source directly", tone: disabled ? "info" : "warning" });
-    if (!disabled) ctx.warn(`JobsLake didn't answer (${e instanceof Error ? e.message : "unknown error"}), so Wonder searched each source directly.`);
+    ctx.addEvidence({ label: "JobsLake", value: disabled ? "Off" : "Didn't answer", tone: "warning" });
+    if (!disabled) ctx.warn(`JobsLake didn't answer (${e instanceof Error ? e.message : "unknown error"}).`);
     return null;
   }
   for (const ev of breadthEvidence(response.metadata)) ctx.addEvidence(ev);
