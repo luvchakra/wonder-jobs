@@ -6,5 +6,8 @@
   "ignoreCommand": "bash scripts/vercel-should-build.sh",
   "git": { "deploymentEnabled": { "*/**": false } },
   "regions": ["bom1"],
-  "crons": [{ "path": "/api/cron/scheduled-runs", "schedule": "0 2 * * *" }]
+  "crons": [
+    { "path": "/api/cron/scheduled-runs", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/jobslake-companies", "schedule": "30 1 * * *" }
+  ]
 }
