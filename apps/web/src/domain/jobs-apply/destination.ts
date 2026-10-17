@@ -91,6 +91,15 @@ export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDoma
   };
 }
 
+/**
+ * Can Apply for this job fill it in the background (WJ-311)? Only when the link opens an applicant-tracking
+ * system's own job page, where the form is. A job board's or a careers site's listing needs someone to press
+ * its Apply first, which the helper never does, so those go to the Apply page instead.
+ */
+export function backgroundFillable(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): boolean {
+  return destinationFor(job)?.type === "ats";
+}
+
 export type DomainVerdict = "expected" | "related" | "sso" | "approved" | "unexpected";
 
 /** Is this host somewhere the application may legitimately be (§72)? */

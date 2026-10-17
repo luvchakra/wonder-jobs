@@ -72,7 +72,9 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
           ? `${company}'s site is asking for a verification check only you can do.`
           : s.status === "PAUSED" && s.failure === "DOMAIN_CHANGED"
             ? "The application moved to a different site, so Wonder paused."
-            : s.status === "FAILED"
+            : s.failure === "FORM_NOT_FOUND"
+              ? `${s.destination.domain} opened a job listing, not an application form. Nothing has been filled or sent.`
+              : s.status === "FAILED"
               ? "Wonder couldn't find the application form on that page."
               : s.stopped
                 ? "You stopped this application."
@@ -86,7 +88,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
     return ai().answerApplicationQuestion({ job, dna, question, metric });
   };
 
-  const steps = (s?.audit ?? []).filter((a) => a.event !== "SESSION_CREATED").slice(-10);
+  const steps = (s?.audit ?? []).filter((a) => a.event !== "SESSION_CREATED" && a.detail).slice(-10);
 
   return (
     <div className="flex flex-col gap-3">
@@ -146,7 +148,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       )}
 
       {s && phase !== "idle" && phase !== "submitted" && (
-        <Fold title="Progress" hint={progress ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : "Starting"}>
+        <Fold title="Progress" hint={progress?.total ? `${progress.filled} of ${progress.total} fields filled${s.finalStep ? " · last page" : s.form?.step && s.form.step > 1 ? ` · page ${s.form.step}` : ""}` : phase === "blocked" ? "No form found" : "Looking for the form"}>
           <ol className="flex flex-col gap-1.5 text-[12.5px] text-ink-2" aria-live="polite">
             {steps.map((a, i) => (
               <li key={`${a.at}-${i}`} className="flex gap-2">

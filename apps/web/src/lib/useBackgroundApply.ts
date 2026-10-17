@@ -221,7 +221,8 @@ export function useBackgroundApply(jobId: string) {
     if (s.status === "CANCELLED") return error ? "error" : "idle";
     if (s.status === "SUBMITTING" || (submitRequested && !s.wonderSubmittedAt)) return "submitting";
     if (TERMINAL.has(s.status)) return "error";
-    if (BLOCKED.has(s.status) || s.stopped) return "blocked";
+    // The page opened but holds no application form (a job listing): waiting longer won't change that.
+    if (BLOCKED.has(s.status) || s.stopped || s.failure === "FORM_NOT_FOUND") return "blocked";
     if (view?.decisions?.fill === "skip") return "blocked";
     if (s.interventions.some((i) => i.status === "open" && i.required)) return "needs_you";
     if (s.finalStep && s.finalStep.waiting === 0 && (view?.progress.fillable ?? 0) === 0 && FILLABLE.has(s.status)) return "ready";
