@@ -1,4 +1,5 @@
 "use client";
+import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useState } from "react";
 import { Bell, Bookmark, Building2, CheckCircle2, Clock, Lock, MapPin, Send, Sparkles, Wallet } from "lucide-react";
 import { CompanyLogo } from "@/components/common/Avatar";
@@ -101,7 +102,7 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
       <div className="mt-3">
         {tab === "overview" && (
           <div>
-            <p className={cn("whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2", !expanded && "line-clamp-[7]")}>{job.description}</p>
+            <p className={cn("whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2", !expanded && "line-clamp-[7]")}>{looksLikeHtml(job.description) ? htmlToText(job.description) : job.description}</p>
             <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-1.5 text-[13px] font-medium text-brand-600 hover:underline">
               {expanded ? "Show less" : "Show more"}
             </button>
