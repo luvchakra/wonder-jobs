@@ -2,7 +2,7 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
-import { offeredLevel, resolveCapability } from "@/domain/automation/policy";
+import { resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
 import { backgroundFillable, destinationFor } from "@/domain/jobs-apply/destination";
 import {
@@ -174,7 +174,6 @@ export default function ApplyWithWonderPage({
   const backgroundReady = cloudAvailable === true && !!job && backgroundFillable(job);
   const fillPolicy = fillDecision(policy, level);
   const handoffPolicy = handoffDecision(policy, level);
-  const independent = offeredLevel(level) === "autonomous";
   const chosenMethod: Method = methodTouched
     ? method
     : defaultMethod === "helper" && ((helperInstalled === false && !backgroundReady) || fillPolicy === "skip")
@@ -362,12 +361,8 @@ export default function ApplyWithWonderPage({
     const app = appOrNew();
     setBusy(true);
     setError(null);
-    const mode: ApplyMode =
-      chosenMethod === "helper"
-        ? independent
-          ? "fill"
-          : "assisted"
-        : "guided";
+    // Fill for me follows Automation: it fills on its own when "Fill application forms" is Automatic, and waits for your click otherwise.
+    const mode: ApplyMode = chosenMethod === "helper" ? "fill" : "guided";
     // Open the employer's tab inside the click, so no popup blocker stands in the way; it navigates once the session exists.
     const pre = mode !== "guided" ? window.open("about:blank", "_blank") : null;
     try {
@@ -807,11 +802,11 @@ export default function ApplyWithWonderPage({
                 </p>
               )}
               {/* Everything that isn't the next step: how much Wonder does, stop, the pack, cancel. */}
-              <Fold title="Options" hint={`${s.mode === "guided" ? "Guide me" : s.mode === "assisted" ? "Fill for me" : "Independently"} · stop, download or cancel`}>
+              <Fold title="Options" hint={`${s.mode === "guided" ? "Guide me" : "Fill for me"} · stop, download or cancel`}>
                 <Segmented
                   size="sm"
                   label="How much should Wonder do?"
-                  value={s.mode}
+                  value={s.mode === "guided" ? "guided" : "fill"}
                   onChange={(m) =>
                     withSession((id) => jobsApplyApi.setMode(id, m)).then(
                       () => m !== "guided" && connect(s.id),
@@ -819,19 +814,15 @@ export default function ApplyWithWonderPage({
                   }
                   options={[
                     { value: "guided", label: "Guide me" },
-                    { value: "assisted", label: "Fill for me" },
-                    { value: "fill", label: "Independently" },
+                    { value: "fill", label: "Fill for me" },
                   ]}
                 />
                 <p className="mt-2 text-[12px] text-ink-3">
                   {s.mode === "guided"
                     ? "You fill the form; everything is ready to copy."
-                    : s.mode === "assisted"
-                      ? "The helper fills safe fields when you click Fill."
-                      : view.decisions &&
-                          effectiveFill(view.decisions.fill, s.mode) === "run"
-                        ? "The helper fills safe fields as soon as the form opens."
-                        : "Your “Fill application forms” setting is Ask, so the helper still waits for your click."}
+                    : view.decisions && effectiveFill(view.decisions.fill, s.mode) === "run"
+                      ? "The helper fills safe fields as soon as the form opens."
+                      : "The helper fills safe fields when you click Fill. Set “Fill application forms” to Automatic to skip the click."}
                 </p>
                 {!guided && (
                   <div className="mt-4">
