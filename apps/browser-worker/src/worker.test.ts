@@ -14,17 +14,34 @@ const SECRET = "x".repeat(40);
 describe("the worker never acts on the page by itself", () => {
   const files = readdirSync(SRC).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
-  it("only input.ts drives the page, and only with what the candidate sent", () => {
-    const acts = /\.(click|dblclick|press|tap|fill|type|check|selectOption|setInputFiles|submit)\(|\bkeyboard\.|\bmouse\.|dispatchEvent\(/;
+  it("only input.ts (what the candidate sent) and picker.ts (a dropdown the helper asked about) drive the page", () => {
+    const acts = /\.(click|dblclick|press|tap|fill|type|check|selectOption|setInputFiles|submit|focus)\(|\bkeyboard\.|\bmouse\.|dispatchEvent\(/;
     for (const f of files) {
       const src = readFileSync(path.join(SRC, f), "utf8");
       if (f === "input.ts") expect(src).toMatch(/relayInput/);
-      else expect(src, f).not.toMatch(acts);
+      else if (f !== "picker.ts") expect(src, f).not.toMatch(acts);
     }
     // And input.ts relays exactly the four candidate gestures — no scripted sequence, no submit.
     const input = readFileSync(path.join(SRC, "input.ts"), "utf8");
     expect(input).not.toMatch(/submit|\.evaluate\(|setInputFiles/);
     expect([...KEYS]).not.toContain("F5");
+  });
+
+  it("picker.ts opens one dropdown with ArrowDown, closes it with Escape, and clicks only the option that is the answer (WJ-312)", () => {
+    const src = readFileSync(path.join(SRC, "picker.ts"), "utf8");
+    // Keys: exactly ArrowDown and Escape, on the marked combobox's own text box.
+    expect([...src.matchAll(/\.press\(([^)]*)\)/g)].map((m) => m[1])).toEqual(['"ArrowDown"', '"Escape"']);
+    expect(src).toMatch(/el\.tagName === "INPUT" && el\.getAttribute\("role"\) === "combobox"/);
+    // One click, on the single option marked because its text equals the answer.
+    expect([...src.matchAll(/\.click\(/g)]).toHaveLength(1);
+    expect(src).toMatch(/await frame\.locator\(`\[\$\{CHOSEN\}="1"\]`\)\.click\(\{ timeout: 3000 \}\);/);
+    expect(src).toMatch(/if \(hit\.length !== 1\) return false;/);
+    expect(src).toMatch(/if \(opts\.filter\(\(o\) => norm\(o\) === want\)\.length !== 1\) \{/);
+    // Nothing typed, no Enter or Tab, no other gesture.
+    expect(src).not.toMatch(/\.(fill|type|dblclick|tap|check|selectOption|setInputFiles|submit|dispatchEvent)\(|keyboard\.|mouse\.|"Enter"|"Tab"/);
+    // The session asks the picker only for frames on the application's own site.
+    const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
+    expect(session).toMatch(/if \(\(m\.type === "comboOptions" \|\| m\.type === "comboPick"\) && frame && this\.onDestination\(frame\.url\(\)\)\) \{/);
   });
 
   it("runs the extension's own helper script behind a message shim", () => {
