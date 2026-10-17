@@ -40,7 +40,7 @@ export const STAGES: Record<StageKey, StageDefinition> = {
   understand: { key: "understand", name: "Understanding opportunities", activeLabel: "Analyzing opportunities", risk: "low", capabilities: ["analyze_jobs"], unit: "jobs" },
   match: { key: "match", name: "Matching with your career goals", activeLabel: "Matching to your profile", risk: "low", capabilities: ["analyze_jobs"], unit: "jobs" },
   quality: { key: "quality", name: "Checking job quality", activeLabel: "Checking hiring signals", risk: "low", capabilities: ["analyze_jobs"], unit: "jobs" },
-  rank: { key: "rank", name: "Prioritizing opportunities", activeLabel: "Ranking opportunities", risk: "low", capabilities: ["rank_opportunities", "save_jobs"], unit: "jobs" },
+  rank: { key: "rank", name: "Prioritizing opportunities", activeLabel: "Ranking opportunities", risk: "low", capabilities: ["rank_opportunities"], unit: "jobs" },
   prepare: { key: "prepare", name: "Preparing application materials", activeLabel: "Tailoring materials", risk: "medium", capabilities: ["generate_resume", "generate_cover_letter"], unit: "applications" },
   review: { key: "review", name: "Waiting for your review", activeLabel: "Waiting for your review", risk: "low", capabilities: [], requiresUser: true, unit: "applications" },
   apply: { key: "apply", name: "External application", activeLabel: "Submitting approved applications", risk: "high", capabilities: ["submit_application"], external: true, unit: "applications" },

@@ -132,7 +132,8 @@ export function resolveCapability(capability: Capability, policy: AutomationPoli
   const meta = CAPABILITY_META[capability];
   const mode = policy[capability];
   if (mode === "off") return "skip";
-  if (meta.risk === "low") return "run";
+  // Low risk runs on its own only when the candidate left it on Automatic: "Ask me" means ask, never quietly run.
+  if (meta.risk === "low") return mode === "automatic" ? "run" : "ask";
   if (meta.risk === "medium") {
     if (level === "assist") return "ask";
     return mode === "automatic" ? "run" : "ask";

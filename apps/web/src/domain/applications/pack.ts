@@ -36,10 +36,15 @@ const SOURCE_LABEL: Record<ArtifactVersion["provenance"], string> = {
 
 const ORDER: ArtifactType[] = ["resume", "cover_letter", "answers"];
 
-export function describeApplicationPack(app: Application): PackSummary {
+/**
+ * `resumeOnFile`: the name of the candidate's own résumé (one they saved or uploaded) when they chose to send it
+ * instead of a tailored draft — the résumé then counts as ready, labelled as theirs.
+ */
+export function describeApplicationPack(app: Application, opts: { resumeOnFile?: string } = {}): PackSummary {
   const items = ORDER.map((type): PackItem => {
     const a = app.artifacts.find((x) => x.type === type);
     const current = a?.versions.find((v) => v.id === a.currentVersionId) ?? a?.versions[a.versions.length - 1];
+    if (!current && type === "resume" && opts.resumeOnFile) return { type, label: "Your résumé", ready: true, source: opts.resumeOnFile };
     return { type, label: PACK_ITEM_LABEL[type], ready: !!current, source: current ? SOURCE_LABEL[current.provenance] : undefined };
   });
   const readyCount = items.filter((i) => i.ready).length;
