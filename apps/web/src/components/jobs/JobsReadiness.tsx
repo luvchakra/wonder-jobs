@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FileUp, MapPin, RefreshCw, Sparkles, Target, X } from "lucide-react";
+import { ChevronRight, FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -289,31 +289,30 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   };
 
   if (!editing) {
-    // One quiet row: what Wonder searches for, and the one way to change it.
+    // One quiet, compact row: what Wonder searches for on the left; changing it, or the profile behind it, on the right.
     return (
-      <div className={cn("mb-3 flex items-center gap-3 rounded-[16px] border border-line bg-surface px-3.5 py-2.5", inline && "sm:max-w-xl", className)}>
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-600" aria-hidden>
-          <Target className="size-4" />
-        </span>
+      <div className={cn("mb-3 flex items-center gap-3 rounded-[14px] border border-line bg-surface px-3.5 py-2", inline && "sm:max-w-xl", className)}>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">Looking for</p>
-          <p className={cn("line-clamp-2 text-[15px] font-semibold leading-snug first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
+          <p className={cn("truncate text-[14px] first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
             {role || "No role yet"}
           </p>
-          <Link href="/app/career-dna" className="mt-0.5 inline-flex items-center gap-0.5 text-[12px] font-medium text-brand-600 hover:underline">
-            Update Career Profile <ChevronRight className="size-3.5" aria-hidden />
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(role);
+              setEditing(true);
+            }}
+            className="inline-flex h-7 items-center rounded-full border border-line px-3 text-[12.5px] font-medium text-brand-600 hover:border-brand-200 hover:bg-brand-50"
+          >
+            Change
+          </button>
+          <Link href="/app/career-dna" className="inline-flex items-center text-[11.5px] font-medium text-ink-3 hover:text-brand-600">
+            Career Profile <ChevronRight className="size-3" aria-hidden />
           </Link>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(role);
-            setEditing(true);
-          }}
-          className="inline-flex h-8 shrink-0 items-center rounded-full border border-line px-3 text-[13px] font-medium text-brand-600 hover:border-brand-200 hover:bg-brand-50"
-        >
-          Change
-        </button>
       </div>
     );
   }
