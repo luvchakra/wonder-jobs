@@ -3,7 +3,7 @@
  * functions, which the server routes call; each one appends an audit entry (§87) that records
  * categories, counts and hosts — never a value the candidate typed or Wonder filled (§88).
  */
-import { checkDomain, hostOf, PROVIDER_NAME } from "./destination";
+import { checkDomain, followedDestination, hostOf, PROVIDER_NAME } from "./destination";
 import { mapForm } from "./mapper";
 import { memoryKeyFor } from "./classify";
 import { assertTransition, TERMINAL, type Actor } from "./states";
@@ -295,6 +295,21 @@ export function recordNavigation(s: JobsApplySession, url: string, now: string, 
 }
 
 /** The candidate reviewed an unexpected destination and chose Continue. */
+/**
+ * The cloud browser followed a job board listing's own Apply link (owner decision 2026-10-17, WJ-315): the
+ * employer's page becomes the destination, once per application. What was read on the listing (its search and
+ * alert forms) is dropped; nothing there was ever the application.
+ */
+export function followListing(s: JobsApplySession, url: string, now: string): JobsApplySession {
+  assertActive(s);
+  if (s.destination.type !== "aggregator" || s.listingFollowed) return s;
+  const next = followedDestination(s.destination, url);
+  // No Apply link, or it led back to a job board: the candidate finishes on the listing (the page says so).
+  if (!next) return audit({ ...s, failure: "FORM_NOT_FOUND" }, now, "LISTING_FOLLOWED", "wonder", `${s.destination.domain}'s Apply link didn't lead to the employer's site`, hostOf(url) ?? undefined);
+  const n: JobsApplySession = { ...s, destination: next, listingFollowed: { at: now, from: s.destination.domain, to: next.domain }, form: undefined, formFields: [], fieldMappings: [], interventions: s.interventions.filter((i) => i.status !== "open"), failure: undefined, finalStep: undefined };
+  return audit(n, now, "LISTING_FOLLOWED", "wonder", `Followed ${s.destination.domain}'s Apply link to ${next.domain}`, next.domain);
+}
+
 export function approveDomain(s: JobsApplySession, host: string, now: string): JobsApplySession {
   assertActive(s);
   const h = host.toLowerCase();

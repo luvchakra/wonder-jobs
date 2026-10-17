@@ -356,6 +356,7 @@ export type JobsApplyEventType =
   | "READY_FOR_REVIEW"
   | "STEP_ADVANCED"
   | "FINAL_STEP_REACHED"
+  | "LISTING_FOLLOWED"
   | "ANSWER_LEARNED"
   | "SUBMISSION_STARTED"
   | "APPLICATION_SUBMITTED"
@@ -417,6 +418,8 @@ export interface JobsApplySession {
    * many required questions on it were still waiting for the candidate. Cleared when the form moves on.
    */
   finalStep?: { at: string; label: string; waiting: number };
+  /** The job board listing whose own Apply link the cloud browser followed to the employer (WJ-315), once. */
+  listingFollowed?: { at: string; from: string; to: string };
   /** The candidate's "Submit for me" choice for this application (WJ-249); absent = their account default. */
   submitOverride?: "on" | "off";
   /** When the helper pressed the employer's Submit under that setting — once per job (key submit:{jobId}:me). */

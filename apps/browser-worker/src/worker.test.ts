@@ -44,6 +44,20 @@ describe("the worker never acts on the page by itself", () => {
     expect(session).toMatch(/if \(\(m\.type === "comboOptions" \|\| m\.type === "comboPick"\) && frame && this\.onDestination\(frame\.url\(\)\)\) \{/);
   });
 
+  it("listing.ts only reads a job board's one Apply link and navigates to it: nothing pressed, typed or submitted (WJ-315)", () => {
+    const src = readFileSync(path.join(SRC, "listing.ts"), "utf8");
+    expect(src).not.toMatch(/\.(click|dblclick|press|tap|fill|type|check|selectOption|setInputFiles|submit|focus|dispatchEvent)\(|keyboard\.|mouse\./);
+    expect([...src.matchAll(/\.goto\(/g)]).toHaveLength(1);
+    expect(src).toMatch(/await page\.goto\(href, /);
+    // Only a plain <a href> whose whole text is an apply phrase, and only when every such link agrees.
+    expect(src).toMatch(/document\.querySelectorAll\("a\[href\]"\)/);
+    expect(src).toMatch(/return hrefs\.size === 1 \? \[\.\.\.hrefs\]\[0\] : null;/);
+    // The session follows it only when WonderJobs asked (a listing's background fill), keeping the helper out meanwhile.
+    const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
+    expect(session).toMatch(/if \(init\.followListing\) void opened\.then\(\(\) => s\.followListingLink\(\)\);/);
+    expect(session).toMatch(/this\.following \? \{ sessionId: null \}/);
+  });
+
   it("runs the extension's own helper script behind a message shim", () => {
     const script = pageScript();
     expect(script.startsWith(SHIM)).toBe(true);

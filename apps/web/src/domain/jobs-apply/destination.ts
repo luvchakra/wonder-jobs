@@ -33,7 +33,10 @@ export const PROVIDER_NAME: Record<AtsProvider, string> = {
 /** Identity providers a portal may send the candidate through to sign in (§36). Allowed, never filled. */
 export const SSO_HOSTS = ["accounts.google.com", "login.microsoftonline.com", "login.live.com", "okta.com", "oktapreview.com", "auth0.com", "onelogin.com", "appleid.apple.com", "linkedin.com"];
 
-const AGGREGATORS = ["linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in"];
+const AGGREGATORS = ["linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "adzuna.co.uk", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de"];
+
+/** Is this host a job board (a listing, not the employer's application)? */
+export const isAggregatorHost = (host: string) => AGGREGATORS.some((d) => hostMatches(host.toLowerCase(), d));
 
 /** Two-label public suffixes common in job links; enough to keep "company.co.uk" from collapsing to "co.uk". */
 const SECOND_LEVEL = new Set(["co.uk", "org.uk", "ac.uk", "co.in", "org.in", "net.in", "com.au", "net.au", "co.jp", "com.br", "com.sg", "co.nz", "com.mx", "co.za", "com.cn"]);
@@ -97,7 +100,19 @@ export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDoma
  * its Apply first, which the helper never does, so those go to the Apply page instead.
  */
 export function backgroundFillable(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): boolean {
-  return destinationFor(job)?.type === "ats";
+  const t = destinationFor(job)?.type;
+  // A job board's listing: the cloud browser follows its own Apply link to the employer first (WJ-315).
+  return t === "ats" || t === "aggregator";
+}
+
+/** Where a listing's Apply link led: the new destination, keeping the hosts the job already allowed. */
+export function followedDestination(prev: ApplyDestination, url: string): ApplyDestination | null {
+  const host = hostOf(url);
+  if (!host || isAggregatorHost(host)) return null;
+  const provider = detectProvider(url);
+  const related = new Set<string>([...prev.relatedDomains.filter((d) => !isAggregatorHost(d)), registrableDomain(host)]);
+  if (provider) PROVIDER_HOSTS[provider].forEach((d) => related.add(d));
+  return { url, domain: host, type: provider ? "ats" : "employer", provider, applicationMethod: "browser", relatedDomains: [...related].sort() };
 }
 
 export type DomainVerdict = "expected" | "related" | "sso" | "approved" | "unexpected";
