@@ -4,16 +4,18 @@
  * driven only by what the candidate taps and types, with the WonderJobs helper script in every page.
  *
  * Wonder's part — reading the form and filling what the candidate's own profile can fill — happens
- * inside the helper script, gated by the app on every call. Nothing in this file clicks or submits.
+ * inside the helper script, gated by the app on every call. Nothing in this file clicks or submits; a
+ * searchable dropdown the helper asks about is opened and chosen in picker.ts (WJ-312).
  * With no viewer attached nothing is streamed: that is a background fill (WJ-311), driven from WonderJobs.
  */
 import { randomUUID } from "node:crypto";
-import type { Browser, BrowserContext, CDPSession, Page } from "playwright";
+import type { Browser, BrowserContext, CDPSession, Frame, Page } from "playwright";
 import type { WebSocket } from "ws";
 import { hostMatches, jobsApplyCall } from "./appClient.js";
 import type { Config } from "./config.js";
 import { pageScript } from "./helperScript.js";
 import { parseInput, relayInput } from "./input.js";
+import { comboOptions, comboPick } from "./picker.js";
 
 export interface SessionInit {
   /** The WonderJobs Apply with Wonder session this browser belongs to. */
@@ -49,7 +51,7 @@ export class CloudSession {
   static async open(browser: Browser, init: SessionInit, config: Config): Promise<CloudSession> {
     const context = await browser.newContext({ viewport: config.viewport, deviceScaleFactor: 1, locale: "en-IN", acceptDownloads: false });
     const s = new CloudSession(init, context, config);
-    await context.exposeFunction("__wonderAsk", (raw: string) => s.ask(raw));
+    await context.exposeBinding("__wonderAsk", (source: { frame: Frame }, raw: string) => s.ask(raw, source.frame));
     await context.addInitScript(pageScript());
     s.page = await context.newPage();
     s.wire(s.page);
@@ -81,7 +83,7 @@ export class CloudSession {
   }
 
   /** `chrome.runtime.sendMessage` from the helper script, routed like the extension's background script would. */
-  private async ask(raw: string): Promise<string | null> {
+  private async ask(raw: string, frame?: Frame): Promise<string | null> {
     // The helper working on the page is activity: a background fill nobody watches (WJ-311) isn't idle.
     this.lastActivity = Date.now();
     let m: { type?: string; payload?: Record<string, unknown> };
@@ -96,6 +98,16 @@ export class CloudSession {
       const r = await jobsApplyCall(this.config.appOrigin, this.init.helperToken, p.path, typeof p.method === "string" ? p.method : "GET", p.body);
       if ("approvedDomains" in r && r.approvedDomains) for (const d of r.approvedDomains) this.domains.add(d.toLowerCase());
       return JSON.stringify(r);
+    }
+    // A searchable dropdown the helper can't open itself (picker.ts): only on the application's own site.
+    if ((m.type === "comboOptions" || m.type === "comboPick") && frame && this.onDestination(frame.url())) {
+      const mark = String(m.payload?.mark ?? "");
+      try {
+        if (m.type === "comboOptions") return JSON.stringify({ options: await comboOptions(frame, mark) });
+        return JSON.stringify({ ok: await comboPick(frame, mark, String(m.payload?.value ?? "")) });
+      } catch {
+        return JSON.stringify(m.type === "comboOptions" ? { options: [] } : { ok: false });
+      }
     }
     // The legacy "Fill with WonderJobs" button has no place here: every cloud page belongs to a session.
     if (m.type === "profile" || m.type === "application") return JSON.stringify({ error: "not_connected" });

@@ -176,6 +176,7 @@
     if (type === "file") return !!el.files?.length;
     if (type === "checkbox") return el.checked;
     if (type === "select") return el.selectedIndex > 0 || (el.selectedIndex === 0 && !!el.value && !/select|choose/i.test(el.options[0]?.text || ""));
+    if (type === "combobox") return !!comboValue(el);
     return !!(el.value && el.value.trim());
   }
 
@@ -264,6 +265,7 @@
       const section = sectionOf(el, label);
       if (section) hints.section = section.slice(0, 190);
       if (Object.keys(hints).length) f.hints = hints;
+      if (type === "combobox" && comboChoices.get(el)?.length) f.options = comboChoices.get(el).map((label) => ({ label: label.slice(0, 190), value: label.slice(0, 190) }));
       if (type === "select") f.options = [...el.options].filter((o) => o.value !== "" || o.index > 0).slice(0, 290).map((o) => ({ label: clean(o.text).slice(0, 190), value: String(o.value).slice(0, 190) }));
       const hv = hasValue(el, type);
       if (hv !== undefined) f.hasValue = hv;
@@ -378,6 +380,40 @@
     return false;
   }
 
+  /* Searchable dropdowns (React Select and the like) keep their choices out of the page until opened and
+   * ignore scripted events. In WonderJobs' cloud browser the helper marks the one it needs and asks the worker
+   * (picker.ts) to read its options or choose the candidate's answer (owner decision 2026-10-17, WJ-312).
+   * In the candidate's own browser they stay theirs. */
+  const comboChoices = new WeakMap();
+  let comboSeq = 0;
+
+  function comboMark(el) {
+    if (!el.getAttribute("data-wonder-combo")) el.setAttribute("data-wonder-combo", `c${++comboSeq}`);
+    return el.getAttribute("data-wonder-combo");
+  }
+
+  /** What the dropdown shows as chosen, if anything: its single-value text, or its hidden stand-in's value. */
+  function comboValue(el) {
+    let box = el.parentElement;
+    for (let i = 0; box && i < 5; i++, box = box.parentElement) {
+      const shown = box.querySelector("[class*='singleValue'], [class*='single-value']");
+      if (shown) return clean(shown.textContent);
+      const standIn = box.querySelector("input[aria-hidden='true']");
+      if (standIn) return clean(standIn.value);
+    }
+    return "";
+  }
+
+  /** Each dropdown's choices, read once, so WonderJobs can match answers and ask with the employer's own options. */
+  async function probeCombos() {
+    if (!IN_CLOUD) return;
+    const combos = [...document.querySelectorAll("input[role=combobox]")].filter((el) => visible(el) && !el.closest(".iti") && !comboChoices.has(el));
+    for (const el of combos.slice(0, 40)) {
+      const r = await ask("comboOptions", { mark: comboMark(el) });
+      comboChoices.set(el, Array.isArray(r?.options) ? r.options.slice(0, 290) : []);
+    }
+  }
+
   async function fillOne(sessionId, item) {
     const els = fieldEls.get(item.fieldId);
     if (!els?.length || !els[0].isConnected) return { fieldId: item.fieldId, ok: false, error: "not_found" };
@@ -416,7 +452,14 @@
         }
         return { fieldId: item.fieldId, ok: el.checked };
       }
-      if (type === "checkbox" || type === "password" || type === "otp" || type === "combobox") return { fieldId: item.fieldId, ok: false, error: "rejected" };
+      if (type === "combobox") {
+        if (!IN_CLOUD || !comboChoices.get(el)?.includes(item.value)) return { fieldId: item.fieldId, ok: false, error: "rejected" };
+        const r = await ask("comboPick", { mark: comboMark(el), value: item.value });
+        await new Promise((res) => setTimeout(res, 200));
+        const picked = !!r?.ok && comboValue(el).toLowerCase() === clean(item.value).toLowerCase();
+        return { fieldId: item.fieldId, ok: picked, ...(picked ? {} : { error: "rejected" }) };
+      }
+      if (type === "checkbox" || type === "password" || type === "otp") return { fieldId: item.fieldId, ok: false, error: "rejected" };
       if (type === "select" && ![...el.options].some((o) => o.value === item.value)) return { fieldId: item.fieldId, ok: false, error: "rejected" };
       const accepted = await setChecked(el, item.value);
       return { fieldId: item.fieldId, ok: accepted, ...(accepted ? {} : { error: "rejected" }) };
@@ -497,6 +540,14 @@
     // Our own fills change the page; re-reading it mid-fill would plan the same fields again and loop.
     // applyPlan reads the page once more when it's done.
     if (state.busy && !force) return;
+    if (state.probing) return;
+    // Opening a dropdown changes the page; the reads that causes wait until every list is read and closed.
+    state.probing = true;
+    try {
+      await probeCombos();
+    } finally {
+      state.probing = false;
+    }
     const form = readForm();
     const sig = sigOf(form);
     if (!force && sig === state.lastSig) return;
