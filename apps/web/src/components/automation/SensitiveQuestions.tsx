@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CAPABILITY_META } from "@/domain/automation/policy";
-import { ID_KINDS, ID_LABEL, SENSITIVE_GROUPS, type IdKind, type SensitiveAnswers, type SensitiveGroup } from "@/domain/jobs-apply/sensitive";
+import { DEMOGRAPHIC_CHOICES, ID_KINDS, ID_LABEL, SENSITIVE_GROUPS, type IdKind, type SensitiveAnswers, type SensitiveGroup } from "@/domain/jobs-apply/sensitive";
 import { useAutomationStore } from "@/store/automation";
 import { Fold } from "@/components/common/Fold";
 import { Modal } from "@/components/common/Modal";
@@ -78,11 +78,7 @@ function ConfirmGroup({ group, saved, onClose, onSaved }: { group: SensitiveGrou
   const [countries, setCountries] = useState((saved.answers.authorizedCountries ?? []).join(", "));
   const [ids, setIds] = useState<Partial<Record<IdKind, string>>>({});
   const [busy, setBusy] = useState(false);
-  const text = (k: "gender" | "pronouns" | "ethnicity" | "veteran" | "disability", label: string, placeholder: string) => (
-    <Field label={label} htmlFor={`wj-s-${k}`}>
-      <Input id={`wj-s-${k}`} value={a[k] ?? ""} placeholder={placeholder} onChange={(e) => setA({ ...a, [k]: e.target.value })} />
-    </Field>
-  );
+  const choice = (k: keyof typeof DEMOGRAPHIC_CHOICES, label: string) => <ChoiceOrOwn id={`wj-s-${k}`} label={label} choices={DEMOGRAPHIC_CHOICES[k]} value={a[k] ?? ""} onChange={(v) => setA({ ...a, [k]: v })} />;
 
   const answers: SensitiveAnswers = { ...a, authorizedCountries: countries.split(",").map((c) => c.trim()).filter(Boolean) };
   const newIds = Object.fromEntries(Object.entries(ids).filter(([, v]) => v?.trim())) as Partial<Record<IdKind, string>>;
@@ -126,11 +122,11 @@ function ConfirmGroup({ group, saved, onClose, onSaved }: { group: SensitiveGrou
       <div className="flex flex-col gap-3">
         {group === "fill_demographics" && (
           <>
-            {text("gender", "Gender", "e.g. Male, Female, Prefer not to say")}
-            {text("pronouns", "Pronouns", "e.g. he/him")}
-            {text("ethnicity", "Race / ethnicity", "e.g. Asian, Prefer not to say")}
-            {text("veteran", "Veteran status", "e.g. I am not a protected veteran")}
-            {text("disability", "Disability", "e.g. No, Prefer not to say")}
+            {choice("gender", "Gender")}
+            {choice("pronouns", "Pronouns")}
+            {choice("ethnicity", "Race / ethnicity")}
+            {choice("veteran", "Veteran status")}
+            {choice("disability", "Disability")}
           </>
         )}
         {group === "fill_work_authorization" && (
@@ -165,5 +161,32 @@ function ConfirmGroup({ group, saved, onClose, onSaved }: { group: SensitiveGrou
         )}
       </div>
     </Modal>
+  );
+}
+
+/** A dropdown of common answers, with "Something else…" for the candidate's own words. Blank leaves the question for them. */
+function ChoiceOrOwn({ id, label, choices, value, onChange }: { id: string; label: string; choices: string[]; value: string; onChange: (v: string) => void }) {
+  const [own, setOwn] = useState(() => !!value.trim() && !choices.includes(value));
+  return (
+    <Field label={label} htmlFor={id}>
+      <Select
+        id={id}
+        value={own ? "__own" : value}
+        onChange={(e) => {
+          const v = e.target.value;
+          setOwn(v === "__own");
+          onChange(v === "__own" ? "" : v);
+        }}
+      >
+        <option value="">Leave for me</option>
+        {choices.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+        <option value="__own">Something else…</option>
+      </Select>
+      {own && <Input className="mt-2" aria-label={`${label}, in your words`} value={value} placeholder="Your answer" autoFocus onChange={(e) => onChange(e.target.value)} />}
+    </Field>
   );
 }
