@@ -187,8 +187,8 @@ export function recordInspection(s: JobsApplySession, form: ApplicationForm, now
   const stepM = n.fieldMappings.filter((m) => (m.step ?? 1) === step);
   const willFill = stepM.filter((m) => m.status === "pending" && (m.value !== undefined || m.file)).length;
   const needs = n.interventions.filter((i) => i.status === "open" && stepM.some((m) => m.fieldId === i.fieldId)).length;
-  const detected = `${form.provider ? PROVIDER_NAME[form.provider] : "Generic"} form${form.stepCount ? ` · step ${step} of ${form.stepCount}` : step > 1 ? ` · step ${step}` : ""} · ${fieldsOnPage.length} fields`;
-  const analyzed = `${willFill} can be filled · ${needs} need you`;
+  const detected = `${form.provider ? `${PROVIDER_NAME[form.provider]} form` : "Form"} found${form.stepCount ? ` · page ${step} of ${form.stepCount}` : step > 1 ? ` · page ${step}` : ""} · ${fieldsOnPage.length} fields`;
+  const analyzed = !willFill && !needs ? "Nothing left to fill" : [willFill && `${willFill} to fill`, needs && `${needs} need${needs === 1 ? "s" : ""} you`].filter(Boolean).join(" · ");
   // The helper re-reads the page every few seconds: the same page with the same result adds nothing to Progress.
   const [d, a] = n.audit.slice(-2);
   if (d?.event === "FORM_DETECTED" && d.detail === detected && d.where === host && a?.event === "FORM_ANALYZED" && a.detail === analyzed) return n;
@@ -519,7 +519,7 @@ export function setMode(s: JobsApplySession, mode: ApplyMode, now: string): Jobs
 export function openCloud(s: JobsApplySession, now: string, cloudId: string, headless = false): JobsApplySession {
   assertActive(s);
   // A background fill (WJ-311): nobody watches the page, so only "Submit this application" in WonderJobs can submit it.
-  return audit({ ...s, cloud: { id: cloudId, startedAt: now, ...(headless ? { headless: true } : {}) } }, now, "CLOUD_BROWSER_OPENED", "wonder", headless ? "Filling in the background — a cloud browser nobody watches; its cookies and storage are discarded when it closes" : "Cloud browser opened — its cookies and storage are discarded when it closes");
+  return audit({ ...s, cloud: { id: cloudId, startedAt: now, ...(headless ? { headless: true } : {}) } }, now, "CLOUD_BROWSER_OPENED", "wonder", "Opened the application");
 }
 
 /** The cloud browser closed: context, cookies and page gone. Idempotent. */
