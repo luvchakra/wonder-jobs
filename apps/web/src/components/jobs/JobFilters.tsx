@@ -132,22 +132,25 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       </form>
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-        {views &&
-          VIEWS.map((v) => (
-            <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="shrink-0 px-3">
-              {v.label}
-            </Chip>
-          ))}
-        {/* Jobs you're already applying to: hidden with one tap, without opening Refine. */}
-        <label className={cn("inline-flex h-10 shrink-0 cursor-pointer select-none items-center gap-2 rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
-          <input type="checkbox" className="size-4 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-          Hide Pipeline
-        </label>
-        <Button size="sm" variant={more ? "secondary" : "outline"} className="shrink-0 rounded-full px-3" icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${activeCount ? `, ${activeCount} set` : ""}`} title="Refine">
+      {/* The views and Hide Pipeline share the space; Refine never leaves the screen. */}
+      <div className="flex items-center gap-1.5 max-[380px]:gap-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto max-[380px]:gap-1 pb-0.5 [scrollbar-width:none]">
+          {views &&
+            VIEWS.map((v) => (
+              <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 shrink-0 px-3 max-[400px]:px-2.5 max-[380px]:px-2 max-[380px]:text-[12.5px]">
+                {v.label}
+              </Chip>
+            ))}
+          {/* Jobs you're already applying to: hidden with one tap, without opening Refine. */}
+          <label className={cn("inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors max-[400px]:px-2.5 max-[380px]:gap-1 max-[380px]:px-2 max-[380px]:text-[12.5px]", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
+            <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+            Hide Pipeline
+          </label>
+        </div>
+        <Button size="sm" variant={more ? "secondary" : "outline"} className="h-9 shrink-0 rounded-full px-2.5" icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${activeCount ? `, ${activeCount} set` : ""}`} title="Refine">
           {activeCount ? String(activeCount) : null}
         </Button>
-        <span className={cn("ml-auto hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
+        <span className={cn("hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
       {more && (
         <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
