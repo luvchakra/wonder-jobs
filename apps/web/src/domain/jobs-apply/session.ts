@@ -106,15 +106,25 @@ function remap(s: JobsApplySession, now: number): JobsApplySession {
   const merged: FieldMapping[] = mappings.map((m) => {
     const p = prevM.get(m.fieldId);
     if (p?.status === "filled" && m.classification !== "human-only") return { ...m, status: "filled" };
+    // The form already refused this exact value: don't type it again on every re-read; it waits for the candidate.
+    if (p?.status === "failed" && p.value === m.value && p.file === m.file) return { ...m, status: "failed", reason: p.reason };
     return m;
   });
+  const failedIds = new Set(merged.filter((m) => m.status === "failed").map((m) => m.fieldId));
   const mergedI: InterventionItem[] = interventions.map((iv) => {
     const p = prevI.get(iv.id);
     if (p && p.status !== "open") return { ...iv, status: p.status, resolvedAt: p.resolvedAt, resolution: p.resolution };
     // The candidate answered it directly on the portal: the helper reports only *that* the field has a value.
-    if (fieldById.get(iv.fieldId)?.hasValue) return { ...iv, status: "resolved", resolvedAt: new Date(now).toISOString(), resolution: "answered_on_portal" };
+    // (Not a field the form refused: what's in it is Wonder's rejected value.)
+    if (fieldById.get(iv.fieldId)?.hasValue && !failedIds.has(iv.fieldId)) return { ...iv, status: "resolved", resolvedAt: new Date(now).toISOString(), resolution: "answered_on_portal" };
     return iv;
   });
+  // A refused field keeps its question open for the candidate until they answer it.
+  for (const id of failedIds) {
+    if (mergedI.some((i) => i.fieldId === id)) continue;
+    const prev = [...prevI.values()].find((i) => i.fieldId === id && i.kind === "unknown_field");
+    if (prev) mergedI.push(prev);
+  }
   // An intervention the candidate resolved stays visible in the mapping as confirmed/skipped.
   const byField = new Map(mergedI.map((i) => [i.fieldId, i]));
   const final = merged.map((m) => {

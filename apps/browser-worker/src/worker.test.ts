@@ -7,6 +7,7 @@ import { serviceAuthorized, signStreamToken, verifyStreamToken } from "./auth.js
 import { readConfig } from "./config.js";
 import { pageScript, SHIM } from "./helperScript.js";
 import { KEYS, parseInput } from "./input.js";
+import { optionFor } from "./picker.js";
 
 const SRC = path.dirname(fileURLToPath(import.meta.url));
 const SECRET = "x".repeat(40);
@@ -31,14 +32,25 @@ describe("the worker never acts on the page by itself", () => {
     const src = readFileSync(path.join(SRC, "picker.ts"), "utf8");
     // Keys: exactly ArrowDown and Escape, on the marked combobox's own text box.
     expect([...src.matchAll(/\.press\(([^)]*)\)/g)].map((m) => m[1])).toEqual(['"ArrowDown"', '"Escape"']);
-    expect(src).toMatch(/el\.tagName === "INPUT" && el\.getAttribute\("role"\) === "combobox"/);
+    expect(src).toMatch(/el\.tagName === "INPUT" && \(el\.getAttribute\("role"\) === "combobox" \|\| el\.matches\("input\[data-qa='location-input'\]"\)\)/);
     // One click, on the single option marked because its text equals the answer.
     expect([...src.matchAll(/\.click\(/g)]).toHaveLength(1);
     expect(src).toMatch(/await frame\.locator\(`\[\$\{CHOSEN\}="1"\]`\)\.click\(\{ timeout: 3000 \}\);/);
     expect(src).toMatch(/if \(hit\.length !== 1\) return false;/);
-    expect(src).toMatch(/if \(opts\.filter\(\(o\) => norm\(o\) === want\)\.length !== 1\) \{/);
-    // Nothing typed, no Enter or Tab, no other gesture.
-    expect(src).not.toMatch(/\.(fill|type|dblclick|tap|check|selectOption|setInputFiles|submit|dispatchEvent)\(|keyboard\.|mouse\.|"Enter"|"Tab"/);
+    // The answer is one listed option: exact, or the single one that begins with it; more than one, none.
+    expect(optionFor(["Yes", "No"], "no")).toBe("No");
+    expect(optionFor(["Bengaluru, Karnataka, India", "Mumbai, India"], "Bengaluru")).toBe("Bengaluru, Karnataka, India");
+    expect(optionFor(["Bengaluru, Karnataka, India", "Bengaluru Rural, India"], "Bengaluru")).toBeNull();
+    expect(optionFor(["Yes, Netherlands visa", "Yes, EU Blue Card"], "Yes")).toBeNull();
+    expect(optionFor(["Bengaluru, Karnataka, India", "Bengaluru, Kerala, India"], "Bengaluru, Karnataka")).toBe("Bengaluru, Karnataka, India");
+    expect(optionFor(["Bengaluru, Karnataka, India", "Mumbai, Maharashtra, India"], "Bengaluru, India")).toBe("Bengaluru, Karnataka, India");
+    // Typing only the answer into the dropdown's own search box (and clearing it); nothing else typed.
+    expect([...src.matchAll(/(\w+)\.fill\(([^)]*)\)/g)].map((m) => `${m[1]}.fill(${m[2]})`)).toEqual(['box.fill("")', 'box.fill("")']);
+    expect([...src.matchAll(/(\w+)\.pressSequentially\(([^,)]*)/g)].map((m) => `${m[1]}:${m[2]}`)).toEqual(["box:query"]);
+    expect(src).toMatch(/const query = value\.split\(","\)\[0\]\.trim\(\) \|\| value;/);
+    expect(src).toMatch(/const box = await comboBox\(frame, mark\);\s*if \(!box\) return \{ ok: false \};/);
+    // No Enter or Tab, no other gesture.
+    expect(src).not.toMatch(/\.(type|dblclick|tap|check|selectOption|setInputFiles|submit|dispatchEvent)\(|keyboard\.|mouse\.|"Enter"|"Tab"/);
     // The session asks the picker only for frames on the application's own site.
     const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
     expect(session).toMatch(/if \(\(m\.type === "comboOptions" \|\| m\.type === "comboPick"\) && frame && this\.onDestination\(frame\.url\(\)\)\) \{/);
@@ -56,7 +68,7 @@ describe("the worker never acts on the page by itself", () => {
     // The session follows it only when WonderJobs asked (a listing's background fill), keeping the helper out meanwhile.
     const session = readFileSync(path.join(SRC, "session.ts"), "utf8");
     expect(session).toMatch(/if \(init\.followListing\) void opened\.then\(\(\) => s\.followListingLink\(\)\);/);
-    expect(session).toMatch(/this\.following \? \{ sessionId: null \}/);
+    expect(session).toMatch(/if \(this\.following \|\| \(offSite && frame && frame\.parentFrame\(\)\)\) return JSON\.stringify\(\{ sessionId: null \}\);/);
   });
 
   it("portal.ts types only the sign-in's email and password, ticks only the account form's consent box, presses only Sign In / Create Account, logs nothing (WJ-316)", () => {

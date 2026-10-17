@@ -116,7 +116,13 @@ export class CloudSession {
     } catch {
       return null;
     }
-    if (m.type === "jobsApplyFor") return JSON.stringify(this.following ? { sessionId: null } : { sessionId: this.init.sessionId, offDestination: !this.onDestination(m.payload?.url) });
+    if (m.type === "jobsApplyFor") {
+      // A third-party frame inside the employer's page (a file picker, a tracker, a bot check) isn't the
+      // application and never speaks for it: leaving it out keeps it from pausing the fill as "elsewhere".
+      const offSite = !this.onDestination(m.payload?.url);
+      if (this.following || (offSite && frame && frame.parentFrame())) return JSON.stringify({ sessionId: null });
+      return JSON.stringify({ sessionId: this.init.sessionId, offDestination: offSite });
+    }
     if (m.type === "jobsApplyCall") {
       const p = m.payload ?? {};
       const r = await jobsApplyCall(this.config.appOrigin, this.init.helperToken, p.path, typeof p.method === "string" ? p.method : "GET", p.body);
@@ -128,7 +134,7 @@ export class CloudSession {
       const mark = String(m.payload?.mark ?? "");
       try {
         if (m.type === "comboOptions") return JSON.stringify({ options: await comboOptions(frame, mark) });
-        return JSON.stringify({ ok: await comboPick(frame, mark, String(m.payload?.value ?? "")) });
+        return JSON.stringify(await comboPick(frame, mark, String(m.payload?.value ?? "")));
       } catch {
         return JSON.stringify(m.type === "comboOptions" ? { options: [] } : { ok: false });
       }
@@ -153,7 +159,10 @@ export class CloudSession {
   async deliver(message: Record<string, unknown>): Promise<void> {
     if (this.ended) return;
     this.lastActivity = Date.now();
-    await Promise.all(this.page.frames().map((f) => f.evaluate((m) => (window as unknown as { __wonderDeliver?: (m: unknown) => void }).__wonderDeliver?.(m), message).catch(() => undefined)));
+    // Only the page and its frames on the application's own site: a third-party frame (a file picker, a tracker)
+    // that heard "paired" would start a session of its own and report the application as elsewhere.
+    const frames = this.page.frames().filter((f) => f === this.page.mainFrame() || this.onDestination(f.url()));
+    await Promise.all(frames.map((f) => f.evaluate((m) => (window as unknown as { __wonderDeliver?: (m: unknown) => void }).__wonderDeliver?.(m), message).catch(() => undefined)));
   }
 
   /* ------------------------------------------------------------- stream */

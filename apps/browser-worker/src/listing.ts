@@ -35,7 +35,7 @@ export async function followListing(page: Page): Promise<string | null> {
   await page.waitForTimeout(3000);
   // A Workday job page holds only an Apply button; its application has its own address (the app's
   // workdayApplyUrl does the same).
-  const landed = workdayApplyUrl(page.url());
+  const landed = greenhouseFormUrl(workdayApplyUrl(page.url()));
   if (landed !== page.url()) {
     await page.goto(landed, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(2000);
@@ -49,6 +49,20 @@ export function workdayApplyUrl(url: string): string {
     if (!/(^|\.)(myworkdayjobs|myworkdaysite)\.com$/.test(u.hostname) || !/\/job\//.test(u.pathname) || /\/apply(\/|$)/.test(u.pathname)) return url;
     u.pathname = `${u.pathname.replace(/\/$/, "")}/apply/applyManually`;
     return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** Greenhouse's own form for a company page that embeds it (…?gh_jid=…); the app's greenhouseFormUrl does the same. */
+export function greenhouseFormUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const id = u.searchParams.get("gh_jid");
+    if (/(^|\.)greenhouse\.io$/.test(u.hostname) || !id || !/^\d+$/.test(id)) return url;
+    const labels = u.hostname.toLowerCase().split(".");
+    const board = labels.length >= 2 ? labels[labels.length - 2] : "";
+    return /^[a-z0-9-]+$/.test(board) ? `https://job-boards.greenhouse.io/embed/job_app?for=${board}&token=${id}` : url;
   } catch {
     return url;
   }

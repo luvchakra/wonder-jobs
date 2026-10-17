@@ -67,6 +67,9 @@ describe("cloud browser sessions", () => {
     workerAnswers(201, { cloudId: "44444444-4444-4444-8444-444444444444", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
     const r = await cloud.startCloud(t, id, { headless: true });
     expect(r.status).toBe(409);
+    // A job board that keeps applying behind its own login or blocks automated browsers isn't started either.
+    const adz = await started(t, "assisted", { ...job(), id: "job_adzuna_9", applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api" });
+    expect((await cloud.startCloud(t, adz, { headless: true })).body).toMatchObject({ error: { code: "NOT_FILLABLE" } });
     expect((r.body as { error: { code: string } }).error.code).toBe("NOT_FILLABLE");
     expect(calls).toHaveLength(0); // the worker was never asked to open it
     expect((await store.getSession(t, id))?.cloud).toBeUndefined();
@@ -76,7 +79,7 @@ describe("cloud browser sessions", () => {
     process.env.CLOUD_BROWSER_URL = "https://cloud.example";
     process.env.CLOUD_BROWSER_SECRET = "s".repeat(40);
     const t = tenant();
-    const board = { ...job(), id: "job_adzuna_2", applyUrl: "https://www.adzuna.in/details/5929200593?utm_medium=api" };
+    const board = { ...job(), id: "job_arbeitnow_2", applyUrl: "https://www.arbeitnow.com/jobs/companies/hellofresh/security-engineer-360537" };
     const id = await started(t, "assisted", board);
     workerAnswers(201, { cloudId: "55555555-5555-4555-8555-555555555555", streamToken: "tok", viewport: { width: 412, height: 860 }, streamPath: "/stream" });
     expect((await cloud.startCloud(t, id, { headless: true })).status).toBe(200);
@@ -89,7 +92,7 @@ describe("cloud browser sessions", () => {
       return c;
     };
     // The board's own search and alert forms: never read, never filled.
-    const boardForm = { url: "https://www.adzuna.in/details/5929200593", adapter: "generic", step: 1, signals: [], fields: [{ id: "email", label: "Email me jobs like this", type: "email" as const, required: false }, { id: "q", label: "What", type: "text" as const, required: false }] };
+    const boardForm = { url: "https://www.arbeitnow.com/jobs/companies/hellofresh/security-engineer-360537", adapter: "generic", step: 1, signals: [], fields: [{ id: "email", label: "Email me jobs like this", type: "email" as const, required: false }, { id: "q", label: "What", type: "text" as const, required: false }] };
     const r = (await svc.helperInspect(await ctx(), boardForm)).body as { plan: { allowed: boolean; fills: unknown[] } };
     expect(r.plan).toMatchObject({ allowed: false, fills: [] });
     expect((await store.getSession(t, id))?.formFields).toHaveLength(0);
@@ -98,8 +101,8 @@ describe("cloud browser sessions", () => {
     await svc.helperEvents(await ctx(), { events: [{ type: "LISTING_FOLLOWED", url: "https://amgen.wd1.myworkdayjobs.com/Careers/job/R-1/apply" }] });
     let s = (await store.getSession(t, id))!;
     expect(s.destination).toMatchObject({ domain: "amgen.wd1.myworkdayjobs.com", type: "ats", provider: "workday" });
-    expect(s.listingFollowed).toMatchObject({ from: "www.adzuna.in", to: "amgen.wd1.myworkdayjobs.com" });
-    expect(s.audit.at(-1)).toMatchObject({ event: "LISTING_FOLLOWED", detail: "Followed www.adzuna.in's Apply link to amgen.wd1.myworkdayjobs.com" });
+    expect(s.listingFollowed).toMatchObject({ from: "www.arbeitnow.com", to: "amgen.wd1.myworkdayjobs.com" });
+    expect(s.audit.at(-1)).toMatchObject({ event: "LISTING_FOLLOWED", detail: "Followed www.arbeitnow.com's Apply link to amgen.wd1.myworkdayjobs.com" });
 
     // Once only: a second report changes nothing.
     await svc.helperEvents(await ctx(), { events: [{ type: "LISTING_FOLLOWED", url: "https://elsewhere.example/apply" }] });
@@ -205,8 +208,8 @@ describe("cloud browser sessions", () => {
     const headers = calls[0].init.headers as Record<string, string>;
     expect(headers["x-wonder-secret"]).toBe("s".repeat(40));
     const sent = JSON.parse(String(calls[0].init.body)) as { sessionId: string; tenantId: string; url: string; helperToken: string; domains: string[] };
-    expect(sent).toMatchObject({ sessionId: id, tenantId: t, url: "https://boards.greenhouse.io/example/jobs/7" });
-    expect(sent.domains).toContain("boards.greenhouse.io");
+    expect(sent).toMatchObject({ sessionId: id, tenantId: t, url: "https://job-boards.greenhouse.io/embed/job_app?for=example&token=7" });
+    expect(sent.domains).toEqual(expect.arrayContaining(["job-boards.greenhouse.io", "greenhouse.io"]));
     // The helper token is the session's: it authenticates only as this session's helper.
     const auth = await svc.helperAuth(sent.helperToken);
     expect("session" in auth && auth.session.id).toBe(id);

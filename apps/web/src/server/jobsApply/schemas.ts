@@ -84,7 +84,7 @@ export const FieldSchema = z
 export const FormSchema = z
   .object({
     url: str(2000).url(),
-    provider: z.enum(["greenhouse", "lever", "ashby", "workday", "smartrecruiters", "workable", "teamtailor", "recruitee", "personio"]).optional(),
+    provider: z.enum(["greenhouse", "lever", "ashby", "workday", "smartrecruiters", "workable", "teamtailor", "recruitee", "personio", "jazzhr"]).optional(),
     adapter: str(60),
     step: z.number().int().min(1).max(50),
     stepCount: z.number().int().min(1).max(50).optional(),

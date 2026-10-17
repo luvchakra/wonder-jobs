@@ -16,6 +16,7 @@ export const PROVIDER_HOSTS: Record<AtsProvider, string[]> = {
   teamtailor: ["teamtailor.com"],
   recruitee: ["recruitee.com"],
   personio: ["personio.de", "personio.com"],
+  jazzhr: ["applytojob.com", "jazzhr.com"],
 };
 
 export const PROVIDER_NAME: Record<AtsProvider, string> = {
@@ -28,12 +29,26 @@ export const PROVIDER_NAME: Record<AtsProvider, string> = {
   teamtailor: "Teamtailor",
   recruitee: "Recruitee",
   personio: "Personio",
+  jazzhr: "JazzHR",
 };
 
 /** Identity providers a portal may send the candidate through to sign in (§36). Allowed, never filled. */
 export const SSO_HOSTS = ["accounts.google.com", "login.microsoftonline.com", "login.live.com", "okta.com", "oktapreview.com", "auth0.com", "onelogin.com", "appleid.apple.com", "linkedin.com"];
 
-const AGGREGATORS = ["linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "adzuna.co.uk", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de"];
+/**
+ * Job boards whose listing's own Apply link leads to the employer and opens for the cloud browser (WJ-315).
+ * The rest of AGGREGATORS keep the application behind their own login (LinkedIn, Naukri, Indeed…) or refuse
+ * automated browsers on that link (Adzuna's redirect answers 403): no background fill there — the candidate
+ * opens the listing in their own browser. Tested on real postings, 2026-10-17.
+ */
+const FOLLOWABLE_BOARDS = ["arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de", "arbeitnow.fr", "arbeitnow.ch"];
+/** Boards whose Apply link doesn't open for the cloud browser (tested 2026-10-17): Jobicy asks for a Jobicy
+ *  account, RemoteOK's link returns a browser without its session to the listing, Himalayas and The Muse answer
+ *  automated browsers with 403. Listed so they're recognised as job boards, not mistaken for employers. */
+const CLOSED_BOARDS = ["jobicy.com", "remoteok.com", "himalayas.app", "themuse.com"];
+export const isFollowableBoard = (host: string) => FOLLOWABLE_BOARDS.some((d) => hostMatches(host.toLowerCase(), d));
+
+const AGGREGATORS = [...FOLLOWABLE_BOARDS, ...CLOSED_BOARDS, "linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "adzuna.co.uk", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de"];
 
 /** Is this host a job board (a listing, not the employer's application)? */
 export const isAggregatorHost = (host: string) => AGGREGATORS.some((d) => hostMatches(host.toLowerCase(), d));
@@ -86,7 +101,7 @@ export function workdayApplyUrl(url: string): string {
 export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): ApplyDestination | null {
   const canonical = job.lake?.sightings.find((s) => s.canonical && s.employerSource)?.url;
   const raw = job.applyUrl || canonical;
-  const url = raw ? workdayApplyUrl(raw) : raw;
+  const url = raw ? greenhouseFormUrl(workdayApplyUrl(raw)) : raw;
   if (!url) return null;
   const host = hostOf(url);
   if (!host) return null;
@@ -117,9 +132,33 @@ export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDoma
  * its Apply first, which the helper never does, so those go to the Apply page instead.
  */
 export function backgroundFillable(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): boolean {
-  const t = destinationFor(job)?.type;
-  // A job board's listing: the cloud browser follows its own Apply link to the employer first (WJ-315).
-  return t === "ats" || t === "aggregator";
+  const d = destinationFor(job);
+  // A job board's listing whose Apply link opens for the cloud browser: it follows that link first (WJ-315).
+  return d?.type === "ats" || (d?.type === "aggregator" && isFollowableBoard(d.domain));
+}
+
+/**
+ * Greenhouse's own form for a Greenhouse job (WJ-317). Its board pages and the company career pages that embed
+ * them (coinbase.com/…?gh_jid=…) wrap the form in a frame — and some company sites refuse automated browsers —
+ * while Greenhouse serves the same application form at job_app?for={board}&token={job id}. A company page names
+ * its board after the company's own domain (coinbase.com → "coinbase"); a wrong guess shows no form and says so.
+ */
+export function greenhouseFormUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (/(^|\.)greenhouse\.io$/.test(host)) {
+      if (u.pathname.startsWith("/embed/")) return url;
+      const m = u.pathname.match(/^\/([\w-]+)\/jobs\/(\d+)/);
+      return m ? `https://job-boards.greenhouse.io/embed/job_app?for=${m[1]}&token=${m[2]}` : url;
+    }
+    const id = u.searchParams.get("gh_jid");
+    if (!id || !/^\d+$/.test(id)) return url;
+    const board = registrableDomain(host).split(".")[0];
+    return /^[a-z0-9-]+$/.test(board) ? `https://job-boards.greenhouse.io/embed/job_app?for=${board}&token=${id}` : url;
+  } catch {
+    return url;
+  }
 }
 
 /** Where a listing's Apply link led: the new destination, keeping the hosts the job already allowed. */
@@ -129,7 +168,10 @@ export function followedDestination(prev: ApplyDestination, url: string): ApplyD
   const provider = detectProvider(url);
   const related = new Set<string>([...prev.relatedDomains.filter((d) => !isAggregatorHost(d)), registrableDomain(host)]);
   if (provider) PROVIDER_HOSTS[provider].forEach((d) => related.add(d));
-  return { url: workdayApplyUrl(url), domain: host, type: provider ? "ats" : "employer", provider, applicationMethod: "browser", relatedDomains: [...related].sort() };
+  const formUrl = greenhouseFormUrl(workdayApplyUrl(url));
+  const formProvider = detectProvider(formUrl) ?? provider;
+  if (formProvider) PROVIDER_HOSTS[formProvider].forEach((d) => related.add(d));
+  return { url: formUrl, domain: hostOf(formUrl) ?? host, type: formProvider ? "ats" : "employer", provider: formProvider, applicationMethod: "browser", relatedDomains: [...related].sort() };
 }
 
 export type DomainVerdict = "expected" | "related" | "sso" | "approved" | "unexpected";

@@ -70,14 +70,16 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
       ? "Filling forms is turned off in Automation, so Wonder can't fill this one."
       : s.status === "AUTHENTICATION_REQUIRED"
         ? `${company}'s site wants you to sign in before the form.`
-        : s.status === "VERIFICATION" || s.form?.signals.includes("captcha")
+        : s.status === "VERIFICATION" || s.failure === "CAPTCHA_REQUIRED" || s.failure === "MFA_REQUIRED" || s.form?.signals.includes("captcha")
           ? `${company}'s site is asking for a verification check only you can do.`
           : s.status === "PAUSED" && s.failure === "DOMAIN_CHANGED"
             ? "The application moved to a different site, so Wonder paused."
             : pickOnPortal(s).length
               ? `${pickOnPortal(s).length === 1 ? "One required question" : `${pickOnPortal(s).length} required questions`} on ${company}'s form ${pickOnPortal(s).length === 1 ? "is a dropdown" : "are dropdowns"} Wonder can't pick from yet. ${progress?.filled ? `${progress.filled} fields are filled; ` : ""}nothing has been sent.`
               : s.failure === "FORM_NOT_FOUND"
-              ? `${s.destination.domain} opened a job listing, not an application form. Nothing has been filled or sent.`
+              ? s.destination.type === "aggregator"
+                ? `${s.destination.domain.replace(/^www\./, "")} keeps this application on its own site. Open the listing and apply from there. Nothing has been filled or sent.`
+                : `${s.destination.domain} opened a job listing, not an application form. Nothing has been filled or sent.`
               : s.status === "FAILED"
               ? "Wonder couldn't find the application form on that page."
               : s.stopped
@@ -145,7 +147,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
           <p>{blockedReason}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={finish}>
-              Open {company}&apos;s page
+              {s?.destination.type === "aggregator" ? `Open the listing on ${s.destination.domain.replace(/^www\./, "")}` : `Open ${company}'s page`}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => void cancel()}>
               Cancel

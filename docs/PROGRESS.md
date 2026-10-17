@@ -455,6 +455,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Cloud browser never shown; Apply page uses the background fill for ATS links (WJ-314)
 - ✅ Background fill follows a job board listing's Apply link to the employer (WJ-315)
 - ✅ Sign-in connections: Wonder signs in to or creates employer portal accounts (WJ-316)
+- ✅ Apply for this job tested end to end on 23 real postings; fixes for Greenhouse, Lever, JazzHR and job boards (WJ-317)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
