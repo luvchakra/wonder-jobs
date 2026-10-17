@@ -161,7 +161,7 @@ export function BackgroundApply({ jobId }: { jobId: string }) {
           <ol className="flex flex-col gap-1.5 text-[12.5px] text-ink-2" aria-live="polite">
             {steps.map((a, i) => (
               <li key={`${a.at}-${i}`} className="flex gap-2">
-                <span className="shrink-0 text-ink-4">{new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+                <span className="shrink-0 text-ink-4">{new Date(a.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
                 <span>{a.detail}</span>
               </li>
             ))}
