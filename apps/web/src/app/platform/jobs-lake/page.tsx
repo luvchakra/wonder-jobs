@@ -35,10 +35,10 @@ export default function JobsLakeOverview() {
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Database className="size-5" aria-hidden />} label="Active sources" value={num(d.sources.active)} hint={d.sources.needsSetup ? `${d.sources.needsSetup} need setup on this deployment` : `${d.sources.doNotUse} partnership-only`} />
-        <Stat icon={<Layers className="size-5" aria-hidden />} label="Jobs fetched · 24 h" value={num(d.runs24h.retrieved)} hint={`${num(d.runs24h.valid)} passed validation`} />
-        <Stat icon={<ShieldCheck className="size-5" aria-hidden />} label="Unique jobs · 7 days" value={num(d.pool.opportunities)} hint={d.pool.employerVerified == null ? "No jobs stored yet" : `${pct(d.pool.employerVerified, 0)} from employer sites`} />
-        <Stat icon={<Activity className="size-5" aria-hidden />} label="Source success · 24 h" value={pct(successRate)} hint={d.runs24h.total ? `${num(d.runs24h.total)} source runs, ${num(d.runs24h.failed)} failed` : "No runs yet"} />
+        <Stat icon={<Database className="size-5" aria-hidden />} href="/platform/jobs-lake/sources" label="Active sources" value={num(d.sources.active)} hint={d.sources.needsSetup ? `${d.sources.needsSetup} need setup on this deployment` : `${d.sources.doNotUse} partnership-only`} />
+        <Stat icon={<Layers className="size-5" aria-hidden />} href="/platform/jobs-lake/runs" label="Jobs fetched · 24 h" value={num(d.runs24h.retrieved)} hint={`${num(d.runs24h.valid)} passed validation`} />
+        <Stat icon={<ShieldCheck className="size-5" aria-hidden />} href="/platform/jobs-lake/jobs" label="Unique jobs · 7 days" value={num(d.pool.opportunities)} hint={d.pool.employerVerified == null ? "No jobs stored yet" : `${pct(d.pool.employerVerified, 0)} from employer sites`} />
+        <Stat icon={<Activity className="size-5" aria-hidden />} href="/platform/jobs-lake/health" label="Source success · 24 h" value={pct(successRate)} hint={d.runs24h.total ? `${num(d.runs24h.total)} source runs, ${num(d.runs24h.failed)} failed` : "No runs yet"} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -73,15 +73,15 @@ export default function JobsLakeOverview() {
                 { header: "Retrieved (7 d)", cell: (r) => num(r.health?.retrieved ?? null), className: "tabular-nums text-right" },
               ]}
               card={(r) => (
-                <div className="flex items-center justify-between gap-2">
-                  <Link href={`/platform/jobs-lake/sources/${r.id}`} className="min-w-0 font-medium text-ink">
+                <Link href={`/platform/jobs-lake/sources/${r.id}`} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 font-medium text-ink">
                     {r.name} <AccessBadge label={r.accessLabel} />
                     <span className="mt-0.5 block text-[12px] font-normal text-ink-3">
                       {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)} · {r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "never run"}
                     </span>
-                  </Link>
+                  </span>
                   {r.available ? <HealthChip state={r.health?.state} /> : <span className="text-[12px] text-warning-600">Needs setup</span>}
-                </div>
+                </Link>
               )}
             />
           )}

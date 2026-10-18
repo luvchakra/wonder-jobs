@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 /**
  * Speech-to-text for free-text fields, via the browser's own Web Speech API.
  *
- * Only what the candidate actually said reaches the field: phrases are used verbatim, interim words
- * are kept separate and never saved on their own, and nothing is guessed or filled in when
- * recognition fails — the caller is told what went wrong instead.
+ * Only what the candidate actually said reaches the field: phrases are used verbatim and nothing is
+ * guessed or filled in when recognition fails — the caller is told what went wrong instead. Words
+ * still being revised show in the field as they're heard, and when a session ends its last take
+ * stays: iOS Safari often never marks a phrase final, so waiting for that left the field empty.
  *
  * The API isn't in TypeScript's DOM lib, so the minimal shape used here is declared below.
  */
@@ -142,11 +143,16 @@ export function foldResults(settled: string[], results: RecognitionResultList): 
   return { settled: next, interim: pending.join(" ") };
 }
 
+/** What a session has heard so far: its settled phrases and, after them, the words still being revised. */
+export function sessionText(settled: string[], interim: string): string {
+  return mergePhrases(interim ? [...settled, interim] : settled);
+}
+
 export interface Dictation {
   /** False during SSR and on browsers without the API — hide the control rather than offering a dead one. */
   supported: boolean;
   listening: boolean;
-  /** Heard but still being revised. Shown live so the candidate can see it land; never committed on its own. */
+  /** Heard but still being revised (already in the field, too). */
   interim: string;
   error: string | null;
   start: () => void;
@@ -178,6 +184,7 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
   const [error, setError] = useState<string | null>(null);
   const recognition = useRef<Recognition | null>(null);
   const settled = useRef<string[]>([]);
+  const pending = useRef("");
   const base = useRef("");
   const wantListening = useRef(false);
   const everHeard = useRef(false);
@@ -204,6 +211,7 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
   const rebase = useCallback((text: string) => {
     base.current = text;
     settled.current = [];
+    pending.current = "";
   }, []);
 
   /**
@@ -222,8 +230,9 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
     r.onresult = (event) => {
       const folded = foldResults(settled.current, event.results);
       settled.current = folded.settled;
+      pending.current = folded.interim;
       setInterim(folded.interim);
-      const spoken = mergePhrases(folded.settled);
+      const spoken = sessionText(folded.settled, folded.interim);
       onTextRef.current(spoken ? appendDictated(base.current, spoken) : base.current);
     };
     r.onerror = (event) => {
@@ -235,10 +244,11 @@ export function useDictation({ textAtStart, onText }: { textAtStart: () => strin
     };
     r.onend = () => {
       recognition.current = null;
-      const spoken = mergePhrases(settled.current);
+      const spoken = sessionText(settled.current, pending.current);
       // Bank this utterance so the next session starts from it rather than replacing it.
       base.current = appendDictated(base.current, spoken);
       settled.current = [];
+      pending.current = "";
       setInterim("");
       if (spoken) everHeard.current = true;
       if (wantListening.current && !shouldGiveUp(everHeard.current, Date.now() - listenStartedAt.current)) {
