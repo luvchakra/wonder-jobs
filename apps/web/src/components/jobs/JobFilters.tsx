@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
+import { JOB_TYPES, JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
@@ -48,6 +49,8 @@ const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[]
   { value: "director", label: "Director+" },
 ];
 
+const JOB_TYPE_CHIPS = JOB_TYPES.map((value) => ({ value, label: JOB_TYPE_LABEL[value] }));
+
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
 /**
@@ -84,7 +87,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + (filters.jobTypes?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
@@ -159,7 +162,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
         <span className={cn("hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
       </div>
       {more && (
-        <div className="grid gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           {/* Back to the list without changing anything typed here. */}
           <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-9 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
             <ArrowLeft className="size-4" aria-hidden /> Back to jobs
@@ -183,6 +186,16 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               {LEVELS.map((l) => (
                 <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className="h-9 px-3 text-[12px]">
                   {l.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Job type
+            <div className="flex flex-wrap gap-1.5">
+              {JOB_TYPE_CHIPS.map((t) => (
+                <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 px-3 text-[12px]">
+                  {t.label}
                 </Chip>
               ))}
             </div>
@@ -259,7 +272,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"

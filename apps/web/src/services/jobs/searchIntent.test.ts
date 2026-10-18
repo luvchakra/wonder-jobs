@@ -94,3 +94,20 @@ describe("pay words", () => {
     expect(deriveSearchIntent("data analyst in Pune").highPay).toBe(false);
   });
 });
+
+describe("job-type words", () => {
+  it("reads “part time designer jobs” as part-time designers", () => {
+    const i = deriveSearchIntent("part time designer jobs in Pune");
+    expect(i.query).toBe("designer");
+    expect(i.jobTypes).toEqual(["part_time"]);
+    expect(i.locations).toEqual(["Pune"]);
+    expect(i.derived.find((d) => d.field === "jobTypes")).toMatchObject({ value: "Part-time", from: "part time" });
+  });
+  it("reads “freelance gigs” as gigs, with no role", () => {
+    expect(deriveSearchIntent("freelance gigs")).toMatchObject({ query: "", jobTypes: ["gig"] });
+  });
+  it("keeps “contract manager” a role", () => {
+    expect(deriveSearchIntent("contract manager")).toMatchObject({ query: "contract manager", jobTypes: [] });
+  });
+});
+

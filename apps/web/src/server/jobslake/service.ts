@@ -3,6 +3,7 @@
  * separate search logic"). Each takes an already-authorized caller and returns either a value or a
  * protocol error body; the adapters only translate transport.
  */
+import { JOB_TYPES, type JobType } from "@/domain/jobs/jobType";
 import { z } from "zod";
 import type { CanonicalOpportunity, ErrorBody, SearchEvent, SearchRequest, SearchResponse } from "@/domain/jobslake/protocol";
 import { rateLimit } from "@/server/rateLimit";
@@ -36,8 +37,9 @@ export const SearchRequestSchema = z.object({
     locations: z.array(str(80)).max(10).default([]),
     seniority: z.array(str(30)).max(6).optional(),
     variants: z.array(str(120)).max(3).optional(),
+    jobTypes: z.array(z.enum(JOB_TYPES as [JobType, ...JobType[]])).max(6).optional(),
   }),
-  filters: z.object({ freshnessDays: z.number().int().min(1).max(365).optional(), workplaceTypes: z.array(WorkMode).max(3).optional() }).optional(),
+  filters: z.object({ freshnessDays: z.number().int().min(1).max(365).optional(), workplaceTypes: z.array(WorkMode).max(3).optional(), jobTypes: z.array(z.enum(JOB_TYPES as [JobType, ...JobType[]])).max(6).optional() }).optional(),
   sourceIds: z.array(str(80)).max(60).optional(),
   searchMode: z.enum(["fast", "balanced", "maximum_coverage"]).default("balanced"),
   limit: z.number().int().min(1).max(500).default(100),

@@ -1,3 +1,4 @@
+import type { JobType, JobTypeFrom } from "./jobType";
 export type WorkMode = "remote" | "hybrid" | "onsite";
 
 /** How a work mode is written in the UI. Lives here, not in a component: server code (link-preview metadata) reads it too, and a value imported from a `"use client"` module resolves to a client reference on the server, not the object. */
@@ -50,6 +51,9 @@ export interface Job {
   onEmployerSite: boolean;
   repostCount: number;
   tags: string[];
+  /** Full-time, part-time, contract… as the source reported it, or as the title says (`jobTypeFrom`). Absent when neither says. */
+  jobType?: JobType;
+  jobTypeFrom?: JobTypeFrom;
 }
 
 /** Deduplicated role, possibly seen on several sources. */
@@ -155,6 +159,8 @@ export interface JobFilters {
   salaryListed?: boolean;
   /** Levels to show (the posting's seniority); empty or undefined = every level. */
   levels?: Job["seniority"][];
+  /** Job types to show (full-time, part-time, gig…); empty or undefined = every type, including postings that don't say. */
+  jobTypes?: JobType[];
   /** Company name contains this. */
   company?: string;
   /** Only jobs in the candidate's own field — their Career Profile's headline and goal named in the title, skills, tags or requirements. */

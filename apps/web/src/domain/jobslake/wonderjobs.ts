@@ -6,14 +6,15 @@
  * Identity is preserved: a job's id is the id WonderJobs has always given the canonical posting
  * (`careers_…`, `remotive_…`), so saved jobs, applications and the extension keep resolving.
  */
+import type { JobType } from "@/domain/jobs/jobType";
 import type { CanonicalJob, JobSourceSighting } from "@/domain/jobs/types";
 import type { Evidence } from "@/domain/workflow/types";
 import { ageLabel } from "./cache";
 import { ACCESS_LABEL, type CanonicalOpportunity, type SearchMetadata, type SearchMode, type SearchRequest, type SourceSearchStatus } from "./protocol";
 
-export function searchRequestFor(criteria: { query: string; locations: string[]; variants?: string[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
-  // Only what JobsLake needs to search (spec §57): terms, broader phrasings of them, places and which sources — nothing about the candidate.
-  return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}) }, sourceIds, searchMode, limit };
+export function searchRequestFor(criteria: { query: string; locations: string[]; variants?: string[]; jobTypes?: JobType[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
+  // Only what JobsLake needs to search (spec §57): terms, broader phrasings of them, job types asked for, places and which sources — nothing about the candidate.
+  return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}), ...(criteria.jobTypes?.length ? { jobTypes: criteria.jobTypes } : {}) }, sourceIds, searchMode, limit };
 }
 
 /** Evidence for the phrasings a smart search ran alongside the candidate's own words. */
@@ -44,6 +45,7 @@ export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {
     location: o.locations[0] ?? "",
     country: o.country,
     workMode: o.workplaceType,
+    ...(o.jobType ? { jobType: o.jobType, jobTypeFrom: o.jobTypeFrom } : {}),
     salaryMin: o.compensation?.min,
     salaryMax: o.compensation?.max,
     currency: o.compensation?.currency ?? "",

@@ -1,3 +1,4 @@
+import type { JobType } from "@/domain/jobs/jobType";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import type { AIProviderId } from "@/domain/ai/types";
 import type { RunStatus, StageStatus } from "./status";
@@ -140,6 +141,8 @@ export interface RunConfig {
     locations: string[];
     workModes: ("remote" | "hybrid" | "onsite")[];
     minSalary?: number;
+    /** Job types the words asked for ("part time"): JobsLake asks the sources that list them first. */
+    jobTypes?: JobType[];
   };
   minMatchThreshold: number;
   maxResults: number;

@@ -7,6 +7,7 @@ import { applyMapping, toIsoDate, validateMapping, type ResponseMapping } from "
 import { deriveAlerts, summarizeHealth, type SourceRun } from "./health";
 import { planSearch, type PlannableSource } from "./planner";
 import { PROTOCOL_VERSION, validateOpportunity, type JobSourceDescriptor } from "./protocol";
+import { toCanonicalJob } from "./wonderjobs";
 
 const NOW = Date.parse("2026-09-24T08:00:00Z");
 const LONG = "We are hiring an experienced leader to build our identity platform. You will own strategy, roadmap and delivery across teams, partner with security engineering, and grow a world class organization serving millions of customers every single day across many regions and products.";
@@ -62,6 +63,20 @@ describe("canonicalize — dedupe and provenance", () => {
     expect(o.provenance.find((p) => p.field === "compensation")).toMatchObject({ sourceId: "adzuna", confidence: "low" });
     expect(o.quality).toMatchObject({ employerVerified: true, sourceCount: 2, compensationDisclosed: true });
     expect(validateOpportunity(o)).toEqual([]);
+  });
+
+  it("takes the job type a source reported over one read from a title, and says which", () => {
+    const r = canonicalize([
+      { source: ats, job: job({ id: "careers_1", jobType: "contract", jobTypeFrom: "title" }) },
+      { source: agg, job: job({ id: "adzuna_9", sourceId: "adzuna", externalId: "9", applyUrl: "https://www.adzuna.in/details/9", onEmployerSite: false, applyPath: "platform", jobType: "part_time", jobTypeFrom: "source" }) },
+    ], NOW);
+    const o = r.opportunities[0];
+    expect(o).toMatchObject({ jobType: "part_time", jobTypeFrom: "source" });
+    expect(o.provenance.find((p) => p.field === "jobType")).toMatchObject({ sourceId: "adzuna" });
+    expect(toCanonicalJob(o)).toMatchObject({ jobType: "part_time", jobTypeFrom: "source" });
+    expect(validateOpportunity(o)).toEqual([]);
+    // Nothing reported and nothing in the title: no job type at all, not "Full-time".
+    expect(canonicalize([{ source: ats, job: job({ id: "careers_2" }) }], NOW).opportunities[0].jobType).toBeUndefined();
   });
 
   it("a weaker source never overwrites a field a stronger one supplied", () => {
@@ -238,6 +253,14 @@ describe("source planner", () => {
     expect(max.waves.at(-1)!.map((p) => p.id)).toEqual(["de"]);
     expect(max.depth).toBe("deep");
     expect(max.useWarmPool).toBe(false);
+  });
+
+  it("plans a part-time or gig board after the general sources, unless the search asks for its job types", () => {
+    const mixed = [S("a-parttime", ["global"], { jobTypes: ["part_time"] }), S("b-gigs", ["global"], { jobTypes: ["gig"] }), S("gh", ["global"]), S("lv", ["global"]), S("rok", ["remote"]), S("ab", ["global"])];
+    expect(planSearch(req("fast"), mixed, {}).waves[0].map((p) => p.id)).toEqual(["ab", "gh", "lv", "rok"]);
+    const asked = planSearch({ ...req("fast"), query: { text: "barista", locations: ["Bengaluru"], jobTypes: ["part_time" as const] } }, mixed, {});
+    expect(asked.waves[0][0].id).toBe("a-parttime");
+    expect(asked.waves[0].map((p) => p.id)).not.toContain("b-gigs");
   });
 
   it("never plans paused sources or sources without credentials, and says why", () => {

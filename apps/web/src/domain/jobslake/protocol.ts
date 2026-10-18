@@ -5,6 +5,7 @@
  *
  * Pure types and validation only: nothing here fetches, stores or knows about a candidate.
  */
+import type { JobType, JobTypeFrom } from "@/domain/jobs/jobType";
 import type { WorkMode } from "@/domain/jobs/types";
 
 export const PROTOCOL_VERSION = "1.0" as const;
@@ -93,7 +94,7 @@ export interface SourceRecord {
   canonical: boolean;
 }
 
-export type ProvenanceField = "title" | "employer" | "locations" | "description" | "compensation" | "postedAt" | "canonicalApplyUrl" | "workplaceType";
+export type ProvenanceField = "title" | "employer" | "locations" | "description" | "compensation" | "postedAt" | "canonicalApplyUrl" | "workplaceType" | "jobType";
 
 export interface FieldProvenance {
   field: ProvenanceField;
@@ -132,6 +133,9 @@ export interface CanonicalOpportunity {
   locations: string[];
   country: string;
   workplaceType: WorkMode;
+  /** Full-time, part-time, contract, internship, short-term or gig — as a source reported it, or as the title says (`jobTypeFrom`). Absent when neither says. */
+  jobType?: JobType;
+  jobTypeFrom?: JobTypeFrom;
   compensation?: Compensation;
   description: string;
   requirements: string[];
@@ -171,8 +175,11 @@ export interface SearchRequest {
     seniority?: string[];
     /** Smart search: up to three broader phrasings of `text`, searched at the same time on every source. */
     variants?: string[];
+    /** Job types the search asked for ("part time …"): sources that list only those lead the plan. Doesn't filter — `filters.jobTypes` does. */
+    jobTypes?: JobType[];
   };
-  filters?: { freshnessDays?: number; workplaceTypes?: WorkMode[] };
+  /** `jobTypes`: only opportunities of these types (one that states no type is left out). */
+  filters?: { freshnessDays?: number; workplaceTypes?: WorkMode[]; jobTypes?: JobType[] };
   /** Restrict to these sources (the candidate's own source choices). */
   sourceIds?: string[];
   searchMode: SearchMode;

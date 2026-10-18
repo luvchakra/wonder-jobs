@@ -87,7 +87,7 @@ const remotive: SourceFetcher = {
     const data = await getJson<{ jobs: RemotiveJob[] }>(category ? `https://remotive.com/api/remote-jobs?category=${category}&limit=300` : `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(corePhrase(c.query))}&limit=100`);
     return finish(
       "remotive",
-      data.jobs.map((j) => ({ externalId: String(j.id), title: j.title, company: j.company_name, location: `Remote (${j.candidate_required_location || "Worldwide"})`, remote: true, description: j.description, tags: [j.category, ...(j.tags ?? [])].filter(Boolean), postedAt: j.publication_date, applyUrl: j.url, salaryText: j.salary, industryHint: j.category, employerSite: false, applyPath: "platform" as const })),
+      data.jobs.map((j) => ({ externalId: String(j.id), title: j.title, company: j.company_name, location: `Remote (${j.candidate_required_location || "Worldwide"})`, remote: true, description: j.description, tags: [j.category, ...(j.tags ?? [])].filter(Boolean), postedAt: j.publication_date, applyUrl: j.url, salaryText: j.salary, industryHint: j.category, employerSite: false, applyPath: "platform" as const, jobType: j.job_type })),
       c,
     );
   },
@@ -103,7 +103,7 @@ const jobicy: SourceFetcher = {
     const data = await getJson<{ jobs?: JobicyJob[] }>(`https://jobicy.com/api/v2/remote-jobs?count=100${tag ? `&tag=${encodeURIComponent(tag)}` : ""}`);
     return finish(
       "jobicy",
-      (data.jobs ?? []).map((j) => ({ externalId: String(j.id), title: j.jobTitle, company: j.companyName, location: `Remote (${j.jobGeo || "Anywhere"})`, remote: true, description: j.jobDescription, tags: [...(j.jobIndustry ?? []), ...(j.jobType ?? [])], postedAt: j.pubDate, applyUrl: j.url, salaryMin: j.annualSalaryMin || null, salaryMax: j.annualSalaryMax || null, currency: j.salaryCurrency || null, seniorityHint: j.jobLevel, industryHint: (j.jobIndustry ?? []).join(" "), employerSite: false, applyPath: "platform" as const })),
+      (data.jobs ?? []).map((j) => ({ externalId: String(j.id), title: j.jobTitle, company: j.companyName, location: `Remote (${j.jobGeo || "Anywhere"})`, remote: true, description: j.jobDescription, tags: [...(j.jobIndustry ?? []), ...(j.jobType ?? [])], postedAt: j.pubDate, applyUrl: j.url, salaryMin: j.annualSalaryMin || null, salaryMax: j.annualSalaryMax || null, currency: j.salaryCurrency || null, seniorityHint: j.jobLevel, industryHint: (j.jobIndustry ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.jobType })),
       c,
     );
   },
@@ -127,7 +127,10 @@ const remoteok: SourceFetcher = {
 };
 
 /* ---------- Himalayas ---------- */
-interface HimalayasJob { title: string; companyName: string; description: string; excerpt: string; seniority?: string[]; categories?: string[]; minSalary?: number | null; maxSalary?: number | null; currency?: string | null; locationRestrictions?: string[]; pubDate: number; applicationLink: string; guid: string }
+export interface HimalayasJob { employmentType?: string | null; title: string; companyName: string; description: string; excerpt: string; seniority?: string[]; categories?: string[]; minSalary?: number | null; maxSalary?: number | null; currency?: string | null; locationRestrictions?: string[]; pubDate: number; applicationLink: string; guid: string }
+export function rawFromHimalayas(j: HimalayasJob): RawPosting {
+  return { externalId: j.guid || j.applicationLink, title: j.title, company: j.companyName, location: `Remote (${(j.locationRestrictions ?? []).join(", ") || "Worldwide"})`, remote: true, description: j.description || j.excerpt, tags: (j.categories ?? []).slice(0, 6).map((t) => t.replace(/-/g, " ")), postedAt: j.pubDate, applyUrl: j.applicationLink, salaryMin: j.minSalary ?? null, salaryMax: j.maxSalary ?? null, currency: j.currency ?? null, seniorityHint: (j.seniority ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.employmentType ?? null };
+}
 const himalayas: SourceFetcher = {
   id: "himalayas",
   available: () => true,
@@ -135,11 +138,21 @@ const himalayas: SourceFetcher = {
     // No server-side search: scan the newest pages of the feed.
     const pages = await Promise.all([0, 100, 200].map((offset) => getJson<{ jobs: HimalayasJob[] }>(`https://himalayas.app/jobs/api?limit=100&offset=${offset}`).catch(() => ({ jobs: [] as HimalayasJob[] }))));
     const jobs = pages.flatMap((p) => p.jobs ?? []).filter((j) => titleHasCoreTerm(j.title, c.query));
-    return finish(
-      "himalayas",
-      jobs.map((j) => ({ externalId: j.guid || j.applicationLink, title: j.title, company: j.companyName, location: `Remote (${(j.locationRestrictions ?? []).join(", ") || "Worldwide"})`, remote: true, description: j.description || j.excerpt, tags: (j.categories ?? []).slice(0, 6).map((t) => t.replace(/-/g, " ")), postedAt: j.pubDate, applyUrl: j.applicationLink, salaryMin: j.minSalary ?? null, salaryMax: j.maxSalary ?? null, currency: j.currency ?? null, seniorityHint: (j.seniority ?? []).join(" "), employerSite: false, applyPath: "platform" as const })),
-      c,
+    return finish("himalayas", jobs.map(rawFromHimalayas), c);
+  },
+};
+
+/* ---------- Himalayas, part-time and short-term only (its search API filters by employment type) ---------- */
+const HIMALAYAS_FLEXIBLE = ["Part Time", "Temporary"];
+const himalayasParttime: SourceFetcher = {
+  id: "himalayas_parttime",
+  available: () => true,
+  async fetch(c) {
+    const q = corePhrase(c.query);
+    const pages = await Promise.all(
+      HIMALAYAS_FLEXIBLE.map((t) => getJson<{ jobs: HimalayasJob[] }>(`https://himalayas.app/jobs/api/search?employment_type=${encodeURIComponent(t)}${q ? `&q=${encodeURIComponent(q)}` : ""}`).catch(() => ({ jobs: [] as HimalayasJob[] }))),
     );
+    return finish("himalayas_parttime", pages.flatMap((p) => p.jobs ?? []).map(rawFromHimalayas), c);
   },
 };
 
@@ -152,7 +165,7 @@ const arbeitnow: SourceFetcher = {
     const data = await getJson<{ data: ArbeitnowJob[] }>(`https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(corePhrase(c.query))}`);
     return finish(
       "arbeitnow",
-      (data.data ?? []).map((j) => ({ externalId: j.slug, title: j.title, company: j.company_name, location: j.remote ? `Remote (${j.location || "Europe"})` : j.location, remote: j.remote, description: j.description, tags: [...(j.tags ?? []), ...(j.job_types ?? [])], postedAt: j.created_at, applyUrl: j.url, employerSite: false, applyPath: "platform" as const })),
+      (data.data ?? []).map((j) => ({ externalId: j.slug, title: j.title, company: j.company_name, location: j.remote ? `Remote (${j.location || "Europe"})` : j.location, remote: j.remote, description: j.description, tags: [...(j.tags ?? []), ...(j.job_types ?? [])], postedAt: j.created_at, applyUrl: j.url, employerSite: false, applyPath: "platform" as const, jobType: j.job_types })),
       c,
     );
   },
@@ -161,24 +174,55 @@ const arbeitnow: SourceFetcher = {
 /* ---------- Adzuna (India) ---------- */
 /** Whole days back to `since`, at least one — Adzuna's `max_days_old` counts days, so a day's overlap is merged away by id. */
 export const daysSince = (since: string, now = Date.now()) => Math.max(1, Math.ceil((now - Date.parse(since)) / 86_400_000));
-interface AdzunaJob { id: string; title: string; company?: { display_name?: string }; location?: { display_name?: string; area?: string[] }; description: string; redirect_url: string; created: string; salary_min?: number; salary_max?: number; category?: { label?: string }; contract_type?: string }
-const adzunaIn: SourceFetcher = {
-  id: "adzuna_in",
-  delta: true,
-  available: () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY),
+interface AdzunaJob { id: string; title: string; company?: { display_name?: string }; location?: { display_name?: string; area?: string[] }; description: string; redirect_url: string; created: string; salary_min?: number; salary_max?: number; category?: { label?: string }; contract_type?: string; contract_time?: string }
+export function rawFromAdzuna(j: AdzunaJob): RawPosting {
+  return { externalId: j.id, title: j.title.replace(/<[^>]+>/g, ""), company: j.company?.display_name ?? "", location: j.location?.display_name ?? "India", description: j.description, tags: [j.category?.label ?? "", j.contract_type ?? ""].filter(Boolean), postedAt: j.created, applyUrl: j.redirect_url, salaryMin: j.salary_min ?? null, salaryMax: j.salary_max ?? null, currency: j.salary_min || j.salary_max ? "INR" : null, industryHint: j.category?.label, employerSite: false, applyPath: "platform" as const, jobType: [j.contract_time, j.contract_type] };
+}
+const adzunaAvailable = () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
+/** One Adzuna India search; `extra` narrows it with Adzuna's own filters (`&part_time=1`). */
+async function adzunaSearch(sourceId: string, c: SearchCriteria, extra = ""): Promise<Job[]> {
+  const id = process.env.ADZUNA_APP_ID;
+  const key = process.env.ADZUNA_APP_KEY;
+  if (!id || !key) return [];
+  const where = c.locations.find((l) => !/remote|anywhere/i.test(l)) ?? "";
+  const pages = await Promise.all(
+    [1, 2].map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}${extra}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] }))),
+  );
+  return finish(sourceId, pages.flatMap((p) => p.results ?? []).map(rawFromAdzuna), c);
+}
+const adzunaIn: SourceFetcher = { id: "adzuna_in", delta: true, available: adzunaAvailable, fetch: (c) => adzunaSearch("adzuna_in", c) };
+/** Adzuna India's part-time postings only (its `part_time=1` filter); the same credentials. */
+const adzunaInParttime: SourceFetcher = { id: "adzuna_in_parttime", delta: true, available: adzunaAvailable, fetch: (c) => adzunaSearch("adzuna_in_parttime", c, "&part_time=1") };
+
+/* ---------- Freelancer.com (public projects API; no key) — gigs ---------- */
+export interface FreelancerProject { id: number; title: string; seo_url?: string; preview_description?: string; description?: string | null; type?: "fixed" | "hourly"; budget?: { minimum?: number | null; maximum?: number | null }; currency?: { code?: string }; time_submitted?: number; jobs?: { name: string }[]; location?: { country?: { name?: string | null } }; local?: boolean }
+/** One open Freelancer.com project as a posting: a gig, applied to by bidding on Freelancer.com. The client isn't named publicly. */
+export function rawFromFreelancer(p: FreelancerProject): RawPosting {
+  const where = p.local && p.location?.country?.name ? p.location.country.name : "";
+  return {
+    externalId: `fl:${p.id}`,
+    title: p.title,
+    company: "Client on Freelancer.com",
+    location: where || "Remote (Worldwide)",
+    remote: !where,
+    description: p.description || p.preview_description || p.title,
+    tags: [...(p.jobs ?? []).map((j) => j.name).slice(0, 6), p.type === "hourly" ? "Hourly" : p.type === "fixed" ? "Fixed price" : ""].filter(Boolean),
+    postedAt: p.time_submitted ? p.time_submitted * 1000 : null,
+    applyUrl: p.seo_url ? `https://www.freelancer.com/projects/${p.seo_url}` : `https://www.freelancer.com/projects/${p.id}`,
+    // A fixed budget is the whole project's pay, an hourly one is per hour — neither is a salary, so it's only described.
+    salaryText: null,
+    employerSite: false,
+    applyPath: "platform" as const,
+    jobType: "gig",
+  };
+}
+const freelancer: SourceFetcher = {
+  id: "freelancer",
+  available: () => true,
   async fetch(c) {
-    const id = process.env.ADZUNA_APP_ID;
-    const key = process.env.ADZUNA_APP_KEY;
-    if (!id || !key) return [];
-    const where = c.locations.find((l) => !/remote|anywhere/i.test(l)) ?? "";
-    const pages = await Promise.all(
-      [1, 2].map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] }))),
-    );
-    return finish(
-      "adzuna_in",
-      pages.flatMap((p) => p.results ?? []).map((j) => ({ externalId: j.id, title: j.title.replace(/<[^>]+>/g, ""), company: j.company?.display_name ?? "", location: j.location?.display_name ?? "India", description: j.description, tags: [j.category?.label ?? "", j.contract_type ?? ""].filter(Boolean), postedAt: j.created, applyUrl: j.redirect_url, salaryMin: j.salary_min ?? null, salaryMax: j.salary_max ?? null, currency: j.salary_min || j.salary_max ? "INR" : null, industryHint: j.category?.label, employerSite: false, applyPath: "platform" as const })),
-      c,
-    );
+    const q = corePhrase(c.query);
+    const data = await getJson<{ result?: { projects?: FreelancerProject[] } }>(`https://www.freelancer.com/api/projects/0.1/projects/active/?limit=50&full_description=true&job_details=true&location_details=true${q ? `&query=${encodeURIComponent(q)}` : ""}`);
+    return finish("freelancer", (data.result?.projects ?? []).map(rawFromFreelancer), c);
   },
 };
 
@@ -225,6 +269,7 @@ export function rawFromJazzFeed(subdomain: string, xml: string): RawPosting[] {
         seniorityHint: xmlField(b, "experience") || null,
         employerSite: true,
         applyPath: "employer_site" as const,
+        jobType: xmlField(b, "type") || null,
       },
     ];
   });
@@ -281,7 +326,7 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
 
 export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[] }
 export interface LeverJob { id: string; text: string; hostedUrl: string; applyUrl: string; createdAt: number; country?: string; workplaceType?: string; categories?: { location?: string; team?: string; department?: string; commitment?: string }; descriptionPlain?: string; lists?: { text: string; content: string }[] }
-export interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string; publishedAt: string; location: string; isRemote?: boolean; workplaceType?: string; department?: string; team?: string; descriptionPlain?: string; descriptionHtml?: string }
+export interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string; publishedAt: string; location: string; isRemote?: boolean; workplaceType?: string; department?: string; team?: string; descriptionPlain?: string; descriptionHtml?: string; employmentType?: string }
 
 const DETAIL_LIMIT = 12;
 
@@ -305,11 +350,11 @@ export function rawFromGreenhouse(board: (typeof CAREER_BOARDS)[number], j: Gree
 }
 
 export function rawFromLever(board: (typeof CAREER_BOARDS)[number], j: LeverJob): RawPosting {
-  return { externalId: `lv:${board.slug}:${j.id}`, title: j.text, company: board.company, companyDomain: board.domain, location: [j.categories?.location, j.workplaceType === "remote" ? "Remote" : ""].filter(Boolean).join(" · "), remote: j.workplaceType === "remote", description: [j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `${l.text}\n${htmlToText(l.content)}`)].join("\n\n"), tags: [j.categories?.team, j.categories?.department, j.categories?.commitment].filter((t): t is string => !!t), postedAt: j.createdAt, applyUrl: j.applyUrl || j.hostedUrl, employerSite: true, applyPath: "employer_site" as const };
+  return { externalId: `lv:${board.slug}:${j.id}`, title: j.text, company: board.company, companyDomain: board.domain, location: [j.categories?.location, j.workplaceType === "remote" ? "Remote" : ""].filter(Boolean).join(" · "), remote: j.workplaceType === "remote", description: [j.descriptionPlain ?? "", ...(j.lists ?? []).map((l) => `${l.text}\n${htmlToText(l.content)}`)].join("\n\n"), tags: [j.categories?.team, j.categories?.department, j.categories?.commitment].filter((t): t is string => !!t), postedAt: j.createdAt, applyUrl: j.applyUrl || j.hostedUrl, employerSite: true, applyPath: "employer_site" as const, jobType: j.categories?.commitment ?? null };
 }
 
 export function rawFromAshby(board: (typeof CAREER_BOARDS)[number], j: AshbyJob): RawPosting {
-  return { externalId: `ab:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: [j.location, j.isRemote ? "Remote" : "", j.workplaceType ?? ""].filter(Boolean).join(" · "), remote: !!j.isRemote, description: j.descriptionPlain || htmlToText(j.descriptionHtml ?? ""), tags: [j.department, j.team].filter((t): t is string => !!t), postedAt: j.publishedAt, applyUrl: j.applyUrl || j.jobUrl, employerSite: true, applyPath: "employer_site" as const };
+  return { externalId: `ab:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: [j.location, j.isRemote ? "Remote" : "", j.workplaceType ?? ""].filter(Boolean).join(" · "), remote: !!j.isRemote, description: j.descriptionPlain || htmlToText(j.descriptionHtml ?? ""), tags: [j.department, j.team].filter((t): t is string => !!t), postedAt: j.publishedAt, applyUrl: j.applyUrl || j.jobUrl, employerSite: true, applyPath: "employer_site" as const, jobType: j.employmentType ?? null };
 }
 
 async function greenhouseBoard(board: (typeof CAREER_BOARDS)[number], c: SearchCriteria): Promise<RawPosting[]> {
@@ -371,6 +416,7 @@ export function rawFromSmartRecruiters(c: (typeof SMARTRECRUITERS_COMPANIES)[num
     industryHint: j.industry?.label ?? null,
     employerSite: true,
     applyPath: "employer_site" as const,
+    jobType: j.typeOfEmployment?.label ?? null,
   };
 }
 
@@ -450,7 +496,7 @@ const themuse: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, arbeitnow, adzuna_in: adzunaIn, jazzhr, theirstack };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

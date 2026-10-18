@@ -4,6 +4,7 @@
  * posting's own text with deterministic rules, so it is explainable and never
  * invented. Runs on the server (fetchers) and is pure, so it is unit-tested.
  */
+import { resolveJobType } from "@/domain/jobs/jobType";
 import type { Job, WorkMode } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { employerDomainOf } from "@/domain/jobslake/companies";
@@ -30,6 +31,8 @@ export interface RawPosting {
   /** True when the posting lives on the employer's own careers page / ATS. */
   employerSite: boolean;
   applyPath?: Job["applyPath"];
+  /** The source's own employment-type field ("Part Time", "FullTime", ["full-time"]), as given. */
+  jobType?: string | (string | null | undefined)[] | null;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", "#39": "'", "#x27": "'", "#x2F": "/", "#8217": "’", "#8211": "–", "#8212": "—", ndash: "–", mdash: "—", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", hellip: "…", bull: "•" };
@@ -267,6 +270,7 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     onEmployerSite: raw.employerSite,
     repostCount: 0,
     tags: (raw.tags ?? []).map((t) => t.trim()).filter(Boolean).slice(0, 8),
+    ...resolveJobType(raw.jobType, title),
   };
 }
 

@@ -3,6 +3,7 @@
  * deeply — and a plain reason for each choice, so the admin can see why a source was or wasn't
  * asked. Deterministic: the same inputs always produce the same plan.
  */
+import type { JobType } from "@/domain/jobs/jobType";
 import { STATUS_LABEL, type SearchMode, type SearchRequest, type SourceStatus } from "./protocol";
 import type { SourceHealth } from "./health";
 
@@ -18,6 +19,8 @@ export interface PlannableSource {
   geography: string[];
   /** Charged per result: planned in its own last wave, run only when the free sources found too few. */
   paid?: boolean;
+  /** Lists only these job types (a part-time or gig board). */
+  jobTypes?: JobType[];
 }
 
 export interface PlannedSource {
@@ -77,7 +80,7 @@ function score(h: SourceHealth | undefined) {
 
 const pct = (x: number | null) => (x == null ? "no runs yet" : `${Math.round(x * 100)}% success`);
 
-export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query">, sources: PlannableSource[], health: Record<string, SourceHealth>): SearchPlan {
+export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query" | "filters">, sources: PlannableSource[], health: Record<string, SourceHealth>): SearchPlan {
   const scope = locationScope(req.query.locations);
   const skipped: SkippedSource[] = [];
   const eligible: PlannableSource[] = [];
@@ -99,7 +102,11 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
   }
   // Paid sources never compete for the free waves: they top up at the end, if at all.
   const paid = eligible.filter((s) => s.paid);
-  const ranked = eligible.filter((s) => !s.paid).map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
+  // A part-time or gig board answers a general search with few of its jobs: it follows the general sources,
+  // unless the search asks for one of its job types — then it leads.
+  const wanted = [...(req.query.jobTypes ?? []), ...(req.filters?.jobTypes ?? [])];
+  const niche = (s: PlannableSource) => (s.jobTypes?.length ? (s.jobTypes.some((t) => wanted.includes(t)) ? -1 : 1) : 0);
+  const ranked = eligible.filter((s) => !s.paid).map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || niche(a.s) - niche(b.s) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
   const why = (x: (typeof ranked)[number]) => `${x.fit ? "Covers your locations" : "Outside your locations — discovery"} · ${pct(health[x.s.id]?.successRate ?? null)}`;
   const fits = ranked.filter((x) => x.fit);
   const misses = ranked.filter((x) => !x.fit);

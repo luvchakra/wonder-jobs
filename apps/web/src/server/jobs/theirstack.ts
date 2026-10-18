@@ -78,6 +78,7 @@ export interface TheirStackJob {
   company_domain?: string | null;
   company_object?: { name?: string; domain?: string; industry?: string; is_recruiting_agency?: boolean } | null;
   technology_slugs?: string[] | null;
+  employment_statuses?: string[] | null;
 }
 
 /** Job boards and aggregators: a posting that only lives there isn't on the employer's own site. */
@@ -115,6 +116,7 @@ export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
     industryHint: j.company_object?.industry ?? null,
     employerSite,
     applyPath: employerSite ? "employer_site" : "platform",
+    jobType: j.employment_statuses ?? null,
   };
 }
 

@@ -4,10 +4,14 @@
  * postings name a domain for, with how many postings it has, and looks for the logos still missing — so a
  * search's job cards show them straight from JobsLake. Domains are only ever ones a source reported or the
  * employer's own apply link shows (`companiesFrom`), never guessed from a name.
+ *
+ * It also gives stored postings saved before job types existed the type their title states
+ * ("Part-time …", "Freelance …"), marked as read from the title; a title that says none stays without one.
  */
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { LOGO_TTL_MS, companiesFrom, companyStore, fetchLogo, type CompanyStore } from "./companies";
 import { jobsLakeStore } from "./store";
+import { jobTypeFromTitle } from "@/domain/jobs/jobType";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 
 export interface CompanyRefreshReport {
@@ -15,13 +19,15 @@ export interface CompanyRefreshReport {
   companies: number;
   logosChecked: number;
   logosFound: number;
+  /** Stored postings given the job type their title states this run. */
+  jobTypesFilled: number;
 }
 
 /** The most postings read per refresh (PostgREST answers at most 1,000 rows a request). */
 const MAX_POSTINGS = 1000;
 
 export async function refreshCompanies(
-  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; fetcher?: typeof fetch } = {},
+  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; savePostings?: (opps: CanonicalOpportunity[]) => Promise<void>; fetcher?: typeof fetch } = {},
 ): Promise<CompanyRefreshReport> {
   const now = opts.now ?? Date.now();
   const startedAt = Date.now();
@@ -36,6 +42,14 @@ export async function refreshCompanies(
   const counts = new Map<string, number>();
   for (const o of opps) for (const r of companiesFrom([o], at)) counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
   await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, countedAt: at })));
+
+  // Postings stored without a job type: the one their title states, if any.
+  const typed = opps.flatMap((o) => {
+    if (o.jobType) return [];
+    const t = jobTypeFromTitle(o.title ?? "");
+    return t ? [{ ...o, jobType: t, jobTypeFrom: "title" as const }] : [];
+  });
+  if (typed.length) await (opts.savePostings ?? ((x) => jobsLakeStore().upsertOpportunities(x)))(typed);
 
   // Logos never looked for (or not for a month), a few at a time, within the time budget.
   const due = await store.needingLogo(opts.logoLimit ?? 150, new Date(now - LOGO_TTL_MS).toISOString());
@@ -53,5 +67,5 @@ export async function refreshCompanies(
       }
     }),
   );
-  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found };
+  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found, jobTypesFilled: typed.length };
 }
