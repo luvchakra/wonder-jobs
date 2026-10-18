@@ -112,9 +112,9 @@ function JobsHome() {
           },
           describe: (text, places) => {
             const d = describeWords(text, search.readiness.locations, places);
-            // Only places typed: the profile's own roles, there.
-            const what = d.query || (d.fromWords ? search.readiness.query : "");
-            return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}` : null;
+            // Only places or pay typed: the profile's own roles, there.
+            const what = d.query || (d.fromWords || d.highPay ? search.readiness.query : "");
+            return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}${d.highPay ? ", highest pay first" : ""}` : null;
           },
           places: search.readiness.locations,
           runPlaces: (places) => {

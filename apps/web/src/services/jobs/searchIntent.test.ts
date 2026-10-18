@@ -76,3 +76,21 @@ describe("deriveSearchIntent — a plain-language request becomes a search, with
     expect(deriveSearchIntent("I am a senior director of engineering").query).toBe("senior director engineering");
   });
 });
+
+describe("pay words", () => {
+  it("reads “high paying jobs” as a pay preference, not a role", () => {
+    const i = deriveSearchIntent("high paying jobs");
+    expect(i.query).toBe("");
+    expect(i.highPay).toBe(true);
+    expect(i.derived.find((d) => d.field === "pay")).toMatchObject({ value: "Highest pay first", from: "high paying" });
+  });
+  it("keeps the role around the pay words", () => {
+    const i = deriveSearchIntent("well-paid IAM director roles in Mumbai");
+    expect(i.query).toBe("iam director");
+    expect(i.locations).toEqual(["Mumbai"]);
+    expect(i.highPay).toBe(true);
+  });
+  it("leaves a search without pay words alone", () => {
+    expect(deriveSearchIntent("data analyst in Pune").highPay).toBe(false);
+  });
+});
