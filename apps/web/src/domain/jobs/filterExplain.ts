@@ -10,6 +10,7 @@
  * breakdown UI read from, so they can never disagree about what's visible.
  */
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
+import { readPay } from "@/domain/jobs/payWords";
 import { relevance } from "@/services/jobs/relevance";
 import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
 import { postingTooOld } from "@/domain/jobs/age";
@@ -99,7 +100,8 @@ export function applyJobFilters(
   /** Jobs with an application past Saved, for "Hide jobs already in your Pipeline". */
   inPipeline: ReadonlySet<string> = new Set(),
 ): FilterResult {
-  const query = filters.query.trim();
+  // Pay words ("high paying") order the list by pay; they don't match against job text.
+  const query = readPay(filters.query).rest.trim();
   const visibleIds: string[] = [];
   const scores: Record<string, number> = {};
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};

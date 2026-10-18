@@ -84,9 +84,9 @@ export interface SearchOptions {
 }
 
 /** What a typed search will look for — shown before it runs, so the candidate sees what Wonder read. */
-export function describeWords(text: string, fallbackLocations: string[], places?: string[]): { query: string; locations: string[]; fromWords: boolean } {
+export function describeWords(text: string, fallbackLocations: string[], places?: string[]): { query: string; locations: string[]; fromWords: boolean; highPay: boolean } {
   const intent = deriveSearchIntent(text);
-  return { query: intent.query, locations: intent.locations.length ? intent.locations : places ?? fallbackLocations, fromWords: intent.locations.length > 0 };
+  return { query: intent.query, locations: intent.locations.length ? intent.locations : places ?? fallbackLocations, fromWords: intent.locations.length > 0, highPay: intent.highPay };
 }
 
 /**
@@ -161,9 +161,11 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   const searchWords = useCallback(
     async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
-      // Only places typed ("Singapore"): the profile's own roles, there.
-      const query = intent.query || (intent.locations.length ? readiness.query : "");
+      // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there.
+      const query = intent.query || (intent.locations.length || intent.highPay ? readiness.query : "");
       if (!query) return null;
+      // "High paying": the best-paid first (jobs without a stated salary go last).
+      if (intent.highPay) useJobsStore.getState().setSort("salary");
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
       // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.

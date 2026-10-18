@@ -149,6 +149,14 @@ describe("applyJobFilters", () => {
     expect(r.hiddenByReason).toEqual({ search_text: 1 });
   });
 
+  it("doesn't match pay words against job text", () => {
+    const jobs = { a: job("a", { title: "Backend Engineer" }) };
+    const matches = { a: match("a") };
+    const filters: JobFilters = { ...DEFAULT_FILTERS, query: "high paying jobs" };
+    const r = applyJobFilters(["a"], jobs, matches, {}, {}, filters, NOW);
+    expect(r.visibleIds).toEqual(["a"]);
+  });
+
   it("sums reasons across many jobs without double-counting any one job", () => {
     const jobs = {
       a: job("a", { workMode: "onsite" }), // fails work_mode
