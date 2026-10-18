@@ -5,6 +5,7 @@
  * say "No data yet" rather than drawing a zero that looks like a measurement.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { HealthState } from "@/domain/jobslake/health";
 import type { SourceStatus } from "@/domain/jobslake/protocol";
@@ -111,9 +112,10 @@ export function Panel({ title, action, children, className }: { title?: ReactNod
   );
 }
 
-export function Stat({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: ReactNode; icon?: ReactNode }) {
-  return (
-    <Card padding="sm" className="flex items-start gap-3">
+/** A headline figure; with `href`, the whole card opens the page that figure is counted from. */
+export function Stat({ label, value, hint, icon, href }: { label: string; value: ReactNode; hint?: ReactNode; icon?: ReactNode; href?: string }) {
+  const card = (
+    <Card padding="sm" hover={!!href} className={cn("flex items-start gap-3", href && "h-full")}>
       {icon && <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-brand-50 text-brand-600">{icon}</span>}
       <div className="min-w-0">
         <p className="text-[22px] font-semibold leading-tight tracking-tight text-ink">{value}</p>
@@ -121,6 +123,13 @@ export function Stat({ label, value, hint, icon }: { label: string; value: React
         {hint && <p className="mt-0.5 text-[11px] text-ink-4">{hint}</p>}
       </div>
     </Card>
+  );
+  return href ? (
+    <Link href={href} className="block rounded-[20px]">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 

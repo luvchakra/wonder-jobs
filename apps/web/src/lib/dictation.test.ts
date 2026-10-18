@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendDictated, foldResults, mergePhrases, shouldGiveUp, type RecognitionResultList } from "./dictation";
+import { appendDictated, foldResults, mergePhrases, sessionText, shouldGiveUp, type RecognitionResultList } from "./dictation";
 
 /** Builds the result list shape the Web Speech API hands to `onresult`. */
 function results(...phrases: { text: string; isFinal: boolean }[]): RecognitionResultList {
@@ -119,6 +119,18 @@ describe("foldResults", () => {
     const folded = foldResults([], results({ text: "   ", isFinal: true }, { text: "", isFinal: false }));
     expect(mergePhrases(folded.settled)).toBe("");
     expect(folded.interim).toBe("");
+  });
+});
+
+describe("sessionText", () => {
+  it("includes words still being revised, after the settled ones", () => {
+    expect(sessionText(["IAM director"], "roles in Mumbai")).toBe("IAM director roles in Mumbai");
+  });
+  it("keeps a session that never marked anything final (iOS Safari)", () => {
+    expect(sessionText([], "executive director IT security")).toBe("executive director IT security");
+  });
+  it("does not repeat a revised take of the settled words", () => {
+    expect(sessionText(["looking for"], "looking for a director role")).toBe("looking for a director role");
   });
 });
 
