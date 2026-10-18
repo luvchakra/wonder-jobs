@@ -110,7 +110,7 @@ async function warmCandidates(req: SearchRequest, allowed: Set<string> | null, s
 
 function applyFilters(opps: CanonicalOpportunity[], req: SearchRequest) {
   const f = req.filters ?? {};
-  return opps.filter((o) => (f.freshnessDays == null || o.freshness.ageDays <= f.freshnessDays) && (!f.workplaceTypes?.length || f.workplaceTypes.includes(o.workplaceType)));
+  return opps.filter((o) => (f.freshnessDays == null || o.freshness.ageDays <= f.freshnessDays) && (!f.workplaceTypes?.length || f.workplaceTypes.includes(o.workplaceType)) && (!f.jobTypes?.length || (!!o.jobType && f.jobTypes.includes(o.jobType))));
 }
 
 /* ---------------------------------------------------------------- search */
@@ -138,7 +138,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
   const health = await healthBySource();
   // Restricted: the planner only ever sees the allowed sources, so an empty list plans nothing.
-  const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography, paid: s.paid })));
+  const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography, paid: s.paid, jobTypes: s.jobTypes })));
   const plan = planSearch({ ...req, sourceIds: allowed }, plannable, health);
   const byId = new Map(sources.map((s) => [s.id, s]));
   const planned = plan.waves.flat();

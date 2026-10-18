@@ -22,7 +22,7 @@ describe("JobsLake's daily company refresh", () => {
       fetcher,
       postings: async () => [opp("IBM", "ibm.com"), opp("IBM", "ibm.com"), opp("Acme", undefined, "https://careers.acme.com/1", true), opp("Name only", undefined)],
     });
-    expect(r).toEqual({ postings: 4, companies: 2, logosChecked: 2, logosFound: 1 });
+    expect(r).toEqual({ postings: 4, companies: 2, logosChecked: 2, logosFound: 1, jobTypesFilled: 0 });
     expect(store.rows.get("ibm.com")).toMatchObject({ openJobs: 2, logo: { type: "image/png" } });
     expect(store.rows.get("acme.com")).toMatchObject({ openJobs: 1, logo: null });
     // A company whose postings name no domain isn't given one.
@@ -36,5 +36,21 @@ describe("JobsLake's daily company refresh", () => {
     expect(store.rows.get("ibm.com")?.openJobs).toBe(1);
     const later = await refreshCompanies({ now: Date.now() + LOGO_TTL_MS + 86_400_000, store, fetcher, postings: async () => [] });
     expect(later.logosChecked).toBe(2);
+  });
+
+  it("gives stored postings the job type their title states, and leaves the rest alone", async () => {
+    const titled = (title: string, extra: Partial<CanonicalOpportunity> = {}) => ({ ...opp("Acme", undefined), title, ...extra }) as CanonicalOpportunity;
+    const saved: CanonicalOpportunity[] = [];
+    const r = await refreshCompanies({
+      store: new __MemoryCompanies(),
+      fetcher: (async () => new Response(null, { status: 404 })) as unknown as typeof fetch,
+      postings: async () => [titled("Part-time Barista"), titled("Freelance Illustrator"), titled("Product Manager"), titled("Senior Engineer (Part-time)", { jobType: "full_time", jobTypeFrom: "source" })],
+      savePostings: async (x) => void saved.push(...x),
+    });
+    expect(r.jobTypesFilled).toBe(2);
+    expect(saved.map((o) => [o.title, o.jobType, o.jobTypeFrom])).toEqual([
+      ["Part-time Barista", "part_time", "title"],
+      ["Freelance Illustrator", "gig", "title"],
+    ]);
   });
 });

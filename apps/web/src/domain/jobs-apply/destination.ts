@@ -44,8 +44,9 @@ export const SSO_HOSTS = ["accounts.google.com", "login.microsoftonline.com", "l
 const FOLLOWABLE_BOARDS = ["arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de", "arbeitnow.fr", "arbeitnow.ch"];
 /** Boards whose Apply link doesn't open for the cloud browser (tested 2026-10-17): Jobicy asks for a Jobicy
  *  account, RemoteOK's link returns a browser without its session to the listing, Himalayas and The Muse answer
- *  automated browsers with 403. Listed so they're recognised as job boards, not mistaken for employers. */
-const CLOSED_BOARDS = ["jobicy.com", "remoteok.com", "himalayas.app", "themuse.com"];
+ *  automated browsers with 403. Freelancer.com gigs are taken on by bidding from a Freelancer.com account.
+ *  Listed so they're recognised as job boards, not mistaken for employers. */
+const CLOSED_BOARDS = ["jobicy.com", "remoteok.com", "himalayas.app", "themuse.com", "freelancer.com"];
 export const isFollowableBoard = (host: string) => FOLLOWABLE_BOARDS.some((d) => hostMatches(host.toLowerCase(), d));
 
 const AGGREGATORS = [...FOLLOWABLE_BOARDS, ...CLOSED_BOARDS, "linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "adzuna.co.uk", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "arbeitnow.com", "arbeitnow.co.uk", "arbeitnow.nl", "arbeitnow.de"];

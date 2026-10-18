@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Bookmark, MapPin, ThumbsDown } from "lucide-react";
 import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
+import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { useJobsStore } from "@/store/jobs";
@@ -35,6 +36,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   // The site a board's posting lives on ("naukri.com"), once its link has been followed.
   const origin = useJobsStore((s) => s.origins[job.id]);
+  const type = jobTypeOf(job);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
       <div className="flex items-start gap-3">
@@ -51,6 +53,12 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             </span>
             <span aria-hidden>•</span>
             <span>{WORK_MODE_LABEL[job.workMode]}</span>
+            {type && (
+              <>
+                <span aria-hidden>•</span>
+                <span title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[type]}</span>
+              </>
+            )}
           </p>
         </div>
         {onReject && (

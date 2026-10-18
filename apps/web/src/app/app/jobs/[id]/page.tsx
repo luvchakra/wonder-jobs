@@ -9,6 +9,7 @@ import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
+import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { COMPANIES, JOB_SOURCES } from "@/services/mock/catalog";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -141,6 +142,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   <MapPin className="size-3.5" aria-hidden /> {job.location}
                 </span>
                 <span>{WORK_MODE_LABEL[job.workMode]}</span>
+                {jobTypeOf(job) && <span title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[jobTypeOf(job)!]}</span>}
                 {salary && (
                   <span className="inline-flex items-center gap-1">
                     <Wallet className="size-3.5" aria-hidden /> {salary}

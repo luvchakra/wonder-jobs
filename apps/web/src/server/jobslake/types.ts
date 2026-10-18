@@ -1,4 +1,5 @@
 import type { AccessStrategy, JobSourceDescriptor, SourceCategory, SourceStatus } from "@/domain/jobslake/protocol";
+import type { JobType } from "@/domain/jobs/jobType";
 import type { AtsPlatform } from "@/domain/jobslake/detect";
 import type { PartnerAgreement, PartnerConnection, PartnerId } from "@/domain/jobslake/partners";
 import type { FeedConfig, JsonApiConfig, McpConfig, StructuredConfig } from "./custom";
@@ -79,6 +80,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   agreement?: PartnerAgreement;
   /** Charged per result: asked last, only to top up a thin search, within a monthly credit budget — and never for API keys. */
   paid?: boolean;
+  /** Lists only these job types (a part-time or gig board): planned after the general sources unless the search asks for one of them. */
+  jobTypes?: JobType[];
 }
 
 export interface AuditEvent {

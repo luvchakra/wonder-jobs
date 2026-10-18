@@ -15,7 +15,7 @@ export async function runCompanyRefresh(trigger: "cron" | "admin"): Promise<{ ou
   }
   try {
     const report = await refreshCompanies({ budgetMs: settings.budgetSec * 1000, logoLimit: settings.logoLimit });
-    await recordCronRun({ job: "jobslake-companies", trigger, startedAt, finishedAt: new Date().toISOString(), outcome: "ok", summary: `${report.postings} postings · ${report.companies} companies · ${report.logosChecked} logos checked, ${report.logosFound} found` });
+    await recordCronRun({ job: "jobslake-companies", trigger, startedAt, finishedAt: new Date().toISOString(), outcome: "ok", summary: `${report.postings} postings · ${report.companies} companies · ${report.logosChecked} logos checked, ${report.logosFound} found · ${report.jobTypesFilled} job types filled` });
     return { outcome: "ok", report };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

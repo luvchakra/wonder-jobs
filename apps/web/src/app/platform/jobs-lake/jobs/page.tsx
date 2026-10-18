@@ -4,7 +4,8 @@ import { ExternalLink } from "lucide-react";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
+import { Input, Select } from "@/components/common/Input";
+import { JOB_TYPES, JOB_TYPE_LABEL, jobTypeOf, type JobType } from "@/domain/jobs/jobType";
 import { AccessBadge, LoadError, Loading, PageTitle, Panel, num, useAdmin } from "@/components/jobslake/ui";
 
 const PAGE = 50;
@@ -14,7 +15,8 @@ export default function JobsPage() {
   const [q, setQ] = useState("");
   const [applied, setApplied] = useState("");
   const [offset, setOffset] = useState(0);
-  const { data, error, reload, loading } = useAdmin<{ total: number; offset: number; opportunities: CanonicalOpportunity[] }>(`opportunities?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}`);
+  const [type, setType] = useState("");
+  const { data, error, reload, loading } = useAdmin<{ total: number; offset: number; byType?: Record<JobType | "unstated", number>; opportunities: CanonicalOpportunity[] }>(`opportunities?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}&type=${type}`);
   const [open, setOpen] = useState<string | null>(null);
   return (
     <>
@@ -28,6 +30,24 @@ export default function JobsPage() {
         }}
       >
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Title, employer or location" aria-label="Search jobs" className="h-10" />
+        <Select
+          aria-label="Job type"
+          value={type}
+          onChange={(e) => {
+            setOffset(0);
+            setType(e.target.value);
+          }}
+          className="h-10 w-auto shrink-0"
+        >
+          <option value="">All types</option>
+          {JOB_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {JOB_TYPE_LABEL[t]}
+              {data?.byType ? ` (${num(data.byType[t])})` : ""}
+            </option>
+          ))}
+          <option value="unstated">Not stated{data?.byType ? ` (${num(data.byType.unstated)})` : ""}</option>
+        </Select>
         <Button type="submit" size="sm" className="h-10">
           Search
         </Button>
@@ -48,6 +68,7 @@ export default function JobsPage() {
                       </span>
                     </span>
                     <span className="flex shrink-0 flex-wrap gap-1">
+                      {jobTypeOf(o) && <AccessBadge label={`${JOB_TYPE_LABEL[jobTypeOf(o)!]}${o.jobTypeFrom === "source" ? "" : " · from title"}`} />}
                       {o.quality.employerVerified && <AccessBadge label="Employer" />}
                       <AccessBadge label={`${o.quality.sourceCount} source${o.quality.sourceCount === 1 ? "" : "s"}`} />
                     </span>

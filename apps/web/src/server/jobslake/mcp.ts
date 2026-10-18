@@ -7,6 +7,7 @@
  * the service token or a JobsLake API key before anything here runs. An API key gets only the tools
  * its REST endpoints allow, metered and restricted exactly as REST (the same service functions).
  */
+import { JOB_TYPES } from "@/domain/jobs/jobType";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import type { Caller } from "./access";
 import { coveragePublic, getOpportunity, getSourcePublic, healthPublic, listSourcesPublic, parseSearchRequest, refreshOpportunityById, runSearch, type Result } from "./service";
@@ -33,7 +34,7 @@ export const MCP_TOOLS: Tool[] = [
       type: "object",
       properties: {
         query: { type: "object", properties: { text: { type: "string" }, titles: { type: "array", items: { type: "string" } }, skills: { type: "array", items: { type: "string" } }, locations: { type: "array", items: { type: "string" } }, seniority: { type: "array", items: { type: "string" } } } },
-        filters: { type: "object", properties: { freshnessDays: { type: "integer" }, workplaceTypes: { type: "array", items: { enum: ["remote", "hybrid", "onsite"] } } } },
+        filters: { type: "object", properties: { freshnessDays: { type: "integer" }, workplaceTypes: { type: "array", items: { enum: ["remote", "hybrid", "onsite"] } }, jobTypes: { type: "array", items: { enum: JOB_TYPES } } } },
         sourceIds: { type: "array", items: { type: "string" } },
         searchMode: { enum: ["fast", "balanced", "maximum_coverage"] },
         limit: { type: "integer", minimum: 1, maximum: 500 },

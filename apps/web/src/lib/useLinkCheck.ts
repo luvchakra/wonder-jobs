@@ -19,7 +19,7 @@ export const closedReason = (url: string, reason?: string) => {
 /** A job board's posting whose site isn't known yet is checked even if it was found open recently. */
 const needsOrigin = (jobId: string) => {
   const { jobs, origins } = useJobsStore.getState();
-  return !!jobs[jobId]?.sourceIds.includes("adzuna_in") && !origins[jobId];
+  return !!jobs[jobId]?.sourceIds.some((s) => s === "adzuna_in" || s === "adzuna_in_parttime") && !origins[jobId];
 };
 const keepOrigins = (pairs: [string, string | undefined][]) => {
   const found = Object.fromEntries(pairs.filter((p): p is [string, string] => !!p[1]));

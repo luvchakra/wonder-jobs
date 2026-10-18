@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { museLocation, rawFromJazzFeed, rawFromMuse, rawFromSmartRecruiters, SMARTRECRUITERS_COMPANIES } from "./providers";
+import { museLocation, rawFromAdzuna, rawFromFreelancer, rawFromHimalayas, rawFromJazzFeed, rawFromMuse, rawFromSmartRecruiters, SMARTRECRUITERS_COMPANIES } from "./providers";
+import { normalizePosting } from "@/services/jobs/normalize";
 
 describe("rawFromSmartRecruiters", () => {
   const swiggy = SMARTRECRUITERS_COMPANIES[0];
@@ -66,3 +67,22 @@ describe("JazzHR feed", () => {
     expect(rawFromJazzFeed("x", "")).toEqual([]);
   });
 });
+
+describe("job type from each source's own field", () => {
+  it("Himalayas' employment type", () => {
+    const raw = rawFromHimalayas({ title: "Designer", companyName: "Bunsen", description: "Design things", excerpt: "", pubDate: 1792345168, applicationLink: "https://himalayas.app/companies/bunsen/jobs/designer", guid: "g1", employmentType: "Part Time" });
+    expect(normalizePosting("himalayas_parttime", raw)).toMatchObject({ jobType: "part_time", jobTypeFrom: "source" });
+  });
+  it("Adzuna's contract time over its contract type", () => {
+    const raw = rawFromAdzuna({ id: "1", title: "Tutor", description: "Teach", redirect_url: "https://www.adzuna.in/land/ad/1", created: "2026-10-18T00:00:00Z", contract_time: "part_time", contract_type: "permanent" });
+    expect(normalizePosting("adzuna_in_parttime", raw).jobType).toBe("part_time");
+  });
+  it("a Freelancer.com project is a gig on Freelancer.com, its client unnamed and its budget not a salary", () => {
+    const raw = rawFromFreelancer({ id: 7, title: "Logo for a cafe", seo_url: "logo-design/Logo-for-cafe", preview_description: "Need a logo", type: "fixed", budget: { minimum: 30, maximum: 250 }, time_submitted: 1792345168, jobs: [{ name: "Logo Design" }] });
+    const job = normalizePosting("freelancer", raw);
+    expect(job).toMatchObject({ jobType: "gig", jobTypeFrom: "source", company: "Client on Freelancer.com", applyUrl: "https://www.freelancer.com/projects/logo-design/Logo-for-cafe", workMode: "remote", applyPath: "platform" });
+    expect(job.salaryMax).toBeUndefined();
+    expect(job.tags).toContain("Fixed price");
+  });
+});
+

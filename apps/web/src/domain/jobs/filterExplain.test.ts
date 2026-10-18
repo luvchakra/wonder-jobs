@@ -149,6 +149,21 @@ describe("applyJobFilters", () => {
     expect(r.hiddenByReason).toEqual({ search_text: 1 });
   });
 
+  it("shows only the job types picked, and hides postings that state none", () => {
+    const jobs = { a: job("a", { title: "Barista", jobType: "part_time", jobTypeFrom: "source" }), b: job("b", { title: "Engineer", jobType: "full_time" }), c: job("c", { title: "Designer" }), d: job("d", { title: "Part-time Tutor" }) };
+    const matches = { a: match("a"), b: match("b"), c: match("c"), d: match("d") };
+    const filters: JobFilters = { ...DEFAULT_FILTERS, jobTypes: ["part_time"] };
+    const r = applyJobFilters(["a", "b", "c", "d"], jobs, matches, {}, {}, filters, NOW);
+    expect(r.visibleIds).toEqual(["a", "d"]);
+    expect(r.hiddenByReason).toEqual({ job_type: 2 });
+  });
+
+  it("doesn't match job-type words against job text", () => {
+    const jobs = { a: job("a", { title: "Backend Engineer" }) };
+    const filters: JobFilters = { ...DEFAULT_FILTERS, query: "part time backend" };
+    expect(applyJobFilters(["a"], jobs, { a: match("a") }, {}, {}, filters, NOW).visibleIds).toEqual(["a"]);
+  });
+
   it("doesn't match pay words against job text", () => {
     const jobs = { a: job("a", { title: "Backend Engineer" }) };
     const matches = { a: match("a") };

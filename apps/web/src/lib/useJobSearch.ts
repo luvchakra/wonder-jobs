@@ -1,4 +1,5 @@
 "use client";
+import type { JobType } from "@/domain/jobs/jobType";
 import { useCallback, useEffect, useMemo } from "react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, profileVocabulary, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
@@ -81,12 +82,13 @@ export interface SearchOptions {
   careerGoal?: string;
   role?: { id: string; title: string };
   origin?: "profile" | "words";
+  jobTypes?: JobType[];
 }
 
 /** What a typed search will look for — shown before it runs, so the candidate sees what Wonder read. */
-export function describeWords(text: string, fallbackLocations: string[], places?: string[]): { query: string; locations: string[]; fromWords: boolean; highPay: boolean } {
+export function describeWords(text: string, fallbackLocations: string[], places?: string[]): { query: string; locations: string[]; fromWords: boolean; highPay: boolean; jobTypes: JobType[] } {
   const intent = deriveSearchIntent(text);
-  return { query: intent.query, locations: intent.locations.length ? intent.locations : places ?? fallbackLocations, fromWords: intent.locations.length > 0, highPay: intent.highPay };
+  return { query: intent.query, locations: intent.locations.length ? intent.locations : places ?? fallbackLocations, fromWords: intent.locations.length > 0, highPay: intent.highPay, jobTypes: intent.jobTypes };
 }
 
 /**
@@ -142,7 +144,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             automationLevel: level,
             provider: { provider: ai.activeProvider, model: ai.activeModel, billing: AI_PROVIDERS[ai.activeProvider].billing },
             sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
-            searchCriteria: { query, locations, workModes: opts.workModes ?? dna.workModes, minSalary: dna.minSalary },
+            searchCriteria: { query, locations, workModes: opts.workModes ?? dna.workModes, minSalary: dna.minSalary, ...(opts.jobTypes?.length ? { jobTypes: opts.jobTypes } : {}) },
             minMatchThreshold: 60,
             maxResults: 100,
             notify: "never",
@@ -162,16 +164,18 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
       // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there.
-      const query = intent.query || (intent.locations.length || intent.highPay ? readiness.query : "");
+      const query = intent.query || (intent.locations.length || intent.highPay || intent.jobTypes.length ? readiness.query : "");
       if (!query) return null;
       // "High paying": the best-paid first (jobs without a stated salary go last).
       if (intent.highPay) useJobsStore.getState().setSort("salary");
+      // "Part time", "freelance": only those job types (Refine shows and clears it).
+      if (intent.jobTypes.length) useJobsStore.getState().setFilters({ jobTypes: intent.jobTypes });
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
       // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.
       const typedPlaces = intent.locations.length ? intent.locations : places ?? [];
       if (typedPlaces.length) useCareerStore.getState().recordSearch(typedPlaces);
-      return sayBusy(search({ query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words" }));
+      return sayBusy(search({ query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words", jobTypes: intent.jobTypes }));
     },
     [search, sources, readiness.locations, readiness.query],
   );

@@ -11,11 +11,12 @@
  */
 import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
 import { readPay } from "@/domain/jobs/payWords";
+import { jobTypeOf, readJobTypeWords } from "@/domain/jobs/jobType";
 import { relevance } from "@/services/jobs/relevance";
 import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
 import { postingTooOld } from "@/domain/jobs/age";
 
-export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "job_type" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
@@ -28,6 +29,7 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   min_salary: "below your minimum salary",
   no_salary: "pay not listed",
   level: "a different level",
+  job_type: "a different job type",
   company: "a different company",
   location: "outside the places you picked",
   profile: "outside your Career Profile",
@@ -74,6 +76,10 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
   if (filters.minSalary && (job.salaryMax == null || (job.currency === "INR" ? job.salaryMax : job.salaryMax * 30) < filters.minSalary)) return "min_salary";
   if (filters.salaryListed && job.salaryMax == null && job.salaryMin == null) return "no_salary";
   if (filters.levels?.length && !filters.levels.includes(job.seniority)) return "level";
+  if (filters.jobTypes?.length) {
+    const t = jobTypeOf(job);
+    if (!t || !filters.jobTypes.includes(t)) return "job_type";
+  }
   if (filters.company?.trim() && !job.company.toLowerCase().includes(filters.company.trim().toLowerCase())) return "company";
   if (filters.locations?.length && !inPlaces(job, filters.locations)) return "location";
   if (filters.strictProfile && !inProfileField(job, field)) return "profile";
@@ -100,8 +106,8 @@ export function applyJobFilters(
   /** Jobs with an application past Saved, for "Hide jobs already in your Pipeline". */
   inPipeline: ReadonlySet<string> = new Set(),
 ): FilterResult {
-  // Pay words ("high paying") order the list by pay; they don't match against job text.
-  const query = readPay(filters.query).rest.trim();
+  // Pay words ("high paying") order the list by pay and job-type words ("part time") pick the types; neither matches job text.
+  const query = readJobTypeWords(readPay(filters.query).rest).rest.trim();
   const visibleIds: string[] = [];
   const scores: Record<string, number> = {};
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};
@@ -154,6 +160,7 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   min_salary: { showAnyway: { minSalary: undefined }, preference: { label: "Change minimum salary", href: "/app/career-dna" } },
   no_salary: { showAnyway: { salaryListed: false }, preference: { label: "Change filters", href: "/app/jobs" } },
   level: { showAnyway: { levels: [] }, preference: { label: "Change filters", href: "/app/jobs" } },
+  job_type: { showAnyway: { jobTypes: [] }, preference: { label: "Change filters", href: "/app/jobs" } },
   company: { showAnyway: { company: "" }, preference: { label: "Change filters", href: "/app/jobs" } },
   location: { showAnyway: { locations: [] }, preference: { label: "Change your places", href: "/app/career-dna" } },
   profile: { showAnyway: { strictProfile: false }, preference: { label: "Edit your Career Profile", href: "/app/career-dna" } },

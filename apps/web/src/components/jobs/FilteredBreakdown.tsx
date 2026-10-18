@@ -9,9 +9,9 @@ import { useUIStore } from "@/store/ui";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
-export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false };
+export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false };
 
-const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "company", "location", "profile", "in_pipeline", "search_text"];
+const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "job_type", "company", "location", "profile", "in_pipeline", "search_text"];
 
 /**
  * "Why Was This Filtered" (spec §11): whenever the candidate's active filters are hiding catalog jobs,

@@ -1,4 +1,5 @@
 "use client";
+import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
@@ -113,8 +114,9 @@ function JobsHome() {
           describe: (text, places) => {
             const d = describeWords(text, search.readiness.locations, places);
             // Only places or pay typed: the profile's own roles, there.
-            const what = d.query || (d.fromWords || d.highPay ? search.readiness.query : "");
-            return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}${d.highPay ? ", highest pay first" : ""}` : null;
+            const what = d.query || (d.fromWords || d.highPay || d.jobTypes.length ? search.readiness.query : "");
+            const kinds = d.jobTypes.length ? `, ${d.jobTypes.map((t) => JOB_TYPE_LABEL[t].toLowerCase()).join(" or ")} only` : "";
+            return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}${kinds}${d.highPay ? ", highest pay first" : ""}` : null;
           },
           places: search.readiness.locations,
           runPlaces: (places) => {

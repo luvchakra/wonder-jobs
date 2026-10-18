@@ -1,4 +1,5 @@
 import { readPay } from "@/domain/jobs/payWords";
+import { JOB_TYPE_LABEL, readJobTypeWords, type JobType } from "@/domain/jobs/jobType";
 import { INDUSTRY_WORDS, SENIORITY_WORDS, queryTerms, stripSelfReference } from "./normalize";
 
 /**
@@ -10,7 +11,7 @@ import { INDUSTRY_WORDS, SENIORITY_WORDS, queryTerms, stripSelfReference } from 
 export type WorkModeHint = "remote" | "hybrid" | "onsite";
 
 export interface DerivedField {
-  field: "query" | "locations" | "workModes" | "seniority" | "industries" | "pay";
+  field: "query" | "locations" | "workModes" | "seniority" | "industries" | "pay" | "jobTypes";
   label: string;
   value: string;
   /** The exact words in the request this came from. */
@@ -27,6 +28,8 @@ export interface SearchIntent {
   industries: string[];
   /** Pay words ("high paying", "well paid"): show the best-paid jobs first. Not a role. */
   highPay: boolean;
+  /** Job-type words ("part time", "freelance", "internship"): show those types. Not a role. */
+  jobTypes: JobType[];
   derived: DerivedField[];
 }
 
@@ -41,7 +44,8 @@ const titleCase = (s: string) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 export function deriveSearchIntent(raw: string): SearchIntent {
   const pay = readPay(stripSelfReference(raw.trim().replace(LEAD_IN, "")));
-  const text = pay.rest;
+  const kinds = readJobTypeWords(pay.rest);
+  const text = kinds.rest;
   const derived: DerivedField[] = [];
   const locations: string[] = [];
   const workModes = new Set<WorkModeHint>();
@@ -97,6 +101,7 @@ export function deriveSearchIntent(raw: string): SearchIntent {
   if (industries.length) derived.push({ field: "industries", label: "Industry preference", value: industries.map(titleCase).join(", "), from: industries.join(" ") });
 
   if (pay.high) derived.push({ field: "pay", label: "Pay", value: "Highest pay first", from: pay.from });
+  if (kinds.types.length) derived.push({ field: "jobTypes", label: "Job type", value: kinds.types.map((t) => JOB_TYPE_LABEL[t]).join(", "), from: kinds.from });
 
-  return { query, locations, workModes: [...workModes], seniority, industries, highPay: pay.high, derived };
+  return { query, locations, workModes: [...workModes], seniority, industries, highPay: pay.high, jobTypes: kinds.types, derived };
 }

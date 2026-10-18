@@ -171,6 +171,9 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
   const postedAt = pick("postedAt", (j) => j.postedAt) ?? top.job.postedAt;
   const applyUrl = pick("canonicalApplyUrl", (j) => j.applyUrl) ?? top.job.applyUrl;
   const workMode = pick("workplaceType", (j) => j.workMode) ?? top.job.workMode;
+  // A source's own employment-type field beats a type read from a title, whichever source is stronger.
+  const typed = ranked.find((o) => o.job.jobType && o.job.jobTypeFrom === "source") ?? ranked.find((o) => o.job.jobType);
+  if (typed) provenance.push({ field: "jobType", sourceId: typed.source.id, observedAt: typed.job.observedAt, confidence: typed.job.jobTypeFrom === "source" ? confidenceFor(sourceAuthority(typed.source)) : "low" });
 
   const records: SourceRecord[] = ranked.map((o, i) => ({
     sourceId: o.source.id,
@@ -197,6 +200,7 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
     locations: [location],
     country: top.job.country,
     workplaceType: workMode,
+    ...(typed ? { jobType: typed.job.jobType, jobTypeFrom: typed.job.jobTypeFrom } : {}),
     compensation: salarySource ? { min: salarySource.job.salaryMin, max: salarySource.job.salaryMax, currency: salarySource.job.currency } : undefined,
     description,
     requirements: top.job.requirements,
