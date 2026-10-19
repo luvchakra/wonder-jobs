@@ -214,7 +214,9 @@ test.describe("APPLY", () => {
     await page.waitForURL(/\/prepare$/);
     const summary = page.locator("#wj-pack-summary");
     await expect(summary).toHaveText(/Nothing prepared yet|of 3 materials ready/);
-    await page.getByRole("button", { name: "Generate resume" }).click();
+    // The résumé on file is offered first; generating one for this role is the other choice.
+    await page.getByRole("radio", { name: /Generate a résumé for this role/ }).check();
+    await page.getByRole("button", { name: "Generate résumé" }).click();
     await expect(summary).toHaveText(/of 3 materials ready/, { timeout: 10_000 });
     await expect(page.getByText("AI-generated", { exact: true }).first()).toBeVisible();
   });
