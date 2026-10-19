@@ -85,6 +85,8 @@ export interface SearchOptions {
   role?: { id: string; title: string };
   origin?: "profile" | "words";
   jobTypes?: JobType[];
+  /** Skip Career Profile: only what was typed — no work modes or minimum salary from the profile either. */
+  skipProfile?: boolean;
 }
 
 /** What a typed search will look for — shown before it runs, so the candidate sees what Wonder read. */
@@ -145,7 +147,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             automationLevel: level,
             provider: { provider: ai.activeProvider, model: ai.activeModel, billing: AI_PROVIDERS[ai.activeProvider].billing },
             sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
-            searchCriteria: { query, locations, workModes: opts.workModes ?? dna.workModes, minSalary: dna.minSalary, ...(jobTypes.length ? { jobTypes } : {}) },
+            searchCriteria: { query, locations, workModes: opts.workModes ?? (opts.skipProfile ? [] : dna.workModes), ...(opts.skipProfile ? {} : { minSalary: dna.minSalary }), ...(jobTypes.length ? { jobTypes } : {}) },
             minMatchThreshold: 60,
             maxResults: 100,
             notify: "never",
@@ -165,8 +167,10 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   const searchWords = useCallback(
     async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
-      // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there.
-      const query = intent.query || (intent.locations.length || intent.highPay || intent.jobTypes.length ? readiness.query : "");
+      // Skip Career Profile: only the typed words — no role, places, work modes or salary from the profile.
+      const skip = !!useJobsStore.getState().filters.skipProfile;
+      // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there — unless skipped.
+      const query = intent.query || (!skip && (intent.locations.length || intent.highPay || intent.jobTypes.length) ? readiness.query : "");
       if (!query) return null;
       // "High paying": the best-paid first (jobs without a stated salary go last).
       if (intent.highPay) useJobsStore.getState().setSort("salary");
@@ -177,7 +181,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.
       const typedPlaces = intent.locations.length ? intent.locations : places ?? [];
       if (typedPlaces.length) useCareerStore.getState().recordSearch(typedPlaces);
-      return sayBusy(search({ query, locations: intent.locations.length ? intent.locations : places ?? readiness.locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words", jobTypes: intent.jobTypes }));
+      const locations = intent.locations.length ? intent.locations : skip ? [] : (places ?? readiness.locations);
+      return sayBusy(search({ query, locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words", jobTypes: intent.jobTypes, skipProfile: skip }));
     },
     [search, sources, readiness.locations, readiness.query],
   );

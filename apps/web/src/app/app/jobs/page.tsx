@@ -112,9 +112,10 @@ function JobsHome() {
             });
           },
           describe: (text, places) => {
-            const d = describeWords(text, search.readiness.locations, places);
-            // Only places or pay typed: the profile's own roles, there.
-            const what = d.query || (d.fromWords || d.highPay || d.jobTypes.length ? search.readiness.query : "");
+            const skip = !!useJobsStore.getState().filters.skipProfile;
+            const d = describeWords(text, skip ? [] : search.readiness.locations, skip ? undefined : places);
+            // Only places or pay typed: the profile's own roles, there — unless Skip Career Profile is on.
+            const what = d.query || (!skip && (d.fromWords || d.highPay || d.jobTypes.length) ? search.readiness.query : "");
             const kinds = d.jobTypes.length ? `, ${d.jobTypes.map((t) => JOB_TYPE_LABEL[t].toLowerCase()).join(" or ")} only` : "";
             return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}${kinds}${d.highPay ? ", highest pay first" : ""}` : null;
           },
