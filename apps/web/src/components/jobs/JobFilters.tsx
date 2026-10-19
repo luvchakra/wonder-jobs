@@ -15,10 +15,11 @@ import { DictateButton } from "@/components/common/DictateButton";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
+// All comes first: it's where Find opens; For you and Strong narrow it to the better fits.
 const VIEWS: { value: JobsView; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "for_you", label: "For you" },
   { value: "strong", label: "Strong" },
-  { value: "all", label: "All" },
 ];
 
 /** Which view a set of filters is — views are presets over the same filters, so they can't disagree with Refine or "Why was this filtered". */

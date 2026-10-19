@@ -50,6 +50,8 @@ interface JobsState {
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
   replaceCatalog: (jobs: CanonicalJob[], searchedFor?: string) => void;
+  /** A running search's later arrivals, added after what's already listed (the run's final `replaceCatalog` settles the list). */
+  appendCatalog: (jobs: CanonicalJob[]) => void;
   /** The profile's results as they were before a search for typed words replaced them (this session only). */
   beforeWords?: { jobs: Record<string, CanonicalJob>; order: string[]; matches: Record<string, JobMatch> };
   /** Clearing the typed words: bring the profile's results back. False when there's nothing kept to restore. */
@@ -148,6 +150,13 @@ export const useJobsStore = create<JobsState>()(
           // Words searched on top of the profile's results keep those results aside, so clearing the words brings them back.
           const beforeWords = !searchedFor ? undefined : s.searchedFor ? s.beforeWords : s.order.length ? { jobs: s.jobs, order: s.order, matches: Object.fromEntries(s.order.flatMap((id) => (s.matches[id] ? [[id, s.matches[id]] as const] : []))) } : undefined;
           return { jobs: { ...savedJobs(s), ...Object.fromEntries(live.map((j) => [j.id, j])) }, order: live.map((j) => j.id), loaded: true, searchedFor, beforeWords };
+        }),
+      appendCatalog: (list) =>
+        set((s) => {
+          const recent = Date.now() - 7 * 86_400_000;
+          const fresh = list.filter((j) => !s.order.includes(j.id) && !(s.closed[j.id] && Date.parse(s.closed[j.id].at) > recent && !s.saved[j.id]));
+          if (!fresh.length) return {};
+          return { jobs: { ...s.jobs, ...Object.fromEntries(fresh.map((j) => [j.id, j])) }, order: [...s.order, ...fresh.map((j) => j.id)] };
         }),
       restoreProfileCatalog: () => {
         const kept = get().beforeWords;

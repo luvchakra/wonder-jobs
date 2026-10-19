@@ -243,6 +243,9 @@ export type SearchEvent =
   | { type: "source_completed"; status: SourceSearchStatus }
   | { type: "jobs_retrieved"; sourceId: string; count: number; totalRetrieved: number }
   | { type: "dedupe_progress"; unique: number; duplicates: number }
+  /** Opportunities found since the last preview, merged and validated, as each source answers — so a caller can show them
+   *  before the search ends. Not yet checked against closed postings or the warm pool: `search_completed` is the answer. */
+  | { type: "results_preview"; results: CanonicalOpportunity[] }
   | { type: "search_completed"; response: SearchResponse }
   | { type: "error"; error: ErrorBody };
 

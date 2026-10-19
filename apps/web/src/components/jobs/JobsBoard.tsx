@@ -58,7 +58,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const query = useDebounced(filters.query, 250);
 
   // Deep links: /app/jobs?fit=strong, ?q=… — same as before; ?saved=1 is the Saved tab now. With
-  // nothing given, land on the "For You" view (Wonder's own picks) rather than an unfiltered dump.
+  // nothing given, land on All: every job is shown, and For you and Strong narrow it (owner, 2026-10-19).
   useEffect(() => {
     if (savedOnly) return;
     if (params.get("saved") === "1") {
@@ -69,7 +69,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     const q = params.get("q");
     const exactFit = !!fit && params.get("exact") === "1";
     if (fit || q) setFilters({ onlySaved: false, exactFit, ...(fit ? { minFit: fit } : {}), ...(q != null ? { query: q } : {}) });
-    else setFilters({ onlySaved: false, exactFit: false, minFit: "worth_considering" });
+    else setFilters({ onlySaved: false, exactFit: false, minFit: null });
     // Only ever apply this once, from the URL the page was opened with — not on every filter change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -102,14 +102,16 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
 
   const visible = results.slice(0, limit);
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
+  const isSearching = !!searching;
   const summary = useMemo(() => {
-    if (savedOnly || header || !searched || !results.length) return null;
+    // While a search runs its banner says what's being searched; the jobs arriving under it aren't the last search's.
+    if (savedOnly || header || !searched || !results.length || isSearching) return null;
     const what = effective.query.trim() || searched.query;
     const where = effective.locations?.length ? effective.locations : searched.locations;
     const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
     const n = results.length.toLocaleString("en-IN");
     return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} ${where.length ? `in ${where.join(", ")}` : "anywhere"} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs]);
+  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs, isSearching]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;

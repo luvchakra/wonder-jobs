@@ -123,6 +123,7 @@ describe("search stage (signed in)", () => {
       warn: (m: string) => void warnings.push(m),
       checkpoint: async () => undefined,
       sleep: async () => undefined,
+      get: () => undefined,
       fail: (e: { message: string }) => {
         throw new Error(e.message);
       },
@@ -155,6 +156,21 @@ describe("search stage (signed in)", () => {
 
     const d = await executors.dedupe(c);
     expect(d.counts).toEqual({ unique: 1, duplicates: 1 });
+  });
+
+  it("lists and scores the jobs each source finds before the search ends", async () => {
+    useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, searchedFor: "", beforeWords: undefined });
+    const r = response();
+    const all = events(r);
+    // The jobs arrive mid-stream; the search stage lists them itself (the rank stage would otherwise be first to).
+    const stream = [...all.slice(0, 3), { type: "results_preview", results: r.results } as SearchEvent, ...all.slice(3)];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => (String(url).endsWith("/search/stream") ? new Response(ndjson(stream)) : new Response("{}")));
+    const { c } = ctx();
+    await executors.search(c);
+    const st = useJobsStore.getState();
+    expect(st.order).toEqual(["careers_1"]);
+    expect(st.matches.careers_1).toBeDefined();
+    expect(st.jobs.careers_1.lake?.sightings).toHaveLength(2);
   });
 
   it("never searches a source directly: when JobsLake fails the search fails and says so", async () => {

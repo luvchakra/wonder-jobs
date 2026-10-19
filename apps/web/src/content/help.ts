@@ -8,6 +8,8 @@
  * falls back to it when no FAQ answers a question — so keep it self-contained.
  * Describe what the product does and where to tap, never what it is built with.
  */
+import { RELEASE_NOTES } from "./releaseNotes";
+
 export interface HelpSection {
   id: string;
   title: string;
@@ -24,6 +26,21 @@ export interface HelpFaq {
   a: string;
   section: string;
 }
+
+const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+/** The Release notes section, built from `releaseNotes.ts`: newest entry first, each one's changes as a list. */
+const releaseNotesSection: HelpSection = {
+  id: "release-notes",
+  title: "Release notes",
+  summary: "What's new in WonderJobs, newest first.",
+  keywords: ["release notes", "what's new", "whats new", "new features", "changes", "changelog", "updates", "latest", "version", "released"],
+  updated: RELEASE_NOTES[0]?.date ?? "2026-10-19",
+  body: [
+    "What's new in WonderJobs, newest first. Each entry lists what went live since the one before it.",
+    ...RELEASE_NOTES.flatMap((n) => [`${longDate(n.date)} — ${n.title}`, ...n.items.map((item) => `- ${item}`)]),
+  ],
+};
 
 export const HELP_SECTIONS: HelpSection[] = [
   {
@@ -50,12 +67,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     body: [
       "Find is your ranked list of real postings, and it always says what Wonder is looking for: the top card reads “Looking for” with Change beside it and your role under it; the pencil Career Profile button at its right opens your Career Profile. Change edits Role you want in place — one role and its field, never a level alone (“director” needs a field) — and searches for it straight away. Refine shows the same card.",
       "Wonder searches on its own when you open Find: the first time, when your Career Profile's search changes, when nothing is left in your list, and when the last search is more than 12 hours old. A search that failed in the last ten minutes isn't retried on its own — its reason is shown instead. A search you typed yourself, or ran as one of your roles, stands until it is that old.",
-      "Two lines say what you're looking at. Above the jobs, “Showing 14 jobs for “…” in … from 2 sources”, counted from the list on screen (the numbers here are an example). While a search runs, a banner above the jobs reads “Searching…” with how many it has found so far, your words and a Details link; when it's done, the status line — “Searched 8 sources for “…” in … · 2 hours ago” — sits at the top of Refine: tap it for Details (every source's count, and how Wonder worked) and tap the circular arrow to search again.",
+      "Two lines say what you're looking at. Above the jobs, “Showing 14 jobs for “…” in … from 2 sources”, counted from the list on screen (the numbers here are an example). While a search runs, a banner above the jobs reads “Searching…” with how many it has found so far, your words and a Details link, and the jobs appear under it as each source answers — already scored, so For you and Strong fill in as you watch; the list settles when the search finishes (a posting found closed then drops out); when it's done, the status line — “Searched 8 sources for “…” in … · 2 hours ago” — sits at the top of Refine: tap it for Details (every source's count, and how Wonder worked) and tap the circular arrow to search again.",
       "To search for something else, type it in the search box and press Search (or Enter). The list doesn't change while you type — your words apply when you search. Wonder then searches every source you have switched on, removes duplicates, compares each posting with your Career Profile, checks hiring signals, and puts what deserves your attention first. Tap the mic to say it instead (in browsers that have one); your words land in the box so you can fix them before searching. Wonder reads the role and any places from your words — for example “IAM director roles in Mumbai”. A place on its own (“Singapore”) searches your own roles there; pay words (“high paying jobs”) search your own roles with the best-paid first.",
       "- With nothing typed, the button reads Search based on Career Profile and runs the profile's own search.",
       "- If none of the jobs you already have answers what you typed, the list offers a single Search every source button.",
       "- A search never prepares applications on its own: you prepare one from a job when you choose.",
-      "Three views sit under the box: For you (worth considering and better), Strong and All. Saved is its own place. Refine, beside the views, holds everything else:",
+      "Three views sit under the box: All (every job — Find opens here), For you (worth considering and better) and Strong. Saved is its own place. Refine, beside the views, holds everything else:",
       "- Search as — if you've added roles in your Career Profile, they're listed here. Tapping a role only picks it; the search runs when you press Search.",
       "- Location (places separated by commas; “Remote” counts), Level, Job type, Work mode, Posted, Minimum salary and Sort (best match, newest, salary).",
       "- Job type — Full-time, Part-time, Contract, Internship, Short-term or Gig. Each card shows the type next to its work mode: as the source lists it, or as the job title says (hover it to see which). A posting that says neither shows no type, and picking a type hides it. Typing “part time”, “freelance” or “internship” in the search box picks that type for you (“part time designer jobs” searches designers, part-time only).",
@@ -168,7 +185,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Level is read from the job title first (an analyst or engineer is an individual role; an associate director is a director). When your search names a level, that's the one compared; otherwise your Career Profile's. A role one level below yours is at most Worth Considering, and two or more below at most a Stretch.",
       "Matching starts from rules you can read. Where WonderJobs AI is connected, a model also reads the 30 best-scoring postings of a search against a short summary of your Career Profile (role, level, years, skills, industries and places — never your name or contact details) and gives each a score and a one-line reason. That score nudges the rules' by at most 15 points up or 20 down, never replaces them, and your location, level and field limits still decide. The job's page lists it as “AI read of the posting”, and the search's evidence shows “Read by AI”. Nothing is hidden or applied because of it.",
       "Job quality is separate from fit: it estimates how likely a posting is to lead to a real hire from freshness, reposts, cross-posting, whether it appears on the employer's own site, salary transparency and source reliability. Low confidence roles are excluded from the shortlist. Where AI is connected it also reads the posting for warning signs from a fixed list — a fee to apply, bank or ID details asked up front, something that reads like a course or an ad, applying by chat app or personal email, commission-only pay, vague duties. A sign is shown only with the posting's own words as proof under “Posting read by AI”; a strong one lowers hiring confidence, and finding nothing never raises it.",
-      "- Find has three views: For you (worth considering and better), Strong and All; Saved is its own place and shows every job you bookmarked, whatever its fit. Refine holds sort, level, work mode, when it was posted, minimum salary, location and Compare (see Finding jobs).",
+      "- Find has three views: All (where it opens), For you (worth considering and better) and Strong; Saved is its own place and shows every job you bookmarked, whatever its fit. Refine holds sort, level, work mode, when it was posted, minimum salary, location and Compare (see Finding jobs).",
       "- When jobs are hidden, a line below the list says how many and which preference hides each group, with Show me anyway and Update Career Profile preferences; when every job is hidden, Refine search options opens Refine too. Coming back from Career Profile with Back to Find searches again if you changed anything. Show me anyway never brings back a job you marked Not for me — undo that from the job itself.",
       "- Compare: Refine → Compare jobs, then tick two to four jobs to see them side by side. Wonder points out real differences; it doesn't pick a winner.",
       "- Save (the bookmark on a card or a job) keeps a job in Saved so you can track it as an application. Saved jobs keep their details across new searches. Only your Save puts a job there: starting an application (Apply, Prepare) puts it in your Pipeline, not in Saved. Not for me is on the job's own page: it hides the job and asks why (optional, Skip is fine); undo it from the same place. Mark roles for the same reason a few times and Wonder suggests treating it as a pattern (see Career Profile → What Wonder has learned).",
@@ -370,6 +387,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "To reach the team, use Contact us at the end of the WonderJobs home page (the Still stuck? box below also links to it). Say which page you were on and what you expected; a screenshot helps. For a question or complaint about your data, use the contact shown under Your data.",
     ],
   },
+  releaseNotesSection,
   {
     id: "roadmap",
     title: "Roadmap and known limitations",
@@ -384,7 +402,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Plans: Free, Pro and Max exist with the limits Plan & billing lists, but whether you can pay depends on whether Razorpay or Stripe is connected on this deployment. Prices and limits can change; Plan & billing is always the current answer.",
       "- Interview Prep and Learning are early: they organise your prep, with deeper AI coaching planned. Résumé templates have no two-column or photo layouts or US Letter page size yet, and filling the Career Profile reads projects and publications only if you add them yourself. A role changes a search's terms, goal and résumé, not how matching weighs your skills.",
       "- Calendar: you can subscribe to a read-only feed today (see Calendar, notifications and the app). A direct two-way connection with Google or Microsoft calendars is planned.",
-      "- Apply with Wonder: the browser helper's Chrome Web Store listing is in review (install it from the Extension page meanwhile), and no employer's application API is connected — Wonder helps in your browser instead, and forms it doesn't know are read by their labels, so unusual questions are left for you. Wonder submits an application only where you set Submit for me to Always; there is no account-wide switch for it yet.",
+      "- Apply with Wonder: the browser helper isn't in the Chrome Web Store yet (install it from the Extension page meanwhile), and no employer's application API is connected — Wonder helps in your browser instead, and forms it doesn't know are read by their labels, so unusual questions are left for you. Wonder submits an application only where you set Submit for me to Always; there is no account-wide switch for it yet.",
       "- The browser helper's side panel reads, scores and saves a job today; tailoring a résumé, follow-up reminders and recruiter-message drafts from the panel are planned.",
     ],
   },
