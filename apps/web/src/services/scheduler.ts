@@ -35,13 +35,21 @@ export function schedulerTick(now = Date.now()) {
   raiseReminders(now);
 }
 
+/**
+ * When this tab opened. A schedule that was already due then — missed while the app was closed — is left
+ * to the server's daily run: opening the app never starts a search by itself (owner, 2026-10-19). The tab
+ * fires only a schedule whose time comes while it's open.
+ */
+const openedAt = Date.now();
+export const dueWhileOpen = (nextRunAt: string | undefined, opened = openedAt) => !!nextRunAt && Date.parse(nextRunAt) >= opened;
+
 function fireDueSchedules(now: number) {
   if (owner === "server") return;
   const ws = useWorkflowStore.getState();
   if (Object.values(ws.runs).some((r) => isActive(r.status))) return; // one run at a time
   const at = new Date(now);
   const due = Object.values(ws.schedules)
-    .filter((s) => isDue(s, at))
+    .filter((s) => isDue(s, at) && dueWhileOpen(s.nextRunAt))
     .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
   const s = due[0];
   if (!s) return;

@@ -95,10 +95,8 @@ export function jobsReadiness(input: ReadinessInput): Readiness {
 /* ------------------------------------------------------------ auto-search */
 
 const SEARCH_STAGES = new Set(["search"]);
-const STALE_MS = 12 * 3_600_000;
-const RECENT_FAILURE_MS = 10 * 60_000;
 
-export type AutoSearchDecision = { run: true; reason: "first" | "changed" | "empty" | "stale" } | { run: false; reason: "blocked" | "active" | "fresh" | "failed_recently" | "demo" };
+export type AutoSearchDecision = { run: true; reason: "first" } | { run: false; reason: "blocked" | "active" | "searched" | "demo" };
 
 /** The most recent run that searched for jobs. */
 export function latestSearchRun(runs: WorkflowRun[]): WorkflowRun | undefined {
@@ -120,26 +118,17 @@ export function catalogSearchRun(runs: WorkflowRun[], searchedFor: string): Work
 }
 
 /**
- * Whether opening the jobs screen should search now, without a button: never when something blocks
- * it or a run is already going; yes when there's never been a search, the profile's search changed,
- * the catalog is empty, or the last search is more than 12 hours old. A search that failed in the last
- * ten minutes isn't retried on its own — its reason is shown instead.
+ * Whether opening the jobs screen should search now, without a button (owner, 2026-10-19): only for an
+ * account that has never searched. Otherwise opening shows the last search's results as they are — a
+ * changed profile, an empty list or old results wait for the candidate's Search (Back to Find after a
+ * Career Profile change asks for one itself), so opening the app never starts a search on its own.
  */
-export function autoSearchDecision(p: { readiness: Readiness; mode: "user" | "demo" | "local"; activeRun: boolean; last?: WorkflowRun; catalogSize: number; now: number }): AutoSearchDecision {
+export function autoSearchDecision(p: { readiness: Readiness; mode: "user" | "demo" | "local"; activeRun: boolean; last?: WorkflowRun }): AutoSearchDecision {
   if (p.mode !== "user") return { run: false, reason: "demo" };
   if (p.readiness.blocker) return { run: false, reason: "blocked" };
   if (p.activeRun) return { run: false, reason: "active" };
-  const last = p.last;
-  if (!last) return { run: true, reason: "first" };
-  const at = Date.parse(last.completedAt ?? last.createdAt);
-  if (last.status === "FAILED" && p.now - at < RECENT_FAILURE_MS) return { run: false, reason: "failed_recently" };
-  // A search the candidate typed, or ran as one of their roles, stands until it's stale; a profile search
-  // (or one from before searches recorded their origin) is redone when the profile's own search changed.
-  const ownWords = !!last.config.role || last.config.origin === "words";
-  if (!ownWords && last.config.searchCriteria.query.trim().toLowerCase() !== p.readiness.query.toLowerCase()) return { run: true, reason: "changed" };
-  if (p.catalogSize === 0) return { run: true, reason: "empty" };
-  if (p.now - at > STALE_MS) return { run: true, reason: "stale" };
-  return { run: false, reason: "fresh" };
+  if (p.last) return { run: false, reason: "searched" };
+  return { run: true, reason: "first" };
 }
 
 /* ------------------------------------------------------------- widening */
