@@ -40,6 +40,7 @@ export type AnalyticsEvent =
   | "why_viewed"
   | "why_filtered_viewed"
   | "comparison_started"
+  | "job_shared"
   | "application_pack_started"
   | "application_pack_completed"
   | "application_reviewed"

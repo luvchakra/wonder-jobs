@@ -1,0 +1,54 @@
+import { WORK_MODE_LABEL, type CanonicalJob } from "./types";
+import { JOB_TYPE_LABEL, jobTypeOf } from "./jobType";
+import { formatSalaryRange } from "@/lib/format";
+
+/**
+ * Sharing a job with someone else (owner, 2026-10-19): a link to its public page on WonderJobs, whose
+ * preview card shows the job, and a message that reads well in WhatsApp and email. Every detail is the
+ * posting's own — nothing the candidate's profile says about it (fit, score, notes) leaves the account.
+ * The WonderJobs line is the marketing, kept to one sentence.
+ */
+export type ShareJob = Pick<CanonicalJob, "id" | "title" | "company" | "location" | "workMode" | "salaryMin" | "salaryMax" | "currency" | "jobType" | "jobTypeFrom">;
+
+export const SHARE_PITCH = "WonderJobs is an AI job-search agent that finds jobs that fit you, from real sources.";
+
+/** The job's public page. */
+export function shareUrl(origin: string, id: string): string {
+  return `${origin.replace(/\/+$/, "")}/j/${encodeURIComponent(id)}`;
+}
+
+/** "Mumbai · On-site · Full-time · ₹12L–15L" — the facts as the posting gives them, missing ones left out. */
+export function shareFacts(job: ShareJob): string {
+  const type = jobTypeOf(job);
+  const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
+  return [job.location, WORK_MODE_LABEL[job.workMode], type ? JOB_TYPE_LABEL[type] : null, salary].filter(Boolean).join(" · ");
+}
+
+export interface ShareMessage {
+  subject: string;
+  /** Plain-text email body. */
+  body: string;
+  /** WhatsApp text: the link comes last and alone, so WhatsApp previews it as the job's card. */
+  whatsapp: string;
+  /** For the phone's own share sheet. */
+  text: string;
+}
+
+export function shareMessage(job: ShareJob, url: string, home: string): ShareMessage {
+  const role = `${job.title} at ${job.company}`;
+  const facts = shareFacts(job);
+  return {
+    subject: `Job you might like: ${role}`,
+    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderJobs. ${SHARE_PITCH} ${home}`].join("\n"),
+    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderJobs, the AI job-search agent.", "", url].join("\n"),
+    text: `${role}\n${facts}\n\nFound with WonderJobs, the AI job-search agent.`,
+  };
+}
+
+export function emailHref(m: ShareMessage): string {
+  return `mailto:?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+}
+
+export function whatsappHref(m: ShareMessage): string {
+  return `https://wa.me/?text=${encodeURIComponent(m.whatsapp)}`;
+}
