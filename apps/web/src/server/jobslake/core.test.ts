@@ -69,6 +69,17 @@ describe("JobsLake core search", () => {
     expect(response.results).toHaveLength(2);
   });
 
+  it("reads the warm pool once for searches close together, and keeps what each search wrote", async () => {
+    const store = new __MemoryStore();
+    __setJobsLakeStore(store);
+    const reads = vi.spyOn(store, "listOpportunities");
+    connector.mockImplementation(async (src: { id: string }) => (src.id === "greenhouse" ? { jobs: [job({})], warnings: [] } : { jobs: [], warnings: [] }));
+    await search(req(), { trigger: "search" });
+    const second = await search(req(), { trigger: "search" });
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(second.response.results).toHaveLength(1);
+  });
+
   it("a failed warm-pool or run-history write is logged, never a failed search — the live results still arrive", async () => {
     const broken = new __MemoryStore();
     broken.upsertOpportunities = async () => {

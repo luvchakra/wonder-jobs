@@ -3,7 +3,7 @@ import { PRIVACY_NOTICE_VERSION, RETENTION } from "@/content/privacy";
 import { authConfigured } from "@/lib/auth/config";
 import { STATE_STORES, SERVER_STORES, stateStore } from "../state";
 import { secretStore } from "../secrets";
-import { getSupabaseAdmin } from "../supabase";
+import { forgetTenant, getSupabaseAdmin } from "../supabase";
 import { listSubscriptions } from "../push/subscriptions";
 import { billingStore, MemoryBillingStore } from "../billing/store";
 import { MemoryResumeFileStore, resumeFileStore } from "../resume/files";
@@ -104,6 +104,7 @@ export async function eraseAccount(session: Session): Promise<EraseResult> {
       if (contact.error) throw new Error(contact.error.message);
       const tenant = await sb.from("tenants").delete().eq("id", tenantId);
       if (tenant.error) throw new Error(tenant.error.message);
+      forgetTenant(tenantId);
       if (authConfigured()) {
         const user = await sb.auth.admin.deleteUser(session.userId);
         // Already gone is fine (a retried erasure); anything else must surface.

@@ -364,7 +364,8 @@ export function wordsOf(text: string): string[] {
   let out = tokenMemo.get(text);
   if (!out) {
     out = text.toLowerCase().match(/[a-z0-9][a-z0-9+#]*(?:\.[a-z0-9]+)*/g) ?? [];
-    if (tokenMemo.size > 400) tokenMemo.clear();
+    // Big enough for a whole filter pass (several fields of every job on the list), so a pass reuses it.
+    if (tokenMemo.size > 6000) tokenMemo.clear();
     tokenMemo.set(text, out);
   }
   return out;

@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GitCompareArrows, X } from "lucide-react";
-import type { FitLabel } from "@/domain/jobs/types";
+import type { CanonicalJob, FitLabel, JobMatch } from "@/domain/jobs/types";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useDebounced } from "@/lib/useDebounce";
@@ -46,7 +46,10 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const [limit, setLimit] = useState(PAGE);
   const [compare, setCompare] = useState<string[]>([]);
   const router = useRouter();
-  const toggleCompare = (id: string) =>
+  // Stable across renders, so a card re-renders only when its own job, score or state changes — not on
+  // every progress event of a running search.
+  const toggleSave = useCallback((id: string) => (useJobsStore.getState().saved[id] ? unsave(id) : save(id)), [save, unsave]);
+  const toggleCompare = useCallback((id: string) =>
     setCompare((ids) => {
       if (ids.includes(id)) return ids.filter((x) => x !== id);
       if (ids.length >= 4) {
@@ -54,7 +57,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         return ids;
       }
       return [...ids, id];
-    });
+    }), []);
   const query = useDebounced(filters.query, 250);
 
   // Deep links: /app/jobs?fit=strong, ?q=… — same as before; ?saved=1 is the Saved tab now. With
@@ -81,12 +84,20 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   // Single source of truth for what's visible and why the rest is hidden — the results list and the
   // "Why Was This Filtered" breakdown below can never disagree, because they read the same computation.
   // Saved shows every bookmarked job whatever its fit; Find never shows only saved ones (that's the Saved tab).
-  const effective = useMemo(() => ({ ...filters, query, onlySaved: savedOnly, minFit: savedOnly ? null : filters.minFit }), [filters, query, savedOnly]);
+  // Keyed on the filters other than the words (a new object on every keystroke) and the words after their
+  // debounce — so typing doesn't re-filter and re-sort every job on each key, only once the words settle.
+  const filtersKey = JSON.stringify({ ...filters, query: "" });
+  const effective = useMemo(() => {
+    const f = JSON.parse(filtersKey) as typeof filters;
+    return { ...f, query, onlySaved: savedOnly, minFit: savedOnly ? null : f.minFit };
+  }, [filtersKey, query, savedOnly]);
+  // "Posted more than two weeks ago" and the freshness window don't need a minute's precision: re-check hourly.
+  const hour = Math.floor(now / 3_600_000) * 3_600_000;
   const headline = useCareerStore((s) => s.dna.headline);
   const goal = useCareerStore((s) => s.dna.careerGoal);
   const field = useMemo(() => fieldTerms(headline, goal), [headline, goal]);
   const inPipeline = useMemo(() => new Set([...appByJob.values()].filter((a) => a.status !== "saved").map((a) => a.jobId)), [appByJob]);
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, now, field, inPipeline), [order, jobs, matches, rejected, saved, effective, now, field, inPipeline]);
+  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, hour, field, inPipeline), [order, jobs, matches, rejected, saved, effective, hour, field, inPipeline]);
   const results = useMemo(() => {
     const list = [...filterResult.visibleIds];
     list.sort((a, b) => {
@@ -173,14 +184,15 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
               <li key={id}>
-                <JobCard
+                <JobResult
+                  id={id}
                   job={jobs[id]}
                   match={matches[id]}
                   saved={!!saved[id]}
-                  onToggleSave={() => (saved[id] ? unsave(id) : save(id))}
+                  onToggleSave={toggleSave}
                   status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
                   compareSelected={compare.includes(id)}
-                  onToggleCompare={compareMode ? () => toggleCompare(id) : undefined}
+                  onToggleCompare={compareMode ? toggleCompare : undefined}
                 />
               </li>
             ))}
@@ -225,3 +237,8 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     </div>
   );
 }
+
+/** One card in the results, with its id-taking handlers bound here so the card itself can skip re-renders. */
+const JobResult = memo(function JobResult({ id, onToggleSave, onToggleCompare, ...card }: { id: string; job: CanonicalJob; match?: JobMatch; saved: boolean; status?: string; compareSelected: boolean; onToggleSave: (id: string) => void; onToggleCompare?: (id: string) => void }) {
+  return <JobCard {...card} onToggleSave={() => onToggleSave(id)} onToggleCompare={onToggleCompare ? () => onToggleCompare(id) : undefined} />;
+});

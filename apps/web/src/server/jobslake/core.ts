@@ -19,7 +19,7 @@ import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache
 import { DestinationBlockedError } from "./safeFetch";
 import { asksSince, isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
 import { creditsLeft, topUpBelow } from "./paid";
-import { jobsLakeStore, type CachedAnswer } from "./store";
+import { jobsLakeStore, type CachedAnswer, type JobsLakeStore } from "./store";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { recordCompanies } from "./companies";
@@ -96,9 +96,28 @@ async function bookkeeping<T>(what: string, fn: () => Promise<T>): Promise<T | u
   }
 }
 
+/**
+ * The warm pool, read from the store at most every two minutes per server instance (it was read in full —
+ * up to 3,000 postings with their descriptions — on every search). What a search on this instance writes
+ * is merged in at once, so its own results never wait for the next read.
+ */
+const POOL_TTL_MS = 2 * 60_000;
+const pools = new WeakMap<JobsLakeStore, { at: number; byId: Map<string, CanonicalOpportunity> }>();
+async function warmPool(store: JobsLakeStore, now = Date.now()): Promise<CanonicalOpportunity[]> {
+  const hit = pools.get(store);
+  if (hit && now - hit.at < POOL_TTL_MS) return [...hit.byId.values()];
+  const since = new Date(now - 7 * 86_400_000).toISOString();
+  const list = await store.listOpportunities({ sinceIso: since, limit: 3000 });
+  pools.set(store, { at: now, byId: new Map(list.map((o) => [o.id, o])) });
+  return list;
+}
+function rememberInPool(store: JobsLakeStore, opps: CanonicalOpportunity[]) {
+  const hit = pools.get(store);
+  if (hit) for (const o of opps) hit.byId.set(o.id, o);
+}
+
 async function warmCandidates(req: SearchRequest, allowed: Set<string> | null, strict = false): Promise<CanonicalOpportunity[]> {
-  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const pool = await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 3000 });
+  const pool = await warmPool(jobsLakeStore());
   return pool.filter((o) => {
     if (allowed && !o.sourceRecords.some((r) => allowed.has(r.sourceId))) return false;
     // Strict (an API-key search): the posting's own fields must come from an allowed source, not just a sighting.
@@ -330,7 +349,10 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   let results = valid;
   let warmCount = 0;
   if (flags.jobsLakeWarmPoolEnabled) {
-    if (valid.length) await bookkeeping("update the warm pool", () => store.upsertOpportunities(valid));
+    if (valid.length) await bookkeeping("update the warm pool", async () => {
+      await store.upsertOpportunities(valid);
+      rememberInPool(store, valid);
+    });
     if (plan.useWarmPool) {
       const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only));
       const merged = mergeWithWarm(valid, warm ?? []);

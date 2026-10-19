@@ -20,6 +20,15 @@ import { getClientMode, storageKeyFor, syncsToServer } from "@/lib/mode";
  */
 const SERIALIZE_MS = 120;
 const PUSH_MS = 900;
+/** A store this big (the jobs catalog, the run history) costs real main-thread time to serialize, and
+ *  its saves are batched: changes made in quick succession — a search's progress, a link check — go as one. */
+const LARGE_DOC = 100_000;
+const SERIALIZE_LARGE_MS = 1500;
+const PUSH_LARGE_MS = 3000;
+const isLarge = (name: string) => (serialized.get(name)?.length ?? 0) > LARGE_DOC;
+/** However often a store changes, its changes reach the server within this long. */
+const PUSH_MAX_WAIT_MS = 10_000;
+let pushDueBy: number | null = null;
 const DIRTY_KEY = "wj.sync.dirty";
 
 type Doc = { state: unknown; version: number; updatedAt: string };
@@ -225,18 +234,24 @@ function serializePending() {
 
 function scheduleSerialize(name: string) {
   pendingSerialize.add(name);
-  if (!serializeTimer) serializeTimer = setTimeout(serializePending, SERIALIZE_MS);
+  if (!serializeTimer) serializeTimer = setTimeout(serializePending, isLarge(name) ? SERIALIZE_LARGE_MS : SERIALIZE_MS);
 }
 
 function schedulePush() {
   if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => {
-    pushTimer = null;
-    void pushNow(false);
-  }, PUSH_MS);
+  const now = Date.now();
+  pushDueBy ??= now + PUSH_MAX_WAIT_MS;
+  pushTimer = setTimeout(
+    () => {
+      pushTimer = null;
+      void pushNow(false);
+    },
+    Math.max(0, Math.min([...pendingPush].some(isLarge) ? PUSH_LARGE_MS : PUSH_MS, pushDueBy - now)),
+  );
 }
 
 async function pushNow(keepalive: boolean) {
+  pushDueBy = null;
   const names = [...pendingPush];
   pendingPush = new Set();
   if (!names.length || typeof fetch === "undefined" || !syncsToServer()) return;
@@ -349,6 +364,7 @@ export function __resetRemoteStorage() {
   if (pushTimer) clearTimeout(pushTimer);
   serializeTimer = null;
   pushTimer = null;
+  pushDueBy = null;
   loadAllPromise = null;
   revalidated = false;
   known.clear();

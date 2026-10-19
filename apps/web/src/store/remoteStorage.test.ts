@@ -87,6 +87,23 @@ describe("remoteStorage", () => {
     expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1);
   });
 
+  it("a large store changing constantly (a search's progress) is sent in batches, yet within ten seconds", async () => {
+    const big = createRemoteStorage<{ n: number; pad: string }>();
+    const pad = "x".repeat(150_000);
+    big.setItem("wj.workflow", { state: { n: 0, pad }, version: 1 });
+    await vi.advanceTimersByTimeAsync(5000); // first write: it's not known to be large yet
+    const before = calls.filter((c) => c.method === "PUT").length;
+    for (let i = 1; i <= 30; i++) {
+      big.setItem("wj.workflow", { state: { n: i, pad }, version: 1 });
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    await vi.advanceTimersByTimeAsync(5000); // the last batch, once the changes stop
+    const puts = calls.filter((c) => c.method === "PUT").length - before;
+    // Thirty changes, one a second: a few batched saves, not thirty — and never more than ten seconds apart.
+    expect(puts).toBeGreaterThanOrEqual(3);
+    expect(puts).toBeLessThanOrEqual(5);
+  });
+
   it("flushRemote sends pending writes immediately with keepalive", async () => {
     const jobs = createRemoteStorage<{ saved: object }>();
     jobs.setItem("wj.jobs", { state: { saved: {} }, version: 1 });
