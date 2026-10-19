@@ -105,7 +105,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           // Career Profile's own search.
           const words = draft.trim();
           // Skip Career Profile: only typed words are searched — nothing typed is asked for, not filled in from the profile.
-          if (filters.skipProfile && !words) {
+          if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
             setNeedWords(true);
             return;
           }
@@ -154,7 +154,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               onChange={(e) => {
                 setNeedWords(false);
                 // Skipping the profile shows everything found, not only what fits it.
-                onChange(e.target.checked ? { skipProfile: true, strictProfile: false, minFit: null, exactFit: false } : { skipProfile: false });
+                // Skipping it leaves out its places too (anywhere, unless typed); unticking brings them back.
+                onChange(e.target.checked ? { skipProfile: true, strictProfile: false, minFit: null, exactFit: false, locations: [] } : { skipProfile: false, locations: undefined });
               }}
             />
             Skip Career Profile
@@ -170,7 +171,12 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           {draft.trim() || !sourceSearch || filters.skipProfile ? "Search" : "Search based on Career Profile"}
         </Button>
       </form>
-      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type what you&apos;re looking for — Skip Career Profile searches only your words.</p>}
+      {filters.skipProfile && (
+        <p className="-mt-1 text-[11.5px] leading-snug text-ink-4">
+          Skipped: Looking for{sourceSearch?.places.length ? `, your places (${sourceSearch.places.join(", ")})` : ""}, work modes and minimum salary.
+        </p>
+      )}
+      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the role you&apos;re looking for — Skip Career Profile searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {/* The views and Hide Pipeline share the space; Refine never leaves the screen. */}

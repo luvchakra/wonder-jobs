@@ -272,6 +272,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   const [draft, setDraft] = useState("");
   const [hint, setHint] = useState<string | null>(null);
   const role = dna.careerGoal.trim();
+  const skipped = useJobsStore((s) => !!s.filters.skipProfile);
 
   const save = async () => {
     const goal = draft.trim();
@@ -295,6 +296,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
             Looking for
+            {skipped && <span className="rounded-full bg-bg-soft px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-ink-3">Skipped</span>}
             <button
               type="button"
               onClick={() => {
@@ -306,7 +308,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
               Change
             </button>
           </p>
-          <p className={cn("truncate text-[14px] first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
+          <p className={cn("truncate text-[14px] first-letter:uppercase", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped — Skip Career Profile is on" : role || undefined}>
             {role || "No role yet"}
           </p>
         </div>
