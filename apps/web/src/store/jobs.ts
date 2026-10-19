@@ -248,38 +248,56 @@ export const useJobsStore = create<JobsState>()(
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
-        const keep = new Set<string>(Object.keys(s.saved));
-        for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {
-          if (keep.size >= PERSISTED_CATALOG) break;
-          keep.add(id);
-        }
-        const order = s.order.filter((id) => keep.has(id));
-        const jobs: Record<string, CanonicalJob> = {};
-        const matches: Record<string, JobMatch> = {};
-        const quality: Record<string, JobQuality> = {};
-        // Every saved job is kept, in the results or not — saving it is how the candidate said to keep it.
-        for (const id of keep) {
-          const j = s.jobs[id];
-          if (!j) continue;
-          // Kept short in storage; the trailing "…" tells the job page it has only the start.
-          jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j;
-          if (s.matches[id]) matches[id] = s.matches[id];
-          if (s.quality[id]) quality[id] = s.quality[id];
-        }
-        const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
-        // The profile's results set aside while typed words are searched: kept too, so clearing the words after
-        // the phone reloads the tab brings them back instead of searching again.
-        const aside = s.beforeWords;
-        const asideOrder = aside ? [...aside.order].sort((a, b) => (aside.matches[b]?.score ?? 0) - (aside.matches[a]?.score ?? 0)).slice(0, PERSISTED_ASIDE).filter((id) => aside.jobs[id]) : [];
-        const beforeWords = aside && asideOrder.length
-          ? {
-              order: aside.order.filter((id) => asideOrder.includes(id)),
-              jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
-              matches: Object.fromEntries(asideOrder.flatMap((id) => (aside.matches[id] ? [[id, aside.matches[id]] as const] : []))),
-            }
-          : undefined;
-        return { ...base, jobs, order, matches, quality, aiFits, beforeWords };
+        return { ...base, ...persistedCatalog(s) };
       },
     },
   ),
 );
+
+/**
+ * The part of the catalog a signed-in account keeps between sessions. Persisting runs on every change to the
+ * store — a filter keystroke, a link check — so this, the expensive part (sorting and copying up to 300 jobs),
+ * is recomputed only when what it's made from changed.
+ */
+let catalogMemo: { from: unknown[]; out: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "beforeWords"> } | null = null;
+function persistedCatalog(s: JobsState) {
+  const from = [s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords];
+  if (catalogMemo && catalogMemo.from.every((x, i) => x === from[i])) return catalogMemo.out;
+  const out = buildPersistedCatalog(s);
+  catalogMemo = { from, out };
+  return out;
+}
+
+function buildPersistedCatalog(s: JobsState) {
+  const keep = new Set<string>(Object.keys(s.saved));
+  for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {
+    if (keep.size >= PERSISTED_CATALOG) break;
+    keep.add(id);
+  }
+  const order = s.order.filter((id) => keep.has(id));
+  const jobs: Record<string, CanonicalJob> = {};
+  const matches: Record<string, JobMatch> = {};
+  const quality: Record<string, JobQuality> = {};
+  // Every saved job is kept, in the results or not — saving it is how the candidate said to keep it.
+  for (const id of keep) {
+    const j = s.jobs[id];
+    if (!j) continue;
+    // Kept short in storage; the trailing "…" tells the job page it has only the start.
+    jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j;
+    if (s.matches[id]) matches[id] = s.matches[id];
+    if (s.quality[id]) quality[id] = s.quality[id];
+  }
+  const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
+  // The profile's results set aside while typed words are searched: kept too, so clearing the words after
+  // the phone reloads the tab brings them back instead of searching again.
+  const aside = s.beforeWords;
+  const asideOrder = aside ? [...aside.order].sort((a, b) => (aside.matches[b]?.score ?? 0) - (aside.matches[a]?.score ?? 0)).slice(0, PERSISTED_ASIDE).filter((id) => aside.jobs[id]) : [];
+  const beforeWords = aside && asideOrder.length
+    ? {
+        order: aside.order.filter((id) => asideOrder.includes(id)),
+        jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
+        matches: Object.fromEntries(asideOrder.flatMap((id) => (aside.matches[id] ? [[id, aside.matches[id]] as const] : []))),
+      }
+    : undefined;
+  return { jobs, order, matches, quality, aiFits, beforeWords };
+}

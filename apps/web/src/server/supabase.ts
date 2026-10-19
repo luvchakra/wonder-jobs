@@ -24,9 +24,21 @@ export function isSupabaseConfigured() {
   return getSupabaseAdmin() !== null;
 }
 
-/** Ensure the tenant row exists (FK target) and bump last_seen_at. Cheap upsert. */
+/** Tenants this server instance has touched lately: their row exists, and last_seen_at needn't move again yet. */
+const touched = new Map<string, number>();
+const TOUCH_MS = 5 * 60_000;
+
+/** Ensure the tenant row exists (FK target) and bump last_seen_at — at most every five minutes per instance. */
 export async function touchTenant(tenantId: string) {
   const sb = getSupabaseAdmin();
   if (!sb) return;
+  const at = touched.get(tenantId);
+  if (at && Date.now() - at < TOUCH_MS) return;
   await sb.from("tenants").upsert({ id: tenantId, last_seen_at: new Date().toISOString() }, { onConflict: "id" });
+  touched.set(tenantId, Date.now());
+}
+
+/** The tenant row is gone (account erased): the next write must create it again, not assume it's there. */
+export function forgetTenant(tenantId: string) {
+  touched.delete(tenantId);
 }

@@ -88,7 +88,7 @@ class WorkflowService {
     this.hydrated = true;
     const runs = Object.values(useWorkflowStore.getState().runs);
     this.engine.hydrate(structuredClone(runs));
-    for (const run of this.engine.listRuns()) useWorkflowStore.getState().upsertRun(structuredClone(run));
+    useWorkflowStore.getState().upsertRuns(this.engine.listRuns().map((run) => structuredClone(run)));
   }
 
   private aiFor(runId: string): AIService {

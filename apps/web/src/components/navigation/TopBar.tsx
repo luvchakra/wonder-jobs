@@ -16,7 +16,9 @@ import { signOutEverywhere } from "@/lib/auth/browser";
 import { flushRemote } from "@/store/remoteStorage";
 import { useInstallPrompt } from "@/lib/pwa";
 import { toast } from "@/components/feedback/Toast";
-import { CommandPalette } from "./CommandPalette";
+import dynamic from "next/dynamic";
+// Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
+const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { RunningIndicator } from "./RunningIndicator";
 
@@ -236,7 +238,7 @@ export function TopBar() {
         </button>
         {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>
-      <CommandPalette open={cmd} onClose={() => setCmd(false)} />
+      {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );
 }
