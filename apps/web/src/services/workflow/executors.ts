@@ -542,6 +542,23 @@ async function smartPhrasings(query: string): Promise<{ variants: string[]; from
   return { variants: ruleVariants(query).slice(0, MAX_VARIANTS), fromAi: [] };
 }
 
+/**
+ * Jobs a running search has found so far, on screen before it ends: listed (the first batch replaces the last
+ * search's list) and scored by the same rules the match stage uses, so For you and Strong fill in as sources
+ * answer. The rank stage then publishes the finished search, which settles the list and the scores.
+ */
+function showArriving(ctx: StageContext, jobs: CanonicalJob[], first: boolean) {
+  if (!jobs.length) return;
+  const role = ctx.run.config.role;
+  const list = role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs;
+  const store = useJobsStore.getState();
+  if (first) store.replaceCatalog(list, typedQuery(ctx.run.config) ?? "");
+  else store.appendCatalog(list);
+  const { dna, learnedSignals } = useCareerStore.getState();
+  const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config) };
+  store.setMatches(list.map((j) => computeMatch(j, opts)));
+}
+
 function warnFor(ctx: StageContext, s: SourceSearchStatus) {
   if (s.outcome === "needs_setup") ctx.warn(`${s.sourceName} isn't configured on this deployment yet, so it was skipped.`);
   else if (s.outcome === "timeout" || s.outcome === "unavailable") ctx.warn(`${s.sourceName}: ${s.message ?? "temporarily unavailable"}.`);
@@ -558,6 +575,7 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
 
   const abort = new AbortController();
   let control: unknown = null;
+  let shown = 0;
   const onEvent = async (e: SearchEvent) => {
     try {
       await ctx.checkpoint();
@@ -572,7 +590,10 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
       const said = phrasingEvidence(phrasings.variants, phrasings.fromAi);
       if (said) ctx.addEvidence(said);
     }
-    else if (e.type === "jobs_retrieved") {
+    else if (e.type === "results_preview") {
+      showArriving(ctx, e.results.map(toCanonicalJob), shown === 0);
+      shown += e.results.length;
+    } else if (e.type === "jobs_retrieved") {
       ctx.setProgress(e.totalRetrieved, null);
       ctx.setCounts({ discovered: e.totalRetrieved });
     } else if (e.type === "source_completed") {

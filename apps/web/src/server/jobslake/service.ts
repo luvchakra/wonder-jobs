@@ -90,6 +90,10 @@ export function shapeEvent(caller: Caller, e: SearchEvent): SearchEvent {
   if (!isPublicCaller(caller)) return e;
   if (e.type === "source_completed") return { ...e, status: publicStatus(e.status) };
   if (e.type === "search_completed") return { ...e, response: shapeResponse(caller, e.response) };
+  if (e.type === "results_preview" && caller.kind === "developer") {
+    const allow = new Set(apiSourceIds());
+    return { ...e, results: e.results.flatMap((o) => forDeveloper(o, allow) ?? []) };
+  }
   return e;
 }
 

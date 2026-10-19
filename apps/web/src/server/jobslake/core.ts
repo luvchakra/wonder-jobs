@@ -202,6 +202,21 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     }
   };
 
+  // Results as they arrive: after each source, the merged opportunities not sent yet (by any of their records),
+  // within the request's own filters and limit. The final response still decides what the search found.
+  const previewed = new Set<string>();
+  let previewCount = 0;
+  const preview = () => {
+    if (!opts.emit || previewCount >= req.limit) return;
+    const now = Date.now();
+    const fresh = applyFilters(canonicalize(observations).opportunities.filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now)), req).filter((o) => !o.sourceRecords.some((r) => previewed.has(r.legacyJobId)));
+    const batch = fresh.slice(0, req.limit - previewCount);
+    if (!batch.length) return;
+    for (const o of batch) for (const r of o.sourceRecords) previewed.add(r.legacyJobId);
+    previewCount += batch.length;
+    emit({ type: "results_preview", results: batch });
+  };
+
   const runOne = async (sourceId: string) => {
     const src = byId.get(sourceId)!;
     emit({ type: "source_started", sourceId, sourceName: src.name });
@@ -235,6 +250,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
       retrieved += jobs.length;
       if (cached.length) fromCache++;
       emit({ type: "jobs_retrieved", sourceId, count: jobs.length, totalRetrieved: retrieved });
+      preview();
       // "fallback": the source didn't answer at all now; "fresh": every phrasing was a recent answer reused.
       const cacheUse = !answered.length && cached.some((r) => r.cacheUse === "fallback") ? "fallback" : cached.length === results.length && cached.every((r) => r.cacheUse === "fresh") ? "fresh" : undefined;
       const age = oldest ? ageLabel(oldest, Date.now()) : "";

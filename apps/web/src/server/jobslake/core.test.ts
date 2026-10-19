@@ -53,6 +53,22 @@ describe("JobsLake core search", () => {
     expect(publicStatus(response.sources.find((s) => s.sourceId === "jobicy")!).message).toBe("Temporarily unavailable");
   });
 
+  it("previews each source's new jobs before the search ends, never sending a job twice", async () => {
+    connector.mockImplementation(async (src: { id: string }) => {
+      if (src.id === "greenhouse") return { jobs: [job({})], warnings: [] };
+      // The same posting again, and one new one.
+      if (src.id === "remoteok") return { jobs: [job({ id: "remoteok_9", sourceId: "remoteok", externalId: "9", applyUrl: "https://boards.greenhouse.io/acme/jobs/1?utm_source=remoteok", onEmployerSite: false, applyPath: "platform" }), job({ id: "remoteok_10", sourceId: "remoteok", externalId: "10", title: "Head of Identity Security", applyUrl: "https://remoteok.com/10", onEmployerSite: false, applyPath: "platform" })], warnings: [] };
+      return { jobs: [], warnings: [] };
+    });
+    const events: import("@/domain/jobslake/protocol").SearchEvent[] = [];
+    const { response } = await search(req(), { trigger: "search", emit: (e) => events.push(e) });
+    const previews = events.flatMap((e) => (e.type === "results_preview" ? [e.results.map((o) => o.title)] : []));
+    expect(previews.flat().sort()).toEqual(["Head of Identity Security", "Senior Director, Identity Security"]);
+    // Every preview comes before the answer, which still has everything.
+    expect(events.findIndex((e) => e.type === "results_preview")).toBeLessThan(events.findIndex((e) => e.type === "search_completed"));
+    expect(response.results).toHaveLength(2);
+  });
+
   it("a failed warm-pool or run-history write is logged, never a failed search — the live results still arrive", async () => {
     const broken = new __MemoryStore();
     broken.upsertOpportunities = async () => {

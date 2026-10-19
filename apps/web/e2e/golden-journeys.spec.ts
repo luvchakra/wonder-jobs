@@ -200,13 +200,15 @@ test.describe("Golden journey — search (demo mode)", () => {
 
 test.describe("Golden journey — application preparation (demo mode)", () => {
   test("GJ-013 preparing an application generates a real, editable artifact with visible provenance", async ({ page }) => {
-    // app_meta is seeded "preparing" with no resume yet (services/mock/seed.ts).
+    // app_meta is seeded "preparing" with no résumé drafted for it (services/mock/seed.ts). The résumé on
+    // file is offered first (WJ-189); choosing to generate one for this role drafts a new one.
     await page.goto("/demo?next=/app/applications/app_meta/prepare");
     await expect(page.getByRole("heading", { name: "Application Pack" })).toBeVisible();
-    await expect(page.getByText("No resume yet")).toBeVisible();
-    await page.getByRole("button", { name: "Generate resume" }).click();
+    const generateChoice = page.getByRole("radio", { name: /Generate a résumé for this role/ });
+    await generateChoice.check();
+    await page.getByRole("button", { name: "Generate résumé" }).click();
     // WonderJobsAI is a deterministic local template (no network, no billing) — real generation, fast.
-    await expect(page.getByText("No resume yet")).toHaveCount(0, { timeout: 10_000 });
+    await expect(generateChoice).toHaveCount(0, { timeout: 10_000 });
     // Exact: the pack summary above also says "AI-generated draft" for the same version.
     await expect(page.getByText("AI-generated", { exact: true })).toBeVisible();
   });

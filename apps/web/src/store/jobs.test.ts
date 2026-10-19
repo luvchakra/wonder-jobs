@@ -86,3 +86,27 @@ describe("Hide Pipeline", () => {
     expect((opts.partialize!(useJobsStore.getState()) as { hideInPipeline?: boolean }).hideInPipeline).toBe(false);
   });
 });
+
+describe("a running search's arrivals", () => {
+  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined }));
+
+  it("adds later arrivals after the first, once each; the finished search's list settles it — and the profile's results stay aside", () => {
+    const s = useJobsStore.getState();
+    s.replaceCatalog([job("a"), job("b")]);
+    // A typed search streams in: the first batch replaces the list, the rest are added.
+    s.replaceCatalog([job("x")], "designer");
+    s.appendCatalog([job("y"), job("x")]);
+    expect(useJobsStore.getState().order).toEqual(["x", "y"]);
+    // Done: what the search finally found (a preview job that dropped out is gone).
+    s.replaceCatalog([job("y"), job("z")], "designer");
+    expect(useJobsStore.getState().order).toEqual(["y", "z"]);
+    expect(useJobsStore.getState().restoreProfileCatalog()).toBe(true);
+    expect(useJobsStore.getState().order).toEqual(["a", "b"]);
+  });
+
+  it("doesn't bring back a posting found closed this week", () => {
+    useJobsStore.setState({ closed: { y: { at: new Date().toISOString() } } as never });
+    useJobsStore.getState().appendCatalog([job("y")]);
+    expect(useJobsStore.getState().order).toEqual([]);
+  });
+});
