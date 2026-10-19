@@ -12,6 +12,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { FitLabel } from "./MatchBadge";
 import { JobDecision } from "./JobDecision";
+import { ShareJobButton } from "./ShareJobButton";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
 export function companyColor(name: string) {
@@ -75,18 +76,21 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           </button>
         )}
         {onToggleSave && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onToggleSave();
-            }}
-            aria-pressed={saved}
-            aria-label={saved ? "Remove from saved" : "Save job"}
-            className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-4")}
-          >
-            <Bookmark className="size-[18px]" fill={saved ? "currentColor" : "none"} aria-hidden />
-          </button>
+          <div className="-my-1 flex shrink-0 flex-col items-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onToggleSave();
+              }}
+              aria-pressed={saved}
+              aria-label={saved ? "Remove from saved" : "Save job"}
+              className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-4")}
+            >
+              <Bookmark className="size-[18px]" fill={saved ? "currentColor" : "none"} aria-hidden />
+            </button>
+            <ShareJobButton job={job} />
+          </div>
         )}
       </div>
       {/* The two things every listing is judged on first, always in the same place — a missing salary says so. */}
