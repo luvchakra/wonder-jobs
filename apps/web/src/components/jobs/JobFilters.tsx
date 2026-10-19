@@ -68,6 +68,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   // Typing only changes the box; Search (or Enter) applies the words. Kept in step when something else
   // changes them (a link with ?q=, "clear" in the list).
   const [draft, setDraft] = useState(filters.query);
+  // Skip Career Profile with nothing typed: say what's needed instead of searching the profile.
+  const [needWords, setNeedWords] = useState(false);
   const [seenQuery, setSeenQuery] = useState(filters.query);
   if (seenQuery !== filters.query) {
     setSeenQuery(filters.query);
@@ -88,7 +90,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + (filters.jobTypes?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
@@ -102,16 +104,22 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           // Words searched: every source too, not only the jobs already on screen. Nothing typed: the
           // Career Profile's own search.
           const words = draft.trim();
+          // Skip Career Profile: only typed words are searched — nothing typed is asked for, not filled in from the profile.
+          if (filters.skipProfile && !words) {
+            setNeedWords(true);
+            return;
+          }
           if (words && sourceSearch?.describe(words, splitPlaces(where))) sourceSearch.run(words, splitPlaces(where));
           else if (!words) sourceSearch?.runPlaces(splitPlaces(where));
         }}
       >
-        <div className="relative min-w-0 flex-[1_1_16rem]">
+        <div className="relative order-1 min-w-0 flex-[1_1_16rem]">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
+              setNeedWords(false);
               if (dictation.listening) dictation.rebase(e.target.value);
             }}
             placeholder="Search jobs, skills or companies"
@@ -136,10 +144,33 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
         </div>
-        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="h-11 shrink-0 rounded-full max-sm:flex-1 sm:h-12">
-          {draft.trim() || !sourceSearch ? "Search" : "Search based on Career Profile"}
+        {/* Between the box and the button on a phone; under both on a wider screen. */}
+        <div className="order-2 flex basis-full items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:order-3">
+          <label className={cn("inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors", filters.skipProfile ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
+            <input
+              type="checkbox"
+              className="size-3.5 shrink-0 accent-[var(--color-brand-600)]"
+              checked={!!filters.skipProfile}
+              onChange={(e) => {
+                setNeedWords(false);
+                // Skipping the profile shows everything found, not only what fits it.
+                onChange(e.target.checked ? { skipProfile: true, strictProfile: false, minFit: null, exactFit: false } : { skipProfile: false });
+              }}
+            />
+            Skip Career Profile
+          </label>
+          <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
+          {JOB_TYPE_CHIPS.map((t) => (
+            <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
+              {t.label}
+            </Chip>
+          ))}
+        </div>
+        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
+          {draft.trim() || !sourceSearch || filters.skipProfile ? "Search" : "Search based on Career Profile"}
         </Button>
       </form>
+      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type what you&apos;re looking for — Skip Career Profile searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {/* The views and Hide Pipeline share the space; Refine never leaves the screen. */}
@@ -187,16 +218,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               {LEVELS.map((l) => (
                 <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className="h-9 px-3 text-[12px]">
                   {l.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Job type
-            <div className="flex flex-wrap gap-1.5">
-              {JOB_TYPE_CHIPS.map((t) => (
-                <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 px-3 text-[12px]">
-                  {t.label}
                 </Chip>
               ))}
             </div>

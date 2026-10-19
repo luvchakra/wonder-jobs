@@ -165,6 +165,8 @@ export interface JobFilters {
   company?: string;
   /** Only jobs in the candidate's own field — their Career Profile's headline and goal named in the title, skills, tags or requirements. */
   strictProfile?: boolean;
+  /** Search the typed words only — the Career Profile neither fills in an empty search nor narrows what's shown ("Skip Career Profile"). */
+  skipProfile?: boolean;
   /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
   hideInPipeline?: boolean;
   /** Show postings older than two weeks too (they're hidden as "too old" otherwise; saved ones always show). */

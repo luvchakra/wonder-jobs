@@ -23,6 +23,8 @@ import { roleSearch } from "@/domain/career/roles";
 const started = new Set<string>();
 /** Why a run searched more widely than the profile asked: run id → plain words. */
 const widenedBecause = new Map<string, string>();
+/** Searches started from this page load: only these are widened when they find nothing, never an old one found on opening. */
+const startedHere = new Set<string>();
 
 /**
  * Stops a search-only run that's going (what it found so far is kept) and resolves once it has stopped,
@@ -103,8 +105,6 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   const roles = useCareerStore((s) => s.roles ?? []);
   const baseResume = useCareerStore((s) => s.baseResume);
   const sources = useJobsStore((s) => s.sources);
-  const order = useJobsStore((s) => s.order);
-  const rejected = useJobsStore((s) => s.rejected);
   const files = useResumeFilesStore((s) => s.files);
   const loadFiles = useResumeFilesStore((s) => s.load);
   const runs = useWorkflowStore((s) => s.runs);
@@ -127,7 +127,6 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   const readiness = useMemo(() => jobsReadiness({ dna, roles, sources, resumeFileIds, scheduledWorkflows }), [dna, roles, sources, resumeFileIds, scheduledWorkflows]);
   const searchedFor = useJobsStore((s) => s.searchedFor);
   const last = useMemo(() => catalogSearchRun(Object.values(runs), searchedFor), [runs, searchedFor]);
-  const catalogSize = order.filter((id) => !rejected[id]).length;
 
   const search = useCallback(
     (opts: SearchOptions = {}) => {
@@ -135,6 +134,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       // Typed words and roles carry their own role, so only a profile search waits on the profile's blockers.
       if (!query || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
       const locations = opts.locations ?? readiness.locations;
+      // Job types asked for (words like "part time", or the pills under the search box): the sources that list them go first.
+      const jobTypes = opts.jobTypes?.length ? opts.jobTypes : (useJobsStore.getState().filters.jobTypes ?? []);
       try {
         const run = getWorkflowService().startRun({
           workflowName: opts.role ? `Search as ${opts.role.title}` : `Jobs for you — ${query}`,
@@ -144,7 +145,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             automationLevel: level,
             provider: { provider: ai.activeProvider, model: ai.activeModel, billing: AI_PROVIDERS[ai.activeProvider].billing },
             sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
-            searchCriteria: { query, locations, workModes: opts.workModes ?? dna.workModes, minSalary: dna.minSalary, ...(opts.jobTypes?.length ? { jobTypes: opts.jobTypes } : {}) },
+            searchCriteria: { query, locations, workModes: opts.workModes ?? dna.workModes, minSalary: dna.minSalary, ...(jobTypes.length ? { jobTypes } : {}) },
             minMatchThreshold: 60,
             maxResults: 100,
             notify: "never",
@@ -152,6 +153,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             ...(opts.role ? { role: opts.role } : {}),
           },
         });
+        startedHere.add(run.id);
         return run;
       } catch {
         return null; // a run is already going; its progress is what the screen shows
@@ -191,23 +193,23 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     [roles, search],
   );
 
-  // Search on open when the results are missing, stale, or for a different search — unless the screen
+  // Search on open only for an account that has never searched (autoSearchDecision) — unless the screen
   // was opened to search for something specific, which then goes first.
   useEffect(() => {
     if (!auto) return;
-    const d = autoSearchDecision({ readiness, mode, activeRun: !!active, last, catalogSize, now: Date.now() });
+    const d = autoSearchDecision({ readiness, mode, activeRun: !!active, last });
     if (!d.run) return;
     const key = `${readiness.query}|${readiness.locations.join(",")}|${d.reason}|${last?.id ?? ""}`;
     if (started.has(key)) return;
     started.add(key);
     if (search()) track("jobs_auto_search", { reason: d.reason });
-  }, [auto, readiness, mode, active, last, catalogSize, search]);
+  }, [auto, readiness, mode, active, last, search]);
 
   // Found nothing: search once more, wider, and say what was let go. AI first proposes a more common
   // title for the same role (every word the candidate's own, checked here and on the server); failing
   // that — or after an AI-widened search also found nothing — the rules widen as before.
   useEffect(() => {
-    if (mode !== "user" || active || !last || !foundNothing(last) || started.has(`widen|${last.id}`)) return;
+    if (mode !== "user" || active || !last || !startedHere.has(last.id) || !foundNothing(last) || started.has(`widen|${last.id}`)) return;
     started.add(`widen|${last.id}`);
     const { query, locations } = last.config.searchCriteria;
     const where = locations.length ? ` in ${locations.join(", ")}` : "";

@@ -94,32 +94,24 @@ describe("relevance notes — what weakens the match, each with one fix", () => 
 });
 
 const run = (over: Partial<WorkflowRun> = {}): WorkflowRun => ({ id: "run_1", status: "COMPLETED", createdAt: "2026-10-03T06:00:00.000Z", completedAt: "2026-10-03T06:01:00.000Z", stages: [{ key: "search" }], config: { searchCriteria: { query: "senior director identity access", locations: ["Mumbai"], workModes: [] } }, ...over }) as unknown as WorkflowRun;
-const now = Date.parse("2026-10-03T08:00:00.000Z");
 
 describe("searching on open, without a button", () => {
   const ready = jobsReadiness(input());
-  it("searches the first time, when the profile's search changed, when the catalog is empty, and when results are over 12 hours old", () => {
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, catalogSize: 0, now })).toEqual({ run: true, reason: "first" });
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { searchCriteria: { query: "product manager" } } } as never), catalogSize: 40, now })).toEqual({ run: true, reason: "changed" });
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run(), catalogSize: 0, now })).toEqual({ run: true, reason: "empty" });
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ completedAt: "2026-10-02T18:00:00.000Z" }), catalogSize: 40, now })).toEqual({ run: true, reason: "stale" });
+  it("searches on opening only for an account that has never searched", () => {
+    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false })).toEqual({ run: true, reason: "first" });
   });
 
-  it("doesn't search when blocked, already searching, fresh, failed a moment ago, or in the demo", () => {
-    expect(autoSearchDecision({ readiness: jobsReadiness(input({ dna: EMPTY_DNA })), mode: "user", activeRun: false, catalogSize: 0, now }).reason).toBe("blocked");
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: true, catalogSize: 0, now }).reason).toBe("active");
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run(), catalogSize: 40, now }).reason).toBe("fresh");
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ status: "FAILED", completedAt: "2026-10-03T07:55:00.000Z" }), catalogSize: 0, now }).reason).toBe("failed_recently");
-    expect(autoSearchDecision({ readiness: ready, mode: "demo", activeRun: false, catalogSize: 0, now }).reason).toBe("demo");
+  it("never searches on opening once there's a search — changed profile, empty list, old results or a schedule's run alike", () => {
+    // Each of these used to start a search on opening; a schedule's run (different words) chained into one every few minutes.
+    for (const last of [run({ config: { searchCriteria: { query: "product manager" } } } as never), run(), run({ completedAt: "2026-10-02T18:00:00.000Z" }), run({ trigger: "schedule", config: { searchCriteria: { query: "senior director svp iam" } } } as never), run({ status: "FAILED" })]) {
+      expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last })).toEqual({ run: false, reason: "searched" });
+    }
   });
 
-  it("a search the candidate typed stands until it's stale; a search from before origins were recorded counts as the profile's", () => {
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { origin: "words", searchCriteria: { query: "data analyst" } } } as never), catalogSize: 40, now }).reason).toBe("fresh");
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { searchCriteria: { query: "product manager" } } } as never), catalogSize: 40, now }).reason).toBe("changed");
-  });
-
-  it("a role's search doesn't count as the profile's search having changed", () => {
-    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: false, last: run({ config: { role: { id: "r", title: "Data" }, searchCriteria: { query: "data analyst" } } } as never), catalogSize: 40, now }).reason).toBe("fresh");
+  it("doesn't search when blocked, already searching, or in the demo", () => {
+    expect(autoSearchDecision({ readiness: jobsReadiness(input({ dna: EMPTY_DNA })), mode: "user", activeRun: false }).reason).toBe("blocked");
+    expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: true }).reason).toBe("active");
+    expect(autoSearchDecision({ readiness: ready, mode: "demo", activeRun: false }).reason).toBe("demo");
   });
 
   it("picks the latest run that searched", () => {

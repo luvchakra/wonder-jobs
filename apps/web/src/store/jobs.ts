@@ -235,8 +235,8 @@ export const useJobsStore = create<JobsState>()(
       skipHydration: true,
       version: 2,
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean };
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, filters: { ...current.filters, ...(p.hideInPipeline ? { hideInPipeline: true } : {}) } };
+        const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, filters: { ...current.filters, ...(p.hideInPipeline ? { hideInPipeline: true } : {}), ...(p.skipProfile ? { skipProfile: true } : {}) } };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -246,7 +246,7 @@ export const useJobsStore = create<JobsState>()(
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, hideInPipeline: !!s.filters.hideInPipeline };
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
         const keep = new Set<string>(Object.keys(s.saved));
         for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {
