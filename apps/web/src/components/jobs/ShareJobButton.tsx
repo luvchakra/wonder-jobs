@@ -4,12 +4,13 @@ import { Link2, Mail, MessageCircle, Share2 } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
+import { cn } from "@/lib/cn";
 import { emailHref, shareFacts, shareMessage, shareUrl, whatsappHref, type ShareJob } from "@/domain/jobs/share";
 
 const OPTION = "flex w-full items-center gap-3 rounded-[12px] px-3 py-3 text-left text-[14px] font-medium text-ink hover:bg-bg-soft";
 
 /** A job card's Share: WhatsApp, email, copy link, or the phone's own share sheet — all to the job's public page. */
-export function ShareJobButton({ job }: { job: ShareJob }) {
+export function ShareJobButton({ job, className }: { job: ShareJob; className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -20,7 +21,7 @@ export function ShareJobButton({ job }: { job: ShareJob }) {
           setOpen(true);
         }}
         aria-label={`Share ${job.title} at ${job.company}`}
-        className="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-bg-soft hover:text-brand-600"
+        className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-bg-soft hover:text-brand-600", className)}
       >
         <Share2 className="size-[17px]" aria-hidden />
       </button>
