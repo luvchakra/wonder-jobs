@@ -11,8 +11,8 @@ export interface NavItem {
 const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
 
 /**
- * Five places: Find (jobs), Saved (the shortlist), Pipeline (applications and follow-ups), Skill Up
- * (what the jobs ask for that you can learn), You (what Wonder works from). Account, plan and data live in the avatar menu. The same array drives the
+ * Four places, one each for the stages of a search: Find (jobs), Saved (the shortlist), Pipeline
+ * (applications and follow-ups), You (what Wonder works from, and Skill Up). Account, plan and data live in the avatar menu. The same array drives the
  * desktop sidebar, the mobile bottom bar and the drawer, so they can't drift apart. Each place's
  * own pages are tabs at the top of it (SECTION_TABS). Ask Wonder lives in the top bar.
  */
@@ -21,9 +21,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/app/jobs", label: "Find", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
   { href: "/app/saved", label: "Saved", icon: Bookmark },
   { href: "/app/applications", label: "Pipeline", icon: LayoutList, match: under("/app/applications", "/app/dashboard", "/app/calendar", "/app/insights", "/app/interview-prep") },
-  // Getting better at what the jobs ask for: skill gaps from the candidate's own matches, and where to learn them.
-  { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap },
-  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/career-dna", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile")(p) },
+  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/career-dna", "/app/skill-up", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile")(p) },
 ];
 
 /** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
@@ -43,6 +41,8 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
     items: [
       // What Wonder works from, in the order a search uses it. Account, plan and data are the avatar menu's.
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
+      // Getting better at what the jobs ask for: skill gaps from the candidate's own matches, and where to learn them.
+      { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap },
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
       { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },

@@ -12,8 +12,8 @@ import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learni
 
 const DAY = 86_400_000;
 const memo = new Map<string, RegExp>();
-/** Whole-word, case-insensitive mention of a skill in posting text ("Go" never matches "Google"). */
-function mentions(text: string, skill: string) {
+/** Whole-word, case-insensitive mention of a skill in posting text ("Go" never matches "Google"); `text` lower-cased. */
+export function mentions(text: string, skill: string) {
   let re = memo.get(skill);
   if (!re) {
     const esc = (v: string) => v.toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, "\\$&").replace(/\s+/g, "\\s+");
