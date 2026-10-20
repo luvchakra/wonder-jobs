@@ -40,21 +40,25 @@ export function SavedSkills({ items, learn }: { items: SavedSkill[]; learn: { sk
   const profile = { skills: dna.skills.map((s) => s.name), certifications: (dna.history?.certifications ?? []).map((c) => c.name) };
   const sum = summarize(items, profile);
   return (
-    <section aria-labelledby="saved" className="rounded-[16px] border border-brand-200 bg-brand-50/40 p-4">
-      <div>
-        <h2 id="saved" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink">
-          <Bookmark className="size-4 text-brand-600" fill="currentColor" aria-hidden /> My Saved Skills
-        </h2>
-        <span className="block text-[12px] text-ink-3">
-          {sum.saved} saved · {sum.average}% along{sum.toAdd ? ` · ${sum.toAdd} ready for your résumé` : ""}
+    // Folded by default: the summary line says where things stand; the trackers open on a tap.
+    <details className="group/saved rounded-[16px] border border-brand-200 bg-brand-50/40">
+      <summary className="flex min-h-[60px] cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span role="heading" aria-level={2} className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink">
+            <Bookmark className="size-4 text-brand-600" fill="currentColor" aria-hidden /> My Saved Skills
+          </span>
+          <span className="block text-[12px] text-ink-3">
+            {sum.saved} saved · {sum.average}% along{sum.toAdd ? ` · ${sum.toAdd} ready for your résumé` : ""}
+          </span>
         </span>
-      </div>
-      <ul className="mt-3 flex flex-col gap-2">
+        <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open/saved:rotate-180" aria-hidden />
+      </summary>
+      <ul className="flex flex-col gap-2 px-4 pb-4">
         {items.map((item) => (
           <SavedRow key={item.name} item={item} on={onProfile(item, profile)} learn={item.kind === "skill" ? (learn?.skills[item.name] ?? []) : learn?.certs[item.name] ? [learn.certs[item.name]!] : []} />
         ))}
       </ul>
-    </section>
+    </details>
   );
 }
 
