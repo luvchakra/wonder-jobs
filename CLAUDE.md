@@ -1,5 +1,9 @@
 # WonderJobs — working rules for Claude
 
+## End every message with the time in IST
+
+Every message Claude sends to the owner ends with the current time in Indian Standard Time, on its own last line, read from the clock at the moment of sending — not remembered or estimated (owner, 2026-10-20). Get it with `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` and write it as, e.g., `2026-10-20 20:00 IST`. This applies to every reply, including short ones and ones that only report a background notification. Update it each time; never reuse an earlier message's time.
+
 ## Always start from the latest `main`
 
 Before doing anything else in a session (reading code, planning, editing, answering questions about the codebase), fetch and integrate the latest `main`:
