@@ -508,7 +508,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
     links: [
       // The help center is for signed-in accounts (WJ-309): "Get Help" in the app's avatar menu.
       { label: "API reference", href: "/api-reference" },
-      { label: "Learning", href: "/app/learning" },
+      { label: "Skill Up", href: "/app/skill-up" },
     ],
   },
   {
