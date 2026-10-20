@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Award, ChevronDown, ExternalLink, GraduationCap, Plus, Sparkles } from "lucide-react";
+import { Award, ChevronDown, ExternalLink, GraduationCap, Plus, Sparkles, X } from "lucide-react";
+import { confidence, type Confidence, type ConfidenceLevel } from "@/domain/skills/confidence";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { skillGaps, type GapJob } from "@/domain/skills/gap";
@@ -28,6 +29,7 @@ interface Learn {
   certs: Record<string, LearnItem | null>;
 }
 
+const NONE: string[] = [];
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
 /**
@@ -57,10 +59,13 @@ export default function SkillUpPage() {
   }, [matches, jobs, closed, rejected]);
 
   const haveNames = useMemo(() => skills.map((s) => s.name), [skills]);
+  const hidden = useCareerStore((s) => s.skillUpHidden ?? NONE);
   // Skills a posting names in its text count as well as its tags, by the same whole-word rule matching uses.
-  const report = useMemo(() => skillGaps(haveNames, fitting, { mentions, generic: GENERIC_SKILLS, goals }), [haveNames, fitting, goals]);
+  const report = useMemo(() => skillGaps(haveNames, fitting, { mentions, generic: GENERIC_SKILLS, goals, hidden }), [haveNames, fitting, goals, hidden]);
   const certNames = useMemo(() => (held ?? []).map((c) => c.name), [held]);
-  const certs = useMemo(() => certificationsAsked(fitting, certNames), [fitting, certNames]);
+  const certs = useMemo(() => certificationsAsked(fitting, certNames, 6, hidden), [fitting, certNames, hidden]);
+  // Shown most-confident first, so the order on screen is the order of the scores.
+  const rankedGaps = useMemo(() => report.gaps.map((g) => ({ g, c: confidence({ jobs: g.jobs, strong: g.strong, plain: g.tagged, generic: g.generic, goal: g.goal }, report.considered) })).sort((a, b) => b.c.score - a.c.score), [report]);
 
   // Microsoft Learn, asked once for everything on screen — specific skills only: "Risk" or "Agile" match too much to mean anything.
   const [learn, setLearn] = useState<Learn | null>(null);
@@ -87,6 +92,11 @@ export default function SkillUpPage() {
     if (before.some((s) => s.name.toLowerCase() === skill.toLowerCase())) return;
     useCareerStore.getState().updateDNA({ skills: [...before, { name: skill, level: 3 }] });
     toast.success(`${skill} added to your Career Profile`, "Your matches are re-scored with it.", { label: "Undo", onClick: () => useCareerStore.getState().updateDNA({ skills: before }) });
+  };
+  // Not something they want to learn: never suggested again, until they restore it at the bottom of the page.
+  const remove = (name: string) => {
+    useCareerStore.getState().hideSkillUp(name);
+    toast.info(`Removed ${name}`, "Skill Up won't suggest it again.", { label: "Undo", onClick: () => useCareerStore.getState().restoreSkillUp(name) });
   };
 
   return (
@@ -129,13 +139,16 @@ export default function SkillUpPage() {
               <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">The jobs that fit you ask for nothing your Career Profile doesn&apos;t already show.</p>
             ) : (
               <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
-                {report.gaps.map((g) => (
-                  <Row key={g.skill} title={g.skill} count={g.jobs} of={report.considered} note={[g.strong ? `${g.strong} strong` : "", g.goal ? "your growth area" : ""].filter(Boolean).join(" · ")}>
+                {rankedGaps.map(({ g, c }) => (
+                  <Row key={g.skill} title={g.skill} count={g.jobs} of={report.considered} note={[g.strong ? `${g.strong} strong` : "", g.goal ? "your growth area" : ""].filter(Boolean).join(" · ")} confidence={c}>
                     <AskedBy jobs={g.examples} more={g.jobs - g.examples.length} />
                     <Resources term={g.skill} items={learn?.skills[g.skill] ?? []} />
-                    <button type="button" onClick={() => addSkill(g.skill)} className="mt-3 inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
-                      <Plus className="size-4" aria-hidden /> I already have this
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-x-4">
+                      <button type="button" onClick={() => addSkill(g.skill)} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
+                        <Plus className="size-4" aria-hidden /> I already have this
+                      </button>
+                      <RemoveButton name={g.skill} onRemove={remove} />
+                    </div>
                   </Row>
                 ))}
               </ul>
@@ -151,18 +164,56 @@ export default function SkillUpPage() {
                 {certs.map((c) => {
                   const official = learn?.certs[c.name];
                   return (
-                    <Row key={c.name} title={c.name} count={c.jobs} of={report.considered} icon={<Award className="size-4 text-brand-600" aria-hidden />}>
+                    <Row key={c.name} title={c.name} count={c.jobs} of={report.considered} note={c.strong ? `${c.strong} strong` : ""} icon={<Award className="size-3.5 text-brand-600" aria-hidden />} confidence={confidence({ jobs: c.jobs, strong: c.strong, plain: c.jobs }, report.considered)}>
                       <AskedBy jobs={c.examples} more={c.jobs - c.examples.length} />
                       <Resources term={searchTerm(c.name)} items={official ? [official] : []} />
+                      <div className="mt-3">
+                        <RemoveButton name={c.name} onRemove={remove} />
+                      </div>
                     </Row>
                   );
                 })}
               </ul>
             </section>
           )}
+
+          {hidden.length > 0 && (
+            <p className="text-[12px] text-ink-3">
+              {plural(hidden.length, "suggestion")} removed.{" "}
+              <button type="button" onClick={() => useCareerStore.getState().restoreSkillUp()} className="font-medium text-brand-600 hover:underline">
+                Show them again
+              </button>
+            </p>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function RemoveButton({ name, onRemove }: { name: string; onRemove: (name: string) => void }) {
+  return (
+    <button type="button" onClick={() => onRemove(name)} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-danger-600">
+      <X className="size-4" aria-hidden /> Not for me
+    </button>
+  );
+}
+
+const RING: Record<ConfidenceLevel, string> = { high: "text-success-600", medium: "text-brand-600", low: "text-warning-600" };
+const LEVEL_WORD: Record<ConfidenceLevel, string> = { high: "High", medium: "Medium", low: "Low" };
+
+/** The confidence score as a ring that fills with it, the number inside. */
+function ConfidenceRing({ c }: { c: Confidence }) {
+  const r = 15;
+  const length = 2 * Math.PI * r;
+  return (
+    <span className={cn("relative inline-flex size-10 shrink-0 items-center justify-center", RING[c.level])} role="img" aria-label={`${LEVEL_WORD[c.level]} confidence, ${c.score} out of 100`}>
+      <svg viewBox="0 0 36 36" className="absolute inset-0 size-full -rotate-90" aria-hidden>
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="3.5" />
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${(c.score / 100) * length} ${length}`} />
+      </svg>
+      <span className="text-[12px] font-semibold tabular-nums">{c.score}</span>
+    </span>
   );
 }
 
@@ -175,28 +226,30 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-/** One skill or certification: its name, how many jobs ask (with a bar for the share), and the detail when opened. */
-function Row({ title, count, of, note, icon, children }: { title: string; count: number; of: number; note?: string; icon?: React.ReactNode; children: React.ReactNode }) {
-  const share = of ? Math.max(4, Math.round((count / of) * 100)) : 0;
+/** One skill or certification: its confidence ring, name, how many jobs ask, and the detail — with why the score is what it is — when opened. */
+function Row({ title, count, of, note, icon, confidence: c, children }: { title: string; count: number; of: number; note?: string; icon?: React.ReactNode; confidence: Confidence; children: React.ReactNode }) {
   return (
     <li className="border-b border-line last:border-b-0">
       <details className="group">
-        <summary className="flex min-h-[60px] cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
-          {icon}
+        <summary className="flex min-h-[64px] cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+          <ConfidenceRing c={c} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold text-ink">{title}</span>
-            <span className="mt-1 flex items-center gap-2">
-              <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
-                <span className="block h-full rounded-full bg-brand-500" style={{ width: `${share}%` }} />
-              </span>
-              <span className="truncate text-[12px] text-ink-3">
-                {count} of {of} jobs{note ? ` · ${note}` : ""}
-              </span>
+            <span className="flex items-center gap-1.5">
+              {icon}
+              <span className="truncate text-[15px] font-semibold text-ink">{title}</span>
+            </span>
+            <span className="mt-0.5 block truncate text-[12px] text-ink-3">
+              <span className={cn("font-medium", RING[c.level])}>{LEVEL_WORD[c.level]}</span> · {count} of {of} jobs{note ? ` · ${note}` : ""}
             </span>
           </span>
           <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
         </summary>
-        <div className="px-4 pb-4">{children}</div>
+        <div className="px-4 pb-4">
+          <p className="mb-3 rounded-[10px] bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
+            <span className="font-medium text-ink-2">Confidence {c.score}/100:</span> {c.parts.join(", ")}.
+          </p>
+          {children}
+        </div>
       </details>
     </li>
   );

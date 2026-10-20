@@ -76,6 +76,10 @@ interface CareerState {
   notify: (n: Omit<Notification, "id" | "at" | "read">) => void;
   markRead: (id?: string) => void;
   setInsights: (insights: CareerInsight[]) => void;
+  /** Skill Up suggestions (skills or certifications, lower-cased) the candidate doesn't want to learn; never suggested again until restored. */
+  skillUpHidden: string[];
+  hideSkillUp: (name: string) => void;
+  restoreSkillUp: (name?: string) => void;
 }
 
 /** Every learned signal, recomputed from the full history; confirmed ones stay confirmed, dismissed ones stay gone. */
@@ -96,6 +100,14 @@ export const useCareerStore = create<CareerState>()(
       notifications: [],
       plan: "free",
       reminded: [],
+      skillUpHidden: [],
+      hideSkillUp: (name) =>
+        set((s) => {
+          const key = name.trim().toLowerCase();
+          const hidden = s.skillUpHidden ?? [];
+          return key && !hidden.includes(key) ? { skillUpHidden: [...hidden, key].slice(-200) } : {};
+        }),
+      restoreSkillUp: (name) => set((s) => ({ skillUpHidden: name ? (s.skillUpHidden ?? []).filter((k) => k !== name.trim().toLowerCase()) : [] })),
       markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
       rejectionHistory: [],
       dismissedSignals: [],

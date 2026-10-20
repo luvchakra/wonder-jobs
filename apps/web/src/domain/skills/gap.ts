@@ -22,6 +22,8 @@ export interface SkillGap {
   jobs: number;
   /** How many of those are Strong matches. */
   strong: number;
+  /** How many tag it as a skill (the rest only name it in their text). */
+  tagged: number;
   examples: GapJob[];
   /** One of the skills so common across roles that it says little (see `GENERIC_SKILLS`). */
   generic: boolean;
@@ -50,6 +52,8 @@ export interface GapOptions {
   generic?: Set<string>;
   /** The candidate's growth areas; a gap among them ranks first. */
   goals?: string[];
+  /** Skills the candidate said they don't want to learn; left out. */
+  hidden?: string[];
 }
 
 export const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9+#.]+/g, " ").trim();
@@ -66,7 +70,8 @@ const FEW_JOBS = 5;
 const VOCABULARY = 300;
 
 export function skillGaps(have: string[], jobs: GapJob[], opts: GapOptions = {}): GapReport {
-  const { max = 8, mentions, generic = new Set<string>(), goals = [] } = opts;
+  const { max = 8, mentions, generic = new Set<string>(), goals = [], hidden = [] } = opts;
+  const unwanted = new Set(hidden.map(norm));
   const mine = have.map((h) => ({ name: h.trim(), key: norm(h) })).filter((h) => h.key);
   const goalKeys = goals.map(norm).filter(Boolean);
   // Broad when it is one of the generic skills or built on one ("Cross-functional Leadership", "Risk Management").
@@ -88,7 +93,8 @@ export function skillGaps(have: string[], jobs: GapJob[], opts: GapOptions = {})
   const strengths = new Map<string, Strength>();
   for (const job of jobs) {
     const text = (job.text ?? "").toLowerCase();
-    const asked = new Set(job.skills.map(norm).filter(Boolean));
+    const tags = new Set(job.skills.map(norm).filter(Boolean));
+    const asked = new Set(tags);
     // A skill the posting names in its text but doesn't tag still counts — only when it's a skill these jobs use as one.
     if (mentions && text) for (const [key, t] of vocabulary) if (!asked.has(key) && mentions(text, t.name)) asked.add(key);
     for (const h of mine) {
@@ -99,10 +105,11 @@ export function skillGaps(have: string[], jobs: GapJob[], opts: GapOptions = {})
       }
     }
     for (const key of asked) {
-      if (mine.some((h) => covers(h.key, key))) continue;
-      const gap = found.get(key) ?? { skill: tagged.get(key)?.name ?? key, jobs: 0, strong: 0, examples: [], generic: isGeneric(key), goal: goalKeys.some((g) => covers(g, key)) };
+      if (unwanted.has(key) || mine.some((h) => covers(h.key, key))) continue;
+      const gap = found.get(key) ?? { skill: tagged.get(key)?.name ?? key, jobs: 0, strong: 0, tagged: 0, examples: [], generic: isGeneric(key), goal: goalKeys.some((g) => covers(g, key)) };
       gap.jobs++;
       if (job.strong) gap.strong++;
+      if (tags.has(key)) gap.tagged++;
       if (gap.examples.length < 3) gap.examples.push(job);
       found.set(key, gap);
     }

@@ -13,6 +13,8 @@ export interface CertJob extends GapJob {
 export interface CertMention {
   name: string;
   jobs: number;
+  /** How many of those are Strong matches. */
+  strong: number;
   examples: GapJob[];
 }
 
@@ -61,16 +63,18 @@ export function certificationsIn(text: string): string[] {
   return [...names.values()];
 }
 
-export function certificationsAsked(jobs: CertJob[], have: string[] = [], max = 6): CertMention[] {
+export function certificationsAsked(jobs: CertJob[], have: string[] = [], max = 6, hidden: string[] = []): CertMention[] {
   const mine = have.map(lower).filter(Boolean);
+  const unwanted = new Set(hidden.map(lower));
   const found = new Map<string, CertMention>();
   for (const job of jobs) {
     for (const name of certificationsIn(`${job.title}\n${job.text}`)) {
       const key = lower(name);
       // Already on the candidate's profile: not something to skill up for.
-      if (mine.some((h) => h === key || key.includes(h) || h.includes(key.split(" (")[0]))) continue;
-      const entry = found.get(key) ?? { name, jobs: 0, examples: [] };
+      if (unwanted.has(key) || mine.some((h) => h === key || key.includes(h) || h.includes(key.split(" (")[0]))) continue;
+      const entry = found.get(key) ?? { name, jobs: 0, strong: 0, examples: [] };
       entry.jobs++;
+      if (job.strong) entry.strong++;
       if (entry.examples.length < 3) entry.examples.push({ id: job.id, title: job.title, company: job.company, skills: job.skills });
       found.set(key, entry);
     }
