@@ -1,28 +1,21 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Award, ChevronDown, ExternalLink, GraduationCap, Plus, Sparkles, X } from "lucide-react";
+import { Award, ChevronDown, GraduationCap, Plus, Sparkles, X } from "lucide-react";
 import { confidence, type Confidence, type ConfidenceLevel } from "@/domain/skills/confidence";
-import { useCareerStore } from "@/store/career";
+import { useCareerStore, type SavedSkill } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { skillGaps, type GapJob } from "@/domain/skills/gap";
 import { certificationsAsked, type CertJob } from "@/domain/skills/certifications";
-import { LEARN_PLATFORMS, searchTerm } from "@/domain/skills/learn";
+import { searchTerm } from "@/domain/skills/learn";
 import { GENERIC_SKILLS, mentions } from "@/services/jobs/matching";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
+import { Resources, type LearnItem } from "@/components/skillup/Resources";
+import { SavedSkills, SaveButton } from "@/components/skillup/SavedSkills";
 import { cn } from "@/lib/cn";
 
-/** What Microsoft Learn's public catalog has (`/api/skill-up/learn`). */
-interface LearnItem {
-  kind: "certification" | "learning path";
-  title: string;
-  url: string;
-  summary: string;
-  minutes?: number;
-  level?: string;
-}
 interface Learn {
   available: boolean;
   skills: Record<string, LearnItem[]>;
@@ -30,6 +23,7 @@ interface Learn {
 }
 
 const NONE: string[] = [];
+const NO_SAVED: SavedSkill[] = [];
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
 /**
@@ -60,6 +54,8 @@ export default function SkillUpPage() {
 
   const haveNames = useMemo(() => skills.map((s) => s.name), [skills]);
   const hidden = useCareerStore((s) => s.skillUpHidden ?? NONE);
+  const saved = useCareerStore((s) => s.skillUpSaved ?? NO_SAVED);
+  const isSaved = (name: string) => saved.some((x) => x.name.toLowerCase() === name.toLowerCase());
   // Skills a posting names in its text count as well as its tags, by the same whole-word rule matching uses.
   const report = useMemo(() => skillGaps(haveNames, fitting, { mentions, generic: GENERIC_SKILLS, goals, hidden }), [haveNames, fitting, goals, hidden]);
   const certNames = useMemo(() => (held ?? []).map((c) => c.name), [held]);
@@ -69,11 +65,9 @@ export default function SkillUpPage() {
 
   // Microsoft Learn, asked once for everything on screen — specific skills only: "Risk" or "Agile" match too much to mean anything.
   const [learn, setLearn] = useState<Learn | null>(null);
-  const skillKey = report.gaps
-    .filter((g) => !g.generic)
-    .map((g) => g.skill)
-    .join("|");
-  const certKey = certs.map((c) => c.name).join("|");
+  // Saved skills are asked too, so My Saved Skills can show where to learn them.
+  const skillKey = [...new Set([...report.gaps.filter((g) => !g.generic).map((g) => g.skill), ...saved.filter((x) => x.kind === "skill").map((x) => x.name)])].join("|");
+  const certKey = [...new Set([...certs.map((c) => c.name), ...saved.filter((x) => x.kind === "certification").map((x) => x.name)])].join("|");
   useEffect(() => {
     if (!skillKey && !certKey) return;
     let off = false;
@@ -102,6 +96,11 @@ export default function SkillUpPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Skill Up" description="What the jobs that fit you ask for, and where to learn it." />
+      {saved.length > 0 && (
+        <div className="mb-6">
+          <SavedSkills items={saved} learn={learn} />
+        </div>
+      )}
       {!skills.length ? (
         <EmptyState icon={<GraduationCap className="size-5" aria-hidden />} title="Add your skills first" body="Skill Up compares what your jobs ask for with the skills in your Career Profile." action={{ label: "Open Career Profile", href: "/app/career-dna" }} />
       ) : !fitting.length ? (
@@ -140,10 +139,11 @@ export default function SkillUpPage() {
             ) : (
               <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
                 {rankedGaps.map(({ g, c }) => (
-                  <Row key={g.skill} title={g.skill} count={g.jobs} of={report.considered} note={[g.strong ? `${g.strong} strong` : "", g.goal ? "your growth area" : ""].filter(Boolean).join(" · ")} confidence={c}>
+                  <Row key={g.skill} title={g.skill} count={g.jobs} of={report.considered} note={[g.strong ? `${g.strong} strong` : "", g.goal ? "your growth area" : "", isSaved(g.skill) ? "saved" : ""].filter(Boolean).join(" · ")} confidence={c}>
                     <AskedBy jobs={g.examples} more={g.jobs - g.examples.length} />
                     <Resources term={g.skill} items={learn?.skills[g.skill] ?? []} />
                     <div className="mt-3 flex flex-wrap gap-x-4">
+                      <SaveButton name={g.skill} kind="skill" saved={isSaved(g.skill)} />
                       <button type="button" onClick={() => addSkill(g.skill)} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
                         <Plus className="size-4" aria-hidden /> I already have this
                       </button>
@@ -164,10 +164,11 @@ export default function SkillUpPage() {
                 {certs.map((c) => {
                   const official = learn?.certs[c.name];
                   return (
-                    <Row key={c.name} title={c.name} count={c.jobs} of={report.considered} note={c.strong ? `${c.strong} strong` : ""} icon={<Award className="size-3.5 text-brand-600" aria-hidden />} confidence={confidence({ jobs: c.jobs, strong: c.strong, plain: c.jobs }, report.considered)}>
+                    <Row key={c.name} title={c.name} count={c.jobs} of={report.considered} note={[c.strong ? `${c.strong} strong` : "", isSaved(c.name) ? "saved" : ""].filter(Boolean).join(" · ")} icon={<Award className="size-3.5 text-brand-600" aria-hidden />} confidence={confidence({ jobs: c.jobs, strong: c.strong, plain: c.jobs }, report.considered)}>
                       <AskedBy jobs={c.examples} more={c.jobs - c.examples.length} />
                       <Resources term={searchTerm(c.name)} items={official ? [official] : []} />
-                      <div className="mt-3">
+                      <div className="mt-3 flex flex-wrap gap-x-4">
+                        <SaveButton name={c.name} kind="certification" saved={isSaved(c.name)} />
                         <RemoveButton name={c.name} onRemove={remove} />
                       </div>
                     </Row>
@@ -270,43 +271,6 @@ function AskedBy({ jobs, more }: { jobs: GapJob[]; more: number }) {
         ))}
       </ul>
       {more > 0 && <p className="text-[12px] text-ink-4">and {plural(more, "other job")}</p>}
-    </div>
-  );
-}
-
-/** Where to learn it: Microsoft Learn's own entries when it has them, then each platform's search for the term. */
-function Resources({ term, items }: { term: string; items: LearnItem[] }) {
-  return (
-    <div className="mt-3">
-      {items.length > 0 && (
-        <>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">From Microsoft Learn</h3>
-          <ul className="mt-1.5 flex flex-col gap-1.5">
-            {items.map((i) => (
-              <li key={i.url}>
-                <a href={i.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 rounded-[12px] bg-surface-2 px-3 py-2 hover:bg-bg-soft">
-                  <span className="min-w-0 flex-1">
-                    <span className="line-clamp-2 text-[13px] font-medium text-ink">{i.title}</span>
-                    <span className="text-[11px] text-ink-3">{[i.kind === "certification" ? "Certification" : "Learning path", i.level, i.minutes ? `${Math.round(i.minutes / 60) || 1} h` : ""].filter(Boolean).join(" · ")}</span>
-                  </span>
-                  <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-ink-4" aria-hidden />
-                </a>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <h3 className={cn("text-[11px] font-semibold uppercase tracking-wide text-ink-4", items.length > 0 && "mt-3")}>Find courses</h3>
-      {/* One row that scrolls sideways on a phone, rather than three lines of chips. */}
-      <ul className="-mx-4 mt-1.5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-        {LEARN_PLATFORMS.map((p) => (
-          <li key={p.id} className="shrink-0">
-            <a href={p.href(term)} target="_blank" rel="noopener noreferrer" aria-label={`Search ${p.name} for ${term}`} className="inline-flex h-8 items-center gap-1 rounded-full border border-line bg-surface px-3 text-[12px] font-medium text-ink-2 hover:border-line-strong hover:bg-surface-2">
-              {p.name} <ExternalLink className="size-3" aria-hidden />
-            </a>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

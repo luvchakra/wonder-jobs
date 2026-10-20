@@ -12,6 +12,16 @@ import type { BaseResumeRef } from "@/domain/resume/files";
 import { MAX_ROLES, withoutResume, type CareerRole, type RoleInput } from "@/domain/career/roles";
 import type { MemoryKey, RememberedAnswer } from "@/domain/jobs-apply/types";
 
+export interface SavedSkill {
+  name: string;
+  kind: "skill" | "certification";
+  level: 0 | 1 | 2 | 3 | 4;
+  savedAt: string;
+  updatedAt: string;
+}
+
+const sameSkill = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
 interface CareerState {
   dna: CareerDNA;
   onboarded: boolean;
@@ -80,6 +90,12 @@ interface CareerState {
   skillUpHidden: string[];
   hideSkillUp: (name: string) => void;
   restoreSkillUp: (name?: string) => void;
+  /** Skills and certifications the candidate saved to learn, with how far they say they've got (My Saved Skills). */
+  skillUpSaved: SavedSkill[];
+  saveSkillUp: (name: string, kind: SavedSkill["kind"]) => void;
+  unsaveSkillUp: (name: string) => void;
+  /** The candidate's own rating of their progress, 0 (not started) to 4. */
+  setSkillUpLevel: (name: string, level: SavedSkill["level"]) => void;
 }
 
 /** Every learned signal, recomputed from the full history; confirmed ones stay confirmed, dismissed ones stay gone. */
@@ -107,6 +123,16 @@ export const useCareerStore = create<CareerState>()(
           const hidden = s.skillUpHidden ?? [];
           return key && !hidden.includes(key) ? { skillUpHidden: [...hidden, key].slice(-200) } : {};
         }),
+      skillUpSaved: [],
+      saveSkillUp: (name, kind) =>
+        set((s) => {
+          const saved = s.skillUpSaved ?? [];
+          if (!name.trim() || saved.some((x) => sameSkill(x.name, name))) return {};
+          const now = new Date().toISOString();
+          return { skillUpSaved: [...saved, { name: name.trim(), kind, level: 0 as const, savedAt: now, updatedAt: now }].slice(-50) };
+        }),
+      unsaveSkillUp: (name) => set((s) => ({ skillUpSaved: (s.skillUpSaved ?? []).filter((x) => !sameSkill(x.name, name)) })),
+      setSkillUpLevel: (name, level) => set((s) => ({ skillUpSaved: (s.skillUpSaved ?? []).map((x) => (sameSkill(x.name, name) ? { ...x, level, updatedAt: new Date().toISOString() } : x)) })),
       restoreSkillUp: (name) => set((s) => ({ skillUpHidden: name ? (s.skillUpHidden ?? []).filter((k) => k !== name.trim().toLowerCase()) : [] })),
       markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
       rejectionHistory: [],
