@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, FileText, GraduationCap, History, Sparkles } from "lucide-react";
+import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Sparkles } from "lucide-react";
 import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { useAuthStore } from "@/store/auth";
@@ -44,6 +44,7 @@ export default function YouPage() {
 
   const rows = [
     { href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
+    { href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
     { href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
     { href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },

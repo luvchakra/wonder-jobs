@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -109,6 +109,8 @@ export function TopBar() {
               { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
             ]
           : []),
+        // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
+        { href: "/app/hiring", label: "Hiring", icon: Building2 },
         ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
         // The sidebar's Analytics, for phones (no sidebar there).
         { href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },

@@ -21,7 +21,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/app/jobs", label: "Find", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
   { href: "/app/saved", label: "Saved", icon: Bookmark },
   { href: "/app/applications", label: "Pipeline", icon: LayoutList, match: under("/app/applications", "/app/dashboard", "/app/calendar", "/app/insights", "/app/interview-prep") },
-  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/career-dna", "/app/skill-up", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile")(p) },
+  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/career-dna", "/app/skill-up", "/app/recruiters", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile")(p) },
 ];
 
 /** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
@@ -43,6 +43,8 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
       // Getting better at what the jobs ask for: skill gaps from the candidate's own matches, and where to learn them.
       { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap },
+      // Whether companies can find and message them, and those conversations.
+      { href: "/app/recruiters", label: "Recruiters", icon: MessagesSquare },
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
       { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
