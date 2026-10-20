@@ -23,6 +23,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { MatchBadge } from "@/components/jobs/MatchBadge";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
 import { companyColor } from "@/components/jobs/JobCard";
+import { ShareJobButton } from "@/components/jobs/ShareJobButton";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
@@ -119,9 +120,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         back={{ href: "/app/jobs", label: "Jobs" }}
         title={job.title}
         actions={
-          <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsave(job.id) : save(job.id))}>
-            {saved ? "Saved" : "Save"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ShareJobButton job={job} className="size-10 border border-line bg-surface text-ink-2" />
+            <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsave(job.id) : save(job.id))}>
+              {saved ? "Saved" : "Save"}
+            </Button>
+          </div>
         }
       />
       {closed && (
