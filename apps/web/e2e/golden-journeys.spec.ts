@@ -279,9 +279,11 @@ test.describe("Golden journey — manual intervention (demo mode)", () => {
 
     await card.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(card.getByRole("heading", { name: "Wonder is paused" })).toHaveCount(0);
-    // Continuing picks up where it left off — no step that was done goes back to not done.
+    // Continuing picks up where it left off — no step that was done goes back to not done. A fast
+    // machine can finish the rest before this looks; the step list then gives way to the outcome.
     await expect(async () => {
-      expect(await card.locator("li", { hasText: "— done" }).count()).toBeGreaterThanOrEqual(doneWhilePaused);
+      const finished = await page.getByText("Your search is ready").count();
+      if (!finished) expect(await card.locator("li", { hasText: "— done" }).count()).toBeGreaterThanOrEqual(doneWhilePaused);
     }).toPass({ timeout: 5_000 });
   });
 });

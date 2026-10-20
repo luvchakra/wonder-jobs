@@ -496,7 +496,40 @@ const themuse: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
+/* ---------- WonderJobs employers ---------- */
+/**
+ * Jobs companies post in their WonderJobs hiring workspace (owner, 2026-10-20). Only open listings, each with the
+ * company that posted it; a company WonderJobs hasn't checked yet says so in the posting.
+ */
+const employers: SourceFetcher = {
+  id: "employers",
+  available: () => true,
+  async fetch(c) {
+    const { openJobs } = await import("../hiring");
+    const list = await openJobs(300);
+    const raws: RawPosting[] = list.map(({ job, org }) => ({
+      externalId: job.id,
+      title: job.title,
+      company: org.name,
+      companyDomain: org.website ? new URL(org.website).hostname.replace(/^www\./, "") : undefined,
+      location: job.location,
+      remote: job.workMode === "remote",
+      description: `${org.verified ? "" : `Posted on WonderJobs by ${org.name} — an employer WonderJobs hasn't verified yet.\n\n`}${job.description}`,
+      tags: job.skills,
+      postedAt: job.updatedAt,
+      applyUrl: job.applyUrl,
+      salaryMin: job.salaryMin ?? null,
+      salaryMax: job.salaryMax ?? null,
+      currency: job.currency,
+      employerSite: true,
+      applyPath: job.applyUrl.startsWith("mailto:") ? "email" : "employer_site",
+      jobType: job.jobType ?? null,
+    }));
+    return finish("employers", raws, c);
+  },
+};
+
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,
