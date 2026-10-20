@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Bookmark, CheckCircle2, Clock, ExternalLink, Lock, MapPin, Wallet } from "lucide-react";
+import { Bookmark, CheckCircle2, Clock, ExternalLink, Lock, MapPin, Search, Wallet } from "lucide-react";
 import { WORK_MODE_LABEL, type CanonicalJob } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
@@ -22,18 +22,18 @@ export type SharedJob = Pick<CanonicalJob, "id" | "title" | "company" | "company
  * fits you — asks first to create one or sign in, and brings the person back to this job in the app.
  */
 export function SharedJobView({ job, applyUrl }: { job: SharedJob; applyUrl: string | null }) {
-  const [ask, setAsk] = useState<string | null>(null);
+  const [ask, setAsk] = useState<{ reason: string; next: string } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   const type = jobTypeOf(job);
   const description = looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
   const longDescription = description.length > 280 || description.split("\n").length > 6;
   const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
-  // After signing in or up the person lands on this job inside the app; a new account sets up its Career Profile first.
+  // After signing in or up the person lands where they were headed inside the app — by default this job; a new account sets up its Career Profile first.
   const inApp = `/app/jobs/${encodeURIComponent(job.id)}`;
-  const signIn = `/sign-in?next=${encodeURIComponent(inApp)}`;
-  const signUp = `/sign-up?next=${encodeURIComponent(`/onboarding?next=${inApp}`)}`;
-  const needAccount = (reason: string) => () => setAsk(reason);
+  const needAccount = (reason: string, next = inApp) => () => setAsk({ reason, next });
+  const signIn = `/sign-in?next=${encodeURIComponent(ask?.next ?? inApp)}`;
+  const signUp = `/sign-up?next=${encodeURIComponent(`/onboarding?next=${encodeURIComponent(ask?.next ?? inApp)}`)}`;
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-4 flex items-start justify-between gap-3 md:mb-6 md:items-end">
@@ -79,6 +79,9 @@ export function SharedJobView({ job, applyUrl }: { job: SharedJob; applyUrl: str
             <Button size="lg" full onClick={needAccount("apply with Wonder")}>
               Apply with Wonder
             </Button>
+            <button type="button" onClick={needAccount("see similar jobs", `/app/jobs?search=${encodeURIComponent(job.title)}`)} className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
+              View similar jobs <Search className="size-3.5" aria-hidden />
+            </button>
             {applyUrl && (
               <a href={applyUrl} target="_blank" rel="nofollow noopener noreferrer" className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
                 View original posting <ExternalLink className="size-3.5" aria-hidden />
@@ -152,7 +155,7 @@ export function SharedJobView({ job, applyUrl }: { job: SharedJob; applyUrl: str
         open={ask !== null}
         onClose={() => setAsk(null)}
         title="Create an account to continue"
-        description={`It's free, and takes a minute. You need an account to ${ask ?? "do this"}.`}
+        description={`It's free, and takes a minute. You need an account to ${ask?.reason ?? "do this"}.`}
         size="sm"
         footer={
           <div className="flex w-full flex-col gap-2">
@@ -165,7 +168,7 @@ export function SharedJobView({ job, applyUrl }: { job: SharedJob; applyUrl: str
           </div>
         }
       >
-        <p className="text-[13px] text-ink-3">After that you&apos;ll be back on this job, ready to {ask ?? "go on"}.</p>
+        <p className="text-[13px] text-ink-3">After that you&apos;ll be right back in WonderJobs, ready to {ask?.reason ?? "go on"}.</p>
       </Modal>
     </div>
   );
