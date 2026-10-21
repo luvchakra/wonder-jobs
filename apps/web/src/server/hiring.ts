@@ -9,6 +9,7 @@
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
 import { randomUUID } from "node:crypto";
+import { jobProblem, normalizeApplyUrl } from "@/domain/org/jobs";
 import type { Session } from "./auth";
 import { table } from "./db/table";
 import { touchTenant } from "./supabase";
@@ -187,12 +188,8 @@ export interface JobInput {
 }
 
 function checkJob(i: JobInput) {
-  if (i.title.trim().length < 3) throw new HiringError("Give the job a title.");
-  if (!i.location.trim()) throw new HiringError("Say where the job is (or Remote).");
-  if (i.description.trim().length < 40) throw new HiringError("Describe the job in a few sentences (40 characters or more).");
-  const apply = i.applyUrl.trim();
-  if (!/^https?:\/\/\S+\.\S+/i.test(apply) && !/^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(apply)) throw new HiringError("Where to apply should be a web address (https://…) or mailto:someone@company.com.");
-  if (i.salaryMin != null && i.salaryMax != null && i.salaryMin > i.salaryMax) throw new HiringError("The lowest salary is above the highest.");
+  const problem = jobProblem(i);
+  if (problem) throw new HiringError(problem);
 }
 
 export async function listOrgJobs(s: Session, orgId: string): Promise<EmployerJob[]> {
@@ -213,7 +210,7 @@ export async function saveJob(s: Session, orgId: string, input: JobInput, jobId?
     currency: (input.currency ?? "INR").slice(0, 3).toUpperCase(),
     description: input.description.trim().slice(0, 8000),
     skills: (input.skills ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 25),
-    apply_url: input.applyUrl.trim(),
+    apply_url: normalizeApplyUrl(input.applyUrl),
     updated_at: now(),
   };
   if (jobId) {
@@ -377,12 +374,13 @@ async function access(s: Session, conversationId: string, prefer: "org" | "candi
   return { c, side: "org" as const, member: m };
 }
 
-export async function conversationMessages(s: Session, conversationId: string, prefer?: "org" | "candidate"): Promise<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean }> {
+export async function conversationMessages(s: Session, conversationId: string, prefer?: "org" | "candidate"): Promise<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean; candidateOpen: boolean }> {
   const { c, side, member } = await access(s, conversationId, prefer);
   const list = (await messages().find({ conversation_id: c.id }, { order: "created_at" })).map(toMessage);
   const [view] = await views([c]);
-  const canSend = side === "candidate" ? c.status !== "blocked" : !!member && can(member.role, "messages.send") && c.status === "open";
-  return { conversation: view, messages: list, side, canSend };
+  const candidateOpen = !!(await talent().one({ tenant_id: c.candidate_tenant }));
+  const canSend = side === "candidate" ? c.status !== "blocked" : !!member && can(member.role, "messages.send") && c.status === "open" && candidateOpen;
+  return { conversation: view, messages: list, side, canSend, candidateOpen };
 }
 
 /** A recruiter's first message: only to someone open to recruiters, never after they declined or blocked this company. */
@@ -407,6 +405,8 @@ export async function sendMessage(s: Session, conversationId: string, text: stri
   if (side === "org") {
     if (!member || !can(member.role, "messages.send")) throw new HiringError("Your role in this workspace can't send messages.", 403);
     if (c.status !== "open") throw new HiringError(c.status === "blocked" ? "This candidate blocked messages from your company." : "This candidate declined this conversation.", 409);
+    // A company writes only while the candidate is still open to recruiters, in a new thread or an old one.
+    if (!(await talent().one({ tenant_id: c.candidate_tenant }))) throw new HiringError("This candidate is no longer open to recruiters.", 409);
   } else if (c.status === "blocked") {
     throw new HiringError("Unblock this company to write to them.", 409);
   }

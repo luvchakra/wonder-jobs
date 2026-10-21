@@ -9,6 +9,7 @@ import { Badge } from "@/components/common/Badge";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
+import { jobProblem, MIN_DESCRIPTION } from "@/domain/org/jobs";
 
 const STATUS_TONE = { draft: "neutral", open: "success", closed: "warning" } as const;
 const STATUS_LABEL = { draft: "Draft", open: "Open", closed: "Closed" } as const;
@@ -86,9 +87,16 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
   const [j, setJ] = useState<JobInput>(initial);
   const [skills, setSkills] = useState((initial.skills ?? []).join(", "));
   const [busy, setBusy] = useState(false);
-  const set = (p: Partial<JobInput>) => setJ((x) => ({ ...x, ...p }));
+  // Shown in the form itself: a toast would sit behind the dialog, where no one sees it.
+  const [error, setError] = useState<string | null>(null);
+  const set = (p: Partial<JobInput>) => {
+    setJ((x) => ({ ...x, ...p }));
+    setError(null);
+  };
   const num = (v: string) => (v.trim() ? Math.max(0, Math.round(Number(v.replace(/[^0-9.]/g, "")))) : undefined);
   const save = async () => {
+    const problem = jobProblem(j);
+    if (problem) return setError(problem);
     setBusy(true);
     const job = { ...j, skills: skills.split(",").map((s) => s.trim()).filter(Boolean) };
     try {
@@ -98,7 +106,7 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
       onSaved();
       onClose();
     } catch (e) {
-      toast.error("Couldn't save the job", (e as Error).message);
+      setError((e as Error).message || "Couldn't save the job. Try again.");
     } finally {
       setBusy(false);
     }
@@ -110,7 +118,12 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
       title={id ? "Edit job" : "Post a job"}
       size="lg"
       footer={
-        <div className="flex w-full justify-end gap-2">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {error && (
+            <p role="alert" className="mr-auto basis-full text-[13px] text-danger-600 sm:basis-auto">
+              {error}
+            </p>
+          )}
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
@@ -150,13 +163,13 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
             <Input inputMode="numeric" value={j.salaryMax ?? ""} onChange={(e) => set({ salaryMax: num(e.target.value) })} placeholder="To" aria-label="Salary to" />
           </div>
         </Field>
-        <Field label="Description" htmlFor="jd" required className="sm:col-span-2" hint="What the role is, the team, and what you're looking for.">
+        <Field label="Description" htmlFor="jd" required className="sm:col-span-2" hint={j.description.trim().length < MIN_DESCRIPTION ? `What the role is, the team, and who you're looking for (at least ${MIN_DESCRIPTION} characters).` : "What the role is, the team, and who you're looking for."}>
           <Textarea id="jd" rows={6} value={j.description} onChange={(e) => set({ description: e.target.value })} maxLength={8000} />
         </Field>
         <Field label="Skills" htmlFor="jsk" className="sm:col-span-2" hint="Separate with commas — candidates are matched on these.">
           <Input id="jsk" value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Kubernetes, Go, Terraform" />
         </Field>
-        <Field label="Where to apply" htmlFor="ja" required className="sm:col-span-2" hint="Your careers page (https://…) or mailto:jobs@company.com">
+        <Field label="Where to apply" htmlFor="ja" required className="sm:col-span-2" hint="Your careers page or an email address, e.g. jobs@company.com">
           <Input id="ja" value={j.applyUrl} onChange={(e) => set({ applyUrl: e.target.value })} maxLength={500} placeholder="https://company.com/careers/platform-engineer" />
         </Field>
       </div>

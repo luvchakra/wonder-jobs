@@ -53,7 +53,7 @@ export const hiringApi = {
   startConversation: (org: string, candidate: string, body: string, jobId?: string) => call<{ id: string }>(`${o(org)}/conversations`, { method: "POST", json: { candidate, body, jobId } }),
   // The job seeker's side, and threads either side reads.
   myConversations: () => call<{ conversations: ConversationView[] }>("/api/conversations"),
-  thread: (id: string, as: "org" | "candidate" = "candidate") => call<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean }>(`/api/conversations/${encodeURIComponent(id)}?as=${as}`),
+  thread: (id: string, as: "org" | "candidate" = "candidate") => call<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean; candidateOpen: boolean }>(`/api/conversations/${encodeURIComponent(id)}?as=${as}`),
   send: (id: string, body: string, as: "org" | "candidate" = "candidate") => call<Message>(`/api/conversations/${encodeURIComponent(id)}?as=${as}`, { method: "POST", json: { body } }),
   setConversationStatus: (id: string, status: Conversation["status"]) => call(`/api/conversations/${encodeURIComponent(id)}`, { method: "PATCH", json: { status } }),
   myProfile: () => call<{ profile: TalentProfile | null }>("/api/talent/me"),

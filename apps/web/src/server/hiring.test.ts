@@ -102,7 +102,7 @@ describe("jobs", () => {
   it("checks what a posting needs", async () => {
     const orgId = await workspace();
     await expect(H.saveJob(hm, orgId, { ...job, description: "short" })).rejects.toThrow(/Describe the job/);
-    await expect(H.saveJob(hm, orgId, { ...job, applyUrl: "javascript:alert(1)" })).rejects.toThrow(/Where to apply/);
+    await expect(H.saveJob(hm, orgId, { ...job, applyUrl: "javascript:alert(1)" })).rejects.toThrow(/where to apply/);
     await expect(H.saveJob(hm, orgId, { ...job, salaryMin: 10, salaryMax: 5 })).rejects.toThrow(/lowest salary/);
   });
 });
