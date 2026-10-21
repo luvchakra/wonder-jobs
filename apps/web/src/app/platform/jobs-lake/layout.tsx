@@ -1,19 +1,8 @@
 import type { Metadata } from "next";
-import { PRIVATE_PAGE } from "@/lib/robots";
-import { notFound } from "next/navigation";
-import { currentAdmin } from "@/server/jobslake/access";
-import { JobsLakeShell } from "@/components/jobslake/Shell";
 
-export const metadata: Metadata = { title: "JobsLake", ...PRIVATE_PAGE };
-export const dynamic = "force-dynamic";
+// The admin gate and the shell are the platform layout's (app/platform/layout.tsx).
+export const metadata: Metadata = { title: "JobsLake" };
 
-/**
- * The JobsLake admin portal. Anyone who isn't a platform admin — signed out, a candidate, or with the
- * admin flag off — gets a 404, so the portal's existence isn't advertised. The admin API enforces
- * the same rule on every request; this gate is for the pages.
- */
-export default async function JobsLakeLayout({ children }: { children: React.ReactNode }) {
-  const admin = await currentAdmin();
-  if (!admin) notFound();
-  return <JobsLakeShell actor={admin.actor}>{children}</JobsLakeShell>;
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children;
 }
