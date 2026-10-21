@@ -49,6 +49,21 @@ describe("roles and permissions", () => {
 });
 
 describe("workspaces", () => {
+  it("lets one person own several workspaces, each with its own jobs and team", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme" });
+    const b = await H.createWorkspace(owner, { name: "Beta Labs" });
+    expect((await H.myWorkspaces(owner)).workspaces.map((w) => [w.org.name, w.role])).toEqual([
+      ["Acme", "owner"],
+      ["Beta Labs", "owner"],
+    ]);
+    await H.saveJob(owner, a.org.id, job);
+    expect(await H.listOrgJobs(owner, b.org.id)).toEqual([]);
+    const inv = await H.inviteMember(owner, b.org.id, "rec@acme.com", "recruiter");
+    await H.acceptInvite(rec, inv.id);
+    expect((await H.myWorkspaces(rec)).workspaces.map((w) => w.org.name)).toEqual(["Beta Labs"]);
+    await expect(H.listOrgJobs(rec, a.org.id)).rejects.toMatchObject({ status: 403 });
+  });
+
   it("makes the creator the owner and lets invited people join only with the invited email", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     const inv = await H.inviteMember(owner, org.id, "rec@acme.com", "recruiter");
