@@ -23,7 +23,7 @@ import { WorkspaceSettings } from "@/components/hiring/WorkspaceSettings";
 import { VerifyCompany } from "@/components/hiring/VerifyCompany";
 import { WorkspacesTable } from "@/components/hiring/WorkspacesTable";
 import { DeleteWorkspace } from "@/components/hiring/DeleteWorkspace";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Organization } from "@/domain/org/types";
 
 type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team";
@@ -155,21 +155,17 @@ function HiringPage() {
       <PageHeader
         title={ws.org.name}
         description={`Hiring workspace · you're ${ORG_ROLE_LABEL[r] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[r]}`}`}
+        back={{ href: "/app/hiring", label: "All workspaces" }}
         actions={
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => router.push("/app/hiring")} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
-              <ArrowLeft className="size-4" aria-hidden /> All workspaces
-            </button>
-            {data.workspaces.length > 1 && (
-              <Select value={ws.org.id} onChange={(e) => switchTo(e.target.value)} aria-label="Workspace" className="w-44">
-                {data.workspaces.map((w) => (
-                  <option key={w.org.id} value={w.org.id}>
-                    {w.org.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </div>
+          data.workspaces.length > 1 && (
+            <Select value={ws.org.id} onChange={(e) => switchTo(e.target.value)} aria-label="Workspace" className="w-40 sm:w-44">
+              {data.workspaces.map((w) => (
+                <option key={w.org.id} value={w.org.id}>
+                  {w.org.name}
+                </option>
+              ))}
+            </Select>
+          )
         }
       />
       {dialogs}
