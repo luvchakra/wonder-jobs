@@ -97,7 +97,9 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(page.getByText(account.email)).toHaveCount(0);
     await page.locator("#pitch").fill("Looking for platform roles.");
     await page.getByRole("button", { name: "Turn on" }).click();
-    await expect(page.getByText("Open to recruiters").first()).toBeVisible();
+    // Saved once the button changes: the page shows "on" only from the server's answer.
+    await expect(page.getByRole("button", { name: "Update what recruiters see" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Open to recruiters", { exact: true })).toBeVisible();
     const { profile } = await (await page.request.get("/api/talent/me")).json();
     expect(profile).toMatchObject({ displayName: "Sam T.", headline: `SRE ${token} Kubernetes`, summary: "Looking for platform roles." });
     expect(JSON.stringify(profile)).not.toContain(account.email);
@@ -289,8 +291,23 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
   test("HIRE-009 the open job shows up in a job seeker's Find search under the company's name", async ({}, info) => {
     info.skip(!REAL, "Needs live job sources: a local build without Supabase searches sample data");
     const page = people.seeker!.page;
+    // The source itself: a search of WonderJobs employers alone returns the job with its company.
+    const res = await page.request.post("/api/jobs-lake/v1/search", { data: { query: { text: JOB_TITLE, locations: [] }, sourceIds: ["employers"], searchMode: "fast", limit: 20 } });
+    expect(res.status()).toBe(200);
+    const { results } = (await res.json()) as { results: { title: string; company: { name: string } | string }[] };
+    const hit = results.find((r) => r.title === JOB_TITLE);
+    expect(hit, JSON.stringify(results.map((r) => r.title))).toBeTruthy();
+    expect(JSON.stringify(hit)).toContain(COMPANY);
+    // And in Find, among every source's results once the search has finished.
     await page.goto(`/app/jobs?search=${encodeURIComponent(JOB_TITLE)}`);
-    await expect(page.getByText(JOB_TITLE).first()).toBeVisible({ timeout: 180_000 });
+    await expect(page.getByText("Searching job sources")).toHaveCount(0, { timeout: 240_000 });
+    const card = page.getByText(JOB_TITLE, { exact: true });
+    for (let i = 0; i < 20 && !(await card.count()); i++) {
+      const more = page.getByRole("button", { name: /Show more/ });
+      if (!(await more.count())) break;
+      await more.click();
+    }
+    await expect(card.first()).toBeVisible();
     await expect(page.getByText(COMPANY).first()).toBeVisible();
   });
 

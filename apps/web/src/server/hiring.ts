@@ -260,8 +260,8 @@ export async function saveMyTalentProfile(s: Session, p: Omit<TalentProfile, "te
     summary: p.summary.slice(0, 600),
     updated_at: now(),
   };
-  await talent().remove({ tenant_id: s.tenantId });
-  await talent().insert(row);
+  // One write, so recruiters never see the profile missing between a delete and an insert.
+  await talent().upsert(row, ["tenant_id"]);
   return toTalent(row);
 }
 
