@@ -62,6 +62,8 @@ test.describe("Real account — production walk-through", () => {
     await page.locator("#name").fill(NAME);
     await page.locator("#headline").fill("Product Manager");
     await page.locator("#goal").fill("Senior product manager role in fintech");
+    // Work history lives in its own folded row.
+    await page.getByText("Work history, education and contact", { exact: true }).click();
     await page.getByRole("button", { name: "Add a role" }).click();
     await page.getByLabel("Job title").fill("Product Manager");
     await page.getByLabel("Employer").fill("Example Payments");
@@ -75,6 +77,8 @@ test.describe("Real account — production walk-through", () => {
     await page.waitForTimeout(2_000); // remote sync is debounced
     await page.reload();
     await expect(page.locator("#name")).toHaveValue(NAME, { timeout: 20_000 });
+    await expect(page.getByText(/^1 roles? —/)).toBeVisible();
+    await page.getByText("Work history, education and contact", { exact: true }).click();
     await expect(page.getByText("Example Payments").first()).toBeVisible();
 
     // Résumé Studio: eight templates drawing this account's own data; generate and download a real PDF.
@@ -83,7 +87,8 @@ test.describe("Real account — production walk-through", () => {
     const cards = page.getByRole("list", { name: "Resume templates" }).getByRole("article");
     await expect(cards).toHaveCount(8);
     await expect(cards.first().getByRole("img")).toContainText(/Riya Test Candidate/i);
-    await page.getByRole("button", { name: "Use the Technical template" }).click();
+    // The first template is in every plan (a new account is on Free, which has the first few).
+    await cards.first().getByRole("button", { name: /^Use the .+ template$/ }).click();
     await page.getByRole("button", { name: /^(Generate resume|Generate again)$/ }).click();
     await expect(page.getByText(/^Résumé ready|isn't ready yet|needs attention/).first()).toBeVisible({ timeout: 30_000 });
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download PDF" }).click()]);
@@ -102,20 +107,22 @@ test.describe("Real account — production walk-through", () => {
       await expect(card.getByRole("link", { name: /Strong opportunities|Search again/ }).first()).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 150_000 });
 
-    // Decide → Apply with Wonder on a real posting, guided (nothing is submitted).
+    // Decide → Apply with Wonder on a real posting, guided (nothing is submitted). Apply with Wonder is a paid-plan
+    // feature; pre-launch, a test account switches plans through the audited test-plan route.
+    expect((await page.request.post("/api/billing/test-plan", { data: { plan: "max" } })).status()).toBe(200);
     await page.goto("/app/jobs");
     const firstJob = page.locator("a[href^='/app/jobs/']").filter({ hasNotText: /^$/ }).first();
     await expect(firstJob).toBeVisible({ timeout: 30_000 });
     await firstJob.click();
     await page.waitForURL(/\/app\/jobs\/[^/]+$/);
-    await page.getByRole("tab", { name: "Sources & signals" }).click({ timeout: 20_000 });
+    await page.getByText("Sources & hiring signals", { exact: true }).click({ timeout: 20_000 });
     await expect(page.getByText("Where this job was found")).toBeVisible();
     await page.getByRole("link", { name: "Apply with Wonder" }).click();
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "Change for this job" }).click();
     await page.getByRole("radio", { name: /Guide me/ }).click();
     await page.getByRole("button", { name: "Start application" }).click();
-    await expect(page.getByRole("heading", { name: "Guided application" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("wj-apply-url")).toHaveAttribute("title", /^https:\/\//);
     const sessions = await (await page.request.get("/api/jobs-apply/sessions")).json();
     const mine = (sessions.sessions ?? sessions) as { id: string }[];
