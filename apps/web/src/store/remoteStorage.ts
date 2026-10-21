@@ -256,23 +256,55 @@ async function pushNow(keepalive: boolean) {
   pendingPush = new Set();
   if (!names.length || typeof fetch === "undefined" || !syncsToServer()) return;
   const docs: Record<string, unknown> = {};
+  // What this request carries, per store: only that much is on the server once it lands.
+  const sent = new Map<string, string>();
   for (const n of names) {
     const s = serialized.get(n) ?? readLocal(localKey(n));
     const v = parse(s);
-    if (v) docs[n] = v;
+    if (v && s) {
+      docs[n] = v;
+      sent.set(n, s);
+    }
   }
   if (!Object.keys(docs).length) return;
+  setSync("syncing");
+  // A page that's going away can only send a small body (browsers refuse keepalive requests over 64 KB):
+  // the small stores go with keepalive, the rest as a plain request that may not finish. Whatever doesn't
+  // land keeps its dirty mark, so the next page load pushes it and it wins over the server's older copy.
+  const batches = keepalive ? keepaliveBatches(docs, sent) : [{ docs, keepalive: false }];
+  const results = await Promise.all(batches.map((b) => putDocs(b.docs, b.keepalive, sent)));
+  setSync(results.every(Boolean) ? "synced" : "local");
+}
+
+const KEEPALIVE_MAX_BYTES = 60_000;
+
+function keepaliveBatches(docs: Record<string, unknown>, sent: Map<string, string>) {
+  const small: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = {};
+  let bytes = 0;
+  for (const n of Object.keys(docs).sort((a, b) => sent.get(a)!.length - sent.get(b)!.length)) {
+    const size = sent.get(n)!.length;
+    if (bytes + size <= KEEPALIVE_MAX_BYTES) {
+      small[n] = docs[n];
+      bytes += size;
+    } else rest[n] = docs[n];
+  }
+  return [
+    { docs: small, keepalive: true },
+    { docs: rest, keepalive: false },
+  ].filter((b) => Object.keys(b.docs).length);
+}
+
+async function putDocs(docs: Record<string, unknown>, keepalive: boolean, sent: Map<string, string>): Promise<boolean> {
   try {
-    setSync("syncing");
     const res = await fetch("/api/state", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ docs }), keepalive });
-    if (res.ok) {
-      clearDirty(Object.keys(docs));
-      setSync("synced");
-    } else {
-      setSync("local");
-    }
+    if (!res.ok) return false;
+    // A store that changed again while this request was in flight is still unsynced: its newer copy hasn't
+    // been sent, so it keeps its dirty mark (and still wins over the server's copy after a reload).
+    clearDirty(Object.keys(docs).filter((n) => (serialized.get(n) ?? readLocal(localKey(n))) === sent.get(n) && !pendingSerialize.has(n)));
+    return true;
   } catch {
-    setSync("local");
+    return false;
   }
 }
 
