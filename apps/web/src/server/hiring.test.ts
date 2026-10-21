@@ -199,4 +199,25 @@ describe("company details", () => {
     expect((await H.updateWorkspace(owner, orgId, { name: "Acme Corp" })).verified).toBe(false);
     await expect(H.updateWorkspace(rec, orgId, { name: "Mine now" })).rejects.toThrow(/can't do that/);
   });
+
+  it("only an Owner deletes a workspace, only after typing its name, and it's gone for everyone", async () => {
+    const orgId = await workspace();
+    await H.saveJob(owner, orgId, job);
+    await expect(H.deleteWorkspace(hm, orgId, "Acme")).rejects.toMatchObject({ status: 403 });
+    await expect(H.deleteWorkspace(outsider, orgId, "Acme")).rejects.toMatchObject({ status: 403 });
+    await expect(H.deleteWorkspace(owner, orgId, "acme")).rejects.toThrow(/Type the company's name/);
+    await H.deleteWorkspace(owner, orgId, " Acme ");
+    for (const s of [owner, hm, rec]) expect((await H.myWorkspaces(s)).workspaces).toEqual([]);
+    await expect(H.listOrgJobs(owner, orgId)).rejects.toMatchObject({ status: 403 });
+    expect(await H.openJobs()).toEqual([]);
+  });
+
+  it("deleting one workspace leaves the Owner's others as they are", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme" });
+    const b = await H.createWorkspace(owner, { name: "Beta Labs" });
+    await H.saveJob(owner, b.org.id, job);
+    await H.deleteWorkspace(owner, a.org.id, "Acme");
+    expect((await H.myWorkspaces(owner)).workspaces.map((w) => w.org.name)).toEqual(["Beta Labs"]);
+    expect(await H.listOrgJobs(owner, b.org.id)).toHaveLength(1);
+  });
 });

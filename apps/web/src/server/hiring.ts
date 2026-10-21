@@ -124,6 +124,21 @@ export async function updateWorkspace(s: Session, orgId: string, input: { name: 
   return toOrg({ ...current, ...patch });
 }
 
+/**
+ * An Owner deletes the workspace, after typing its name. Its members, invitations, jobs (and with them their
+ * career-site links and applications), shortlist and conversations go too (foreign keys cascade). Job seekers'
+ * own accounts are untouched. Can't be undone.
+ */
+export async function deleteWorkspace(s: Session, orgId: string, confirmName: string): Promise<void> {
+  await requirePermission(s, orgId, "org.manage");
+  const current = await orgs().one({ id: orgId });
+  if (!current) throw new HiringError("That workspace no longer exists.", 404);
+  if (confirmName.trim() !== current.name) throw new HiringError(`Type the company's name, ${current.name}, to delete it.`);
+  // The database cascades from hiring_orgs; removing the children by name keeps the local, in-memory store the same.
+  for (const t of [conversations(), shortlist(), jobs(), invites(), members()]) await t.remove({ org_id: orgId });
+  await orgs().remove({ id: orgId });
+}
+
 export async function listTeam(s: Session, orgId: string): Promise<{ members: Membership[]; invites: OrgInvite[] }> {
   const me = await membershipOf(s, orgId);
   if (!me) throw new HiringError("You're not in this workspace.", 403);
