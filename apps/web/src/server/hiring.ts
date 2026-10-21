@@ -9,6 +9,7 @@
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
 import { randomUUID } from "node:crypto";
+import { jobProblem, normalizeApplyUrl } from "@/domain/org/jobs";
 import type { Session } from "./auth";
 import { table } from "./db/table";
 import { touchTenant } from "./supabase";
@@ -187,12 +188,8 @@ export interface JobInput {
 }
 
 function checkJob(i: JobInput) {
-  if (i.title.trim().length < 3) throw new HiringError("Give the job a title.");
-  if (!i.location.trim()) throw new HiringError("Say where the job is (or Remote).");
-  if (i.description.trim().length < 40) throw new HiringError("Describe the job in a few sentences (40 characters or more).");
-  const apply = i.applyUrl.trim();
-  if (!/^https?:\/\/\S+\.\S+/i.test(apply) && !/^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(apply)) throw new HiringError("Where to apply should be a web address (https://…) or mailto:someone@company.com.");
-  if (i.salaryMin != null && i.salaryMax != null && i.salaryMin > i.salaryMax) throw new HiringError("The lowest salary is above the highest.");
+  const problem = jobProblem(i);
+  if (problem) throw new HiringError(problem);
 }
 
 export async function listOrgJobs(s: Session, orgId: string): Promise<EmployerJob[]> {
@@ -213,7 +210,7 @@ export async function saveJob(s: Session, orgId: string, input: JobInput, jobId?
     currency: (input.currency ?? "INR").slice(0, 3).toUpperCase(),
     description: input.description.trim().slice(0, 8000),
     skills: (input.skills ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 25),
-    apply_url: input.applyUrl.trim(),
+    apply_url: normalizeApplyUrl(input.applyUrl),
     updated_at: now(),
   };
   if (jobId) {

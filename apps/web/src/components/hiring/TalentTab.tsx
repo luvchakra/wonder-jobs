@@ -112,6 +112,8 @@ function ActDialog({ kind, who, jobs, onClose, onDone }: { kind: "shortlist" | "
   const [jobId, setJobId] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // In the dialog itself: a toast would sit behind it.
+  const [error, setError] = useState<string | null>(null);
   const message = kind === "message";
   return (
     <Modal
@@ -121,7 +123,12 @@ function ActDialog({ kind, who, jobs, onClose, onDone }: { kind: "shortlist" | "
       description={message ? "Introduce yourself and the role. They can reply, decline or block your company." : "Add a note for your hiring managers."}
       size="sm"
       footer={
-        <div className="flex w-full justify-end gap-2">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {error && (
+            <p role="alert" className="mr-auto basis-full text-[13px] text-danger-600">
+              {error}
+            </p>
+          )}
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
@@ -130,11 +137,12 @@ function ActDialog({ kind, who, jobs, onClose, onDone }: { kind: "shortlist" | "
             disabled={message && !text.trim()}
             onClick={async () => {
               setBusy(true);
+              setError(null);
               try {
                 await onDone(jobId || undefined, text);
                 onClose();
               } catch (e) {
-                toast.error(message ? "Couldn't send" : "Couldn't shortlist", (e as Error).message);
+                setError((e as Error).message || (message ? "Couldn't send. Try again." : "Couldn't shortlist. Try again."));
               } finally {
                 setBusy(false);
               }
