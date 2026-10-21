@@ -266,6 +266,12 @@ test.describe("Candidate searches through JobsLake", () => {
     account = await createTestAccount("jobslake");
     await signInThroughUI(page, account);
     await skipOnboardingIfShown(page);
+    // Find asks a brand-new account for its CV before it searches; a name and headline are enough to start.
+    await page.goto("/app/career-dna");
+    await page.locator("#name").fill("Jo Lake Tester");
+    await page.locator("#headline").fill("Product generalist");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByText("Career Profile updated")).toBeVisible();
   });
   test.afterEach(async () => {
     if (account) await deleteTestAccount(account.id);
@@ -275,9 +281,15 @@ test.describe("Candidate searches through JobsLake", () => {
   async function find(page: Page, request: string) {
     const lake = page.waitForRequest((r) => r.url().includes("/api/jobs-lake/v1/search") && r.method() === "POST");
     await page.goto(`/app/jobs?search=${encodeURIComponent(request)}`);
-    await page.waitForURL(/\/app$/, { timeout: 20_000 });
-    await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
-    await page.waitForURL(RUN_URL, { timeout: 20_000 });
+    await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
+    // The live status's Details link re-renders as results arrive and becomes the finished search's
+    // "Details — searched…" line when it ends; either opens the run. Click (never page.goto: a reload ends
+    // the search running in this page), retrying if it was swapped mid-click.
+    const details = page.locator("#main").getByRole("link", { name: /^Details/ }).first();
+    await expect(async () => {
+      await details.click({ timeout: 2_000 });
+      await page.waitForURL(RUN_URL, { timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
     return { card: page.locator("section[aria-labelledby='run-experience-title']"), lake: await lake };
   }
   async function searchEvidence(page: Page): Promise<Locator> {
@@ -295,11 +307,14 @@ test.describe("Candidate searches through JobsLake", () => {
 
   test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to JobsLake — terms and places only", async ({ page }) => {
     await page.goto("/app/jobs");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
     const { lake } = await find(page, "Product designer roles, remote");
     const body = JSON.parse(lake.postData() ?? "{}");
     expect(Object.keys(body).sort()).toEqual(["limit", "query", "searchMode", "sourceIds"]);
-    expect(Object.keys(body.query).sort()).toEqual(["locations", "text"]);
+    // Only search terms and places: the words, broader phrasings of them and job types asked for — nothing about the candidate.
+    expect(Object.keys(body.query)).toEqual(expect.arrayContaining(["locations", "text"]));
+    for (const k of Object.keys(body.query)) expect(["jobTypes", "locations", "text", "variants"]).toContain(k);
+    expect(JSON.stringify(body)).not.toContain("Jo Lake Tester");
   });
 
   test("WJ-JL-004/005/006/034 progress is real, several sources answer, duplicates are merged, and status is announced", async ({ page }) => {
@@ -318,10 +333,12 @@ test.describe("Candidate searches through JobsLake", () => {
     await toResults(card);
     await page.goto("/app/jobs");
     const first = page.getByRole("list", { name: "Job results" }).locator(":scope > li").first();
-    await first.locator("h3 a").click();
-    await page.getByRole("tab", { name: "Why it fits" }).click();
-    await expect(page.getByRole("heading", { name: "Why this job?" })).toBeVisible();
-    await page.getByRole("tab", { name: "Sources & signals" }).click();
+    await first.locator("a[href^='/app/jobs/']").first().click();
+    await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
+    // The job page's sections are folds: why it fits, and where it was found.
+    await page.getByText("Why it fits", { exact: true }).click();
+    await expect(page.getByText(/Why Wonder thinks this fits|hasn't compared this role/).first()).toBeVisible();
+    await page.getByText("Sources & hiring signals", { exact: true }).click();
     await expect(page.getByRole("heading", { name: "Where this job was found" })).toBeVisible();
     await page.getByRole("button", { name: "Not for me" }).click();
     await page.getByRole("group", { name: "Reason not for me" }).getByRole("button", { name: "Wrong industry" }).click();
@@ -337,11 +354,14 @@ test.describe("Candidate searches through JobsLake", () => {
   });
 
   test("WJ-JL-011/012 the candidate stops the search, then searches again", async ({ page }) => {
-    const { card } = await find(page, "Marketing manager roles");
+    // Words no search cache has answered yet, so the search is still running when Stop is pressed.
+    const { card } = await find(page, `Marketing manager roles ${Date.now().toString(36)}`);
     await card.getByRole("button", { name: "Stop", exact: true }).click();
     await expect(card.locator("#run-experience-title")).toHaveText("Search stopped", { timeout: 30_000 });
+    // Search again runs the same words again, on Find.
     await card.getByRole("link", { name: "Search again" }).click();
-    await expect(page).toHaveURL(/\/app\/runs\/new/);
+    await expect(page).toHaveURL(/\/app\/jobs/);
+    await expect(page.getByText(/marketing manager/i).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("WJ-JL-031/033 mobile search has no horizontal overflow; reduced motion is honoured", async ({ page }, info) => {
