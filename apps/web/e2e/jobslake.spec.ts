@@ -268,7 +268,13 @@ test.describe("Candidate searches through JobsLake", () => {
     await signInThroughUI(page, account);
     await skipOnboardingIfShown(page);
     // Find asks a brand-new account for its CV before it searches; a name and headline are enough to start.
-    await page.goto("/app/career-dna");
+    // A new account's first-run redirect to onboarding can land late, on this page instead of /app.
+    await expect(async () => {
+      await page.goto("/app/career-dna");
+      await page.waitForURL(/\/onboarding/, { timeout: 2_000 }).then(() => skipOnboardingIfShown(page), () => {});
+      await expect(page.locator("#name")).toBeVisible({ timeout: 5_000 });
+      await expect(page).toHaveURL(/\/app\/career-dna/);
+    }).toPass({ timeout: 60_000 });
     await page.locator("#name").fill("Jo Lake Tester");
     await page.locator("#headline").fill("Product generalist");
     await page.getByRole("button", { name: "Save changes" }).click();
