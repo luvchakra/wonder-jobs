@@ -516,7 +516,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
     links: [
       { label: "About", href: "/about" },
       { label: "Contact us", href: "/#contact" },
-      { label: "Careers", href: "/about#careers" },
+      { label: "Careers", href: "/careers" },
       { label: "Press", href: "/#contact" },
       { label: "Security", href: "/security" },
       { label: "Trust & compliance", href: "/#trust" },

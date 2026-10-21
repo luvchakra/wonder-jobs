@@ -466,6 +466,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Career sites name an applications email and how long applications are kept; daily deletion after that (WJ-343)
 - ✅ Careers pages hosted by WonderJobs at /careers/<short name> (WJ-344)
 - ✅ Hiring opens on a table of workspaces with Edit and Delete (WJ-345)
+- ✅ WonderJobs' own careers page at /careers, through the careers API; key set in WonderJobs Admin → Careers (WJ-346)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

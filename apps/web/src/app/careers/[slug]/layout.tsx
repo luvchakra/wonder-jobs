@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { BadgeCheck } from "lucide-react";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { hostedSite } from "@/server/careers";
+import { SLUG_PATTERN } from "@/domain/org/careers";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,10 @@ export const runtime = "nodejs";
  * integration to their own website. The company's name heads it; WonderJobs runs the applications behind it.
  */
 export default async function HostedCareersLayout({ children, params }: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
-  const site = await hostedSite((await params).slug);
+  const { slug } = await params;
+  // Not a short name (job ids carry an underscore): one of WonderJobs' own jobs, which frames itself.
+  if (!SLUG_PATTERN.test(slug)) return children;
+  const site = await hostedSite(slug);
   if (!site) notFound();
   return (
     <div className="min-h-dvh bg-bg text-ink">

@@ -220,7 +220,7 @@ describe("messages", () => {
   it("cleans the application form", () => {
     const r = cleanApplication({ ...applicant, name: "  Asha   Rao ", email: " ASHA@EXAMPLE.COM " });
     expect(r).toMatchObject({ value: { name: "Asha Rao", email: "asha@example.com" } });
-    expect(cleanApplication({ ...applicant, email: "nope" })).toEqual({ problem: "Enter a valid email address." });
+    expect(cleanApplication({ ...applicant, email: "nope" })).toEqual({ problem: "Enter a valid email address.", field: "email" });
   });
 });
 
@@ -278,6 +278,8 @@ describe("careers pages hosted by WonderJobs", () => {
     expect(site).toMatchObject({ slug: "acme", publicUrl: "http://localhost:3000/careers/acme" });
     await expect(C.createSite(owner, orgId, { ...SITE, slug: "acme", publicUrl: "" })).rejects.toMatchObject({ status: 409 });
     await expect(C.createSite(owner, orgId, { ...SITE, slug: "Not OK!", publicUrl: "" })).rejects.toThrow(/lower-case letters/);
+    // WonderJobs' own careers page uses /careers/status, so no hosted page may take it.
+    await expect(C.createSite(owner, orgId, { ...SITE, slug: "status", publicUrl: "" })).rejects.toMatchObject({ status: 409 });
     await C.revokeSite(owner, orgId, site.id);
     expect(await C.hostedSite("acme")).toBeNull();
     expect((await C.createSite(owner, orgId, { ...SITE, slug: "acme", publicUrl: "" })).site.slug).toBe("acme");

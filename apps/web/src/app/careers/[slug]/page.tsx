@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { formatSalaryRange } from "@/lib/format";
 import { hostedSite, siteJobsList } from "@/server/careers";
+import { SLUG_PATTERN } from "@/domain/org/careers";
 import { JOB_TYPE_LABEL, WORK_MODE_LABEL } from "./labels";
+import { CareerJobPage, careerJobMetadata } from "../_site/JobPage";
 
 export const runtime = "nodejs";
 export const revalidate = 60;
@@ -11,13 +13,18 @@ export const revalidate = 60;
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const site = await hostedSite((await params).slug);
+  const { slug } = await params;
+  if (!SLUG_PATTERN.test(slug)) return careerJobMetadata(decodeURIComponent(slug));
+  const site = await hostedSite(slug);
   return site ? { title: `Careers at ${site.company}`, description: `Open positions at ${site.company}. Apply online.` } : { title: "Careers" };
 }
 
 /** The company's open positions: the jobs it linked to this hosted page while they're open. */
 export default async function HostedCareersPage({ params }: Props) {
-  const site = (await hostedSite((await params).slug))!;
+  const { slug } = await params;
+  // /careers/<job id>: one of WonderJobs' own open positions, read from the careers API.
+  if (!SLUG_PATTERN.test(slug)) return <CareerJobPage id={decodeURIComponent(slug)} />;
+  const site = (await hostedSite(slug))!;
   const jobs = await siteJobsList(site);
   return (
     <>
