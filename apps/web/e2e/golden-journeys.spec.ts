@@ -327,6 +327,10 @@ test.describe("Golden journey — the phone keyboard (demo mode)", () => {
       };
     });
     await page.goto("/demo?next=/app/jobs");
+    // The shortcut works once the app is interactive: a press during hydration is lost (and pressing again
+    // would toggle it shut), so wait for the stores to hydrate and the top bar's listener to attach first.
+    await page.waitForFunction(() => performance.getEntriesByName("wj:hydrated").length > 0);
+    await expect(page.getByRole("button", { name: /Ask Wonder/ })).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
