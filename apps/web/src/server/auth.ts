@@ -36,7 +36,19 @@ async function legacySession(): Promise<Session> {
       /* cookies() is read-only in some contexts; the id is still valid for this request */
     }
   }
-  return { userId: uid, tenantId: uid };
+  return { userId: uid, tenantId: uid, ...legacyTestEmail(jar.get(LEGACY_EMAIL_COOKIE)?.value) };
+}
+
+/**
+ * Local E2E only: a no-auth browser may name an email in a cookie, so the multi-account hiring journey
+ * (invitations are accepted by email) runs on a local build without Supabase. Needs WJ_E2E_LEGACY_EMAIL=1,
+ * which only the Playwright web server sets, and is never read when real sign-in is configured.
+ */
+const LEGACY_EMAIL_COOKIE = "wj_e2e_email";
+export function legacyTestEmail(raw: string | undefined, env: Record<string, string | undefined> = process.env): { email?: string } {
+  if (env.WJ_E2E_LEGACY_EMAIL !== "1" || !raw) return {};
+  const email = decodeURIComponent(raw).trim().toLowerCase();
+  return /^wj-e2e-[a-z0-9-]+@example\.com$/.test(email) ? { email } : {};
 }
 
 /** The current session, or throws `AuthRequiredError` when nobody is signed in. */

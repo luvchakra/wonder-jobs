@@ -1,6 +1,7 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { uniqueTestEmail } from "./utils/testUser";
 
 /**
  * Employers, recruiters and job seekers, each in their own browser with their own real account (WJ-333):
@@ -8,8 +9,13 @@ import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIf
  * a job seeker turns on You → Recruiters, the Recruiter finds, shortlists, reports and messages them, the
  * Hiring manager decides, and the job seeker answers, declines, blocks and reopens. Every account is a
  * disposable wj-e2e-*@example.com user deleted afterwards (its workspace, jobs and messages go with it).
- * Without Supabase admin credentials this is BLOCKED, not faked: invitations need real signed-in emails.
+ * With Supabase admin credentials each person is a real signed-in account. Without them, on a local build this
+ * suite starts itself (WJ_E2E_LEGACY_EMAIL=1, playwright.config.ts), each browser is a separate no-auth tenant
+ * that carries a wj-e2e email cookie, so invitations by email still work; the one step that needs live job
+ * sources (HIRE-009) runs only with real accounts. Against any other server without credentials: BLOCKED.
  */
+const REAL = supabaseConfigured();
+const LEGACY = !REAL && (!process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_LEGACY_EMAIL === "1");
 
 type Person = { page: Page; account: TestAccount; close: () => Promise<void> };
 const token = `zq${randomBytes(3).toString("hex")}`; // a word no real profile or job contains
@@ -17,11 +23,23 @@ const COMPANY = `wj-e2e Hiring ${token}`;
 const JOB_TITLE = `Platform Engineer ${token}`;
 
 async function signedIn(browser: Browser, tag: string, accounts: TestAccount[]): Promise<Person> {
-  const account = await createTestAccount(tag);
-  accounts.push(account);
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await signInThroughUI(page, account);
+  let account: TestAccount;
+  if (REAL) {
+    account = await createTestAccount(tag);
+    accounts.push(account);
+    await signInThroughUI(page, account);
+  } else {
+    // Local no-auth build: a browser is its own tenant; the email cookie is read only under WJ_E2E_LEGACY_EMAIL=1.
+    account = { id: `e2e_${randomBytes(8).toString("hex")}`, email: uniqueTestEmail(tag), password: "" };
+    const url = new URL(test.info().project.use.baseURL ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3211");
+    await ctx.addCookies([
+      { name: "wj_uid", value: account.id, domain: url.hostname, path: "/" },
+      { name: "wj_e2e_email", value: encodeURIComponent(account.email), domain: url.hostname, path: "/" },
+    ]);
+    await page.goto("/app");
+  }
   await skipOnboardingIfShown(page);
   return { page, account, close: () => ctx.close() };
 }
@@ -46,7 +64,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
 
   test.beforeEach(async ({}, info) => {
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
-    info.skip(!supabaseConfigured(), "BLOCKED: invitations need real signed-in accounts (Supabase admin credentials)");
+    info.skip(!REAL && !LEGACY, "BLOCKED: invitations need signed-in emails (Supabase admin credentials, or a local build)");
   });
   test.afterAll(async () => {
     for (const p of Object.values(people)) await p?.close().catch(() => {});
@@ -58,7 +76,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await openHiring(seeker.page);
     await expect(seeker.page.getByRole("button", { name: "Create workspace" })).toBeDisabled();
     await seeker.page.goto("/app/recruiters");
-    await expect(seeker.page.getByText("Hidden from recruiters")).toBeVisible({ timeout: 20_000 });
+    await expect(seeker.page.getByText("Hidden from recruiters", { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(seeker.page.getByRole("button", { name: "Turn on" })).toBeVisible();
     // Nothing is shown to recruiters before they turn it on.
     expect((await (await seeker.page.request.get("/api/talent/me")).json()).profile).toBeNull();
@@ -141,7 +159,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
       await page.getByLabel("Email to invite").fill(who.account.email);
       await page.getByLabel("Role", { exact: true }).selectOption({ label: role });
       await page.getByRole("button", { name: "Invite" }).click();
-      await expect(page.getByText(who.account.email)).toBeVisible();
+      await expect(page.getByText(who.account.email, { exact: true })).toBeVisible();
     }
     // The job seeker wasn't invited and sees no invitation.
     await openHiring(people.seeker!.page);
@@ -238,17 +256,17 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(seeker.getByText(/is hiring a/).first()).toBeVisible({ timeout: 20_000 });
     await seeker.getByLabel("Message").fill("Yes, happy to talk this week.");
     await seeker.getByRole("button", { name: "Send" }).click();
-    await expect(seeker.getByText("Yes, happy to talk this week.")).toBeVisible();
+    await expect(seeker.getByText("Yes, happy to talk this week.", { exact: true })).toBeVisible();
 
     const openThread = async () => {
       await openHiring(recruiter, "messages");
       await recruiter.getByRole("button", { name: /Sam T\./ }).click();
     };
     await openThread();
-    await expect(recruiter.getByText("Yes, happy to talk this week.")).toBeVisible({ timeout: 20_000 });
+    await expect(recruiter.getByText("Yes, happy to talk this week.", { exact: true })).toBeVisible({ timeout: 20_000 });
     await recruiter.getByLabel("Message").fill("Great, sending times.");
     await recruiter.getByRole("button", { name: "Send" }).click();
-    await expect(recruiter.getByText("Great, sending times.")).toBeVisible();
+    await expect(recruiter.getByText("Great, sending times.", { exact: true })).toBeVisible();
 
     // Not interested: the company can't write.
     await seeker.getByRole("button", { name: "Not interested" }).click();
@@ -268,7 +286,8 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(recruiter.getByLabel("Message")).toBeVisible();
   });
 
-  test("HIRE-009 the open job shows up in a job seeker's Find search under the company's name", async () => {
+  test("HIRE-009 the open job shows up in a job seeker's Find search under the company's name", async ({}, info) => {
+    info.skip(!REAL, "Needs live job sources: a local build without Supabase searches sample data");
     const page = people.seeker!.page;
     await page.goto(`/app/jobs?search=${encodeURIComponent(JOB_TITLE)}`);
     await expect(page.getByText(JOB_TITLE).first()).toBeVisible({ timeout: 180_000 });
@@ -279,7 +298,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     const seeker = people.seeker!.page;
     await seeker.goto("/app/recruiters");
     await seeker.getByRole("button", { name: "Turn off" }).click();
-    await expect(seeker.getByText("Hidden from recruiters")).toBeVisible();
+    await expect(seeker.getByText("Hidden from recruiters", { exact: true })).toBeVisible();
 
     const recruiter = people.recruiter!.page;
     await openHiring(recruiter, "talent");
