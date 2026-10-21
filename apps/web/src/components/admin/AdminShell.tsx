@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Activity, Building2, ChevronDown, CreditCard, Database, LayoutDashboard, Menu, Send, Settings, ShieldCheck, X, type LucideIcon } from "lucide-react";
+import { Activity, Briefcase, Building2, ChevronDown, CreditCard, Database, LayoutDashboard, Menu, Send, Settings, ShieldCheck, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export interface AdminLink {
@@ -56,6 +56,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
   },
   { id: "apply", label: "Applications", icon: Send, links: [{ href: "/platform/jobs-apply", label: "JobsApply operations" }] },
   { id: "companies", label: "Companies", icon: Building2, links: [{ href: "/platform/companies", label: "Companies" }] },
+  { id: "careers", label: "Careers", icon: Briefcase, links: [{ href: "/platform/careers", label: "Careers" }] },
   {
     id: "billing",
     label: "Billing",

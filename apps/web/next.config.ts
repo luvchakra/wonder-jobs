@@ -75,7 +75,13 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 300, static: 300 },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // An applicant's status page carries their token in its address: no referrer at all leaves it.
+    const noReferrer = [{ key: "Referrer-Policy", value: "no-referrer" }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/careers/status", headers: noReferrer },
+      { source: "/careers/:slug/status", headers: noReferrer },
+    ];
   },
 };
 

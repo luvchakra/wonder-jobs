@@ -91,8 +91,10 @@ export interface ApplicationInput {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const httpsUrl = (v: string) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(v);
 
-/** Trims and bounds an application; returns the first problem, in form order, or the clean value. */
-export function cleanApplication(i: ApplicationInput): { problem: string } | { value: Required<Omit<ApplicationInput, "consent">> } {
+export type ApplicationField = "name" | "email" | "phone" | "linkedinUrl" | "resumeUrl" | "consent";
+
+/** Trims and bounds an application; returns the first problem, in form order, with the field it belongs to, or the clean value. */
+export function cleanApplication(i: ApplicationInput): { problem: string; field: ApplicationField } | { value: Required<Omit<ApplicationInput, "consent">> } {
   const name = (i.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const email = (i.email ?? "").trim().toLowerCase().slice(0, 200);
   const phone = (i.phone ?? "").trim().slice(0, 40);
@@ -100,13 +102,13 @@ export function cleanApplication(i: ApplicationInput): { problem: string } | { v
   const linkedinUrl = (i.linkedinUrl ?? "").trim().slice(0, 500);
   const resumeUrl = (i.resumeUrl ?? "").trim().slice(0, 500);
   const coverNote = (i.coverNote ?? "").trim().slice(0, 4000);
-  if (name.length < 2) return { problem: "Enter your full name." };
-  if (!EMAIL_RE.test(email)) return { problem: "Enter a valid email address." };
-  if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) return { problem: "Enter a valid phone number, or leave it empty." };
-  if (linkedinUrl && !httpsUrl(linkedinUrl)) return { problem: "The LinkedIn or portfolio link should start with https://" };
-  if (!resumeUrl) return { problem: "Add a link to your résumé (Google Drive, Dropbox, LinkedIn or your own site)." };
-  if (!httpsUrl(resumeUrl)) return { problem: "The résumé link should start with https://" };
-  if (!i.consent) return { problem: "Please agree to how your application is handled." };
+  if (name.length < 2) return { problem: "Enter your full name.", field: "name" };
+  if (!EMAIL_RE.test(email)) return { problem: "Enter a valid email address.", field: "email" };
+  if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) return { problem: "Enter a valid phone number, or leave it empty.", field: "phone" };
+  if (linkedinUrl && !httpsUrl(linkedinUrl)) return { problem: "The LinkedIn or portfolio link should start with https://", field: "linkedinUrl" };
+  if (!resumeUrl) return { problem: "Add a link to your résumé (Google Drive, Dropbox, LinkedIn or your own site).", field: "resumeUrl" };
+  if (!httpsUrl(resumeUrl)) return { problem: "The résumé link should start with https://", field: "resumeUrl" };
+  if (!i.consent) return { problem: "Please agree to how your application is handled.", field: "consent" };
   return { value: { name, email, phone, location, linkedinUrl, resumeUrl, coverNote } };
 }
 
@@ -241,6 +243,9 @@ export function parseNotifyEmails(raw: string): { emails: string[] } | { problem
 
 /** A hosted careers page's short company name: lower-case letters, digits and hyphens, 2 to 40 characters. */
 export const SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/;
+
+/** Addresses under /careers that WonderJobs' own careers page uses, so no hosted page may take them. */
+export const RESERVED_SLUGS = new Set(["status", "apply", "jobs", "admin", "api"]);
 
 /** "Acme Corp!" → "acme-corp": what people type, made into a short name (or "" when nothing usable is left). */
 export function toSlug(raw: string): string {
