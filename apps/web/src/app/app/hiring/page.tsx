@@ -21,6 +21,10 @@ import { TeamTab } from "@/components/hiring/TeamTab";
 import { ApplicationsTab } from "@/components/hiring/ApplicationsTab";
 import { WorkspaceSettings } from "@/components/hiring/WorkspaceSettings";
 import { VerifyCompany } from "@/components/hiring/VerifyCompany";
+import { WorkspacesTable } from "@/components/hiring/WorkspacesTable";
+import { DeleteWorkspace } from "@/components/hiring/DeleteWorkspace";
+import { ArrowLeft, Plus } from "lucide-react";
+import type { Organization } from "@/domain/org/types";
 
 type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team";
 type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
@@ -29,8 +33,9 @@ type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
  * Hiring (owner, 2026-10-20): a company's workspace on WonderJobs. Post jobs that job seekers find in their
  * searches, find candidates who are open to recruiters, shortlist and report them to hiring managers, and write to
  * them. The tabs shown follow the person's role; the server checks the role again on every action. One person can
- * belong to, and own, several workspaces: the picker in the header switches between them and creates a new one, and
- * `?org=` names the open one so a link (e.g. from an email) opens the right workspace.
+ * belong to, and own, several workspaces. Hiring opens on a table of them (Open, and for Owners Edit and Delete);
+ * `?org=` names the open one, so a link (e.g. from an email) goes straight into it, and the picker in the header
+ * switches between them.
  */
 function HiringPage() {
   const params = useSearchParams();
@@ -38,7 +43,8 @@ function HiringPage() {
   const [data, setData] = useState<Data | null>(null);
   const [orgId, setOrgId] = useState<string | null>(params.get("org"));
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<Organization | null>(null);
+  const [deleting, setDeleting] = useState<Organization | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const load = useCallback(() => {
@@ -76,45 +82,27 @@ function HiringPage() {
   };
 
   if (!data) return <PageLoading />;
-  if (!ws)
-    return (
-      <Start
-        data={data}
-        onChange={(id) => {
-          if (id) switchTo(id);
-          load();
-        }}
-      />
-    );
-  const r = ws.role;
-  return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title={ws.org.name}
-        description={`Hiring workspace · you're ${ORG_ROLE_LABEL[r] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[r]}`}`}
-        actions={
-          <Select value={ws.org.id} onChange={(e) => (e.target.value === NEW ? setCreating(true) : e.target.value === EDIT ? setEditing(true) : switchTo(e.target.value))} aria-label="Workspace" className="w-48">
-            {data.workspaces.map((w) => (
-              <option key={w.org.id} value={w.org.id}>
-                {w.org.name}
-              </option>
-            ))}
-            {can(r, "org.manage") && <option value={EDIT}>Edit this workspace…</option>}
-            <option value={NEW}>New workspace…</option>
-          </Select>
-        }
-      />
+  // With no workspace named in the address, Hiring opens on the table of workspaces.
+  const listView = !params.get("org") && !params.get("tab") && data.workspaces.length > 0;
+  const dialogs = (
+    <>
       {editing && (
         <WorkspaceSettings
-          key={ws.org.id}
-          org={ws.org}
-          onClose={() => setEditing(false)}
+          key={editing.id}
+          org={editing}
+          onClose={() => setEditing(null)}
           onSaved={() => {
-            setEditing(false);
+            setEditing(null);
             load();
           }}
+        />
+      )}
+      {deleting && (
+        <DeleteWorkspace
+          org={deleting}
+          onClose={() => setDeleting(null)}
           onDeleted={() => {
-            setEditing(false);
+            setDeleting(null);
             setOrgId(null);
             router.replace("/app/hiring");
             load();
@@ -132,6 +120,59 @@ function HiringPage() {
           />
         </Modal>
       )}
+    </>
+  );
+  if (listView)
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageHeader
+          title="Hiring"
+          description="Your companies' hiring workspaces. Open one to post jobs, see applications and work with your team."
+          actions={
+            <Button icon={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
+              New workspace
+            </Button>
+          }
+        />
+        <Invitations data={data} onChange={load} />
+        <WorkspacesTable workspaces={data.workspaces} onOpen={(w) => switchTo(w.org.id)} onEdit={(w) => setEditing(w.org)} onDelete={(w) => setDeleting(w.org)} />
+        {dialogs}
+      </div>
+    );
+  if (!ws)
+    return (
+      <Start
+        data={data}
+        onChange={(id) => {
+          if (id) switchTo(id);
+          load();
+        }}
+      />
+    );
+  const r = ws.role;
+  return (
+    <div className="mx-auto max-w-4xl">
+      <PageHeader
+        title={ws.org.name}
+        description={`Hiring workspace · you're ${ORG_ROLE_LABEL[r] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[r]}`}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => router.push("/app/hiring")} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-ink-3 hover:text-ink">
+              <ArrowLeft className="size-4" aria-hidden /> All workspaces
+            </button>
+            {data.workspaces.length > 1 && (
+              <Select value={ws.org.id} onChange={(e) => switchTo(e.target.value)} aria-label="Workspace" className="w-44">
+                {data.workspaces.map((w) => (
+                  <option key={w.org.id} value={w.org.id}>
+                    {w.org.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+        }
+      />
+      {dialogs}
       {!ws.org.verified && (
         <p className="mb-4 flex flex-wrap items-start gap-x-2 gap-y-1 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden />
@@ -153,7 +194,7 @@ function HiringPage() {
           }}
           onEditWorkspace={() => {
             setVerifying(false);
-            setEditing(true);
+            setEditing(ws.org);
           }}
         />
       )}
@@ -170,38 +211,11 @@ function HiringPage() {
 
 /** No workspace yet: invitations waiting for this email, or create the company's workspace. */
 function Start({ data, onChange }: { data: Data; onChange: (orgId?: string) => void }) {
-  const answer = async (id: string, action: "accept" | "decline") => {
-    try {
-      await hiringApi.answerInvite(id, action);
-      toast.success(action === "accept" ? "You joined the workspace" : "Invitation declined");
-      onChange();
-    } catch (e) {
-      toast.error("Couldn't do that", (e as Error).message);
-    }
-  };
+
   return (
     <div className="mx-auto max-w-xl">
       <PageHeader title="Hiring" description="For employers and recruiters: post jobs, find candidates who are open to recruiters, and talk to them." />
-      {data.invites.length > 0 && (
-        <Card className="mb-4">
-          <h2 className="text-[15px] font-semibold text-ink">Invitations</h2>
-          <ul className="mt-2 flex flex-col gap-2">
-            {data.invites.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center gap-3">
-                <span className="min-w-0 flex-1 text-[14px] text-ink">
-                  <span className="font-semibold">{i.orgName}</span> invited you as {ORG_ROLE_LABEL[i.role]}
-                </span>
-                <Button size="sm" icon={<Check className="size-4" aria-hidden />} onClick={() => answer(i.id, "accept")}>
-                  Join
-                </Button>
-                <button type="button" onClick={() => answer(i.id, "decline")} className="min-h-10 text-[13px] font-medium text-ink-3 hover:text-ink">
-                  Decline
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      <Invitations data={data} onChange={onChange} />
       <Card>
         <h2 className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink">
           <Building2 className="size-4 text-brand-600" aria-hidden /> Set up your company
@@ -215,8 +229,41 @@ function Start({ data, onChange }: { data: Data; onChange: (orgId?: string) => v
   );
 }
 
-const NEW = "__new";
-const EDIT = "__edit";
+
+
+/** Invitations waiting for this email: join or decline. */
+function Invitations({ data, onChange }: { data: Data; onChange: (orgId?: string) => void }) {
+  const answer = async (id: string, action: "accept" | "decline") => {
+    try {
+      await hiringApi.answerInvite(id, action);
+      toast.success(action === "accept" ? "You joined the workspace" : "Invitation declined");
+      onChange();
+    } catch (e) {
+      toast.error("Couldn't do that", (e as Error).message);
+    }
+  };
+  if (!data.invites.length) return null;
+  return (
+    <Card className="mb-4">
+      <h2 className="text-[15px] font-semibold text-ink">Invitations</h2>
+      <ul className="mt-2 flex flex-col gap-2">
+        {data.invites.map((i) => (
+          <li key={i.id} className="flex flex-wrap items-center gap-3">
+            <span className="min-w-0 flex-1 text-[14px] text-ink">
+              <span className="font-semibold">{i.orgName}</span> invited you as {ORG_ROLE_LABEL[i.role]}
+            </span>
+            <Button size="sm" icon={<Check className="size-4" aria-hidden />} onClick={() => answer(i.id, "accept")}>
+              Join
+            </Button>
+            <button type="button" onClick={() => answer(i.id, "decline")} className="min-h-10 text-[13px] font-medium text-ink-3 hover:text-ink">
+              Decline
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
 
 /** The company's name and website; the creator becomes its Owner. Used for the first workspace and for each new one. */
 function NewWorkspaceForm({ onCreated }: { onCreated: (orgId: string) => void }) {

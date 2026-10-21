@@ -9,7 +9,7 @@ import type { Session } from "./auth";
 import { resetTablesForTests, table } from "./db/table";
 import * as H from "./hiring";
 import * as C from "./careers";
-import { candidateMessage, cleanApplication, reminderDue } from "@/domain/org/careers";
+import { candidateMessage, cleanApplication, deleteAfter, parseNotifyEmails, reminderDue, toSlug } from "@/domain/org/careers";
 import { can } from "@/domain/org/permissions";
 
 process.env.SECRET_ENCRYPTION_KEY = "test-secret-key-for-career-status-links-0123456789";
@@ -22,6 +22,8 @@ const outsider: Session = { userId: "u-out", tenantId: "u-out", email: "out@othe
 const job = { title: "Senior Full-Stack Engineer", location: "Remote, India", workMode: "remote" as const, description: "Build WonderID's governance platform in TypeScript, Next.js and Postgres with a small team.", skills: ["TypeScript"], applyUrl: "https://id.wonderapps.biz/careers" };
 const applicant = { name: "Asha Rao", email: "Asha@Example.com", phone: "+91 98765 43210", resumeUrl: "https://drive.example.com/asha.pdf", coverNote: "Hello", consent: true };
 
+const SITE = { name: "WonderID careers", publicUrl: "https://id.wonderapps.biz/careers", notifyEmails: "Careers@WonderID.test", retentionMonths: 12 };
+
 async function setup() {
   const { org } = await H.createWorkspace(owner, { name: "WonderID" });
   for (const [s, role] of [
@@ -33,7 +35,7 @@ async function setup() {
   }
   const j = await H.saveJob(owner, org.id, job);
   await H.setJobStatus(owner, org.id, j.id, "open");
-  const { site: created, key } = await C.createSite(owner, org.id, { name: "WonderID careers", publicUrl: "https://id.wonderapps.biz/careers/" });
+  const { site: created, key } = await C.createSite(owner, org.id, { ...SITE, publicUrl: "https://id.wonderapps.biz/careers/" });
   await C.linkJob(owner, org.id, created.id, j.id, true);
   const site = (await C.siteFromKey(key))!;
   return { orgId: org.id, jobId: j.id, key, site };
@@ -65,8 +67,8 @@ describe("career sites", () => {
     expect(rows[0].key_hash).not.toContain(key);
     expect(rows[0].public_url).toBe("https://id.wonderapps.biz/careers");
     expect(site.name).toBe("WonderID careers");
-    await expect(C.createSite(hm, orgId, { name: "Other", publicUrl: "https://x.example.com" })).rejects.toMatchObject({ status: 403 });
-    await expect(C.createSite(owner, orgId, { name: "Bad", publicUrl: "http://insecure.example.com" })).rejects.toThrow(/https/);
+    await expect(C.createSite(hm, orgId, { ...SITE, name: "Other", publicUrl: "https://x.example.com" })).rejects.toMatchObject({ status: 403 });
+    await expect(C.createSite(owner, orgId, { ...SITE, name: "Bad", publicUrl: "http://insecure.example.com" })).rejects.toThrow(/https/);
   });
 
   it("refuses unknown and revoked keys", async () => {
@@ -111,8 +113,8 @@ describe("applying", () => {
     expect(toApplicant.subject).toBe(`We received your application for ${job.title}`);
     expect(toApplicant.text).toContain("https://id.wonderapps.biz/careers/status?t=wjst_");
     const team = sent.filter((m) => m.subject.startsWith("New application")).map((m) => m.to).sort();
-    expect(team).toEqual(["hm@wonderid.test", "owner@wonderid.test"]);
-    expect(sent.find((m) => m.to === "owner@wonderid.test")!.text).toContain(`/app/hiring?org=${orgId}&tab=applications&a=${id}`);
+    expect(team).toEqual(["careers@wonderid.test"]);
+    expect(sent.find((m) => m.to === "careers@wonderid.test")!.text).toContain(`/app/hiring?org=${orgId}&tab=applications&a=${id}`);
     const [a] = await C.listApplications(owner, orgId);
     expect(a).toMatchObject({ id, email: "asha@example.com", status: "new", jobTitle: job.title, siteName: "WonderID careers" });
   });
@@ -190,13 +192,13 @@ describe("reminders", () => {
     expect(reminderDue({ status: "interview", lastActionAt: t0, remindersSent: 0 }, at(500))).toBe(false);
   });
 
-  it("emails each decider one list per workspace, and records it on the application", async () => {
+  it("sends one list to the site's applications email, and records it on the application", async () => {
     const { orgId, jobId, site } = await setup();
     const { id } = await C.submitApplication(site, jobId, applicant);
     sent.length = 0;
     const later = new Date(Date.now() + 49 * 3_600_000);
-    expect(await C.sendDueReminders(later)).toEqual({ orgs: 1, applications: 1, emails: 2 });
-    expect(sent.map((m) => m.to).sort()).toEqual(["hm@wonderid.test", "owner@wonderid.test"]);
+    expect(await C.sendDueReminders(later)).toEqual({ orgs: 1, applications: 1, emails: 1 });
+    expect(sent.map((m) => m.to)).toEqual(["careers@wonderid.test"]);
     expect(sent[0].subject).toBe("Reminder: 1 application waiting at WonderID");
     expect(await C.sendDueReminders(later)).toEqual({ orgs: 0, applications: 0, emails: 0 });
     await C.decide(owner, orgId, id, { status: "reviewing" });
@@ -219,5 +221,89 @@ describe("messages", () => {
     const r = cleanApplication({ ...applicant, name: "  Asha   Rao ", email: " ASHA@EXAMPLE.COM " });
     expect(r).toMatchObject({ value: { name: "Asha Rao", email: "asha@example.com" } });
     expect(cleanApplication({ ...applicant, email: "nope" })).toEqual({ problem: "Enter a valid email address." });
+  });
+});
+
+describe("career site settings", () => {
+  it("requires an applications email and a retention period, and checks them", async () => {
+    const { orgId } = await setup();
+    await expect(C.createSite(owner, orgId, { ...SITE, notifyEmails: "" })).rejects.toThrow(/email address where applications/);
+    await expect(C.createSite(owner, orgId, { ...SITE, notifyEmails: "careers@x.test, nope" })).rejects.toThrow(/nope isn't a valid/);
+    await expect(C.createSite(owner, orgId, { ...SITE, retentionMonths: 0 })).rejects.toThrow(/how long applications are kept/);
+    await expect(C.createSite(owner, orgId, { ...SITE, retentionMonths: 61 })).rejects.toThrow(/how long applications are kept/);
+    const { site } = await C.createSite(owner, orgId, { ...SITE, notifyEmails: "a@x.test; B@x.test a@x.test" });
+    expect(site).toMatchObject({ notifyEmails: ["a@x.test", "b@x.test"], retentionMonths: 12 });
+  });
+
+  it("lets only an Owner edit a site; the key keeps working", async () => {
+    const { orgId, key, site } = await setup();
+    await expect(C.updateSite(hm, orgId, site.id, SITE)).rejects.toMatchObject({ status: 403 });
+    const saved = await C.updateSite(owner, orgId, site.id, { ...SITE, notifyEmails: "hiring@wonderid.test", retentionMonths: 6 });
+    expect(saved).toMatchObject({ notifyEmails: ["hiring@wonderid.test"], retentionMonths: 6 });
+    expect((await C.siteFromKey(key))?.notifyEmails).toEqual(["hiring@wonderid.test"]);
+  });
+
+  it("an older site without an applications email still emails everyone who can decide", async () => {
+    const { jobId, key, site } = await setup();
+    await table<{ id: string; notify_emails: string | null }>("career_sites").update({ id: site.id }, { notify_emails: null });
+    const { notify } = await C.submitApplication((await C.siteFromKey(key))!, jobId, applicant);
+    await notify();
+    expect(sent.filter((m) => m.subject.startsWith("New application")).map((m) => m.to).sort()).toEqual(["hm@wonderid.test", "owner@wonderid.test"]);
+  });
+
+  it("deletes applications after the site's retention period, counted from their last update, and nothing else", async () => {
+    const { orgId, jobId, site } = await setup();
+    const { id } = await C.submitApplication(site, jobId, applicant);
+    const { id: fresh } = await C.submitApplication(site, jobId, { ...applicant, email: "ravi@example.com" });
+    const old = new Date(Date.now() - 13 * 31 * 86_400_000).toISOString();
+    await table<{ id: string; updated_at: string }>("job_applications").update({ id }, { updated_at: old });
+    expect(await C.purgeExpiredApplications()).toEqual({ deleted: 1 });
+    expect((await C.listApplications(owner, orgId)).map((a) => a.id)).toEqual([fresh]);
+    await table<{ id: string; retention_months: number | null }>("career_sites").update({ id: site.id }, { retention_months: null });
+    await table<{ id: string; updated_at: string }>("job_applications").update({ id: fresh }, { updated_at: old });
+    expect(await C.purgeExpiredApplications()).toEqual({ deleted: 0 });
+  });
+
+  it("works out the deletion date by calendar months", () => {
+    expect(deleteAfter("2026-01-31T00:00:00.000Z", 1).toISOString().slice(0, 10)).toBe("2026-03-03");
+    expect(deleteAfter("2026-10-21T00:00:00.000Z", 12).toISOString().slice(0, 10)).toBe("2027-10-21");
+    expect(parseNotifyEmails("")).toEqual({ problem: "Add the email address where applications should arrive." });
+  });
+});
+
+describe("careers pages hosted by WonderJobs", () => {
+  it("gives a site with a short name its own address on WonderJobs, unique among active sites", async () => {
+    const { orgId } = await setup();
+    const { site } = await C.createSite(owner, orgId, { ...SITE, name: "Acme careers", slug: "acme", publicUrl: "" });
+    expect(site).toMatchObject({ slug: "acme", publicUrl: "http://localhost:3000/careers/acme" });
+    await expect(C.createSite(owner, orgId, { ...SITE, slug: "acme", publicUrl: "" })).rejects.toMatchObject({ status: 409 });
+    await expect(C.createSite(owner, orgId, { ...SITE, slug: "Not OK!", publicUrl: "" })).rejects.toThrow(/lower-case letters/);
+    await C.revokeSite(owner, orgId, site.id);
+    expect(await C.hostedSite("acme")).toBeNull();
+    expect((await C.createSite(owner, orgId, { ...SITE, slug: "acme", publicUrl: "" })).site.slug).toBe("acme");
+  });
+
+  it("without a short name, needs the company's own careers page address", async () => {
+    const { orgId } = await setup();
+    await expect(C.createSite(owner, orgId, { ...SITE, slug: "", publicUrl: "" })).rejects.toThrow(/short company name .* or your own careers page/);
+  });
+
+  it("finds a hosted page by its short name, with the company, and takes applications through it", async () => {
+    const { orgId, jobId } = await setup();
+    const { site } = await C.createSite(owner, orgId, { ...SITE, slug: "wonderid", publicUrl: "" });
+    await C.linkJob(owner, orgId, site.id, jobId, true);
+    const hosted = (await C.hostedSite("WonderID"))!;
+    expect(hosted).toMatchObject({ company: "WonderID", verified: false, slug: "wonderid", retentionMonths: 12 });
+    expect((await C.siteJobsList(hosted)).map((j) => j.id)).toEqual([jobId]);
+    const { notify } = await C.submitApplication(hosted, jobId, applicant);
+    await notify();
+    expect(sent.find((m) => m.to === "asha@example.com")!.text).toContain("http://localhost:3000/careers/wonderid/status?t=wjst_");
+    expect(await C.hostedSite("nobody-here")).toBeNull();
+  });
+
+  it("makes a short name out of what people type", () => {
+    expect(toSlug("  Acme Corp! ")).toBe("acme-corp");
+    expect(toSlug("Wonder ID — India")).toBe("wonder-id-india");
+    expect(toSlug("!!!")).toBe("");
   });
 });

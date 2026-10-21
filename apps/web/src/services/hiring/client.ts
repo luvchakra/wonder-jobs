@@ -32,6 +32,14 @@ export interface ApplicationView extends Application {
   jobTitle: string;
   siteName?: string;
 }
+export interface SiteSettings {
+  name: string;
+  /** Hosted by WonderJobs at /careers/<slug>; empty when the site is on the company's own page. */
+  slug?: string;
+  publicUrl: string;
+  notifyEmails: string;
+  retentionMonths: number;
+}
 export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl">;
 
 const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
@@ -55,7 +63,8 @@ export const hiringApi = {
   editJob: (org: string, id: string, job: JobInput) => call<EmployerJob>(`${o(org)}/jobs`, { method: "PATCH", json: { id, job } }),
   setJobStatus: (org: string, id: string, status: EmployerJob["status"]) => call(`${o(org)}/jobs`, { method: "PATCH", json: { id, status } }),
   sites: (org: string) => call<{ sites: CareerSite[]; links: { siteId: string; jobId: string }[] }>(`${o(org)}/sites`),
-  createSite: (org: string, name: string, publicUrl: string) => call<{ site: CareerSite; key: string }>(`${o(org)}/sites`, { method: "POST", json: { name, publicUrl } }),
+  createSite: (org: string, site: SiteSettings) => call<{ site: CareerSite; key: string }>(`${o(org)}/sites`, { method: "POST", json: site }),
+  updateSite: (org: string, id: string, site: SiteSettings) => call<CareerSite>(`${o(org)}/sites`, { method: "PUT", json: { id, ...site } }),
   revokeSite: (org: string, id: string) => call(`${o(org)}/sites?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   linkJob: (org: string, siteId: string, jobId: string, on: boolean) => call(`${o(org)}/sites`, { method: "PATCH", json: { siteId, jobId, on } }),
   applications: (org: string) => call<{ applications: ApplicationView[] }>(`${o(org)}/applications`),

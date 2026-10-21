@@ -166,7 +166,7 @@ export async function verifyByWorkEmail(s: Session, orgId: string): Promise<Orga
   await requirePermission(s, orgId, "org.manage");
   const org = await orgs().one({ id: orgId });
   if (!org) throw new HiringError("That workspace no longer exists.", 404);
-  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Edit this workspace…).");
+  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first: Hiring → the pencil next to the company.");
   if (!workEmailMatches(s.email, org.website)) throw new HiringError(`Your sign-in email isn't on ${websiteDomain(org.website)}. Sign in with your work email, or ask WonderJobs to review the company.`, 409);
   await orgs().update({ id: orgId }, { verified: true });
   return toOrg({ ...org, verified: true });
@@ -178,7 +178,7 @@ export async function requestVerificationReview(s: Session, orgId: string, note:
   const org = await orgs().one({ id: orgId });
   if (!org) throw new HiringError("That workspace no longer exists.", 404);
   if (org.verified) throw new HiringError("This company is already verified.", 409);
-  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Edit this workspace…), so the team can check it.");
+  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Hiring → the pencil next to the company), so the team can check it.");
   const team = parseEmailList(process.env.CONTACT_NOTIFY_EMAILS);
   if (!team.length) return { sent: false };
   const text = note.trim().slice(0, 2000);

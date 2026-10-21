@@ -25,6 +25,9 @@ import {
   OPEN,
   REMINDER_AFTER_HOURS,
   candidateMessage,
+  deleteAfter,
+  parseNotifyEmails,
+  SLUG_PATTERN,
   careerLinks,
   cleanActionLink,
   cleanApplication,
@@ -37,7 +40,7 @@ import {
 } from "@/domain/org/careers";
 
 // ---- rows ----------------------------------------------------------------------------------------------------
-type SiteRow = { id: string; org_id: string; name: string; public_url: string; key_hash: string; key_hint: string; created_by: string; created_at: string; revoked_at: string | null };
+type SiteRow = { id: string; org_id: string; name: string; public_url: string; key_hash: string; key_hint: string; created_by: string; created_at: string; revoked_at: string | null; notify_emails?: string | null; retention_months?: number | null; slug?: string | null };
 type SiteJobRow = { site_id: string; job_id: string; org_id: string; added_by: string; added_at: string };
 type AppRow = {
   id: string;
@@ -62,7 +65,7 @@ type AppRow = {
 };
 type EventRow = { application_id: string; org_id: string; event: string; actor: string | null; detail: string | null; at: string };
 type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; status: string; created_by: string; updated_at: string };
-type OrgRow = { id: string; name: string; website: string | null };
+type OrgRow = { id: string; name: string; website: string | null; verified?: boolean };
 type MemberRow = { org_id: string; tenant_id: string; role: OrgRole; email: string | null; name: string | null };
 
 const sites = () => table<SiteRow>("career_sites");
@@ -88,7 +91,8 @@ function statusToken(applicationId: string): string {
   return `wjst_${createHmac("sha256", key).update(`career-status:${applicationId}`).digest("base64url")}`;
 }
 
-const toSite = (r: SiteRow): CareerSite => ({ id: r.id, orgId: r.org_id, name: r.name, publicUrl: r.public_url, keyHint: r.key_hint, createdAt: r.created_at, revokedAt: r.revoked_at ?? undefined });
+const siteEmails = (r: Pick<SiteRow, "notify_emails">) => (r.notify_emails ? r.notify_emails.split(",").filter(Boolean) : []);
+const toSite = (r: SiteRow): CareerSite => ({ id: r.id, orgId: r.org_id, name: r.name, publicUrl: r.public_url, notifyEmails: siteEmails(r), retentionMonths: r.retention_months ?? undefined, slug: r.slug ?? undefined, keyHint: r.key_hint, createdAt: r.created_at, revokedAt: r.revoked_at ?? undefined });
 const toApp = (r: AppRow): Application => ({
   id: r.id,
   orgId: r.org_id,
@@ -120,17 +124,61 @@ export async function listSites(s: Session, orgId: string): Promise<{ sites: Car
   return { sites: rows.map(toSite), links: links.map((l) => ({ siteId: l.site_id, jobId: l.job_id })) };
 }
 
-/** Creates a site and returns its key — the only time the key is ever shown. */
-export async function createSite(s: Session, orgId: string, input: { name: string; publicUrl: string }): Promise<{ site: CareerSite; key: string }> {
-  await requirePermission(s, orgId, "org.manage");
+export interface SiteInput {
+  name: string;
+  /**
+   * Short company name: WonderJobs hosts the careers page at /careers/<slug> and `publicUrl` is ignored.
+   * Empty: the company shows the jobs on its own page (`publicUrl`), integrating with the careers API.
+   */
+  slug?: string;
+  publicUrl: string;
+  /** One or more addresses, comma-separated, where applications are emailed. Required. */
+  notifyEmails: string;
+  /** Months applications are kept after their last update. Required. */
+  retentionMonths: number;
+}
+
+/** The address of a careers page WonderJobs hosts. */
+export const hostedUrl = (slug: string) => new URL(`/careers/${slug}`, siteUrl().origin).toString();
+
+async function cleanSite(input: SiteInput, siteId?: string): Promise<Pick<SiteRow, "name" | "public_url" | "notify_emails" | "retention_months" | "slug">> {
   const name = input.name.trim().slice(0, 80);
-  const publicUrl = input.publicUrl.trim().replace(/\/+$/, "");
   if (name.length < 2) throw new HiringError("Name the career site, e.g. WonderID careers.");
-  if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("The careers page address should start with https://");
+  const slug = (input.slug ?? "").trim().toLowerCase() || null;
+  let publicUrl: string;
+  if (slug) {
+    if (!SLUG_PATTERN.test(slug)) throw new HiringError("The short company name can use lower-case letters, numbers and hyphens (2 to 40), like acme or acme-labs.");
+    const taken = await sites().one({ slug });
+    if (taken && !taken.revoked_at && taken.id !== siteId) throw new HiringError(`jobs.wonderapps.biz/careers/${slug} is taken. Try another short name.`, 409);
+    publicUrl = hostedUrl(slug);
+  } else {
+    publicUrl = input.publicUrl.trim().replace(/\/+$/, "");
+    if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("Add a short company name for a page hosted by WonderJobs, or your own careers page address (https://…).");
+  }
+  const emails = parseNotifyEmails(input.notifyEmails ?? "");
+  if ("problem" in emails) throw new HiringError(emails.problem);
+  if (!Number.isInteger(input.retentionMonths) || input.retentionMonths < 1 || input.retentionMonths > 60) throw new HiringError("Choose how long applications are kept (1 to 60 months).");
+  return { name, public_url: publicUrl, notify_emails: emails.emails.join(","), retention_months: input.retentionMonths, slug };
+}
+
+/** Creates a site and returns its key — the only time the key is ever shown. */
+export async function createSite(s: Session, orgId: string, input: SiteInput): Promise<{ site: CareerSite; key: string }> {
+  await requirePermission(s, orgId, "org.manage");
+  const fields = await cleanSite(input);
   const key = secret("wjcs");
-  const row: SiteRow = { id: id("site"), org_id: orgId, name, public_url: publicUrl, key_hash: sha256Hex(key), key_hint: key.slice(-4), created_by: s.tenantId, created_at: now(), revoked_at: null };
+  const row: SiteRow = { id: id("site"), org_id: orgId, ...fields, key_hash: sha256Hex(key), key_hint: key.slice(-4), created_by: s.tenantId, created_at: now(), revoked_at: null };
   await sites().insert(row);
   return { site: toSite(row), key };
+}
+
+/** An Owner changes a site's name, address, applications email or retention; its key stays the same. */
+export async function updateSite(s: Session, orgId: string, siteId: string, input: SiteInput): Promise<CareerSite> {
+  await requirePermission(s, orgId, "org.manage");
+  const fields = await cleanSite(input, siteId);
+  const current = await sites().one({ id: siteId, org_id: orgId });
+  if (!current || current.revoked_at) throw new HiringError("That career site isn't in this workspace.", 404);
+  await sites().update({ id: siteId, org_id: orgId }, fields);
+  return toSite({ ...current, ...fields });
 }
 
 /** Revoking stops the key at once; the site's jobs disappear from its page and its applications stay. */
@@ -158,6 +206,21 @@ export interface Site {
   orgId: string;
   name: string;
   publicUrl: string;
+  notifyEmails: string[];
+  retentionMonths?: number;
+  slug?: string;
+}
+
+const toPublicSite = (r: SiteRow): Site => ({ id: r.id, orgId: r.org_id, name: r.name, publicUrl: r.public_url, notifyEmails: siteEmails(r), retentionMonths: r.retention_months ?? undefined, slug: r.slug ?? undefined });
+
+/** A careers page WonderJobs hosts, by its short name; null when there is none (or it was revoked). */
+export async function hostedSite(slug: string): Promise<(Site & { company: string; verified: boolean }) | null> {
+  const s = slug.trim().toLowerCase();
+  if (!SLUG_PATTERN.test(s)) return null;
+  const r = await sites().one({ slug: s });
+  if (!r || r.revoked_at) return null;
+  const org = await orgs().one({ id: r.org_id });
+  return org ? { ...toPublicSite(r), company: org.name, verified: !!org.verified } : null;
 }
 
 /** The site a key belongs to, or null for an unknown or revoked key. */
@@ -165,7 +228,7 @@ export async function siteFromKey(key: string | null | undefined): Promise<Site 
   if (!key || !/^wjcs_[A-Za-z0-9_-]{20,}$/.test(key)) return null;
   const r = await sites().one({ key_hash: sha256Hex(key) });
   if (!r || r.revoked_at) return null;
-  return { id: r.id, orgId: r.org_id, name: r.name, publicUrl: r.public_url };
+  return toPublicSite(r);
 }
 
 export interface PublicJob {
@@ -342,11 +405,19 @@ export async function decide(s: Session, orgId: string, applicationId: string, i
 export async function sendDueReminders(at = new Date()): Promise<{ orgs: number; applications: number; emails: number }> {
   const waiting = await apps().findIn("status", ["new", "reviewing"], {}, { order: "last_action_at", limit: 500 });
   const due = waiting.filter((a) => reminderDue({ status: a.status, lastActionAt: a.last_action_at, lastRemindedAt: a.last_reminded_at, remindersSent: a.reminders_sent }, at));
-  const byOrg = new Map<string, AppRow[]>();
-  for (const a of due) byOrg.set(a.org_id, [...(byOrg.get(a.org_id) ?? []), a]);
+  // One email per workspace and set of recipients (a site's applications address, or the deciders).
+  const siteRows = await sites().findIn("id", [...new Set(due.flatMap((a) => (a.site_id ? [a.site_id] : [])))]);
+  const groups = new Map<string, { orgId: string; team: string[]; list: AppRow[] }>();
+  for (const a of due) {
+    const team = await recipientsFor(a.org_id, siteRows.find((x) => x.id === a.site_id && x.org_id === a.org_id));
+    const key = `${a.org_id}|${team.join(",")}`;
+    const g = groups.get(key) ?? { orgId: a.org_id, team, list: [] };
+    g.list.push(a);
+    groups.set(key, g);
+  }
   let emails = 0;
-  for (const [orgId, list] of byOrg) {
-    const [org, team, jobRows] = await Promise.all([orgs().one({ id: orgId }), deciders(orgId), jobs().findIn("id", [...new Set(list.map((a) => a.job_id))], { org_id: orgId })]);
+  for (const { orgId, team, list } of groups.values()) {
+    const [org, jobRows] = await Promise.all([orgs().one({ id: orgId }), jobs().findIn("id", [...new Set(list.map((a) => a.job_id))], { org_id: orgId })]);
     const title = (a: AppRow) => jobRows.find((j) => j.id === a.job_id)?.title ?? "a position";
     const mail = renderTeamEmail({
       heading: `${list.length} application${list.length === 1 ? "" : "s"} waiting on you`,
@@ -363,10 +434,36 @@ export async function sendDueReminders(at = new Date()): Promise<{ orgs: number;
       await record(a, "reminder", "system", team.length ? `${sent} of ${team.length} sent` : "no one with an email can decide");
     }
   }
-  return { orgs: byOrg.size, applications: due.length, emails };
+  return { orgs: new Set(due.map((a) => a.org_id)).size, applications: due.length, emails };
+}
+
+// ---- retention -----------------------------------------------------------------------------------------------
+/**
+ * Daily: deletes applications whose last update is older than their career site's retention period (DPDP and
+ * GDPR storage limitation). Their history goes with them (foreign-key cascade). Sites without a period set
+ * (made before it was required) keep theirs until an Owner sets one. Bounded per run.
+ */
+export async function purgeExpiredApplications(at = new Date()): Promise<{ deleted: number }> {
+  const all = await sites().all({ order: "created_at", limit: 1000 });
+  let deleted = 0;
+  for (const site of all) {
+    if (!site.retention_months) continue;
+    const rows = await apps().find({ site_id: site.id, org_id: site.org_id }, { order: "updated_at", limit: 500 });
+    for (const a of rows) {
+      if (deleteAfter(a.updated_at, site.retention_months) > at) break;
+      deleted += await apps().remove({ id: a.id, org_id: site.org_id });
+    }
+  }
+  return { deleted };
 }
 
 // ---- email ---------------------------------------------------------------------------------------------------
+/** Where a site's application emails go: its applications address, or (older sites) the workspace's deciders. */
+async function recipientsFor(orgId: string, site: Pick<SiteRow, "notify_emails"> | Site | undefined): Promise<string[]> {
+  const set = site ? ("notifyEmails" in site ? site.notifyEmails : siteEmails(site)) : [];
+  return set.length ? set : deciders(orgId);
+}
+
 /** Everyone in the workspace whose role lets them decide on applications and who has an email. */
 async function deciders(orgId: string): Promise<string[]> {
   const team = await members().find({ org_id: orgId });
@@ -424,7 +521,7 @@ async function emailCandidate(a: AppRow, jobTitle: string, site: SiteRow | Site 
 async function notifySubmitted(a: AppRow, job: JobRow, site: Site): Promise<void> {
   try {
     await emailCandidate(a, job.title, site, {});
-    const team = await deciders(a.org_id);
+    const team = await recipientsFor(a.org_id, site);
     const mail = renderTeamEmail({
       heading: `New application: ${a.name}`,
       intro: `${a.name} applied for ${job.title} on ${site.name}.`,
@@ -449,7 +546,7 @@ async function notifySubmitted(a: AppRow, job: JobRow, site: Site): Promise<void
 async function notifyWithdrawn(a: AppRow, job: JobRow | undefined, site: Site): Promise<void> {
   try {
     await emailCandidate(a, job?.title ?? "the position", site, {});
-    const team = await deciders(a.org_id);
+    const team = await recipientsFor(a.org_id, site);
     const mail = renderTeamEmail({ heading: `${a.name} withdrew`, intro: `${a.name} withdrew their application for ${job?.title ?? "a position"}. No action is needed.`, rows: [["Email", a.email]], button: { label: "Open applications", href: reviewUrl(a.org_id, a.id) } });
     for (const to of team) await sendMail({ to, subject: `${a.name} withdrew from ${job?.title ?? "a position"}`, ...mail });
   } catch (e) {

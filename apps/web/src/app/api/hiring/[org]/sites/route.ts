@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
-import { createSite, linkJob, listSites, revokeSite } from "@/server/careers";
+import { createSite, linkJob, listSites, revokeSite, updateSite } from "@/server/careers";
+
+const Site = z.object({ name: z.string().max(80), slug: z.string().max(40).optional(), publicUrl: z.string().max(300), notifyEmails: z.string().max(500), retentionMonths: z.number().int() });
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +16,13 @@ export async function GET(req: Request, ctx: Ctx) {
 /** Creates a career site; the answer carries its key, shown this once. */
 export async function POST(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
-  const Body = z.object({ name: z.string().max(80), publicUrl: z.string().max(300) });
-  return hiringRoute(req, (s, b) => createSite(s, org, b), { schema: Body, write: true });
+  return hiringRoute(req, (s, b) => createSite(s, org, b), { schema: Site, write: true });
+}
+
+/** { id, …settings } changes a site's name, address, applications email or retention; its key stays. */
+export async function PUT(req: Request, ctx: Ctx) {
+  const { org } = await ctx.params;
+  return hiringRoute(req, (s, b) => updateSite(s, org, b.id, b), { schema: Site.extend({ id: z.string().min(1).max(80) }), write: true });
 }
 
 /** { siteId, jobId, on } shows a job on a career site or takes it off. */

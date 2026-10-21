@@ -39,6 +39,12 @@ export interface CareerSite {
   orgId: string;
   name: string;
   publicUrl: string;
+  /** Where its applications are emailed (new ones and reminders). Missing on sites made before 2026-10-21. */
+  notifyEmails: string[];
+  /** Months its applications are kept after their last update, then deleted. Missing on older sites. */
+  retentionMonths?: number;
+  /** Set when WonderJobs hosts the page: https://jobs.wonderapps.biz/careers/<slug>. */
+  slug?: string;
   /** The key's last four characters, so people can tell keys apart. The key itself is shown once. */
   keyHint: string;
   createdAt: string;
@@ -209,3 +215,34 @@ export const careerLinks = (publicUrl: string) => {
   const base = publicUrl.replace(/\/+$/, "");
   return { careers: base, job: (jobId: string) => `${base}/${encodeURIComponent(jobId)}`, status: (token: string) => `${base}/status?t=${encodeURIComponent(token)}` };
 };
+
+/** Retention choices offered for a career site (months after an application's last update). */
+export const RETENTION_CHOICES = [6, 12, 24, 36] as const;
+
+/** When an application last updated at `updatedAt` is due for deletion under a retention period. */
+export function deleteAfter(updatedAt: string, months: number): Date {
+  const d = new Date(updatedAt);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d;
+}
+
+const ADDRESS = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
+
+/** "a@x.com, b@x.com" → the addresses, lower-cased and de-duplicated; a problem when any is invalid or none given. */
+export function parseNotifyEmails(raw: string): { emails: string[] } | { problem: string } {
+  const parts = raw.split(/[,;\s]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!parts.length) return { problem: "Add the email address where applications should arrive." };
+  const bad = parts.find((x) => !ADDRESS.test(x));
+  if (bad) return { problem: `${bad} isn't a valid email address.` };
+  const emails = [...new Set(parts)];
+  if (emails.length > 5) return { problem: "Use at most five addresses (a team address works well)." };
+  return { emails };
+}
+
+/** A hosted careers page's short company name: lower-case letters, digits and hyphens, 2 to 40 characters. */
+export const SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/;
+
+/** "Acme Corp!" → "acme-corp": what people type, made into a short name (or "" when nothing usable is left). */
+export function toSlug(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/g, "");
+}
