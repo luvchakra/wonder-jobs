@@ -92,7 +92,8 @@ export async function signInThroughUI(page: Page, account: Pick<TestAccount, "em
   await page.getByLabel("Email").fill(account.email);
   await page.getByLabel("Password", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/app(\/|$)/, { timeout: 20_000 });
+  // Against a deployment, the first sign-in after a quiet spell can wait on cold functions; allow for that.
+  await page.waitForURL(/\/app(\/|$)/, { timeout: 45_000 });
 }
 
 /**
@@ -106,7 +107,8 @@ export async function skipOnboardingIfShown(page: Page): Promise<void> {
   await page.waitForURL(/\/onboarding/, { timeout: 3_000 }).catch(() => {});
   if (/\/onboarding/.test(page.url())) {
     await page.getByRole("button", { name: "Skip" }).click();
-    await page.waitForURL(/\/app(\/|$)/, { timeout: 20_000 });
+    // Against a deployment, the first sign-in after a quiet spell can wait on cold functions; allow for that.
+  await page.waitForURL(/\/app(\/|$)/, { timeout: 45_000 });
   }
 }
 

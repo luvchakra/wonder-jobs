@@ -6,7 +6,7 @@
  */
 import { WorkflowEngine } from "@/domain/workflow/engine";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
-import { isActive } from "@/domain/workflow/status";
+import { isActive, isTerminal } from "@/domain/workflow/status";
 import type { RunConfig, WorkflowRun } from "@/domain/workflow/types";
 import type { Notification } from "@/domain/career/types";
 import { FallbackProvider, TemplateAIService, WonderJobsAIProvider, type AIService } from "@/services/ai/service";
@@ -127,22 +127,35 @@ class WorkflowService {
     return run;
   }
 
+  // Every control first loads the persisted runs into the engine (as startRun does): after a reload the
+  // store still lists the last page's run, and the engine must know it before it can act on it.
   pause(id: string) {
+    this.hydrate();
     this.engine.pause(id);
   }
   resume(id: string) {
+    this.hydrate();
     this.engine.resume(id);
   }
+  /** Stops a live run; one that's already over (or was interrupted by a reload and restored as stopped) needs nothing. */
   stop(id: string) {
+    this.hydrate();
+    const run = this.engine.getRun(id);
+    if (!run || !isActive(run.status) || run.status === "STOPPING") return;
     this.engine.stop(id);
   }
   cancel(id: string) {
+    this.hydrate();
+    const run = this.engine.getRun(id);
+    if (!run || isTerminal(run.status)) return;
     this.engine.cancel(id);
   }
   continue(id: string) {
+    this.hydrate();
     this.engine.continueFromUser(id);
   }
   restartStage(id: string) {
+    this.hydrate();
     this.engine.restartStage(id);
   }
   rerunFrom(id: string, stage: StageKey): WorkflowRun {

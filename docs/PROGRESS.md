@@ -463,9 +463,9 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ One person can create and switch between several hiring workspaces (WJ-337)
 - ✅ Owners rename or delete a hiring workspace from the workspace picker (WJ-338)
 - ✅ Companies verify by work email, or ask WonderJobs to review; Platform → Companies verifies (WJ-339)
-- ✅ Career sites name an applications email and how long applications are kept; daily deletion after that (WJ-340)
-- ✅ Careers pages hosted by WonderJobs at /careers/<short name> (WJ-341)
-- ✅ Hiring opens on a table of workspaces with Edit and Delete (WJ-342)
+- ✅ Career sites name an applications email and how long applications are kept; daily deletion after that (WJ-343)
+- ✅ Careers pages hosted by WonderJobs at /careers/<short name> (WJ-344)
+- ✅ Hiring opens on a table of workspaces with Edit and Delete (WJ-345)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
