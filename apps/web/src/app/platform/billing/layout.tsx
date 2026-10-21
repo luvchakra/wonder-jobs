@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/robots";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentAdmin } from "@/server/jobslake/access";
 import { BillingNav } from "@/components/billing/admin/BillingNav";
 
-export const metadata: Metadata = { title: "Billing", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Billing", ...PRIVATE_PAGE };
 export const dynamic = "force-dynamic";
 
 /**

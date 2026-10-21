@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   if (session instanceof NextResponse) return session;
   const { tenantId } = session;
   const rl = rateLimit(`audit:${tenantId}`, { capacity: 60, refillPerSec: 2 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many events" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many events" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid audit event" }, { status: 400 });
   const sb = getSupabaseAdmin();

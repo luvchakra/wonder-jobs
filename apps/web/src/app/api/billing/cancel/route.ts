@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`cancel:${session.tenantId}`, { capacity: 3, refillPerSec: 0.02 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!Body.safeParse(await req.json().catch(() => null)).success) return NextResponse.json({ error: "Confirm the cancellation" }, { status: 400 });
   try {
     return NextResponse.json(await cancelSubscription(session.tenantId));

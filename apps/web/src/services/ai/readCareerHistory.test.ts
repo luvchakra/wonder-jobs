@@ -15,7 +15,7 @@ describe("AIService.readCareerHistory (the one boundary to a model)", () => {
     const req = seen[0];
     expect(req.task).toBe("candidate_understanding");
     expect(req.extract).toBe(true);
-    expect(req.system).toMatch(/not instructions/);
+    expect(req.promptId).toBe("career_history");
     expect(req.prompt.startsWith("<resume>\n")).toBe(true);
     // The model sees only the résumé, not "rewrite and improve" around the fallback.
     expect(composePrompt(req)).toBe(req.prompt);
@@ -36,6 +36,6 @@ describe("AIService.readCareerHistory (the one boundary to a model)", () => {
   });
 
   it("drafting tasks still get the draft to improve", () => {
-    expect(composePrompt({ task: "resume_generation", system: "", prompt: "facts", draft: "draft" })).toMatch(/Starting draft/);
+    expect(composePrompt({ task: "resume_generation", promptId: "resume", prompt: "facts", draft: "draft" })).toMatch(/Starting draft/);
   });
 });

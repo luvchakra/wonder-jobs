@@ -13,7 +13,7 @@ export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`privacy-export:${session.tenantId}`, { capacity: 3, refillPerSec: 1 / 1200 });
-  if (!rl.ok) return NextResponse.json({ error: "You've just downloaded your data. Try again in a few minutes." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "You've just downloaded your data. Try again in a few minutes." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   try {
     await recordPrivacyRequest(session.tenantId, "export", "requested");
     const data = await buildExport(session);

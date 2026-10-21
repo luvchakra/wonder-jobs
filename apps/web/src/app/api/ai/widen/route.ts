@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`widen:${session.tenantId}`, { capacity: 4, refillPerSec: 0.05 });
-  if (!rl.ok) return NextResponse.json({ query: null }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ query: null }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ query: null }, { status: 400 });
   const { query, profile } = parsed.data;

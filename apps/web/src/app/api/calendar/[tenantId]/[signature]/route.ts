@@ -28,7 +28,7 @@ interface WorkflowDoc {
 export async function GET(req: Request, { params }: { params: Promise<{ tenantId: string; signature: string }> }) {
   const { tenantId, signature } = await params;
   const rl = rateLimit(`calendar:${tenantId}`, { capacity: 30, refillPerSec: 0.2 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!tenantId || !verifyTenantCalendarSignature(tenantId, signature)) {
     return NextResponse.json({ error: "Invalid or expired calendar link" }, { status: 403 });
   }

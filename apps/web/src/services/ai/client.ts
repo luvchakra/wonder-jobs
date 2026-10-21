@@ -11,7 +11,7 @@ export class RemoteBYOKProvider implements AIProvider {
       res = await fetch("/api/ai/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: this.id, model: this.model, task: req.task, system: req.system, prompt: composePrompt(req), maxTokens: req.maxTokens }),
+        body: JSON.stringify({ provider: this.id, model: this.model, task: req.task, promptId: req.promptId, prompt: composePrompt(req), maxTokens: req.maxTokens }),
       });
     } catch {
       throw new ProviderError(this.id, "network", "Could not reach WonderJobs to contact your AI provider. Check your connection and retry.");

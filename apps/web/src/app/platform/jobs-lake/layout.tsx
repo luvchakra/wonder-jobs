@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/robots";
 import { notFound } from "next/navigation";
 import { currentAdmin } from "@/server/jobslake/access";
 import { JobsLakeShell } from "@/components/jobslake/Shell";
 
-export const metadata: Metadata = { title: "JobsLake", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "JobsLake", ...PRIVATE_PAGE };
 export const dynamic = "force-dynamic";
 
 /**

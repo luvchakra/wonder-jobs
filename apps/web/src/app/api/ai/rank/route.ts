@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`rank:${session.tenantId}`, { capacity: 6, refillPerSec: 0.05 });
-  if (!rl.ok) return NextResponse.json({ scores: null }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ scores: null }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ scores: null }, { status: 400 });
   return NextResponse.json({ scores: await aiRankJobs(parsed.data) }, { headers: { "cache-control": "no-store" } });

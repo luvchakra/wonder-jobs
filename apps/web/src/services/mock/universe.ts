@@ -58,6 +58,12 @@ export interface Universe {
 
 let cached: Universe | null = null;
 
+/** Sample-only marker postings (see the canary note in `getUniverse`). Never change these names. */
+export const CANARIES: Pick<Job, "id" | "title" | "company" | "companyDomain" | "location" | "country" | "description" | "applyUrl">[] = [
+  { id: "job_canary_quillfeather", title: "Cartography Data Steward", company: "Quillfeather Mapworks (sample)", companyDomain: "quillfeather-mapworks.example", location: "Pune, India", country: "IN", description: "Quillfeather Mapworks (sample) keeps hand-drawn survey maps in order. This is a sample posting in the WonderJobs demo.", applyUrl: "https://quillfeather-mapworks.example/jobs/7341" },
+  { id: "job_canary_tamarind", title: "Tidal Archive Curator", company: "Tamarind Lighthouse Co. (sample)", companyDomain: "tamarind-lighthouse.example", location: "Kochi, India", country: "IN", description: "Tamarind Lighthouse Co. (sample) catalogues tide tables. This is a sample posting in the WonderJobs demo.", applyUrl: "https://tamarind-lighthouse.example/careers/2219" },
+];
+
 export function getUniverse(): Universe {
   if (cached) return cached;
   const rand = prng(20260917);
@@ -141,6 +147,14 @@ export function getUniverse(): Universe {
   for (let i = featured.length; i < canonicalCount; i++) {
     const sourceCount = rand.chance(0.45) ? 1 : rand.chance(0.7) ? 2 : 3;
     add(makeJob({}, idx), sourceCount);
+  }
+  // Canary postings: invented, harmless, and found nowhere else, so a copy of this demo data can be
+  // recognised (docs/SECURITY_HARDENING.md). Built after everything else, without drawing on `rand`, so no
+  // other sample job changes.
+  for (const c of CANARIES) {
+    const job: Job = { ...jobs[jobs.length - 1], ...c, sourceId: JOB_SOURCES[0].id, externalId: c.id, repostCount: 0 };
+    jobs.push(job);
+    bySource[job.sourceId].push(job);
   }
   cached = { jobs, bySource };
   return cached;

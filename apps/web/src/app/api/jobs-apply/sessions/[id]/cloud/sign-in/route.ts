@@ -30,6 +30,8 @@ export async function POST(req: Request, ctx: Ctx) {
   try {
     return send(await signInCloud(t, id, parsed.data));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't sign in right now.");
+    // Only the error type: nothing from a sign-in attempt (which carries a password) is ever logged.
+    console.error("[jobs-apply/sessions/[id]/cloud/sign-in] failed:", e instanceof Error ? e.name : "unknown");
+    return fail(503, "UNAVAILABLE", "Couldn't sign in right now.");
   }
 }

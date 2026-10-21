@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`privacy-erase:${session.tenantId}`, { capacity: 3, refillPerSec: 1 / 600 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Try again in a few minutes." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Try again in a few minutes." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!Body.safeParse(await req.json().catch(() => null)).success) return NextResponse.json({ error: `Type ${ERASE_PHRASE} to confirm.` }, { status: 400 });
   const result = await eraseAccount(session);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });

@@ -20,7 +20,7 @@ export async function POST(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   if (!/^rf_[A-Za-z0-9_-]{8,40}$/.test(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const rl = rateLimit(`resume-ats:${session.tenantId}`, { capacity: 20, refillPerSec: 1 / 15 });
-  if (!rl.ok) return NextResponse.json({ error: "That's a lot of checks at once. Give it a minute." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "That's a lot of checks at once. Give it a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const { limits, config } = await tenantPlan(session.tenantId);
   if (!limits.atsReport) return NextResponse.json({ error: `The ATS report is on ${config.plans.max.label}.`, kind: "plan" }, { status: 402 });
   let file;

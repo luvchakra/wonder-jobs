@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
+import { rateLimit } from "@/server/rateLimit";
 import { sourceAvailability } from "@/server/jobs/search";
 import { cronOwnsScheduling } from "@/server/workflow/cronCadence";
 import { jobsLakeFlags } from "@/server/jobslake/flags";
@@ -15,6 +16,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
+  const rl = rateLimit(`jobs-sources:${session.tenantId}`, { capacity: 60, refillPerSec: 1 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests. Give it a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const f = jobsLakeFlags();
   return NextResponse.json({ available: sourceAvailability(), scheduledRuns: cronOwnsScheduling() ? "server" : "browser", jobsLake: { search: f.jobsLakeSearchEnabled, streaming: f.jobsLakeStreamingEnabled } }, { headers: { "cache-control": "private, max-age=300" } });
 }

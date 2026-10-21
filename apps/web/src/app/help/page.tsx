@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/robots";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HELP_FAQ, HELP_SECTIONS } from "@/content/help";
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   title: "Help & user guide",
   description: "How WonderJobs finds, scores and prepares opportunities, what it never does without you, what to do when something goes wrong, and answers to common questions.",
   // Signed-in only (WJ-309): never indexed.
-  robots: { index: false, follow: false },
+  ...PRIVATE_PAGE,
 };
 
 // Rendered per request for a signed-in reader, never prerendered or cached publicly.

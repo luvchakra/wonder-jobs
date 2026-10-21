@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   try {
     return send(await create(t, body));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't save the session.");
+    console.error("[jobs-apply/sessions]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't save the session.");
   }
 }

@@ -11,6 +11,7 @@ export async function GET() {
   try {
     return NextResponse.json(await applyOverview(), { headers: { "cache-control": "no-store" } });
   } catch (e) {
-    return NextResponse.json({ error: { code: "UNAVAILABLE", message: e instanceof Error ? e.message : "Unavailable", retryable: true } }, { status: 503 });
+    console.error("[jobs-apply/admin/overview]", e);
+    return NextResponse.json({ error: { code: "UNAVAILABLE", message: "Unavailable", retryable: true } }, { status: 503 });
   }
 }

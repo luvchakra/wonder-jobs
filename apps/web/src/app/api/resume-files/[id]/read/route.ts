@@ -21,7 +21,7 @@ export async function POST(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   if (!/^rf_[A-Za-z0-9_-]{8,40}$/.test(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const rl = rateLimit(`resume:${session.tenantId}`, { capacity: 10, refillPerSec: 1 / 30 });
-  if (!rl.ok) return NextResponse.json({ error: "That's a lot of résumés at once. Give it a minute." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "That's a lot of résumés at once. Give it a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   let file;
   try {
     file = await resumeFileStore().read(session.tenantId, id);

@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`resume-files:${session.tenantId}`, { capacity: 10, refillPerSec: 1 / 360 });
-  if (!rl.ok) return NextResponse.json({ error: "That's a lot of uploads at once. Try again in a few minutes." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "That's a lot of uploads at once. Try again in a few minutes." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_RESUME_FILE_BYTES + 64 * 1024) return NextResponse.json({ error: "That file is over 3 MB. Export a smaller PDF (most résumés are under 1 MB)." }, { status: 413 });
   let file: File;
   try {

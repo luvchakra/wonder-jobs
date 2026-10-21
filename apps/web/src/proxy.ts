@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE, COOKIE_MAX_AGE, DEMO_COOKIE, USER_COOKIE, authConfigured, chunkNames, splitChunks, toBase64Url, type StoredSession } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/safeRedirect";
 import { isCrossSiteMutation } from "@/lib/csrf";
+import { clientAddress, watchActivity } from "@/server/activityWatch";
 import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken } from "@/server/session";
 
 /**
@@ -30,6 +31,8 @@ function clearSessionCookies(res: NextResponse, req: NextRequest) {
 }
 
 export async function proxy(req: NextRequest) {
+  // Log-only scraping evidence; never changes the response.
+  watchActivity(clientAddress(req.headers), req.nextUrl.pathname);
   if (req.nextUrl.pathname.startsWith("/api/")) {
     // API routes authenticate themselves; the proxy only refuses cross-site mutations (CSRF).
     if (isCrossSiteMutation(req.method, req.headers, req.nextUrl.host)) return NextResponse.json({ error: "Cross-site request refused" }, { status: 403 });

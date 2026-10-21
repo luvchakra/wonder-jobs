@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`consent:${session.tenantId}`, { capacity: 10, refillPerSec: 0.1 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!Body.safeParse(await req.json().catch(() => null)).success) return NextResponse.json({ error: `Confirm you are ${MINIMUM_AGE} or older and accept the current privacy notice.` }, { status: 400 });
   try {
     await recordConsent(session.tenantId, { purpose: "age_confirmation", noticeVersion: PRIVACY_NOTICE_VERSION, granted: true });

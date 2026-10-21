@@ -43,7 +43,8 @@ export async function POST(req: Request) {
   try {
     ciphertext = encrypt(apiKey);
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Encryption unavailable" }, { status: 500 });
+    console.error("[ai/keys]", e);
+    return NextResponse.json({ error: "Encryption unavailable" }, { status: 500 });
   }
   const secret = { provider, ciphertext, masked: maskKey(apiKey), model: chosenModel, connectedAt: new Date().toISOString() };
   await secretStore.put(tenantId, secret);

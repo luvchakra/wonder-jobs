@@ -18,7 +18,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   if (!validId(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const rl = rateLimit(`resume-file-get:${session.tenantId}`, { capacity: 30, refillPerSec: 0.5 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   try {
     const f = await resumeFileStore().read(session.tenantId, id);
     if (!f) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -45,7 +45,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   if (!validId(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const rl = rateLimit(`resume-file-rename:${session.tenantId}`, { capacity: 20, refillPerSec: 0.2 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const body = (await req.json().catch(() => null)) as { filename?: unknown } | null;
   if (typeof body?.filename !== "string" || body.filename.length > 300) return NextResponse.json({ error: "Give the file a name." }, { status: 400 });
   try {

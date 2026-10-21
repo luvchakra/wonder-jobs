@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/robots";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentAdmin } from "@/server/jobslake/access";
 
-export const metadata: Metadata = { title: "JobsApply", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "JobsApply", ...PRIVATE_PAGE };
 export const dynamic = "force-dynamic";
 
 /** JobsApply operations (spec §79). Same gate as JobsLake: non-admins get a 404. */
