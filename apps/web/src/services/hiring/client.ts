@@ -39,6 +39,7 @@ const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
 export const hiringApi = {
   workspaces: () => call<{ me: string; workspaces: Workspace[]; invites: (OrgInvite & { orgName: string })[] }>("/api/hiring"),
   create: (name: string, website?: string) => call<Workspace>("/api/hiring", { method: "POST", json: { name, website: website || undefined } }),
+  updateWorkspace: (org: string, name: string, website?: string) => call<Organization>(o(org), { method: "PATCH", json: { name, website: website || undefined } }),
   answerInvite: (id: string, action: "accept" | "decline") => call(`/api/hiring/invites/${encodeURIComponent(id)}`, { method: "POST", json: { action } }),
   team: (org: string) => call<{ members: Membership[]; invites: OrgInvite[] }>(`${o(org)}/team`),
   invite: (org: string, email: string, role: OrgRole) => call(`${o(org)}/team`, { method: "POST", json: { email, role } }),
