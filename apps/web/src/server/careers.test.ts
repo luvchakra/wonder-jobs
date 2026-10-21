@@ -112,7 +112,7 @@ describe("applying", () => {
     expect(toApplicant.text).toContain("https://id.wonderapps.biz/careers/status?t=wjst_");
     const team = sent.filter((m) => m.subject.startsWith("New application")).map((m) => m.to).sort();
     expect(team).toEqual(["hm@wonderid.test", "owner@wonderid.test"]);
-    expect(sent.find((m) => m.to === "owner@wonderid.test")!.text).toContain(`/app/hiring?tab=applications&a=${id}`);
+    expect(sent.find((m) => m.to === "owner@wonderid.test")!.text).toContain(`/app/hiring?org=${orgId}&tab=applications&a=${id}`);
     const [a] = await C.listApplications(owner, orgId);
     expect(a).toMatchObject({ id, email: "asha@example.com", status: "new", jobTitle: job.title, siteName: "WonderID careers" });
   });

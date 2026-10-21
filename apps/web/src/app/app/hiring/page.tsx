@@ -2,6 +2,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Check, ShieldAlert } from "lucide-react";
+import { Modal } from "@/components/common/Modal";
 import { can } from "@/domain/org/permissions";
 import { ORG_ROLE_LABEL } from "@/domain/org/types";
 import { hiringApi } from "@/services/hiring/client";
@@ -25,13 +26,16 @@ type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
 /**
  * Hiring (owner, 2026-10-20): a company's workspace on WonderJobs. Post jobs that job seekers find in their
  * searches, find candidates who are open to recruiters, shortlist and report them to hiring managers, and write to
- * them. The tabs shown follow the person's role; the server checks the role again on every action.
+ * them. The tabs shown follow the person's role; the server checks the role again on every action. One person can
+ * belong to, and own, several workspaces: the picker in the header switches between them and creates a new one, and
+ * `?org=` names the open one so a link (e.g. from an email) opens the right workspace.
  */
 function HiringPage() {
   const params = useSearchParams();
   const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(params.get("org"));
+  const [creating, setCreating] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const load = useCallback(() => {
     hiringApi
@@ -61,10 +65,23 @@ function HiringPage() {
   const tab: Tab = tabs.some((t) => t.value === asked) ? asked! : (tabs[0]?.value ?? "team");
   const openConversation = params.get("c");
   const openApplication = params.get("a");
-  const go = (t: Tab, c?: string | null) => router.replace(`/app/hiring?tab=${t}${c ? `&c=${c}` : ""}`);
+  const go = (t: Tab, c?: string | null, org = orgId) => router.replace(`/app/hiring?${org ? `org=${encodeURIComponent(org)}&` : ""}tab=${t}${c ? `&c=${c}` : ""}`);
+  const switchTo = (id: string) => {
+    setOrgId(id);
+    router.replace(`/app/hiring?org=${encodeURIComponent(id)}`);
+  };
 
   if (!data) return <PageLoading />;
-  if (!ws) return <Start data={data} onChange={load} />;
+  if (!ws)
+    return (
+      <Start
+        data={data}
+        onChange={(id) => {
+          if (id) switchTo(id);
+          load();
+        }}
+      />
+    );
   const r = ws.role;
   return (
     <div className="mx-auto max-w-4xl">
@@ -72,17 +89,27 @@ function HiringPage() {
         title={ws.org.name}
         description={`Hiring workspace · you're ${ORG_ROLE_LABEL[r] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[r]}`}`}
         actions={
-          data.workspaces.length > 1 ? (
-            <Select value={ws.org.id} onChange={(e) => setOrgId(e.target.value)} aria-label="Workspace" className="w-48">
-              {data.workspaces.map((w) => (
-                <option key={w.org.id} value={w.org.id}>
-                  {w.org.name}
-                </option>
-              ))}
-            </Select>
-          ) : undefined
+          <Select value={ws.org.id} onChange={(e) => (e.target.value === NEW ? setCreating(true) : switchTo(e.target.value))} aria-label="Workspace" className="w-48">
+            {data.workspaces.map((w) => (
+              <option key={w.org.id} value={w.org.id}>
+                {w.org.name}
+              </option>
+            ))}
+            <option value={NEW}>New workspace…</option>
+          </Select>
         }
       />
+      {creating && (
+        <Modal open onClose={() => setCreating(false)} title="New hiring workspace" description="Another company you hire for. You'll be its Owner; your other workspaces stay as they are.">
+          <NewWorkspaceForm
+            onCreated={(id) => {
+              setCreating(false);
+              switchTo(id);
+              load();
+            }}
+          />
+        </Modal>
+      )}
       {!ws.org.verified && (
         <p className="mb-4 flex items-start gap-2 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden /> Not verified yet: your open jobs tell job seekers WonderJobs hasn&apos;t checked this company.
@@ -100,10 +127,7 @@ function HiringPage() {
 }
 
 /** No workspace yet: invitations waiting for this email, or create the company's workspace. */
-function Start({ data, onChange }: { data: Data; onChange: () => void }) {
-  const [name, setName] = useState("");
-  const [website, setWebsite] = useState("");
-  const [busy, setBusy] = useState(false);
+function Start({ data, onChange }: { data: Data; onChange: (orgId?: string) => void }) {
   const answer = async (id: string, action: "accept" | "decline") => {
     try {
       await hiringApi.answerInvite(id, action);
@@ -141,34 +165,48 @@ function Start({ data, onChange }: { data: Data; onChange: () => void }) {
           <Building2 className="size-4 text-brand-600" aria-hidden /> Set up your company
         </h2>
         <p className="mt-1 text-[13px] text-ink-3">You&apos;ll be its Owner, and can invite hiring managers and recruiters. Your job seeker account stays as it is.</p>
-        <form
-          className="mt-3 flex flex-col gap-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            try {
-              await hiringApi.create(name, website);
-              toast.success(`${name} is set up`, "Post your first job, or invite your team.");
-              onChange();
-            } catch (err) {
-              toast.error("Couldn't set it up", (err as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <Field label="Company name" htmlFor="cn" required>
-            <Input id="cn" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
-          </Field>
-          <Field label="Website (optional)" htmlFor="cw">
-            <Input id="cw" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://company.com" maxLength={300} />
-          </Field>
-          <Button type="submit" loading={busy} disabled={name.trim().length < 2}>
-            Create workspace
-          </Button>
-        </form>
+        <div className="mt-3">
+          <NewWorkspaceForm onCreated={(id) => onChange(id)} />
+        </div>
       </Card>
     </div>
+  );
+}
+
+const NEW = "__new";
+
+/** The company's name and website; the creator becomes its Owner. Used for the first workspace and for each new one. */
+function NewWorkspaceForm({ onCreated }: { onCreated: (orgId: string) => void }) {
+  const [name, setName] = useState("");
+  const [website, setWebsite] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+          const w = await hiringApi.create(name, website);
+          toast.success(`${w.org.name} is set up`, "Post your first job, or invite your team.");
+          onCreated(w.org.id);
+        } catch (err) {
+          toast.error("Couldn't set it up", (err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <Field label="Company name" htmlFor="cn" required>
+        <Input id="cn" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
+      </Field>
+      <Field label="Website (optional)" htmlFor="cw">
+        <Input id="cw" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://company.com" maxLength={300} />
+      </Field>
+      <Button type="submit" loading={busy} disabled={name.trim().length < 2}>
+        Create workspace
+      </Button>
+    </form>
   );
 }
 

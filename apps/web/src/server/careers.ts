@@ -352,7 +352,7 @@ export async function sendDueReminders(at = new Date()): Promise<{ orgs: number;
       heading: `${list.length} application${list.length === 1 ? "" : "s"} waiting on you`,
       intro: `These applications to ${org?.name ?? "your company"} have had no decision for ${REMINDER_AFTER_HOURS / 24} days or more. Each applicant is waiting to hear back.`,
       rows: list.map((a) => [`${a.name} — ${title(a)}`, `applied ${a.created_at.slice(0, 10)} · ${APPLICATION_STATUS_LABEL[a.status]}`]),
-      button: { label: "Review applications", href: reviewUrl() },
+      button: { label: "Review applications", href: reviewUrl(orgId) },
     });
     let sent = 0;
     for (const to of team) if ((await sendMail({ to, subject: `Reminder: ${list.length} application${list.length === 1 ? "" : "s"} waiting at ${org?.name ?? "your company"}`, ...mail })).sent) sent++;
@@ -373,7 +373,8 @@ async function deciders(orgId: string): Promise<string[]> {
   return [...new Set(team.filter((m) => can(m.role, "applications.decide") && m.email).map((m) => m.email!))];
 }
 
-const reviewUrl = (applicationId?: string) => new URL(`/app/hiring?tab=applications${applicationId ? `&a=${applicationId}` : ""}`, siteUrl().origin).toString();
+/** The workspace's Applications tab (one person may be in several workspaces, so the link names this one). */
+const reviewUrl = (orgId: string, applicationId?: string) => new URL(`/app/hiring?org=${encodeURIComponent(orgId)}&tab=applications${applicationId ? `&a=${applicationId}` : ""}`, siteUrl().origin).toString();
 
 function button(b: { label: string; href: string }) {
   const C = EMAIL_COLORS;
@@ -435,7 +436,7 @@ async function notifySubmitted(a: AppRow, job: JobRow, site: Site): Promise<void
         ...(a.linkedin_url ? [["LinkedIn / portfolio", a.linkedin_url] as [string, string]] : []),
         ...(a.cover_note ? [["Note", a.cover_note.slice(0, 600)] as [string, string]] : []),
       ],
-      button: { label: "Review the application", href: reviewUrl(a.id) },
+      button: { label: "Review the application", href: reviewUrl(a.org_id, a.id) },
     });
     let sent = 0;
     for (const to of team) if ((await sendMail({ to, subject: `New application for ${job.title}: ${a.name}`, replyTo: a.email, ...mail })).sent) sent++;
@@ -449,7 +450,7 @@ async function notifyWithdrawn(a: AppRow, job: JobRow | undefined, site: Site): 
   try {
     await emailCandidate(a, job?.title ?? "the position", site, {});
     const team = await deciders(a.org_id);
-    const mail = renderTeamEmail({ heading: `${a.name} withdrew`, intro: `${a.name} withdrew their application for ${job?.title ?? "a position"}. No action is needed.`, rows: [["Email", a.email]], button: { label: "Open applications", href: reviewUrl(a.id) } });
+    const mail = renderTeamEmail({ heading: `${a.name} withdrew`, intro: `${a.name} withdrew their application for ${job?.title ?? "a position"}. No action is needed.`, rows: [["Email", a.email]], button: { label: "Open applications", href: reviewUrl(a.org_id, a.id) } });
     for (const to of team) await sendMail({ to, subject: `${a.name} withdrew from ${job?.title ?? "a position"}`, ...mail });
   } catch (e) {
     console.error("[careers] withdraw notifications failed", e instanceof Error ? e.message.slice(0, 200) : e);
