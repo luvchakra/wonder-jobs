@@ -1,3 +1,4 @@
+import type { Application, ApplicationEvent, ApplicationStatus, CareerSite } from "@/domain/org/careers";
 import type { Conversation, EmployerJob, Membership, Message, OrgInvite, OrgRole, Organization, ShortlistEntry, ShortlistStatus, TalentProfile } from "@/domain/org/types";
 
 /** Browser calls to the hiring routes. The server decides every permission; these only carry the request. */
@@ -27,6 +28,10 @@ export interface ConversationView extends Conversation {
   jobTitle?: string;
   last?: Message;
 }
+export interface ApplicationView extends Application {
+  jobTitle: string;
+  siteName?: string;
+}
 export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl">;
 
 const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
@@ -44,6 +49,13 @@ export const hiringApi = {
   createJob: (org: string, job: JobInput) => call<EmployerJob>(`${o(org)}/jobs`, { method: "POST", json: job }),
   editJob: (org: string, id: string, job: JobInput) => call<EmployerJob>(`${o(org)}/jobs`, { method: "PATCH", json: { id, job } }),
   setJobStatus: (org: string, id: string, status: EmployerJob["status"]) => call(`${o(org)}/jobs`, { method: "PATCH", json: { id, status } }),
+  sites: (org: string) => call<{ sites: CareerSite[]; links: { siteId: string; jobId: string }[] }>(`${o(org)}/sites`),
+  createSite: (org: string, name: string, publicUrl: string) => call<{ site: CareerSite; key: string }>(`${o(org)}/sites`, { method: "POST", json: { name, publicUrl } }),
+  revokeSite: (org: string, id: string) => call(`${o(org)}/sites?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+  linkJob: (org: string, siteId: string, jobId: string, on: boolean) => call(`${o(org)}/sites`, { method: "PATCH", json: { siteId, jobId, on } }),
+  applications: (org: string) => call<{ applications: ApplicationView[] }>(`${o(org)}/applications`),
+  applicationHistory: (org: string, id: string) => call<{ events: ApplicationEvent[] }>(`${o(org)}/applications?history=${encodeURIComponent(id)}`),
+  decide: (org: string, id: string, status: Exclude<ApplicationStatus, "new" | "withdrawn">, note?: string, link?: string) => call<{ status: ApplicationStatus; emailed: boolean }>(`${o(org)}/applications`, { method: "PATCH", json: { id, status, note: note || undefined, link: link || undefined } }),
   talent: (org: string, q: string, place: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?q=${encodeURIComponent(q)}&place=${encodeURIComponent(place)}`),
   shortlist: (org: string) => call<{ entries: ShortlistView[] }>(`${o(org)}/shortlist`),
   addToShortlist: (org: string, candidate: string, note: string, jobId?: string) => call(`${o(org)}/shortlist`, { method: "POST", json: { candidate, note, jobId } }),

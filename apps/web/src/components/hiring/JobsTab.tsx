@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import type { EmployerJob } from "@/domain/org/types";
+import type { CareerSite } from "@/domain/org/careers";
+import { CareerSites } from "./CareerSites";
 import { hiringApi, type JobInput } from "@/services/hiring/client";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
@@ -15,17 +17,34 @@ const STATUS_TONE = { draft: "neutral", open: "success", closed: "warning" } as 
 const STATUS_LABEL = { draft: "Draft", open: "Open", closed: "Closed" } as const;
 const EMPTY: JobInput = { title: "", location: "", workMode: "hybrid", jobType: "full_time", currency: "INR", description: "", skills: [], applyUrl: "" };
 
-/** The workspace's job listings: post one, edit it, open it to job seekers or close it. */
-export function JobsTab({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
+/** The workspace's job listings: post one, edit it, open it to job seekers or close it, and show it on career sites. */
+export function JobsTab({ orgId, canEdit, canManage }: { orgId: string; canEdit: boolean; canManage: boolean }) {
   const [jobs, setJobs] = useState<EmployerJob[] | null>(null);
+  const [sites, setSites] = useState<{ sites: CareerSite[]; links: { siteId: string; jobId: string }[] }>({ sites: [], links: [] });
   const [editing, setEditing] = useState<{ id?: string; job: JobInput } | null>(null);
   const load = useCallback(() => {
     hiringApi
       .jobs(orgId)
       .then((d) => setJobs(d.jobs))
       .catch((e: Error) => toast.error("Couldn't load jobs", e.message));
+    // Career sites are optional: if they can't be read, the jobs still show, without the site links.
+    hiringApi
+      .sites(orgId)
+      .then(setSites)
+      .catch(() => setSites({ sites: [], links: [] }));
   }, [orgId]);
   useEffect(load, [load]);
+
+  const linked = (siteId: string, jobId: string) => sites.links.some((l) => l.siteId === siteId && l.jobId === jobId);
+  const link = async (site: CareerSite, j: EmployerJob, on: boolean) => {
+    try {
+      await hiringApi.linkJob(orgId, site.id, j.id, on);
+      toast.success(on ? `${j.title} is on ${site.name}` : `${j.title} is off ${site.name}`, on && j.status !== "open" ? "It shows there once you open it." : undefined);
+      load();
+    } catch (e) {
+      toast.error("Couldn't change it", (e as Error).message);
+    }
+  };
 
   const status = async (j: EmployerJob, s: EmployerJob["status"]) => {
     try {
@@ -44,6 +63,7 @@ export function JobsTab({ orgId, canEdit }: { orgId: string; canEdit: boolean })
           Post a job
         </Button>
       )}
+      <CareerSites orgId={orgId} sites={sites.sites} canManage={canManage} onChange={load} />
       <p className="mb-3 text-[12px] text-ink-3">Open jobs show up in job seekers&apos; searches on WonderJobs, with your company&apos;s name.</p>
       {jobs === null ? (
         <p className="text-[13px] text-ink-3">Loading…</p>
@@ -56,6 +76,16 @@ export function JobsTab({ orgId, canEdit }: { orgId: string; canEdit: boolean })
               <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                 <p className="truncate text-[15px] font-semibold text-ink">{j.title}</p>
                 <p className="truncate text-[12px] text-ink-3">{[j.location, j.workMode, formatSalaryRange(j.salaryMin, j.salaryMax, j.currency), `updated ${relativeTime(j.updatedAt)}`].filter(Boolean).join(" · ")}</p>
+                {sites.sites.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {sites.sites.map((site) => (
+                      <label key={site.id} className="inline-flex min-h-8 items-center gap-1.5 text-[12px] text-ink-2">
+                        <input type="checkbox" checked={linked(site.id, j.id)} disabled={!canEdit} onChange={(e) => link(site, j, e.target.checked)} className="size-4 accent-brand-600" />
+                        On {site.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
               <Badge tone={STATUS_TONE[j.status]}>{STATUS_LABEL[j.status]}</Badge>
               {canEdit && (

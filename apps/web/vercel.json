@@ -8,6 +8,7 @@
   "regions": ["bom1"],
   "crons": [
     { "path": "/api/cron/scheduled-runs", "schedule": "0 2 * * *" },
-    { "path": "/api/cron/jobslake-companies", "schedule": "30 1 * * *" }
+    { "path": "/api/cron/jobslake-companies", "schedule": "30 1 * * *" },
+    { "path": "/api/cron/application-reminders", "schedule": "30 3 * * *" }
   ]
 }

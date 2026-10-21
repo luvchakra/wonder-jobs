@@ -17,8 +17,9 @@ import { TalentTab } from "@/components/hiring/TalentTab";
 import { ShortlistTab } from "@/components/hiring/ShortlistTab";
 import { MessagesTab } from "@/components/hiring/MessagesTab";
 import { TeamTab } from "@/components/hiring/TeamTab";
+import { ApplicationsTab } from "@/components/hiring/ApplicationsTab";
 
-type Tab = "jobs" | "talent" | "shortlist" | "messages" | "team";
+type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team";
 type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
 
 /**
@@ -49,6 +50,7 @@ function HiringPage() {
     const r = ws.role;
     return [
       can(r, "jobs.view") && { value: "jobs" as const, label: "Jobs" },
+      can(r, "applications.view") && { value: "applications" as const, label: "Applications" },
       can(r, "talent.search") && { value: "talent" as const, label: "Talent" },
       can(r, "shortlist.view") && { value: "shortlist" as const, label: can(r, "shortlist.edit") ? "Shortlist" : "Reports" },
       can(r, "messages.view") && { value: "messages" as const, label: "Messages" },
@@ -58,6 +60,7 @@ function HiringPage() {
   const asked = params.get("tab") as Tab | null;
   const tab: Tab = tabs.some((t) => t.value === asked) ? asked! : (tabs[0]?.value ?? "team");
   const openConversation = params.get("c");
+  const openApplication = params.get("a");
   const go = (t: Tab, c?: string | null) => router.replace(`/app/hiring?tab=${t}${c ? `&c=${c}` : ""}`);
 
   if (!data) return <PageLoading />;
@@ -86,7 +89,8 @@ function HiringPage() {
         </p>
       )}
       <Tabs value={tab} onChange={(t) => go(t)} items={tabs} label="Hiring" variant="underline" className="mb-4" />
-      {tab === "jobs" && <JobsTab orgId={ws.org.id} canEdit={can(r, "jobs.edit")} />}
+      {tab === "jobs" && <JobsTab orgId={ws.org.id} canEdit={can(r, "jobs.edit")} canManage={can(r, "org.manage")} />}
+      {tab === "applications" && <ApplicationsTab orgId={ws.org.id} canDecide={can(r, "applications.decide")} openId={openApplication} />}
       {tab === "talent" && <TalentTab orgId={ws.org.id} onShortlisted={() => setRefresh((n) => n + 1)} onMessaged={(id) => go("messages", id)} />}
       {tab === "shortlist" && <ShortlistTab orgId={ws.org.id} canEdit={can(r, "shortlist.edit")} canDecide={can(r, "shortlist.decide")} refresh={refresh} />}
       {tab === "messages" && <MessagesTab orgId={ws.org.id} openId={openConversation} onOpen={(id) => go("messages", id)} refresh={refresh} />}
