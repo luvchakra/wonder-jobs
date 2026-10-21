@@ -68,7 +68,7 @@ export function CareerSites({ orgId, sites, canManage, onChange }: { orgId: stri
               Copy
             </Button>
           </div>
-          <p className="mt-2 text-ink-3">Put it in that app&apos;s server settings (for WonderID: WONDERJOBS_CAREERS_KEY). Never in a web page.</p>
+          <p className="mt-2 text-ink-3">Paste it into that app&apos;s settings (for WonderID: Platform console → Careers). Never into a web page.</p>
         </div>
       )}
       {canManage ? (

@@ -18,6 +18,7 @@ vi.mock("@/server/push/subscriptions", () => ({ notifyTenant: vi.fn(async (tenan
 import { resetTablesForTests } from "@/server/db/table";
 import { SOURCE_FETCHERS } from "@/server/jobs/providers";
 import * as hiring from "./route";
+import * as workspace from "./[org]/route";
 import * as invite from "./invites/[id]/route";
 import * as team from "./[org]/team/route";
 import * as jobs from "./[org]/jobs/route";
@@ -216,6 +217,23 @@ describe("employer (Owner)", () => {
     expect(org).toMatchObject({ name: "Acme", verified: false });
     const mine = await ok(call(owner, hiring.GET));
     expect(mine.workspaces).toEqual([{ org, role: "owner" }]);
+  });
+
+  it("changes the company's name and website; open jobs show the new name; only an Owner can", async () => {
+    const { orgId, owner, manager, recruiter } = await company("Acme");
+    const job = await ok(postJob(owner, orgId));
+    await ok(setJob(owner, orgId, job.id, "open"));
+    const rename = (who: Actor, body: object) => call(who, workspace.PATCH, { method: "PATCH", body, params: { org: orgId } });
+    for (const who of [manager, recruiter, person("outsider")]) expect((await rename(who, { name: "Hijacked" })).status).toBe(403);
+    expect((await rename(owner, { name: "A" })).status).toBe(400);
+    expect((await rename(owner, { name: "Acme Homes", website: "not a site" })).status).toBe(400);
+    const org = await ok(rename(owner, { name: "Acme Homes", website: "acmehomes.example" }));
+    expect(org).toMatchObject({ name: "Acme Homes", website: "https://acmehomes.example", verified: false });
+    expect((await ok(call(manager, hiring.GET))).workspaces[0].org.name).toBe("Acme Homes");
+    const [found] = await employerSearch("platform engineer");
+    expect(found).toMatchObject({ company: "Acme Homes", companyDomain: "acmehomes.example" });
+    // Clearing the website is allowed.
+    expect((await ok(rename(owner, { name: "Acme Homes", website: "" }))).website).toBeUndefined();
   });
 
   it("posts a job as a draft, edits it, opens and closes it", async () => {

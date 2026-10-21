@@ -4,11 +4,12 @@ vi.mock("./supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async 
 vi.mock("./push/subscriptions", () => ({ notifyTenant: vi.fn(async () => ({ sent: 0 })) }));
 
 import type { Session } from "./auth";
-import { resetTablesForTests } from "./db/table";
+import { resetTablesForTests, table } from "./db/table";
 import * as H from "./hiring";
 import { can, permissionsOf } from "@/domain/org/permissions";
 import { displayName, searchTalent, talentProfileFrom } from "@/domain/org/talent";
 import { EMPTY_DNA } from "@/domain/career/types";
+import { websiteDomain, workEmailMatches } from "@/domain/org/company";
 
 const owner: Session = { userId: "u-owner", tenantId: "u-owner", email: "owner@acme.com", name: "Olive Owner" };
 const hm: Session = { userId: "u-hm", tenantId: "u-hm", email: "hm@acme.com" };
@@ -49,6 +50,21 @@ describe("roles and permissions", () => {
 });
 
 describe("workspaces", () => {
+  it("lets one person own several workspaces, each with its own jobs and team", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme" });
+    const b = await H.createWorkspace(owner, { name: "Beta Labs" });
+    expect((await H.myWorkspaces(owner)).workspaces.map((w) => [w.org.name, w.role])).toEqual([
+      ["Acme", "owner"],
+      ["Beta Labs", "owner"],
+    ]);
+    await H.saveJob(owner, a.org.id, job);
+    expect(await H.listOrgJobs(owner, b.org.id)).toEqual([]);
+    const inv = await H.inviteMember(owner, b.org.id, "rec@acme.com", "recruiter");
+    await H.acceptInvite(rec, inv.id);
+    expect((await H.myWorkspaces(rec)).workspaces.map((w) => w.org.name)).toEqual(["Beta Labs"]);
+    await expect(H.listOrgJobs(rec, a.org.id)).rejects.toMatchObject({ status: 403 });
+  });
+
   it("makes the creator the owner and lets invited people join only with the invited email", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     const inv = await H.inviteMember(owner, org.id, "rec@acme.com", "recruiter");
@@ -173,5 +189,89 @@ describe("talent profile", () => {
     expect(searchTalent(list, "go", "").map((m) => m.profile.tenantId)).toEqual(["a", "b"]);
     expect(searchTalent(list, "go kubernetes", "").map((m) => m.profile.tenantId)).toEqual(["a"]);
     expect(searchTalent(list, "go", "mumbai").map((m) => m.profile.tenantId)).toEqual(["b"]);
+  });
+});
+
+describe("company details", () => {
+  it("a verified company that changes its name or website goes back to unverified; saving the same details doesn't", async () => {
+    const orgId = await workspace();
+    await table<{ id: string; verified: boolean }>("hiring_orgs").update({ id: orgId }, { verified: true });
+    expect((await H.updateWorkspace(owner, orgId, { name: "Acme" })).verified).toBe(true);
+    expect((await H.updateWorkspace(owner, orgId, { name: "Acme Corp" })).verified).toBe(false);
+    await expect(H.updateWorkspace(rec, orgId, { name: "Mine now" })).rejects.toThrow(/can't do that/);
+  });
+
+  it("only an Owner deletes a workspace, only after typing its name, and it's gone for everyone", async () => {
+    const orgId = await workspace();
+    await H.saveJob(owner, orgId, job);
+    await expect(H.deleteWorkspace(hm, orgId, "Acme")).rejects.toMatchObject({ status: 403 });
+    await expect(H.deleteWorkspace(outsider, orgId, "Acme")).rejects.toMatchObject({ status: 403 });
+    await expect(H.deleteWorkspace(owner, orgId, "acme")).rejects.toThrow(/Type the company's name/);
+    await H.deleteWorkspace(owner, orgId, " Acme ");
+    for (const s of [owner, hm, rec]) expect((await H.myWorkspaces(s)).workspaces).toEqual([]);
+    await expect(H.listOrgJobs(owner, orgId)).rejects.toMatchObject({ status: 403 });
+    expect(await H.openJobs()).toEqual([]);
+  });
+
+  it("deleting one workspace leaves the Owner's others as they are", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme" });
+    const b = await H.createWorkspace(owner, { name: "Beta Labs" });
+    await H.saveJob(owner, b.org.id, job);
+    await H.deleteWorkspace(owner, a.org.id, "Acme");
+    expect((await H.myWorkspaces(owner)).workspaces.map((w) => w.org.name)).toEqual(["Beta Labs"]);
+    expect(await H.listOrgJobs(owner, b.org.id)).toHaveLength(1);
+  });
+});
+
+describe("verifying a company", () => {
+  it("counts a work email on the website's domain or a subdomain, never a personal provider", () => {
+    expect(websiteDomain("https://www.Acme.com/careers")).toBe("acme.com");
+    expect(websiteDomain("acme.com")).toBe("acme.com");
+    expect(websiteDomain("")).toBeNull();
+    expect(workEmailMatches("owner@acme.com", "https://acme.com")).toBe(true);
+    expect(workEmailMatches("owner@in.acme.com", "acme.com")).toBe(true);
+    expect(workEmailMatches("owner@acme.com", "https://jobs.acme.com")).toBe(true);
+    expect(workEmailMatches("owner@acme.co", "acme.com")).toBe(false);
+    expect(workEmailMatches("owner@notacme.com", "acme.com")).toBe(false);
+    expect(workEmailMatches("owner@gmail.com", "gmail.com")).toBe(false);
+    expect(workEmailMatches(undefined, "acme.com")).toBe(false);
+  });
+
+  it("verifies at once by the Owner's own work email, and only an Owner", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    expect((await H.verificationOptions(owner, org.id)).workEmailMatches).toBe(true);
+    await expect(H.verificationOptions(rec, org.id)).rejects.toMatchObject({ status: 403 });
+    expect((await H.verifyByWorkEmail(owner, org.id)).verified).toBe(true);
+    expect((await H.myWorkspaces(owner)).workspaces[0].org.verified).toBe(true);
+  });
+
+  it("refuses a personal email or a missing website, and points to the review instead", async () => {
+    const gmailOwner: Session = { userId: "u-g", tenantId: "u-g", email: "founder@gmail.com" };
+    const { org } = await H.createWorkspace(gmailOwner, { name: "Beta Labs", website: "betalabs.io" });
+    await expect(H.verifyByWorkEmail(gmailOwner, org.id)).rejects.toThrow(/isn't on betalabs.io/);
+    const bare = await H.createWorkspace(gmailOwner, { name: "No Site" });
+    await expect(H.verifyByWorkEmail(gmailOwner, bare.org.id)).rejects.toThrow(/website first/);
+    await expect(H.requestVerificationReview(gmailOwner, bare.org.id, "")).rejects.toThrow(/website first/);
+  });
+
+  it("says honestly when a review request couldn't be sent", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    delete process.env.CONTACT_NOTIFY_EMAILS;
+    expect(await H.requestVerificationReview(owner, org.id, "CIN U12345")).toEqual({ sent: false });
+    await expect(H.requestVerificationReview(rec, org.id, "")).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("lets platform admins list companies unverified first, and verify or unverify one", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    await H.verifyByWorkEmail(owner, a.org.id);
+    const b = await H.createWorkspace(outsider, { name: "Other Co" });
+    expect((await H.listCompaniesForAdmin()).map((c) => [c.name, c.verified, c.owners])).toEqual([
+      ["Other Co", false, ["out@other.com"]],
+      ["Acme", true, ["owner@acme.com"]],
+    ]);
+    await H.setCompanyVerified(b.org.id, true);
+    await H.setCompanyVerified(a.org.id, false);
+    expect((await H.myWorkspaces(outsider)).workspaces[0].org.verified).toBe(true);
+    expect((await H.myWorkspaces(owner)).workspaces[0].org.verified).toBe(false);
   });
 });
