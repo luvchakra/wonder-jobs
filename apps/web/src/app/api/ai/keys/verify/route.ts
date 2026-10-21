@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (session instanceof NextResponse) return session;
   const { tenantId } = session;
   const rl = rateLimit(`verify:${tenantId}`, { capacity: 5, refillPerSec: 0.1 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many checks. Try again shortly." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many checks. Try again shortly." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const body = z.object({ provider: z.enum(["anthropic", "openai", "gemini"]) }).safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
   const secret = await secretStore.get(tenantId, body.data.provider);

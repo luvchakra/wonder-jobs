@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/AppShell";
+import { PRIVATE_PAGE } from "@/lib/robots";
+
+/** The signed-in app is never indexed or used for AI training. */
+export const metadata: Metadata = PRIVATE_PAGE;
 
 /**
  * Starts the tenant's state request while the HTML is still streaming, before

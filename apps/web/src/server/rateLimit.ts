@@ -25,6 +25,18 @@ function sweep(now: number) {
   }
 }
 
+/**
+ * Every refusal is evidence (scraping, a runaway client): logged with its key, at most once a minute per
+ * key so a flood can't flood the logs. The key names the route and the tenant or address, nothing more.
+ */
+const lastLogged = new Map<string, number>();
+function logHit(key: string, now: number) {
+  if (now - (lastLogged.get(key) ?? 0) < 60_000) return;
+  if (lastLogged.size >= 5_000) lastLogged.clear();
+  lastLogged.set(key, now);
+  console.warn(`[rate-limit] refused ${key}`);
+}
+
 export function rateLimit(key: string, opts: { capacity: number; refillPerSec: number }) {
   const now = Date.now();
   sweep(now);
@@ -35,6 +47,7 @@ export function rateLimit(key: string, opts: { capacity: number; refillPerSec: n
   buckets.delete(key);
   if (b.tokens < 1) {
     buckets.set(key, b);
+    logHit(key, now);
     return { ok: false as const, retryAfterSec: Math.ceil((1 - b.tokens) / opts.refillPerSec) };
   }
   b.tokens -= 1;

@@ -17,6 +17,7 @@ export async function POST(req: Request, ctx: Ctx) {
   try {
     return send(await resolve(t, id, itemId, body));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't save the answer.");
+    console.error("[jobs-apply/sessions/[id]/interventions/[itemId]]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't save the answer.");
   }
 }

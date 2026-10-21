@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const rl = rateLimit("admin:migrate", { capacity: 5, refillPerSec: 0.05 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many attempts" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const body = z.object({ databaseUrl: z.string().url().refine((u) => /^postgres(ql)?:\/\//.test(u), "Must be a postgres:// URL") }).safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Provide { databaseUrl: 'postgresql://…' }" }, { status: 400 });
   try {

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   if (!pushPublicKey()) return NextResponse.json({ error: "Push notifications aren't set up on this deployment yet." }, { status: 503 });
   if (!getSupabaseAdmin()) return NextResponse.json({ error: "This deployment has no database to remember the subscription in." }, { status: 503 });
   const rl = rateLimit(`push:${session.tenantId}`, { capacity: 20, refillPerSec: 1 / 10 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Give it a minute." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many attempts. Give it a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "That subscription doesn't look right. Turn notifications off and on again." }, { status: 400 });

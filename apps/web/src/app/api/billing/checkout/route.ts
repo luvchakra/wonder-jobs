@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`checkout:${session.tenantId}`, { capacity: 5, refillPerSec: 0.05 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many checkout attempts. Try again in a minute." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many checkout attempts. Try again in a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Choose Stripe or Razorpay" }, { status: 400 });
   try {

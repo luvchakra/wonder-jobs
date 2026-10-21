@@ -20,7 +20,7 @@ export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`billing:${session.tenantId}`, { capacity: 30, refillPerSec: 0.5 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const [providers, ent, ledger, config] = await Promise.all([providerAvailability(), entitlement(session.tenantId), billingStore().ledgerForTenant(session.tenantId, 50).catch(() => []), getPlansConfig()]);
   const payments = ledger
     .filter((r) => r.kind === "payment_succeeded" || r.kind === "payment_failed")

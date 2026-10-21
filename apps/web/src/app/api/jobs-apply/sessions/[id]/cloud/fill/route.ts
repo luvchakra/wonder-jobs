@@ -18,6 +18,7 @@ export async function POST(req: Request, ctx: Ctx) {
   try {
     return send(await fillCloud(t, id));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't reach the cloud browser.");
+    console.error("[jobs-apply/sessions/[id]/cloud/fill]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't reach the cloud browser.");
   }
 }

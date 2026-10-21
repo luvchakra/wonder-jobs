@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MAX_KEYS, rateLimit, rateLimitKeyCount } from "./rateLimit";
 
 describe("rateLimit", () => {
@@ -19,5 +19,13 @@ describe("rateLimit", () => {
       if (i % 1_000 === 0) rateLimit("rl-busy", { capacity: 1, refillPerSec: 0.001 });
     }
     expect(rateLimit("rl-busy", { capacity: 1, refillPerSec: 0.001 }).ok).toBe(false);
+  });
+
+  it("logs a refusal with its key, at most once a minute per key", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    rateLimit("rl-log", { capacity: 1, refillPerSec: 0.001 });
+    for (let i = 0; i < 5; i++) expect(rateLimit("rl-log", { capacity: 1, refillPerSec: 0.001 }).ok).toBe(false);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes("rl-log"))).toHaveLength(1);
+    warn.mockRestore();
   });
 });

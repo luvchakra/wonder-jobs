@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
+import { rateLimit } from "@/server/rateLimit";
 import { certificationNamed, forSkill, loadCatalog, type LearnItem } from "@/server/skillup/mslearn";
 
 export const runtime = "nodejs";
@@ -20,6 +21,8 @@ const list = (v: string | null) =>
 export async function GET(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
+  const rl = rateLimit(`skill-up-learn:${session.tenantId}`, { capacity: 60, refillPerSec: 1 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many requests. Give it a minute." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const url = new URL(req.url);
   const skills = list(url.searchParams.get("skills"));
   const certs = list(url.searchParams.get("certs"));

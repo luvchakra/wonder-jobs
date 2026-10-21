@@ -31,6 +31,7 @@ export async function POST(req: Request, ctx: Ctx) {
     if (out.status === 200 && (action === "cancel" || action === "confirm" || action === "tracked")) await endCloud(t, id, action).catch(() => undefined);
     return send(out);
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't save the session.");
+    console.error("[jobs-apply/sessions/[id]/[action]]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't save the session.");
   }
 }

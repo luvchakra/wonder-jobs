@@ -21,7 +21,7 @@ const Body = z.object({
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
   const rl = rateLimit(`contact:${ip}`, { capacity: 5, refillPerSec: 1 / 60 });
-  if (!rl.ok) return NextResponse.json({ error: "Too many messages in a row. Give it a few minutes." }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ error: "Too many messages in a row. Give it a few minutes." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Add your name, a valid email and a message of at least 10 characters." }, { status: 400 });
   const { name, email, topic, message, page } = parsed.data;

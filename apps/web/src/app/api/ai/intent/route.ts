@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   const rl = rateLimit(`intent:${session.tenantId}`, { capacity: 20, refillPerSec: 0.5 });
-  if (!rl.ok) return NextResponse.json({ intent: null }, { status: 429 });
+  if (!rl.ok) return NextResponse.json({ intent: null }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ intent: null }, { status: 400 });
   const text = parsed.data.text;

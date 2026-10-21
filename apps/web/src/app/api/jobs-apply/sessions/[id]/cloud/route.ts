@@ -19,7 +19,8 @@ export async function POST(req: Request, ctx: Ctx) {
   try {
     return send(await startCloud(t, id, { headless: body?.headless === true }));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't open the cloud browser.");
+    console.error("[jobs-apply/sessions/[id]/cloud]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't open the cloud browser.");
   }
 }
 
@@ -31,6 +32,7 @@ export async function DELETE(req: Request, ctx: Ctx) {
   try {
     return send(await endCloud(t, id, "closed_by_candidate"));
   } catch (e) {
-    return fail(503, "UNAVAILABLE", e instanceof Error ? e.message : "Couldn't close the cloud browser.");
+    console.error("[jobs-apply/sessions/[id]/cloud]", e);
+    return fail(503, "UNAVAILABLE", "Couldn't close the cloud browser.");
   }
 }
