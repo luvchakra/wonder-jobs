@@ -14,12 +14,14 @@ export type OrgPermission =
   | "shortlist.view"
   | "shortlist.decide" // interview / pass
   | "messages.send"
-  | "messages.view";
+  | "messages.view"
+  | "applications.view" // applications from career sites
+  | "applications.decide"; // move an application on, which emails the applicant
 
 const MATRIX: Record<OrgRole, readonly OrgPermission[]> = {
-  owner: ["org.manage", "jobs.view", "jobs.edit", "talent.search", "shortlist.edit", "shortlist.view", "shortlist.decide", "messages.send", "messages.view"],
-  hiring_manager: ["jobs.view", "jobs.edit", "shortlist.view", "shortlist.decide", "messages.view"],
-  recruiter: ["jobs.view", "talent.search", "shortlist.edit", "shortlist.view", "messages.send", "messages.view"],
+  owner: ["org.manage", "jobs.view", "jobs.edit", "talent.search", "shortlist.edit", "shortlist.view", "shortlist.decide", "messages.send", "messages.view", "applications.view", "applications.decide"],
+  hiring_manager: ["jobs.view", "jobs.edit", "shortlist.view", "shortlist.decide", "messages.view", "applications.view", "applications.decide"],
+  recruiter: ["jobs.view", "talent.search", "shortlist.edit", "shortlist.view", "messages.send", "messages.view", "applications.view"],
 };
 
 export function can(role: OrgRole | undefined | null, permission: OrgPermission): boolean {

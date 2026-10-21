@@ -55,7 +55,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
 
 /** One cron invocation, as the admin page lists it. */
 export interface CronRun {
-  job: "scheduled-runs" | "jobslake-companies";
+  job: "scheduled-runs" | "jobslake-companies" | "application-reminders";
   trigger: "cron" | "admin";
   startedAt: string;
   finishedAt: string;
@@ -70,6 +70,7 @@ export const MAX_CRON_RUNS = 60;
 export const CRON_JOBS = [
   { id: "scheduled-runs", path: "/api/cron/scheduled-runs", schedule: "0 2 * * *", label: "Daily run", description: "Candidates' saved schedules, follow-up and interview reminders, activity digests, billing reconciliation and retention purges." },
   { id: "jobslake-companies", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "JobsLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
+  { id: "application-reminders", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Reminds hiring teams of career-site applications with no decision for two days, every two days, at most three times." },
 ] as const satisfies readonly { id: CronRun["job"]; path: string; schedule: string; label: string; description: string }[];
 
 /** "30 1 * * *" → "Daily at 01:30 UTC" (the only shape these crons use); anything else is shown as written. */

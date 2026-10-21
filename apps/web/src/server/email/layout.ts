@@ -50,6 +50,11 @@ export interface EmailLayoutInput {
   settingsLink?: boolean;
   /** Extra footer links the email already has, e.g. its unsubscribe link. */
   links?: EmailLink[];
+  /**
+   * Sent for a company (career-site applications): its name heads the email in place of the WonderJobs logo,
+   * and the footer says WonderJobs handles the application for it.
+   */
+  brand?: { name: string; home: string };
 }
 
 export function emailLogoUrl(origin: string): string {
@@ -65,27 +70,31 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
     { label: "Privacy", href: "/privacy" },
     ...(input.links ?? []),
   ].map((l) => ({ label: l.label, href: abs(l.href) }));
-  const home = abs("/");
+  const home = input.brand ? abs(input.brand.home) : abs("/");
+  const sender = input.brand ? `${input.brand.name} · applications handled by WonderJobs` : "WonderJobs";
+  const header = input.brand
+    ? `<a href="${escapeHtml(home)}" style="text-decoration:none;font-size:20px;font-weight:700;color:${C.ink}">${escapeHtml(input.brand.name)}</a>`
+    : `<a href="${escapeHtml(home)}" style="text-decoration:none"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="WonderJobs" style="display:block;border:0;outline:none;text-decoration:none;height:${LOGO_HEIGHT}px;width:${LOGO_WIDTH}px;font-size:20px;font-weight:700;color:${C.brand600}"></a>`;
 
   const linkHtml = links.map((l) => `<a href="${escapeHtml(l.href)}" style="color:${C.muted};text-decoration:underline">${escapeHtml(l.label)}</a>`).join(` &nbsp;·&nbsp; `);
   // Pads the preview so mail apps don't pull body text in after the preheader.
   const previewPad = "&#8203;&nbsp;".repeat(60);
 
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>WonderJobs</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(input.brand?.name ?? "WonderJobs")}</title></head>
 <body style="margin:0;padding:0;background:${C.bg};font-family:${EMAIL_FONT};color:${C.ink};-webkit-text-size-adjust:100%">
 <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:${C.bg}">${escapeHtml(input.preheader)}${previewPad}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.bg}" style="background:${C.bg}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">
 <tr><td bgcolor="${C.brand500}" style="background:${C.brand500};background-image:${EMAIL_GRADIENT};height:6px;line-height:6px;font-size:0;border-radius:16px 16px 0 0">&nbsp;</td></tr>
 <tr><td bgcolor="${C.surface}" style="background:${C.surface};padding:22px 24px 18px;border-left:1px solid ${C.line};border-right:1px solid ${C.line};border-bottom:1px solid ${C.line}">
-<a href="${escapeHtml(home)}" style="text-decoration:none"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="WonderJobs" style="display:block;border:0;outline:none;text-decoration:none;height:${LOGO_HEIGHT}px;width:${LOGO_WIDTH}px;font-size:20px;font-weight:700;color:${C.brand600}"></a>
+${header}
 </td></tr>
 <tr><td bgcolor="${C.surface}" style="background:${C.surface};padding:20px 20px 24px;border-left:1px solid ${C.line};border-right:1px solid ${C.line};border-bottom:1px solid ${C.line};border-radius:0 0 16px 16px;font-size:14px;line-height:1.5;color:${C.ink}">
 ${input.bodyHtml}
 </td></tr>
 <tr><td align="center" style="padding:20px 16px 8px;font-size:12px;line-height:1.6;color:${C.muted}">
-<div style="font-size:13px;font-weight:700;color:${C.ink2};margin:0 0 4px">WonderJobs</div>
+<div style="font-size:13px;font-weight:700;color:${C.ink2};margin:0 0 4px">${escapeHtml(sender)}</div>
 <div style="margin:0 0 8px">${escapeHtml(input.reason)}</div>
 <div>${linkHtml}</div>
 </td></tr>
@@ -93,6 +102,6 @@ ${input.bodyHtml}
 </td></tr></table>
 </body></html>`;
 
-  const text = [input.bodyText.trim(), "", "—", "WonderJobs", input.reason, ...links.map((l) => `${l.label}: ${l.href}`)].join("\n");
+  const text = [input.bodyText.trim(), "", "—", sender, input.reason, ...links.map((l) => `${l.label}: ${l.href}`)].join("\n");
   return { html, text };
 }

@@ -136,6 +136,8 @@ export interface MailMessage {
   html?: string;
   text: string;
   headers?: Record<string, string>;
+  /** Where replies go, e.g. the hiring person who made a decision. */
+  replyTo?: string;
 }
 
 /**
@@ -158,7 +160,7 @@ export async function sendMail(msg: MailMessage, env: Env = process.env): Promis
     socketTimeout: 15_000,
   });
   try {
-    await transport.sendMail({ from: smtp.from, to: msg.to, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
+    await transport.sendMail({ from: smtp.from, to: msg.to, replyTo: msg.replyTo, subject: msg.subject, text: msg.text, html: msg.html, headers: msg.headers });
     return { sent: true };
   } catch (e) {
     console.error("[mail] send failed", e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300));
