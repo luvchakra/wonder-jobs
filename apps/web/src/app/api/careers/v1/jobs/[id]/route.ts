@@ -11,6 +11,7 @@ export async function GET(req: Request, ctx: Ctx) {
   return careersRoute(req, async (site) => {
     const job = await siteJob(site, id);
     if (!job) throw new HiringError("This position is no longer open.", 404);
-    return { job };
+    // How long the site keeps applications, so its page can tell applicants (DPDP / GDPR notice).
+    return { job, site: { name: site.name, retentionMonths: site.retentionMonths ?? null } };
   });
 }

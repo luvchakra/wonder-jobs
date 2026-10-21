@@ -45,7 +45,8 @@ async function signedIn(browser: Browser, tag: string, accounts: TestAccount[]):
 }
 
 async function openHiring(page: Page, tab?: string) {
-  await page.goto(`/app/hiring${tab ? `?tab=${tab}` : ""}`);
+  // Without a tab, Hiring opens on the table of workspaces; the journey works inside one, on Jobs by default.
+  await page.goto(`/app/hiring?tab=${tab ?? "jobs"}`);
   await expect(page.getByRole("heading").first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -337,18 +338,18 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     const me = (await (await page.request.get(`/api/hiring/${orgId}/team`)).json()).members.find((m: { email?: string }) => m.email === account.email);
     expect((await page.request.patch(`/api/hiring/${orgId}/team`, { data: { tenantId: me.tenantId, role: "recruiter" } })).status()).toBe(409);
 
-    // The Owner renames the company and sets its website from the workspace picker; the header shows the new name.
-    await openHiring(page);
-    await page.getByLabel("Workspace").selectOption({ label: "Edit this workspace…" });
+    // The Owner renames the company and sets its website from the workspaces table (the pencil in its row).
+    await page.goto("/app/hiring");
+    await page.getByRole("button", { name: `Edit ${COMPANY}` }).click();
     await page.getByLabel("Company name").fill(`${COMPANY} Homes`);
     await page.getByLabel("Website").fill("wonderhome.example");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Company details saved")).toBeVisible();
-    await expect(page.getByRole("heading", { name: `${COMPANY} Homes` })).toBeVisible();
+    await expect(page.getByRole("button", { name: `${COMPANY} Homes`, exact: true })).toBeVisible();
     const renamed = (await (await page.request.get("/api/hiring")).json()).workspaces[0].org;
     expect(renamed).toMatchObject({ name: `${COMPANY} Homes`, website: "https://wonderhome.example" });
     // Other roles don't get the settings.
-    await openHiring(people.recruiter!.page);
-    await expect(people.recruiter!.page.getByLabel("Workspace").locator("option", { hasText: "Edit this workspace…" })).toHaveCount(0);
+    await people.recruiter!.page.goto("/app/hiring");
+    await expect(people.recruiter!.page.getByRole("button", { name: `Edit ${COMPANY} Homes` })).toHaveCount(0);
   });
 });
