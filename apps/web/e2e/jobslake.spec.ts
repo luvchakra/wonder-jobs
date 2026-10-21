@@ -262,6 +262,7 @@ test.describe("Candidate searches through JobsLake", () => {
   test.beforeEach(async ({ page }, info) => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
     info.skip(!supabaseConfigured(), "BLOCKED: needs Supabase credentials — only signed-in accounts search through JobsLake");
+    info.skip(info.title.startsWith("WJ-JL-031") && info.project.name !== "Mobile Chrome", "mobile project only");
     info.setTimeout(180_000);
     account = await createTestAccount("jobslake");
     await signInThroughUI(page, account);
@@ -272,6 +273,11 @@ test.describe("Candidate searches through JobsLake", () => {
     await page.locator("#headline").fill("Product generalist");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText("Career Profile updated")).toBeVisible();
+    // Saved to the account (sync is debounced), not just this tab: every search below starts on a fresh page load.
+    await expect(async () => {
+      await page.reload();
+      await expect(page.locator("#name")).toHaveValue("Jo Lake Tester", { timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
   });
   test.afterEach(async () => {
     if (account) await deleteTestAccount(account.id);
