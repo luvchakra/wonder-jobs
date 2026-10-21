@@ -188,4 +188,67 @@ describe("remoteStorage", () => {
     expect(JSON.parse(localStorage.getItem("wj.career")!)).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
     expect(career.getItem("wj.career")).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
   });
+
+  it("a store changed while its save is in flight stays unsynced, so the next page load keeps the newer copy", async () => {
+    // Regression (E2E nightly, 2026-10-21): a saved résumé vanished. A save of wj.career was in flight when the
+    // résumé was saved; when that older save landed it cleared the dirty mark, the page then went away, and the
+    // next load let the server's copy (without the résumé) replace the local one.
+    let land!: () => void;
+    let first = true;
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({ url, method, body: typeof init?.body === "string" ? init.body : undefined });
+      if (method === "GET") return new Response(JSON.stringify({ docs: {} }), { status: 200 });
+      if (first) {
+        first = false;
+        await new Promise<void>((r) => (land = r));
+      }
+      return new Response(JSON.stringify({ saved: {} }), { status: 200 });
+    });
+    const career = createRemoteStorage<{ savedResumes: string[] }>();
+    career.setItem("wj.career", { state: { savedResumes: [] }, version: 1 });
+    await vi.advanceTimersByTimeAsync(1100); // serialized and its save is now in flight
+    expect(calls.filter((c) => c.method === "PUT")).toHaveLength(1);
+    career.setItem("wj.career", { state: { savedResumes: ["r1"] }, version: 1 });
+    await vi.advanceTimersByTimeAsync(200); // the newer copy is written locally, not yet sent
+    land();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(JSON.parse(localStorage.getItem("wj.sync.dirty")!)).toEqual(["wj.career"]);
+    expect(JSON.parse(localStorage.getItem("wj.career")!)).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+
+    // The next page load: the server still has the older copy, and the local one wins.
+    __resetRemoteStorage();
+    calls.length = 0;
+    vi.stubGlobal("fetch", fakeFetch(calls, { "wj.career": { state: { state: { savedResumes: [] }, version: 1 }, version: 2, updatedAt: "2026-01-01T00:00:00Z" } }));
+    const changed: string[] = [];
+    onRemoteChange((n) => changed.push(n));
+    const next = createRemoteStorage<{ savedResumes: string[] }>();
+    expect(next.getItem("wj.career")).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(changed).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("wj.career")!)).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+    const put = calls.find((c) => c.method === "PUT");
+    expect(JSON.parse(put!.body!).docs["wj.career"]).toEqual({ state: { savedResumes: ["r1"] }, version: 1 });
+  });
+
+  it("a page going away sends small stores with keepalive and a large one separately, keeping it unsynced if it doesn't land", async () => {
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({ url, method, body: typeof init?.body === "string" ? init.body : undefined, keepalive: init?.keepalive } as Call);
+      if (method === "PUT" && !init?.keepalive) throw new TypeError("cancelled with the page");
+      return new Response(JSON.stringify({ saved: {} }), { status: 200 });
+    });
+    const career = createRemoteStorage<{ savedResumes: string[] }>();
+    const jobs = createRemoteStorage<{ big: string }>();
+    career.setItem("wj.career", { state: { savedResumes: ["r1"] }, version: 1 });
+    jobs.setItem("wj.jobs", { state: { big: "x".repeat(120_000) }, version: 1 });
+    await flushRemote(true);
+    const puts = calls.filter((c) => c.method === "PUT") as (Call & { keepalive?: boolean })[];
+    expect(puts).toHaveLength(2);
+    const small = puts.find((p) => p.keepalive)!;
+    expect(Object.keys(JSON.parse(small.body!).docs)).toEqual(["wj.career"]);
+    expect(small.body!.length).toBeLessThan(64_000);
+    expect(Object.keys(JSON.parse(puts.find((p) => !p.keepalive)!.body!).docs)).toEqual(["wj.jobs"]);
+    expect(JSON.parse(localStorage.getItem("wj.sync.dirty")!)).toEqual(["wj.jobs"]);
+  });
 });
