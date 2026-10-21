@@ -13,13 +13,13 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 const RUN_URL = /\/app\/runs\/(?!new$)[^/?]+$/;
 
 /** Sample sources answer slowly enough that a search is still running when a test pauses, stops or watches it. */
-async function slowSampleSources(page: Page) {
-  await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
+async function slowSampleSources(page: Page, ms = 700) {
+  await page.addInitScript((v) => localStorage.setItem("wj.demoSourceLatencyMs", String(v)), ms);
 }
 
 /** Starts a search for the candidate's words (as Ask Wonder's “Find …” does): it lands on the job list; the run's own page is one tap away ("Details"). */
-async function startFind(page: Page, request: string, opts: { openRun?: boolean } = { openRun: true }) {
-  await slowSampleSources(page);
+async function startFind(page: Page, request: string, opts: { openRun?: boolean; latencyMs?: number } = { openRun: true }) {
+  await slowSampleSources(page, opts.latencyMs);
   await page.goto(`/demo?next=${encodeURIComponent(`/app/jobs?search=${request}`)}`);
   await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
   if (opts.openRun) {
@@ -113,7 +113,8 @@ test.describe("FIND", () => {
   });
 
   test("FIND-004 stop keeps everything already found", async ({ page }) => {
-    const card = await startFind(page, "Product manager roles");
+    // Slower sample sources: under a loaded machine a 700 ms page can let the search finish before Stop lands.
+    const card = await startFind(page, "Product manager roles", { openRun: true, latencyMs: 2_500 });
     await card.getByRole("button", { name: "Stop", exact: true }).click();
     await expect(title(card)).toHaveText("Search stopped", { timeout: 15_000 });
     await expect(card).toContainText("Everything already found is still available.");
