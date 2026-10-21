@@ -3,6 +3,9 @@ import { randomBytes } from "node:crypto";
 import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { uniqueTestEmail } from "./utils/testUser";
 
+/** A message in the open conversation: its bubble, not the conversation list's last-message preview of it. */
+const message = (page: Page, text: string) => page.locator("p").filter({ hasText: new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) });
+
 /**
  * Employers, recruiters and job seekers, each in their own browser with their own real account (WJ-333):
  * an Owner sets up a company and posts a job, invites a Recruiter and a Hiring manager who join by email,
@@ -259,17 +262,17 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(seeker.getByText(/is hiring a/).first()).toBeVisible({ timeout: 20_000 });
     await seeker.getByLabel("Message").fill("Yes, happy to talk this week.");
     await seeker.getByRole("button", { name: "Send" }).click();
-    await expect(seeker.getByText("Yes, happy to talk this week.", { exact: true })).toBeVisible();
+    await expect(message(seeker, "Yes, happy to talk this week.")).toBeVisible();
 
     const openThread = async () => {
       await openHiring(recruiter, "messages");
       await recruiter.getByRole("button", { name: /Sam T\./ }).click();
     };
     await openThread();
-    await expect(recruiter.getByText("Yes, happy to talk this week.", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(message(recruiter, "Yes, happy to talk this week.")).toBeVisible({ timeout: 20_000 });
     await recruiter.getByLabel("Message").fill("Great, sending times.");
     await recruiter.getByRole("button", { name: "Send" }).click();
-    await expect(recruiter.getByText("Great, sending times.", { exact: true })).toBeVisible();
+    await expect(message(recruiter, "Great, sending times.")).toBeVisible();
 
     // Not interested: the company can't write.
     await seeker.getByRole("button", { name: "Not interested" }).click();
