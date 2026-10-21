@@ -328,7 +328,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(recruiter.getByLabel("Message")).toHaveCount(0);
   });
 
-  test("HIRE-011 the Owner closes the job, and a workspace keeps its last Owner", async () => {
+  test("HIRE-011 the Owner closes the job, keeps the last Owner, and renames the company", async () => {
     const { page, account } = people.owner!;
     await openHiring(page);
     await page.getByRole("listitem").filter({ hasText: JOB_TITLE }).getByRole("button", { name: "Close" }).click();
@@ -336,5 +336,19 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     const orgId = (await (await page.request.get("/api/hiring")).json()).workspaces[0].org.id;
     const me = (await (await page.request.get(`/api/hiring/${orgId}/team`)).json()).members.find((m: { email?: string }) => m.email === account.email);
     expect((await page.request.patch(`/api/hiring/${orgId}/team`, { data: { tenantId: me.tenantId, role: "recruiter" } })).status()).toBe(409);
+
+    // The Owner renames the company and sets its website under Team; the header shows the new name.
+    await openHiring(page, "team");
+    await page.getByText("Company name and website", { exact: true }).click();
+    await page.getByLabel("Company name").fill(`${COMPANY} Homes`);
+    await page.getByLabel("Website").fill("wonderhome.example");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Company details saved")).toBeVisible();
+    await expect(page.getByRole("heading", { name: `${COMPANY} Homes` })).toBeVisible();
+    const renamed = (await (await page.request.get("/api/hiring")).json()).workspaces[0].org;
+    expect(renamed).toMatchObject({ name: `${COMPANY} Homes`, website: "https://wonderhome.example" });
+    // Other roles don't get the form.
+    await openHiring(people.recruiter!.page, "team");
+    await expect(people.recruiter!.page.getByText("Company name and website", { exact: true })).toHaveCount(0);
   });
 });

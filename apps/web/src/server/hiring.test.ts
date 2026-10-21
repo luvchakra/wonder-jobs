@@ -4,7 +4,7 @@ vi.mock("./supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async 
 vi.mock("./push/subscriptions", () => ({ notifyTenant: vi.fn(async () => ({ sent: 0 })) }));
 
 import type { Session } from "./auth";
-import { resetTablesForTests } from "./db/table";
+import { resetTablesForTests, table } from "./db/table";
 import * as H from "./hiring";
 import { can, permissionsOf } from "@/domain/org/permissions";
 import { displayName, searchTalent, talentProfileFrom } from "@/domain/org/talent";
@@ -173,5 +173,15 @@ describe("talent profile", () => {
     expect(searchTalent(list, "go", "").map((m) => m.profile.tenantId)).toEqual(["a", "b"]);
     expect(searchTalent(list, "go kubernetes", "").map((m) => m.profile.tenantId)).toEqual(["a"]);
     expect(searchTalent(list, "go", "mumbai").map((m) => m.profile.tenantId)).toEqual(["b"]);
+  });
+});
+
+describe("company details", () => {
+  it("a verified company that changes its name or website goes back to unverified; saving the same details doesn't", async () => {
+    const orgId = await workspace();
+    await table<{ id: string; verified: boolean }>("hiring_orgs").update({ id: orgId }, { verified: true });
+    expect((await H.updateWorkspace(owner, orgId, { name: "Acme" })).verified).toBe(true);
+    expect((await H.updateWorkspace(owner, orgId, { name: "Acme Corp" })).verified).toBe(false);
+    await expect(H.updateWorkspace(rec, orgId, { name: "Mine now" })).rejects.toThrow(/can't do that/);
   });
 });

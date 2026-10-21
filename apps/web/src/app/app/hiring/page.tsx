@@ -94,7 +94,7 @@ function HiringPage() {
       {tab === "talent" && <TalentTab orgId={ws.org.id} onShortlisted={() => setRefresh((n) => n + 1)} onMessaged={(id) => go("messages", id)} />}
       {tab === "shortlist" && <ShortlistTab orgId={ws.org.id} canEdit={can(r, "shortlist.edit")} canDecide={can(r, "shortlist.decide")} refresh={refresh} />}
       {tab === "messages" && <MessagesTab orgId={ws.org.id} openId={openConversation} onOpen={(id) => go("messages", id)} refresh={refresh} />}
-      {tab === "team" && <TeamTab orgId={ws.org.id} me={data.me} canManage={can(r, "org.manage")} onLeft={load} />}
+      {tab === "team" && <TeamTab key={`${ws.org.id}-${ws.org.name}-${ws.org.website ?? ""}`} orgId={ws.org.id} org={ws.org} me={data.me} canManage={can(r, "org.manage")} onLeft={load} onRenamed={load} />}
     </div>
   );
 }

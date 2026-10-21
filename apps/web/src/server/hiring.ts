@@ -9,6 +9,7 @@
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
 import { randomUUID } from "node:crypto";
+import { companyProblem, normalizeWebsite } from "@/domain/org/company";
 import { jobProblem, normalizeApplyUrl } from "@/domain/org/jobs";
 import type { Session } from "./auth";
 import { table } from "./db/table";
@@ -93,15 +94,34 @@ export async function myWorkspaces(s: Session): Promise<{ me: string; workspaces
 }
 
 export async function createWorkspace(s: Session, input: { name: string; website?: string }): Promise<Workspace> {
+  const problem = companyProblem(input);
+  if (problem) throw new HiringError(problem);
   const name = input.name.trim();
-  if (name.length < 2 || name.length > 120) throw new HiringError("Give the company a name (2 to 120 characters).");
-  const website = input.website?.trim() || null;
-  if (website && !/^https?:\/\/\S+\.\S+/i.test(website)) throw new HiringError("The website should start with https://");
+  const website = normalizeWebsite(input.website) || null;
   await touchTenant(s.tenantId);
   const org: OrgRow = { id: id("org"), name, website, verified: false, created_by: s.tenantId, created_at: now() };
   await orgs().insert(org);
   await members().insert({ org_id: org.id, tenant_id: s.tenantId, role: "owner", email: s.email ? email(s.email) : null, name: s.name ?? null, joined_at: now() });
   return { org: toOrg(org), role: "owner" };
+}
+
+/**
+ * An Owner changes the company's name or website. Open jobs show the new name at once (job seekers read it
+ * from the workspace). A verified company that changes either goes back to unverified, so a check made for
+ * one identity never vouches for another.
+ */
+export async function updateWorkspace(s: Session, orgId: string, input: { name: string; website?: string }): Promise<Organization> {
+  await requirePermission(s, orgId, "org.manage");
+  const problem = companyProblem(input);
+  if (problem) throw new HiringError(problem);
+  const current = await orgs().one({ id: orgId });
+  if (!current) throw new HiringError("That workspace no longer exists.", 404);
+  const name = input.name.trim();
+  const website = normalizeWebsite(input.website) || null;
+  const changed = name !== current.name || website !== current.website;
+  const patch: Partial<OrgRow> = { name, website, ...(changed && current.verified ? { verified: false } : {}) };
+  await orgs().update({ id: orgId }, patch);
+  return toOrg({ ...current, ...patch });
 }
 
 export async function listTeam(s: Session, orgId: string): Promise<{ members: Membership[]; invites: OrgInvite[] }> {
