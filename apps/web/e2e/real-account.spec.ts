@@ -11,6 +11,22 @@ import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIf
 
 const NAME = "Riya Test Candidate";
 
+/** Diagnostic: how many saved résumés this page's local copy and the server hold. */
+async function resumeProbe(page: Page, label: string) {
+  const local = await page.evaluate(() => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)!;
+      if (k.endsWith("wj.career")) return { key: k.split(":").pop(), n: (JSON.parse(localStorage.getItem(k) ?? "{}").state?.savedResumes ?? []).length, bytes: localStorage.getItem(k)!.length };
+    }
+    return null;
+  });
+  const dirty = await page.evaluate(() => Object.keys(localStorage).filter((k) => /dirty/i.test(k)).map((k) => localStorage.getItem(k)));
+  const server = await (await page.request.get("/api/state")).json().catch(() => null);
+  const doc = server?.docs?.["wj.career"] ?? server?.["wj.career"];
+  console.log(`[resume-probe] ${label}: local=${JSON.stringify(local)} dirty=${JSON.stringify(dirty)} server=${doc ? (doc.state?.savedResumes ?? []).length : "none"} keys=${server ? Object.keys(server.docs ?? server).join(",") : "?"}`);
+}
+
+
 async function freshSignedIn(browser: Browser, tag: string): Promise<{ page: Page; account: TestAccount; close: () => Promise<void> }> {
   const account = await createTestAccount(tag);
   const ctx = await browser.newContext();
@@ -93,11 +109,13 @@ test.describe("Real account — production walk-through", () => {
     await expect(page.getByText(/^Résumé ready|isn't ready yet|needs attention/).first()).toBeVisible({ timeout: 30_000 });
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download PDF" }).click()]);
     expect(Buffer.concat(await (await pdf.createReadStream()).toArray()).subarray(0, 5).toString()).toBe("%PDF-");
+    await resumeProbe(page, "after generate");
 
     // Find: a real search through JobsLake, with per-source evidence.
     const lake = page.waitForResponse((r) => r.url().includes("/api/jobs-lake/v1/search") && r.request().method() === "POST", { timeout: 60_000 });
     await page.goto(`/app/jobs?search=${encodeURIComponent("Product manager roles, remote")}`);
     const lakeRes = await lake;
+    await resumeProbe(page, "after search load");
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
     expect(lakeRes.status()).toBe(200);
     const card = page.locator("section[aria-labelledby='run-experience-title']");
@@ -115,6 +133,7 @@ test.describe("Real account — production walk-through", () => {
     await expect(firstJob).toBeVisible({ timeout: 30_000 });
     await firstJob.click();
     await page.waitForURL(/\/app\/jobs\/[^/]+$/);
+    await resumeProbe(page, "on job page");
     await page.getByText("Sources & hiring signals", { exact: true }).click({ timeout: 20_000 });
     await expect(page.getByText("Where this job was found")).toBeVisible();
     // A job the cloud browser can fill shows "Apply for this job" (background fill) instead of the link to the guided
