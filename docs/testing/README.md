@@ -25,7 +25,7 @@ so it doesn't lengthen CI.
 - **Three parts, in parallel:**
   - `local`: every spec against a fresh local build with no Supabase (demo journeys, the JobsLake admin
     portal, which only opens without real auth, the browser helper, résumé templates…).
-  - `signed-in`: `auth.spec.ts`, `jobslake.spec.ts` and `help-access.spec.ts` against a fresh local build on the Supabase
+  - `signed-in`: `auth.spec.ts`, `jobslake.spec.ts`, `help-access.spec.ts` and `hiring.spec.ts` against a fresh local build on the Supabase
     project, with disposable accounts.
   - `production`: `real-account.spec.ts` against the production deployment (`https://jobs.wonderapps.biz`).
   `signed-in` and `production` need the `E2E_SUPABASE_URL`, `E2E_SUPABASE_PUBLISHABLE_KEY` and

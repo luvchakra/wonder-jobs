@@ -374,12 +374,13 @@ async function access(s: Session, conversationId: string, prefer: "org" | "candi
   return { c, side: "org" as const, member: m };
 }
 
-export async function conversationMessages(s: Session, conversationId: string, prefer?: "org" | "candidate"): Promise<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean }> {
+export async function conversationMessages(s: Session, conversationId: string, prefer?: "org" | "candidate"): Promise<{ conversation: ConversationView; messages: Message[]; side: "org" | "candidate"; canSend: boolean; candidateOpen: boolean }> {
   const { c, side, member } = await access(s, conversationId, prefer);
   const list = (await messages().find({ conversation_id: c.id }, { order: "created_at" })).map(toMessage);
   const [view] = await views([c]);
-  const canSend = side === "candidate" ? c.status !== "blocked" : !!member && can(member.role, "messages.send") && c.status === "open";
-  return { conversation: view, messages: list, side, canSend };
+  const candidateOpen = !!(await talent().one({ tenant_id: c.candidate_tenant }));
+  const canSend = side === "candidate" ? c.status !== "blocked" : !!member && can(member.role, "messages.send") && c.status === "open" && candidateOpen;
+  return { conversation: view, messages: list, side, canSend, candidateOpen };
 }
 
 /** A recruiter's first message: only to someone open to recruiters, never after they declined or blocked this company. */
@@ -404,6 +405,8 @@ export async function sendMessage(s: Session, conversationId: string, text: stri
   if (side === "org") {
     if (!member || !can(member.role, "messages.send")) throw new HiringError("Your role in this workspace can't send messages.", 403);
     if (c.status !== "open") throw new HiringError(c.status === "blocked" ? "This candidate blocked messages from your company." : "This candidate declined this conversation.", 409);
+    // A company writes only while the candidate is still open to recruiters, in a new thread or an old one.
+    if (!(await talent().one({ tenant_id: c.candidate_tenant }))) throw new HiringError("This candidate is no longer open to recruiters.", 409);
   } else if (c.status === "blocked") {
     throw new HiringError("Unblock this company to write to them.", 409);
   }

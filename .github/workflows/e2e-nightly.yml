@@ -62,7 +62,7 @@ jobs:
           - name: signed-in
             supabase: true
             production: false
-            specs: "e2e/auth.spec.ts e2e/jobslake.spec.ts e2e/help-access.spec.ts"
+            specs: "e2e/auth.spec.ts e2e/jobslake.spec.ts e2e/help-access.spec.ts e2e/hiring.spec.ts"
             budget_ms: 1800000
           - name: production
             supabase: true

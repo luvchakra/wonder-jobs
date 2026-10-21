@@ -29,7 +29,7 @@ export function Thread({ id, as = "candidate", onChange }: { id: string; as?: "o
 
   if (error) return <p className="text-[13px] text-danger-600">{error}</p>;
   if (!data) return <p className="text-[13px] text-ink-3">Loading…</p>;
-  const { conversation: c, messages, side, canSend } = data;
+  const { conversation: c, messages, side, canSend, candidateOpen } = data;
   const mine = (m: Message) => m.side === side;
 
   const send = async () => {
@@ -82,7 +82,7 @@ export function Thread({ id, as = "candidate", onChange }: { id: string; as?: "o
           </Button>
         </div>
       )}
-      {side === "org" && !canSend && c.status === "open" && <p className="text-[12px] text-ink-3">Your role can read this conversation; recruiters and owners write in it.</p>}
+      {side === "org" && !canSend && c.status === "open" && <p className="text-[12px] text-ink-3">{candidateOpen ? "Your role can read this conversation; recruiters and owners write in it." : "They're no longer open to recruiters, so your company can't write to them."}</p>}
       {side === "candidate" && (
         <div className="flex flex-wrap gap-x-4 text-[13px]">
           {c.status !== "open" && (
