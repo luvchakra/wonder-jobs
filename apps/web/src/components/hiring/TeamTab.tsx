@@ -1,17 +1,16 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { UserPlus } from "lucide-react";
-import { ORG_ROLE_HELP, ORG_ROLE_LABEL, type Membership, type OrgInvite, type OrgRole, type Organization } from "@/domain/org/types";
-import { companyProblem } from "@/domain/org/company";
+import { ORG_ROLE_HELP, ORG_ROLE_LABEL, type Membership, type OrgInvite, type OrgRole } from "@/domain/org/types";
 import { ORG_ROLES } from "@/domain/org/permissions";
 import { hiringApi } from "@/services/hiring/client";
 import { Button } from "@/components/common/Button";
-import { Field, Input, Select } from "@/components/common/Input";
+import { Input, Select } from "@/components/common/Input";
 import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 
 /** Who's in the workspace and in which role. Owners invite people by email, change roles and remove people; anyone can leave. */
-export function TeamTab({ orgId, org, me, canManage, onLeft, onRenamed }: { orgId: string; org: Organization; me: string; canManage: boolean; onLeft: () => void; onRenamed: () => void }) {
+export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: string; canManage: boolean; onLeft: () => void }) {
   const [team, setTeam] = useState<{ members: Membership[]; invites: OrgInvite[] } | null>(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<OrgRole>("recruiter");
@@ -113,8 +112,6 @@ export function TeamTab({ orgId, org, me, canManage, onLeft, onRenamed }: { orgI
         ))}
       </ul>
 
-      {canManage && <CompanyDetails org={org} onSaved={onRenamed} />}
-
       <Fold title="What each role can do">
         <ul className="flex flex-col gap-2 text-[13px]">
           {ORG_ROLES.map((r) => (
@@ -125,55 +122,5 @@ export function TeamTab({ orgId, org, me, canManage, onLeft, onRenamed }: { orgI
         </ul>
       </Fold>
     </div>
-  );
-}
-
-/** The company's name and website, which job seekers see on its open jobs. Owners only. */
-function CompanyDetails({ org, onSaved }: { org: Organization; onSaved: () => void }) {
-  const [name, setName] = useState(org.name);
-  const [website, setWebsite] = useState(org.website ?? "");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const changed = name.trim() !== org.name || website.trim() !== (org.website ?? "");
-  const save = async () => {
-    const problem = companyProblem({ name, website });
-    if (problem) return setError(problem);
-    setBusy(true);
-    try {
-      const saved = await hiringApi.updateWorkspace(org.id, name.trim(), website.trim());
-      setWebsite(saved.website ?? "");
-      toast.success("Company details saved", "Your open jobs show them to job seekers now.");
-      onSaved();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Fold title="Company name and website" hint={[org.name, org.website?.replace(/^https?:\/\//, "")].filter(Boolean).join(" · ")}>
-      <div className="flex flex-col gap-3">
-        <Field label="Company name" htmlFor="org-name" required>
-          <Input id="org-name" value={name} onChange={(e) => {
-              setName(e.target.value);
-              setError(null);
-            }} maxLength={120} />
-        </Field>
-        <Field label="Website" htmlFor="org-website" hint={org.verified ? "Changing the name or website asks WonderJobs to verify the company again." : undefined}>
-          <Input id="org-website" value={website} onChange={(e) => {
-              setWebsite(e.target.value);
-              setError(null);
-            }} placeholder="company.com" maxLength={300} />
-        </Field>
-        {error && (
-          <p role="alert" className="text-[13px] text-danger-600">
-            {error}
-          </p>
-        )}
-        <Button className="self-start" onClick={save} loading={busy} disabled={!changed}>
-          Save
-        </Button>
-      </div>
-    </Fold>
   );
 }

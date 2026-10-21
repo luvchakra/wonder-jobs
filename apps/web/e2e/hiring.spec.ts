@@ -337,9 +337,9 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     const me = (await (await page.request.get(`/api/hiring/${orgId}/team`)).json()).members.find((m: { email?: string }) => m.email === account.email);
     expect((await page.request.patch(`/api/hiring/${orgId}/team`, { data: { tenantId: me.tenantId, role: "recruiter" } })).status()).toBe(409);
 
-    // The Owner renames the company and sets its website under Team; the header shows the new name.
-    await openHiring(page, "team");
-    await page.getByText("Company name and website", { exact: true }).click();
+    // The Owner renames the company and sets its website from the workspace picker; the header shows the new name.
+    await openHiring(page);
+    await page.getByLabel("Workspace").selectOption({ label: "Edit this workspace…" });
     await page.getByLabel("Company name").fill(`${COMPANY} Homes`);
     await page.getByLabel("Website").fill("wonderhome.example");
     await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -347,8 +347,8 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     await expect(page.getByRole("heading", { name: `${COMPANY} Homes` })).toBeVisible();
     const renamed = (await (await page.request.get("/api/hiring")).json()).workspaces[0].org;
     expect(renamed).toMatchObject({ name: `${COMPANY} Homes`, website: "https://wonderhome.example" });
-    // Other roles don't get the form.
-    await openHiring(people.recruiter!.page, "team");
-    await expect(people.recruiter!.page.getByText("Company name and website", { exact: true })).toHaveCount(0);
+    // Other roles don't get the settings.
+    await openHiring(people.recruiter!.page);
+    await expect(people.recruiter!.page.getByLabel("Workspace").locator("option", { hasText: "Edit this workspace…" })).toHaveCount(0);
   });
 });

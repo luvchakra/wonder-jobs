@@ -19,6 +19,7 @@ import { ShortlistTab } from "@/components/hiring/ShortlistTab";
 import { MessagesTab } from "@/components/hiring/MessagesTab";
 import { TeamTab } from "@/components/hiring/TeamTab";
 import { ApplicationsTab } from "@/components/hiring/ApplicationsTab";
+import { WorkspaceSettings } from "@/components/hiring/WorkspaceSettings";
 
 type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team";
 type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
@@ -36,6 +37,7 @@ function HiringPage() {
   const [data, setData] = useState<Data | null>(null);
   const [orgId, setOrgId] = useState<string | null>(params.get("org"));
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const load = useCallback(() => {
     hiringApi
@@ -89,16 +91,34 @@ function HiringPage() {
         title={ws.org.name}
         description={`Hiring workspace · you're ${ORG_ROLE_LABEL[r] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[r]}`}`}
         actions={
-          <Select value={ws.org.id} onChange={(e) => (e.target.value === NEW ? setCreating(true) : switchTo(e.target.value))} aria-label="Workspace" className="w-48">
+          <Select value={ws.org.id} onChange={(e) => (e.target.value === NEW ? setCreating(true) : e.target.value === EDIT ? setEditing(true) : switchTo(e.target.value))} aria-label="Workspace" className="w-48">
             {data.workspaces.map((w) => (
               <option key={w.org.id} value={w.org.id}>
                 {w.org.name}
               </option>
             ))}
+            {can(r, "org.manage") && <option value={EDIT}>Edit this workspace…</option>}
             <option value={NEW}>New workspace…</option>
           </Select>
         }
       />
+      {editing && (
+        <WorkspaceSettings
+          key={ws.org.id}
+          org={ws.org}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            load();
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            setOrgId(null);
+            router.replace("/app/hiring");
+            load();
+          }}
+        />
+      )}
       {creating && (
         <Modal open onClose={() => setCreating(false)} title="New hiring workspace" description="Another company you hire for. You'll be its Owner; your other workspaces stay as they are.">
           <NewWorkspaceForm
@@ -121,7 +141,7 @@ function HiringPage() {
       {tab === "talent" && <TalentTab orgId={ws.org.id} onShortlisted={() => setRefresh((n) => n + 1)} onMessaged={(id) => go("messages", id)} />}
       {tab === "shortlist" && <ShortlistTab orgId={ws.org.id} canEdit={can(r, "shortlist.edit")} canDecide={can(r, "shortlist.decide")} refresh={refresh} />}
       {tab === "messages" && <MessagesTab orgId={ws.org.id} openId={openConversation} onOpen={(id) => go("messages", id)} refresh={refresh} />}
-      {tab === "team" && <TeamTab key={`${ws.org.id}-${ws.org.name}-${ws.org.website ?? ""}`} orgId={ws.org.id} org={ws.org} me={data.me} canManage={can(r, "org.manage")} onLeft={load} onRenamed={load} />}
+      {tab === "team" && <TeamTab orgId={ws.org.id} me={data.me} canManage={can(r, "org.manage")} onLeft={load} />}
     </div>
   );
 }
@@ -174,6 +194,7 @@ function Start({ data, onChange }: { data: Data; onChange: (orgId?: string) => v
 }
 
 const NEW = "__new";
+const EDIT = "__edit";
 
 /** The company's name and website; the creator becomes its Owner. Used for the first workspace and for each new one. */
 function NewWorkspaceForm({ onCreated }: { onCreated: (orgId: string) => void }) {

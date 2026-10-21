@@ -461,6 +461,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Every job search goes through JobsLake; no direct-to-source fallback (WJ-320)
 - ✅ Career sites: jobs on outside careers pages (WonderID first), applications, emails, reminders and decisions run by WonderJobs (WJ-335)
 - ✅ One person can create and switch between several hiring workspaces (WJ-337)
+- ✅ Owners rename or delete a hiring workspace from the workspace picker (WJ-338)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
