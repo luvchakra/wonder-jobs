@@ -21,7 +21,8 @@ export interface Table<T extends Row> {
   findIn(column: keyof T & string, values: string[], where?: Partial<T>, opts?: FindOptions): Promise<T[]>;
   /**
    * Every row, newest first by `order`. Only for tables whose rows are meant to be read across tenants: talent
-   * profiles, which exist only while a candidate chose to show them to recruiters.
+   * profiles, which exist only while a candidate chose to show them to recruiters, and hiring workspaces for
+   * the platform admins' Companies page (listCompaniesForAdmin).
    */
   all(opts: FindOptions & { order: string; limit: number }): Promise<T[]>;
   insert(row: T): Promise<T>;

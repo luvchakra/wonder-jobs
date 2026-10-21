@@ -1,0 +1,35 @@
+import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/robots";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { currentAdmin } from "@/server/jobslake/access";
+
+export const metadata: Metadata = { title: "Companies", ...PRIVATE_PAGE };
+export const dynamic = "force-dynamic";
+
+/** Companies: verify hiring workspaces. Same gate as JobsLake: non-admins get a 404. */
+export default async function CompaniesAdminLayout({ children }: { children: React.ReactNode }) {
+  const admin = await currentAdmin();
+  if (!admin) notFound();
+  return (
+    <div className="min-h-dvh bg-bg">
+      <header className="border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <p className="text-[15px] font-semibold text-ink">Companies · Platform admin</p>
+          <nav aria-label="Platform" className="flex gap-3 text-[13px]">
+            <Link href="/platform/jobs-lake" className="text-ink-3 hover:text-ink">
+              JobsLake
+            </Link>
+            <Link href="/platform/billing" className="text-ink-3 hover:text-ink">
+              Billing
+            </Link>
+            <Link href="/app" className="text-ink-3 hover:text-ink">
+              Back to WonderJobs
+            </Link>
+          </nav>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+    </div>
+  );
+}

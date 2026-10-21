@@ -9,11 +9,14 @@
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
 import { randomUUID } from "node:crypto";
-import { companyProblem, normalizeWebsite } from "@/domain/org/company";
+import { companyProblem, normalizeWebsite, websiteDomain, workEmailMatches } from "@/domain/org/company";
 import { jobProblem, normalizeApplyUrl } from "@/domain/org/jobs";
 import type { Session } from "./auth";
 import { table } from "./db/table";
 import { touchTenant } from "./supabase";
+import { parseEmailList, sendMail } from "./notify";
+import { escapeHtml, renderEmailLayout } from "./email/layout";
+import { siteUrl } from "@/lib/siteUrl";
 import { notifyTenant } from "./push/subscriptions";
 import { can, isOrgRole, type OrgPermission } from "@/domain/org/permissions";
 import { searchTalent, type TalentMatch } from "@/domain/org/talent";
@@ -137,6 +140,89 @@ export async function deleteWorkspace(s: Session, orgId: string, confirmName: st
   // The database cascades from hiring_orgs; removing the children by name keeps the local, in-memory store the same.
   for (const t of [conversations(), shortlist(), jobs(), invites(), members()]) await t.remove({ org_id: orgId });
   await orgs().remove({ id: orgId });
+}
+
+// ---- verification -------------------------------------------------------------------------------------------
+export interface VerificationOptions {
+  verified: boolean;
+  websiteDomain: string | null;
+  /** The Owner's own sign-in email: verifying by it is instant when it's on the website's domain. */
+  email: string | null;
+  workEmailMatches: boolean;
+}
+
+export async function verificationOptions(s: Session, orgId: string): Promise<VerificationOptions> {
+  await requirePermission(s, orgId, "org.manage");
+  const org = await orgs().one({ id: orgId });
+  if (!org) throw new HiringError("That workspace no longer exists.", 404);
+  return { verified: !!org.verified, websiteDomain: websiteDomain(org.website), email: s.email ?? null, workEmailMatches: workEmailMatches(s.email, org.website) };
+}
+
+/**
+ * An Owner whose signed-in email is on the company website's domain verifies the company at once. The email
+ * comes from the authenticated session (Supabase Auth checked it), never from the request.
+ */
+export async function verifyByWorkEmail(s: Session, orgId: string): Promise<Organization> {
+  await requirePermission(s, orgId, "org.manage");
+  const org = await orgs().one({ id: orgId });
+  if (!org) throw new HiringError("That workspace no longer exists.", 404);
+  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Edit this workspace…).");
+  if (!workEmailMatches(s.email, org.website)) throw new HiringError(`Your sign-in email isn't on ${websiteDomain(org.website)}. Sign in with your work email, or ask WonderJobs to review the company.`, 409);
+  await orgs().update({ id: orgId }, { verified: true });
+  return toOrg({ ...org, verified: true });
+}
+
+/** An Owner asks WonderJobs to review the company; the team gets an email. Returns whether it was sent. */
+export async function requestVerificationReview(s: Session, orgId: string, note: string): Promise<{ sent: boolean }> {
+  await requirePermission(s, orgId, "org.manage");
+  const org = await orgs().one({ id: orgId });
+  if (!org) throw new HiringError("That workspace no longer exists.", 404);
+  if (org.verified) throw new HiringError("This company is already verified.", 409);
+  if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Edit this workspace…), so the team can check it.");
+  const team = parseEmailList(process.env.CONTACT_NOTIFY_EMAILS);
+  if (!team.length) return { sent: false };
+  const text = note.trim().slice(0, 2000);
+  const mail = renderEmailLayout({
+    origin: siteUrl().origin,
+    preheader: `${org.name} asks to be verified`,
+    bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">Company verification request</div><p style="margin:0 0 6px"><b>${escapeHtml(org.name)}</b> · ${escapeHtml(org.website ?? "")}</p><p style="margin:0 0 6px">Requested by ${escapeHtml(s.email ?? "an Owner without an email")}</p>${text ? `<p style="margin:0 0 6px;white-space:pre-wrap">${escapeHtml(text)}</p>` : ""}<p style="margin:12px 0 0"><a href="${escapeHtml(new URL("/platform/companies", siteUrl().origin).toString())}">Review it in Platform → Companies</a></p>`,
+    bodyText: [`Company verification request`, `${org.name} · ${org.website ?? ""}`, `Requested by ${s.email ?? "an Owner without an email"}`, text, `Review it: ${new URL("/platform/companies", siteUrl().origin)}`].filter(Boolean).join("\n\n"),
+    reason: "You're getting this because this address receives WonderJobs operator messages.",
+    settingsLink: false,
+  });
+  let sent = false;
+  for (const to of team) if ((await sendMail({ to, subject: `[WonderJobs] Verify ${org.name}`, replyTo: s.email ?? undefined, ...mail })).sent) sent = true;
+  return { sent };
+}
+
+/** Platform admins: every company, unverified first, with its Owners' emails. Cross-tenant by design (admin only). */
+export async function listCompaniesForAdmin(): Promise<(Organization & { owners: string[]; openJobs: number })[]> {
+  const rows = await orgs().all({ order: "created_at", desc: true, limit: 500 });
+  const ids = rows.map((r) => r.id);
+  const [owners, open] = await Promise.all([members().findIn("org_id", ids, { role: "owner" }), jobs().findIn("org_id", ids, { status: "open" })]);
+  return rows
+    .map((r) => ({ ...toOrg(r), owners: owners.filter((m) => m.org_id === r.id && m.email).map((m) => m.email!), openJobs: open.filter((j) => j.org_id === r.id).length }))
+    .sort((a, b) => Number(a.verified) - Number(b.verified));
+}
+
+/** Platform admins verify or unverify a company; on verify its Owners are told. Returns whether any email went. */
+export async function setCompanyVerified(orgId: string, verified: boolean): Promise<{ emailed: boolean }> {
+  const org = await orgs().one({ id: orgId });
+  if (!org) throw new HiringError("That company no longer exists.", 404);
+  await orgs().update({ id: orgId }, { verified });
+  if (!verified) return { emailed: false };
+  const owners = (await members().find({ org_id: orgId, role: "owner" })).flatMap((m) => (m.email ? [m.email] : []));
+  const mail = renderEmailLayout({
+    origin: siteUrl().origin,
+    preheader: `${org.name} is verified on WonderJobs`,
+    bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">${escapeHtml(org.name)} is verified</div><p style="margin:0">Your open jobs no longer carry the unverified-employer note, so job seekers can apply with confidence.</p>`,
+    bodyText: `${org.name} is verified\n\nYour open jobs no longer carry the unverified-employer note, so job seekers can apply with confidence.`,
+    reason: "You're getting this because you're an Owner of this hiring workspace on WonderJobs.",
+    settingsLink: false,
+  });
+  let emailed = false;
+  for (const to of owners) if ((await sendMail({ to, subject: `${org.name} is verified on WonderJobs`, ...mail })).sent) emailed = true;
+  return { emailed };
 }
 
 export async function listTeam(s: Session, orgId: string): Promise<{ members: Membership[]; invites: OrgInvite[] }> {

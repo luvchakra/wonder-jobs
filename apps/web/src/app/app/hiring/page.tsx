@@ -20,6 +20,7 @@ import { MessagesTab } from "@/components/hiring/MessagesTab";
 import { TeamTab } from "@/components/hiring/TeamTab";
 import { ApplicationsTab } from "@/components/hiring/ApplicationsTab";
 import { WorkspaceSettings } from "@/components/hiring/WorkspaceSettings";
+import { VerifyCompany } from "@/components/hiring/VerifyCompany";
 
 type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team";
 type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
@@ -38,6 +39,7 @@ function HiringPage() {
   const [orgId, setOrgId] = useState<string | null>(params.get("org"));
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const load = useCallback(() => {
     hiringApi
@@ -131,9 +133,29 @@ function HiringPage() {
         </Modal>
       )}
       {!ws.org.verified && (
-        <p className="mb-4 flex items-start gap-2 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
-          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden /> Not verified yet: your open jobs tell job seekers WonderJobs hasn&apos;t checked this company.
+        <p className="mb-4 flex flex-wrap items-start gap-x-2 gap-y-1 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden />
+          <span className="min-w-0 flex-1">Not verified yet: your open jobs tell job seekers WonderJobs hasn&apos;t checked this company. {can(r, "org.manage") ? "Verifying takes a minute with a work email on your company's domain." : "An Owner can verify it."}</span>
+          {can(r, "org.manage") && (
+            <button type="button" onClick={() => setVerifying(true)} className="font-semibold text-brand-600 hover:underline">
+              Verify your company →
+            </button>
+          )}
         </p>
+      )}
+      {verifying && (
+        <VerifyCompany
+          org={ws.org}
+          onClose={() => setVerifying(false)}
+          onVerified={() => {
+            setVerifying(false);
+            load();
+          }}
+          onEditWorkspace={() => {
+            setVerifying(false);
+            setEditing(true);
+          }}
+        />
       )}
       <Tabs value={tab} onChange={(t) => go(t)} items={tabs} label="Hiring" variant="underline" className="mb-4" />
       {tab === "jobs" && <JobsTab orgId={ws.org.id} canEdit={can(r, "jobs.edit")} canManage={can(r, "org.manage")} />}
