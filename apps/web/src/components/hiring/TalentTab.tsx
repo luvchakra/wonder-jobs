@@ -47,7 +47,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
           void search();
         }}
       >
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Skills or role — e.g. Kubernetes Go" aria-label="Skills or role" className="flex-1" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Skills or role — e.g. Kubernetes Go" aria-label="Skills or role" className="sm:flex-1" />
         <Input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Place (optional)" aria-label="Place" className="sm:w-48" />
         <Button type="submit" loading={busy} icon={<Search className="size-4" aria-hidden />}>
           Find candidates

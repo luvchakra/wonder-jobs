@@ -47,7 +47,7 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
             setBusy(false);
           }}
         >
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@company.com" aria-label="Email to invite" className="flex-1" required />
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@company.com" aria-label="Email to invite" className="sm:flex-1" required />
           <Select value={role} onChange={(e) => setRole(e.target.value as OrgRole)} aria-label="Role" className="sm:w-44">
             {ORG_ROLES.map((r) => (
               <option key={r} value={r}>
@@ -64,8 +64,9 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
 
       <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
         {team.members.map((m) => (
-          <li key={m.tenantId} className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 last:border-b-0">
-            <div className="min-w-0 flex-1">
+          <li key={m.tenantId} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 last:border-b-0">
+            {/* On a phone the name takes the whole first line; the role and Leave/Remove share the next. */}
+            <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
               <p className="truncate text-[14px] font-semibold text-ink">
                 {m.name || m.email || "Member"}
                 {m.tenantId === me && <span className="font-normal text-ink-3"> (you)</span>}
@@ -73,7 +74,7 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
               <p className="truncate text-[12px] text-ink-3">{m.email}</p>
             </div>
             {canManage ? (
-              <Select value={m.role} onChange={(e) => act(() => hiringApi.setRole(orgId, m.tenantId, e.target.value as OrgRole), "Role changed")} aria-label={`Role of ${m.name || m.email}`} className="w-44">
+              <Select value={m.role} onChange={(e) => act(() => hiringApi.setRole(orgId, m.tenantId, e.target.value as OrgRole), "Role changed")} aria-label={`Role of ${m.name || m.email}`} className="w-40 sm:w-44">
                 {ORG_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {ORG_ROLE_LABEL[r]}
@@ -92,7 +93,7 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
                     if (m.tenantId === me) onLeft();
                   }, m.tenantId === me ? "You left the workspace" : "Removed")
                 }
-                className="min-h-10 text-[13px] font-medium text-ink-3 hover:text-danger-600"
+                className="ml-auto min-h-10 text-[13px] font-medium text-ink-3 hover:text-danger-600 sm:ml-0"
               >
                 {m.tenantId === me ? "Leave" : "Remove"}
               </button>
