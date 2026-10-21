@@ -25,6 +25,8 @@ export interface Table<T extends Row> {
    */
   all(opts: FindOptions & { order: string; limit: number }): Promise<T[]>;
   insert(row: T): Promise<T>;
+  /** Insert, or replace the row with the same `key` columns, in one step. */
+  upsert(row: T, key: (keyof T & string)[]): Promise<T>;
   update(where: Partial<T>, patch: Partial<T>): Promise<number>;
   remove(where: Partial<T>): Promise<number>;
 }
@@ -70,6 +72,13 @@ class MemoryTable<T extends Row> implements Table<T> {
   }
   async insert(row: T) {
     this.rows().push({ ...row });
+    return row;
+  }
+  async upsert(row: T, key: (keyof T & string)[]) {
+    const rows = this.rows();
+    const i = rows.findIndex((r) => key.every((k) => r[k] === row[k]));
+    if (i >= 0) rows[i] = { ...row };
+    else rows.push({ ...row });
     return row;
   }
   async update(where: Partial<T>, patch: Partial<T>) {
@@ -132,6 +141,11 @@ class SupabaseTable<T extends Row> implements Table<T> {
   }
   async insert(row: T) {
     const { error } = await this.q().insert(row as never);
+    if (error) this.fail("save", error.message);
+    return row;
+  }
+  async upsert(row: T, key: (keyof T & string)[]) {
+    const { error } = await this.q().upsert(row as never, { onConflict: key.join(",") });
     if (error) this.fail("save", error.message);
     return row;
   }
