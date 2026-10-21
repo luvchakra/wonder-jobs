@@ -117,7 +117,16 @@ test.describe("Real account — production walk-through", () => {
     await page.waitForURL(/\/app\/jobs\/[^/]+$/);
     await page.getByText("Sources & hiring signals", { exact: true }).click({ timeout: 20_000 });
     await expect(page.getByText("Where this job was found")).toBeVisible();
-    await page.getByRole("link", { name: "Apply with Wonder" }).click();
+    // A job the cloud browser can fill shows "Apply for this job" (background fill) instead of the link to the guided
+    // page; which one comes first depends on the live results, so open the guided page by its address in that case.
+    const guided = page.getByRole("link", { name: "Apply with Wonder" });
+    const background = page.getByRole("button", { name: "Apply for this job" });
+    await expect(guided.or(background).first()).toBeVisible({ timeout: 20_000 });
+    if (await guided.isVisible()) await guided.click();
+    else {
+      await page.goto(`${new URL(page.url()).pathname}/apply`);
+      await page.getByRole("button", { name: "Guide me instead" }).click({ timeout: 30_000 });
+    }
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "Change for this job" }).click();
     await page.getByRole("radio", { name: /Guide me/ }).click();
