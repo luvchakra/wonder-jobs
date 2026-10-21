@@ -9,6 +9,7 @@ import * as H from "./hiring";
 import { can, permissionsOf } from "@/domain/org/permissions";
 import { displayName, searchTalent, talentProfileFrom } from "@/domain/org/talent";
 import { EMPTY_DNA } from "@/domain/career/types";
+import { websiteDomain, workEmailMatches } from "@/domain/org/company";
 
 const owner: Session = { userId: "u-owner", tenantId: "u-owner", email: "owner@acme.com", name: "Olive Owner" };
 const hm: Session = { userId: "u-hm", tenantId: "u-hm", email: "hm@acme.com" };
@@ -219,5 +220,58 @@ describe("company details", () => {
     await H.deleteWorkspace(owner, a.org.id, "Acme");
     expect((await H.myWorkspaces(owner)).workspaces.map((w) => w.org.name)).toEqual(["Beta Labs"]);
     expect(await H.listOrgJobs(owner, b.org.id)).toHaveLength(1);
+  });
+});
+
+describe("verifying a company", () => {
+  it("counts a work email on the website's domain or a subdomain, never a personal provider", () => {
+    expect(websiteDomain("https://www.Acme.com/careers")).toBe("acme.com");
+    expect(websiteDomain("acme.com")).toBe("acme.com");
+    expect(websiteDomain("")).toBeNull();
+    expect(workEmailMatches("owner@acme.com", "https://acme.com")).toBe(true);
+    expect(workEmailMatches("owner@in.acme.com", "acme.com")).toBe(true);
+    expect(workEmailMatches("owner@acme.com", "https://jobs.acme.com")).toBe(true);
+    expect(workEmailMatches("owner@acme.co", "acme.com")).toBe(false);
+    expect(workEmailMatches("owner@notacme.com", "acme.com")).toBe(false);
+    expect(workEmailMatches("owner@gmail.com", "gmail.com")).toBe(false);
+    expect(workEmailMatches(undefined, "acme.com")).toBe(false);
+  });
+
+  it("verifies at once by the Owner's own work email, and only an Owner", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    expect((await H.verificationOptions(owner, org.id)).workEmailMatches).toBe(true);
+    await expect(H.verificationOptions(rec, org.id)).rejects.toMatchObject({ status: 403 });
+    expect((await H.verifyByWorkEmail(owner, org.id)).verified).toBe(true);
+    expect((await H.myWorkspaces(owner)).workspaces[0].org.verified).toBe(true);
+  });
+
+  it("refuses a personal email or a missing website, and points to the review instead", async () => {
+    const gmailOwner: Session = { userId: "u-g", tenantId: "u-g", email: "founder@gmail.com" };
+    const { org } = await H.createWorkspace(gmailOwner, { name: "Beta Labs", website: "betalabs.io" });
+    await expect(H.verifyByWorkEmail(gmailOwner, org.id)).rejects.toThrow(/isn't on betalabs.io/);
+    const bare = await H.createWorkspace(gmailOwner, { name: "No Site" });
+    await expect(H.verifyByWorkEmail(gmailOwner, bare.org.id)).rejects.toThrow(/website first/);
+    await expect(H.requestVerificationReview(gmailOwner, bare.org.id, "")).rejects.toThrow(/website first/);
+  });
+
+  it("says honestly when a review request couldn't be sent", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    delete process.env.CONTACT_NOTIFY_EMAILS;
+    expect(await H.requestVerificationReview(owner, org.id, "CIN U12345")).toEqual({ sent: false });
+    await expect(H.requestVerificationReview(rec, org.id, "")).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("lets platform admins list companies unverified first, and verify or unverify one", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
+    await H.verifyByWorkEmail(owner, a.org.id);
+    const b = await H.createWorkspace(outsider, { name: "Other Co" });
+    expect((await H.listCompaniesForAdmin()).map((c) => [c.name, c.verified, c.owners])).toEqual([
+      ["Other Co", false, ["out@other.com"]],
+      ["Acme", true, ["owner@acme.com"]],
+    ]);
+    await H.setCompanyVerified(b.org.id, true);
+    await H.setCompanyVerified(a.org.id, false);
+    expect((await H.myWorkspaces(outsider)).workspaces[0].org.verified).toBe(true);
+    expect((await H.myWorkspaces(owner)).workspaces[0].org.verified).toBe(false);
   });
 });
