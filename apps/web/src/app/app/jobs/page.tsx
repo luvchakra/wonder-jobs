@@ -44,7 +44,7 @@ function JobsHome() {
     router.replace("/app/jobs");
   }, [params, search, router]);
   // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet,
-  // null = My profile, false = none (Part Time's start: only the words typed).
+  // null = My profile, false = none (Part Time only, and its start: only the words typed).
   const [pickedRole, setPickedRole] = useState<string | null | false | undefined>(undefined);
 
   // Clearing the typed words brings back the profile's results and view as they were before the words
@@ -121,9 +121,10 @@ function JobsHome() {
         // What was searched and "Search as" live in Refine — the list stays the page.
         refineTop={
           <>
-            <WantedRole search={search} inline />
+            {/* Part Time leaves the Career Profile's role out, so it isn't shown there. */}
+            {mode === "full_time" && <WantedRole search={search} inline />}
             {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
-            {roles.length > 0 && <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} />}
+            {roles.length > 0 && <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} />}
           </>
         }
         footer={

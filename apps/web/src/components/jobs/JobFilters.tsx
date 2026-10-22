@@ -335,12 +335,14 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
                 className="min-w-0 flex-1 sm:flex-none"
                 icon={<Search className="size-4" aria-hidden />}
                 onClick={() => {
+                  setMore(false);
+                  // Part Time: only the typed words, as the box's own Search (nothing typed is asked for).
+                  if (partTime) return submit();
                   commit();
                   // Strictly within the profile: its own search (role and field), in these places.
                   const words = draft.trim();
                   if (words && !filters.strictProfile) sourceSearch.run(words, splitPlaces(where));
                   else sourceSearch.runPlaces(splitPlaces(where));
-                  setMore(false);
                 }}
               >
                 Search
