@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
@@ -9,6 +9,7 @@ import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/find
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
+import { useJobsStore } from "@/store/jobs";
 import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
@@ -107,8 +108,31 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   const activeCount = (filters.hideInPipeline ? 1 : 0) + (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
+  // Part Time's last few searches, under the box while it has focus; one tap searches again.
+  const recentSearches = useJobsStore((s) => s.recentSearches);
+  const forgetSearch = useJobsStore((s) => s.forgetSearch);
+  const [boxFocused, setBoxFocused] = useState(false);
+  const typedNow = draft.trim().toLowerCase();
+  const history = recentSearches.filter((t) => t.toLowerCase() !== typedNow && (!typedNow || t.toLowerCase().includes(typedNow)));
   // Applies what's in the box and the Where field to the list.
-  const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
+  const commit = (text = draft) => onChange({ query: text, locations: splitPlaces(where) });
+  // Search: Part Time the typed words (or a history item's), Full Time the Career Profile's own search.
+  const submit = (text = draft) => {
+    if (partTime) commit(text);
+    else onChange({ query: "", locations: splitPlaces(where) });
+    // Words searched: every source too, not only the jobs already on screen.
+    // Full Time has no box: it is always the Career Profile's own search.
+    const words = partTime ? text.trim() : "";
+    // Part Time: only typed words are searched — nothing typed is asked for, not filled in from the profile.
+    if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
+      setNeedWords(true);
+      return;
+    }
+    if (words && sourceSearch?.describe(words, splitPlaces(where))) {
+      if (partTime) useJobsStore.getState().rememberSearch(words);
+      sourceSearch.run(words, splitPlaces(where));
+    } else if (!words) sourceSearch?.runPlaces(splitPlaces(where));
+  };
   if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -116,19 +140,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
         className="flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (partTime) commit();
-          else onChange({ query: "", locations: splitPlaces(where) });
-          // Words searched: every source too, not only the jobs already on screen. Nothing typed: the
-          // Career Profile's own search.
-          // Full Time has no box: it is always the Career Profile's own search.
-          const words = partTime ? draft.trim() : "";
-          // Part Time: only typed words are searched — nothing typed is asked for, not filled in from the profile.
-          if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
-            setNeedWords(true);
-            return;
-          }
-          if (words && sourceSearch?.describe(words, splitPlaces(where))) sourceSearch.run(words, splitPlaces(where));
-          else if (!words) sourceSearch?.runPlaces(splitPlaces(where));
+          setBoxFocused(false);
+          submit();
         }}
       >
         {partTime && (
@@ -140,6 +153,11 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               setDraft(e.target.value);
               setNeedWords(false);
               if (dictation.listening) dictation.rebase(e.target.value);
+            }}
+            onFocus={() => setBoxFocused(true)}
+            onBlur={() => setBoxFocused(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setBoxFocused(false);
             }}
             placeholder="Search jobs, skills or companies"
             aria-label="Search jobs"
@@ -162,6 +180,31 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             )}
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
+          {boxFocused && history.length > 0 && (
+            // Taps here mustn't take the focus from the box first (that would close the list before the tap lands).
+            <ul aria-label="Recent searches" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
+              {history.map((t) => (
+                <li key={t} className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(t);
+                      setBoxFocused(false);
+                      (document.activeElement as HTMLElement | null)?.blur();
+                      submit(t);
+                    }}
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left text-[14px] text-ink hover:bg-bg-soft"
+                  >
+                    <History className="size-4 shrink-0 text-ink-4" aria-hidden />
+                    <span className="truncate">{t}</span>
+                  </button>
+                  <button type="button" aria-label={`Remove “${t}” from recent searches`} onClick={() => forgetSearch(t)} className="mr-1 grid size-11 shrink-0 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-ink">
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         )}
         {/* The mode's job types: between the box and the button on a phone; under both on a wider screen. */}
