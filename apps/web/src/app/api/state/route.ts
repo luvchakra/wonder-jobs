@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { isErased } from "@/server/privacy/records";
 import { rateLimit } from "@/server/rateLimit";
+import { keepServerInbox } from "@/server/notifications/inbox";
 import { isStateStoreName, MAX_BATCH_BYTES, MAX_STATE_BYTES, stateStore, type StateStoreName } from "@/server/state";
 
 export const runtime = "nodejs";
@@ -46,6 +47,8 @@ export async function PUT(req: Request) {
   }
   if (!Object.keys(docs).length) return NextResponse.json({ saved: {} });
   try {
+    // The bell's list: what the server added since this browser last read it is kept, not overwritten.
+    if (docs["wj.career"] !== undefined) docs["wj.career"] = await keepServerInbox(tenantId, docs["wj.career"]);
     const saved = await stateStore.putMany(tenantId, docs);
     return NextResponse.json({ saved });
   } catch (e) {

@@ -166,3 +166,6 @@ export function checkedWiderQuery(proposal: string | null | undefined, query: st
 
 /** Stages of a search-only run: the jobs, matched and ranked — applications are prepared later, from a job. */
 export const SEARCH_ONLY_STAGES = ["profile", "search", "dedupe", "match", "quality", "rank"] as const;
+
+/** A search that ran but no source listed anything for: an outcome to say plainly, not a failure. */
+export const foundNothing = (run: WorkflowRun | undefined) => run?.status === "FAILED" && run.error?.category === "user_action_required" && /^No jobs matched/.test(run.error.message);

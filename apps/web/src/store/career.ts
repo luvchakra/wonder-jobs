@@ -1,6 +1,6 @@
 "use client";
 import { create } from "zustand";
-import { addNotification } from "@/domain/career/notifications";
+import { addNotification, mergeNotifications, mergeReminded } from "@/domain/career/notifications";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { ActivityItem, CareerDNA, CareerInsight, Notification, UpcomingItem } from "@/domain/career/types";
@@ -33,6 +33,8 @@ interface CareerState {
   /** Follow-up ids already turned into a notification, so reminders fire once. */
   reminded: string[];
   markReminded: (id: string) => void;
+  /** The server's copy of the bell and raised reminders, folded in (a change only when it adds something). */
+  mergeInbox: (inbox: { notifications?: Notification[]; reminded?: string[] }) => void;
   /** Every "not for me" rejection, capped, with the reason if the candidate gave one. Feeds computeLearnedSignals. */
   rejectionHistory: RejectionRecord[];
   /** Signal ids the candidate dismissed — never resurfaced even once evidence clears the threshold again. */
@@ -85,6 +87,8 @@ interface CareerState {
   addUpcoming: (item: Omit<UpcomingItem, "id">) => void;
   notify: (n: Omit<Notification, "id" | "at" | "read">) => void;
   markRead: (id?: string) => void;
+  /** Done elsewhere (an application marked submitted): its notifications linking there are read. */
+  markReadLinkingTo: (href: string) => void;
   setInsights: (insights: CareerInsight[]) => void;
   /** Skill Up suggestions (skills or certifications, lower-cased) the candidate doesn't want to learn; never suggested again until restored. */
   skillUpHidden: string[];
@@ -134,6 +138,13 @@ export const useCareerStore = create<CareerState>()(
       unsaveSkillUp: (name) => set((s) => ({ skillUpSaved: (s.skillUpSaved ?? []).filter((x) => !sameSkill(x.name, name)) })),
       setSkillUpLevel: (name, level) => set((s) => ({ skillUpSaved: (s.skillUpSaved ?? []).map((x) => (sameSkill(x.name, name) ? { ...x, level, updatedAt: new Date().toISOString() } : x)) })),
       restoreSkillUp: (name) => set((s) => ({ skillUpHidden: name ? (s.skillUpHidden ?? []).filter((k) => k !== name.trim().toLowerCase()) : [] })),
+      mergeInbox: (inbox) =>
+        set((s) => {
+          const notifications = mergeNotifications(s.notifications, inbox.notifications);
+          const reminded = mergeReminded(s.reminded, inbox.reminded);
+          const same = (a: unknown[], b: unknown[]) => a.length === b.length && JSON.stringify(a) === JSON.stringify(b);
+          return same(notifications, s.notifications) && same(reminded, s.reminded) ? {} : { notifications, reminded };
+        }),
       markReminded: (id) => set((s) => ({ reminded: s.reminded.includes(id) ? s.reminded : [...s.reminded, id].slice(-200) })),
       rejectionHistory: [],
       dismissedSignals: [],
@@ -210,6 +221,8 @@ export const useCareerStore = create<CareerState>()(
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),
       notify: (n) => set((s) => ({ notifications: addNotification(s.notifications, n, newId("ntf"), new Date().toISOString(), 50) })),
+      markReadLinkingTo: (href) =>
+        set((s) => (s.notifications.some((n) => !n.read && n.href === href) ? { notifications: s.notifications.map((n) => (n.href === href ? { ...n, read: true } : n)) } : {})),
       markRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (id == null || n.id === id ? { ...n, read: true } : n)) })),
       setInsights: (insights) => set({ insights }),
     }),

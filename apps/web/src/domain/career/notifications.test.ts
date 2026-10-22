@@ -32,3 +32,16 @@ describe("visibleNotifications", () => {
 it("every category has an action label", () => {
   for (const label of Object.values(NOTIFICATION_ACTION)) expect(label.length).toBeGreaterThan(0);
 });
+
+describe("the browser's and the server's copies of the bell", () => {
+  it("keep every notification once, read if either says so, newest first, capped", async () => {
+    const { mergeNotifications, mergeReminded } = await import("./notifications");
+    const browser = [n({ id: "seen", at: "2026-10-02T00:00:00Z", read: true }), n({ id: "mine", at: "2026-10-03T00:00:00Z", body: "x" })];
+    const server = [n({ id: "seen", at: "2026-10-02T00:00:00Z", read: false }), n({ id: "reminder", at: "2026-10-04T00:00:00Z", category: "interview_upcoming", body: "y" })];
+    const merged = mergeNotifications(browser, server);
+    expect(merged.map((x) => [x.id, x.read])).toEqual([["reminder", false], ["mine", false], ["seen", true]]);
+    expect(mergeNotifications(browser, server, 2).map((x) => x.id)).toEqual(["reminder", "mine"]);
+    expect(mergeReminded(["a", "b"], ["b", "c"])).toEqual(["a", "b", "c"]);
+    expect(mergeNotifications(undefined, undefined)).toEqual([]);
+  });
+});

@@ -12,6 +12,7 @@ export const NOTIFICATION_ACTION: Record<Notification["category"], string> = {
   application_status: "Open application",
   materials_ready: "Review draft",
   job_closed: "See saved jobs",
+  recruiter_message: "Open message",
 };
 
 const sameMessage = (a: Pick<Notification, "category" | "title" | "body">, b: Pick<Notification, "category" | "title" | "body">) => a.category === b.category && a.title === b.title && a.body === b.body;
@@ -29,4 +30,27 @@ export function visibleNotifications(list: Notification[]): Notification[] {
   const seen: Notification[] = [];
   for (const n of [...list].sort((a, b) => b.at.localeCompare(a.at))) if (!seen.some((x) => sameMessage(x, n))) seen.push(n);
   return seen;
+}
+
+export const NOTIFICATION_CAP = 50;
+export const REMINDED_CAP = 200;
+
+/**
+ * Two copies of the bell's list made into one: the browser's (what it has shown and marked read) and the
+ * server's (what the daily job or a recruiter's message added while the browser wasn't looking). Every
+ * notification from either is kept, once; read if either copy says so; newest first, up to the cap.
+ */
+export function mergeNotifications(a: readonly Notification[] = [], b: readonly Notification[] = [], cap = NOTIFICATION_CAP): Notification[] {
+  const byId = new Map<string, Notification>();
+  for (const n of [...a, ...b]) {
+    if (!n || typeof n.id !== "string") continue;
+    const had = byId.get(n.id);
+    byId.set(n.id, had ? { ...had, ...n, read: had.read || n.read } : n);
+  }
+  return [...byId.values()].sort((x, y) => y.at.localeCompare(x.at)).slice(0, cap);
+}
+
+/** Reminders already raised, from either copy: once raised, never again (newest kept when capped). */
+export function mergeReminded(a: readonly string[] = [], b: readonly string[] = [], cap = REMINDED_CAP): string[] {
+  return [...new Set([...a, ...b].filter((x) => typeof x === "string"))].slice(-cap);
 }

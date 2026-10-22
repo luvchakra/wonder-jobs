@@ -5,7 +5,7 @@ import { reportApiUsage, type ApiUsageReport } from "@/server/jobslake/apiBillin
 import { purgeExpired } from "@/server/privacy/retention";
 import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
 import { raiseDueReminders } from "@/server/workflow/reminders";
-import { notifyTenant } from "@/server/push/subscriptions";
+import { nudge } from "@/server/notifications/deliver";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
 import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 import { sendDigest } from "@/server/digest/send";
@@ -88,7 +88,8 @@ export async function GET(req: Request) {
           if (!report.raised) continue;
           remindedTenants++;
           reminded += report.raised;
-          for (const push of report.pushes) await notifyTenant(tenantId, push);
+          // Already in the bell; a push, or an email when no push reached them (once per reminder).
+          for (const r of report.notices) await nudge(tenantId, r.notice, { email: { key: r.key } });
         } catch (e) {
           failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
         }

@@ -57,14 +57,14 @@ describe("raiseDueReminders", () => {
 
   it("says nothing when there is nothing due", async () => {
     await seed(application({ followUps: [{ id: "f1", applicationId: "app-1", dueAt: at(30), kind: "follow_up", note: "Nudge them", done: false }] }));
-    expect(await raiseDueReminders(TENANT, NOW)).toMatchObject({ raised: 0, pushes: [] });
+    expect(await raiseDueReminders(TENANT, NOW)).toMatchObject({ raised: 0, notices: [] });
   });
 
   it("raises an interview reminder naming the employer", async () => {
     await seed(application({ followUps: [{ id: "f1", applicationId: "app-1", dueAt: at(1), kind: "interview", note: "Panel round", done: false }] }));
     const report = await raiseDueReminders(TENANT, NOW);
     expect(report.raised).toBe(1);
-    expect(report.pushes[0]).toMatchObject({ title: "Interview coming up — PayCircle", url: "/app/interview-prep" });
+    expect(report.notices[0]).toMatchObject({ notice: { title: "Interview coming up — PayCircle", href: "/app/interview-prep" }, key: expect.stringMatching(/^reminder-/) });
 
     const career = await readClientState<CareerDoc & { reminded: string[] }>(TENANT, "wj.career");
     expect(career!.notifications[0].category).toBe("interview_upcoming");
@@ -74,8 +74,8 @@ describe("raiseDueReminders", () => {
   it("says a follow-up is overdue when it is", async () => {
     await seed(application({ followUps: [{ id: "f1", applicationId: "app-1", dueAt: at(-0.5), kind: "follow_up", note: "No response yet", done: false }] }));
     const report = await raiseDueReminders(TENANT, NOW);
-    expect(report.pushes[0].title).toMatch(/overdue/);
-    expect(report.pushes[0].url).toBe("/app/applications/app-1");
+    expect(report.notices[0].notice.title).toMatch(/overdue/);
+    expect(report.notices[0].notice.href).toBe("/app/applications/app-1");
   });
 
   it("never raises the same reminder twice, however often the cron runs", async () => {

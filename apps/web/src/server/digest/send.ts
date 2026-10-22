@@ -6,10 +6,10 @@ import { assist } from "@/server/ai/assist";
 import { readClientState } from "@/server/clientState";
 import { sendMail } from "@/server/notify";
 import { stateStore } from "@/server/state";
-import { getSupabaseAdmin } from "@/server/supabase";
 import { loadTenantSnapshot } from "@/server/workflow/snapshot";
 import { siteUrl } from "@/lib/siteUrl";
 import { renderDigestEmail } from "./email";
+import { accountEmail } from "@/server/accountEmail";
 
 const STORE = "wj.digest" as const;
 const WEEK = 7 * 86_400_000;
@@ -102,15 +102,6 @@ async function aiSuggestions(d: Digest): Promise<Digest["suggestions"]> {
 }
 
 /* ----------------------------------------------------------------- send */
-
-async function accountEmail(tenantId: string): Promise<{ email: string; name?: string } | null> {
-  const sb = getSupabaseAdmin();
-  if (!sb) return null;
-  const { data, error } = await sb.auth.admin.getUserById(tenantId);
-  if (error || !data?.user?.email) return null;
-  const meta = (data.user.user_metadata ?? {}) as { full_name?: string; name?: string };
-  return { email: data.user.email, name: (meta.full_name || meta.name || "").split(" ")[0] || undefined };
-}
 
 export interface DigestOutcome {
   tenantId: string;
