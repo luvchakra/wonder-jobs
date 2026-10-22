@@ -25,7 +25,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
   it("footer: WonderJobs, the caller's reason, settings and privacy links, plus the email's own links", () => {
     const { html, text } = renderEmailLayout({ ...base, links: [{ label: "Stop these emails", href: "/api/digest/unsubscribe?u=a&s=b" }] });
     expect(html).toContain("You&#39;re getting this because you asked for it.");
-    expect(html).toContain('href="https://jobs.wonderapps.biz/app/notifications#choices"');
+    expect(html).toContain('href="https://jobs.wonderapps.biz/app/settings/notifications"');
     expect(html).toContain('href="https://jobs.wonderapps.biz/privacy"');
     expect(html).toContain('href="https://jobs.wonderapps.biz/api/digest/unsubscribe?u=a&amp;s=b"');
     expect(text).toBe(
@@ -35,7 +35,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
         "—",
         "WonderJobs",
         "You're getting this because you asked for it.",
-        "Notification settings: https://jobs.wonderapps.biz/app/notifications#choices",
+        "Notification settings: https://jobs.wonderapps.biz/app/settings/notifications",
         "Privacy: https://jobs.wonderapps.biz/privacy",
         "Stop these emails: https://jobs.wonderapps.biz/api/digest/unsubscribe?u=a&s=b",
       ].join("\n"),
@@ -44,7 +44,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
 
   it("leaves out the settings link for an email those settings don't control", () => {
     const { html, text } = renderEmailLayout({ ...base, settingsLink: false });
-    expect(html).not.toContain("/app/notifications#choices");
+    expect(html).not.toContain("/app/settings/notifications");
     expect(text).not.toContain("Notification settings");
     expect(html).toContain("/privacy");
   });
@@ -67,7 +67,7 @@ describe("the contact notification goes through the layout", () => {
     expect(mail.subject).toBe("[WonderJobs contact] support — Sample <Visitor>");
     expect(mail.html).toContain('src="https://jobs.wonderapps.biz/brand/wonderjobs-logo-light.png"');
     expect(mail.html).toContain("set to receive WonderJobs contact-form messages");
-    expect(mail.html).not.toContain("/app/notifications#choices");
+    expect(mail.html).not.toContain("/app/settings/notifications");
     expect(mail.html).toContain("Sample &lt;Visitor&gt;");
     expect(mail.html).toContain("Line one &amp; &lt;script&gt;alert(1)&lt;/script&gt;<br>Line two");
     expect(mail.html).not.toContain("<script>");

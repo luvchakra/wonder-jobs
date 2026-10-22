@@ -18,7 +18,7 @@ vi.mock("@/server/jobslake/access", async (orig) => {
   return { ...real, requireAdmin: async () => (admin ? { actor: admin, session: {} } : NextResponse.json({ error: { code: "FORBIDDEN", message: "Admins only" } }, { status: 403 })) };
 });
 
-import { nudge } from "./deliver";
+import { deliver, nudge } from "./deliver";
 import { __resetNotifyAdminCache, loadNotifyAdmin, saveNotifyAdmin } from "./admin";
 import { loadNotifyContext, saveNotifyPrefs } from "./prefs";
 import { DEFAULT_NOTIFY_ADMIN, cleanNotifyAdmin, effectivePrefs, reminderLeads } from "@/domain/notifications/admin";
@@ -27,7 +27,7 @@ import { GET as adminGET, PUT as adminPUT } from "@/app/api/jobs-lake/admin/noti
 import { GET as settingsGET } from "@/app/api/notify-settings/route";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
-import { writeClientState } from "@/server/clientState";
+import { readClientState, writeClientState } from "@/server/clientState";
 import { resetTablesForTests } from "@/server/db/table";
 import { EMPTY_DNA } from "@/domain/career/types";
 import { PERSIST_VERSION } from "@/server/workflow/snapshot";
@@ -67,13 +67,24 @@ describe("platform notification settings (Admin → Settings → Notifications)"
     expect(c.channels).toEqual({ push: false, email: true });
     expect(c.topics.matches.allowed).toEqual({ push: true, email: false });
     expect([c.messageEmailEveryMin, c.interviewLeadHours, c.followUpLeadHours]).toEqual([5, 48, 6]);
-    expect(Object.keys(c.topics)).toEqual(["messages", "reminders", "matches"]);
+    expect(Object.keys(c.topics)).toEqual(["messages", "interviews", "follow_ups", "matches", "searches", "applications", "saved_jobs"]);
+    // A kind kept only in the bell can't be allowed push or email, whatever is saved.
+    expect(cleanNotifyAdmin({ topics: { applications: { allowed: { push: true, email: true }, defaults: { push: true } } } }).topics.applications).toEqual({ allowed: { push: false, email: false }, defaults: { push: false, email: false } });
+    // Saved before reminders were split: both kinds of reminder keep it.
+    const legacy = cleanNotifyAdmin({ topics: { reminders: { allowed: { email: false } } } });
+    expect([legacy.topics.interviews.allowed.email, legacy.topics.follow_ups.allowed.email]).toEqual([false, false]);
   });
 
   it("A02 a person's choice goes only where the platform allows it", () => {
     const a = cleanNotifyAdmin({ channels: { email: false }, topics: { messages: { allowed: { push: false } } } });
-    const all = { messages: { push: true, email: true }, reminders: { push: true, email: true }, matches: { push: true, email: true } };
-    expect(effectivePrefs(all, a)).toEqual({ messages: { push: false, email: false }, reminders: { push: true, email: false }, matches: { push: true, email: false } });
+    const all = Object.fromEntries(Object.keys(DEFAULT_NOTIFY_PREFS).map((k) => [k, { bell: true, push: true, email: true }])) as typeof DEFAULT_NOTIFY_PREFS;
+    const e = effectivePrefs(all, a);
+    expect([e.messages, e.interviews, e.matches, e.applications]).toEqual([
+      { bell: true, push: false, email: false },
+      { bell: true, push: true, email: false },
+      { bell: true, push: true, email: false },
+      { bell: true, push: false, email: false },
+    ]);
     expect(reminderLeads({ interviewLeadHours: 6, followUpLeadHours: 2 })).toEqual({ interview: 6 * HOUR, follow_up: 2 * HOUR, thank_you: 2 * HOUR });
   });
 
@@ -102,10 +113,10 @@ describe("platform notification settings (Admin → Settings → Notifications)"
   });
 
   it("A05 a new person starts with the platform's defaults; their own choices win where allowed", async () => {
-    await withAdmin((a) => (a.topics.reminders.defaults = { push: false, email: true }));
-    expect((await loadNotifyContext(T)).prefs.reminders).toEqual({ push: false, email: true });
-    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, reminders: { push: true, email: false } });
-    expect((await loadNotifyContext(T)).prefs.reminders).toEqual({ push: true, email: false });
+    await withAdmin((a) => (a.topics.interviews.defaults = { push: false, email: true }));
+    expect((await loadNotifyContext(T)).prefs.interviews).toEqual({ bell: true, push: false, email: true });
+    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, interviews: { bell: true, push: true, email: false } });
+    expect((await loadNotifyContext(T)).prefs.interviews).toEqual({ bell: true, push: true, email: false });
   });
 
   it("A06 push off for everyone: nothing is pushed, email still goes as the fallback", async () => {
@@ -119,7 +130,7 @@ describe("platform notification settings (Admin → Settings → Notifications)"
 
   it("A07 email off for everyone: nothing is emailed, whatever people chose", async () => {
     await withAdmin((a) => (a.channels.email = false));
-    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, reminders: { push: false, email: true } });
+    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, interviews: { bell: true, push: false, email: true } });
     expect(await nudge(T, reminder, { email: { key: "r1" } })).toEqual({ pushed: 0, emailed: false });
     expect(mails).toEqual([]);
   });
@@ -217,5 +228,34 @@ describe("Recruiters, hiring workspaces", () => {
     const before = mails.length;
     expect(await H.setCompanyVerified(org.id, false)).toEqual({ emailed: false });
     expect(mails).toHaveLength(before);
+  });
+});
+
+describe("In the bell, per kind (Notifications & email)", () => {
+  const career = () => writeClientState(T, "wj.career", PERSIST_VERSION.career, { dna: EMPTY_DNA, onboarded: true, activity: [], notifications: [], reminded: [] });
+  const bell = async () => ((await readClientState<{ notifications: { title: string }[] }>(T, "wj.career"))?.notifications ?? []).map((n) => n.title);
+
+  it("B01 a kind kept out of the bell isn't added to it; its push still goes", async () => {
+    await career();
+    pushSent = 1;
+    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, messages: { bell: false, push: true, email: true } });
+    expect(await deliver(T, message, { email: { key: "conv:b1" } })).toEqual({ pushed: 1, emailed: false });
+    expect(await bell()).toEqual([]);
+    await saveNotifyPrefs(T, DEFAULT_NOTIFY_PREFS);
+    await deliver(T, message, { email: { key: "conv:b1" } });
+    expect(await bell()).toEqual(["Message from Acme"]);
+  });
+
+  it("B02 a reminder kept out of the bell is still pushed or emailed once, and isn't raised again", async () => {
+    const NOW = new Date("2026-04-15T09:00:00.000Z");
+    const followUps = [{ id: "f-b2", applicationId: "app-1", kind: "interview", note: "", done: false, dueAt: new Date(NOW.getTime() + 10 * HOUR).toISOString() }];
+    await writeClientState(T, "wj.applications", 1, { applications: { "app-1": { id: "app-1", jobId: "job-1", status: "interview", createdAt: NOW.toISOString(), artifacts: [], events: [], followUps, submissionKey: "k" } } });
+    await writeClientState(T, "wj.jobs", PERSIST_VERSION.jobs, { jobs: {} });
+    await career();
+    await saveNotifyPrefs(T, { ...DEFAULT_NOTIFY_PREFS, interviews: { bell: false, push: true, email: true } });
+    const r = await raiseDueReminders(T, NOW);
+    expect(r.notices.map((n) => n.notice.category)).toEqual(["interview_upcoming"]);
+    expect(await bell()).toEqual([]);
+    expect((await raiseDueReminders(T, NOW)).notices).toEqual([]);
   });
 });

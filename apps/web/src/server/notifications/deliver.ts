@@ -15,7 +15,7 @@ import { stateStore } from "@/server/state";
 import { readClientStateVersioned, writeClientState } from "@/server/clientState";
 import { newId } from "@/lib/ids";
 import { topicOf } from "@/domain/notifications/prefs";
-import { loadNotifyContext } from "./prefs";
+import { bellFilter, loadNotifyContext } from "./prefs";
 import { siteUrl } from "@/lib/siteUrl";
 
 const MAILED = "wj.mailed" as const;
@@ -33,8 +33,9 @@ export interface DeliveryOutcome {
   emailed: boolean;
 }
 
-/** Adds a notification to the person's bell (their career document), keeping everything else in it. */
+/** Adds a notification to the person's bell (their career document), keeping everything else in it — unless they keep that kind out of it. */
 export async function addToBell(tenantId: string, notice: Notice, now = new Date()): Promise<void> {
+  if (!(await bellFilter(tenantId))(notice.category)) return;
   const doc = await readClientStateVersioned<{ notifications?: Notification[] }>(tenantId, "wj.career");
   // No career document yet (an account that never opened the app): nothing to add to; push and email still go.
   if (!doc) return;
@@ -43,11 +44,10 @@ export async function addToBell(tenantId: string, notice: Notice, now = new Date
 
 /** The nudge for something already in the bell: push, then email if no push reached anyone. */
 export async function nudge(tenantId: string, notice: Notice, opts: NudgeOptions = {}, now = new Date()): Promise<DeliveryOutcome> {
-  // Their choices for this kind of notification, inside the platform's settings (Admin → Settings → Notifications);
-  // one without a topic is pushed (while push is on for everyone) and never emailed.
+  // Their choices for this kind of notification, inside the platform's settings (Admin → Settings → Notifications).
   const topic = topicOf(notice.category);
   const ctx = await loadNotifyContext(tenantId);
-  const want = topic ? ctx.effective[topic] : { push: ctx.admin.channels.push, email: false };
+  const want = ctx.effective[topic];
   const push: PushPayload = { title: notice.title, body: notice.body.slice(0, 140), url: notice.href, tag: opts.email?.key };
   const report = want.push ? await notifyTenant(tenantId, push).catch(() => ({ sent: 0 })) : { sent: 0 };
   if (report.sent > 0 || !opts.email || !want.email) return { pushed: report.sent, emailed: false };
