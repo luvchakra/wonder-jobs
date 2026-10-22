@@ -23,7 +23,7 @@ type Data = {
 
 const when = (iso?: string) => (iso ? `${new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · ${relativeTime(iso)}` : "—");
 const tone = (o?: CronRun["outcome"]) => (o === "ok" ? "success" : o === "failed" ? "danger" : "neutral");
-const JOB_LABEL: Record<CronRun["job"], string> = { "scheduled-runs": "Daily run", "jobslake-companies": "Company refresh", "application-reminders": "Application reminders" };
+const JOB_LABEL: Record<CronRun["job"], string> = { "scheduled-runs": "Daily run", "jobslake-companies": "Company refresh", "application-reminders": "Application reminders", reminders: "Reminders" };
 
 export default function SchedulerPage() {
   const { data, error, reload } = useAdmin<Data>("scheduler");

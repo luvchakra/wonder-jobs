@@ -17,7 +17,8 @@ import { STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowRun, WorkflowSchedule } from "@/domain/workflow/types";
 import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
-import { notifyTenant, type PushPayload } from "@/server/push/subscriptions";
+import type { PushPayload } from "@/server/push/subscriptions";
+import { nudge, type Notice } from "@/server/notifications/deliver";
 import { loadTenantSnapshot, saveTenantDocs, type TenantSnapshot } from "./snapshot";
 import { createServerExecutors, isServerStage } from "./serverExecutors";
 
@@ -132,7 +133,7 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   await saveTenantDocs(snapshot, { workflow: true, career: true, jobs: outcome.jobsTouched });
   // The in-app notification is the record and is already saved; the push is only the nudge, so it goes
   // last and can never cost us the run's results.
-  if (notice) await notifyTenant(tenantId, notice);
+  if (notice) await nudge(tenantId, { category: notice.tag as Notice["category"], title: notice.title, body: notice.body, href: notice.url }, { email: { key: `run:${finished.id}` } });
 
   return {
     ...base,

@@ -55,7 +55,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
 
 /** One cron invocation, as the admin page lists it. */
 export interface CronRun {
-  job: "scheduled-runs" | "jobslake-companies" | "application-reminders";
+  job: "scheduled-runs" | "jobslake-companies" | "application-reminders" | "reminders";
   trigger: "cron" | "admin";
   startedAt: string;
   finishedAt: string;
@@ -68,19 +68,30 @@ export const MAX_CRON_RUNS = 60;
 
 /** The platform's cron jobs as `vercel.json` declares them (a unit test holds the two together). Times are UTC. */
 export const CRON_JOBS = [
-  { id: "scheduled-runs", path: "/api/cron/scheduled-runs", schedule: "0 2 * * *", label: "Daily run", description: "Candidates' saved schedules, follow-up and interview reminders, activity digests, billing reconciliation and retention purges." },
-  { id: "jobslake-companies", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "JobsLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
-  { id: "application-reminders", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
-] as const satisfies readonly { id: CronRun["job"]; path: string; schedule: string; label: string; description: string }[];
+  { id: "scheduled-runs", runner: "vercel", path: "/api/cron/scheduled-runs", schedule: "0 2 * * *", label: "Daily run", description: "Candidates' saved schedules, follow-up and interview reminders, activity digests, billing reconciliation and retention purges." },
+  { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "JobsLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
+  { id: "application-reminders", runner: "vercel", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
+  // Called by GitHub Actions (.github/workflows/reminders.yml): Vercel's plan runs its own crons once a day.
+  { id: "reminders", runner: "github", path: "/api/cron/reminders", schedule: "17 */3 * * *", label: "Reminders", description: "Interview and follow-up reminders between daily runs, so one due this evening isn't raised tomorrow morning. Called by GitHub Actions; the daily run raises them too." },
+] as const satisfies readonly { id: CronRun["job"]; runner: "vercel" | "github"; path: string; schedule: string; label: string; description: string }[];
 
-/** "30 1 * * *" → "Daily at 01:30 UTC" (the only shape these crons use); anything else is shown as written. */
+// "30 1 * * *" → "Daily at 01:30 UTC"; minute 17 every third hour → "Every 3 hours at :17"; anything else as written.
 export function describeCron(expr: string): string {
   const m = expr.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/);
-  return m ? `Daily at ${m[2].padStart(2, "0")}:${m[1].padStart(2, "0")} UTC` : expr;
+  if (m) return `Daily at ${m[2].padStart(2, "0")}:${m[1].padStart(2, "0")} UTC`;
+  const e = expr.match(/^(\d{1,2}) \*\/(\d{1,2}) \* \* \*$/);
+  return e ? `Every ${e[2]} hours at :${e[1].padStart(2, "0")}` : expr;
 }
 
-/** When a daily "m h * * *" cron next fires after `now`. */
+// When a daily cron, or one every N hours, next fires after `now`.
 export function nextCronRun(expr: string, now: Date): string | undefined {
+  const every = expr.match(/^(\d{1,2}) \*\/(\d{1,2}) \* \* \*$/);
+  if (every) {
+    const [minute, step] = [Number(every[1]), Number(every[2])];
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, minute));
+    while (next.getTime() <= now.getTime()) next.setUTCHours(next.getUTCHours() + step);
+    return next.toISOString();
+  }
   const m = expr.match(/^(\d{1,2}) (\d{1,2}) \* \* \*$/);
   if (!m) return undefined;
   const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Number(m[2]), Number(m[1])));

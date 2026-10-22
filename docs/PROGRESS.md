@@ -483,6 +483,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Admin: the account menu's order and shown items, set for every user (WJ-360)
 - ✅ Admin: Menus also arranges the You page's rows (WJ-361)
 - ✅ Notifications: messages in the bell and by email, emailed reminders, nothing-found isn't a failure, no lost server notices (WJ-362)
+- ✅ Notifications: Notify me about (push/email per topic); reminders every 3 hours (WJ-363)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

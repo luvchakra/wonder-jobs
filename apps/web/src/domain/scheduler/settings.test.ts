@@ -13,12 +13,28 @@ describe("scheduler settings", () => {
 
   it("lists exactly the crons vercel.json declares", () => {
     const vercel = JSON.parse(readFileSync(join(__dirname, "../../../vercel.json"), "utf8")) as { crons: { path: string; schedule: string }[] };
-    expect(CRON_JOBS.map((j) => ({ path: j.path, schedule: j.schedule }))).toEqual(vercel.crons);
+    expect(CRON_JOBS.filter((j) => j.runner === "vercel").map((j) => ({ path: j.path, schedule: j.schedule }))).toEqual(vercel.crons);
+    // The one GitHub Actions calls runs on the schedule its workflow says.
+    const workflow = readFileSync(join(__dirname, "../../../../../.github/workflows/reminders.yml"), "utf8");
+    for (const j of CRON_JOBS.filter((x) => x.runner === "github")) {
+      expect(workflow).toContain(`cron: "${j.schedule}"`);
+      expect(workflow).toContain(j.path);
+    }
   });
 
   it("describes and times a daily cron", () => {
     expect(describeCron("30 1 * * *")).toBe("Daily at 01:30 UTC");
     expect(nextCronRun("0 2 * * *", new Date("2026-10-17T03:00:00Z"))).toBe("2026-10-18T02:00:00.000Z");
     expect(nextCronRun("0 2 * * *", new Date("2026-10-17T01:00:00Z"))).toBe("2026-10-17T02:00:00.000Z");
+  });
+});
+
+describe("the reminders check every few hours", () => {
+  it("is described and scheduled every 3 hours", async () => {
+    const { describeCron, nextCronRun } = await import("./settings");
+    expect(describeCron("17 */3 * * *")).toBe("Every 3 hours at :17");
+    expect(nextCronRun("17 */3 * * *", new Date("2026-10-22T10:20:00Z"))).toBe("2026-10-22T12:17:00.000Z");
+    expect(nextCronRun("17 */3 * * *", new Date("2026-10-22T22:30:00Z"))).toBe("2026-10-23T00:17:00.000Z");
+    expect(describeCron("30 1 * * *")).toBe("Daily at 01:30 UTC");
   });
 });
