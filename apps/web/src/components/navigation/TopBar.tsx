@@ -110,7 +110,7 @@ export function TopBar() {
                   { id: "plan", href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
                   { id: "connections", href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
                   { id: "api_keys", href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
-                  { id: "notifications", href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
+                  { id: "notifications", href: "/app/notifications", label: "Notifications & email", icon: Bell },
                   { id: "your_data", href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
                 ] as const)
               : []),
@@ -235,6 +235,10 @@ export function TopBar() {
                 </li>
               ))}
             </ul>
+            {/* Everything, and the choices about what you're told. */}
+            <Link href="/app/notifications" onClick={() => setNotifOpen(false)} className="mt-1 shrink-0 rounded-[12px] px-3 py-2.5 text-center text-[13px] font-medium text-brand-600 hover:bg-bg-soft">
+              Notification center
+            </Link>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 /**
  * How the server tells a person something (owner, 2026-10-22): the bell first — it's the record — then a push
  * to every browser they turned notifications on in, and an email when no push reached them — each only as far
- * as their Notify me about choices allow (domain/notifications/prefs.ts). Email is held to
+ * as their choices (domain/notifications/prefs.ts) and the platform's settings (admin.ts) allow. Email is held to
  * one per key per `emailEveryMs` (a conversation's messages, say), so a busy thread doesn't fill an inbox.
  * Nothing here throws: a message or a reminder is never lost because a channel had a bad minute.
  */
@@ -15,7 +15,7 @@ import { stateStore } from "@/server/state";
 import { readClientStateVersioned, writeClientState } from "@/server/clientState";
 import { newId } from "@/lib/ids";
 import { topicOf } from "@/domain/notifications/prefs";
-import { loadNotifyPrefs } from "./prefs";
+import { loadNotifyContext } from "./prefs";
 import { siteUrl } from "@/lib/siteUrl";
 
 const MAILED = "wj.mailed" as const;
@@ -43,13 +43,17 @@ export async function addToBell(tenantId: string, notice: Notice, now = new Date
 
 /** The nudge for something already in the bell: push, then email if no push reached anyone. */
 export async function nudge(tenantId: string, notice: Notice, opts: NudgeOptions = {}, now = new Date()): Promise<DeliveryOutcome> {
-  // Their Notify me about choices for this kind of notification; one without a topic is pushed and never emailed.
+  // Their choices for this kind of notification, inside the platform's settings (Admin → Settings → Notifications);
+  // one without a topic is pushed (while push is on for everyone) and never emailed.
   const topic = topicOf(notice.category);
-  const want = topic ? (await loadNotifyPrefs(tenantId))[topic] : { push: true, email: false };
+  const ctx = await loadNotifyContext(tenantId);
+  const want = topic ? ctx.effective[topic] : { push: ctx.admin.channels.push, email: false };
   const push: PushPayload = { title: notice.title, body: notice.body.slice(0, 140), url: notice.href, tag: opts.email?.key };
   const report = want.push ? await notifyTenant(tenantId, push).catch(() => ({ sent: 0 })) : { sent: 0 };
   if (report.sent > 0 || !opts.email || !want.email) return { pushed: report.sent, emailed: false };
-  return { pushed: 0, emailed: await emailOnce(tenantId, notice, opts.email.key, opts.email.everyMs, now) };
+  // A conversation's emails are spaced as the platform sets.
+  const everyMs = topic === "messages" ? ctx.admin.messageEmailEveryMin * 60_000 : opts.email.everyMs;
+  return { pushed: 0, emailed: await emailOnce(tenantId, notice, opts.email.key, everyMs, now) };
 }
 
 /** Bell, then push, then email. */

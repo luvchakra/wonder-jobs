@@ -15,11 +15,12 @@ import type { Session } from "./auth";
 import { table } from "./db/table";
 import { touchTenant } from "./supabase";
 import { parseEmailList, sendMail } from "./notify";
-import { escapeHtml, renderEmailLayout } from "./email/layout";
+import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "./email/layout";
 import { siteUrl } from "@/lib/siteUrl";
 import { deliver } from "./notifications/deliver";
 import { can, isOrgRole, type OrgPermission } from "@/domain/org/permissions";
 import { searchTalent, type TalentMatch } from "@/domain/org/talent";
+import { ORG_ROLE_LABEL } from "@/domain/org/types";
 import type { Conversation, ConversationStatus, EmployerJob, EmployerJobStatus, Membership, Message, OrgInvite, OrgRole, Organization, ShortlistEntry, ShortlistStatus, TalentProfile } from "@/domain/org/types";
 
 export class HiringError extends Error {
@@ -244,7 +245,26 @@ export async function inviteMember(s: Session, orgId: string, to: string, role: 
   await invites().remove({ org_id: orgId, email: e });
   const row: InviteRow = { id: id("inv"), org_id: orgId, email: e, role, invited_by: s.tenantId, created_at: now() };
   await invites().insert(row);
+  // The invited person hears about it by email (N30); the invite still waits in Hiring if the email can't go.
+  const org = await orgs().one({ id: orgId });
+  if (org) await sendMail({ to: e, subject: `Join ${org.name} on WonderJobs`, ...inviteEmail(org.name, role, s.name ?? s.email ?? undefined) }).catch(() => undefined);
   return toInvite(row);
+}
+
+/** The invitation email: who invited them, to which company and role, and one button to Hiring, where they accept. */
+export function inviteEmail(orgName: string, role: OrgRole, inviter?: string): { html: string; text: string } {
+  const origin = siteUrl().origin;
+  const link = new URL("/app/hiring", origin).toString();
+  const who = inviter ? `${inviter} invited you` : "You're invited";
+  const line = `${who} to join ${orgName}'s hiring workspace on WonderJobs as ${ORG_ROLE_LABEL[role]}. Sign in with this email address to accept.`;
+  return renderEmailLayout({
+    origin,
+    preheader: `Join ${orgName} on WonderJobs`,
+    bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">Join ${escapeHtml(orgName)} on WonderJobs</div><p style="margin:0 0 16px">${escapeHtml(line)}</p><p style="margin:0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${EMAIL_COLORS.brand600};color:#ffffff;text-decoration:none;font-weight:600">Open invitation</a></p>`,
+    bodyText: [`Join ${orgName} on WonderJobs`, line, `Open invitation: ${link}`].join("\n\n"),
+    reason: "You're getting this because someone invited this address to a hiring workspace on WonderJobs. Ignore it if you don't want to join.",
+    settingsLink: false,
+  });
 }
 
 export async function cancelInvite(s: Session, orgId: string, inviteId: string): Promise<void> {

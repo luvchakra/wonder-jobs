@@ -7,16 +7,22 @@ import { toast } from "@/components/feedback/Toast";
 import { useAuthStore } from "@/store/auth";
 import { NOTIFY_TOPICS, type NotifyChannel, type NotifyPrefs, type NotifyTopic } from "@/domain/notifications/prefs";
 
-/** Account → Notifications & email → Notify me about: per topic, a push and an email switch (signed-in accounts). */
-export function NotifyPrefsCard() {
+/** Notification center → Notify me about: per topic, a push and an email switch, inside what the platform allows (signed-in accounts). */
+export function NotifyPrefsCard({ open = false }: { open?: boolean }) {
   const mode = useAuthStore((s) => s.mode);
   const [prefs, setPrefs] = useState<NotifyPrefs | null>(null);
+  // What the platform lets each topic use (Admin → Settings → Notifications); a channel it doesn't is shown off and fixed.
+  const [allowed, setAllowed] = useState<Record<NotifyTopic, Record<NotifyChannel, boolean>> | null>(null);
   useEffect(() => {
     if (mode !== "user") return;
     let alive = true;
     fetch("/api/notify-prefs", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { prefs?: NotifyPrefs } | null) => alive && d?.prefs && setPrefs(d.prefs))
+      .then((d: { prefs?: NotifyPrefs; allowed?: Record<NotifyTopic, Record<NotifyChannel, boolean>> } | null) => {
+        if (!alive || !d?.prefs) return;
+        setPrefs(d.prefs);
+        if (d.allowed) setAllowed(d.allowed);
+      })
       .catch(() => {});
     return () => {
       alive = false;
@@ -34,11 +40,12 @@ export function NotifyPrefsCard() {
       toast.error("Couldn't change that", "Try again in a moment.");
     }
   };
-  const on = NOTIFY_TOPICS.filter((t) => prefs[t.id].push || prefs[t.id].email).length;
+  const may = (t: NotifyTopic, c: NotifyChannel) => allowed?.[t]?.[c] ?? true;
+  const on = NOTIFY_TOPICS.filter((t) => (prefs[t.id].push && may(t.id, "push")) || (prefs[t.id].email && may(t.id, "email"))).length;
 
   return (
     <Card className="mt-4" padding="sm">
-      <Fold title="Notify me about" hint={on === NOTIFY_TOPICS.length ? "Everything" : on ? `${on} of ${NOTIFY_TOPICS.length}` : "Bell only"}>
+      <Fold title="Notify me about" open={open || undefined} hint={on === NOTIFY_TOPICS.length ? "Everything" : on ? `${on} of ${NOTIFY_TOPICS.length}` : "Bell only"}>
         <p className="text-[13px] text-ink-2">Everything stays in the bell. Email goes only when a push didn&apos;t reach you.</p>
         <ul className="mt-2 divide-y divide-line pb-2">
           {NOTIFY_TOPICS.map((t) => (
@@ -50,7 +57,7 @@ export function NotifyPrefsCard() {
               {(["push", "email"] as const).map((c) => (
                 <span key={c} className="inline-flex items-center gap-2 text-[12px] text-ink-3">
                   {c === "push" ? "Push" : "Email"}
-                  <Switch checked={prefs[t.id][c]} onChange={(v) => void set(t.id, c, v)} label={`${c === "push" ? "Push" : "Email"}: ${t.label}`} />
+                  <Switch checked={prefs[t.id][c] && may(t.id, c)} disabled={!may(t.id, c)} onChange={(v) => void set(t.id, c, v)} label={`${c === "push" ? "Push" : "Email"}: ${t.label}`} />
                 </span>
               ))}
             </li>

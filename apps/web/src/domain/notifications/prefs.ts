@@ -24,12 +24,12 @@ export const DEFAULT_NOTIFY_PREFS: NotifyPrefs = {
 };
 
 /** Stored or received: known topics and channels only, as booleans; anything missing is its default. */
-export function cleanNotifyPrefs(raw: unknown): NotifyPrefs {
+export function cleanNotifyPrefs(raw: unknown, defaults: NotifyPrefs = DEFAULT_NOTIFY_PREFS): NotifyPrefs {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const out = {} as NotifyPrefs;
   for (const { id } of NOTIFY_TOPICS) {
     const t = (r[id] && typeof r[id] === "object" ? r[id] : {}) as Record<string, unknown>;
-    out[id] = { push: typeof t.push === "boolean" ? t.push : DEFAULT_NOTIFY_PREFS[id].push, email: typeof t.email === "boolean" ? t.email : DEFAULT_NOTIFY_PREFS[id].email };
+    out[id] = { push: typeof t.push === "boolean" ? t.push : defaults[id].push, email: typeof t.email === "boolean" ? t.email : defaults[id].email };
   }
   return out;
 }

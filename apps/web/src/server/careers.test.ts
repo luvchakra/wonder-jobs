@@ -38,6 +38,7 @@ async function setup() {
   const { site: created, key } = await C.createSite(owner, org.id, { ...SITE, publicUrl: "https://id.wonderapps.biz/careers/" });
   await C.linkJob(owner, org.id, created.id, j.id, true);
   const site = (await C.siteFromKey(key))!;
+  sent.length = 0; // the team's invitation emails; each test reads only what follows
   return { orgId: org.id, jobId: j.id, key, site };
 }
 
@@ -143,6 +144,19 @@ describe("applying", () => {
     await (await C.withdrawApplication(site, token)).notify();
     expect((await C.applicationStatus(site, token))!.status).toBe("withdrawn");
     await expect(C.withdrawApplication(site, token)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("emails the applicant that they withdrew, and everyone who can decide (N24, N26)", async () => {
+    const { jobId, site } = await setup();
+    const { notify } = await C.submitApplication(site, jobId, applicant);
+    await notify();
+    const token = tokenFrom(sent[0].text);
+    sent.length = 0;
+    await (await C.withdrawApplication(site, token)).notify();
+    expect(sent.find((m) => m.to === "asha@example.com")?.subject).toMatch(/withdr/i);
+    const team = sent.filter((m) => m.subject === `Asha Rao withdrew from ${job.title}`);
+    expect(team.length).toBeGreaterThan(0);
+    expect(team.map((m) => m.to)).not.toContain("asha@example.com");
   });
 });
 

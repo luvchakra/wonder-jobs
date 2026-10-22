@@ -17,6 +17,11 @@ import { nextRunAt } from "@/services/mock/templates";
 import { track } from "@/lib/analytics";
 
 const DAY = 86_400_000;
+/** How early reminders are raised; the platform's setting once it has been read (Admin → Settings → Notifications). */
+let leads: Record<"interview" | "follow_up" | "thank_you", number> = { interview: 2 * DAY, follow_up: DAY, thank_you: DAY };
+export function setReminderLeads(next: typeof leads) {
+  leads = next;
+}
 
 /**
  * Who fires due schedules. A cron that runs at least hourly (`/api/cron/scheduled-runs`) owns it for
@@ -78,7 +83,7 @@ function raiseReminders(now: number) {
     for (const f of app.followUps) {
       if (f.done || career.reminded.includes(f.id)) continue;
       const dueIn = new Date(f.dueAt).getTime() - now;
-      const window = f.kind === "interview" ? 2 * DAY : DAY;
+      const window = leads[f.kind] ?? DAY;
       if (dueIn > window || dueIn < -DAY) continue;
       career.markReminded(f.id);
       career.notify(

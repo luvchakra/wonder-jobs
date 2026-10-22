@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
-import { loadNotifyPrefs, saveNotifyPrefs } from "@/server/notifications/prefs";
+import { loadNotifyContext, saveNotifyPrefs } from "@/server/notifications/prefs";
 
 export const runtime = "nodejs";
 
@@ -8,7 +8,9 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
-  return NextResponse.json({ prefs: await loadNotifyPrefs(session.tenantId) }, { headers: { "cache-control": "no-store" } });
+  // Their choices, and which channels the platform lets each topic use (the rest are shown off and can't be turned on).
+  const { prefs, allowed } = await loadNotifyContext(session.tenantId);
+  return NextResponse.json({ prefs, allowed }, { headers: { "cache-control": "no-store" } });
 }
 
 /** Save them (cleaned: known topics and channels only). */
@@ -18,7 +20,8 @@ export async function PUT(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   try {
-    return NextResponse.json({ prefs: await saveNotifyPrefs(session.tenantId, (body as { prefs?: unknown }).prefs) });
+    const prefs = await saveNotifyPrefs(session.tenantId, (body as { prefs?: unknown }).prefs);
+    return NextResponse.json({ prefs, allowed: (await loadNotifyContext(session.tenantId)).allowed });
   } catch {
     return NextResponse.json({ error: "Couldn't save that just now" }, { status: 503 });
   }
