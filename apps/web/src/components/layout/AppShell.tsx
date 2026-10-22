@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/auth";
 import { PageLoading } from "@/components/common/States";
 import { PrivacyNoticeGate } from "@/components/privacy/PrivacyNoticeGate";
 import { useHelperSaves } from "@/components/extension/useHelperSaves";
+import { useScrollBars } from "@/components/navigation/useScrollBars";
 
 /**
  * Renders product pages once local state is hydrated. A signed-in account
@@ -42,6 +43,8 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Phones: the bars slide away as the page scrolls down and come back as it scrolls up.
+  useScrollBars();
   return (
     <StoreHydrator>
       <div className="flex min-h-dvh flex-col bg-bg">

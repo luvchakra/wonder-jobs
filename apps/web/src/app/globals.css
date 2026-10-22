@@ -78,7 +78,8 @@
      fixed/sticky above it (Toast, the run status card, the review-and-continue footer) can clear
      it exactly, instead of a guessed pixel offset that overlaps once the safe-area inset grows
      (e.g. a mobile browser's own bottom toolbar reserving space via viewport-fit=cover). */
-  --wj-mobile-nav-h: calc(4rem + env(safe-area-inset-bottom, 0px));
+  /* While the bottom bar slides away on scroll (useScrollBars), what sits above it follows it down. */
+  --wj-mobile-nav-h: calc(4rem + env(safe-area-inset-bottom, 0px) - var(--wj-bottom-hidden, 0px));
 }
 
 @theme inline {

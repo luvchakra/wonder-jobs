@@ -170,7 +170,7 @@ export function TopBar() {
   );
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur md:px-6">
+    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
       {/* Phones: avatar left, brand centred, Ask Wonder and bell right. */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:hidden">
         <span className="pointer-events-auto">

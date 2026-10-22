@@ -320,6 +320,29 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue("");
   });
 
+  test("GJ-026 on a phone the top bar, then the bottom bar, slide away on scrolling down and come back on scrolling up", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/demo?next=/app/jobs");
+    await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible({ timeout: 20_000 });
+    const top = page.locator("[data-top-bar]");
+    const bottom = page.getByRole("navigation", { name: "Primary" });
+    const topY = async () => (await top.boundingBox())!.y;
+    const bottomY = async () => (await bottom.boundingBox())!.y;
+    const shownBottom = await bottomY();
+    // Start below the top of the page, then scroll down a little: the top bar goes first, the bottom stays.
+    await page.mouse.move(195, 500);
+    await page.mouse.wheel(0, 150);
+    await expect.poll(topY, { timeout: 5_000 }).toBeLessThan(-40);
+    await expect.poll(async () => Math.abs((await bottomY()) - shownBottom), { timeout: 5_000 }).toBeLessThan(2);
+    // Further down: the bottom bar goes too.
+    await page.mouse.wheel(0, 400);
+    await expect.poll(bottomY, { timeout: 5_000 }).toBeGreaterThan(840);
+    // Back up: both come back.
+    await page.mouse.wheel(0, -400);
+    await expect.poll(bottomY, { timeout: 5_000 }).toBeLessThan(shownBottom + 2);
+    await expect.poll(topY, { timeout: 5_000 }).toBeGreaterThan(-2);
+  });
+
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
     const main = page.locator("#main");

@@ -39,7 +39,7 @@ export function MobileNav() {
           <MoreHorizontal className="size-6" aria-hidden />
         </button>
       )}
-      <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden wj-safe-bottom">
+      <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
         <ul className="grid grid-flow-col auto-cols-fr">
           {MOBILE_NAV.map((item) => {
             const active = isActivePath(pathname, item);
