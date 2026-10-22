@@ -85,6 +85,8 @@ test.describe("FIND", () => {
   test("FIND-002 the search box: typing does nothing until Search, which searches every source, reading place from the words", async ({ page }) => {
     await slowSampleSources(page);
     await page.goto("/demo?next=/app");
+    // The search box is Part Time's: only the typed words are searched there.
+    await page.getByRole("radio", { name: "Part Time" }).click();
     const box = page.getByRole("textbox", { name: "Search jobs" });
     const cards = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
     await expect(cards.first()).toBeVisible();

@@ -308,7 +308,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
               Change
             </button>
           </p>
-          <p className={cn("truncate text-[14px] first-letter:uppercase", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped — Skip Career Profile is on" : role || undefined}>
+          <p className={cn("truncate text-[14px] first-letter:uppercase", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped in Part Time" : role || undefined}>
             {role || "No role yet"}
           </p>
         </div>

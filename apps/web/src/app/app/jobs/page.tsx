@@ -10,6 +10,8 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
+import { SlideToggle } from "@/components/common/SlideToggle";
+import { FIND_MODES, FIND_MODE_PATCH, findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
@@ -64,6 +66,13 @@ function JobsHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the words change
   }, [query]);
   const firstName = dna.name.split(" ")[0];
+  const mode = useJobsStore((s) => findModeOf(s.filters));
+  const switchMode = (m: FindMode) => {
+    const s = useJobsStore.getState();
+    s.setFilters(FIND_MODE_PATCH[m]);
+    // Back to Full Time: the profile's own results again, when they're still here (nothing is searched).
+    if (m === "full_time" && s.searchedFor) s.restoreProfileCatalog();
+  };
 
   if (search.readiness.blocker) {
     return (
@@ -79,8 +88,10 @@ function JobsHome() {
 
   return (
     <>
-      {/* What Wonder searches for, first thing on the page, with one tap to change it. */}
-      <WantedRole search={search} />
+      {/* Full Time or Part Time: the whole width on a phone, the first thing on the page. */}
+      <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-3 w-full sm:max-w-sm" />
+      {/* Full Time: what Wonder searches for, with one tap to change it. */}
+      {mode === "full_time" && <WantedRole search={search} />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // What was searched and "Search as" live in Refine — the list stays the page.

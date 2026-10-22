@@ -104,6 +104,8 @@ test.describe("Golden journey — run Wonder (demo mode)", () => {
   test("GJ-007 a search from the search box stays on the job list, with that search's own page one tap away", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
     await page.goto("/demo?next=/app");
+    // Typed searches are Part Time's; Full Time is the Career Profile's own search.
+    await page.getByRole("radio", { name: "Part Time" }).click();
     await page.getByRole("textbox", { name: "Search jobs" }).fill("product manager in Bengaluru");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/jobs$/);
@@ -185,16 +187,65 @@ test.describe("Golden journey — search (demo mode)", () => {
     // like "google" — matched against skills/tags too, e.g. "Google Analytics" — can still fill a page
     // and not visibly shrink).
     // Typing alone changes nothing; Search applies the words.
+    await page.getByRole("radio", { name: "Part Time" }).click();
     await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(async () => {
-      // Top-level results only: each card now carries its own "why" lists, which are list items too.
-      const items = await results.locator(":scope > li").all();
-      expect(items.length).toBeGreaterThan(0);
-      expect(items.length).toBeLessThan(24);
-    }).toPass({ timeout: 5_000 });
-    // Every remaining visible card is a real match for the typed text, not a fixed demo subset.
-    await expect(results.getByText(/airbnb/i).first()).toBeVisible();
+    await expect(page.locator("#main").getByText(/^Showing \d+ jobs? for “airbnb”/)).toBeVisible({ timeout: 20_000 });
+    // Every visible card is a real match for the typed text, not a fixed demo subset.
+    // (Top-level results only: each card carries its own "why" lists, which are list items too.)
+    const items = await results.locator(":scope > li").all();
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) await expect(item).toContainText(/airbnb/i);
+  });
+
+  test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the slider slides", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/demo?next=/app/jobs");
+    const kind = page.getByRole("radiogroup", { name: "Kind of work" });
+    const full = kind.getByRole("radio", { name: "Full Time" });
+    const part = kind.getByRole("radio", { name: "Part Time" });
+    await expect(full).toHaveAttribute("aria-checked", "true");
+    // The slider spans the phone's width (inside the page's gutters).
+    const box = (await kind.boundingBox())!;
+    expect(box.width).toBeGreaterThan(330);
+
+    // Full Time: Looking for, the profile's search and For you; no search box, no job types, no Strong.
+    const main = page.locator("#main");
+    await expect(main.getByText(/^Looking for/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search based on Career Profile" })).toBeVisible();
+    await expect(main.getByRole("button", { name: "For you", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Strong", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
+
+    // Slide the thumb across to Part Time.
+    await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 6 });
+    await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect(part).toHaveAttribute("aria-checked", "true");
+
+    // Part Time: the box, the part-time job types (not Full-time), Search and Strong; no Looking for, no For you.
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
+    for (const t of ["Part-time", "Contract", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Full-time", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Strong", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "For you", exact: true })).toHaveCount(0);
+    await expect(main.getByText(/^Looking for/)).toHaveCount(0);
+    // Hide Pipeline and Refine stay in both.
+    await expect(main.getByText("Hide Pipeline")).toBeVisible();
+
+    // Tap and the keyboard switch back too.
+    await full.click();
+    await expect(full).toHaveAttribute("aria-checked", "true");
+    await full.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(part).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("ArrowLeft");
+    await expect(full).toHaveAttribute("aria-checked", "true");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 });
 
