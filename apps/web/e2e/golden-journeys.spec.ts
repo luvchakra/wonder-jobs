@@ -288,6 +288,9 @@ test.describe("Golden journey — search (demo mode)", () => {
     // Full Time's own job types; Internship and Gig are Part Time's.
     for (const t of ["Permanent", "Contract", "Consultant", "Short-term"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
+    // Where the job types, the search button and the views sit: switching modes mustn't move them.
+    const rows = async () => Promise.all([main.getByRole("button", { name: "Contract", exact: true }), main.locator("form").getByRole("button", { name: /^Search/ }).first(), main.getByRole("button", { name: "All", exact: true })].map(async (l) => Math.round((await l.boundingBox())!.y)));
+    const fullRows = await rows();
 
     // Slide the thumb across to Part Time.
     await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
@@ -296,6 +299,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 6 });
     await page.mouse.up();
     await expect(part).toHaveAttribute("aria-checked", "true");
+    for (const [i, y] of (await rows()).entries()) expect(Math.abs(y - fullRows[i])).toBeLessThanOrEqual(1);
 
     // Part Time: the box, its job types (Consultant, not Full-time or Part-time), Search and All · Strong · For you; no Looking for.
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
