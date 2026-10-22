@@ -86,15 +86,16 @@ test.describe("FIND", () => {
     await slowSampleSources(page);
     await page.goto("/demo?next=/app");
     // The search box is Part Time's: only the typed words are searched there.
+    await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible();
     await page.getByRole("radio", { name: "Part Time" }).click();
     const box = page.getByRole("textbox", { name: "Search jobs" });
-    const cards = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
-    await expect(cards.first()).toBeVisible();
-    const before = await cards.count();
+    // Part Time has its own results: before its first search it asks for words, not Full Time's list.
+    const prompt = page.getByRole("heading", { name: "Search for part-time work" });
+    await expect(prompt).toBeVisible();
     await box.fill("Senior product roles in Mumbai, preferably fintech");
-    // Typing alone leaves the list as it was (WJ-234).
+    // Typing alone changes nothing (WJ-234).
     await page.waitForTimeout(600); // longer than the old live-filter debounce
-    await expect(cards).toHaveCount(before);
+    await expect(prompt).toBeVisible();
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.locator("#main").getByRole("status").first()).toContainText(/for “senior product/i);
     await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 45_000 });

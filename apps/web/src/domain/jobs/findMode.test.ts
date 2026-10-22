@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIND_MODES, FIND_MODE_PATCH, PART_TIME_JOB_TYPES, findModeOf } from "./findMode";
+import { FIND_MODES, FIND_MODE_PATCH, FULL_TIME_JOB_TYPES, MODE_JOB_TYPES, PART_TIME_JOB_TYPES, findModeOf, modeJobTypeLabel } from "./findMode";
 
 describe("Find's Full Time and Part Time", () => {
   it("is Full Time unless the profile is skipped", () => {
@@ -22,5 +22,12 @@ describe("Find's Full Time and Part Time", () => {
 
   it("narrows Part Time by Contract, Consultant, Internship, Short-term and Gig", () => {
     expect(PART_TIME_JOB_TYPES).toEqual(["contract", "consultant", "internship", "temporary", "gig"]);
+  });
+
+  it("narrows Full Time by Permanent, Contract, Consultant and Short-term — each mode its own", () => {
+    expect(FULL_TIME_JOB_TYPES).toEqual(["full_time", "contract", "consultant", "temporary"]);
+    expect(MODE_JOB_TYPES).toEqual({ full_time: FULL_TIME_JOB_TYPES, part_time: PART_TIME_JOB_TYPES });
+    expect(modeJobTypeLabel("full_time", "Full-time")).toBe("Permanent");
+    expect(modeJobTypeLabel("contract", "Contract")).toBe("Contract");
   });
 });

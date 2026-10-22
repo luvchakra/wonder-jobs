@@ -7,7 +7,7 @@ const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-1
 const match = (jobId: string, score: number) => ({ jobId, score, fit: "strong" }) as unknown as JobMatch;
 
 describe("clearing typed words", () => {
-  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined }));
+  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined, beforeRun: undefined }));
 
   it("brings back the profile's results and their scores after a typed search replaced them", () => {
     const s = useJobsStore.getState();
@@ -24,6 +24,50 @@ describe("clearing typed words", () => {
     expect(after.searchedFor).toBe("");
     expect(after.matches.a.score).toBe(80);
     expect(after.restoreProfileCatalog()).toBe(false); // nothing kept twice
+  });
+
+  it("Full Time and Part Time each keep their own results: switching swaps them back and forth, nothing is searched", () => {
+    const s = useJobsStore.getState();
+    s.replaceCatalog([job("a"), job("b")]); // Full Time: the profile's search
+    s.setMatches([match("a", 80)]);
+    s.replaceCatalog([job("w1"), job("w2")], "weekend barista"); // Part Time: typed words
+    // To Full Time: the profile's results; the words' set aside.
+    expect(useJobsStore.getState().restoreProfileCatalog()).toBe(true);
+    expect(useJobsStore.getState().order).toEqual(["a", "b"]);
+    expect(useJobsStore.getState().wordsCatalog?.searchedFor).toBe("weekend barista");
+    // Back to Part Time: the words' results and what they were searched for; the profile's set aside again.
+    expect(useJobsStore.getState().restoreWordsCatalog()).toBe(true);
+    let st = useJobsStore.getState();
+    expect(st.order).toEqual(["w1", "w2"]);
+    expect(st.searchedFor).toBe("weekend barista");
+    expect(st.beforeWords?.order).toEqual(["a", "b"]);
+    expect(st.restoreWordsCatalog()).toBe(false); // nothing kept twice
+    // And to Full Time once more, with the profile's own scores.
+    expect(st.restoreProfileCatalog()).toBe(true);
+    st = useJobsStore.getState();
+    expect(st.order).toEqual(["a", "b"]);
+    expect(st.matches.a.score).toBe(80);
+  });
+
+  it("Stop brings back the list as it was before that search started, keeping what was saved meanwhile", () => {
+    const s = useJobsStore.getState();
+    s.replaceCatalog([job("a"), job("b")]);
+    s.keepBeforeRun("run_1");
+    s.replaceCatalog([job("x")], "designer"); // the search's first jobs replace the list
+    useJobsStore.setState((st) => ({ saved: { ...st.saved, x: "2026-10-22T00:00:00Z" } }));
+    expect(useJobsStore.getState().restoreBeforeRun("run_2")).toBe(false); // another search's snapshot
+    expect(useJobsStore.getState().restoreBeforeRun("run_1")).toBe(true);
+    const st = useJobsStore.getState();
+    expect(st.order).toEqual(["a", "b"]);
+    expect(st.searchedFor).toBe("");
+    expect(st.jobs.x).toBeTruthy(); // saved during the search: still there for Saved
+    expect(st.restoreBeforeRun("run_1")).toBe(false); // once
+  });
+
+  it("has no Part Time results to bring back before Part Time has searched", () => {
+    useJobsStore.getState().replaceCatalog([job("a")]);
+    expect(useJobsStore.getState().restoreWordsCatalog()).toBe(false);
+    expect(useJobsStore.getState().order).toEqual(["a"]);
   });
 
   it("keeps nothing when the profile's own search replaces the results, and leaves out jobs found closed since", () => {

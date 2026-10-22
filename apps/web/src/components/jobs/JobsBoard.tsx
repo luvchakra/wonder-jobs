@@ -1,7 +1,8 @@
 "use client";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { GitCompareArrows, X } from "lucide-react";
+import { GitCompareArrows, Search, X } from "lucide-react";
+import { EmptyState } from "@/components/common/States";
 import type { CanonicalJob, FitLabel, JobMatch } from "@/domain/jobs/types";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
@@ -27,7 +28,7 @@ const PAGE = 24;
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
  * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, searching, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -116,15 +117,25 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const visible = results.slice(0, limit);
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
   const isSearching = !!searching;
+  // What the catalog on screen was searched for ("" = the Career Profile's own search).
+  const searchedFor = useJobsStore((s) => s.searchedFor);
+  const partTime = !savedOnly && !!effective.skipProfile;
+  // Part Time before its first search: the profile's results aren't Part Time's, so it asks for words instead.
+  const partTimeIdle = partTime && !searchedFor && !searching;
   const summary = useMemo(() => {
     // While a search runs its banner says what's being searched; the jobs arriving under it aren't the last search's.
     if (savedOnly || header || !searched || !results.length || isSearching) return null;
+    // Part Time's list is its own words' search: say those words (their places are in them).
+    if (partTime && searchedFor) {
+      const count = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
+      return `Showing ${results.length.toLocaleString("en-IN")} ${results.length === 1 ? "job" : "jobs"} for “${effective.query.trim() || searchedFor}” from ${count} ${count === 1 ? "source" : "sources"}`;
+    }
     const what = effective.query.trim() || searched.query;
     const where = effective.locations?.length ? effective.locations : searched.locations;
     const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
     const n = results.length.toLocaleString("en-IN");
     return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} ${where.length ? `in ${where.join(", ")}` : "anywhere"} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs, isSearching]);
+  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs, isSearching, partTime, searchedFor]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
@@ -163,7 +174,13 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         shortlist={savedOnly ? { text: savedText, onText: setSavedText } : undefined}
         className="mb-4"
       />
-      {results.length === 0 ? (
+      {partTimeIdle ? (
+        partTimeMiss ? (
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title={`Nothing found for “${partTimeMiss}”`} body="No source lists that right now. Try other words, or fewer of them." />
+        ) : (
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title="Search for part-time work" body="Type the work you want — for example “weekend barista in Pune” or “freelance designer” — and press Search." />
+        )
+      ) : results.length === 0 ? (
         searching && !savedOnly ? (
           searching
         ) : filterResult.hiddenTotal > 0 && !savedOnly ? (
@@ -243,7 +260,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       )}
       {footer}
       {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
-      {results.length > 0 && !savedOnly && (
+      {results.length > 0 && !savedOnly && !partTimeIdle && (
         <FilteredBreakdown
           result={filterResult}
           onShowAnyway={() => {
