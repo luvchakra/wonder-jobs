@@ -92,7 +92,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = (filters.hideInPipeline ? 1 : 0) + (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Applies what's in the box and the Where field to the list.
@@ -181,7 +181,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      {/* The views and Hide Pipeline share the space; Refine never leaves the screen. */}
+      {/* The views, and Refine beside them (it never leaves the screen). */}
       <div className="flex items-center gap-1.5 max-[380px]:gap-1">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto max-[380px]:gap-1 pb-0.5 [scrollbar-width:none]">
           {views &&
@@ -190,11 +190,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
                 {v.label}
               </Chip>
             ))}
-          {/* Jobs you're already applying to: hidden with one tap, without opening Refine. */}
-          <label className={cn("inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors max-[400px]:px-2.5 max-[380px]:gap-1 max-[380px]:px-2 max-[380px]:text-[12.5px]", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
-            <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-            Hide Pipeline
-          </label>
         </div>
         <Button size="sm" variant={more ? "secondary" : "outline"} className="h-9 shrink-0 rounded-full px-2.5" icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${activeCount ? `, ${activeCount} set` : ""}`} title="Refine">
           {activeCount ? String(activeCount) : null}
@@ -257,6 +252,11 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             Sort
             <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
           </div>
+          {/* Jobs you're already preparing, have applied to or are interviewing for. */}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+            <span>Hide Pipeline: jobs you&apos;re already applying to</span>
+          </label>
           {!partTime && (
           <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
@@ -304,7 +304,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
@@ -319,7 +319,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   );
 }
 
-/** Saved's own filter row: the words narrow the saved jobs as they're typed; the job types and Hide Pipeline as on Find. */
+/** Saved's own filter row (Saved has no Refine): the words narrow the saved jobs as they're typed; the job types and Hide Pipeline. */
 function ShortlistFilters({ text, onText, filters, onChange, partTime, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; partTime: boolean; className?: string }) {
   const dictation = useDictation({ textAtStart: () => text, onText });
   return (

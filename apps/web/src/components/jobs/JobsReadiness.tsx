@@ -290,28 +290,28 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   };
 
   if (!editing) {
-    // One compact row: what Wonder searches for, with Change beside its label (the Career Profile is linked from the search button).
+    // One compact row: what Wonder searches for, and Change on the right, centred (the Career Profile is linked from the search button).
     return (
       <div className={cn("mb-3 flex items-center gap-2 rounded-[14px] border border-line bg-surface py-2 pl-3.5 pr-1.5 sm:gap-3 sm:pr-2", inline && "sm:max-w-xl", className)}>
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
             Looking for
             {skipped && <span className="rounded-full bg-bg-soft px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-ink-3">Skipped</span>}
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(role);
-                setEditing(true);
-              }}
-              className="rounded-full px-1.5 py-0.5 text-[11.5px] font-semibold normal-case tracking-normal text-brand-600 hover:bg-brand-50"
-            >
-              Change
-            </button>
           </p>
           <p className={cn("truncate text-[14px] first-letter:uppercase", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped in Part Time" : role || undefined}>
             {role || "No role yet"}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(role);
+            setEditing(true);
+          }}
+          className="inline-flex min-h-11 shrink-0 items-center self-center rounded-full px-3 text-[13px] font-semibold text-brand-600 hover:bg-brand-50"
+        >
+          Change
+        </button>
       </div>
     );
   }

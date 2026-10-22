@@ -284,8 +284,13 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
     expect(await views()).toEqual(["All", "Strong", "For you"]);
     await expect(main.getByText(/^Looking for/)).toHaveCount(0);
-    // Hide Pipeline and Refine stay in both.
-    await expect(main.getByText("Hide Pipeline")).toBeVisible();
+    // Hide Pipeline lives in Refine, and Refine is in both.
+    await expect(main.getByText(/^Hide Pipeline/)).toHaveCount(0);
+    await main.getByRole("button", { name: /^Refine/ }).click();
+    await main.getByLabel(/^Hide Pipeline/).check();
+    await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
+    await main.getByLabel(/^Hide Pipeline/).uncheck();
+    await main.getByRole("button", { name: "Back to jobs" }).click();
 
     // Tap and the keyboard switch back too.
     await full.click();
