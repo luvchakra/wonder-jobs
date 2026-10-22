@@ -2,25 +2,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { useAuthStore } from "@/store/auth";
 import { useCareerStore } from "@/store/career";
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
 import { EmptyState } from "@/components/common/States";
-import { NotifyPrefsCard } from "@/components/account/NotifyPrefsCard";
-import { PushNotifications } from "@/components/pwa/PushNotifications";
-import { DigestEmailCard } from "@/components/account/DigestEmailCard";
 
 /**
- * Notification center (owner, 2026-10-22): everything the bell holds, and every choice about what you're told —
- * Notify me about, notifications on this device, and the activity email — in one place.
+ * Notification center (owner, 2026-10-22): everything the bell holds; Notifications & email (/app/settings/notifications)
+ * is where you choose what you're told, and how.
  */
 export default function NotificationsPage() {
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
-  const signedIn = useAuthStore((s) => s.mode) === "user";
   const [unreadOnly, setUnreadOnly] = useState(false);
   const all = visibleNotifications(notifications);
   const unread = all.filter((n) => !n.read).length;
@@ -65,19 +60,13 @@ export default function NotificationsPage() {
           ))}
         </ul>
       )}
-      <h2 id="choices" className="mb-1 mt-6 scroll-mt-20 text-[15px] font-semibold text-ink">
-        Your choices
-      </h2>
-      {signedIn ? (
-        <>
-          <NotifyPrefsCard />
-          <PushNotifications />
-          <DigestEmailCard />
-        </>
-      ) : (
-        // Choices are kept with an account; demo and local mode have none to keep them in.
-        <p className="text-[13px] text-ink-3">Sign in to choose what WonderJobs sends you by push and email.</p>
-      )}
+      <Link href="/app/settings/notifications" className="mt-4 flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">
+        <span>
+          Notifications &amp; email
+          <span className="block text-[12px] text-ink-3">Choose what you&apos;re told, and how</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
+      </Link>
     </div>
   );
 }

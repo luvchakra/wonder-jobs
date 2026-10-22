@@ -31,11 +31,11 @@ describe("Notify me about", () => {
   it("reads the defaults, saves a person's choices cleaned, and reads them back", async () => {
     expect((await (await GET()).json()).prefs).toEqual(DEFAULT_NOTIFY_PREFS);
     const saved = (await (await put({ messages: { push: false, email: true }, junk: 1 })).json()).prefs;
-    expect(saved).toEqual({ ...DEFAULT_NOTIFY_PREFS, messages: { push: false, email: true } });
+    expect(saved).toEqual({ ...DEFAULT_NOTIFY_PREFS, messages: { bell: true, push: false, email: true } });
     expect((await (await GET()).json()).prefs).toEqual(saved);
   });
 
-  it("decides what each nudge does: push off → email instead; both off → bell only; no topic → push, never email", async () => {
+  it("decides what each nudge does: push off → email instead; both off → bell only; a scheduled search's problem → push, not email unless chosen", async () => {
     await put({ messages: { push: false, email: true } });
     expect(await nudge(T, message, { email: { key: "conv:1" } })).toEqual({ pushed: 0, emailed: true });
     expect(pushes).toEqual([]);

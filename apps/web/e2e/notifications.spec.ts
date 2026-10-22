@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Notification center (WJ-364): the bell's "Notification center" opens every notification with its choices;
+ * Notification center (WJ-364): the bell's "Notification center" opens every notification, linking to Notifications & email;
  * Unread filters, Mark all read clears the count, and an item's action opens where it points.
  */
 test.describe("Notification center", () => {
-  test("opens from the bell, filters unread, marks all read and keeps your choices on the same page", async ({ page }) => {
+  test("opens from the bell, filters unread, marks all read and links to Notifications & email", async ({ page }) => {
     await page.goto(`/demo?next=${encodeURIComponent("/app")}`);
     await page.waitForURL(/\/app$/, { timeout: 20_000 });
     await page.getByRole("button", { name: /^Notifications, \d+ unread/ }).click();
@@ -32,16 +32,18 @@ test.describe("Notification center", () => {
     await show.getByRole("button", { name: "All" }).click();
     await expect(list.getByRole("listitem").first()).toBeVisible();
 
-    await expect(page.getByRole("heading", { level: 2, name: "Your choices" })).toBeVisible();
-    // Demo mode keeps no account, so there's nothing to choose yet — it says so rather than showing an empty section.
-    await expect(page.getByText("Sign in to choose what WonderJobs sends you by push and email.")).toBeVisible();
+    // What you're told, and how, is one tap away on Notifications & email.
+    await page.locator("#main").getByRole("link", { name: /Notifications & email/ }).click();
+    await page.waitForURL(/\/app\/settings\/notifications$/);
   });
 
-  test("the account menu's Notifications & email lands on it", async ({ page }) => {
+  test("You → Notifications & email opens the settings page", async ({ page }) => {
     await page.goto(`/demo?next=${encodeURIComponent("/app/profile")}`);
     await page.waitForURL(/\/app\/profile$/, { timeout: 20_000 });
     await page.getByRole("link", { name: /Notifications & email/ }).first().click();
-    await page.waitForURL(/\/app\/notifications(#choices)?$/);
-    await expect(page.getByRole("heading", { level: 2, name: "Your choices" })).toBeVisible();
+    await page.waitForURL(/\/app\/settings\/notifications$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Notifications & email" })).toBeVisible();
+    // Demo mode keeps no account, so there's nothing to choose yet — it says so rather than showing an empty page.
+    await expect(page.getByText("Sign in to choose what WonderJobs tells you, and how.")).toBeVisible();
   });
 });

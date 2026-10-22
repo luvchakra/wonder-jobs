@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import type { NotifyAdmin } from "@/domain/notifications/admin";
-import type { NotifyChannel, NotifyTopic } from "@/domain/notifications/prefs";
+import type { NotifyChannel, NotifyTopic, NudgeChannel } from "@/domain/notifications/prefs";
 import { Button } from "@/components/common/Button";
 import { Input, Switch } from "@/components/common/Input";
 import { LoadError, Loading, Note, PageTitle, Panel, adminFetch, useAdmin } from "@/components/jobslake/ui";
 import { relativeTime } from "@/lib/format";
 
 type Limits = Record<"messageEmailEveryMin" | "interviewLeadHours" | "followUpLeadHours", readonly [number, number]>;
-type Data = { settings: NotifyAdmin; defaults: NotifyAdmin; limits: Limits; topics: readonly { id: NotifyTopic; label: string; hint: string }[]; peopleWithChoices: number };
+type Data = { settings: NotifyAdmin; defaults: NotifyAdmin; limits: Limits; topics: readonly { id: NotifyTopic; label: string; hint: string; channels: readonly NotifyChannel[] }[]; peopleWithChoices: number };
 
 /** WonderJobs Admin → Settings → Notifications: what every person can be sent, and what they start with. */
 export default function NotificationsAdminPage() {
@@ -23,7 +23,7 @@ export default function NotificationsAdminPage() {
   );
 }
 
-const CHANNELS: { id: NotifyChannel; label: string }[] = [
+const CHANNELS: { id: NudgeChannel; label: string }[] = [
   { id: "push", label: "Push" },
   { id: "email", label: "Email" },
 ];
@@ -35,7 +35,7 @@ function Editor({ data, onSaved }: { data: Data; onSaved: () => void }) {
   const strip = (x: NotifyAdmin) => JSON.stringify({ ...x, updatedAt: undefined, updatedBy: undefined });
   const changed = strip(s) !== strip(data.settings);
   const isDefault = strip(s) === strip(data.defaults);
-  const topic = (id: NotifyTopic, part: "allowed" | "defaults", ch: NotifyChannel, on: boolean) => setS((x) => ({ ...x, topics: { ...x.topics, [id]: { ...x.topics[id], [part]: { ...x.topics[id][part], [ch]: on } } } }));
+  const topic = (id: NotifyTopic, part: "allowed" | "defaults", ch: NudgeChannel, on: boolean) => setS((x) => ({ ...x, topics: { ...x.topics, [id]: { ...x.topics[id], [part]: { ...x.topics[id][part], [ch]: on } } } }));
   const save = async () => {
     setBusy(true);
     setProblem(null);
@@ -70,15 +70,15 @@ function Editor({ data, onSaved }: { data: Data; onSaved: () => void }) {
           ))}
         </ul>
       </Panel>
-      <Panel title="Topics">
-        <p className="mb-2 text-[12px] text-ink-3">Allowed: people may turn it on. Default: what someone who never chose gets. {data.peopleWithChoices} {data.peopleWithChoices === 1 ? "person has" : "people have"} made their own choices; defaults apply to everyone else.</p>
+      <Panel title="Kinds of notification">
+        <p className="mb-2 text-[12px] text-ink-3">Allowed: people may turn it on. Default: what someone who never chose gets. {data.peopleWithChoices} {data.peopleWithChoices === 1 ? "person has" : "people have"} made their own choices; defaults apply to everyone else. Kinds kept only in the bell aren&apos;t listed: the bell is each person&apos;s own choice.</p>
         <ul className="divide-y divide-line">
-          {data.topics.map((t) => (
+          {data.topics.filter((t) => CHANNELS.some((c) => t.channels.includes(c.id))).map((t) => (
             <li key={t.id} className="py-2.5">
               <p className="text-[14px] text-ink">{t.label}</p>
               <p className="text-[12px] text-ink-3">{t.hint}</p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {CHANNELS.flatMap((c) =>
+                {CHANNELS.filter((c) => t.channels.includes(c.id)).flatMap((c) =>
                   (["allowed", "defaults"] as const).map((part) => (
                     <span key={`${c.id}-${part}`} className="inline-flex items-center justify-between gap-2 rounded-[10px] bg-bg-soft px-2.5 py-1.5 text-[12px] text-ink-2">
                       {c.label} {part === "allowed" ? "allowed" : "default"}

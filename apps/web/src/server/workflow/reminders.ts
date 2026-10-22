@@ -13,6 +13,7 @@ import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
 import { readClientState, writeClientState } from "@/server/clientState";
 import { PERSIST_VERSION, type CareerDoc } from "./snapshot";
+import { bellFilter } from "@/server/notifications/prefs";
 
 const DAY = 86_400_000;
 /** How far ahead each kind is worth mentioning, and how long after it stays worth mentioning. */
@@ -61,6 +62,8 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
   const reminded = new Set(career?.reminded ?? []);
   const notifications: Notification[] = [];
   const at = now.toISOString();
+  // Their choice per kind: a reminder they keep out of the bell is still pushed or emailed as they chose.
+  const inBell = await bellFilter(tenantId);
 
   for (const app of applications) {
     for (const f of app.followUps ?? []) {
@@ -89,13 +92,13 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
               body: f.note,
               href: `/app/applications/${app.id}`,
             };
-      notifications.push(notification);
+      if (inBell(notification.category)) notifications.push(notification);
       report.notices.push({ notice: { category: notification.category, title: notification.title, body: notification.body, href: notification.href }, key: `reminder-${f.id}` });
     }
   }
 
-  if (!notifications.length) return report;
-  report.raised = notifications.length;
+  if (!report.notices.length) return report;
+  report.raised = report.notices.length;
   // Merged, not replaced: the candidate's tab may have written since this snapshot was read.
   await writeClientState<CareerDoc & { reminded: string[] }>(
     tenantId,

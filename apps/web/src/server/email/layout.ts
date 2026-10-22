@@ -66,7 +66,7 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
   const C = EMAIL_COLORS;
   const abs = (href: string) => new URL(href, input.origin).toString();
   const links: EmailLink[] = [
-    ...(input.settingsLink === false ? [] : [{ label: "Notification settings", href: "/app/notifications#choices" }]),
+    ...(input.settingsLink === false ? [] : [{ label: "Notification settings", href: "/app/settings/notifications" }]),
     { label: "Privacy", href: "/privacy" },
     ...(input.links ?? []),
   ].map((l) => ({ label: l.label, href: abs(l.href) }));

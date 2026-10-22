@@ -486,6 +486,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Notifications: Notify me about (push/email per topic); reminders every 3 hours (WJ-363)
 - ✅ Notifications: Notification center; admin notification settings for everyone (WJ-364)
 - ✅ Notifications: test cases for every use case (N01–N33); workspace invitations are emailed (WJ-365)
+- ✅ Notifications & email: In the bell, Push and Email for every kind of notification (WJ-366)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
