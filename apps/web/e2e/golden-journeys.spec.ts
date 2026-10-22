@@ -333,6 +333,18 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(summary).not.toContainText("“designer”");
     await part.click();
     await expect(summary).toContainText("“designer”");
+    // The last searches show under the box while it has focus, newest first; × removes one, a tap searches it again.
+    const words = page.getByRole("textbox", { name: "Search jobs" });
+    await words.fill("");
+    await words.focus();
+    const recent = main.getByRole("list", { name: "Recent searches" });
+    expect((await recent.getByRole("listitem").allInnerTexts()).map((t) => t.trim())).toEqual(["designer", "barista"]);
+    await recent.getByRole("button", { name: "Remove “barista” from recent searches" }).click();
+    await expect(recent.getByRole("listitem")).toHaveCount(1);
+    await recent.getByRole("button", { name: "designer", exact: true }).click();
+    await expect(words).toHaveValue("designer");
+    await expect(recent).toHaveCount(0);
+    await expect(summary).toContainText("“designer”", { timeout: 20_000 });
 
     // Tap and the keyboard switch back too.
     await full.click();

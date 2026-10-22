@@ -46,6 +46,12 @@ interface JobsState {
   loaded: boolean;
   /** What the candidate typed for the search behind this catalog ("" = their profile's search), so a rescore keeps judging the jobs on it. */
   searchedFor: string;
+  /** Part Time's last few searches, newest first (owner, 2026-10-22): only what the candidate typed and searched. */
+  recentSearches: string[];
+  /** A typed search ran: it goes to the top of the history (once, whatever its case). */
+  rememberSearch: (text: string) => void;
+  /** The candidate's × on one history item. */
+  forgetSearch: (text: string) => void;
   loadInitial: () => void;
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
@@ -91,6 +97,9 @@ const PERSISTED_DESCRIPTION = 1500;
 /** How many of the profile's results set aside under a typed search are kept between sessions. */
 const PERSISTED_ASIDE = 150;
 
+/** How many of Part Time's searches the history keeps. */
+export const RECENT_SEARCHES = 5;
+
 export const useJobsStore = create<JobsState>()(
   persist(
     (set, get) => ({
@@ -121,6 +130,14 @@ export const useJobsStore = create<JobsState>()(
       sort: "best_match",
       loaded: false,
       searchedFor: "",
+      recentSearches: [],
+      rememberSearch: (text) =>
+        set((s) => {
+          const t = text.replace(/\s+/g, " ").trim().slice(0, 80);
+          if (!t) return {};
+          return { recentSearches: [t, ...s.recentSearches.filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, RECENT_SEARCHES) };
+        }),
+      forgetSearch: (text) => set((s) => ({ recentSearches: s.recentSearches.filter((x) => x !== text) })),
       loadInitial: () => {
         if (get().loaded) return;
         if (getClientMode().mode === "user") {
@@ -278,7 +295,7 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, filters: { ...current.filters, ...(p.hideInPipeline ? { hideInPipeline: true } : {}), ...(p.skipProfile ? { skipProfile: true } : {}) } };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: Array.isArray(p.recentSearches) ? p.recentSearches.filter((x) => typeof x === "string").slice(0, RECENT_SEARCHES) : [], filters: { ...current.filters, ...(p.hideInPipeline ? { hideInPipeline: true } : {}), ...(p.skipProfile ? { skipProfile: true } : {}) } };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -288,7 +305,7 @@ export const useJobsStore = create<JobsState>()(
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },

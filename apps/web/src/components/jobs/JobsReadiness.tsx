@@ -358,7 +358,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
             <p className="text-[15px] font-semibold text-ink">
               {stage?.activeLabel ?? "Searching"}…{found ? <span className="ml-2 font-normal text-brand-700">{found.toLocaleString("en-IN")} found so far</span> : null}
             </p>
-            <p className="truncate text-[13px] text-ink-2">For “{active.config.searchCriteria.query}” — results appear here as they arrive.</p>
+            <p className="truncate text-[13px] text-ink-2">For “{active.config.searchCriteria.query}”{active.config.searchCriteria.locations.length ? ` in ${active.config.searchCriteria.locations.join(", ")}` : ""} — results appear here as they arrive.</p>
           </div>
           <Link href={`/app/runs/${active.id}`} className="shrink-0 text-[13px] font-medium text-brand-700 underline-offset-2 hover:underline">
             Details

@@ -7,7 +7,7 @@ const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-1
 const match = (jobId: string, score: number) => ({ jobId, score, fit: "strong" }) as unknown as JobMatch;
 
 describe("clearing typed words", () => {
-  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined, beforeRun: undefined }));
+  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined, beforeRun: undefined, recentSearches: [] }));
 
   it("brings back the profile's results and their scores after a typed search replaced them", () => {
     const s = useJobsStore.getState();
@@ -153,5 +153,14 @@ describe("a running search's arrivals", () => {
     useJobsStore.setState({ closed: { y: { at: new Date().toISOString() } } as never });
     useJobsStore.getState().appendCatalog([job("y")]);
     expect(useJobsStore.getState().order).toEqual([]);
+  });
+
+  it("keeps Part Time's last five searches, newest first, once each; × forgets one", () => {
+    const { rememberSearch, forgetSearch } = useJobsStore.getState();
+    for (const t of ["barista", "  Barista  in   Pune ", "designer", "BARISTA", "a", "b", "c"]) rememberSearch(t);
+    expect(useJobsStore.getState().recentSearches).toEqual(["c", "b", "a", "BARISTA", "designer"]);
+    rememberSearch("   ");
+    forgetSearch("a");
+    expect(useJobsStore.getState().recentSearches).toEqual(["c", "b", "BARISTA", "designer"]);
   });
 });
