@@ -470,6 +470,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Changes saved while a sync is in flight survive leaving the page (WJ-347)
 - ✅ Find: Full Time / Part Time slider (WJ-348)
 - ✅ Find: Career Profile link in the search button, Strong in both modes, Consultant job type (WJ-349)
+- ✅ Saved: the box filters saved jobs as you type, no Search or Refine (WJ-350)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

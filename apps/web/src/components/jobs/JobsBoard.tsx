@@ -58,7 +58,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       }
       return [...ids, id];
     }), []);
-  const query = useDebounced(filters.query, 250);
+  // Saved filters its own jobs with its own words, kept here: Find's search words stay Find's.
+  const [savedText, setSavedText] = useState("");
+  const query = useDebounced(savedOnly ? savedText : filters.query, 250);
 
   // Deep links: /app/jobs?fit=strong, ?q=… — same as before; ?saved=1 is the Saved tab now. With
   // nothing given, land on All: every job is shown, and For you and Strong narrow it (owner, 2026-10-19).
@@ -158,6 +160,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         }}
         sourceSearch={sourceSearch}
         refineTop={refineTop}
+        shortlist={savedOnly ? { text: savedText, onText: setSavedText } : undefined}
         className="mb-4"
       />
       {results.length === 0 ? (
@@ -174,6 +177,21 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
             // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
             search={searchInEmpty ? { label: sourceSearch!.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch!.run(effective.query.trim(), effective.locations ?? []), places: typedPlaces } : undefined}
           />
+        ) : savedOnly && Object.keys(saved).some((id) => jobs[id]) ? (
+          // Saved jobs exist, but the words or job types hide them all.
+          <p role="status" className="rounded-[14px] border border-dashed border-line p-6 text-center text-[14px] text-ink-2">
+            No saved job matches{query.trim() ? ` “${query.trim()}”` : " these filters"}.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setSavedText("");
+                setFilters({ jobTypes: [], hideInPipeline: false });
+              }}
+              className="font-medium text-brand-600 hover:underline"
+            >
+              Clear
+            </button>
+          </p>
         ) : (
           empty
         )

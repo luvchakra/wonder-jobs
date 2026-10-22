@@ -61,7 +61,7 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
  * types. Then one row of views, and everything else — sort, work mode, freshness, salary, sources,
  * compare — in Refine. The mode is the slider above the page (domain/jobs/findMode.ts).
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   // Refine is Find's own panel: leaving Find closes it.
@@ -97,6 +97,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   const partTime = findModeOf(filters) === "part_time";
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
+  if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} partTime={partTime} className={className} />;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
@@ -177,11 +178,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           </div>
         )}
       </form>
-      {partTime && (
-        <p className="-mt-1 text-[11.5px] leading-snug text-ink-4">
-          Only your words: not Looking for{sourceSearch?.places.length ? `, your places (${sourceSearch.places.join(", ")})` : ""}, work modes or minimum salary.
-        </p>
-      )}
       {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
@@ -319,6 +315,51 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Saved's own filter row: the words narrow the saved jobs as they're typed; the job types and Hide Pipeline as on Find. */
+function ShortlistFilters({ text, onText, filters, onChange, partTime, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; partTime: boolean; className?: string }) {
+  const dictation = useDictation({ textAtStart: () => text, onText });
+  return (
+    <div className={cn("flex flex-col gap-3", className)}>
+      <div className="relative min-w-0">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
+        <Input
+          type="search"
+          value={text}
+          onChange={(e) => {
+            onText(e.target.value);
+            if (dictation.listening) dictation.rebase(e.target.value);
+          }}
+          placeholder="Filter saved jobs"
+          aria-label="Filter saved jobs"
+          enterKeyHint="done"
+          className={cn("h-11 rounded-full pl-10 sm:h-12", dictation.supported ? "pr-20" : "pr-10")}
+        />
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+          {text && (
+            <button type="button" aria-label="Clear filter" onClick={() => onText("")} className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink">
+              <X className="size-4" aria-hidden />
+            </button>
+          )}
+          {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what to look for in your saved jobs" />}
+        </div>
+      </div>
+      {partTime && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          {JOB_TYPE_CHIPS.map((t) => (
+            <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
+              {t.label}
+            </Chip>
+          ))}
+        </div>
+      )}
+      <label className={cn("inline-flex h-9 cursor-pointer select-none items-center gap-1.5 self-start rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
+        <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+        Hide Pipeline
+      </label>
     </div>
   );
 }
