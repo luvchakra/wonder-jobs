@@ -21,6 +21,25 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { RunningIndicator } from "./RunningIndicator";
+import { DEFAULT_ACCOUNT_MENU, arrangeAccountMenu, cleanAccountMenu, type AccountMenuConfig } from "@/domain/navigation/accountMenu";
+
+/** The platform's account menu order and hidden items, fetched once per page load; today's menu until it answers, or if it can't. */
+let menuRequest: Promise<AccountMenuConfig> | null = null;
+function useAccountMenu(): AccountMenuConfig {
+  const [config, setConfig] = useState<AccountMenuConfig>(DEFAULT_ACCOUNT_MENU);
+  useEffect(() => {
+    let alive = true;
+    menuRequest ??= fetch("/api/account-menu")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => cleanAccountMenu(d))
+      .catch(() => DEFAULT_ACCOUNT_MENU);
+    void menuRequest.then((c) => alive && setConfig(c));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return config;
+}
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
@@ -62,6 +81,7 @@ export function TopBar() {
   useOutside(notifRef, () => setNotifOpen(false));
   useOutside(profileRef, () => setProfileOpen(false));
 
+  const menuConfig = useAccountMenu();
   // Platform admins get an Admin link (the JobsLake portal); everyone else never sees it.
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
@@ -97,24 +117,31 @@ export function TopBar() {
       )}
       {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
       {[
-        // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
-        { href: "/app/profile", label: "Account", icon: User },
-        // The Account page's main sections, one tap from anywhere (signed-in accounts only).
-        ...(mode === "user"
-          ? [
-              { href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
-              { href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
-              { href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
-              { href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
-              { href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
-            ]
-          : []),
-        // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
-        { href: "/app/hiring", label: "Hiring", icon: Building2 },
-        ...(isAdmin ? [{ href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
-        // The sidebar's Analytics, for phones (no sidebar there).
-        { href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
-        { href: "/help", label: "Get Help", icon: LifeBuoy },
+        ...arrangeAccountMenu(
+          [
+            // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
+            { id: "account", href: "/app/profile", label: "Account", icon: User },
+            // The Account page's main sections, one tap from anywhere (signed-in accounts only).
+            ...(mode === "user"
+              ? ([
+                  { id: "plan", href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
+                  { id: "connections", href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
+                  { id: "api_keys", href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
+                  { id: "notifications", href: "/app/profile#notifications", label: "Notifications & email", icon: Bell },
+                  { id: "your_data", href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
+                ] as const)
+              : []),
+            // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
+            { id: "hiring", href: "/app/hiring", label: "Hiring", icon: Building2 },
+            // The sidebar's Analytics, for phones (no sidebar there).
+            { id: "analytics", href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
+            { id: "help", href: "/help", label: "Get Help", icon: LifeBuoy },
+          ],
+          // The order and hidden items a platform admin set for everyone (Admin → Settings → Account menu).
+          menuConfig,
+        ),
+        // Platform admins only, after the rest; never hidden from them.
+        ...(isAdmin ? [{ id: "admin", href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
       ].map((m) => (
         <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
           <m.icon className="size-4" aria-hidden /> {m.label}
