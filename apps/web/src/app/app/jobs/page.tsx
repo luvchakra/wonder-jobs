@@ -43,8 +43,9 @@ function JobsHome() {
     else void search.searchNow();
     router.replace("/app/jobs");
   }, [params, search, router]);
-  // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet.
-  const [pickedRole, setPickedRole] = useState<string | null | undefined>(undefined);
+  // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet,
+  // null = My profile, false = none (Part Time's start: only the words typed).
+  const [pickedRole, setPickedRole] = useState<string | null | false | undefined>(undefined);
 
   // Clearing the typed words brings back the profile's results and view as they were before the words
   // were searched — not what's left of the words' results. (After a reload nothing is kept: search again.)
@@ -68,10 +69,29 @@ function JobsHome() {
   }, [query]);
   const firstName = dna.name.split(" ")[0];
   const mode = useJobsStore((s) => findModeOf(s.filters));
+  const typed = useJobsStore((s) => s.filters.query.trim().toLowerCase());
+  // Part Time searches only words, so its "Search as" starts with none picked; picking one puts that role's
+  // words in the box (to search with Search), and it stays picked only while the box holds them.
+  const roleWords = (id: string | null) => (id === null ? search.readiness.query : (roles.find((r) => r.id === id)?.title ?? ""));
+  const searchAs: string | null | false =
+    mode === "part_time"
+      ? typeof pickedRole === "string" || pickedRole === null
+        ? roleWords(pickedRole).trim().toLowerCase() === typed && !!typed
+          ? pickedRole
+          : false
+        : false
+      : pickedRole !== undefined
+        ? pickedRole
+        : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null);
+  const pickSearchAs = (id: string | null | false) => {
+    setPickedRole(id);
+    if (mode === "part_time") useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
+  };
   const switchMode = (m: FindMode) => {
     const s = useJobsStore.getState();
     // That mode's filters, with the Refine settings the candidate last left in it.
     s.switchFindMode(m);
+    setPickedRole(undefined);
     // Each mode shows its own results, as they were (nothing is searched): Full Time the profile's,
     // Part Time its last typed search's — or, before one, a prompt to type (JobsBoard).
     if (m === "full_time" && s.searchedFor) s.restoreProfileCatalog();
@@ -103,7 +123,7 @@ function JobsHome() {
           <>
             <WantedRole search={search} inline />
             {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
-            {roles.length > 0 && <RoleChips roles={roles} current={pickedRole !== undefined ? pickedRole : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null)} onPick={setPickedRole} busy={false} />}
+            {roles.length > 0 && <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} />}
           </>
         }
         footer={

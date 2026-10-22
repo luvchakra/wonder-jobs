@@ -341,24 +341,35 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   );
 }
 
+/** “126 found so far in 9 sources” — the running search's own counts. */
+export const foundSoFar = (found: number, sources: number) => `${found.toLocaleString("en-IN")} found so far in ${sources} ${sources === 1 ? "source" : "sources"}`;
+
 export function SearchStatusLine({ search, monitoring = false }: { search: JobSearch; monitoring?: boolean }) {
   // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
   const sources = useJobsStore((s) => s.sources);
   if (active) {
     const stage = active.currentStage ? STAGES[active.currentStage] : undefined;
-    const found = active.stages.find((s) => s.key === "search")?.counts?.discovered;
+    const counts = active.stages.find((s) => s.key === "search")?.counts;
+    const found = counts?.discovered;
+    // The sources that have answered so far, as the search counts them; until it says, the ones it asks.
+    const answered = counts?.sources ?? (active.config.sourceIds.length || sources.filter((s) => s.enabled).length);
+    const where = active.config.searchCriteria.locations;
     // A search in progress is the most important thing on the page until it ends: a tinted banner with
     // the moving mark, what's happening, a live count and a progress sweep — not a line of grey text.
+    // What it's for is shown in full, wrapping if it must; Details and Stop sit to the right, centred.
     return (
       <div role="status" aria-live="polite" className="mb-4 overflow-hidden rounded-2xl border border-brand-300 bg-brand-50">
         <div className="flex items-center gap-3 px-4 py-3">
           <WonderSearching size={32} />
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold text-ink">
-              {stage?.activeLabel ?? "Searching"}…{found ? <span className="ml-2 font-normal text-brand-700">{found.toLocaleString("en-IN")} found so far</span> : null}
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <p className="text-[15px] font-semibold leading-5 text-ink">{stage?.activeLabel ?? "Searching"}…</p>
+            {found ? (
+              <p className="text-[13px] leading-[18px] text-brand-700">{foundSoFar(found, answered)}</p>
+            ) : null}
+            <p className="break-words text-[13px] leading-[18px] text-ink-2">
+              For “{active.config.searchCriteria.query}”{where.length ? ` in ${where.join(", ")}` : ""}
             </p>
-            <p className="truncate text-[13px] text-ink-2">For “{active.config.searchCriteria.query}”{active.config.searchCriteria.locations.length ? ` in ${active.config.searchCriteria.locations.join(", ")}` : ""} — results appear here as they arrive.</p>
           </div>
           <Link href={`/app/runs/${active.id}`} className="shrink-0 text-[13px] font-medium text-brand-700 underline-offset-2 hover:underline">
             Details
@@ -443,15 +454,20 @@ export function JobsEmpty({ search }: { search: JobSearch }) {
 }
 
 /** Search as the whole profile or as one of the candidate's roles — one tap, it searches. */
-export function RoleChips({ roles, current, onPick, busy }: { roles: { id: string; title: string }[]; current: string | null; onPick: (roleId: string | null) => void; busy: boolean }) {
+/**
+ * "Search as": My profile or one of the candidate's roles — or none (owner, 2026-10-22): tapping the chip
+ * that's on turns it off. `current` false = none picked.
+ */
+export function RoleChips({ roles, current, onPick, busy }: { roles: { id: string; title: string }[]; current: string | null | false; onPick: (roleId: string | null | false) => void; busy: boolean }) {
+  const pick = (id: string | null) => onPick(current === id ? false : id);
   return (
     <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
       <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>
-      <Chip active={current === null} onClick={() => onPick(null)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
+      <Chip active={current === null} onClick={() => pick(null)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
         My profile
       </Chip>
       {roles.map((r) => (
-        <Chip key={r.id} active={current === r.id} onClick={() => onPick(r.id)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
+        <Chip key={r.id} active={current === r.id} onClick={() => pick(r.id)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
           {r.title}
         </Chip>
       ))}
