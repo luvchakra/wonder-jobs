@@ -264,6 +264,30 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(summary).toHaveText(before);
   });
 
+  test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
+    await page.goto("/demo?next=/app/jobs");
+    const main = page.locator("#main");
+    const kind = page.getByRole("radiogroup", { name: "Kind of work" });
+    const refine = main.getByRole("button", { name: /^Refine/ });
+    await expect(refine).toHaveAccessibleName("Refine");
+    await refine.click();
+    await main.getByLabel(/^Hide Pipeline/).check();
+    await main.getByRole("button", { name: "Back to jobs" }).click();
+    await expect(refine).toHaveAccessibleName("Refine, 1 set");
+    // Part Time starts with nothing set; Full Time's setting comes back with it.
+    await kind.getByRole("radio", { name: "Part Time" }).click();
+    await expect(refine).toHaveAccessibleName("Refine");
+    await kind.getByRole("radio", { name: "Full Time" }).click();
+    await expect(refine).toHaveAccessibleName("Refine, 1 set");
+    // Kept between visits, per mode.
+    await page.waitForTimeout(1500);
+    await page.reload();
+    await expect(kind.getByRole("radio", { name: "Full Time" })).toHaveAttribute("aria-checked", "true");
+    await expect(refine).toHaveAccessibleName("Refine, 1 set");
+    await kind.getByRole("radio", { name: "Part Time" }).click();
+    await expect(refine).toHaveAccessibleName("Refine");
+  });
+
   test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the slider slides", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/demo?next=/app/jobs");

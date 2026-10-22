@@ -7,7 +7,7 @@ const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-1
 const match = (jobId: string, score: number) => ({ jobId, score, fit: "strong" }) as unknown as JobMatch;
 
 describe("clearing typed words", () => {
-  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined, beforeRun: undefined, recentSearches: [] }));
+  beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined, beforeRun: undefined, recentSearches: [], refine: {}, sort: "best_match", filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } }));
 
   it("brings back the profile's results and their scores after a typed search replaced them", () => {
     const s = useJobsStore.getState();
@@ -162,5 +162,48 @@ describe("a running search's arrivals", () => {
     rememberSearch("   ");
     forgetSearch("a");
     expect(useJobsStore.getState().recentSearches).toEqual(["c", "b", "BARISTA", "designer"]);
+  });
+
+});
+
+describe("Refine, per Find mode", () => {
+  beforeEach(() => useJobsStore.setState({ refine: {}, sort: "best_match", filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } }));
+
+  it("keeps Full Time's and Part Time's Refine settings apart, and brings each back on switching", () => {
+    const st = () => useJobsStore.getState();
+    st().setFilters({ workModes: ["remote"], hideInPipeline: true });
+    st().setSort("date");
+    st().switchFindMode("part_time");
+    expect(st().filters).toMatchObject({ skipProfile: true, workModes: [], hideInPipeline: false });
+    expect(st().sort).toBe("best_match");
+    st().setFilters({ freshnessDays: 3, levels: ["junior"] });
+    st().setSort("salary");
+    st().switchFindMode("full_time");
+    expect(st().filters).toMatchObject({ skipProfile: false, workModes: ["remote"], hideInPipeline: true, freshnessDays: null, levels: [] });
+    expect(st().sort).toBe("date");
+    st().switchFindMode("part_time");
+    expect(st().filters).toMatchObject({ freshnessDays: 3, levels: ["junior"], workModes: [] });
+    expect(st().sort).toBe("salary");
+    // Typing in the box changes nothing Refine keeps: the same settings object.
+    const before = st().refine;
+    st().setFilters({ query: "barista" });
+    expect(st().refine).toBe(before);
+  });
+
+  it("persists both modes' Refine settings and restores the last-used mode's", () => {
+    const st = () => useJobsStore.getState();
+    st().setFilters({ workModes: ["hybrid"] });
+    st().switchFindMode("part_time");
+    st().setFilters({ salaryListed: true });
+    const opts = useJobsStore.persist.getOptions();
+    const saved = JSON.parse(JSON.stringify(opts.partialize!(st())));
+    const merged = opts.merge!(saved, { ...st(), refine: {}, filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } }) as ReturnType<typeof st>;
+    expect(merged.filters).toMatchObject({ skipProfile: true, salaryListed: true, workModes: [] });
+    expect(merged.refine.full_time).toMatchObject({ workModes: ["hybrid"] });
+    // Before per-mode settings: Hide Pipeline alone was kept, and still is.
+    const legacy = opts.merge!({ hideInPipeline: true, sort: "date" }, st()) as ReturnType<typeof st>;
+    expect(legacy.filters).toMatchObject({ hideInPipeline: true, skipProfile: false });
+    expect(legacy.sort).toBe("date");
+    expect(opts.merge!({ refine: { full_time: { workModes: [1, "remote"], sort: "nope" } } }, st()) as ReturnType<typeof st>).toMatchObject({ sort: "best_match", filters: { workModes: ["remote"] } });
   });
 });
