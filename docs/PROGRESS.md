@@ -481,6 +481,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Find: Part Time's Refine drops the profile role; Full Time always has a Search as (WJ-358)
 - ✅ Phones: the top bar, then the bottom bar, slide away on scrolling down and back on scrolling up (WJ-359)
 - ✅ Admin: the account menu's order and shown items, set for every user (WJ-360)
+- ✅ Admin: Menus also arranges the You page's rows (WJ-361)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
