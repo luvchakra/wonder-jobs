@@ -4,6 +4,7 @@
  * browser session, mirrors engine state into the workflow store (immutable
  * snapshots) and wires notifications/activity/analytics to run events.
  */
+import { foundNothing } from "@/domain/jobs/readiness";
 import { WorkflowEngine } from "@/domain/workflow/engine";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import { isActive, isTerminal } from "@/domain/workflow/status";
@@ -19,6 +20,12 @@ import { useAIStore } from "@/store/ai";
 import { track } from "@/lib/analytics";
 import type { AIUsageRecord } from "@/domain/ai/types";
 import { newId } from "@/lib/ids";
+
+/** The candidate left Find (another page, or another tab) while their search ran: the bell is how they'll hear. */
+function awayFromFind(): boolean {
+  if (typeof document === "undefined") return true;
+  return document.visibilityState === "hidden" || !window.location.pathname.startsWith("/app/jobs");
+}
 
 export interface StartRunInput {
   workflowId?: string;
@@ -66,8 +73,8 @@ class WorkflowService {
             track("find_completed", { runId: run.id, strong, retained: run.summary.jobsRetained, trigger: run.trigger, silent: !!run.silent });
             career.addActivity({ kind: "run_completed", title: "Search finished", subtitle: strong ? `${strong} strong match${strong === 1 ? "" : "es"}` : "No new strong matches", href: `/app/runs/${run.id}` });
             if (run.trigger !== "schedule") {
-              // A search the candidate started: always say how it went, naming what was searched, with the next step.
-              career.notify(searchFinishedNotice(run));
+              // A search the candidate started: Find shows how it went; the bell says so only when they've moved on.
+              if (awayFromFind()) career.notify(searchFinishedNotice(run));
             } else if (!run.silent && (run.config.notify === "always" || (run.config.notify === "strong_matches_only" && strong > 0))) {
               // Silence is a valid outcome for a scheduled search: only notify when there is something worth attention.
               career.notify({ category: strong ? "strong_opportunity" : "workflow_completed", title: strong ? `${strong} new strong match${strong === 1 ? "" : "es"}` : "Search finished", body: strong ? "Wonder found roles that fit your Career Profile." : "Nothing new worth your attention this time.", href: strong ? "/app/jobs?fit=strong" : `/app/runs/${run.id}` });
@@ -75,6 +82,12 @@ class WorkflowService {
             break;
           }
           case "run_failed":
+            // Nothing listed for it isn't a failure: Find says "Nothing found"; a schedule says so only if asked to every time.
+            if (foundNothing(run)) {
+              if (run.trigger === "schedule" ? run.config.notify === "always" && !run.silent : awayFromFind())
+                career.notify({ category: "workflow_completed", title: `Nothing found for “${run.config.searchCriteria.query}”`, body: "No source listed a matching job. Try other words, or fewer of them.", href: `/app/runs/${run.id}` });
+              break;
+            }
             career.notify({ category: run.error?.source && run.error.source !== "wonderjobs" ? "provider_issue" : "scheduled_run_failed", title: "Run needs attention", body: e.message, href: `/app/runs/${run.id}` });
             break;
         }

@@ -57,7 +57,8 @@ async function stopRunningSearch(timeoutMs = 5_000): Promise<void> {
 }
 
 /** A run that finished with no postings matching (not a source failure). */
-export const foundNothing = (run: WorkflowRun | undefined) => run?.status === "FAILED" && run.error?.category === "user_action_required" && /^No jobs matched/.test(run.error.message);
+import { foundNothing } from "@/domain/jobs/readiness";
+export { foundNothing };
 
 export interface JobSearch {
   readiness: Readiness;

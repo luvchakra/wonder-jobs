@@ -10,6 +10,7 @@
 import { tenantPlan } from "@/server/billing/service";
 import { WorkflowEngine, conditionMet } from "@/domain/workflow/engine";
 import { addNotification } from "@/domain/career/notifications";
+import { foundNothing } from "@/domain/jobs/readiness";
 import { advancedFrom, isDue, nextScheduledRun } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
 import { STAGES, type StageKey } from "@/domain/workflow/stages";
@@ -124,8 +125,10 @@ export async function runDueSchedules(tenantId: string, opts: RunDueOptions = {}
   recordRun(snapshot, finished);
   snapshot.workflow.schedules[schedule.id] = { ...snapshot.workflow.schedules[schedule.id], lastRunId: finished.id };
 
-  const failed = finished.status === "FAILED" || finished.status === "STOPPED";
-  const notice = failed ? notifyFailure(snapshot, advanced, finished) : notifySuccess(snapshot, advanced, workflow, finished, deferred);
+  // Nothing listed for it isn't a failure: it's said only when the search asks to hear every time.
+  const empty = foundNothing(finished);
+  const failed = !empty && (finished.status === "FAILED" || finished.status === "STOPPED");
+  const notice = empty ? notifyEmpty(snapshot, advanced, workflow, finished) : failed ? notifyFailure(snapshot, advanced, finished) : notifySuccess(snapshot, advanced, workflow, finished, deferred);
   await saveTenantDocs(snapshot, { workflow: true, career: true, jobs: outcome.jobsTouched });
   // The in-app notification is the record and is already saved; the push is only the nudge, so it goes
   // last and can never cost us the run's results.
@@ -166,6 +169,16 @@ function notifyFailure(snapshot: TenantSnapshot, schedule: WorkflowSchedule, run
     category: "scheduled_run_failed",
     title: `“${schedule.name}” didn't finish`,
     body: run.error?.message ?? "The scheduled search stopped before it completed. Nothing was lost — open it to see how far it got.",
+    href: `/app/runs/${run.id}`,
+  });
+}
+
+function notifyEmpty(snapshot: TenantSnapshot, schedule: WorkflowSchedule, workflow: Workflow, run: WorkflowRun): PushPayload | undefined {
+  if (!schedule.actions.includes("notify") || workflow.config.notify !== "always" || run.silent) return undefined;
+  return pushNotification(snapshot, {
+    category: "workflow_completed",
+    title: `“${schedule.name}” found nothing new`,
+    body: "No source listed a matching job this time. It looks again on schedule.",
     href: `/app/runs/${run.id}`,
   });
 }

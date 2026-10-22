@@ -252,6 +252,19 @@ describe("runDueSchedules", () => {
     expect(career.state.notifications[0].category).toBe("scheduled_run_failed");
   });
 
+  it("doesn't call a search no source listed anything for a failure, and says nothing unless asked to every time", async () => {
+    searchSource.mockResolvedValue({ jobs: [], cached: false });
+    await seed();
+    await runDueSchedules(TENANT, { now: later });
+    let career = (await stateStore.get(TENANT, "wj.career"))!.state as { state: CareerDoc };
+    expect(career.state.notifications.filter((n) => n.category === "scheduled_run_failed")).toHaveLength(0);
+
+    await seed({ workflows: { [workflow.id]: { ...workflow, config: { ...workflow.config, notify: "always" } } } });
+    await runDueSchedules(TENANT, { now: later });
+    career = (await stateStore.get(TENANT, "wj.career"))!.state as { state: CareerDoc };
+    expect(career.state.notifications[0]).toMatchObject({ category: "workflow_completed", title: expect.stringMatching(/found nothing new/) });
+  });
+
   it("stays silent when the schedule's condition isn't met", async () => {
     // Nothing here matches a product-manager profile well enough to be a strong match.
     searchSource.mockResolvedValue({ jobs: [job(1, { title: "Warehouse Associate", skills: ["forklift"], requirements: ["forklift"], description: "Load and unload pallets.", seniority: "junior", industry: "Logistics" })], cached: false });

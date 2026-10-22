@@ -12,7 +12,6 @@ import type { CanonicalJob } from "@/domain/jobs/types";
 import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
 import { readClientState, writeClientState } from "@/server/clientState";
-import type { PushPayload } from "@/server/push/subscriptions";
 import { PERSIST_VERSION, type CareerDoc } from "./snapshot";
 
 const DAY = 86_400_000;
@@ -32,7 +31,8 @@ interface JobsDoc {
 export interface ReminderReport {
   tenantId: string;
   raised: number;
-  pushes: PushPayload[];
+  /** What to nudge them with (each already in the bell), keyed once per reminder. */
+  notices: { notice: Pick<Notification, "category" | "title" | "body" | "href">; key: string }[];
 }
 
 export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "done" | "kind">, now: number): boolean {
@@ -48,7 +48,7 @@ export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "
  * right one.
  */
 export async function raiseDueReminders(tenantId: string, now: Date = new Date()): Promise<ReminderReport> {
-  const report: ReminderReport = { tenantId, raised: 0, pushes: [] };
+  const report: ReminderReport = { tenantId, raised: 0, notices: [] };
   const [applicationsDoc, jobsDoc, career] = await Promise.all([
     readClientState<ApplicationsDoc>(tenantId, "wj.applications"),
     readClientState<JobsDoc>(tenantId, "wj.jobs"),
@@ -90,7 +90,7 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
               href: `/app/applications/${app.id}`,
             };
       notifications.push(notification);
-      report.pushes.push({ title: notification.title, body: notification.body, url: notification.href, tag: `reminder-${f.id}` });
+      report.notices.push({ notice: { category: notification.category, title: notification.title, body: notification.body, href: notification.href }, key: `reminder-${f.id}` });
     }
   }
 

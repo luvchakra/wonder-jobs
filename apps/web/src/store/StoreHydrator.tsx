@@ -111,6 +111,21 @@ export function StoreHydrator({ children }: { children: React.ReactNode }) {
       }),
     [],
   );
+  // Back on the tab after a while: what the server added to the bell meanwhile (the morning's reminders, a
+  // company's message) shows without a reload. At most every five minutes, and only for signed-in accounts.
+  useEffect(() => {
+    let last = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || getClientMode().mode !== "user" || Date.now() - last < 5 * 60_000) return;
+      last = Date.now();
+      void fetch("/api/inbox", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((inbox) => inbox && useCareerStore.getState().mergeInbox(inbox))
+        .catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
   // Matches follow the candidate: any Career DNA change re-scores the catalog.
   useEffect(
     () =>

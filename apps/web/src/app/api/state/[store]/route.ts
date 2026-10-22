@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { isErased } from "@/server/privacy/records";
 import { rateLimit } from "@/server/rateLimit";
+import { keepServerInbox } from "@/server/notifications/inbox";
 import { isStateStoreName, MAX_STATE_BYTES, stateStore } from "@/server/state";
 
 export const runtime = "nodejs";
@@ -46,7 +47,9 @@ export async function PUT(req: Request, ctx: Ctx) {
   }
   if (!body || typeof body !== "object" || !("state" in body)) return NextResponse.json({ error: "Missing state" }, { status: 400 });
   try {
-    const doc = await stateStore.put(tenantId, store, body.state);
+    // The bell's list: what the server added since this browser last read it is kept, not overwritten.
+    const state = store === "wj.career" ? await keepServerInbox(tenantId, body.state) : body.state;
+    const doc = await stateStore.put(tenantId, store, state);
     return NextResponse.json({ version: doc.version, updatedAt: doc.updatedAt });
   } catch (e) {
     console.error("[state] save failed:", e instanceof Error ? e.message : "unknown");

@@ -79,7 +79,8 @@ export interface Notification {
     | "scheduled_run_failed"
     | "application_status"
     | "materials_ready"
-    | "job_closed";
+    | "job_closed"
+    | "recruiter_message";
   title: string;
   body: string;
   href: string;

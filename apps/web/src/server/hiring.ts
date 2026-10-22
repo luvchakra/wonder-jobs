@@ -17,7 +17,7 @@ import { touchTenant } from "./supabase";
 import { parseEmailList, sendMail } from "./notify";
 import { escapeHtml, renderEmailLayout } from "./email/layout";
 import { siteUrl } from "@/lib/siteUrl";
-import { notifyTenant } from "./push/subscriptions";
+import { deliver } from "./notifications/deliver";
 import { can, isOrgRole, type OrgPermission } from "@/domain/org/permissions";
 import { searchTalent, type TalentMatch } from "@/domain/org/talent";
 import type { Conversation, ConversationStatus, EmployerJob, EmployerJobStatus, Membership, Message, OrgInvite, OrgRole, Organization, ShortlistEntry, ShortlistStatus, TalentProfile } from "@/domain/org/types";
@@ -544,7 +544,8 @@ async function post(c: ConversationRow, sender: string, side: "org" | "candidate
   const org = await orgs().one({ id: c.org_id });
   const to = side === "org" ? c.candidate_tenant : c.started_by;
   const url = side === "org" ? `/app/recruiters?c=${c.id}` : `/app/hiring?tab=messages&c=${c.id}`;
-  await notifyTenant(to, { title: side === "org" ? `Message from ${org?.name ?? "a company"}` : "A candidate replied", body: text.slice(0, 140), url, tag: `conv:${c.id}` }).catch(() => undefined);
+  // In their bell, as a push, and by email when no push reached them (at most one email per conversation per half hour).
+  await deliver(to, { category: "recruiter_message", title: side === "org" ? `Message from ${org?.name ?? "a company"}` : "A candidate replied", body: text.slice(0, 300), href: url }, { email: { key: `conv:${c.id}`, everyMs: 30 * 60_000 } }).catch(() => undefined);
   return toMessage(row);
 }
 

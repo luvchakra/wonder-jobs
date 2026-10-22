@@ -96,9 +96,11 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
         ctx.setCounts({ discovered, sources: lake.metadata.sourcesSucceeded });
         if (!canonical.length) {
           const failed = lake.sources.filter((x) => x.outcome === "timeout" || x.outcome === "unavailable").map((x) => x.sourceName);
+          // Every source failing is a failure; sources answering with nothing is an outcome (domain/jobs/readiness.ts::foundNothing).
+          const allFailed = failed.length > 0 && !lake.metadata.sourcesSucceeded;
           ctx.fail({
-            category: "fatal",
-            message: failed.length && !lake.metadata.sourcesSucceeded ? `Every source failed (${failed.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
+            category: allFailed ? "recoverable" : "user_action_required",
+            message: allFailed ? `Every source failed (${failed.join(", ")}). The next scheduled search will try again.` : "No jobs matched your search. Widen the query or locations in this schedule.",
             actions: ["retry", "fix_config", "stop"],
           });
         }

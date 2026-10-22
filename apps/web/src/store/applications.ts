@@ -61,6 +61,8 @@ export const useApplicationsStore = create<ApplicationsState>()(
         });
         const a = get().applications[id];
         if (a && STATUS_NOTICE[status]) useCareerStore.getState().notify(statusNotice(a, status));
+        // Past applying: "Applying to … — tell Wonder when you've submitted" has been answered.
+        if (a && !["saved", "preparing", "ready_for_review", "unknown"].includes(status)) useCareerStore.getState().markReadLinkingTo(`/app/jobs/${a.jobId}/apply`);
         // Applying is the strongest evidence of what the candidate wants: learned like saving.
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
