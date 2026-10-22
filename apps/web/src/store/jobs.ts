@@ -17,6 +17,7 @@ export function interactionFor(job: CanonicalJob, kind: InteractionRecord["kind"
   return { jobId: job.id, at: new Date().toISOString(), kind, industry: job.industry, workMode: job.workMode, title: job.title, company: job.company };
 }
 import { track } from "@/lib/analytics";
+import { DEFAULT_REFINE, FIND_MODE_PATCH, findModeOf, readRefine, refineOf, sameRefine, type FindMode, type RefineSettings } from "@/domain/jobs/findMode";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
 
@@ -81,6 +82,10 @@ interface JobsState {
   unreject: (jobId: string) => void;
   setFilters: (patch: Partial<JobFilters>) => void;
   setSort: (sort: JobSort) => void;
+  /** Each Find mode's own Refine settings, kept between sessions (findMode.ts). */
+  refine: Partial<Record<FindMode, RefineSettings>>;
+  /** Find's slider: that mode's filters, with its own Refine settings back. */
+  switchFindMode: (mode: FindMode) => void;
   setSourceEnabled: (id: string, enabled: boolean) => void;
   /** From the server: which sources this deployment can query. */
   setSourceAvailability: (available: Record<string, boolean>) => void;
@@ -96,6 +101,25 @@ const PERSISTED_CATALOG = 300;
 const PERSISTED_DESCRIPTION = 1500;
 /** How many of the profile's results set aside under a typed search are kept between sessions. */
 const PERSISTED_ASIDE = 150;
+
+/** New filters or sort, and what they set in Refine kept for their mode (the same object while nothing in it changed). */
+function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<JobsState, "filters" | "sort" | "refine"> {
+  const mode = findModeOf(filters);
+  const now = refineOf(filters, sort);
+  return { filters, sort, refine: sameRefine(s.refine[mode], now) ? s.refine : { ...s.refine, [mode]: now } };
+}
+
+function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipProfile?: boolean; sort?: JobSort }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort"> {
+  const raw = (p.refine && typeof p.refine === "object" ? p.refine : {}) as Record<string, unknown>;
+  const refine: JobsState["refine"] = {};
+  for (const m of ["full_time", "part_time"] as const) {
+    const r = readRefine(raw[m]);
+    if (r) refine[m] = r;
+  }
+  const mode: FindMode = p.skipProfile ? "part_time" : "full_time";
+  const { sort, ...narrowing } = refine[mode] ?? { ...DEFAULT_REFINE, hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? DEFAULT_REFINE.sort };
+  return { refine, sort, filters: { ...filters, ...narrowing, ...FIND_MODE_PATCH[mode] } };
+}
 
 /** How many of Part Time's searches the history keeps. */
 export const RECENT_SEARCHES = 5;
@@ -275,8 +299,15 @@ export const useJobsStore = create<JobsState>()(
         get().rescore();
       },
       restoreJobs: (list) => set((s) => ({ jobs: { ...Object.fromEntries(list.map((j) => [j.id, j])), ...s.jobs } })),
-      setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
-      setSort: (sort) => set({ sort }),
+      setFilters: (patch) => set((s) => withRefine(s, { ...s.filters, ...patch }, s.sort)),
+      setSort: (sort) => set((s) => withRefine(s, s.filters, sort)),
+      refine: {},
+      switchFindMode: (mode) =>
+        set((s) => {
+          const kept = s.refine[mode] ?? DEFAULT_REFINE;
+          const { sort, ...narrowing } = kept;
+          return withRefine(s, { ...s.filters, ...narrowing, ...FIND_MODE_PATCH[mode] }, sort);
+        }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
       setSourceAvailability: (available) =>
         set((s) => ({
@@ -295,7 +326,8 @@ export const useJobsStore = create<JobsState>()(
       version: 2,
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: Array.isArray(p.recentSearches) ? p.recentSearches.filter((x) => typeof x === "string").slice(0, RECENT_SEARCHES) : [], filters: { ...current.filters, ...(p.hideInPipeline ? { hideInPipeline: true } : {}), ...(p.skipProfile ? { skipProfile: true } : {}) } };
+        // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: Array.isArray(p.recentSearches) ? p.recentSearches.filter((x) => typeof x === "string").slice(0, RECENT_SEARCHES) : [], ...restoredRefine(p, current.filters) };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -305,7 +337,7 @@ export const useJobsStore = create<JobsState>()(
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },

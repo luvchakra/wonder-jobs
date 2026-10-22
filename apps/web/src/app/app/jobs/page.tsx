@@ -11,7 +11,7 @@ import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
 import { SlideToggle } from "@/components/common/SlideToggle";
-import { FIND_MODES, FIND_MODE_PATCH, findModeOf, type FindMode } from "@/domain/jobs/findMode";
+import { FIND_MODES, findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
@@ -70,7 +70,8 @@ function JobsHome() {
   const mode = useJobsStore((s) => findModeOf(s.filters));
   const switchMode = (m: FindMode) => {
     const s = useJobsStore.getState();
-    s.setFilters(FIND_MODE_PATCH[m]);
+    // That mode's filters, with the Refine settings the candidate last left in it.
+    s.switchFindMode(m);
     // Each mode shows its own results, as they were (nothing is searched): Full Time the profile's,
     // Part Time its last typed search's — or, before one, a prompt to type (JobsBoard).
     if (m === "full_time" && s.searchedFor) s.restoreProfileCatalog();

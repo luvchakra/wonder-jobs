@@ -1,4 +1,4 @@
-import type { JobFilters } from "./types";
+import type { JobFilters, JobSort } from "./types";
 import type { JobType } from "./jobType";
 
 /**
@@ -41,3 +41,46 @@ export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIM
 
 /** A chip's own word: in Full Time, "Full-time" would only repeat the mode, so it reads "Permanent". */
 export const modeJobTypeLabel = (t: JobType, label: string): string => (t === "full_time" ? "Permanent" : label);
+
+/**
+ * What the candidate set in Refine — the sort and the narrowing filters — kept for each mode separately and
+ * between sessions (owner, 2026-10-22): switching modes brings back that mode's own settings.
+ */
+export type RefineSettings = Required<Pick<JobFilters, "workModes" | "levels" | "company" | "salaryListed" | "strictProfile" | "hideInPipeline" | "sourceIds" | "freshnessDays">> & Pick<JobFilters, "minSalary"> & { sort: JobSort };
+
+/** A mode nothing was set in yet: Refine as it starts. */
+export const DEFAULT_REFINE: RefineSettings = { workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, sort: "best_match" };
+
+export const refineOf = (f: JobFilters, sort: JobSort): RefineSettings => ({
+  workModes: f.workModes,
+  levels: f.levels ?? [],
+  company: f.company ?? "",
+  salaryListed: !!f.salaryListed,
+  strictProfile: !!f.strictProfile,
+  hideInPipeline: !!f.hideInPipeline,
+  sourceIds: f.sourceIds,
+  freshnessDays: f.freshnessDays ?? null,
+  minSalary: f.minSalary,
+  sort,
+});
+
+export const sameRefine = (a: RefineSettings | undefined, b: RefineSettings): boolean => !!a && JSON.stringify(a) === JSON.stringify(b);
+
+/** Read back from storage: only the known fields, with their types, and Refine's start for anything else. */
+export function readRefine(raw: unknown): RefineSettings | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  return {
+    workModes: strings(r.workModes) as RefineSettings["workModes"],
+    levels: strings(r.levels) as RefineSettings["levels"],
+    company: typeof r.company === "string" ? r.company : "",
+    salaryListed: r.salaryListed === true,
+    strictProfile: r.strictProfile === true,
+    hideInPipeline: r.hideInPipeline === true,
+    sourceIds: strings(r.sourceIds),
+    freshnessDays: typeof r.freshnessDays === "number" ? r.freshnessDays : null,
+    minSalary: typeof r.minSalary === "number" ? r.minSalary : undefined,
+    sort: r.sort === "date" || r.sort === "salary" ? r.sort : "best_match",
+  };
+}
