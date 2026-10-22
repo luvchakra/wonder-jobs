@@ -76,6 +76,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
     links: [
       { href: `${LAKE}/settings`, label: "Settings" },
       { href: `${LAKE}/menus`, label: "Menus" },
+      { href: `${LAKE}/notifications`, label: "Notifications" },
     ],
   },
 ];

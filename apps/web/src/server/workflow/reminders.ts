@@ -35,11 +35,11 @@ export interface ReminderReport {
   notices: { notice: Pick<Notification, "category" | "title" | "body" | "href">; key: string }[];
 }
 
-export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "done" | "kind">, now: number): boolean {
+export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "done" | "kind">, now: number, leads: Record<ApplicationFollowUp["kind"], number> = LEAD_TIME): boolean {
   if (followUp.done) return false;
   const dueIn = new Date(followUp.dueAt).getTime() - now;
   if (!Number.isFinite(dueIn)) return false;
-  return dueIn <= LEAD_TIME[followUp.kind] && dueIn >= -OVERDUE_GRACE;
+  return dueIn <= leads[followUp.kind] && dueIn >= -OVERDUE_GRACE;
 }
 
 /**
@@ -47,7 +47,7 @@ export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "
  * push. Returns an empty report when there is nothing to say — silence is the common case and the
  * right one.
  */
-export async function raiseDueReminders(tenantId: string, now: Date = new Date()): Promise<ReminderReport> {
+export async function raiseDueReminders(tenantId: string, now: Date = new Date(), leads: Record<ApplicationFollowUp["kind"], number> = LEAD_TIME): Promise<ReminderReport> {
   const report: ReminderReport = { tenantId, raised: 0, notices: [] };
   const [applicationsDoc, jobsDoc, career] = await Promise.all([
     readClientState<ApplicationsDoc>(tenantId, "wj.applications"),
@@ -64,7 +64,7 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
 
   for (const app of applications) {
     for (const f of app.followUps ?? []) {
-      if (reminded.has(f.id) || !isDueForReminder(f, now.getTime())) continue;
+      if (reminded.has(f.id) || !isDueForReminder(f, now.getTime(), leads)) continue;
       reminded.add(f.id);
       const job = jobs[app.jobId];
       const company = job?.company ?? "employer";

@@ -4,12 +4,10 @@
  * browser session, mirrors engine state into the workflow store (immutable
  * snapshots) and wires notifications/activity/analytics to run events.
  */
-import { foundNothing } from "@/domain/jobs/readiness";
 import { WorkflowEngine } from "@/domain/workflow/engine";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import { isActive, isTerminal } from "@/domain/workflow/status";
 import type { RunConfig, WorkflowRun } from "@/domain/workflow/types";
-import type { Notification } from "@/domain/career/types";
 import { FallbackProvider, TemplateAIService, WonderJobsAIProvider, type AIService } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { createExecutors, inheritCaches, seedCachesFromCatalog } from "./executors";
@@ -20,6 +18,7 @@ import { useAIStore } from "@/store/ai";
 import { track } from "@/lib/analytics";
 import type { AIUsageRecord } from "@/domain/ai/types";
 import { newId } from "@/lib/ids";
+import { completedRunNotice, failedRunNotice, fallbackNotice, waitingNotice } from "./runNotices";
 
 /** The candidate left Find (another page, or another tab) while their search ran: the bell is how they'll hear. */
 function awayFromFind(): boolean {
@@ -65,31 +64,22 @@ class WorkflowService {
           case "stage_waiting":
             track("workflow_waiting_for_user", { runId: run.id, stage: e.stageKey });
             track("wonder_intervention_requested", { runId: run.id, stage: e.stageKey });
-            career.notify({ category: "workflow_requires_input", title: "Wonder needs your input", body: e.message, href: `/app/runs/${run.id}` });
+            career.notify(waitingNotice(run, e.message));
             break;
           case "run_completed": {
             if (run.trigger === "schedule") track("scheduled_run_completed", { runId: run.id, silent: !!run.silent });
             const strong = run.summary.strongMatches;
             track("find_completed", { runId: run.id, strong, retained: run.summary.jobsRetained, trigger: run.trigger, silent: !!run.silent });
             career.addActivity({ kind: "run_completed", title: "Search finished", subtitle: strong ? `${strong} strong match${strong === 1 ? "" : "es"}` : "No new strong matches", href: `/app/runs/${run.id}` });
-            if (run.trigger !== "schedule") {
-              // A search the candidate started: Find shows how it went; the bell says so only when they've moved on.
-              if (awayFromFind()) career.notify(searchFinishedNotice(run));
-            } else if (!run.silent && (run.config.notify === "always" || (run.config.notify === "strong_matches_only" && strong > 0))) {
-              // Silence is a valid outcome for a scheduled search: only notify when there is something worth attention.
-              career.notify({ category: strong ? "strong_opportunity" : "workflow_completed", title: strong ? `${strong} new strong match${strong === 1 ? "" : "es"}` : "Search finished", body: strong ? "Wonder found roles that fit your Career Profile." : "Nothing new worth your attention this time.", href: strong ? "/app/jobs?fit=strong" : `/app/runs/${run.id}` });
-            }
+            const notice = completedRunNotice(run, awayFromFind());
+            if (notice) career.notify(notice);
             break;
           }
-          case "run_failed":
-            // Nothing listed for it isn't a failure: Find says "Nothing found"; a schedule says so only if asked to every time.
-            if (foundNothing(run)) {
-              if (run.trigger === "schedule" ? run.config.notify === "always" && !run.silent : awayFromFind())
-                career.notify({ category: "workflow_completed", title: `Nothing found for “${run.config.searchCriteria.query}”`, body: "No source listed a matching job. Try other words, or fewer of them.", href: `/app/runs/${run.id}` });
-              break;
-            }
-            career.notify({ category: run.error?.source && run.error.source !== "wonderjobs" ? "provider_issue" : "scheduled_run_failed", title: "Run needs attention", body: e.message, href: `/app/runs/${run.id}` });
+          case "run_failed": {
+            const notice = failedRunNotice(run, e.message, awayFromFind());
+            if (notice) career.notify(notice);
             break;
+          }
         }
       },
     });
@@ -112,7 +102,7 @@ class WorkflowService {
     const cost = { anthropic: { input: 5, output: 25 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } }[snapshot.provider];
     const primary = new RemoteBYOKProvider(snapshot.provider, snapshot.model ?? "");
     const provider = new FallbackProvider(primary, new WonderJobsAIProvider(), () => useAIStore.getState().config.allowPlatformFallback, (reason) =>
-      useCareerStore.getState().notify({ category: "provider_issue", title: `Switched to WonderJobs AI for one request`, body: `${reason} You allowed automatic fallback in AI settings.`, href: "/app/settings/ai" }),
+      useCareerStore.getState().notify(fallbackNotice(reason)),
     );
     return new TemplateAIService(provider, record, cost);
   }
@@ -213,12 +203,4 @@ export function getWorkflowService() {
   return instance;
 }
 
-/** How a search the candidate started went, as one actionable notification. Distinct per query, so searches don't fold into one. */
-export function searchFinishedNotice(run: Pick<WorkflowRun, "id" | "summary" | "config">): Omit<Notification, "id" | "at" | "read"> {
-  const q = run.config.searchCriteria.query.trim();
-  const what = q ? ` for “${q}”` : "";
-  const { strongMatches: strong, jobsRetained: found } = run.summary;
-  if (strong) return { category: "strong_opportunity", title: `${strong} strong match${strong === 1 ? "" : "es"}${what}`, body: `Out of ${found} job${found === 1 ? "" : "s"} found. The best fits are at the top.`, href: "/app/jobs?fit=strong", action: "Review matches" };
-  if (found) return { category: "workflow_completed", title: `${found} job${found === 1 ? "" : "s"} found${what}`, body: "None is a strong match yet; the closest are at the top.", href: "/app/jobs", action: "See jobs" };
-  return { category: "workflow_completed", title: `No jobs found${what}`, body: "Try fewer words or more places.", href: `/app/runs/${run.id}`, action: "Change search" };
-}
+export { searchFinishedNotice } from "./runNotices";

@@ -7,6 +7,8 @@
 import { nudge } from "@/server/notifications/deliver";
 import { listTenantsWithDueReminders } from "./dueTenants";
 import { raiseDueReminders } from "./reminders";
+import { reminderLeads } from "@/domain/notifications/admin";
+import { loadNotifyAdmin } from "@/server/notifications/admin";
 
 export interface ReminderPassReport {
   tenants: number;
@@ -16,10 +18,12 @@ export interface ReminderPassReport {
 
 export async function runReminderPass(now: Date, maxTenants: number, deadline: number): Promise<ReminderPassReport> {
   const report: ReminderPassReport = { tenants: 0, raised: 0, failures: [] };
+  // How early reminders are raised: the platform's setting (Admin → Settings → Notifications).
+  const leads = reminderLeads(await loadNotifyAdmin());
   for (const tenantId of await listTenantsWithDueReminders(now, maxTenants)) {
     if (Date.now() > deadline) break;
     try {
-      const r = await raiseDueReminders(tenantId, now);
+      const r = await raiseDueReminders(tenantId, now, leads);
       if (!r.raised) continue;
       report.tenants++;
       report.raised += r.raised;

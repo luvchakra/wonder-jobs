@@ -1,0 +1,47 @@
+import { test, expect } from "@playwright/test";
+
+/**
+ * Notification center (WJ-364): the bell's "Notification center" opens every notification with its choices;
+ * Unread filters, Mark all read clears the count, and an item's action opens where it points.
+ */
+test.describe("Notification center", () => {
+  test("opens from the bell, filters unread, marks all read and keeps your choices on the same page", async ({ page }) => {
+    await page.goto(`/demo?next=${encodeURIComponent("/app")}`);
+    await page.waitForURL(/\/app$/, { timeout: 20_000 });
+    await page.getByRole("button", { name: /^Notifications, \d+ unread/ }).click();
+    await page.getByRole("dialog", { name: "Notifications" }).getByRole("link", { name: "Notification center" }).click();
+    await page.waitForURL(/\/app\/notifications$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Notifications" })).toBeVisible();
+
+    const list = page.getByRole("list", { name: "Notifications" });
+    await expect(list.getByRole("listitem").first()).toBeVisible();
+    const show = page.getByRole("group", { name: "Show" });
+    await show.getByRole("button", { name: /^Unread · \d+$/ }).click();
+    // Reminders can arrive while the page is open: the list always matches the chip's live count.
+    const unreadCount = async () => Number((await show.getByRole("button", { name: /^Unread/ }).innerText()).replace(/\D/g, ""));
+    await expect.poll(async () => (await list.getByRole("listitem").count()) === (await unreadCount())).toBe(true);
+
+    // Mark all read clears what's there; a reminder raised a moment later is new, so press it again until none is left.
+    await expect(async () => {
+      const mark = page.getByRole("button", { name: "Mark all read" });
+      if (await mark.isVisible()) await mark.click();
+      await expect(page.getByText("Nothing unread")).toBeVisible({ timeout: 1_500 });
+    }).toPass({ timeout: 15_000 });
+    await expect(show.getByRole("button", { name: "Unread", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Notifications, \d+ unread/ })).toHaveCount(0);
+    await show.getByRole("button", { name: "All" }).click();
+    await expect(list.getByRole("listitem").first()).toBeVisible();
+
+    await expect(page.getByRole("heading", { level: 2, name: "Your choices" })).toBeVisible();
+    // Demo mode keeps no account, so there's nothing to choose yet — it says so rather than showing an empty section.
+    await expect(page.getByText("Sign in to choose what WonderJobs sends you by push and email.")).toBeVisible();
+  });
+
+  test("the account menu's Notifications & email lands on it", async ({ page }) => {
+    await page.goto(`/demo?next=${encodeURIComponent("/app/profile")}`);
+    await page.waitForURL(/\/app\/profile$/, { timeout: 20_000 });
+    await page.getByRole("link", { name: /Notifications & email/ }).first().click();
+    await page.waitForURL(/\/app\/notifications(#choices)?$/);
+    await expect(page.getByRole("heading", { level: 2, name: "Your choices" })).toBeVisible();
+  });
+});

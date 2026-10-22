@@ -1,15 +1,13 @@
 "use client";
 import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, LogOut } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
-import { DigestEmailCard } from "@/components/account/DigestEmailCard";
-import { PushNotifications } from "@/components/pwa/PushNotifications";
-import { NotifyPrefsCard } from "@/components/account/NotifyPrefsCard";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
 import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
@@ -131,10 +129,15 @@ function ProfileInner() {
         </div>
       </Card>
       <CloudSyncCard />
+      {/* Every choice about what you're told now lives in the Notification center. */}
       <div id="notifications" className="scroll-mt-20">
-        <PushNotifications />
-        <NotifyPrefsCard />
-        <DigestEmailCard />
+        <Link href="/app/notifications#choices" className="mt-4 flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">
+          <span>
+            Notifications &amp; email
+            <span className="block text-[12px] text-ink-3">Push, email and the activity email — in the Notification center</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
+        </Link>
       </div>
       <PlanCard returnState={billingReturn} />
       <ConnectionsCard />
