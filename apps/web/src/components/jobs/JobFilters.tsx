@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
@@ -51,6 +51,33 @@ const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[]
   { value: "lead", label: "Lead" },
   { value: "director", label: "Director+" },
 ];
+
+/** The last few searches under a box while it has focus: a tap uses one, × forgets it. */
+function RecentSearches({ items, onPick, onForget }: { items: string[]; onPick: (t: string) => void; onForget: (t: string) => void }) {
+  if (!items.length) return null;
+  return (
+    // Taps here mustn't take the focus from the box first (that would close the list before the tap lands).
+    <ul aria-label="Recent searches" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
+      {items.map((t) => (
+        <li key={t} className="flex items-center">
+          <button type="button" onClick={() => onPick(t)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left text-[14px] text-ink hover:bg-bg-soft">
+            <History className="size-4 shrink-0 text-ink-4" aria-hidden />
+            <span className="truncate">{t}</span>
+          </button>
+          <button type="button" aria-label={`Remove “${t}” from recent searches`} onClick={() => onForget(t)} className="mr-1 grid size-11 shrink-0 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-ink">
+            <X className="size-4" aria-hidden />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** What's typed, against a history: the ones containing it, not itself. */
+const historyFor = (items: string[], text: string) => {
+  const now = text.trim().toLowerCase();
+  return items.filter((t) => t.toLowerCase() !== now && (!now || t.toLowerCase().includes(now)));
+};
 
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
@@ -112,8 +139,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   const recentSearches = useJobsStore((s) => s.recentSearches);
   const forgetSearch = useJobsStore((s) => s.forgetSearch);
   const [boxFocused, setBoxFocused] = useState(false);
-  const typedNow = draft.trim().toLowerCase();
-  const history = recentSearches.filter((t) => t.toLowerCase() !== typedNow && (!typedNow || t.toLowerCase().includes(typedNow)));
+  const history = historyFor(recentSearches, draft);
   // Applies what's in the box and the Where field to the list.
   const commit = (text = draft) => onChange({ query: text, locations: splitPlaces(where) });
   // Search: Part Time the typed words (or a history item's), Full Time the Career Profile's own search.
@@ -180,30 +206,17 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             )}
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
-          {boxFocused && history.length > 0 && (
-            // Taps here mustn't take the focus from the box first (that would close the list before the tap lands).
-            <ul aria-label="Recent searches" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
-              {history.map((t) => (
-                <li key={t} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraft(t);
-                      setBoxFocused(false);
-                      (document.activeElement as HTMLElement | null)?.blur();
-                      submit(t);
-                    }}
-                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left text-[14px] text-ink hover:bg-bg-soft"
-                  >
-                    <History className="size-4 shrink-0 text-ink-4" aria-hidden />
-                    <span className="truncate">{t}</span>
-                  </button>
-                  <button type="button" aria-label={`Remove “${t}” from recent searches`} onClick={() => forgetSearch(t)} className="mr-1 grid size-11 shrink-0 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-ink">
-                    <X className="size-4" aria-hidden />
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {boxFocused && (
+            <RecentSearches
+              items={history}
+              onPick={(t) => {
+                setDraft(t);
+                setBoxFocused(false);
+                (document.activeElement as HTMLElement | null)?.blur();
+                submit(t);
+              }}
+              onForget={(t) => forgetSearch(t)}
+            />
           )}
         </div>
         )}
@@ -369,31 +382,66 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
 /** Saved's own filter row (Saved has no Refine): the words narrow the saved jobs as they're typed; the job types and Hide Pipeline. */
 function ShortlistFilters({ text, onText, filters, onChange, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const dictation = useDictation({ textAtStart: () => text, onText });
+  const recent = useJobsStore((s) => s.recentSavedSearches);
+  const [focused, setFocused] = useState(false);
+  // Enter (or the arrow): the words stay as the filter, go into Saved's history and the keyboard closes.
+  const enter = (t = text) => {
+    useJobsStore.getState().rememberSearch(t, "saved");
+    setFocused(false);
+    (document.activeElement as HTMLElement | null)?.blur();
+  };
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="relative min-w-0">
+      <form
+        className="relative min-w-0"
+        onSubmit={(e) => {
+          e.preventDefault();
+          enter();
+        }}
+      >
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
+        {/* A plain text box: the browser's own clear button would be a second ×. */}
         <Input
-          type="search"
+          inputMode="search"
           value={text}
           onChange={(e) => {
             onText(e.target.value);
             if (dictation.listening) dictation.rebase(e.target.value);
           }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setFocused(false);
+          }}
           placeholder="Filter saved jobs"
           aria-label="Filter saved jobs"
-          enterKeyHint="done"
-          className={cn("h-11 rounded-full pl-10 sm:h-12", dictation.supported ? "pr-20" : "pr-10")}
+          enterKeyHint="search"
+          className={cn("h-11 rounded-full pl-10 sm:h-12", text ? (dictation.supported ? "pr-28" : "pr-20") : dictation.supported ? "pr-12" : "pr-4")}
         />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
           {text && (
             <button type="button" aria-label="Clear filter" onClick={() => onText("")} className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink">
               <X className="size-4" aria-hidden />
             </button>
           )}
+          {text.trim() && (
+            <button type="submit" aria-label="Enter" className="grid size-8 place-items-center rounded-full bg-brand-600 text-white hover:bg-brand-700">
+              <ArrowRight className="size-4" aria-hidden />
+            </button>
+          )}
           {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what to look for in your saved jobs" />}
         </div>
-      </div>
+        {focused && (
+          <RecentSearches
+            items={historyFor(recent, text)}
+            onPick={(t) => {
+              onText(t);
+              enter(t);
+            }}
+            onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")}
+          />
+        )}
+      </form>
       <JobTypeChips filters={filters} onChange={onChange} />
       <label className={cn("inline-flex h-9 cursor-pointer select-none items-center gap-1.5 self-start rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
         <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />

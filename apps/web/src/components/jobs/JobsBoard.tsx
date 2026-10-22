@@ -11,6 +11,7 @@ import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
 import { JobCard } from "@/components/jobs/JobCard";
 import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
+import { savedTextMatches } from "@/domain/jobs/savedText";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { fieldTerms } from "@/services/jobs/matching";
@@ -92,7 +93,8 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const filtersKey = JSON.stringify({ ...filters, query: "" });
   const effective = useMemo(() => {
     const f = JSON.parse(filtersKey) as typeof filters;
-    return { ...f, query, onlySaved: savedOnly, minFit: savedOnly ? null : f.minFit };
+    // Saved's words are its own plain look-up (savedTextMatches below), not Find's search.
+    return { ...f, query: savedOnly ? "" : query, onlySaved: savedOnly, minFit: savedOnly ? null : f.minFit };
   }, [filtersKey, query, savedOnly]);
   // "Posted more than two weeks ago" and the freshness window don't need a minute's precision: re-check hourly.
   const hour = Math.floor(now / 3_600_000) * 3_600_000;
@@ -102,7 +104,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const inPipeline = useMemo(() => new Set([...appByJob.values()].filter((a) => a.status !== "saved").map((a) => a.jobId)), [appByJob]);
   const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, hour, field, inPipeline), [order, jobs, matches, rejected, saved, effective, hour, field, inPipeline]);
   const results = useMemo(() => {
-    const list = [...filterResult.visibleIds];
+    const list = savedOnly && query.trim() ? filterResult.visibleIds.filter((id) => savedTextMatches(jobs[id], query)) : [...filterResult.visibleIds];
     list.sort((a, b) => {
       if (sort === "date") return jobs[b].postedAt.localeCompare(jobs[a].postedAt);
       if (sort === "salary") return (jobs[b].salaryMax ?? 0) - (jobs[a].salaryMax ?? 0);
@@ -112,7 +114,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       return score(b) - score(a) || jobs[b].postedAt.localeCompare(jobs[a].postedAt);
     });
     return list;
-  }, [filterResult, jobs, matches, sort]);
+  }, [filterResult, jobs, matches, sort, savedOnly, query]);
 
   const visible = results.slice(0, limit);
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.

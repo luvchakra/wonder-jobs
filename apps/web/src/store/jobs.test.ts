@@ -206,4 +206,17 @@ describe("Refine, per Find mode", () => {
     expect(legacy.sort).toBe("date");
     expect(opts.merge!({ refine: { full_time: { workModes: [1, "remote"], sort: "nope" } } }, st()) as ReturnType<typeof st>).toMatchObject({ sort: "best_match", filters: { workModes: ["remote"] } });
   });
+
+  it("keeps Saved's filter history apart from Find's", () => {
+    useJobsStore.setState({ recentSearches: [], recentSavedSearches: [] });
+    const { rememberSearch, forgetSearch } = useJobsStore.getState();
+    rememberSearch("barista");
+    rememberSearch("interactive", "saved");
+    rememberSearch("Interactive", "saved");
+    expect(useJobsStore.getState().recentSearches).toEqual(["barista"]);
+    expect(useJobsStore.getState().recentSavedSearches).toEqual(["Interactive"]);
+    forgetSearch("Interactive", "saved");
+    expect(useJobsStore.getState().recentSavedSearches).toEqual([]);
+    expect(useJobsStore.getState().recentSearches).toEqual(["barista"]);
+  });
 });

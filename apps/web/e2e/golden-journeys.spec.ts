@@ -218,8 +218,10 @@ test.describe("Golden journey — search (demo mode)", () => {
       if (r.url().includes("/api/jobs-lake/v1/search")) searches++;
     });
     await page.goto("/app/saved");
-    const box = page.getByRole("searchbox", { name: "Filter saved jobs" });
+    const box = page.getByRole("textbox", { name: "Filter saved jobs" });
     await expect(box).toBeVisible();
+    // A plain text box: no second, browser-drawn ×.
+    expect(await box.getAttribute("type")).not.toBe("search");
     const saved = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
     // The demo account comes with saved jobs of its own; these two are among them.
     await expect(saved.first()).toBeVisible();
@@ -235,6 +237,19 @@ test.describe("Golden journey — search (demo mode)", () => {
       expect(n).toBeLessThan(all);
     }).toPass({ timeout: 5_000 });
     for (const card of await saved.all()) await expect(card).toContainText(companies[0]);
+    // The start of a word is enough, as it's typed ("int" → "Interactive").
+    const start = companies[0].slice(0, 3);
+    await box.fill(start);
+    await expect(async () => expect(await saved.count()).toBeGreaterThan(0)).toPass({ timeout: 5_000 });
+    // Enter (the arrow) keeps the words in Saved's history: shown on focus, × removes them.
+    await box.fill(companies[0]);
+    await page.getByRole("button", { name: "Enter", exact: true }).click();
+    await box.fill("");
+    await box.focus();
+    const recent = page.getByRole("list", { name: "Recent searches" });
+    await expect(recent.getByRole("button", { name: companies[0], exact: true })).toBeVisible();
+    await recent.getByRole("button", { name: `Remove “${companies[0]}” from recent searches` }).click();
+    await expect(recent).toHaveCount(0);
     await box.fill("zzzz-no-such-job");
     await expect(page.getByText(/No saved job matches “zzzz-no-such-job”/)).toBeVisible();
     await page.getByRole("button", { name: "Clear", exact: true }).click();

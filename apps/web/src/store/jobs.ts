@@ -50,9 +50,11 @@ interface JobsState {
   /** Part Time's last few searches, newest first (owner, 2026-10-22): only what the candidate typed and searched. */
   recentSearches: string[];
   /** A typed search ran: it goes to the top of the history (once, whatever its case). */
-  rememberSearch: (text: string) => void;
+  rememberSearch: (text: string, where?: SearchHistoryOf) => void;
   /** The candidate's × on one history item. */
-  forgetSearch: (text: string) => void;
+  forgetSearch: (text: string, where?: SearchHistoryOf) => void;
+  /** Saved's own last few filter words, newest first, kept apart from Find's. */
+  recentSavedSearches: string[];
   loadInitial: () => void;
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
@@ -121,8 +123,13 @@ function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipPro
   return { refine, sort, filters: { ...filters, ...narrowing, ...FIND_MODE_PATCH[mode] } };
 }
 
-/** How many of Part Time's searches the history keeps. */
+/** How many searches each history keeps. */
 export const RECENT_SEARCHES = 5;
+
+/** Which box a search history belongs to: Find's Part Time search, or Saved's filter. */
+export type SearchHistoryOf = "find" | "saved";
+const HISTORY_KEY = { find: "recentSearches", saved: "recentSavedSearches" } as const satisfies Record<SearchHistoryOf, keyof JobsState>;
+const readHistory = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, RECENT_SEARCHES) : []);
 
 export const useJobsStore = create<JobsState>()(
   persist(
@@ -155,13 +162,15 @@ export const useJobsStore = create<JobsState>()(
       loaded: false,
       searchedFor: "",
       recentSearches: [],
-      rememberSearch: (text) =>
+      recentSavedSearches: [],
+      rememberSearch: (text, where = "find") =>
         set((s) => {
           const t = text.replace(/\s+/g, " ").trim().slice(0, 80);
           if (!t) return {};
-          return { recentSearches: [t, ...s.recentSearches.filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, RECENT_SEARCHES) };
+          const key = HISTORY_KEY[where];
+          return { [key]: [t, ...s[key].filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, RECENT_SEARCHES) };
         }),
-      forgetSearch: (text) => set((s) => ({ recentSearches: s.recentSearches.filter((x) => x !== text) })),
+      forgetSearch: (text, where = "find") => set((s) => ({ [HISTORY_KEY[where]]: s[HISTORY_KEY[where]].filter((x) => x !== text) })),
       loadInitial: () => {
         if (get().loaded) return;
         if (getClientMode().mode === "user") {
@@ -327,7 +336,7 @@ export const useJobsStore = create<JobsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: Array.isArray(p.recentSearches) ? p.recentSearches.filter((x) => typeof x === "string").slice(0, RECENT_SEARCHES) : [], ...restoredRefine(p, current.filters) };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -337,7 +346,7 @@ export const useJobsStore = create<JobsState>()(
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
+        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },
