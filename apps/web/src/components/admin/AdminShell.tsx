@@ -69,7 +69,15 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: "/platform/billing/history", label: "History" },
     ],
   },
-  { id: "settings", label: "Settings", icon: Settings, links: [{ href: `${LAKE}/settings`, label: "Settings" }] },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    links: [
+      { href: `${LAKE}/settings`, label: "Settings" },
+      { href: `${LAKE}/account-menu`, label: "Account menu" },
+    ],
+  },
 ];
 
 /** The page a path belongs to: the longest link that it is, or sits under. The Overview matches only itself. */
