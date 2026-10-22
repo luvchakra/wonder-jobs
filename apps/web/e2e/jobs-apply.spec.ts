@@ -364,13 +364,25 @@ web.describe("JobsApply in WonderJobs", () => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
   });
 
-  web("APPLY-001/002: Apply with Wonder is offered where a résumé exists, and explained where it doesn't", async ({ page }) => {
+  web("APPLY-001/002: Easy Apply on a computer where a résumé exists, explained where it doesn't; Apply opens the listing on a phone", async ({ page }, info) => {
     await page.goto(`/demo?next=/app/jobs/${JOB}`);
-    await expect(page.getByRole("link", { name: "Apply with Wonder" })).toBeVisible({ timeout: 30_000 });
-    // Without any résumé, Apply with Wonder isn't offered at all; preparing the application is the next step.
+    if (info.project.name === "Mobile Chrome") {
+      // Phones and tablets don't fill the employer's form: Apply opens the listing itself, in a new tab.
+      const apply = page.getByRole("link", { name: "Apply", exact: true });
+      await expect(apply).toBeVisible({ timeout: 30_000 });
+      await expect(apply).toHaveAttribute("target", "_blank");
+      await expect(apply).toHaveAttribute("href", /^https?:\/\//);
+      await expect(page.getByRole("link", { name: "Easy Apply" })).toHaveCount(0);
+      return;
+    }
+    await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
+    // No extension in this browser: Easy Apply says it needs one, and offers the listing itself instead.
+    await expect(page.getByText("Easy Apply needs the WonderJobs browser extension.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
+    // Without any résumé, Easy Apply isn't offered at all; a customized résumé is the next step.
     await page.goto("/app/jobs/job_airbnb_pm");
-    await expect(page.getByRole("button", { name: "Prepare application" })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole("link", { name: "Apply with Wonder" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Generate Customized Resume" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("link", { name: "Easy Apply" })).toHaveCount(0);
   });
 
   web("GJ5 / APPLY-006: an application already submitted is flagged before anything starts", async ({ page }) => {

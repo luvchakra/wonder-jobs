@@ -64,6 +64,11 @@ export interface StageContext {
   warn(message: string): void;
   /** Cooperative cancellation point: awaits while paused, throws StopSignal/RestartSignal. */
   checkpoint(): Promise<void>;
+  /**
+   * Aborts the moment the run is stopped or cancelled, for a stage waiting on something slow (a search's request):
+   * hand it to fetch so a stop doesn't wait for the answer. The stage still ends at its next checkpoint.
+   */
+  readonly stopSignal: AbortSignal;
   policy(capability: Capability): "run" | "ask" | "skip";
   /** Park the stage in WAITING_FOR_USER until the user continues (or stops). */
   requestUser(reason: string): Promise<void>;
@@ -107,6 +112,8 @@ interface RunControl {
   userGateSatisfied?: boolean;
   restartRequested: boolean;
   stopRequested: boolean;
+  /** Aborted on stop or cancel (`StageContext.stopSignal`). */
+  abort: AbortController;
   loop?: Promise<void>;
 }
 
@@ -174,7 +181,7 @@ export class WorkflowEngine {
     };
     run.events.push(this.event("run_created", `Run created for “${run.workflowName}”.`));
     this.runs.set(id, run);
-    this.controls.set(id, { restartRequested: false, stopRequested: false });
+    this.controls.set(id, { restartRequested: false, stopRequested: false, abort: new AbortController() });
     this.changed(run, "run");
     return run;
   }
@@ -228,6 +235,7 @@ export class WorkflowEngine {
     const stage = this.currentStage(run);
     if (stage && !isTerminal(stage.status) && stage.status !== "PENDING") this.transitionStage(stage, "STOPPING", run);
     ctl.stopRequested = true;
+    ctl.abort.abort();
     this.push(run, "run_stopping", "Stopping — finishing the current step safely. Completed work is preserved.");
     // release any gates so the loop can observe the stop request
     ctl.pauseGate?.resolve();
@@ -244,6 +252,7 @@ export class WorkflowEngine {
     for (const s of run.stages) if (s.status === "PENDING" || s.status === "WAITING_FOR_USER") s.status = "CANCELLED";
     run.completedAt = this.now();
     this.push(run, "run_cancelled", "Run cancelled before it started.");
+    ctl.abort.abort();
     ctl.userGate?.resolve();
     ctl.userGate = undefined;
   }
@@ -515,6 +524,7 @@ export class WorkflowEngine {
     return {
       run,
       stage,
+      stopSignal: ctl.abort.signal,
       get: <T,>(key: string) => engine.resolveValue(run, key) as T | undefined,
       output: <T,>(k: StageKey) => run.outputs[k]?.data as T | undefined,
       setProgress(current, total) {
@@ -702,7 +712,7 @@ export class WorkflowEngine {
   private control(id: string) {
     let c = this.controls.get(id);
     if (!c) {
-      c = { restartRequested: false, stopRequested: false };
+      c = { restartRequested: false, stopRequested: false, abort: new AbortController() };
       this.controls.set(id, c);
     }
     return c;

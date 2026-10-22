@@ -357,12 +357,19 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
     const where = active.config.searchCriteria.locations;
     // A search in progress is the most important thing on the page until it ends: a tinted banner with
     // the moving mark, what's happening, a live count and a progress sweep — not a line of grey text.
-    // What it's for is shown in full, wrapping if it must; Details and Stop sit to the right, centred.
+    // The mark with Stop under it on the left; what it's for fills the rest of the card, in full, wrapping if it must.
     return (
       <div role="status" aria-live="polite" className="mb-4 overflow-hidden rounded-2xl border border-brand-300 bg-brand-50">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <WonderSearching size={32} />
-          <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex items-start gap-3 px-4 py-3">
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <WonderSearching size={32} />
+            {/* Stop: the search ends and the list goes back to what it was before it started. */}
+            <button type="button" onClick={() => void search.stop()} className="inline-flex min-h-8 items-center rounded-full border border-brand-300 bg-surface px-2.5 text-[12px] font-medium text-brand-700 hover:bg-brand-100">
+              Stop
+            </button>
+          </div>
+          {/* The words themselves open the search's details (no separate button). */}
+          <Link href={`/app/runs/${active.id}`} aria-label={`Details of this search: ${stage?.activeLabel ?? "Searching"}`} className="min-w-0 flex-1 space-y-0.5 pt-1">
             <p className="text-[15px] font-semibold leading-5 text-ink">{stage?.activeLabel ?? "Searching"}…</p>
             {found ? (
               <p className="text-[13px] leading-[18px] text-brand-700">{foundSoFar(found, answered)}</p>
@@ -370,14 +377,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
               For “{active.config.searchCriteria.query}”{where.length ? ` in ${where.join(", ")}` : ""}
             </p>
-          </div>
-          <Link href={`/app/runs/${active.id}`} className="shrink-0 text-[13px] font-medium text-brand-700 underline-offset-2 hover:underline">
-            Details
           </Link>
-          {/* Stop: the search ends and the list goes back to what it was before it started. */}
-          <button type="button" onClick={() => void search.stop()} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-brand-300 bg-surface px-3 text-[13px] font-medium text-brand-700 hover:bg-brand-100">
-            Stop
-          </button>
         </div>
         <div className="h-1 w-full overflow-hidden bg-brand-200" aria-hidden>
           <div className="wj-sweep h-full w-2/5 rounded-full bg-brand-500" />

@@ -35,10 +35,9 @@ import { planThatAllows } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";
 import { usePrepareApplication } from "@/lib/usePrepareApplication";
-import { jobsApplyApi } from "@/services/jobs-apply/client";
-import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
-import { backgroundFillable } from "@/domain/jobs-apply/destination";
 import { cn } from "@/lib/cn";
+import { useMediaQuery } from "@/lib/motion";
+import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 
@@ -64,20 +63,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
   const { limits, plans } = usePlan();
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
-  // Apply for this job fills the form in the background cloud browser (WJ-311); without one, the Apply page.
-  const [background, setBackground] = useState(false);
-  const fillable = !!job && backgroundFillable(job);
-  useEffect(() => {
-    if (!canApply || !fillable) return;
-    let off = false;
-    jobsApplyApi.cloud
-      .available()
-      .then((r) => !off && setBackground(r.available))
-      .catch(() => undefined);
-    return () => {
-      off = true;
-    };
-  }, [canApply, fillable]);
+  // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
+  // get Apply, which opens the employer's listing.
+  const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
+  const helperInstalled = useExtensionInstalled(1500);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
   const [expanded, setExpanded] = useState(false);
@@ -171,11 +160,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           )}
           <h2 className="mt-4 text-[15px] font-semibold text-ink">Job description</h2>
           <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{description}</p>
-          {longDescription && (
-            <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
-              {expanded ? "Less" : "More"}
-            </button>
-          )}
+          {/* More, and Not for me at the end of the description, bottom right. */}
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+            {longDescription ? (
+              <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
+                {expanded ? "Less" : "More"}
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="ml-auto">
+              <NotForMeButton jobId={job.id} rejected={rejected} size="sm" full={false} />
+            </div>
+          </div>
           {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
           {(expanded || !longDescription) && /(…|\.\.\.)\s*$/.test(description) && (
             <p className="mt-1 text-[13px] text-ink-3">
@@ -189,29 +186,46 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
         <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <Card className="flex flex-col gap-2">
-            {canApply ? (
+            {desktop ? (
+              // Desktop: Easy Apply fills the employer's form with the browser extension; without it, the listing itself.
               <>
-                {background && fillable ? (
-                  <BackgroundApply jobId={job.id} />
-                ) : (
+                {canApply ? (
                   <Button size="lg" full href={`/app/jobs/${job.id}/apply`}>
-                    Apply with Wonder
+                    Easy Apply
                   </Button>
-                )}
-                <Button variant="outline" full onClick={prepare}>
-                  Open application pack
+                ) : null}
+                <Button size={canApply ? "md" : "lg"} variant={canApply ? "outline" : "primary"} full onClick={prepare}>
+                  Generate Customized Resume
                 </Button>
+                {canApply && helperInstalled === false ? (
+                  <p className="text-center text-[12px] leading-snug text-ink-3">
+                    Easy Apply needs the WonderJobs browser extension.{" "}
+                    <Link href="/extension" className="font-medium text-brand-600 hover:underline">
+                      Install it
+                    </Link>
+                    , or{" "}
+                    <a href={job.applyUrl} target="_blank" rel="noreferrer" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "no_extension" })} className="inline-flex items-center gap-0.5 font-medium text-brand-600 hover:underline">
+                      go to the job listing <ExternalLink className="size-3" aria-hidden />
+                    </a>
+                  </p>
+                ) : !canApply ? (
+                  <a href={job.applyUrl} target="_blank" rel="noreferrer" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "desktop" })} className="inline-flex min-h-10 items-center justify-center gap-1 text-[13px] font-medium text-brand-600 hover:underline">
+                    Go to the job listing <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                ) : null}
+                {!limits.applyWithWonder && <PlanGate reason="Easy Apply fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
               </>
             ) : (
-              <Button size="lg" full onClick={prepare}>
-                {application && application.status !== "saved" ? "Open application pack" : "Prepare application"}
-              </Button>
+              // Phones and tablets: filling the employer's form isn't offered; Apply opens the listing itself.
+              <>
+                <a href={job.applyUrl} target="_blank" rel="noreferrer" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "mobile" })} className="wj-gradient-bg wj-press inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] px-5 text-[15px] font-medium text-white shadow-brand hover:brightness-105">
+                  Apply <ExternalLink className="size-4" aria-hidden />
+                </a>
+                <Button variant="outline" full onClick={prepare}>
+                  Generate Customized Resume
+                </Button>
+              </>
             )}
-            {!limits.applyWithWonder && <PlanGate reason="Apply with Wonder fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
-            <NotForMeButton jobId={job.id} rejected={rejected} />
-            <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[13px] font-medium text-brand-600 hover:underline">
-              View original posting <ExternalLink className="size-3.5" aria-hidden />
-            </a>
           </Card>
         </aside>
 

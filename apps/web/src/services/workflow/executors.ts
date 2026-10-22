@@ -571,9 +571,13 @@ function warnFor(ctx: StageContext, s: SourceSearchStatus) {
  */
 async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promise<{ response: SearchResponse; jobs: CanonicalJob[] } | null> {
   const phrasings = await smartPhrasings(ctx.run.config.searchCriteria.query);
+  await ctx.checkpoint();
   const req = searchRequestFor({ ...ctx.run.config.searchCriteria, variants: phrasings.variants }, sourceIds, "balanced", 500);
 
   const abort = new AbortController();
+  // Stop ends the request at once: the search doesn't wait for JobsLake's next answer to notice.
+  const onStop = () => abort.abort();
+  ctx.stopSignal.addEventListener("abort", onStop, { once: true });
   let control: unknown = null;
   let shown = 0;
   const onEvent = async (e: SearchEvent) => {
@@ -622,6 +626,11 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
     response = await attempt();
   } catch (e) {
     if (control) throw control;
+    // Stopped mid-request: the run stops here, never falls back to searching each source directly.
+    if (ctx.stopSignal.aborted) {
+      await ctx.checkpoint();
+      throw new StopSignal();
+    }
     if (e instanceof StopSignal || e instanceof RestartSignal) throw e;
     const disabled = e instanceof JobsLakeError && e.body?.code === "FEATURE_DISABLED";
     if (disabled) setJobsLakeCapability({ search: false });
@@ -629,6 +638,7 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
     if (!disabled) ctx.warn(`JobsLake didn't answer (${e instanceof Error ? e.message : "unknown error"}).`);
     return null;
   }
+  ctx.stopSignal.removeEventListener("abort", onStop);
   for (const ev of breadthEvidence(response.metadata)) ctx.addEvidence(ev);
   return { response, jobs: response.results.map(toCanonicalJob) };
 }
