@@ -198,6 +198,54 @@ test.describe("Golden journey — search (demo mode)", () => {
     for (const item of items) await expect(item).toContainText(/airbnb/i);
   });
 
+  test("GJ-021 Saved's box filters the saved jobs as you type — no source search, no Search button, no Refine", async ({ page }) => {
+    await page.goto("/demo?next=/app/jobs");
+    const cards = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
+    await expect(cards.first()).toBeVisible({ timeout: 20_000 });
+    // Save two jobs from different companies.
+    const companies: string[] = [];
+    for (let i = 0; companies.length < 2 && i < 12; i++) {
+      const card = cards.nth(i);
+      // The company is the card's first link.
+      const company = (await card.getByRole("link").first().innerText()).trim();
+      if (!company || companies.includes(company)) continue;
+      await card.getByRole("button", { name: "Save job" }).click();
+      companies.push(company);
+    }
+    expect(companies).toHaveLength(2);
+    let searches = 0;
+    page.on("request", (r) => {
+      if (r.url().includes("/api/jobs-lake/v1/search")) searches++;
+    });
+    await page.goto("/app/saved");
+    const box = page.getByRole("searchbox", { name: "Filter saved jobs" });
+    await expect(box).toBeVisible();
+    const saved = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
+    // The demo account comes with saved jobs of its own; these two are among them.
+    await expect(saved.first()).toBeVisible();
+    const all = await saved.count();
+    expect(all).toBeGreaterThanOrEqual(2);
+    await expect(page.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Refine/ })).toHaveCount(0);
+    // Typing narrows the list, nothing to press, and no source is searched.
+    await box.fill(companies[0]);
+    await expect(async () => {
+      const n = await saved.count();
+      expect(n).toBeGreaterThan(0);
+      expect(n).toBeLessThan(all);
+    }).toPass({ timeout: 5_000 });
+    for (const card of await saved.all()) await expect(card).toContainText(companies[0]);
+    await box.fill("zzzz-no-such-job");
+    await expect(page.getByText(/No saved job matches “zzzz-no-such-job”/)).toBeVisible();
+    await page.getByRole("button", { name: "Clear", exact: true }).click();
+    await expect(saved).toHaveCount(all);
+    expect(searches).toBe(0);
+    // Find's own words aren't touched by Saved's filter.
+    await page.goto("/app/jobs");
+    await page.getByRole("radio", { name: "Part Time" }).click();
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue("");
+  });
+
   test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the slider slides", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/demo?next=/app/jobs");
