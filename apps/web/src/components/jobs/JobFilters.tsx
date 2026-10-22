@@ -5,7 +5,7 @@ import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucid
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
-import { FIND_MODE_VIEWS, PART_TIME_JOB_TYPES, findModeOf } from "@/domain/jobs/findMode";
+import { PART_TIME_JOB_TYPES, findModeOf } from "@/domain/jobs/findMode";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
@@ -16,11 +16,11 @@ import { DictateButton } from "@/components/common/DictateButton";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
-// All comes first: it's where Find opens; For you and Strong narrow it to the better fits.
+// All comes first: it's where Find opens; Strong and For you narrow it to the better fits (owner, 2026-10-22: Strong first).
 const VIEWS: { value: JobsView; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "for_you", label: "For you" },
   { value: "strong", label: "Strong" },
+  { value: "for_you", label: "For you" },
 ];
 
 /** Which view a set of filters is — views are presets over the same filters, so they can't disagree with Refine or "Why was this filtered". */
@@ -95,7 +95,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
-  const modeViews = VIEWS.filter((v) => FIND_MODE_VIEWS[findModeOf(filters)].includes(v.value as "all" | "for_you" | "strong"));
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
   return (
@@ -162,9 +161,21 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             ))}
           </div>
         )}
-        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className={cn("order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12", !partTime && "flex-1 sm:flex-none")}>
-          {partTime || !sourceSearch ? "Search" : "Search based on Career Profile"}
-        </Button>
+        {partTime || !sourceSearch ? (
+          <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
+            Search
+          </Button>
+        ) : (
+          // One pill, two actions: the search, and "Career Profile" as a link to the profile it searches.
+          <div className="wj-gradient-bg order-3 flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium text-white shadow-brand sm:order-2 sm:h-12 sm:flex-none">
+            <button type="submit" aria-label="Search based on Career Profile" className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+              <Search className="size-4" aria-hidden /> Search based on
+            </button>
+            <Link href="/app/career-dna?from=find" className="inline-flex min-h-11 items-center whitespace-nowrap underline decoration-white/70 underline-offset-4 hover:decoration-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+              Career Profile
+            </Link>
+          </div>
+        )}
       </form>
       {partTime && (
         <p className="-mt-1 text-[11.5px] leading-snug text-ink-4">
@@ -178,7 +189,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       <div className="flex items-center gap-1.5 max-[380px]:gap-1">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto max-[380px]:gap-1 pb-0.5 [scrollbar-width:none]">
           {views &&
-            modeViews.map((v) => (
+            VIEWS.map((v) => (
               <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 shrink-0 px-3 max-[400px]:px-2.5 max-[380px]:px-2 max-[380px]:text-[12.5px]">
                 {v.label}
               </Chip>

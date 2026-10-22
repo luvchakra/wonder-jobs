@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, MapPin, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
 import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
@@ -290,7 +290,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
   };
 
   if (!editing) {
-    // One compact row: what Wonder searches for, with Change beside its label; the profile behind it on the right.
+    // One compact row: what Wonder searches for, with Change beside its label (the Career Profile is linked from the search button).
     return (
       <div className={cn("mb-3 flex items-center gap-2 rounded-[14px] border border-line bg-surface py-2 pl-3.5 pr-1.5 sm:gap-3 sm:pr-2", inline && "sm:max-w-xl", className)}>
         <div className="min-w-0 flex-1">
@@ -312,19 +312,6 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
             {role || "No role yet"}
           </p>
         </div>
-        <Link
-          href="/app/career-dna?from=find"
-          aria-label="Edit Career Profile"
-          title="Edit Career Profile"
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-[10px] border border-brand-200 bg-brand-50 py-1 pl-2 pr-2.5 text-[12px] font-medium leading-[1.15] text-brand-700 transition-colors hover:bg-brand-100"
-        >
-          <Pencil className="size-3.5 shrink-0" aria-hidden />
-          <span>
-            Career
-            <br />
-            Profile
-          </span>
-        </Link>
       </div>
     );
   }

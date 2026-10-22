@@ -69,3 +69,28 @@ describe("readJobTypeWords — job-type words in a search", () => {
     expect(readJobTypeWords("product manager")).toMatchObject({ types: [] });
   });
 });
+
+describe("consultant — a consulting engagement, only when it's said", () => {
+  it("reads a source's own field", () => {
+    expect(readJobType("Consultant")).toBe("consultant");
+    expect(readJobType(["Consulting"])).toBe("consultant");
+    expect(readJobType("Contract")).toBe("contract");
+  });
+
+  it("reads a title that states the engagement, never the job title alone", () => {
+    expect(jobTypeFromTitle("SAP Architect (Consultant)")).toBe("consultant");
+    expect(jobTypeFromTitle("Security Architect – Consulting")).toBe("consultant");
+    expect(jobTypeFromTitle("Independent Consultant, Identity Governance")).toBe("consultant");
+    expect(jobTypeFromTitle("Fractional consultant, CISO")).toBe("consultant");
+    expect(jobTypeFromTitle("IAM Engineer on a consultant basis")).toBe("consultant");
+    expect(jobTypeFromTitle("Senior Consultant")).toBeUndefined();
+    expect(jobTypeFromTitle("Management Consultant, Strategy")).toBeUndefined();
+    expect(jobTypeFromTitle("Consulting Manager")).toBeUndefined();
+  });
+
+  it("reads consulting words in a search", () => {
+    expect(readJobTypeWords("consulting work in identity").types).toEqual(["consultant"]);
+    expect(readJobTypeWords("consultant roles, remote").types).toEqual(["consultant"]);
+    expect(readJobTypeWords("management consultant").types).toEqual([]);
+  });
+});
