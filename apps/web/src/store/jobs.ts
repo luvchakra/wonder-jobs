@@ -56,6 +56,16 @@ interface JobsState {
   beforeWords?: { jobs: Record<string, CanonicalJob>; order: string[]; matches: Record<string, JobMatch> };
   /** Clearing the typed words: bring the profile's results back. False when there's nothing kept to restore. */
   restoreProfileCatalog: () => boolean;
+  /** The typed words' results, set aside when the profile's came back (Find's Full Time), this session only. */
+  wordsCatalog?: { jobs: Record<string, CanonicalJob>; order: string[]; matches: Record<string, JobMatch>; searchedFor: string };
+  /** Back to Part Time: the words' results set aside, if any, with the profile's kept aside again. False when none. */
+  restoreWordsCatalog: () => boolean;
+  /** The list as it was when a search started (this session only), so Stop can bring it back. */
+  beforeRun?: { runId: string } & Pick<JobsState, "jobs" | "order" | "matches" | "searchedFor" | "beforeWords" | "wordsCatalog">;
+  /** Called as a search starts: keeps the list as it is now. */
+  keepBeforeRun: (runId: string) => void;
+  /** Stop: the list as it was before that search started. False when nothing was kept for it. */
+  restoreBeforeRun: (runId: string) => boolean;
   setMatches: (matches: JobMatch[]) => void;
   setAiFits: (fits: Record<string, AiFit>) => void;
   setQuality: (quality: JobQuality[]) => void;
@@ -164,7 +174,39 @@ export const useJobsStore = create<JobsState>()(
         const recent = Date.now() - 7 * 86_400_000;
         const order = kept.order.filter((id) => kept.jobs[id] && !(get().closed[id] && Date.parse(get().closed[id].at) > recent && !get().saved[id]));
         // The profile search's own scores come back too (the words' search re-scored any job both found).
-        set((s) => ({ jobs: { ...savedJobs(s), ...kept.jobs }, order, matches: { ...s.matches, ...kept.matches }, searchedFor: "", beforeWords: undefined }));
+        // The words' results are set aside, so going back to them (Part Time) shows them again.
+        set((s) => ({
+          jobs: { ...savedJobs(s), ...kept.jobs },
+          order,
+          matches: { ...s.matches, ...kept.matches },
+          searchedFor: "",
+          beforeWords: undefined,
+          wordsCatalog: s.searchedFor && s.order.length ? { jobs: Object.fromEntries(s.order.flatMap((id) => (s.jobs[id] ? [[id, s.jobs[id]] as const] : []))), order: s.order, matches: Object.fromEntries(s.order.flatMap((id) => (s.matches[id] ? [[id, s.matches[id]] as const] : []))), searchedFor: s.searchedFor } : s.wordsCatalog,
+        }));
+        return true;
+      },
+      keepBeforeRun: (runId) => set((s) => ({ beforeRun: { runId, jobs: s.jobs, order: s.order, matches: s.matches, searchedFor: s.searchedFor, beforeWords: s.beforeWords, wordsCatalog: s.wordsCatalog } })),
+      restoreBeforeRun: (runId) => {
+        const kept = get().beforeRun;
+        if (!kept || kept.runId !== runId) return false;
+        const { runId: _id, ...was } = kept;
+        void _id;
+        // Saved jobs found by the stopped search stay saved.
+        set((s) => ({ ...was, jobs: { ...savedJobs(s), ...was.jobs }, beforeRun: undefined }));
+        return true;
+      },
+      restoreWordsCatalog: () => {
+        const kept = get().wordsCatalog;
+        if (!kept) return false;
+        set((s) => ({
+          jobs: { ...savedJobs(s), ...kept.jobs },
+          order: kept.order,
+          matches: { ...s.matches, ...kept.matches },
+          searchedFor: kept.searchedFor,
+          // The profile's results go aside again, for the way back to Full Time.
+          beforeWords: s.searchedFor ? s.beforeWords : s.order.length ? { jobs: s.jobs, order: s.order, matches: Object.fromEntries(s.order.flatMap((id) => (s.matches[id] ? [[id, s.matches[id]] as const] : []))) } : s.beforeWords,
+          wordsCatalog: undefined,
+        }));
         return true;
       },
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),

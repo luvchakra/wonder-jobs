@@ -188,14 +188,14 @@ test.describe("Golden journey — search (demo mode)", () => {
     // and not visibly shrink).
     // Typing alone changes nothing; Search applies the words.
     await page.getByRole("radio", { name: "Part Time" }).click();
-    await page.getByRole("textbox", { name: "Search jobs" }).fill("airbnb");
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("designer");
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page.locator("#main").getByText(/^Showing \d+ jobs? for “airbnb”/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#main").getByText(/^Showing \d+ jobs? for “designer”/)).toBeVisible({ timeout: 20_000 });
     // Every visible card is a real match for the typed text, not a fixed demo subset.
     // (Top-level results only: each card carries its own "why" lists, which are list items too.)
     const items = await results.locator(":scope > li").all();
     expect(items.length).toBeGreaterThan(0);
-    for (const item of items) await expect(item).toContainText(/airbnb/i);
+    for (const item of items) await expect(item).toContainText(/design/i);
   });
 
   test("GJ-021 Saved's box filters the saved jobs as you type — no source search, no Search button, no Refine", async ({ page }) => {
@@ -246,6 +246,24 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue("");
   });
 
+  test("GJ-022 Stop ends a search and brings back the list as it was before it started", async ({ page }) => {
+    // Slow sources, so the search is still running when Stop is pressed.
+    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "4000"));
+    await page.goto("/demo?next=/app/jobs");
+    const main = page.locator("#main");
+    const summary = main.getByText(/^Showing \d+ jobs? for /);
+    await expect(summary).toBeVisible({ timeout: 20_000 });
+    const before = await summary.innerText();
+    await page.getByRole("radio", { name: "Part Time" }).click();
+    await page.getByRole("radio", { name: "Full Time" }).click();
+    await page.getByRole("button", { name: "Search based on Career Profile" }).click();
+    const stop = main.getByRole("button", { name: "Stop", exact: true });
+    await expect(stop).toBeVisible({ timeout: 10_000 });
+    await stop.click();
+    await expect(stop).toHaveCount(0, { timeout: 10_000 });
+    await expect(summary).toHaveText(before);
+  });
+
   test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the slider slides", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/demo?next=/app/jobs");
@@ -267,6 +285,8 @@ test.describe("Golden journey — search (demo mode)", () => {
     const views = async () => (await main.getByRole("button", { name: /^(All|Strong|For you)$/ }).allInnerTexts()).map((t) => t.trim());
     expect(await views()).toEqual(["All", "Strong", "For you"]);
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveCount(0);
+    // Full Time's own job types; Internship and Gig are Part Time's.
+    for (const t of ["Permanent", "Contract", "Consultant", "Short-term"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
 
     // Slide the thumb across to Part Time.
@@ -280,6 +300,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     // Part Time: the box, its job types (Consultant, not Full-time or Part-time), Search and All · Strong · For you; no Looking for.
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
     for (const t of ["Contract", "Consultant", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Permanent", exact: true })).toHaveCount(0);
     for (const t of ["Full-time", "Part-time"]) await expect(main.getByRole("button", { name: t, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
     expect(await views()).toEqual(["All", "Strong", "For you"]);
@@ -291,6 +312,23 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
     await main.getByLabel(/^Hide Pipeline/).uncheck();
     await main.getByRole("button", { name: "Back to jobs" }).click();
+
+    // Part Time has its own results: a prompt before its first search, then that search's jobs —
+    // and switching modes swaps each one's results back, without searching again.
+    await expect(main.getByRole("heading", { name: "Search for part-time work" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Job results" })).toHaveCount(0);
+    // A search no source answers says so (it doesn't fall back to Full Time's jobs).
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("barista");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(main.getByRole("heading", { name: "Nothing found for “barista”" })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("designer");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const summary = main.getByText(/^Showing \d+ jobs? for /);
+    await expect(summary).toContainText("“designer”", { timeout: 20_000 });
+    await full.click();
+    await expect(summary).not.toContainText("“designer”");
+    await part.click();
+    await expect(summary).toContainText("“designer”");
 
     // Tap and the keyboard switch back too.
     await full.click();

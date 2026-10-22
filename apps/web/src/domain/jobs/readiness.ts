@@ -109,7 +109,8 @@ export function latestSearchRun(runs: WorkflowRun[]): WorkflowRun | undefined {
  * results come back, it's the profile search that found them — so what the screen says it searched stays true.
  */
 export function catalogSearchRun(runs: WorkflowRun[], searchedFor: string): WorkflowRun | undefined {
-  const latest = latestSearchRun(runs);
+  // A search the candidate stopped put its list back as it was: it isn't behind what's shown.
+  const latest = latestSearchRun(runs.filter((r) => r.status !== "STOPPED" && r.status !== "STOPPING")) ?? latestSearchRun(runs);
   if (!latest || (latest.status !== "COMPLETED" && latest.status !== "COMPLETED_WITH_WARNINGS")) return latest;
   const typed = (r: WorkflowRun) => (r.config.origin === "words" && !r.config.role ? r.config.searchCriteria.query.trim() : "");
   const want = searchedFor.trim();

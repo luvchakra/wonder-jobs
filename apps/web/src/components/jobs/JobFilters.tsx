@@ -5,7 +5,7 @@ import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucid
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
-import { PART_TIME_JOB_TYPES, findModeOf } from "@/domain/jobs/findMode";
+import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/findMode";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
@@ -51,7 +51,19 @@ const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[]
   { value: "director", label: "Director+" },
 ];
 
-const JOB_TYPE_CHIPS = PART_TIME_JOB_TYPES.map((value) => ({ value, label: JOB_TYPE_LABEL[value] }));
+/** Each mode's own job types (domain/jobs/findMode.ts). */
+function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
+  const picked = filters.jobTypes ?? [];
+  return (
+    <div className={cn("flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]", className)}>
+      {MODE_JOB_TYPES[findModeOf(filters)].map((t) => (
+        <Chip key={t} active={picked.includes(t)} onClick={() => onChange({ jobTypes: picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t] })} className="h-9 shrink-0 px-3 text-[12.5px]">
+          {modeJobTypeLabel(t, JOB_TYPE_LABEL[t])}
+        </Chip>
+      ))}
+    </div>
+  );
+}
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
@@ -97,7 +109,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   const partTime = findModeOf(filters) === "part_time";
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
-  if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} partTime={partTime} className={className} />;
+  if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
@@ -152,16 +164,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           </div>
         </div>
         )}
-        {/* Part Time's job types: between the box and the button on a phone; under both on a wider screen. */}
-        {partTime && (
-          <div className="order-2 flex basis-full items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:order-3">
-            {JOB_TYPE_CHIPS.map((t) => (
-              <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
-                {t.label}
-              </Chip>
-            ))}
-          </div>
-        )}
+        {/* The mode's job types: between the box and the button on a phone; under both on a wider screen. */}
+        <JobTypeChips filters={filters} onChange={onChange} className="order-2 basis-full sm:order-3" />
         {partTime || !sourceSearch ? (
           <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
             Search
@@ -320,7 +324,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
 }
 
 /** Saved's own filter row (Saved has no Refine): the words narrow the saved jobs as they're typed; the job types and Hide Pipeline. */
-function ShortlistFilters({ text, onText, filters, onChange, partTime, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; partTime: boolean; className?: string }) {
+function ShortlistFilters({ text, onText, filters, onChange, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const dictation = useDictation({ textAtStart: () => text, onText });
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -347,15 +351,7 @@ function ShortlistFilters({ text, onText, filters, onChange, partTime, className
           {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what to look for in your saved jobs" />}
         </div>
       </div>
-      {partTime && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-          {JOB_TYPE_CHIPS.map((t) => (
-            <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
-              {t.label}
-            </Chip>
-          ))}
-        </div>
-      )}
+      <JobTypeChips filters={filters} onChange={onChange} />
       <label className={cn("inline-flex h-9 cursor-pointer select-none items-center gap-1.5 self-start rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
         <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
         Hide Pipeline

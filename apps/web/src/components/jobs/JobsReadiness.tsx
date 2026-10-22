@@ -362,6 +362,10 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
           <Link href={`/app/runs/${active.id}`} className="shrink-0 text-[13px] font-medium text-brand-700 underline-offset-2 hover:underline">
             Details
           </Link>
+          {/* Stop: the search ends and the list goes back to what it was before it started. */}
+          <button type="button" onClick={() => void search.stop()} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-brand-300 bg-surface px-3 text-[13px] font-medium text-brand-700 hover:bg-brand-100">
+            Stop
+          </button>
         </div>
         <div className="h-1 w-full overflow-hidden bg-brand-200" aria-hidden>
           <div className="wj-sweep h-full w-2/5 rounded-full bg-brand-500" />

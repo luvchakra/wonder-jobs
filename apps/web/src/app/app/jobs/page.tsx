@@ -7,7 +7,7 @@ import { useJobsStore } from "@/store/jobs";
 import type { JobFilters } from "@/domain/jobs/types";
 import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
-import { describeWords, useJobSearch } from "@/lib/useJobSearch";
+import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
 import { SlideToggle } from "@/components/common/SlideToggle";
@@ -57,7 +57,8 @@ function JobsHome() {
     if (typedBefore.current || !was) return;
     const t = setTimeout(() => {
       const s = useJobsStore.getState();
-      if (s.filters.query.trim() || !s.searchedFor) return;
+      // Part Time never falls back to the profile's results.
+      if (s.filters.query.trim() || !s.searchedFor || s.filters.skipProfile) return;
       const restored = s.restoreProfileCatalog();
       if (fitBeforeWords.current !== undefined) s.setFilters({ minFit: fitBeforeWords.current });
       if (!restored) void search.searchNow({ locations: s.filters.locations ?? search.readiness.locations });
@@ -70,8 +71,10 @@ function JobsHome() {
   const switchMode = (m: FindMode) => {
     const s = useJobsStore.getState();
     s.setFilters(FIND_MODE_PATCH[m]);
-    // Back to Full Time: the profile's own results again, when they're still here (nothing is searched).
+    // Each mode shows its own results, as they were (nothing is searched): Full Time the profile's,
+    // Part Time its last typed search's — or, before one, a prompt to type (JobsBoard).
     if (m === "full_time" && s.searchedFor) s.restoreProfileCatalog();
+    if (m === "part_time" && !s.searchedFor) s.restoreWordsCatalog();
   };
 
   if (search.readiness.blocker) {
@@ -110,6 +113,8 @@ function JobsHome() {
         }
         empty={<JobsEmpty search={search} />}
         searching={search.active ? <SearchingPanel search={search} /> : null}
+        // Part Time's own words found nothing: say so, rather than asking for words again.
+        partTimeMiss={search.last && search.last.config.origin === "words" && !search.last.config.role && foundNothing(search.last) ? search.last.config.searchCriteria.query : null}
         searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
         sourceSearch={{
           run: (text, places) => {

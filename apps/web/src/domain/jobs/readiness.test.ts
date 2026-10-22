@@ -141,6 +141,11 @@ describe("the search behind the jobs on screen", () => {
     expect(catalogSearchRun([profile, { ...words, status: "FAILED" } as WorkflowRun], "")?.id).toBe("words");
     expect(catalogSearchRun([words], "")?.id).toBe("words");
   });
+
+  it("skips a search the candidate stopped: the list went back to the one before", () => {
+    expect(catalogSearchRun([profile, { ...words, status: "STOPPED" } as WorkflowRun], "")?.id).toBe("profile");
+    expect(catalogSearchRun([{ ...words, status: "STOPPED" } as WorkflowRun], "")?.id).toBe("words");
+  });
 });
 
 describe("checkedWiderQuery", () => {

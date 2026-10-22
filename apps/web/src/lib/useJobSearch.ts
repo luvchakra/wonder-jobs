@@ -75,6 +75,8 @@ export interface JobSearch {
   searchAsRole: (roleId: string, places?: string[]) => Promise<WorkflowRun | null>;
   /** Search again — the profile's own search, or the given one. Stops a running search first. */
   searchNow: (opts?: SearchOptions) => Promise<WorkflowRun | null>;
+  /** Stop the search running now and bring back the list as it was before it started. */
+  stop: () => Promise<void>;
 }
 
 export interface SearchOptions {
@@ -156,6 +158,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
           },
         });
         startedHere.add(run.id);
+        // The list as it is now, for Stop (the search starts replacing it as its first jobs arrive).
+        useJobsStore.getState().keepBeforeRun(run.id);
         return run;
       } catch {
         return null; // a run is already going; its progress is what the screen shows
@@ -251,5 +255,13 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     [search],
   );
 
-  return { readiness, active, last, widened: last ? widenedBecause.get(last.id) : undefined, search, searchWords, searchAsRole, searchNow };
+  const stop = useCallback(async () => {
+    const running = selectActiveRun(useWorkflowStore.getState());
+    if (!running) return;
+    await stopRunningSearch();
+    useJobsStore.getState().restoreBeforeRun(running.id);
+    track("find_stopped", {});
+  }, []);
+
+  return { readiness, active, last, widened: last ? widenedBecause.get(last.id) : undefined, search, searchWords, searchAsRole, searchNow, stop };
 }

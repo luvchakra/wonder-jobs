@@ -8,7 +8,7 @@ import type { JobType } from "./jobType";
  * - Part Time: only what the candidate types, with the job types it narrows by (Contract, Consultant,
  *   Internship, Short-term, Gig). The profile's role, places, work modes and minimum salary are left out
  *   (the filters' `skipProfile`).
- * Both: the views All, Strong and For you; Hide Pipeline and Refine.
+ * Both: a row of job types (each mode its own, `MODE_JOB_TYPES`); the views All, Strong and For you; Hide Pipeline and Refine.
  */
 export type FindMode = "full_time" | "part_time";
 
@@ -29,3 +29,15 @@ export const FIND_MODE_PATCH: Record<FindMode, Partial<JobFilters>> = {
 
 /** The job types Part Time narrows by (owner, 2026-10-22: not Full-time or Part-time itself). */
 export const PART_TIME_JOB_TYPES: JobType[] = ["contract", "consultant", "internship", "temporary", "gig"];
+
+/**
+ * The job types Full Time narrows by (owner, 2026-10-22: a row in both modes, its own options): the
+ * engagements a career move is made on — the job boards' own full-time filters (permanent, contract,
+ * fixed-term) and Consultant. Internships and gigs are Part Time's.
+ */
+export const FULL_TIME_JOB_TYPES: JobType[] = ["full_time", "contract", "consultant", "temporary"];
+
+export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: PART_TIME_JOB_TYPES };
+
+/** A chip's own word: in Full Time, "Full-time" would only repeat the mode, so it reads "Permanent". */
+export const modeJobTypeLabel = (t: JobType, label: string): string => (t === "full_time" ? "Permanent" : label);

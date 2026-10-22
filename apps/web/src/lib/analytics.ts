@@ -30,6 +30,7 @@ export type AnalyticsEvent =
   | "artifact_downloaded"
   // Outcome-level events (outcome spec §46). Same rule: ids, counts and enum values only.
   | "find_started"
+  | "find_stopped"
   | "jobs_auto_search"
   | "jobs_search_widened"
   | "jobs_readiness_action"
