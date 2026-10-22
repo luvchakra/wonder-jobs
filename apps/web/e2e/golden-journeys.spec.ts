@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openDescription } from "./utils/jobPage";
 
 /**
  * Golden-journey coverage for the core candidate experience, entirely in demo mode (`wj_demo=1`) — no
@@ -43,7 +44,8 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
-    // "Why it fits" is a folded section now, not a tab.
+    // "Why it fits" is a folded section in the opened description.
+    await openDescription(page);
     await page.getByText("Why it fits", { exact: true }).click();
     await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
 
@@ -56,6 +58,7 @@ test.describe("Golden journey — jobs (demo mode)", () => {
   test("GJ-004 marking a job not for me records a reason and can be undone", async ({ page }) => {
     // job_microsoft_spm isn't part of the pre-saved/rejected seed set, so this test's state change is isolated.
     await page.goto("/app/jobs/job_microsoft_spm");
+    await openDescription(page);
     await page.getByRole("button", { name: "Not for me" }).click();
 
     const reasons = page.getByRole("group", { name: "Reason not for me" });

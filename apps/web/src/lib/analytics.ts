@@ -14,6 +14,8 @@ export type AnalyticsEvent =
   | "workflow_waiting_for_user"
   | "job_viewed"
   | "apply_listing_opened"
+  | "custom_resume_generated"
+  | "custom_resume_downloaded"
   | "job_saved"
   | "job_rejected"
   | "application_preparation_started"

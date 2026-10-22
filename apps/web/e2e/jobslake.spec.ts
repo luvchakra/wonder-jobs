@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { openDescription } from "./utils/jobPage";
 
 /**
  * JobsLake journeys WJ-JL-001..040 (JobsLake spec §88). Everything here runs against real sources —
@@ -347,7 +348,8 @@ test.describe("Candidate searches through JobsLake", () => {
     const first = page.getByRole("list", { name: "Job results" }).locator(":scope > li").first();
     await first.locator("a[href^='/app/jobs/']").first().click();
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
-    // The job page's sections are folds: why it fits, and where it was found.
+    // The job page's sections are folds in the opened description: why it fits, and where it was found.
+    await openDescription(page);
     await page.getByText("Why it fits", { exact: true }).click();
     await expect(page.getByText(/Why Wonder thinks this fits|hasn't compared this role/).first()).toBeVisible();
     await page.getByText("Sources & hiring signals", { exact: true }).click();

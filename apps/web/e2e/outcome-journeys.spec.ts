@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { openDescription } from "./utils/jobPage";
 
 /**
  * Outcome-based UX journeys (outcome spec §48): Find → Decide → Apply → Progress, plus Ask Wonder,
@@ -148,6 +149,7 @@ test.describe("DECIDE", () => {
 
   test("DECIDE-002 an opportunity shows its hiring-signal evidence", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_google_pm");
+    await openDescription(page);
     await page.getByText("Sources & hiring signals", { exact: true }).click();
     await expect(page.getByText(/Hiring confidence/).first()).toBeVisible();
     await expect(page.getByText(/Observations, not claims/)).toBeVisible();
@@ -155,6 +157,7 @@ test.describe("DECIDE", () => {
 
   test("DECIDE-003 a filtered job explains why and offers Show it anyway", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_microsoft_spm");
+    await openDescription(page);
     await page.getByRole("button", { name: "Not for me" }).click();
     await page.getByRole("group", { name: "Reason not for me" }).getByRole("button", { name: "Wrong industry" }).click();
     await page.reload();
@@ -197,6 +200,7 @@ test.describe("DECIDE", () => {
     expect(hrefs).toHaveLength(3);
     for (const [i, href] of hrefs.entries()) {
       await page.goto(href);
+      await openDescription(page);
       await page.getByRole("button", { name: "Not for me" }).click();
       await page.getByRole("group", { name: "Reason not for me" }).getByRole("button", { name: "Too senior" }).click();
       await page.goto("/app/career-dna");
@@ -212,18 +216,19 @@ test.describe("DECIDE", () => {
 });
 
 test.describe("APPLY", () => {
-  test("APPLY-001 prepare an Application Pack from an opportunity", async ({ page }) => {
+  test("APPLY-001 a job's page makes a customized résumé and downloads it, then offers to make it again", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_microsoft_spm");
-    await page.getByRole("button", { name: "Generate Customized Resume" }).first().click();
-    await page.waitForURL(/\/prepare$/);
-    const summary = page.locator("#wj-pack-summary");
-    await expect(summary).toHaveText(/Nothing prepared yet|of 3 materials ready/);
-    // The résumé on file is offered first; generating one for this role is the other choice.
-    await page.getByRole("radio", { name: /Generate a résumé for this role/ }).check();
-    await page.getByRole("button", { name: "Generate résumé" }).click();
-    await expect(summary).toHaveText(/of 3 materials ready/, { timeout: 10_000 });
-    await expect(page.getByText("AI-generated", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Generate Customized Resume" }).click();
+    const download = page.getByRole("button", { name: "Download custom resume" });
+    await expect(download).toBeVisible({ timeout: 15_000 });
+    const [file] = await Promise.all([page.waitForEvent("download"), download.click()]);
+    expect(file.suggestedFilename()).toMatch(/\.docx$/);
+    await expect(page.getByRole("button", { name: "Re-generate Resume" })).toBeVisible({ timeout: 10_000 });
+    // It's kept in My resumes too.
+    await page.goto("/app/resume-studio");
+    await expect(page.getByText(/Microsoft/).first()).toBeVisible();
   });
+
 
   test("APPLY-002 editing generated material records the candidate as its author", async ({ page }) => {
     await page.goto("/demo?next=/app/applications/app_razorpay/prepare");
@@ -310,6 +315,7 @@ test.describe("WONDER", () => {
 
   test("WONDER-004 “Why didn't you show this?” explains a real filtering decision", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_razorpay_spm");
+    await openDescription(page);
     await page.getByRole("button", { name: "Not for me" }).click();
     await page.getByRole("group", { name: "Reason not for me" }).getByRole("button", { name: "Wrong industry" }).click();
     const top = await askWonder(page, "Why didn't you show the Senior Product Manager, Platform role?");
@@ -421,8 +427,7 @@ test.describe("MOBILE (390px)", () => {
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
     await expectNoHorizontalScroll(page);
     await page.getByRole("button", { name: "Generate Customized Resume" }).first().click();
-    await page.waitForURL(/\/prepare$/);
-    await expect(page.locator("#wj-pack-summary")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download custom resume" })).toBeVisible({ timeout: 15_000 });
     await expectNoHorizontalScroll(page);
   });
 

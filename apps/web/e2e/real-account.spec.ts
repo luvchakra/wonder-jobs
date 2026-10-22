@@ -1,5 +1,6 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { openDescription } from "./utils/jobPage";
 
 /**
  * Signed-in journeys against a real deployment (PLAYWRIGHT_BASE_URL) with real sources, real AI and
@@ -115,6 +116,7 @@ test.describe("Real account — production walk-through", () => {
     await expect(firstJob).toBeVisible({ timeout: 30_000 });
     await firstJob.click();
     await page.waitForURL(/\/app\/jobs\/[^/]+$/);
+    await openDescription(page);
     await page.getByText("Sources & hiring signals", { exact: true }).click({ timeout: 20_000 });
     await expect(page.getByText("Where this job was found")).toBeVisible();
     // On a computer the job page offers Easy Apply, which opens the guided page.
