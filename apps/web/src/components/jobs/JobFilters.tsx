@@ -95,13 +95,30 @@ function JobTypeChips({ filters, onChange, className }: { filters: Filters; onCh
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
+/** How many Refine settings are on — the view and job types included, since they live in Refine too. */
+const refineCount = (f: Filters, sort: JobSort) =>
+  (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.workModes.length + f.sourceIds.length + (f.freshnessDays ? 1 : 0) + (f.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+
+/** Opens and closes Find's Refine panel: beside Looking for in Full Time, beside the search box in Part Time. */
+export function RefineButton({ className }: { className?: string }) {
+  const more = useUIStore((s) => s.refineOpen);
+  const setMore = useUIStore((s) => s.setRefineOpen);
+  const count = useJobsStore((s) => refineCount(s.filters, s.sort));
+  return (
+    <Button type="button" variant={more ? "secondary" : "outline"} className={cn("h-11 shrink-0 rounded-full px-3 sm:h-12", className)} icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine">
+      {count ? String(count) : null}
+    </Button>
+  );
+}
+
 /**
  * Full Time (the Career Profile's search): one "Search based on Career Profile". Part Time: what to search
- * (typing narrows the jobs already found; Enter searches every source for it, in those places) and the job
- * types. Then one row of views, and everything else — sort, work mode, freshness, salary, sources,
- * compare — in Refine. The mode is the slider above the page (domain/jobs/findMode.ts).
+ * (typing narrows the jobs already found; Enter searches every source for it, in those places), with Refine
+ * beside the box (Full Time's Refine sits beside Looking for, on the page). Everything else — views, job
+ * types, sort, work mode, freshness, salary, compare — is in Refine. The mode is the slider above the page
+ * (domain/jobs/findMode.ts).
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
+export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, compare, onCompare, sourceSearch, refineTop, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   // Refine is Find's own panel: leaving Find closes it.
@@ -132,7 +149,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = (filters.hideInPipeline ? 1 : 0) + (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+  const activeCount = refineCount(filters, sort);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
@@ -171,7 +188,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
         }}
       >
         {partTime && (
-        <div className="relative order-1 min-w-0 flex-[1_1_16rem]">
+        <div className="order-1 flex min-w-0 flex-[1_1_16rem] items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
             value={draft}
@@ -219,9 +237,9 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             />
           )}
         </div>
+        <RefineButton />
+        </div>
         )}
-        {/* The mode's job types: between the box and the button on a phone; under both on a wider screen. */}
-        <JobTypeChips filters={filters} onChange={onChange} className="order-2 basis-full sm:order-3" />
         {partTime || !sourceSearch ? (
           <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
             Search
@@ -241,21 +259,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
       {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
-      {/* The views, and Refine beside them (it never leaves the screen). */}
-      <div className="flex items-center gap-1.5 max-[380px]:gap-1">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto max-[380px]:gap-1 pb-0.5 [scrollbar-width:none]">
-          {views &&
-            VIEWS.map((v) => (
-              <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 shrink-0 px-3 max-[400px]:px-2.5 max-[380px]:px-2 max-[380px]:text-[12.5px]">
-                {v.label}
-              </Chip>
-            ))}
-        </div>
-        <Button size="sm" variant={more ? "secondary" : "outline"} className="h-9 shrink-0 rounded-full px-2.5" icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${activeCount ? `, ${activeCount} set` : ""}`} title="Refine">
-          {activeCount ? String(activeCount) : null}
-        </Button>
-        <span className={cn("hidden shrink-0 pl-2 text-[13px] text-ink-3", showCount && "sm:inline")}>{total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}</span>
-      </div>
       {more && (
         <div className="grid grid-cols-1 gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           {/* Back to the list without changing anything typed here. */}
@@ -263,6 +266,22 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             <ArrowLeft className="size-4" aria-hidden /> Back to jobs
           </button>
           {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
+          {views && (
+            <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+              Show
+              <div className="flex flex-wrap gap-1.5">
+                {VIEWS.map((v) => (
+                  <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 px-3 text-[12px]">
+                    {v.label}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            Job type
+            <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
+          </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Location
             <Input
@@ -328,34 +347,16 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             </span>
           </label>
           )}
-          {/* One action for everything above: search every source with these words and places, then show the list. */}
+          {/* One action: keep what's set here and go back to the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
-            {sourceSearch && (
-              <Button
-                className="min-w-0 flex-1 sm:flex-none"
-                icon={<Search className="size-4" aria-hidden />}
-                onClick={() => {
-                  setMore(false);
-                  // Part Time: only the typed words, as the box's own Search (nothing typed is asked for).
-                  if (partTime) return submit();
-                  commit();
-                  // Strictly within the profile: its own search (role and field), in these places.
-                  const words = draft.trim();
-                  if (words && !filters.strictProfile) sourceSearch.run(words, splitPlaces(where));
-                  else sourceSearch.runPlaces(splitPlaces(where));
-                }}
-              >
-                Search
-              </Button>
-            )}
             <Button
-              variant="outline"
+              className="min-w-0 flex-1 sm:flex-none"
               onClick={() => {
                 commit();
                 setMore(false);
               }}
             >
-              Show {total.toLocaleString("en-IN")} {total === 1 ? "job" : "jobs"}
+              Save
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 text-[13px] sm:col-span-2 lg:col-span-3">
@@ -366,7 +367,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
+                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
                   onSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
