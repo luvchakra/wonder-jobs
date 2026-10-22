@@ -365,6 +365,15 @@ export const RESUME_TEMPLATES: ResumeTemplate[] = [
 
 export const TEMPLATE_FILTER_LABEL: Record<TemplateFilter, string> = { ats: "ATS Friendly", modern: "Modern", executive: "Executive", technical: "Technical", creative: "Creative", minimal: "Minimal" };
 
+/**
+ * The template a résumé is made in without asking (Generate Customized Resume): the one the candidate chose, while
+ * their plan includes it (counted from the first in the gallery); otherwise the first.
+ */
+export function templateForResume(chosen: string | undefined, planTemplates: number): string {
+  const i = chosen ? RESUME_TEMPLATES.findIndex((t) => t.id === chosen) : -1;
+  return i >= 0 && i < Math.max(1, planTemplates) ? chosen! : RESUME_TEMPLATES[0].id;
+}
+
 export function getTemplate(id: string): ResumeTemplate | undefined {
   return RESUME_TEMPLATES.find((t) => t.id === id);
 }

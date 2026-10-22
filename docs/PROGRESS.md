@@ -489,6 +489,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Notifications & email: In the bell, Push and Email for every kind of notification (WJ-366)
 - ✅ JobsLake: job types right for Full Time and Part Time — gigs no longer in Full Time, Greenhouse types read, stored postings fixed (WJ-367)
 - ✅ Job page: Easy Apply on computers, Apply to the listing on phones, Generate Customized Resume; Stop ends a search at once (WJ-368)
+- ✅ Job page: Generate Customized Resume makes and downloads a Word résumé in your template; sections inside the opened description (WJ-369)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
