@@ -264,6 +264,47 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(summary).toHaveText(before);
   });
 
+  test("GJ-024 a running search's banner says what it's for in full, with Details and Stop", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "4000"));
+    await page.goto("/demo?next=/app/jobs");
+    await page.getByRole("radio", { name: "Part Time" }).click();
+    await page.getByRole("textbox", { name: "Search jobs" }).fill("designer in Pune");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const banner = page.getByRole("status").filter({ hasText: "For “designer” in Pune" });
+    await expect(banner).toBeVisible({ timeout: 10_000 });
+    // In full: the words and the place aren't cut off.
+    const forLine = banner.getByText("For “designer” in Pune", { exact: true });
+    expect(await forLine.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await expect(banner.getByRole("link", { name: "Details" })).toBeVisible();
+    await banner.getByRole("button", { name: "Stop", exact: true }).click();
+    await expect(banner).toHaveCount(0, { timeout: 10_000 });
+  });
+
+  test("GJ-025 Search as can have none picked; Part Time starts with none, and a pick fills the box", async ({ page }) => {
+    await page.goto("/demo?next=/app/jobs");
+    const main = page.locator("#main");
+    const pressed = async () => (await main.getByRole("group", { name: "Search as" }).getByRole("button").evaluateAll((els) => els.filter((e) => e.getAttribute("aria-pressed") === "true").map((e) => e.textContent?.trim())));
+    // Full Time: My profile, and tapping it again picks none.
+    await main.getByRole("button", { name: /^Refine/ }).click();
+    expect(await pressed()).toEqual(["My profile"]);
+    await main.getByRole("group", { name: "Search as" }).getByRole("button", { name: "My profile" }).click();
+    expect(await pressed()).toEqual([]);
+    await main.getByRole("button", { name: "Back to jobs" }).click();
+    // Part Time: none picked; a role puts its words in the box, tapping it again takes them out.
+    await page.getByRole("radio", { name: "Part Time" }).click();
+    await main.getByRole("button", { name: /^Refine/ }).click();
+    expect(await pressed()).toEqual([]);
+    const role = main.getByRole("group", { name: "Search as" }).getByRole("button").nth(1);
+    const title = (await role.innerText()).trim();
+    await role.click();
+    expect(await pressed()).toEqual([title]);
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue(title);
+    await role.click();
+    expect(await pressed()).toEqual([]);
+    await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue("");
+  });
+
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
     const main = page.locator("#main");
