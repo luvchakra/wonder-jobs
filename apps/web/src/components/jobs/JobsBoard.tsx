@@ -155,7 +155,6 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     <div>
       {header}
       <JobFiltersBar
-        showCount={!summary}
         filters={effective}
         views={!savedOnly}
         onChange={(p) => {
@@ -165,7 +164,6 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         sort={sort}
         onSort={setSort}
         sources={sources}
-        total={results.length}
         compare={compareMode}
         onCompare={(on) => {
           setCompareMode(on);

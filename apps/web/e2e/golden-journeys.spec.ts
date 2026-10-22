@@ -381,21 +381,29 @@ test.describe("Golden journey — search (demo mode)", () => {
     const box = (await kind.boundingBox())!;
     expect(box.width).toBeGreaterThan(330);
 
-    // Full Time: Looking for (no Career Profile button), the profile's search with "Career Profile" as a link,
-    // and All · Strong · For you; no search box, no job types.
+    // Full Time: Looking for with Refine on its right (no Career Profile button), the profile's search with
+    // "Career Profile" as a link; no search box. The views and job types are in Refine, not on the page.
     const main = page.locator("#main");
     await expect(main.getByText(/^Looking for/)).toBeVisible();
     await expect(main.getByRole("link", { name: "Edit Career Profile" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search based on Career Profile" })).toBeVisible();
     await expect(main.getByRole("link", { name: "Career Profile", exact: true })).toHaveAttribute("href", "/app/career-dna?from=find");
     const views = async () => (await main.getByRole("button", { name: /^(All|Strong|For you)$/ }).allInnerTexts()).map((t) => t.trim());
-    expect(await views()).toEqual(["All", "Strong", "For you"]);
+    expect(await views()).toEqual([]);
+    await expect(main.getByRole("button", { name: "Contract", exact: true })).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveCount(0);
-    // Full Time's own job types; Internship and Gig are Part Time's.
+    const refine = main.getByRole("button", { name: /^Refine/ });
+    // Full Time's own job types, in Refine; Internship and Gig are Part Time's.
+    await refine.click();
+    expect(await views()).toEqual(["All", "Strong", "For you"]);
     for (const t of ["Permanent", "Contract", "Consultant", "Short-term"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
-    // Where the job types, the search button and the views sit: switching modes mustn't move them.
-    const rows = async () => Promise.all([main.getByRole("button", { name: "Contract", exact: true }), main.locator("form").getByRole("button", { name: /^Search/ }).first(), main.getByRole("button", { name: "All", exact: true })].map(async (l) => Math.round((await l.boundingBox())!.y)));
+    // Refine has one action: Save (no Search).
+    await expect(main.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
+    await main.getByRole("button", { name: "Save", exact: true }).click();
+    // Where Refine and the search button sit: switching modes mustn't move them.
+    const rows = async () => Promise.all([refine, main.locator("form").getByRole("button", { name: /^Search/ }).first()].map(async (l) => Math.round((await l.boundingBox())!.y)));
     const fullRows = await rows();
 
     // Slide the thumb across to Part Time.
@@ -407,25 +415,25 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(part).toHaveAttribute("aria-checked", "true");
     for (const [i, y] of (await rows()).entries()) expect(Math.abs(y - fullRows[i])).toBeLessThanOrEqual(1);
 
-    // Part Time: the box, its job types (Consultant, not Full-time or Part-time), Search and All · Strong · For you; no Looking for.
+    // Part Time: the box with Refine on its right, and Search; no Looking for. In Refine: its job types
+    // (Consultant, not Full-time or Part-time) and All · Strong · For you.
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
+    await expect(main.getByText(/^Looking for/)).toHaveCount(0);
+    await refine.click();
     for (const t of ["Contract", "Consultant", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Permanent", exact: true })).toHaveCount(0);
     for (const t of ["Full-time", "Part-time"]) await expect(main.getByRole("button", { name: t, exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
     expect(await views()).toEqual(["All", "Strong", "For you"]);
-    await expect(main.getByText(/^Looking for/)).toHaveCount(0);
-    // Hide Pipeline lives in Refine, and Refine is in both.
-    await expect(main.getByText(/^Hide Pipeline/)).toHaveCount(0);
-    await main.getByRole("button", { name: /^Refine/ }).click();
     // Part Time's Refine has nothing from the Career Profile's role: no Looking for, no "strictly within your Career Profile".
     await expect(main.getByText(/^Looking for/)).toHaveCount(0);
     await expect(main.getByText(/Search strictly within your/)).toHaveCount(0);
     await main.getByLabel(/^Hide Pipeline/).check();
     await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
     await main.getByLabel(/^Hide Pipeline/).uncheck();
-    // Its Search searches only the typed words: with none, it asks for them.
-    await main.getByRole("button", { name: "Search", exact: true }).last().click();
+    await main.getByRole("button", { name: "Save", exact: true }).click();
+    // Search searches only the typed words: with none, it asks for them.
+    await main.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Part Time searches only your words" })).toBeVisible();
 
     // Part Time has its own results: a prompt before its first search, then that search's jobs —
