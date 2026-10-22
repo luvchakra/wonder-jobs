@@ -1,18 +1,19 @@
 /**
- * What kind of engagement a posting is — full-time, part-time, a contract, an internship, short-term
- * work or a gig (owner, 2026-10-18). Read from what the source itself reports (Lever's commitment,
+ * What kind of engagement a posting is — full-time, part-time, a contract, a consulting engagement, an
+ * internship, short-term work or a gig (owner, 2026-10-18; consultant 2026-10-22). Read from what the source itself reports (Lever's commitment,
  * Ashby's and Himalayas' employment type, Adzuna's contract time…); when a source says nothing, from
  * the posting's own title ("Part-time Barista", "Freelance designer") and marked as read from the title.
  * Never assumed: a posting that says neither has no job type, not "Full-time".
  */
-export type JobType = "full_time" | "part_time" | "contract" | "internship" | "temporary" | "gig";
+export type JobType = "full_time" | "part_time" | "contract" | "consultant" | "internship" | "temporary" | "gig";
 
-export const JOB_TYPES: JobType[] = ["full_time", "part_time", "contract", "internship", "temporary", "gig"];
+export const JOB_TYPES: JobType[] = ["full_time", "part_time", "contract", "consultant", "internship", "temporary", "gig"];
 
 export const JOB_TYPE_LABEL: Record<JobType, string> = {
   full_time: "Full-time",
   part_time: "Part-time",
   contract: "Contract",
+  consultant: "Consultant",
   internship: "Internship",
   temporary: "Short-term",
   gig: "Gig",
@@ -22,12 +23,17 @@ export const JOB_TYPE_LABEL: Record<JobType, string> = {
 export type JobTypeFrom = "source" | "title";
 
 // Most specific first: "part-time contract" is part-time; "freelance contract" is a gig.
+// A consulting engagement only when it's said outright ("independent consultant", "on a consultant basis"):
+// "Senior Consultant" is usually a full-time job title, so the word alone never counts.
+const CONSULTING = /\b(consultant basis|consultancy basis|consulting (basis|engagement|assignment|contract)|consultancy (engagement|assignment|contract)|(independent|external|freelance|contract|interim|fractional) consultants?)\b/i;
+
 const RULES: [JobType, RegExp][] = [
+  ["consultant", CONSULTING],
   ["internship", /\b(intern|interns|internship|trainee(ship)?|apprentice(ship)?|werkstudent|working student)\b/i],
   ["gig", /\b(gig|gigs|freelance[rd]?|freelancing|fixed[- ]price|hourly project|per project|task[- ]based|odd jobs?)\b/i],
   ["part_time", /\b(part[\s_-]?time|parttime|teilzeit|minijob|half[- ]day|weekend (job|shifts?|work)|few hours)\b/i],
   ["temporary", /\b(temporary|temp|seasonal|short[\s_-]?term|fixed[\s_-]?term|interim|one[- ]off|locum|befristet|holiday cover|maternity cover)\b/i],
-  ["contract", /\b(contract|contractor|contractual|consultant basis|c2c|corp[- ]to[- ]corp|1099)\b/i],
+  ["contract", /\b(contract|contractor|contractual|c2c|corp[- ]to[- ]corp|1099)\b/i],
   ["full_time", /\b(full[\s_-]?time|fulltime|vollzeit|permanent|regular)\b/i],
 ];
 
@@ -48,6 +54,8 @@ export function readJobType(reported: string | readonly (string | null | undefin
   if (!values.length) return undefined;
   // "FullTime" / "PartTime" (Ashby) read as two words.
   const text = values.map((v) => v.replace(/([a-z])([A-Z])/g, "$1 $2")).join(" | ");
+  // A source's own field may say just "Consultant" or "Consulting": there it is the engagement, not a title.
+  if (values.some((v) => /^\s*(consultant|consulting|consultancy)\s*$/i.test(v))) return "consultant";
   return classify(text);
 }
 
@@ -56,6 +64,8 @@ export function readJobType(reported: string | readonly (string | null | undefin
  * The description isn't read — "full-time equivalent" or "contract management" there says nothing about the job.
  */
 export function jobTypeFromTitle(title: string): JobType | undefined {
+  // "Java Developer (Consultant)", "SAP Architect – Consulting": the engagement, bracketed or after a dash.
+  if (/[([|–—-]\s*(consultant|consulting|consultancy)\s*[)\]|]?\s*$/i.test(title.trim())) return "consultant";
   const t = classify(title);
   // "Senior Contract Manager", "Contracts Administrator": a contract word in a title is a role unless it's
   // bracketed or after a dash ("Java Developer (Contract)"), or leads a title it isn't the field of ("Contract Java Developer").
@@ -91,6 +101,7 @@ const SEARCH_WORDS: [JobType, RegExp][] = [
   ["internship", /\b(internships?|interns?)\b/gi],
   ["temporary", /\b(short[\s-]?term|temporary|seasonal|temp)\b/gi],
   ["contract", /\bcontract(?=\s+(jobs?|roles?|work|positions?|openings?)\b)/gi],
+  ["consultant", /\b(consultant|consulting)(?=\s+(jobs?|roles?|work|positions?|openings?|gigs?|assignments?|engagements?)\b)/gi],
 ];
 
 /** Job-type words in a search: the types they ask for, and the search without them. */

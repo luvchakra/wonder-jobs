@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIND_MODES, FIND_MODE_PATCH, FIND_MODE_VIEWS, PART_TIME_JOB_TYPES, findModeOf } from "./findMode";
+import { FIND_MODES, FIND_MODE_PATCH, PART_TIME_JOB_TYPES, findModeOf } from "./findMode";
 
 describe("Find's Full Time and Part Time", () => {
   it("is Full Time unless the profile is skipped", () => {
@@ -20,12 +20,7 @@ describe("Find's Full Time and Part Time", () => {
     expect(findModeOf(FIND_MODE_PATCH.full_time)).toBe("full_time");
   });
 
-  it("offers For you in Full Time and Strong in Part Time, All in both", () => {
-    expect(FIND_MODE_VIEWS.full_time).toEqual(["all", "for_you"]);
-    expect(FIND_MODE_VIEWS.part_time).toEqual(["all", "strong"]);
-  });
-
-  it("narrows Part Time by every job type but Full-time", () => {
-    expect(PART_TIME_JOB_TYPES).toEqual(["part_time", "contract", "internship", "temporary", "gig"]);
+  it("narrows Part Time by Contract, Consultant, Internship, Short-term and Gig", () => {
+    expect(PART_TIME_JOB_TYPES).toEqual(["contract", "consultant", "internship", "temporary", "gig"]);
   });
 });

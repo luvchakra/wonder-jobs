@@ -209,12 +209,15 @@ test.describe("Golden journey — search (demo mode)", () => {
     const box = (await kind.boundingBox())!;
     expect(box.width).toBeGreaterThan(330);
 
-    // Full Time: Looking for, the profile's search and For you; no search box, no job types, no Strong.
+    // Full Time: Looking for (no Career Profile button), the profile's search with "Career Profile" as a link,
+    // and All · Strong · For you; no search box, no job types.
     const main = page.locator("#main");
     await expect(main.getByText(/^Looking for/)).toBeVisible();
+    await expect(main.getByRole("link", { name: "Edit Career Profile" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search based on Career Profile" })).toBeVisible();
-    await expect(main.getByRole("button", { name: "For you", exact: true })).toBeVisible();
-    await expect(main.getByRole("button", { name: "Strong", exact: true })).toHaveCount(0);
+    await expect(main.getByRole("link", { name: "Career Profile", exact: true })).toHaveAttribute("href", "/app/career-dna?from=find");
+    const views = async () => (await main.getByRole("button", { name: /^(All|Strong|For you)$/ }).allInnerTexts()).map((t) => t.trim());
+    expect(await views()).toEqual(["All", "Strong", "For you"]);
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveCount(0);
     await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
 
@@ -226,13 +229,12 @@ test.describe("Golden journey — search (demo mode)", () => {
     await page.mouse.up();
     await expect(part).toHaveAttribute("aria-checked", "true");
 
-    // Part Time: the box, the part-time job types (not Full-time), Search and Strong; no Looking for, no For you.
+    // Part Time: the box, its job types (Consultant, not Full-time or Part-time), Search and All · Strong · For you; no Looking for.
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toBeVisible();
-    for (const t of ["Part-time", "Contract", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
-    await expect(main.getByRole("button", { name: "Full-time", exact: true })).toHaveCount(0);
+    for (const t of ["Contract", "Consultant", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
+    for (const t of ["Full-time", "Part-time"]) await expect(main.getByRole("button", { name: t, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
-    await expect(main.getByRole("button", { name: "Strong", exact: true })).toBeVisible();
-    await expect(main.getByRole("button", { name: "For you", exact: true })).toHaveCount(0);
+    expect(await views()).toEqual(["All", "Strong", "For you"]);
     await expect(main.getByText(/^Looking for/)).toHaveCount(0);
     // Hide Pipeline and Refine stay in both.
     await expect(main.getByText("Hide Pipeline")).toBeVisible();
