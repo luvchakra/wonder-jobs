@@ -1,7 +1,7 @@
 import { useJobsStore } from "@/store/jobs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Job } from "@/domain/jobs/types";
-import type { StageContext } from "@/domain/workflow/engine";
+import { StopSignal, type StageContext } from "@/domain/workflow/engine";
 import type { Evidence, RunConfig } from "@/domain/workflow/types";
 import { canonicalize } from "@/domain/jobslake/canonical";
 import { PROTOCOL_VERSION, type SearchEvent, type SearchResponse } from "@/domain/jobslake/protocol";
@@ -122,6 +122,7 @@ describe("search stage (signed in)", () => {
       addEvidence: (e: Evidence) => void evidence.push(e),
       warn: (m: string) => void warnings.push(m),
       checkpoint: async () => undefined,
+      stopSignal: new AbortController().signal,
       sleep: async () => undefined,
       get: () => undefined,
       fail: (e: { message: string }) => {
@@ -171,6 +172,24 @@ describe("search stage (signed in)", () => {
     expect(st.order).toEqual(["careers_1"]);
     expect(st.matches.careers_1).toBeDefined();
     expect(st.jobs.careers_1.lake?.sightings).toHaveLength(2);
+  });
+
+  it("Stop ends a search still waiting on JobsLake at once, and nothing else is searched", async () => {
+    // JobsLake that hasn't answered yet: the request hangs until it is aborted.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (!String(url).endsWith("/search/stream")) return new Response("{}");
+      return new Promise<Response>((_, reject) => (init?.signal as AbortSignal).addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
+    });
+    const stop = new AbortController();
+    const { c, evidence } = ctx();
+    const stopping = Object.assign(c, { stopSignal: stop.signal, checkpoint: async () => { if (stop.signal.aborted) throw new StopSignal(); } }) as StageContext;
+    const searching = executors.search(stopping);
+    await vi.waitFor(() => expect(fetchSpy.mock.calls.some(([u]) => String(u).endsWith("/search/stream"))).toBe(true));
+    stop.abort();
+    await expect(searching).rejects.toBeInstanceOf(StopSignal);
+    // Stopped is not "JobsLake didn't answer", and no source is searched instead.
+    expect(evidence.some((e) => e.label === "JobsLake")).toBe(false);
+    expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/search/stream") || String(u).endsWith("/search"))).toHaveLength(1);
   });
 
   it("never searches a source directly: when JobsLake fails the search fails and says so", async () => {

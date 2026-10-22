@@ -214,7 +214,7 @@ test.describe("DECIDE", () => {
 test.describe("APPLY", () => {
   test("APPLY-001 prepare an Application Pack from an opportunity", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs/job_microsoft_spm");
-    await page.getByRole("button", { name: /^(Prepare application|Open application pack)$/ }).first().click();
+    await page.getByRole("button", { name: "Generate Customized Resume" }).first().click();
     await page.waitForURL(/\/prepare$/);
     const summary = page.locator("#wj-pack-summary");
     await expect(summary).toHaveText(/Nothing prepared yet|of 3 materials ready/);
@@ -420,7 +420,7 @@ test.describe("MOBILE (390px)", () => {
     await page.getByRole("list", { name: "Job results" }).locator('a[href^="/app/jobs/"]').first().click();
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
     await expectNoHorizontalScroll(page);
-    await page.getByRole("button", { name: /^(Prepare application|Open application pack)$/ }).first().click();
+    await page.getByRole("button", { name: "Generate Customized Resume" }).first().click();
     await page.waitForURL(/\/prepare$/);
     await expect(page.locator("#wj-pack-summary")).toBeVisible();
     await expectNoHorizontalScroll(page);

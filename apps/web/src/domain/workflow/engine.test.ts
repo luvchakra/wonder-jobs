@@ -139,6 +139,27 @@ describe("engine", () => {
     expect(run.status).toBe("STOPPED");
   });
 
+  it("a stop ends a stage waiting on a slow request at once (its stop signal aborts the request)", async () => {
+    let aborted = false;
+    const { engine, run } = makeEngine({
+      search: (ctx) =>
+        new Promise((_, reject) => {
+          // A request that never answers on its own, like a search waiting on its sources.
+          ctx.stopSignal.addEventListener("abort", () => {
+            aborted = true;
+            reject(new StopSignal());
+          });
+        }),
+    });
+    const loop = engine.start(run.id);
+    await until(() => run.currentStage === "search");
+    engine.stop(run.id);
+    await loop;
+    expect(aborted).toBe(true);
+    expect(run.status).toBe("STOPPED");
+    expect(run.stages.find((s) => s.key === "search")?.status).toBe("STOPPED");
+  });
+
   it("stops gracefully and preserves completed outputs", async () => {
     const { engine, run } = makeEngine();
     const loop = engine.start(run.id);

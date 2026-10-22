@@ -13,6 +13,7 @@ export type AnalyticsEvent =
   | "workflow_stage_completed"
   | "workflow_waiting_for_user"
   | "job_viewed"
+  | "apply_listing_opened"
   | "job_saved"
   | "job_rejected"
   | "application_preparation_started"
