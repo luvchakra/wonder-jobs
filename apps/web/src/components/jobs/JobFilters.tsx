@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, GitCompareArrows, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
-import { JOB_TYPES, JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
+import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
+import { FIND_MODE_VIEWS, PART_TIME_JOB_TYPES, findModeOf } from "@/domain/jobs/findMode";
 import { Chip, Input, Select, Segmented } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
@@ -50,14 +51,15 @@ const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[]
   { value: "director", label: "Director+" },
 ];
 
-const JOB_TYPE_CHIPS = JOB_TYPES.map((value) => ({ value, label: JOB_TYPE_LABEL[value] }));
+const JOB_TYPE_CHIPS = PART_TIME_JOB_TYPES.map((value) => ({ value, label: JOB_TYPE_LABEL[value] }));
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
 /**
- * What and where (typing narrows the jobs already found; Enter searches every source for it, in those
- * places — before a search or while one runs), one row of views, and everything else — sort, work mode,
- * freshness, salary, sources, compare — in Refine.
+ * Full Time (the Career Profile's search): one "Search based on Career Profile". Part Time: what to search
+ * (typing narrows the jobs already found; Enter searches every source for it, in those places) and the job
+ * types. Then one row of views, and everything else — sort, work mode, freshness, salary, sources,
+ * compare — in Refine. The mode is the slider above the page (domain/jobs/findMode.ts).
  */
 export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = true, compare, onCompare, sourceSearch, showCount = true, refineTop, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; total: number; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** The job count beside Refine (off when the list says it in its own line). */ showCount?: boolean; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
@@ -92,6 +94,8 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
   }
   const activeCount = (filters.strictProfile ? 1 : 0) + (filters.levels?.length ?? 0) + filters.workModes.length + filters.sourceIds.length + (filters.freshnessDays ? 1 : 0) + (filters.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
   const view = viewOf(filters);
+  const partTime = findModeOf(filters) === "part_time";
+  const modeViews = VIEWS.filter((v) => FIND_MODE_VIEWS[findModeOf(filters)].includes(v.value as "all" | "for_you" | "strong"));
   // Applies what's in the box and the Where field to the list.
   const commit = () => onChange({ query: draft, locations: splitPlaces(where) });
   return (
@@ -100,11 +104,13 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
         className="flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          commit();
+          if (partTime) commit();
+          else onChange({ query: "", locations: splitPlaces(where) });
           // Words searched: every source too, not only the jobs already on screen. Nothing typed: the
           // Career Profile's own search.
-          const words = draft.trim();
-          // Skip Career Profile: only typed words are searched — nothing typed is asked for, not filled in from the profile.
+          // Full Time has no box: it is always the Career Profile's own search.
+          const words = partTime ? draft.trim() : "";
+          // Part Time: only typed words are searched — nothing typed is asked for, not filled in from the profile.
           if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
             setNeedWords(true);
             return;
@@ -113,6 +119,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
           else if (!words) sourceSearch?.runPlaces(splitPlaces(where));
         }}
       >
+        {partTime && (
         <div className="relative order-1 min-w-0 flex-[1_1_16rem]">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
@@ -144,46 +151,34 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
           </div>
         </div>
-        {/* Between the box and the button on a phone; under both on a wider screen. */}
-        <div className="order-2 flex basis-full items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:order-3">
-          <label className={cn("inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors", filters.skipProfile ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
-            <input
-              type="checkbox"
-              className="size-3.5 shrink-0 accent-[var(--color-brand-600)]"
-              checked={!!filters.skipProfile}
-              onChange={(e) => {
-                setNeedWords(false);
-                // Skipping the profile shows everything found, not only what fits it.
-                // Skipping it leaves out its places too (anywhere, unless typed); unticking brings them back.
-                onChange(e.target.checked ? { skipProfile: true, strictProfile: false, minFit: null, exactFit: false, locations: [] } : { skipProfile: false, locations: undefined });
-              }}
-            />
-            Skip Career Profile
-          </label>
-          <span className="h-5 w-px shrink-0 bg-line" aria-hidden />
-          {JOB_TYPE_CHIPS.map((t) => (
-            <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
-              {t.label}
-            </Chip>
-          ))}
-        </div>
-        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
-          {draft.trim() || !sourceSearch || filters.skipProfile ? "Search" : "Search based on Career Profile"}
+        )}
+        {/* Part Time's job types: between the box and the button on a phone; under both on a wider screen. */}
+        {partTime && (
+          <div className="order-2 flex basis-full items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:order-3">
+            {JOB_TYPE_CHIPS.map((t) => (
+              <Chip key={t.value} active={!!filters.jobTypes?.includes(t.value)} onClick={() => onChange({ jobTypes: filters.jobTypes?.includes(t.value) ? filters.jobTypes.filter((x) => x !== t.value) : [...(filters.jobTypes ?? []), t.value] })} className="h-9 shrink-0 px-3 text-[12.5px]">
+                {t.label}
+              </Chip>
+            ))}
+          </div>
+        )}
+        <Button type="submit" icon={<Search className="size-4" aria-hidden />} className={cn("order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12", !partTime && "flex-1 sm:flex-none")}>
+          {partTime || !sourceSearch ? "Search" : "Search based on Career Profile"}
         </Button>
       </form>
-      {filters.skipProfile && (
+      {partTime && (
         <p className="-mt-1 text-[11.5px] leading-snug text-ink-4">
-          Skipped: Looking for{sourceSearch?.places.length ? `, your places (${sourceSearch.places.join(", ")})` : ""}, work modes and minimum salary.
+          Only your words: not Looking for{sourceSearch?.places.length ? `, your places (${sourceSearch.places.join(", ")})` : ""}, work modes or minimum salary.
         </p>
       )}
-      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the role you&apos;re looking for — Skip Career Profile searches only your words.</p>}
+      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {/* The views and Hide Pipeline share the space; Refine never leaves the screen. */}
       <div className="flex items-center gap-1.5 max-[380px]:gap-1">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto max-[380px]:gap-1 pb-0.5 [scrollbar-width:none]">
           {views &&
-            VIEWS.map((v) => (
+            modeViews.map((v) => (
               <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 shrink-0 px-3 max-[400px]:px-2.5 max-[380px]:px-2 max-[380px]:text-[12.5px]">
                 {v.label}
               </Chip>
@@ -255,6 +250,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
             Sort
             <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
           </div>
+          {!partTime && (
           <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
             <span>
@@ -264,6 +260,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, total, views = 
               </Link>
             </span>
           </label>
+          )}
           {/* One action for everything above: search every source with these words and places, then show the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
             {sourceSearch && (
