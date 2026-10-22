@@ -254,3 +254,36 @@ describe("Search strictly within your Career Profile", () => {
     expect(r.hiddenByReason).toEqual({ profile: 1 });
   });
 });
+
+describe("each mode's All (WJ-367: freelance gigs were showing in Full Time)", () => {
+  const jobs = {
+    perm: job("perm", { jobType: "full_time" }),
+    gig: job("gig", { jobType: "gig" }),
+    pt: job("pt", { jobType: "part_time" }),
+    intern: job("intern", { jobType: "internship" }),
+    contract: job("contract", { jobType: "contract" }),
+    untyped: job("untyped"),
+    titled: job("titled", { title: "Freelance Product Manager" }),
+  };
+  const ids = Object.keys(jobs);
+  const run = (f: Partial<JobFilters>) => applyJobFilters(ids, jobs, {}, {}, {}, { ...DEFAULT_FILTERS, ...f }, NOW).visibleIds;
+
+  it("Full Time leaves out gigs, part-time jobs and internships; a job that states no type shows", () => {
+    expect(run({ skipProfile: false })).toEqual(["perm", "contract", "untyped"]);
+    expect(applyJobFilters(ids, jobs, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: false }, NOW).hiddenByReason.other_mode).toBe(4);
+  });
+
+  it("Part Time leaves out full-time jobs", () => {
+    expect(run({ skipProfile: true })).toEqual(["gig", "pt", "intern", "contract", "untyped", "titled"]);
+  });
+
+  it("a picked job type, and the Saved tab, aren't narrowed by the mode", () => {
+    expect(run({ skipProfile: false, jobTypes: ["gig"] })).toEqual(["gig", "titled"]);
+    const saved = Object.fromEntries(ids.map((id) => [id, "2026-10-01T00:00:00Z"]));
+    expect(applyJobFilters(ids, jobs, {}, {}, saved, { ...DEFAULT_FILTERS, skipProfile: false, onlySaved: true }, NOW).visibleIds).toEqual(ids);
+  });
+
+  it("says which mode a hidden job is in", () => {
+    expect(explainJobVisibility(jobs.gig, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: false }, NOW).reason).toBe("other_mode");
+  });
+});

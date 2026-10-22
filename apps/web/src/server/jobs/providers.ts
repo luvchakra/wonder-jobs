@@ -110,6 +110,8 @@ const jobicy: SourceFetcher = {
 };
 
 /* ---------- Remote OK ---------- */
+// Remote OK has no employment-type field; some postings carry it as a tag ("full time", "part time").
+const REMOTEOK_TYPE_TAG = /^(full[\s-]?time|part[\s-]?time|contract|contractor|freelance|internship|temporary)$/i;
 interface RemoteOkJob { id: string; slug: string; date: string; company: string; position: string; tags: string[]; description: string; location: string; url: string; apply_url?: string; salary_min?: number | string; salary_max?: number | string }
 const remoteok: SourceFetcher = {
   id: "remoteok",
@@ -120,7 +122,7 @@ const remoteok: SourceFetcher = {
     const jobs = data.filter((j): j is RemoteOkJob => "position" in j);
     return finish(
       "remoteok",
-      jobs.map((j) => ({ externalId: String(j.id), title: j.position, company: j.company, location: `Remote (${j.location || "Worldwide"})`, remote: true, description: j.description, tags: j.tags ?? [], postedAt: j.date, applyUrl: j.url, salaryMin: Number(j.salary_min) || null, salaryMax: Number(j.salary_max) || null, currency: Number(j.salary_max) ? "USD" : null, employerSite: false, applyPath: "platform" as const })),
+      jobs.map((j) => ({ externalId: String(j.id), title: j.position, company: j.company, location: `Remote (${j.location || "Worldwide"})`, remote: true, description: j.description, tags: j.tags ?? [], postedAt: j.date, applyUrl: j.url, salaryMin: Number(j.salary_min) || null, salaryMax: Number(j.salary_max) || null, currency: Number(j.salary_max) ? "USD" : null, employerSite: false, applyPath: "platform" as const, jobType: (j.tags ?? []).filter((t) => REMOTEOK_TYPE_TAG.test(t)) })),
       c,
     );
   },
@@ -324,7 +326,17 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "ashby", slug: "atlan", company: "Atlan", domain: "atlan.com" },
 ];
 
-export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[] }
+export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[]; metadata?: { name?: string; value?: unknown }[] | null }
+
+/**
+ * A Greenhouse board's own employment-type fields, when the company publishes them as custom fields: "Employment
+ * Type: Full-time" (MongoDB), "Time Type: Full Time" (Datadog, Dropbox), "Employment Type: Fulltime Employee"
+ * (Zscaler), "Req Type: University - Graduating Intern" (Duolingo). Workplace type and unrelated "… Type" fields aren't read.
+ */
+const GH_TYPE_FIELD = /^(employment|employee|worker|time|job|position|contract|req|early career time)\s*type$/i;
+export function greenhouseJobType(j: Pick<GreenhouseJob, "metadata">): string[] {
+  return (j.metadata ?? []).flatMap((m) => (m.name && GH_TYPE_FIELD.test(m.name.trim()) ? (Array.isArray(m.value) ? m.value : [m.value]) : [])).filter((v): v is string => typeof v === "string" && !/^none$/i.test(v.trim()));
+}
 export interface LeverJob { id: string; text: string; hostedUrl: string; applyUrl: string; createdAt: number; country?: string; workplaceType?: string; categories?: { location?: string; team?: string; department?: string; commitment?: string }; descriptionPlain?: string; lists?: { text: string; content: string }[] }
 export interface AshbyJob { id: string; title: string; jobUrl: string; applyUrl: string; publishedAt: string; location: string; isRemote?: boolean; workplaceType?: string; department?: string; team?: string; descriptionPlain?: string; descriptionHtml?: string; employmentType?: string }
 
@@ -346,7 +358,7 @@ async function ashbyJobsList(board: (typeof CAREER_BOARDS)[number]): Promise<Ash
 }
 
 export function rawFromGreenhouse(board: (typeof CAREER_BOARDS)[number], j: GreenhouseJob): RawPosting {
-  return { externalId: `gh:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: j.location?.name ?? "", description: j.content ? htmlToText(j.content) : `${j.title} — ${(j.departments ?? []).map((d) => d.name).join(", ")}`, tags: (j.departments ?? []).map((d) => d.name), postedAt: j.first_published ?? j.updated_at, applyUrl: j.absolute_url, employerSite: true, applyPath: "employer_site" as const };
+  return { externalId: `gh:${board.slug}:${j.id}`, title: j.title, company: board.company, companyDomain: board.domain, location: j.location?.name ?? "", description: j.content ? htmlToText(j.content) : `${j.title} — ${(j.departments ?? []).map((d) => d.name).join(", ")}`, tags: (j.departments ?? []).map((d) => d.name), postedAt: j.first_published ?? j.updated_at, applyUrl: j.absolute_url, employerSite: true, applyPath: "employer_site" as const, jobType: greenhouseJobType(j) };
 }
 
 export function rawFromLever(board: (typeof CAREER_BOARDS)[number], j: LeverJob): RawPosting {

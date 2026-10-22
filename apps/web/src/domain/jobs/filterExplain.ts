@@ -15,8 +15,9 @@ import { jobTypeOf, readJobTypeWords } from "@/domain/jobs/jobType";
 import { relevance } from "@/services/jobs/relevance";
 import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
 import { postingTooOld } from "@/domain/jobs/age";
+import { findModeOf, inMode } from "@/domain/jobs/findMode";
 
-export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "job_type" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "job_type" | "other_mode" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
@@ -30,6 +31,7 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   no_salary: "pay not listed",
   level: "a different level",
   job_type: "a different job type",
+  other_mode: "for the other mode (Full Time or Part Time)",
   company: "a different company",
   location: "outside the places you picked",
   profile: "outside your Career Profile",
@@ -79,6 +81,9 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
   if (filters.jobTypes?.length) {
     const t = jobTypeOf(job);
     if (!t || !filters.jobTypes.includes(t)) return "job_type";
+  } else if (!filters.onlySaved && !inMode(jobTypeOf(job), findModeOf(filters))) {
+    // All in Full Time leaves out gigs, part-time jobs and internships; All in Part Time, full-time jobs. Saved shows everything saved.
+    return "other_mode";
   }
   if (filters.company?.trim() && !job.company.toLowerCase().includes(filters.company.trim().toLowerCase())) return "company";
   if (filters.locations?.length && !inPlaces(job, filters.locations)) return "location";
@@ -149,7 +154,7 @@ export function explainJobVisibility(
  * (clear just that filter, or undo the rejection) or go change the preference behind it. Only the
  * one filter responsible is cleared — never every preference at once.
  */
-export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFilters> | "unreject"; preference: { label: string; href: string } }> = {
+export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFilters> | "unreject" | "switch_mode"; preference: { label: string; href: string } }> = {
   rejected: { showAnyway: "unreject", preference: { label: "Review what Wonder learned", href: "/app/career-dna" } },
   not_saved: { showAnyway: { onlySaved: false }, preference: { label: "See all jobs", href: "/app/jobs" } },
   too_old: { showAnyway: { includeOld: true }, preference: { label: "See recent jobs", href: "/app/jobs" } },
@@ -161,6 +166,7 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   no_salary: { showAnyway: { salaryListed: false }, preference: { label: "Change filters", href: "/app/jobs" } },
   level: { showAnyway: { levels: [] }, preference: { label: "Change filters", href: "/app/jobs" } },
   job_type: { showAnyway: { jobTypes: [] }, preference: { label: "Change filters", href: "/app/jobs" } },
+  other_mode: { showAnyway: "switch_mode", preference: { label: "Back to Find", href: "/app/jobs" } },
   company: { showAnyway: { company: "" }, preference: { label: "Change filters", href: "/app/jobs" } },
   location: { showAnyway: { locations: [] }, preference: { label: "Change your places", href: "/app/career-dna" } },
   profile: { showAnyway: { strictProfile: false }, preference: { label: "Edit your Career Profile", href: "/app/career-dna" } },
