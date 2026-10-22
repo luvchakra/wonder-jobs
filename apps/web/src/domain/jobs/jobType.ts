@@ -71,7 +71,8 @@ export function jobTypeFromTitle(title: string): JobType | undefined {
   // bracketed or after a dash ("Java Developer (Contract)"), or leads a title it isn't the field of ("Contract Java Developer").
   if (t === "contract") {
     const tt = title.trim();
-    const marked = /[([|,–—-]\s*(contract|contractor|contractual)\b/i.test(tt);
+    // Marked: "(Contract)", "– Contractor", "(2-year renewable contract)", "12-month contract".
+    const marked = /[([|,–—-]\s*(contract|contractor|contractual)\b/i.test(tt) || /\([^)]*\bcontract(or|ual)?\b[^)]*\)/i.test(tt) || /\b\d+[\s-]*(months?|years?|weeks?|mo)\b[\s-]*(renewable\s+|fixed[\s-]term\s+)?contract\b/i.test(tt);
     const leads = /^(contract|contractual)\b/i.test(tt) && !CONTRACT_FIELD.test(tt);
     if (!marked && !leads) return undefined;
   }
@@ -79,12 +80,37 @@ export function jobTypeFromTitle(title: string): JobType | undefined {
   return t;
 }
 
-/** The job type a raw posting reports, else what its title says, with where it came from. */
+/**
+ * The job type a raw posting reports, else what its title says, with where it came from. A title that names a
+ * narrower engagement than the source's "Full-time" wins: SmartRecruiters and others report "Full-time" for
+ * "Intern - Sales, Summer 2027" or "Back Office Agent (6 Months Temporary)" — full-time hours, not a permanent job.
+ */
 export function resolveJobType(reported: Parameters<typeof readJobType>[0], title: string): { jobType?: JobType; jobTypeFrom?: JobTypeFrom } {
   const fromSource = readJobType(reported);
-  if (fromSource) return { jobType: fromSource, jobTypeFrom: "source" };
   const fromTitle = jobTypeFromTitle(title);
+  if (fromSource && !(fromSource === "full_time" && narrowsFullTime(title, fromTitle))) return { jobType: fromSource, jobTypeFrom: "source" };
   return fromTitle ? { jobType: fromTitle, jobTypeFrom: "title" } : {};
+}
+
+/**
+ * For a stored posting: the job type it should have now — the title's where it has none, or where the source said
+ * "Full-time" and the title names something narrower — or undefined when what it has is right.
+ */
+export function retypeFromTitle(o: { jobType?: JobType; jobTypeFrom?: JobTypeFrom; title: string }): JobType | undefined {
+  if (o.jobType && o.jobType !== "full_time") return undefined;
+  const t = jobTypeFromTitle(o.title);
+  if (!t || t === o.jobType) return undefined;
+  return !o.jobType || narrowsFullTime(o.title, t) ? t : undefined;
+}
+
+/**
+ * Whether a title's type is plain enough to overrule a source's "Full-time". "Temporary" counts only when it's the
+ * job's terms — bracketed, after a dash, or with a length ("6 Months Temporary") — not a field ("Temporary Accommodation Officer").
+ */
+function narrowsFullTime(title: string, t: JobType | undefined): boolean {
+  if (!t || t === "full_time") return false;
+  if (t !== "temporary") return true;
+  return /[([|,–—-][^)\]]*\b(temporary|temp|seasonal|fixed[\s-]?term|short[\s-]?term)\b/i.test(title) || /\b\d+[\s-]*(months?|weeks?|mo)\b/i.test(title);
 }
 
 /** A job's type for display and filtering: its own, else (older entries saved before job types) its title's. */

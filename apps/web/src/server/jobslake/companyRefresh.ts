@@ -11,7 +11,7 @@
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { LOGO_TTL_MS, companiesFrom, companyStore, fetchLogo, type CompanyStore } from "./companies";
 import { jobsLakeStore } from "./store";
-import { jobTypeFromTitle } from "@/domain/jobs/jobType";
+import { retypeFromTitle } from "@/domain/jobs/jobType";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 
 export interface CompanyRefreshReport {
@@ -43,10 +43,10 @@ export async function refreshCompanies(
   for (const o of opps) for (const r of companiesFrom([o], at)) counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
   await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, countedAt: at })));
 
-  // Postings stored without a job type: the one their title states, if any.
+  // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
+  // the one their title states.
   const typed = opps.flatMap((o) => {
-    if (o.jobType) return [];
-    const t = jobTypeFromTitle(o.title ?? "");
+    const t = retypeFromTitle({ ...o, title: o.title ?? "" });
     return t ? [{ ...o, jobType: t, jobTypeFrom: "title" as const }] : [];
   });
   if (typed.length) await (opts.savePostings ?? ((x) => jobsLakeStore().upsertOpportunities(x)))(typed);

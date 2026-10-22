@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jobTypeFromTitle, jobTypeOf, readJobType, readJobTypeWords, resolveJobType } from "./jobType";
+import { jobTypeFromTitle, jobTypeOf, readJobType, readJobTypeWords, resolveJobType, retypeFromTitle } from "./jobType";
 
 describe("readJobType — a source's own employment-type field", () => {
   it("reads each source's spelling", () => {
@@ -92,5 +92,35 @@ describe("consultant — a consulting engagement, only when it's said", () => {
     expect(readJobTypeWords("consulting work in identity").types).toEqual(["consultant"]);
     expect(readJobTypeWords("consultant roles, remote").types).toEqual(["consultant"]);
     expect(readJobTypeWords("management consultant").types).toEqual([]);
+  });
+});
+
+describe("a title over a source's Full-time (WJ-367)", () => {
+  it("lets a title that names a narrower engagement win: interns, part-time, gigs, marked contracts, temps with a length", () => {
+    expect(resolveJobType("Full-time", "Intern - Sales, Summer 2027 - Truck Tire")).toEqual({ jobType: "internship", jobTypeFrom: "title" });
+    expect(resolveJobType("Full-time", "PT Marketing Intern")).toEqual({ jobType: "internship", jobTypeFrom: "title" });
+    expect(resolveJobType("Full-time", "Customer Service Back Office Agent (6 Months Temporary)")).toEqual({ jobType: "temporary", jobTypeFrom: "title" });
+    expect(resolveJobType("Full-time", "[SX/EIT-MM] AI/Agent Engineers (1-year contract)")).toEqual({ jobType: "contract", jobTypeFrom: "title" });
+    expect(resolveJobType("Full-time", "Freelance Video Editor")).toEqual({ jobType: "gig", jobTypeFrom: "title" });
+  });
+
+  it("keeps the source's type when the title is only a role, or the source already said something narrower", () => {
+    expect(resolveJobType("Full-time", "Temporary Accommodation Officer")).toEqual({ jobType: "full_time", jobTypeFrom: "source" });
+    expect(resolveJobType("Full-time", "Senior Contract Manager")).toEqual({ jobType: "full_time", jobTypeFrom: "source" });
+    expect(resolveJobType("Contract", "Intern - Sales")).toEqual({ jobType: "contract", jobTypeFrom: "source" });
+  });
+
+  it("reads contract terms written in brackets or with a length", () => {
+    expect(jobTypeFromTitle("IT Manager (2-year renewable contract)")).toBe("contract");
+    expect(jobTypeFromTitle("Data Engineer 12-month contract")).toBe("contract");
+    expect(jobTypeFromTitle("Contracts Analyst")).toBeUndefined();
+  });
+
+  it("retypes a stored posting only where its type is missing or a contradicted Full-time", () => {
+    expect(retypeFromTitle({ title: "Part-time Barista" })).toBe("part_time");
+    expect(retypeFromTitle({ title: "Intern - Sales", jobType: "full_time", jobTypeFrom: "source" })).toBe("internship");
+    expect(retypeFromTitle({ title: "Temporary Accommodation Officer", jobType: "full_time", jobTypeFrom: "source" })).toBeUndefined();
+    expect(retypeFromTitle({ title: "Intern - Sales", jobType: "gig", jobTypeFrom: "source" })).toBeUndefined();
+    expect(retypeFromTitle({ title: "Product Manager" })).toBeUndefined();
   });
 });
