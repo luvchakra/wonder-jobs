@@ -455,11 +455,14 @@ export function JobsEmpty({ search }: { search: JobSearch }) {
 
 /** Search as the whole profile or as one of the candidate's roles — one tap, it searches. */
 /**
- * "Search as": My profile or one of the candidate's roles — or none (owner, 2026-10-22): tapping the chip
- * that's on turns it off. `current` false = none picked.
+ * "Search as": My profile or one of the candidate's roles. With `allowNone` (Part Time, owner 2026-10-22)
+ * tapping the chip that's on turns it off; Full Time always has one picked. `current` false = none picked.
  */
-export function RoleChips({ roles, current, onPick, busy }: { roles: { id: string; title: string }[]; current: string | null | false; onPick: (roleId: string | null | false) => void; busy: boolean }) {
-  const pick = (id: string | null) => onPick(current === id ? false : id);
+export function RoleChips({ roles, current, onPick, busy, allowNone = false }: { roles: { id: string; title: string }[]; current: string | null | false; onPick: (roleId: string | null | false) => void; busy: boolean; allowNone?: boolean }) {
+  const pick = (id: string | null) => {
+    if (current === id && !allowNone) return;
+    onPick(current === id ? false : id);
+  };
   return (
     <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
       <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>

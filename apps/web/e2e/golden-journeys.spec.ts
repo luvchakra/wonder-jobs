@@ -296,15 +296,15 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(banner).toHaveCount(0, { timeout: 10_000 });
   });
 
-  test("GJ-025 Search as can have none picked; Part Time starts with none, and a pick fills the box", async ({ page }) => {
+  test("GJ-025 Search as: Full Time always has one picked; Part Time starts with none, and a pick fills the box", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
     const main = page.locator("#main");
     const pressed = async () => (await main.getByRole("group", { name: "Search as" }).getByRole("button").evaluateAll((els) => els.filter((e) => e.getAttribute("aria-pressed") === "true").map((e) => e.textContent?.trim())));
-    // Full Time: My profile, and tapping it again picks none.
+    // Full Time always has one picked: tapping My profile again keeps it.
     await main.getByRole("button", { name: /^Refine/ }).click();
     expect(await pressed()).toEqual(["My profile"]);
     await main.getByRole("group", { name: "Search as" }).getByRole("button", { name: "My profile" }).click();
-    expect(await pressed()).toEqual([]);
+    expect(await pressed()).toEqual(["My profile"]);
     await main.getByRole("button", { name: "Back to jobs" }).click();
     // Part Time: none picked; a role puts its words in the box, tapping it again takes them out.
     await page.getByRole("radio", { name: "Part Time" }).click();
@@ -392,10 +392,15 @@ test.describe("Golden journey — search (demo mode)", () => {
     // Hide Pipeline lives in Refine, and Refine is in both.
     await expect(main.getByText(/^Hide Pipeline/)).toHaveCount(0);
     await main.getByRole("button", { name: /^Refine/ }).click();
+    // Part Time's Refine has nothing from the Career Profile's role: no Looking for, no "strictly within your Career Profile".
+    await expect(main.getByText(/^Looking for/)).toHaveCount(0);
+    await expect(main.getByText(/Search strictly within your/)).toHaveCount(0);
     await main.getByLabel(/^Hide Pipeline/).check();
     await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
     await main.getByLabel(/^Hide Pipeline/).uncheck();
-    await main.getByRole("button", { name: "Back to jobs" }).click();
+    // Its Search searches only the typed words: with none, it asks for them.
+    await main.getByRole("button", { name: "Search", exact: true }).last().click();
+    await expect(page.getByRole("alert").filter({ hasText: "Part Time searches only your words" })).toBeVisible();
 
     // Part Time has its own results: a prompt before its first search, then that search's jobs —
     // and switching modes swaps each one's results back, without searching again.
