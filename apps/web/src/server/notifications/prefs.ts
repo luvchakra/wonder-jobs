@@ -1,6 +1,7 @@
 /** A person's Notify me about choices (domain/notifications/prefs.ts), kept with their account, inside the platform's settings. */
 import { adminDefaults, allowedChannels, effectivePrefs, type NotifyAdmin } from "@/domain/notifications/admin";
-import { cleanNotifyPrefs, type NotifyChannel, type NotifyPrefs, type NotifyTopic } from "@/domain/notifications/prefs";
+import { cleanNotifyPrefs, topicOf, type NotifyPrefs, type NotifyTopic, type NudgeChannel } from "@/domain/notifications/prefs";
+import type { Notification } from "@/domain/career/types";
 import { stateStore } from "@/server/state";
 import { loadNotifyAdmin } from "./admin";
 
@@ -10,7 +11,7 @@ export interface NotifyContext {
   /** What they chose (the platform's defaults where they never chose). */
   prefs: NotifyPrefs;
   /** What the platform lets them use. */
-  allowed: Record<NotifyTopic, Record<NotifyChannel, boolean>>;
+  allowed: Record<NotifyTopic, Record<NudgeChannel, boolean>>;
   /** What actually goes: their choice, where allowed. */
   effective: NotifyPrefs;
   admin: NotifyAdmin;
@@ -40,4 +41,10 @@ export async function saveNotifyPrefs(tenantId: string, raw: unknown): Promise<N
   const prefs = cleanNotifyPrefs(raw, adminDefaults(admin));
   await stateStore.put(tenantId, KEY, prefs);
   return prefs;
+}
+
+/** Which notifications this person keeps in their bell (their choice per kind), for a server writing to it. */
+export async function bellFilter(tenantId: string): Promise<(category: Notification["category"]) => boolean> {
+  const { effective } = await loadNotifyContext(tenantId);
+  return (category) => effective[topicOf(category)].bell;
 }

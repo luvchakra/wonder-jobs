@@ -18,6 +18,8 @@ import type { WorkflowRun } from "@/domain/workflow/types";
 import { completedRunNotice, failedRunNotice, fallbackNotice, waitingNotice } from "@/services/workflow/runNotices";
 import { schedulerTick, setReminderLeads, setScheduleOwner } from "@/services/scheduler";
 import { reminderLeads } from "@/domain/notifications/admin";
+import { DEFAULT_NOTIFY_PREFS } from "@/domain/notifications/prefs";
+import { setBellChoices } from "@/store/bellChoices";
 
 const HOUR = 3_600_000;
 const job = { id: "job_1", title: "IAM Director", company: "Acme", postedAt: "2026-10-01T00:00:00Z" } as unknown as CanonicalJob;
@@ -40,6 +42,7 @@ beforeEach(() => {
   useWorkflowStore.setState({ runs: {}, schedules: {}, workflows: {} });
   setReminderLeads(reminderLeads({ interviewLeadHours: 48, followUpLeadHours: 24 }));
   setScheduleOwner("server");
+  setBellChoices(null);
 });
 
 describe("Find / searches", () => {
@@ -158,5 +161,17 @@ describe("Applications and saved jobs", () => {
     useJobsStore.getState().markClosed("job_1", "Closed on acme.com");
     useJobsStore.getState().markClosed("job_1", "Closed on acme.com");
     expect(useCareerStore.getState().notifications).toEqual([expect.objectContaining({ title: "A saved job closed: Acme" })]);
+  });
+});
+
+describe("In the bell, per kind (browser)", () => {
+  it("B03 a kind the candidate keeps out of the bell isn't added in the open tab; other kinds are", () => {
+    setBellChoices({ ...DEFAULT_NOTIFY_PREFS, applications: { bell: false, push: false, email: false } });
+    const a = useApplicationsStore.getState().create("job_1", "preparing");
+    useApplicationsStore.getState().setStatus(a.id, "submitted");
+    expect(useCareerStore.getState().notifications).toEqual([]);
+    useJobsStore.setState({ saved: { job_1: "2026-10-09T00:00:00Z" } });
+    useJobsStore.getState().markClosed("job_1", "Closed on acme.com");
+    expect(useCareerStore.getState().notifications.map((n) => n.category)).toEqual(["job_closed"]);
   });
 });

@@ -1,4 +1,5 @@
 "use client";
+import { keepsInBell } from "./bellChoices";
 import { create } from "zustand";
 import { addNotification, mergeNotifications, mergeReminded } from "@/domain/career/notifications";
 import { persist } from "zustand/middleware";
@@ -220,7 +221,10 @@ export const useCareerStore = create<CareerState>()(
       completeOnboarding: () => set({ onboarded: true }),
       addActivity: (item) => set((s) => ({ activity: [{ ...item, id: newId("act"), at: new Date().toISOString() }, ...s.activity].slice(0, 30) })),
       addUpcoming: (item) => set((s) => ({ upcoming: [...s.upcoming, { ...item, id: newId("up") }].sort((a, b) => a.at.localeCompare(b.at)) })),
-      notify: (n) => set((s) => ({ notifications: addNotification(s.notifications, n, newId("ntf"), new Date().toISOString(), 50) })),
+      // A kind the candidate keeps out of the bell (Notifications & email) isn't added.
+      notify: (n) => {
+        if (keepsInBell(n.category)) set((s) => ({ notifications: addNotification(s.notifications, n, newId("ntf"), new Date().toISOString(), 50) }));
+      },
       markReadLinkingTo: (href) =>
         set((s) => (s.notifications.some((n) => !n.read && n.href === href) ? { notifications: s.notifications.map((n) => (n.href === href ? { ...n, read: true } : n)) } : {})),
       markRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (id == null || n.id === id ? { ...n, read: true } : n)) })),
