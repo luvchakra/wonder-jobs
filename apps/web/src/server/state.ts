@@ -20,10 +20,10 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.digest: the activity digest's on/off choice and its send log (server-written; the client reads it through /api/digest).
 // wj.billingadmin / wj.apiplan: billing-admin state (automatic discounts, the money-call ledger) and JobsLake API pricing, platform tenant only.
 // wj.scheduler / wj.cronruns: the platform scheduler's settings and its recent cron runs (counts only), platform tenant only.
-// wj.accountmenu: the account menu's order and hidden items, set by a platform admin for every user, platform tenant only.
+// wj.accountmenu / wj.youmenu: the account menu's and the You page's order and hidden items, set by a platform admin for every user, platform tenant only.
 // wj.avatar: the candidate's profile photo (a small JPEG/PNG/WebP), read and written only through /api/avatar.
 // wj.sensitive: the candidate's answers to sensitive questions (EEO, work authorization, declarations) and ID numbers — all encrypted.
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.avatar", "wj.accountmenu"] as const;
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.avatar", "wj.accountmenu", "wj.youmenu"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;

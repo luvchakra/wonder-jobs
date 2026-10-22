@@ -21,25 +21,8 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { RunningIndicator } from "./RunningIndicator";
-import { DEFAULT_ACCOUNT_MENU, arrangeAccountMenu, cleanAccountMenu, type AccountMenuConfig } from "@/domain/navigation/accountMenu";
-
-/** The platform's account menu order and hidden items, fetched once per page load; today's menu until it answers, or if it can't. */
-let menuRequest: Promise<AccountMenuConfig> | null = null;
-function useAccountMenu(): AccountMenuConfig {
-  const [config, setConfig] = useState<AccountMenuConfig>(DEFAULT_ACCOUNT_MENU);
-  useEffect(() => {
-    let alive = true;
-    menuRequest ??= fetch("/api/account-menu")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => cleanAccountMenu(d))
-      .catch(() => DEFAULT_ACCOUNT_MENU);
-    void menuRequest.then((c) => alive && setConfig(c));
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return config;
-}
+import { arrangeMenu } from "@/domain/navigation/menus";
+import { useMenu } from "@/lib/menus";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
@@ -81,7 +64,7 @@ export function TopBar() {
   useOutside(notifRef, () => setNotifOpen(false));
   useOutside(profileRef, () => setProfileOpen(false));
 
-  const menuConfig = useAccountMenu();
+  const menuConfig = useMenu("account");
   // Platform admins get an Admin link (the JobsLake portal); everyone else never sees it.
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
@@ -117,7 +100,7 @@ export function TopBar() {
       )}
       {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
       {[
-        ...arrangeAccountMenu(
+        ...arrangeMenu(
           [
             // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
             { id: "account", href: "/app/profile", label: "Account", icon: User },
@@ -137,7 +120,7 @@ export function TopBar() {
             { id: "analytics", href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
             { id: "help", href: "/help", label: "Get Help", icon: LifeBuoy },
           ],
-          // The order and hidden items a platform admin set for everyone (Admin → Settings → Account menu).
+          // The order and hidden items a platform admin set for everyone (Admin → Settings → Menus).
           menuConfig,
         ),
         // Platform admins only, after the rest; never hidden from them.

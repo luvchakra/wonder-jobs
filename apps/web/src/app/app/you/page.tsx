@@ -13,6 +13,8 @@ import { useWorkflowStore } from "@/store/workflow";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { stripHeadlineLabel, stripSelfReference } from "@/services/jobs/normalize";
 import { Avatar } from "@/components/common/Avatar";
+import { arrangeMenu } from "@/domain/navigation/menus";
+import { useMenu } from "@/lib/menus";
 
 /** What each automation level means in a few words — the level's name alone ("Work with me") doesn't say what Wonder does. */
 const LEVEL_IN_WORDS: Record<string, string> = { assist: "Asks before everything", guided: "Asks when it matters", autonomous: "Acts on your rules", continuous: "Acts and keeps watch" };
@@ -41,16 +43,18 @@ export default function YouPage() {
   const goal = stripSelfReference(dna.careerGoal.trim()).replace(/^(?:find(?:\s+me)?|looking\s+for|search(?:\s+for)?|i\s+want)\s+/i, "");
   const wants = headline || goal;
   const active = Object.values(schedules).filter((x) => x.enabled).length;
+  // The order and rows a platform admin set for everyone (Admin → Settings → Menus).
+  const menu = useMenu("you");
 
-  const rows = [
-    { href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
-    { href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
-    { href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
-    { href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
-    { href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
-    { href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
-    { href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
-  ];
+  const rows = arrangeMenu([
+    { id: "skill_up", href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
+    { id: "recruiters", href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
+    { id: "resumes", href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
+    { id: "job_sources", href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
+    { id: "automation", href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
+    { id: "ai_provider", href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
+    { id: "search_history", href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
+  ], menu);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -63,6 +67,7 @@ export default function YouPage() {
         </span>
         <ChevronRight className="size-4 text-ink-4" aria-hidden />
       </Link>
+      {rows.length > 0 && (
       <ul className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-surface">
         {rows.map((r) => (
           <li key={r.href}>
@@ -75,6 +80,7 @@ export default function YouPage() {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }
