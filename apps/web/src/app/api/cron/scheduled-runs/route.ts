@@ -3,9 +3,8 @@ import { bearerMatches } from "@/server/crypto";
 import { reconcileSubscriptions, type ReconcileReport } from "@/server/billing/service";
 import { reportApiUsage, type ApiUsageReport } from "@/server/jobslake/apiBilling";
 import { purgeExpired } from "@/server/privacy/retention";
-import { listTenantsWithDueReminders, listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
-import { raiseDueReminders } from "@/server/workflow/reminders";
-import { nudge } from "@/server/notifications/deliver";
+import { listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
+import { runReminderPass } from "@/server/workflow/reminderPass";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
 import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 import { sendDigest } from "@/server/digest/send";
@@ -81,19 +80,10 @@ export async function GET(req: Request) {
   let remindedTenants = 0;
   if (settings.reminders) {
     try {
-      for (const tenantId of await listTenantsWithDueReminders(now, MAX_TENANTS)) {
-        if (Date.now() - startedAt > INVOCATION_BUDGET_MS) break;
-        try {
-          const report = await raiseDueReminders(tenantId, now);
-          if (!report.raised) continue;
-          remindedTenants++;
-          reminded += report.raised;
-          // Already in the bell; a push, or an email when no push reached them (once per reminder).
-          for (const r of report.notices) await nudge(tenantId, r.notice, { email: { key: r.key } });
-        } catch (e) {
-          failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
-        }
-      }
+      const r = await runReminderPass(now, MAX_TENANTS, startedAt + INVOCATION_BUDGET_MS);
+      reminded = r.raised;
+      remindedTenants = r.tenants;
+      failures.push(...r.failures);
     } catch (e) {
       failures.push({ tenantId: "*", error: `reminders: ${e instanceof Error ? e.message : String(e)}` });
     }

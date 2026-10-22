@@ -1,6 +1,7 @@
 /**
  * How the server tells a person something (owner, 2026-10-22): the bell first — it's the record — then a push
- * to every browser they turned notifications on in, and an email when no push reached them. Email is held to
+ * to every browser they turned notifications on in, and an email when no push reached them — each only as far
+ * as their Notify me about choices allow (domain/notifications/prefs.ts). Email is held to
  * one per key per `emailEveryMs` (a conversation's messages, say), so a busy thread doesn't fill an inbox.
  * Nothing here throws: a message or a reminder is never lost because a channel had a bad minute.
  */
@@ -13,6 +14,8 @@ import { notifyTenant, type PushPayload } from "@/server/push/subscriptions";
 import { stateStore } from "@/server/state";
 import { readClientStateVersioned, writeClientState } from "@/server/clientState";
 import { newId } from "@/lib/ids";
+import { topicOf } from "@/domain/notifications/prefs";
+import { loadNotifyPrefs } from "./prefs";
 import { siteUrl } from "@/lib/siteUrl";
 
 const MAILED = "wj.mailed" as const;
@@ -40,9 +43,12 @@ export async function addToBell(tenantId: string, notice: Notice, now = new Date
 
 /** The nudge for something already in the bell: push, then email if no push reached anyone. */
 export async function nudge(tenantId: string, notice: Notice, opts: NudgeOptions = {}, now = new Date()): Promise<DeliveryOutcome> {
+  // Their Notify me about choices for this kind of notification; one without a topic is pushed and never emailed.
+  const topic = topicOf(notice.category);
+  const want = topic ? (await loadNotifyPrefs(tenantId))[topic] : { push: true, email: false };
   const push: PushPayload = { title: notice.title, body: notice.body.slice(0, 140), url: notice.href, tag: opts.email?.key };
-  const report = await notifyTenant(tenantId, push).catch(() => ({ sent: 0 }));
-  if (report.sent > 0 || !opts.email) return { pushed: report.sent, emailed: false };
+  const report = want.push ? await notifyTenant(tenantId, push).catch(() => ({ sent: 0 })) : { sent: 0 };
+  if (report.sent > 0 || !opts.email || !want.email) return { pushed: report.sent, emailed: false };
   return { pushed: 0, emailed: await emailOnce(tenantId, notice, opts.email.key, opts.email.everyMs, now) };
 }
 

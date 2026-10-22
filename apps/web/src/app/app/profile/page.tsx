@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { DigestEmailCard } from "@/components/account/DigestEmailCard";
 import { PushNotifications } from "@/components/pwa/PushNotifications";
+import { NotifyPrefsCard } from "@/components/account/NotifyPrefsCard";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
 import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
@@ -132,6 +133,7 @@ function ProfileInner() {
       <CloudSyncCard />
       <div id="notifications" className="scroll-mt-20">
         <PushNotifications />
+        <NotifyPrefsCard />
         <DigestEmailCard />
       </div>
       <PlanCard returnState={billingReturn} />

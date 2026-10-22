@@ -1,0 +1,33 @@
+# Interview and follow-up reminders between Vercel's once-a-day runs (Vercel's plan allows daily crons only).
+# Calls /api/cron/reminders every 3 hours with the same CRON_SECRET Vercel's crons use; the route is idempotent,
+# so a missed or doubled call changes nothing. Needs the repository secret CRON_SECRET (same value as on Vercel).
+name: Reminders
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+    steps:
+      - name: Raise due reminders
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET isn't set as a repository secret, so reminders run only with Vercel's daily cron."
+            exit 0
+          fi
+          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE/api/cron/reminders"
+          echo
