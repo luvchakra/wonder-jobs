@@ -102,6 +102,7 @@ describe("a title over a source's Full-time (WJ-367)", () => {
     expect(resolveJobType("Full-time", "Customer Service Back Office Agent (6 Months Temporary)")).toEqual({ jobType: "temporary", jobTypeFrom: "title" });
     expect(resolveJobType("Full-time", "[SX/EIT-MM] AI/Agent Engineers (1-year contract)")).toEqual({ jobType: "contract", jobTypeFrom: "title" });
     expect(resolveJobType("Full-time", "Freelance Video Editor")).toEqual({ jobType: "gig", jobTypeFrom: "title" });
+    expect(resolveJobType("Full-time", "Praktikum im Bereich Marketing")).toEqual({ jobType: "internship", jobTypeFrom: "title" });
   });
 
   it("keeps the source's type when the title is only a role, or the source already said something narrower", () => {

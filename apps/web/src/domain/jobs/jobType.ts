@@ -29,7 +29,7 @@ const CONSULTING = /\b(consultant basis|consultancy basis|consulting (basis|enga
 
 const RULES: [JobType, RegExp][] = [
   ["consultant", CONSULTING],
-  ["internship", /\b(intern|interns|internship|trainee(ship)?|apprentice(ship)?|werkstudent|working student)\b/i],
+  ["internship", /\b(intern|interns|internship|trainee(ship)?|apprentice(ship)?|werkstudent|working student|praktikum|praktikant(in)?)\b/i],
   ["gig", /\b(gig|gigs|freelance[rd]?|freelancing|fixed[- ]price|hourly project|per project|task[- ]based|odd jobs?)\b/i],
   ["part_time", /\b(part[\s_-]?time|parttime|teilzeit|minijob|half[- ]day|weekend (job|shifts?|work)|few hours)\b/i],
   ["temporary", /\b(temporary|temp|seasonal|short[\s_-]?term|fixed[\s_-]?term|interim|one[- ]off|locum|befristet|holiday cover|maternity cover)\b/i],
