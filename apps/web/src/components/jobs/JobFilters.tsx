@@ -95,8 +95,8 @@ function JobTypeChips({ filters, onChange, className }: { filters: Filters; onCh
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
-/** How many Refine settings are on (salary and sort have their own controls on the page). */
-const refineCount = (f: Filters) => (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.workModes.length + f.sourceIds.length + (f.freshnessDays ? 1 : 0);
+/** How many Refine settings are on (work mode, salary and sort show on the page in their own controls). */
+const refineCount = (f: Filters) => (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.sourceIds.length + (f.freshnessDays ? 1 : 0);
 
 const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
@@ -106,29 +106,26 @@ export function RefineButton({ className }: { className?: string }) {
   const setMore = useUIStore((s) => s.setRefineOpen);
   const count = useJobsStore((s) => refineCount(s.filters));
   return (
-    <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold", more && "border-brand-200 bg-brand-50", className)}>
+    <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", more && "border-brand-200 bg-brand-50", className)}>
       <SlidersHorizontal className="size-5" aria-hidden />
       {count ? <span>{count}</span> : null}
     </button>
   );
 }
 
-/** A pill that is a native select: the phone's own picker, labelled with what's picked. */
-function PillSelect({ label, shown, value, onChange, children, className }: { label: string; shown: string; value: string; onChange: (v: string) => void; children: React.ReactNode; className?: string }) {
+/** A pill that opens Refine at its own section, labelled with what's picked there. */
+function PillButton({ label, shown, open, onClick, className }: { label: string; shown: string; open: boolean; onClick: () => void; className?: string }) {
   return (
-    <label className={cn(PILL, "gap-1.5 pl-4 pr-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600", className)}>
+    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1.5 pl-4 pr-2.5 text-left max-[380px]:pl-3", className)}>
       <span className="min-w-0 flex-1 truncate">{shown}</span>
       <ChevronDown className="size-4 shrink-0 text-ink-2" aria-hidden />
-      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0">
-        {children}
-      </select>
-    </label>
+    </button>
   );
 }
 
 const SALARY_LAKH = [5, 10, 20, 30, 50];
-/** Location's "Somewhere else…": opens Refine, where any place can be typed. */
-const OTHER_PLACE = "__other";
+const lakh = (n: number) => Math.round(n / 100_000);
+type RefineSection = "work_mode" | "salary";
 const SORT_LABEL: Record<JobSort, string> = { best_match: "Relevance", date: "Newest", salary: "Salary" };
 
 /** "Sort by Relevance ▾" — beside the line that says how many jobs are shown. */
@@ -189,9 +186,25 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
   const activeCount = refineCount(filters);
-  // Location's choices: anywhere, the profile's places, Remote, and whatever is set now.
-  const placeOptions = [...new Set(["", ...(sourceSearch?.places ?? []).map((p) => p), "Remote", places.join(", ")])];
-  const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [Math.round(filters.minSalary / 100_000)] : [])])].sort((x, y) => x - y);
+  // Salary's choices, and the one set now if it isn't among them.
+  const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [lakh(filters.minSalary)] : [])])].sort((x, y) => x - y);
+  const workModesShown = filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ") || "Work mode";
+  const salaryShown = filters.minSalary ? `₹${lakh(filters.minSalary)}L+` : "Salary";
+  // Work mode and Salary open Refine at their own section: scrolled to, focused and lit for a moment.
+  const [section, setSection] = useState<RefineSection | null>(null);
+  const openAt = (at: RefineSection) => {
+    setMore(true);
+    setSection(at);
+  };
+  useEffect(() => {
+    if (!more || !section) return;
+    const el = document.getElementById(`wj-refine-${section}`);
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    el?.focus({ preventScroll: true });
+    const t = setTimeout(() => setSection(null), 1600);
+    return () => clearTimeout(t);
+  }, [more, section]);
+  const sectionClass = (at: RefineSection) => cn("-m-2 flex flex-col gap-1.5 rounded-[12px] p-2 text-[13px] font-medium text-ink-2 outline-none transition-shadow", section === at && "ring-2 ring-brand-400 bg-brand-50/60");
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
@@ -279,29 +292,11 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           )}
         </div>
         )}
-        {/* Refine, where, pay and the search — one row, the same in both modes. */}
+        {/* Refine, work mode, pay and the search — one row, the same in both modes. */}
         <div className="flex items-center gap-2">
           <RefineButton />
-          <PillSelect label="Location" shown={places.length ? places.join(", ") : "Anywhere"} value={places.join(", ")} className="flex-[1.2_1_0%]" onChange={(v) => {
-            if (v === OTHER_PLACE) return setMore(true);
-            setWhere(v);
-            onChange({ locations: splitPlaces(v) });
-          }}>
-            {placeOptions.map((p) => (
-              <option key={p} value={p}>
-                {p || "Anywhere"}
-              </option>
-            ))}
-            <option value={OTHER_PLACE}>Somewhere else…</option>
-          </PillSelect>
-          <PillSelect label="Minimum salary" shown={filters.minSalary ? `₹${Math.round(filters.minSalary / 100_000)}L+` : "Salary"} value={String(filters.minSalary ?? "")} className="flex-1" onChange={(v) => onChange({ minSalary: v ? Number(v) : undefined })}>
-            <option value="">Any salary</option>
-            {salaryOptions.map((l) => (
-              <option key={l} value={String(l * 100_000)}>
-                ₹{l} lakh+
-              </option>
-            ))}
-          </PillSelect>
+          <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="flex-auto" />
+          <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="flex-auto" />
           <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-12 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
             <ArrowRight className="size-6" aria-hidden />
           </button>
@@ -333,6 +328,29 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             Job type
             <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
           </div>
+          <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={sectionClass("work_mode")}>
+            Work mode
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
+                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
+                  {WORK_MODE_LABEL[m]}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div id="wj-refine-salary" role="group" aria-label="Salary" tabIndex={-1} className={sectionClass("salary")}>
+            Salary
+            <div className="flex flex-wrap gap-1.5">
+              <Chip active={!filters.minSalary} onClick={() => onChange({ minSalary: undefined })} className="h-9 px-3 text-[12px]">
+                Any
+              </Chip>
+              {salaryOptions.map((l) => (
+                <Chip key={l} active={!!filters.minSalary && lakh(filters.minSalary) === l} onClick={() => onChange({ minSalary: l * 100_000 })} className="h-9 px-3 text-[12px]">
+                  ₹{l}L+
+                </Chip>
+              ))}
+            </div>
+          </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Location
             <Input
@@ -351,16 +369,6 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               {LEVELS.map((l) => (
                 <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className="h-9 px-3 text-[12px]">
                   {l.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Work mode
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
-                  {WORK_MODE_LABEL[m]}
                 </Chip>
               ))}
             </div>

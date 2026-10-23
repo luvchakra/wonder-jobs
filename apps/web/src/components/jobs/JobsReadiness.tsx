@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
 import { onlyLevel, type ReadinessBlocker, type RelevanceNote } from "@/domain/jobs/readiness";
-import { profileSearchQuery, stripSelfReference } from "@/services/jobs/normalize";
+import { stripSelfReference } from "@/services/jobs/normalize";
 import { STAGES } from "@/domain/workflow/stages";
 import type { JobSearch } from "@/lib/useJobSearch";
 import { foundNothing } from "@/lib/useJobSearch";
@@ -262,83 +262,25 @@ function NoteBody({ note }: { note: RelevanceNote }) {
 
 /** One line: what Wonder is doing now, or what the list is from — with the per-source detail a tap away. */
 /**
- * The role Wonder searches for, said up front with one tap to change it — the Career Profile's "Role you
- * want", edited in place. Saving searches for the new role straight away.
+ * The role Wonder searches for, said up front with one tap to change it: Change opens the Career Profile
+ * at "Role you want" (Back to Find there searches again when it changed).
  */
-export function WantedRole({ search, className, inline = false }: { search: JobSearch; className?: string; /** Change right after the role (a wide panel, where the far edge is easy to miss). */ inline?: boolean }) {
-  const dna = useCareerStore((s) => s.dna);
-  const updateDNA = useCareerStore((s) => s.updateDNA);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [hint, setHint] = useState<string | null>(null);
-  const role = dna.careerGoal.trim();
-  const skipped = useJobsStore((s) => !!s.filters.skipProfile);
-
-  const save = async () => {
-    const goal = draft.trim();
-    if (!goal || onlyLevel(goal)) {
-      setHint(goal ? `Which ${goal} role? Add the field — e.g. “${goal}, identity and access management”.` : "Say the role you want, e.g. “Director, identity and access management”.");
-      return;
-    }
-    setEditing(false);
-    setHint(null);
-    if (goal === role) return;
-    useJobsStore.getState().setFilters({ query: "" });
-    // Started before the profile changes, so the page's own "the profile's search changed" doesn't start a second one.
-    await search.searchNow({ query: profileSearchQuery({ headline: dna.headline, careerGoal: goal }), careerGoal: goal });
-    updateDNA({ careerGoal: goal });
-  };
-
-  if (!editing) {
-    // One compact row: what Wonder searches for, and Change on the right, centred (the Career Profile is linked from the search button).
-    // At the top of Find it is exactly as tall as Part Time's search box, so switching modes doesn't move what's below.
-    return (
-      // At the top of Find: one pill, the role and Change (the label is for screen readers); in Refine, labelled.
-      <div className={cn("flex items-center gap-2 border border-line bg-surface sm:gap-3", inline ? "mb-3 rounded-[14px] py-2 pl-3.5 pr-1.5 sm:max-w-xl sm:pr-2" : "mb-2 h-12 rounded-full pl-5 pr-1.5 shadow-xs", className)}>
-        <div className="min-w-0 flex-1">
-          <p className={cn("flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-ink-3", !inline && "wj-sr-only")}>
-            Looking for
-            {skipped && <span className="rounded-full bg-bg-soft px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-ink-3">Skipped</span>}
-          </p>
-          <p className={cn("truncate leading-5 first-letter:uppercase", inline ? "text-[14px]" : "text-[16px]", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped in Part Time" : role || undefined}>
-            {role || "No role yet"}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(role);
-            setEditing(true);
-          }}
-          className={cn("inline-flex min-h-11 shrink-0 items-center self-center rounded-full px-3 font-semibold text-brand-600 hover:bg-brand-50", inline ? "text-[13px]" : "text-[15px]")}
-        >
-          Change
-        </button>
-      </div>
-    );
-  }
+export function WantedRole({ className }: { className?: string }) {
+  const role = useCareerStore((s) => s.dna.careerGoal.trim());
+  // One pill: the role and Change (the label is for screen readers). As tall as Part Time's search box,
+  // so switching modes doesn't move what's below.
   return (
-    <form
-      className={cn("mb-3 flex flex-col gap-2", className)}
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save();
-      }}
-    >
-      <label htmlFor="wj-wanted-role" className="text-[13px] font-medium text-ink-2">
-        Role you want
-      </label>
-      <div className="flex flex-wrap gap-2">
-        <Input id="wj-wanted-role" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="e.g. Director, identity and access management" className="min-w-0 flex-1" />
-        <Button type="submit">Search</Button>
-        <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-          Cancel
-        </Button>
+    <div className={cn("mb-2 flex h-12 items-center gap-2 rounded-full border border-line bg-surface pl-5 pr-1.5 shadow-xs sm:gap-3", className)}>
+      <div className="min-w-0 flex-1">
+        <p className="wj-sr-only">Looking for</p>
+        <p className={cn("truncate text-[16px] leading-5 first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
+          {role || "No role yet"}
+        </p>
       </div>
-      <p className={cn("text-[12px]", hint ? "text-danger-600" : "text-ink-3")} role={hint ? "alert" : undefined}>
-        {hint ?? "One role and its field. Add other roles in your Career Profile."}
-      </p>
-    </form>
+      <Link href="/app/career-dna?from=find&focus=role" className="inline-flex min-h-11 shrink-0 items-center self-center rounded-full px-3 text-[15px] font-semibold text-brand-600 hover:bg-brand-50">
+        Change
+      </Link>
+    </div>
   );
 }
 

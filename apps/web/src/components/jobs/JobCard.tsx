@@ -11,6 +11,7 @@ import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
+import { ShareJobButton } from "./ShareJobButton";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
@@ -123,6 +124,9 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           {relativeTime(job.postedAt)}
         </span>
         {onToggleSave && (
+          // Share, then Save, at the card's corner.
+          <div className="relative z-10 -mr-1.5 -mb-1.5 flex shrink-0 items-center">
+          <ShareJobButton job={job} className="size-10 text-ink-2" />
           <button
             type="button"
             onClick={(e) => {
@@ -131,10 +135,11 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             }}
             aria-pressed={saved}
             aria-label={saved ? "Remove from saved" : "Save job"}
-            className={cn("relative z-10 -mr-1.5 -mb-1.5 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
+            className={cn("flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
           >
             <Bookmark className="size-5" fill={saved ? "currentColor" : "none"} aria-hidden />
           </button>
+          </div>
         )}
       </div>
       {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}

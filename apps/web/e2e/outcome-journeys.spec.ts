@@ -32,7 +32,7 @@ async function startFind(page: Page, request: string, opts: { openRun?: boolean;
 
 const title = (card: Locator) => card.locator("#run-experience-title");
 
-/** What was searched sits at the top of Refine (WJ-206); opens it if it's closed. */
+/** Opens Refine if it's closed (what was searched is the line under the jobs). */
 async function openRefine(page: Page) {
   const refine = page.getByRole("button", { name: /^Refine/ });
   if ((await refine.getAttribute("aria-expanded")) !== "true") await refine.click();
@@ -299,7 +299,7 @@ test.describe("WONDER", () => {
     await page.keyboard.press("Enter");
     // Straight to the jobs, searching every source for the candidate's words — and saying so.
     await expect(page).toHaveURL(/\/app\/jobs$/);
-    // While it runs the line above the jobs says so; once done, what was searched sits in Refine.
+    // While it runs the line above the jobs says so; once done, what was searched is the line under them.
     await expect(page.locator("#main").getByRole("status")).toHaveCount(0, { timeout: 30_000 });
     await openRefine(page);
     await expect(page.locator("#main")).toContainText(/for “iam/i);
