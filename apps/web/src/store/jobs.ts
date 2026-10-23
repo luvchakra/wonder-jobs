@@ -17,7 +17,7 @@ export function interactionFor(job: CanonicalJob, kind: InteractionRecord["kind"
   return { jobId: job.id, at: new Date().toISOString(), kind, industry: job.industry, workMode: job.workMode, title: job.title, company: job.company };
 }
 import { track } from "@/lib/analytics";
-import { DEFAULT_REFINE, FIND_MODE_PATCH, findModeOf, readRefine, refineOf, sameRefine, type FindMode, type RefineSettings } from "@/domain/jobs/findMode";
+import { FIND_MODE_PATCH, findModeOf, readRefine, refineDefaults, refineOf, sameRefine, type FindMode, type RefineSettings } from "@/domain/jobs/findMode";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
 
@@ -119,8 +119,9 @@ function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipPro
     if (r) refine[m] = r;
   }
   const mode: FindMode = p.skipProfile ? "part_time" : "full_time";
-  const { sort, ...narrowing } = refine[mode] ?? { ...DEFAULT_REFINE, hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? DEFAULT_REFINE.sort };
-  return { refine, sort, filters: { ...filters, ...narrowing, ...FIND_MODE_PATCH[mode] } };
+  const { sort, ...narrowing } = refine[mode] ?? { ...refineDefaults(mode), hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? "best_match" };
+  // The mode's start, then everything kept for it (places, job types and view included).
+  return { refine, sort, filters: { ...filters, ...FIND_MODE_PATCH[mode], ...narrowing } };
 }
 
 /** How many searches each history keeps. */
@@ -313,9 +314,9 @@ export const useJobsStore = create<JobsState>()(
       refine: {},
       switchFindMode: (mode) =>
         set((s) => {
-          const kept = s.refine[mode] ?? DEFAULT_REFINE;
+          const kept = s.refine[mode] ?? refineDefaults(mode);
           const { sort, ...narrowing } = kept;
-          return withRefine(s, { ...s.filters, ...narrowing, ...FIND_MODE_PATCH[mode] }, sort);
+          return withRefine(s, { ...s.filters, ...FIND_MODE_PATCH[mode], ...narrowing }, sort);
         }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
       setSourceAvailability: (available) =>

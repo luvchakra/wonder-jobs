@@ -180,17 +180,35 @@ interface AdzunaJob { id: string; title: string; company?: { display_name?: stri
 export function rawFromAdzuna(j: AdzunaJob): RawPosting {
   return { externalId: j.id, title: j.title.replace(/<[^>]+>/g, ""), company: j.company?.display_name ?? "", location: j.location?.display_name ?? "India", description: j.description, tags: [j.category?.label ?? "", j.contract_type ?? ""].filter(Boolean), postedAt: j.created, applyUrl: j.redirect_url, salaryMin: j.salary_min ?? null, salaryMax: j.salary_max ?? null, currency: j.salary_min || j.salary_max ? "INR" : null, industryHint: j.category?.label, employerSite: false, applyPath: "platform" as const, jobType: [j.contract_time, j.contract_type] };
 }
+/**
+ * The places a search names, each searched on its own by a source that takes one place per request and
+ * the answers combined (owner, 2026-10-23: Dubai and London means jobs in both). "Remote"/"Anywhere"
+ * aren't places; at most `max`, to keep a search's requests bounded.
+ */
+export function placesToSearch(c: Pick<SearchCriteria, "locations">, max = 5): string[] {
+  const seen = new Set<string>();
+  return c.locations
+    .map((l) => l.trim())
+    .filter((l) => l && !/^(remote|anywhere|worldwide)$/i.test(l) && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()))
+    .slice(0, max);
+}
+
 const adzunaAvailable = () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
 /** One Adzuna India search; `extra` narrows it with Adzuna's own filters (`&part_time=1`). */
 async function adzunaSearch(sourceId: string, c: SearchCriteria, extra = ""): Promise<Job[]> {
   const id = process.env.ADZUNA_APP_ID;
   const key = process.env.ADZUNA_APP_KEY;
   if (!id || !key) return [];
-  const where = c.locations.find((l) => !/remote|anywhere/i.test(l)) ?? "";
+  // Each place on its own (Adzuna takes one `where`), combined; one page each when there are several.
+  const places = placesToSearch(c);
+  const wheres = places.length ? places : [""];
+  const pageNos = wheres.length > 1 ? [1] : [1, 2];
   const pages = await Promise.all(
-    [1, 2].map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}${extra}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] }))),
+    wheres.flatMap((where) => pageNos.map((p) => getJson<{ results: AdzunaJob[] }>(`https://api.adzuna.com/v1/api/jobs/in/search/${p}?app_id=${id}&app_key=${key}&results_per_page=50&what=${encodeURIComponent(corePhrase(c.query))}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}${extra}&content-type=application/json`).catch(() => ({ results: [] as AdzunaJob[] })))),
   );
-  return finish(sourceId, pages.flatMap((p) => p.results ?? []).map(rawFromAdzuna), c);
+  const seen = new Set<string>();
+  const results = pages.flatMap((p) => p.results ?? []).filter((j) => !seen.has(j.id) && !!seen.add(j.id));
+  return finish(sourceId, results.map(rawFromAdzuna), c);
 }
 const adzunaIn: SourceFetcher = { id: "adzuna_in", delta: true, available: adzunaAvailable, fetch: (c) => adzunaSearch("adzuna_in", c) };
 /** Adzuna India's part-time postings only (its `part_time=1` filter); the same credentials. */
@@ -488,11 +506,13 @@ const themuse: SourceFetcher = {
   id: "themuse",
   available: () => true,
   async fetch(c) {
-    const place = c.locations.find((l) => !/remote|anywhere/i.test(l));
-    const wantsRemote = !place || c.locations.some((l) => /remote|anywhere/i.test(l));
+    const places = placesToSearch(c);
+    const wantsRemote = !places.length || c.locations.some((l) => /remote|anywhere/i.test(l));
     // The Muse filters only on its exact "City, Country" names (anything else returns the whole world), and spells Indian cities its own way.
-    const queries = [...(place ? [museLocation(place)] : []), ...(wantsRemote ? ["Flexible / Remote"] : [])];
-    const pages = await Promise.all(queries.flatMap((loc) => [1, 2, 3, 4, 5].map((p) => getJson<{ results: MuseJob[] }>(`https://www.themuse.com/api/public/jobs?page=${p}&location=${encodeURIComponent(loc)}`).catch(() => ({ results: [] as MuseJob[] })))));
+    // Every place on its own, combined (fewer pages each when there are several).
+    const queries = [...new Set([...places.map(museLocation), ...(wantsRemote ? ["Flexible / Remote"] : [])])];
+    const pageNos = queries.length > 2 ? [1, 2] : [1, 2, 3, 4, 5];
+    const pages = await Promise.all(queries.flatMap((loc) => pageNos.map((p) => getJson<{ results: MuseJob[] }>(`https://www.themuse.com/api/public/jobs?page=${p}&location=${encodeURIComponent(loc)}`).catch(() => ({ results: [] as MuseJob[] })))));
     const seen = new Set<string>();
     const jobs = pages
       .flatMap((p) => p.results ?? [])

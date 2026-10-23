@@ -19,7 +19,7 @@ const cache = new Map<string, Place[]>();
  * becomes a pill under the box (× removes it) and the box is free for the next one, so several places can
  * be listed; Enter adds what's typed as it is. Nothing is added that wasn't picked or typed.
  */
-export function PlaceInput({ places: picked, onChange, label, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; placeholder?: string; className?: string }) {
+export function PlaceInput({ places: picked, onChange, label, id, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string }) {
   const [text, setText] = useState("");
   const typing = text.trim();
   const q = useDebounced(typing, 150);
@@ -63,6 +63,7 @@ export function PlaceInput({ places: picked, onChange, label, placeholder, class
     <div className={cn("relative", className)}>
       <Input
         ref={box}
+        id={id}
         role="combobox"
         aria-expanded={expanded}
         aria-controls={listId}

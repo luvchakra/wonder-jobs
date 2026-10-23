@@ -12,9 +12,9 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { PROTOCOL_VERSION, type SourceStatus } from "@/domain/jobslake/protocol";
 import { PARTNER_PRESETS, PARTNER_STATUS_REASON } from "@/domain/jobslake/partners";
 import type { Depth } from "@/domain/jobslake/planner";
-import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
+import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, placesToSearch, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
-import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured } from "./custom";
+import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured, type CustomFetchResult } from "./custom";
 import { readCredential } from "./credentials";
 import { jobsLakeStore } from "./store";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
@@ -147,7 +147,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
     case "json_api": {
       const secret = await readCredential(s.secretRef);
       if ((cfg.api.credentialHeader || cfg.api.auth) && !secret) throw new NeedsSetupError("The API credential is missing.");
-      const r = await fetchJsonApi(cfg.api, c, secret, s.limits.timeoutMs);
+      const r = await eachPlace(cfg.api.locationParam ? c : undefined, c, (one) => fetchJsonApi(cfg.api, one, secret, s.limits.timeoutMs));
       return { jobs: finish(s.id, r.raws, c).slice(0, s.limits.maxResults), warnings: [], sample: r.sample, mapping: r.mapping };
     }
     case "feed": {
@@ -161,7 +161,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
     case "mcp": {
       const secret = await readCredential(s.secretRef);
       if (cfg.mcp.credentialHeader && !secret) throw new NeedsSetupError("The MCP server credential is missing.");
-      const r = await fetchMcp(cfg.mcp, c, secret, s.limits.timeoutMs);
+      const r = await eachPlace(cfg.mcp.locationArgument ? c : undefined, c, (one) => fetchMcp(cfg.mcp, one, secret, s.limits.timeoutMs));
       return { jobs: finish(s.id, r.raws, c).slice(0, s.limits.maxResults), warnings: [], sample: r.sample, mapping: r.mapping };
     }
     case "scraper":
@@ -178,3 +178,21 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
 
 /** Statuses an admin may set directly (activation goes through a passing test instead). */
 export const ADMIN_SETTABLE: SourceStatus[] = ["paused", "disabled"];
+
+/**
+ * A source that takes one place per request (`placeAware`), asked once for each place searched and the
+ * answers combined — the same posting once. Otherwise (no place parameter, or one place or none) a single call.
+ */
+export async function eachPlace(placeAware: SearchCriteria | undefined, c: SearchCriteria, fetchOne: (c: SearchCriteria) => Promise<CustomFetchResult>): Promise<CustomFetchResult> {
+  const places = placeAware ? placesToSearch(placeAware) : [];
+  if (places.length < 2) return fetchOne(c);
+  const parts = await Promise.all(places.map((p) => fetchOne({ ...c, locations: [p] })));
+  const seen = new Set<string>();
+  const raws = parts.flatMap((r) => r.raws).filter((r) => {
+    const k = String(r.externalId ?? `${r.title}|${r.company}|${r.location}`);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return { ...parts[0], raws };
+}

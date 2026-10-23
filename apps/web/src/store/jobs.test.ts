@@ -229,6 +229,27 @@ describe("Refine, per Find mode", () => {
     expect(opts.merge!({ refine: { full_time: { workModes: [1, "remote"], sort: "nope" } } }, st()) as ReturnType<typeof st>).toMatchObject({ sort: "best_match", filters: { workModes: ["remote"] } });
   });
 
+  it("keeps each mode's places, job types and view too — across switching modes and a reload", () => {
+    const st = () => useJobsStore.getState();
+    st().switchFindMode("full_time");
+    st().setFilters({ locations: ["Dubai", "London"], jobTypes: ["contract"], minFit: "strong", minSalary: 2_000_000 });
+    st().switchFindMode("part_time");
+    // Part Time starts from its own: anywhere, every job type, All.
+    expect(st().filters).toMatchObject({ locations: [], jobTypes: [], minFit: null });
+    st().setFilters({ locations: ["Pune"], jobTypes: ["gig"] });
+    st().switchFindMode("full_time");
+    expect(st().filters).toMatchObject({ locations: ["Dubai", "London"], jobTypes: ["contract"], minFit: "strong", minSalary: 2_000_000 });
+    // A reload brings back the last-used mode's, and keeps the other's for the switch.
+    const opts = useJobsStore.persist.getOptions();
+    const saved = JSON.parse(JSON.stringify(opts.partialize!(st())));
+    const merged = opts.merge!(saved, { ...st(), refine: {}, filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } }) as ReturnType<typeof st>;
+    expect(merged.filters).toMatchObject({ locations: ["Dubai", "London"], jobTypes: ["contract"], minFit: "strong" });
+    expect(merged.refine.part_time).toMatchObject({ locations: ["Pune"], jobTypes: ["gig"] });
+    // Full Time with nothing picked keeps following the Career Profile's places.
+    st().setFilters({ locations: undefined });
+    expect((JSON.parse(JSON.stringify(opts.partialize!(st()))).refine.full_time as { locations?: string[] }).locations).toBeUndefined();
+  });
+
   it("keeps Saved's filter history apart from Find's", () => {
     useJobsStore.setState({ recentSearches: [], recentSavedSearches: [] });
     const { rememberSearch, forgetSearch } = useJobsStore.getState();
