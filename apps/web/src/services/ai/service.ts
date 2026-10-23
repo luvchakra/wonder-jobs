@@ -67,6 +67,12 @@ export interface AIService {
    * model is connected and the rules' own reading came back instead.
    */
   readCareerHistory(input: { resumeText: string; rules: HistoryDraft }): Promise<{ reply: string; byModel: boolean; model: string }>;
+  /**
+   * Interview practice (a test, flashcards, the mock interviewer's next question, its review): the model's raw
+   * reply, parsed and checked by `domain/applications/practice.ts` before anything is shown. `byModel` is false
+   * when no model is connected — there is no template for these, so nothing came back.
+   */
+  practice(input: GenerateArtifactInput & { kind: "interview_quiz" | "interview_flashcards" | "mock_interview" | "mock_review"; transcript?: string }): Promise<{ text: string; byModel: boolean }>;
   usage(): AIUsageRecord[];
 }
 
@@ -172,6 +178,12 @@ export class TemplateAIService implements AIService {
 
   usage() {
     return this.records;
+  }
+
+  async practice({ job, dna, kind, transcript, runId }: GenerateArtifactInput & { kind: "interview_quiz" | "interview_flashcards" | "mock_interview" | "mock_review"; transcript?: string }) {
+    const context = [contextFor(dna, job), historyFacts(dna), transcript !== undefined ? `\nINTERVIEW TRANSCRIPT SO FAR\n${transcript || "(none yet — ask the opening question)"}` : ""].filter(Boolean).join("\n");
+    const res = await this.runFull("interview_practice", kind, context, "", runId, { extract: true, maxTokens: kind === "mock_interview" ? 300 : 4096 });
+    return { text: res.text, byModel: !(res.model === "wonder-1" && res.text === "") };
   }
 
   async generateResume({ job, dna, runId }: GenerateArtifactInput) {

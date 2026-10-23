@@ -1,3 +1,4 @@
+import type { ApplicationPractice } from "./practice";
 import type { CanonicalJob } from "@/domain/jobs/types";
 export const APPLICATION_STATUSES = [
   "saved",
@@ -91,6 +92,8 @@ export interface Application {
   autoSubmit?: "on" | "off";
   /** The job as it was when the application began, so the application still reads right after the job leaves the search results. */
   job?: ApplicationJob;
+  /** Interview practice for this job: test scores, mock interview reviews, the flashcard deck. */
+  practice?: ApplicationPractice;
 }
 
 /** What an application keeps of its job: the posting's own facts, nothing derived. */

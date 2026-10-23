@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { withAttempt } from "@/domain/applications/practice";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import { applicationJobOf, type Application, type ApplicationArtifact, type ApplicationEvent, type ApplicationJob, type ApplicationStatus, type ArtifactType, type ArtifactVersion } from "@/domain/applications/types";
@@ -23,6 +24,8 @@ interface ApplicationsState {
   completeFollowUp: (id: string, followUpId: string) => void;
   addFollowUp: (id: string, f: { dueAt: string; kind: "follow_up" | "interview" | "thank_you"; note: string }) => void;
   remove: (id: string) => void;
+  /** Keeps a finished practice test, mock interview or flashcard deck on the application (capped, newest first). */
+  recordPractice: (id: string, add: Parameters<typeof withAttempt>[1]) => void;
   /** Keep a copy of the job on applications that don't have one yet (jobId → its facts). */
   keepJobs: (byJobId: Record<string, ApplicationJob>) => void;
   /** An application made elsewhere for this account (the browser helper's Save), taken in as it is — unless this job already has one. */
@@ -159,6 +162,12 @@ export const useApplicationsStore = create<ApplicationsState>()(
           const applications = { ...s.applications };
           delete applications[id];
           return { applications };
+        }),
+      recordPractice: (id, add) =>
+        set((s) => {
+          const a = s.applications[id];
+          if (!a) return s;
+          return { applications: { ...s.applications, [id]: { ...a, practice: withAttempt(a.practice, add) } } };
         }),
     }),
     { name: "wj.applications", storage: createRemoteStorage(), skipHydration: true, version: 1 },

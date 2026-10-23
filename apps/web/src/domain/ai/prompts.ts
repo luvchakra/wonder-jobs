@@ -3,5 +3,5 @@
  * live only on the server (`server/ai/systemPrompts.ts`), so they never ship in the app's code and a
  * request can't bring its own.
  */
-export const PROMPT_IDS = ["resume", "cover_letter", "screening", "follow_up", "form_answer", "insight", "career_history"] as const;
+export const PROMPT_IDS = ["resume", "cover_letter", "screening", "follow_up", "form_answer", "insight", "career_history", "interview_quiz", "interview_flashcards", "mock_interview", "mock_review"] as const;
 export type PromptId = (typeof PROMPT_IDS)[number];

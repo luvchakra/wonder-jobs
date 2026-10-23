@@ -12,6 +12,7 @@ export const CAPABILITIES = [
   "rank_opportunities",
   "generate_resume",
   "generate_cover_letter",
+  "interview_practice",
   "save_jobs",
   "send_recruiter_message",
   "submit_application",
@@ -48,6 +49,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // "Ask me" by default: each draft is a paid AI call, made when the candidate wants one (owner decision, 2026-10-09).
   generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "ask" },
   generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "ask" },
+  // Interview practice (owner, 2026-10-23): an AI call made only when the candidate presses Start on a job's
+  // interview prep — that press is the "ask". Off hides the AI practice; nothing leaves WonderJobs.
+  interview_practice: { key: "interview_practice", label: "Interview practice", description: "Write a practice test, flashcards and a mock interview for a job you're interviewing for, when you press Start.", risk: "low", external: false, default: "ask" },
   // Off by default: the saved list is the candidate's own picks (the owner found strong matches filling Saved unasked, 2026-10-09). Strong matches
   // are already one tap away under "Strong"; turning this on adds them to Saved automatically.
   save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "off" },
