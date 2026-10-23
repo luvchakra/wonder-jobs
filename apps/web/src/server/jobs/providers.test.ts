@@ -86,3 +86,28 @@ describe("job type from each source's own field", () => {
   });
 });
 
+
+describe("several places in one search", () => {
+  it("lists each named place once, leaving out Remote and Anywhere, at most five", async () => {
+    const { placesToSearch } = await import("./providers");
+    expect(placesToSearch({ locations: ["Dubai", "Remote", "London", "dubai", " ", "Anywhere"] })).toEqual(["Dubai", "London"]);
+    expect(placesToSearch({ locations: ["A", "B", "C", "D", "E", "F"] })).toHaveLength(5);
+    expect(placesToSearch({ locations: ["Remote"] })).toEqual([]);
+  });
+
+  it("asks a one-place source once per place and combines the answers, each posting once", async () => {
+    const { eachPlace } = await import("@/server/jobslake/registry");
+    const asked: string[][] = [];
+    const c = { query: "designer", locations: ["Dubai", "London", "Remote"] };
+    const r = await eachPlace(c, c, async (one) => {
+      asked.push(one.locations);
+      return { raws: [{ externalId: "same", title: "Designer", company: "Acme", location: "Both" }, { externalId: one.locations[0], title: "Designer", company: "Acme", location: one.locations[0] }] as never };
+    });
+    expect(asked).toEqual([["Dubai"], ["London"]]);
+    expect(r.raws.map((x) => x.externalId)).toEqual(["same", "Dubai", "London"]);
+    // A source without a place parameter: one call with everything.
+    let calls = 0;
+    await eachPlace(undefined, c, async () => (calls++, { raws: [] }));
+    expect(calls).toBe(1);
+  });
+});

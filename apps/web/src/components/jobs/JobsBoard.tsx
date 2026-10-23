@@ -64,7 +64,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const query = useDebounced(savedOnly ? savedText : filters.query, 250);
 
   // Deep links: /app/jobs?fit=strong, ?q=… — same as before; ?saved=1 is the Saved tab now. With
-  // nothing given, land on All: every job is shown, and For you and Strong narrow it (owner, 2026-10-19).
+  // nothing given, the view kept for the mode stays (All until another is picked).
   useEffect(() => {
     if (savedOnly) return;
     if (params.get("saved") === "1") {
@@ -74,8 +74,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     const fit = params.get("fit") as FitLabel | null;
     const q = params.get("q");
     const exactFit = !!fit && params.get("exact") === "1";
+    // A link's own view or words; otherwise the view the candidate left in Refine (kept per mode, owner 2026-10-23).
     if (fit || q) setFilters({ onlySaved: false, exactFit, ...(fit ? { minFit: fit } : {}), ...(q != null ? { query: q } : {}) });
-    else setFilters({ onlySaved: false, exactFit: false, minFit: null });
+    else setFilters({ onlySaved: false });
     // Only ever apply this once, from the URL the page was opened with — not on every filter change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -96,8 +97,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     // its own controls (job types, Hide Pipeline): Find's Refine — work mode, salary, level, places… — never
     // hides a job the candidate saved.
     if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
-    return { ...f, query, onlySaved: false };
-  }, [filtersKey, query, savedOnly]);
+    // Full Time with no places picked: the Career Profile's places.
+    return { ...f, query, onlySaved: false, locations: f.locations ?? (f.skipProfile ? undefined : sourceSearch?.places) };
+  }, [filtersKey, query, savedOnly, sourceSearch?.places]);
   // "Posted more than two weeks ago" and the freshness window don't need a minute's precision: re-check hourly.
   const hour = Math.floor(now / 3_600_000) * 3_600_000;
   const headline = useCareerStore((s) => s.dna.headline);

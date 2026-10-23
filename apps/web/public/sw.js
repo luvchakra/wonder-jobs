@@ -7,28 +7,57 @@
  * stale job list, a stale run, or stale application status — exactly
  * what that layer exists to prevent — so this one caches nothing.
  * It exists only so the app can be installed as a PWA, and it shows a
- * small, honest offline page (no fabricated data) when the network is
- * down for a page navigation.
+ * small, honest page (no fabricated data) when a page can't be fetched even on
+ * a second try, saying whether the device is offline or WonderJobs isn't answering.
  */
 
-const OFFLINE_HTML = `<!doctype html>
+/**
+ * Shown only when the page itself can't be fetched, after a second try. It says which it is — no connection
+ * on this device, or WonderJobs not answering (a moment's blip, or the app updating) — and, while the page is
+ * open, keeps trying by itself and reloads as soon as WonderJobs answers. Nothing here is cached or invented.
+ */
+const UNREACHABLE_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>You're offline · WonderJobs</title>
+<title>Can't reach WonderJobs</title>
 <style>
   body { margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f6f6fb; color: #14142b; }
   main { max-width: 360px; text-align: center; padding: 32px; }
   h1 { font-size: 20px; margin: 0 0 8px; }
   p { font-size: 14px; color: #3f4160; line-height: 1.5; margin: 0 0 20px; }
+  small { display: block; font-size: 12px; color: #6b6d8a; margin-top: 14px; }
   button { border: none; border-radius: 999px; padding: 10px 20px; font-size: 14px; font-weight: 600;
     color: #fff; background: linear-gradient(135deg, #6d4cf5 0%, #7c5cff 55%, #a66bff 100%); cursor: pointer; }
 </style></head>
 <body><main>
-  <h1>You're offline</h1>
-  <p>WonderJobs needs a connection to show your real data — nothing here is cached or faked. Reconnect and try again.</p>
-  <button onclick="location.reload()">Retry</button>
-</main></body></html>`;
+  <h1 id="t">Can't reach WonderJobs right now</h1>
+  <p id="m">WonderJobs may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.</p>
+  <button onclick="location.reload()">Try again now</button>
+  <small id="s">Trying again in a few seconds…</small>
+</main>
+<script>
+  var offline = navigator.onLine === false;
+  function say() {
+    offline = navigator.onLine === false;
+    document.getElementById("t").textContent = offline ? "You're offline" : "Can't reach WonderJobs right now";
+    document.getElementById("m").textContent = offline
+      ? "Your phone has no connection. Check Wi-Fi or mobile data — WonderJobs opens again as soon as you're back online."
+      : "WonderJobs may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.";
+  }
+  say();
+  addEventListener("online", function () { location.reload(); });
+  addEventListener("offline", say);
+  var wait = 5000;
+  function check() {
+    if (document.visibilityState !== "visible" || navigator.onLine === false) return setTimeout(check, wait);
+    fetch(location.href, { method: "HEAD", cache: "no-store" }).then(function (r) {
+      if (r.ok || r.status < 500) location.reload();
+      else setTimeout(check, (wait = Math.min(wait * 2, 60000)));
+    }, function () { setTimeout(check, (wait = Math.min(wait * 2, 60000))); });
+  }
+  setTimeout(check, wait);
+</script></body></html>`;
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -38,13 +67,23 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+/** The page as the network gives it; a failed attempt (a dropped connection, a blip) is tried once more first. */
+async function navigate(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      return await fetch(request);
+    } catch {
+      return new Response(UNREACHABLE_HTML, { status: 503, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    }
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.mode !== "navigate") return; // API calls, assets, etc. pass straight through.
-  event.respondWith(
-    fetch(event.request).catch(
-      () => new Response(OFFLINE_HTML, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } }),
-    ),
-  );
+  event.respondWith(navigate(event.request));
 });
 
 /**

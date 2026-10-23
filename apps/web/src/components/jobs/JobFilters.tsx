@@ -120,7 +120,7 @@ export function RefineButton({ className }: { className?: string }) {
 /** A pill that opens Refine at its own section, labelled with what's picked there. */
 function PillButton({ label, shown, open, onClick, className }: { label: string; shown: string; open: boolean; onClick: () => void; className?: string }) {
   return (
-    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-3 max-[430px]:pr-2 max-[430px]:text-[13px]", className)}>
+    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-2.5 max-[430px]:pr-1.5 max-[430px]:text-[12.5px]", className)}>
       <span className="min-w-0 flex-1 truncate">{shown}</span>
       <ChevronDown className="size-4 shrink-0 text-ink-2 max-[430px]:size-3.5" aria-hidden />
     </button>
@@ -179,11 +179,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   const dictation = useDictation({ textAtStart: () => draft, onText: setDraft });
   const places = filters.locations ?? sourceSearch?.places ?? [];
   const [where, setWhere] = useState(places.join(", "));
-  // Where starts as the profile's places and follows the filter when something else changes it (Clear, Show me anyway).
-  useEffect(() => {
-    if (filters.locations === undefined && sourceSearch?.places.length) onChange({ locations: sourceSearch.places });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.locations === undefined]);
+  // Where shows the profile's places until others are picked (`locations` undefined: Full Time's "your
+  // Career Profile's places", so a profile change still flows through), and follows the filter when something
+  // else changes it (Clear, Show me anyway, switching modes).
   const [seen, setSeen] = useState(filters.locations);
   if (seen !== filters.locations) {
     setSeen(filters.locations);
@@ -193,7 +191,8 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   const activeCount = refineCount(filters);
   // Salary's choices, and the one set now if it isn't among them.
   const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [lakh(filters.minSalary)] : [])])].sort((x, y) => x - y);
-  const workModesShown = filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ") || "Work mode";
+  // All three picked reads "All modes", so the pill stays short enough to read whole on a phone.
+  const workModesShown = filters.workModes.length >= Object.keys(WORK_MODE_LABEL).length ? "All modes" : filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ") || "Work mode";
   const salaryShown = filters.minSalary ? `₹${lakh(filters.minSalary)}L+` : "Salary";
   // Work mode and Salary open Refine at their own section: scrolled to, focused and lit for a moment.
   const [section, setSection] = useState<RefineSection | null>(null);
@@ -218,11 +217,16 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   const [boxFocused, setBoxFocused] = useState(false);
   const history = historyFor(recentSearches, draft);
   // Applies what's in the box and the Where field to the list.
-  const commit = (text = draft) => onChange({ query: text, locations: splitPlaces(where) });
+  const pickedPlaces = () => {
+    const picked = splitPlaces(where);
+    // Unchanged from the profile's places: keep following the profile rather than saving a copy of them.
+    return filters.locations === undefined && picked.join("|") === (sourceSearch?.places ?? []).join("|") ? undefined : picked;
+  };
+  const commit = (text = draft) => onChange({ query: text, locations: pickedPlaces() });
   // Search: Part Time the typed words (or a history item's), Full Time the Career Profile's own search.
   const submit = (text = draft) => {
     if (partTime) commit(text);
-    else onChange({ query: "", locations: splitPlaces(where) });
+    else onChange({ query: "", locations: pickedPlaces() });
     // Words searched: every source too, not only the jobs already on screen.
     // Full Time has no box: it is always the Career Profile's own search.
     const words = partTime ? text.trim() : "";
@@ -300,8 +304,8 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
         {/* Refine, work mode, pay and the search — one row, the same in both modes. */}
         <div className="flex items-center gap-2">
           <RefineButton />
-          <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="flex-auto" />
-          <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="flex-auto" />
+          <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="min-w-0 flex-auto" />
+          <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
           <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-12 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
             <ArrowRight className="size-6" aria-hidden />
           </button>
@@ -359,7 +363,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             <span aria-hidden>Location</span>
             {/* Real places worldwide as you type; each picked one a pill, as many as wanted. */}
-            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).length ? "Add another place" : "Anywhere — e.g. Dubai, Remote"} />
+            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).some((p) => !/^remote$/i.test(p)) ? "Add another place" : "Anywhere — e.g. Dubai"} />
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Level

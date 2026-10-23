@@ -4,7 +4,7 @@ import { EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { explainJobVisibility, FILTER_REASON_FIX, FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
-import { FIND_MODE_PATCH, findModeOf } from "@/domain/jobs/findMode";
+import { findModeOf } from "@/domain/jobs/findMode";
 import { useJobsStore } from "@/store/jobs";
 import { useNow } from "@/lib/motion";
 import { track } from "@/lib/analytics";
@@ -39,7 +39,7 @@ export function HiddenJobNotice({ job, className }: { job: CanonicalJob; classNa
       toast.success("Back in your results", "It's no longer marked not for me.");
     } else if (fix.showAnyway === "switch_mode") {
       const to = findModeOf(filters) === "full_time" ? "part_time" : "full_time";
-      setFilters(FIND_MODE_PATCH[to]);
+      useJobsStore.getState().switchFindMode(to);
       toast.success(`Switched to ${to === "full_time" ? "Full Time" : "Part Time"}`, "This kind of job is listed there.");
       router.push("/app/jobs");
     } else {

@@ -1,4 +1,4 @@
-import type { JobFilters, JobSort } from "./types";
+import type { FitLabel, JobFilters, JobSort } from "./types";
 import { JOB_TYPES, type JobType } from "./jobType";
 
 /**
@@ -52,15 +52,25 @@ export const inMode = (t: JobType | undefined, mode: FindMode): boolean => !t ||
 export const modeJobTypeLabel = (t: JobType, label: string): string => (t === "full_time" ? "Permanent" : label);
 
 /**
- * What the candidate set in Refine — the sort and the narrowing filters — kept for each mode separately and
- * between sessions (owner, 2026-10-22): switching modes brings back that mode's own settings.
+ * What the candidate set in Refine — the view, job types, places, sort and the narrowing filters — kept for
+ * each mode separately and between sessions (owner, 2026-10-22; places, job types and view too, 2026-10-23):
+ * switching modes, or coming back later, brings back that mode's own settings. `locations` undefined is Full
+ * Time's "your Career Profile's places" (so a change to the profile still flows through); a list is what was picked.
  */
-export type RefineSettings = Required<Pick<JobFilters, "workModes" | "levels" | "company" | "salaryListed" | "strictProfile" | "hideInPipeline" | "sourceIds" | "freshnessDays">> & Pick<JobFilters, "minSalary"> & { sort: JobSort };
+export type RefineSettings = Required<Pick<JobFilters, "workModes" | "levels" | "company" | "salaryListed" | "strictProfile" | "hideInPipeline" | "sourceIds" | "freshnessDays">> &
+  Pick<JobFilters, "minSalary" | "locations"> & { sort: JobSort; jobTypes: JobType[]; minFit: FitLabel | null; exactFit: boolean };
 
 /** A mode nothing was set in yet: Refine as it starts. */
-export const DEFAULT_REFINE: RefineSettings = { workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, sort: "best_match" };
+export const DEFAULT_REFINE: RefineSettings = { workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, sort: "best_match", locations: undefined, jobTypes: [], minFit: null, exactFit: false };
+
+/** Each mode's start: Full Time the profile's places, Part Time anywhere. */
+export const refineDefaults = (mode: FindMode): RefineSettings => ({ ...DEFAULT_REFINE, locations: mode === "part_time" ? [] : undefined });
 
 export const refineOf = (f: JobFilters, sort: JobSort): RefineSettings => ({
+  locations: f.locations,
+  jobTypes: f.jobTypes ?? [],
+  minFit: f.minFit ?? null,
+  exactFit: !!f.exactFit,
   workModes: f.workModes,
   levels: f.levels ?? [],
   company: f.company ?? "",
@@ -91,5 +101,9 @@ export function readRefine(raw: unknown): RefineSettings | undefined {
     freshnessDays: typeof r.freshnessDays === "number" ? r.freshnessDays : null,
     minSalary: typeof r.minSalary === "number" ? r.minSalary : undefined,
     sort: r.sort === "date" || r.sort === "salary" ? r.sort : "best_match",
+    locations: Array.isArray(r.locations) ? strings(r.locations) : undefined,
+    jobTypes: strings(r.jobTypes).filter((t): t is JobType => (JOB_TYPES as readonly string[]).includes(t)),
+    minFit: r.minFit === "strong" || r.minFit === "worth_considering" || r.minFit === "stretch" || r.minFit === "low_fit" ? r.minFit : null,
+    exactFit: r.exactFit === true,
   };
 }

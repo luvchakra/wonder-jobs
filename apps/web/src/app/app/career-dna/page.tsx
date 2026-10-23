@@ -10,6 +10,7 @@ import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
+import { PlaceInput } from "@/components/common/PlaceInput";
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { RolesCard } from "@/components/career/RolesCard";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
@@ -176,8 +177,8 @@ export default function CareerDNAPage() {
                 onBlur={(e) => set("yearsExperience", Math.max(0, Math.min(50, Number(e.target.value) || 0)))}
               />
             </Field>
-            <Field label="Where" htmlFor="locs" hint="Comma-separated; add “Remote” for remote roles.">
-              <Input id="locs" value={draft.preferredLocations.join(", ")} onChange={(e) => set("preferredLocations", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} />
+            <Field label="Where" htmlFor="locs" hint="Pick each place from the list (real places worldwide). For remote roles, pick Remote in Work mode.">
+              <PlaceInput id="locs" label="Where" places={draft.preferredLocations} onChange={(list) => set("preferredLocations", list)} placeholder={draft.preferredLocations.some((p) => !/^remote$/i.test(p.trim())) ? "Add another place" : "e.g. Bengaluru"} />
             </Field>
             <div>
               <p className="mb-1.5 text-[13px] font-medium text-ink-2">Work mode</p>

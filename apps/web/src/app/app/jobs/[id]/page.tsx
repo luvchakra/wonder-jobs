@@ -283,11 +283,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   )}
                 </Fold>
               </div>
-              {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so,
-                  and link the whole posting — on the same line as Not for me. */}
+              {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so. */}
               {/(…|\.\.\.)\s*$/.test(description) && <p className="mt-3 text-[13px] text-ink-3">This is the part the source shares.</p>}
+              {/* The posting on its own site, always one tap away — on the same line as Not for me. */}
               <div className="mt-1 flex items-center justify-between gap-2">
-                {/(…|\.\.\.)\s*$/.test(description) ? (
+                {job.applyUrl ? (
                   <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 text-[13px] font-medium text-brand-600 hover:underline">
                     Read the full description <ExternalLink className="size-3.5" aria-hidden />
                   </a>
