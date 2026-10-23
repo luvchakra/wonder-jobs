@@ -9,8 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
-import { Chip, Field, Input, Select, Textarea } from "@/components/common/Input";
-import { PlaceInput } from "@/components/common/PlaceInput";
+import { Chip, Field, Input, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { RolesCard } from "@/components/career/RolesCard";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
@@ -157,15 +156,6 @@ export default function CareerDNAPage() {
                 </p>
               )}
             </Field>
-            <Field label="Level" htmlFor="level">
-              <Select id="level" value={draft.seniority} onChange={(e) => set("seniority", e.target.value as CareerDNA["seniority"])}>
-                {["junior", "mid", "senior", "lead", "director"].map((l) => (
-                  <option key={l} value={l}>
-                    {l[0].toUpperCase() + l.slice(1)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
             <Field label="Years of experience" htmlFor="yoe">
               <Input
                 id="yoe"
@@ -177,19 +167,6 @@ export default function CareerDNAPage() {
                 onBlur={(e) => set("yearsExperience", Math.max(0, Math.min(50, Number(e.target.value) || 0)))}
               />
             </Field>
-            <Field label="Where" htmlFor="locs" hint="Pick each place from the list (real places worldwide). For remote roles, pick Remote in Work mode.">
-              <PlaceInput id="locs" label="Where" places={draft.preferredLocations} onChange={(list) => set("preferredLocations", list)} placeholder={draft.preferredLocations.some((p) => !/^remote$/i.test(p.trim())) ? "Add another place" : "e.g. Bengaluru"} />
-            </Field>
-            <div>
-              <p className="mb-1.5 text-[13px] font-medium text-ink-2">Work mode</p>
-              <div className="flex flex-wrap gap-2">
-                {(["remote", "hybrid", "onsite"] as const).map((m) => (
-                  <Chip key={m} active={draft.workModes.includes(m)} onClick={() => set("workModes", draft.workModes.includes(m) ? draft.workModes.filter((x) => x !== m) : [...draft.workModes, m])} className="h-9">
-                    {m === "onsite" ? "On-site" : m[0].toUpperCase() + m.slice(1)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="mt-5 border-t border-line pt-4">
@@ -242,7 +219,7 @@ export default function CareerDNAPage() {
           <MoreRow title="Work history, education and contact" hint={`${historyOf(draft).experience.length} roles — what résumés are built from`}>
             <CareerHistoryEditor key={`${dna.updatedAt}-${importRev}`} value={historyOf(draft)} onChange={(h) => set("history", h)} />
           </MoreRow>
-          <MoreRow title="Industries and minimum salary" hint={draft.industries.length ? draft.industries.slice(0, 3).join(", ") : "Any industry"}>
+          <MoreRow title="Industries" hint={draft.industries.length ? draft.industries.slice(0, 3).join(", ") : "Any industry"}>
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map((i) => (
                 <Chip key={i} active={draft.industries.includes(i)} onClick={() => set("industries", draft.industries.includes(i) ? draft.industries.filter((x) => x !== i) : [...draft.industries, i])}>
@@ -250,9 +227,6 @@ export default function CareerDNAPage() {
                 </Chip>
               ))}
             </div>
-            <Field label="Minimum salary (annual, ₹ lakh)" htmlFor="sal" hint="E.g. 28 means ₹28,00,000/year. Blank for no minimum." className="mt-4 max-w-xs">
-              <Input id="sal" type="number" min={0} placeholder="No minimum" value={draft.minSalary ? Math.round(draft.minSalary / 100_000) : ""} onChange={(e) => set("minSalary", e.target.value ? Number(e.target.value) * 100_000 : undefined)} />
-            </Field>
           </MoreRow>
           <MoreRow title="Strengths and growth areas">
             <div className="grid gap-4 sm:grid-cols-2">

@@ -17,6 +17,7 @@ export function interactionFor(job: CanonicalJob, kind: InteractionRecord["kind"
   return { jobId: job.id, at: new Date().toISOString(), kind, industry: job.industry, workMode: job.workMode, title: job.title, company: job.company };
 }
 import { track } from "@/lib/analytics";
+import { placesOnly } from "@/domain/jobs/searchScope";
 import { FIND_MODE_PATCH, findModeOf, readRefine, refineDefaults, refineOf, sameRefine, type FindMode, type RefineSettings } from "@/domain/jobs/findMode";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
@@ -104,6 +105,9 @@ const PERSISTED_DESCRIPTION = 1500;
 /** How many of the profile's results set aside under a typed search are kept between sessions. */
 const PERSISTED_ASIDE = 150;
 
+/** What a job is scored against for place and pay: the mode's Refine (as every search is), not the Career Profile's. */
+const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ preferredLocations: placesOnly(f.locations ?? (f.skipProfile ? [] : dna.preferredLocations)) ?? [], minSalary: f.minSalary });
+
 /** New filters or sort, and what they set in Refine kept for their mode (the same object while nothing in it changed). */
 function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<JobsState, "filters" | "sort" | "refine"> {
   const mode = findModeOf(filters);
@@ -188,7 +192,7 @@ export const useJobsStore = create<JobsState>()(
         const learnedSignals = useCareerStore.getState().learnedSignals;
         for (const j of canonical) {
           jobs[j.id] = j;
-          matches[j.id] = computeMatch(j, { dna, learnedSignals });
+          matches[j.id] = computeMatch(j, { dna, learnedSignals, ...matchScope(get().filters, dna) });
           quality[j.id] = computeQuality(j, sources);
         }
         set({ jobs, order: canonical.map((j) => j.id), matches, quality, loaded: true });
@@ -200,7 +204,8 @@ export const useJobsStore = create<JobsState>()(
         const searchQuery = get().searchedFor || undefined;
         const profile = profileKey(dna);
         const matches: Record<string, JobMatch> = {};
-        for (const id of order) matches[id] = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery }), aiFits[id], profile);
+        const scope = matchScope(get().filters, dna);
+        for (const id of order) matches[id] = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery, ...scope }), aiFits[id], profile);
         set({ matches });
       },
       replaceCatalog: (list, searchedFor = "") =>

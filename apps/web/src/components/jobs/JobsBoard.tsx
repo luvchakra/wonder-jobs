@@ -14,6 +14,7 @@ import { JobFiltersBar, SortMenu, type SourceSearch } from "@/components/jobs/Jo
 import { savedTextMatches } from "@/domain/jobs/savedText";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
+import { placesOnly } from "@/domain/jobs/searchScope";
 import { fieldTerms } from "@/services/jobs/matching";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { useCareerStore } from "@/store/career";
@@ -98,7 +99,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
     // hides a job the candidate saved.
     if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
     // Full Time with no places picked: the Career Profile's places.
-    return { ...f, query, onlySaved: false, locations: f.locations ?? (f.skipProfile ? undefined : sourceSearch?.places) };
+    // Remote is a work mode (Work mode filters it), never a place: "Remote" alone would hide every other job.
+    const places = placesOnly(f.locations ?? (f.skipProfile ? undefined : sourceSearch?.places));
+    return { ...f, query, onlySaved: false, locations: places?.length ? places : undefined };
   }, [filtersKey, query, savedOnly, sourceSearch?.places]);
   // "Posted more than two weeks ago" and the freshness window don't need a minute's precision: re-check hourly.
   const hour = Math.floor(now / 3_600_000) * 3_600_000;
