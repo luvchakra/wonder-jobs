@@ -1,10 +1,11 @@
 "use client";
+import { useMediaQuery } from "@/lib/motion";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Download, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { resolveCapability } from "@/domain/automation/policy";
 import { adapterFor } from "@/domain/jobs-apply/adapters";
-import { backgroundFillable, destinationFor } from "@/domain/jobs-apply/destination";
+import { destinationFor } from "@/domain/jobs-apply/destination";
 import {
   effectiveFill,
   fillDecision,
@@ -47,7 +48,6 @@ import { Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { ApplyStepper } from "@/components/jobs-apply/ApplyStepper";
 import { ApplicationReview } from "@/components/jobs-apply/ApplicationReview";
-import { BackgroundApply } from "@/components/jobs-apply/BackgroundApply";
 import { GuidedApplication } from "@/components/jobs-apply/GuidedApplication";
 import {
   InterventionQueue,
@@ -161,22 +161,14 @@ export default function ApplyWithWonderPage({
     : (resumeOptions[0]?.key ?? "");
   const windowRef = useRef<Window | null>(null);
 
-  // The cloud browser (no extension needed — phones): Wonder fills there in the background, never shown (WJ-314).
-  const [cloudAvailable, setCloudAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    jobsApplyApi.cloud
-      .available()
-      .then((r) => setCloudAvailable(r.available))
-      .catch(() => setCloudAvailable(false));
-  }, []);
-
-  // Without the extension, Wonder fills only in the background, and only an applicant-tracking system's own page.
-  const backgroundReady = cloudAvailable === true && !!job && backgroundFillable(job);
+  // Filling the form is a desktop browser's, with the WonderJobs extension (owner, 2026-10-23): a phone or
+  // tablet applies the traditional way — Guide me, or the Application Pack.
+  const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
   const fillPolicy = fillDecision(policy, level);
   const handoffPolicy = handoffDecision(policy, level);
   const chosenMethod: Method = methodTouched
     ? method
-    : defaultMethod === "helper" && ((helperInstalled === false && !backgroundReady) || fillPolicy === "skip")
+    : defaultMethod === "helper" && (!desktop || helperInstalled === false || fillPolicy === "skip")
       ? "guided"
       : defaultMethod;
 
@@ -641,15 +633,6 @@ export default function ApplyWithWonderPage({
             }}
           />
         </>
-      ) : helperInstalled === false && backgroundReady && chosenMethod === "helper" && !(s && inSession && s.mode === "guided") ? (
-        // No extension: Wonder fills the form in the background and asks here; the page itself is never shown.
-        <Card className="mx-auto flex max-w-xl flex-col gap-3">
-          {duplicateCard}
-          <BackgroundApply jobId={job.id} />
-          <button type="button" className="self-start text-[13px] font-medium text-brand-600 hover:underline" onClick={() => { setMethod("guided"); setMethodTouched(true); }}>
-            Guide me instead
-          </button>
-        </Card>
       ) : s &&
         inSession &&
         (s.status === "SUBMITTED" || s.status === "TRACKED") ? (
@@ -920,7 +903,7 @@ export default function ApplyWithWonderPage({
             fillPolicy={fillPolicy}
             handoffPolicy={handoffPolicy}
             helperInstalled={helperInstalled}
-            cloudAvailable={backgroundReady}
+            desktop={desktop}
             busy={busy}
             blockedReason={
               shownDuplicate

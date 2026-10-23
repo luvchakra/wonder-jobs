@@ -19,14 +19,6 @@ import { writeZip } from "@/lib/zip";
 import type { UploadedResume } from "@/domain/resume/files";
 
 export type PublicSession = Omit<JobsApplySession, "tokenNonce">;
-/** A live cloud browser for one session: where to connect and the one-session token for it. */
-export interface CloudStream {
-  cloudId: string;
-  streamUrl: string;
-  streamToken: string;
-  viewport: { width: number; height: number };
-  reused: boolean;
-}
 export interface SessionView {
   session: PublicSession;
   progress: ApplyProgress;
@@ -64,17 +56,6 @@ async function call<T>(path: string, init?: { method?: string; body?: unknown })
 }
 
 export const jobsApplyApi = {
-  /** The cloud browser: Fill for me without the extension (phones). "available: false" means this deployment has none. */
-  cloud: {
-    available: () => call<{ available: boolean }>("/api/jobs-apply/cloud"),
-    /** `headless`: a background fill nobody watches (Apply for this job, WJ-311) — the stream is never opened. */
-    start: (id: string, opts: { headless?: boolean } = {}) => call<CloudStream>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "POST", body: opts.headless ? { headless: true } : {} }),
-    fill: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud/fill`, { method: "POST", body: {} }),
-    end: (id: string) => call<{ ok: boolean }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud`, { method: "DELETE", body: {} }),
-    /** Sign in to the portal (or create the account) in the background fill, on the candidate's press (WJ-316). */
-    signIn: (id: string, body: { mode: "sign_in" } | { mode: "create" } | { mode: "save"; email: string; password: string }) =>
-      call<{ result: "signed_in" | "needs_verification" | "failed" | "no_form"; message?: string; host: string; email: string }>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}/cloud/sign-in`, { method: "POST", body }),
-  },
   list: () => call<{ sessions: (PublicSession & { progress: ApplyProgress })[] }>("/api/jobs-apply/sessions"),
   get: (id: string) => call<SessionView>(`/api/jobs-apply/sessions/${encodeURIComponent(id)}`),
   create: (body: { job: Pick<CanonicalJob, "id" | "title" | "company" | "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">; pack: ApplicationPackSnapshot; mode: ApplyMode; startOver?: boolean; acknowledgeDuplicate?: boolean; submit?: "on" | "off" }) => call<SessionView>("/api/jobs-apply/sessions", { method: "POST", body }),

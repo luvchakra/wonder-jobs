@@ -62,6 +62,8 @@ export interface Application {
   location?: string;
   linkedinUrl?: string;
   resumeUrl?: string;
+  /** "wonderjobs": sent with Easy Apply from a WonderJobs listing, with the résumé file attached. */
+  via?: "site" | "wonderjobs";
   coverNote: string;
   status: ApplicationStatus;
   createdAt: string;
@@ -94,7 +96,8 @@ const httpsUrl = (v: string) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(v);
 export type ApplicationField = "name" | "email" | "phone" | "linkedinUrl" | "resumeUrl" | "consent";
 
 /** Trims and bounds an application; returns the first problem, in form order, with the field it belongs to, or the clean value. */
-export function cleanApplication(i: ApplicationInput): { problem: string; field: ApplicationField } | { value: Required<Omit<ApplicationInput, "consent">> } {
+/** `resumeFile`: the résumé comes as a file (WonderJobs Easy Apply), so no résumé link is needed. */
+export function cleanApplication(i: ApplicationInput, opts: { resumeFile?: boolean } = {}): { problem: string; field: ApplicationField } | { value: Required<Omit<ApplicationInput, "consent">> } {
   const name = (i.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const email = (i.email ?? "").trim().toLowerCase().slice(0, 200);
   const phone = (i.phone ?? "").trim().slice(0, 40);
@@ -106,8 +109,8 @@ export function cleanApplication(i: ApplicationInput): { problem: string; field:
   if (!EMAIL_RE.test(email)) return { problem: "Enter a valid email address.", field: "email" };
   if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) return { problem: "Enter a valid phone number, or leave it empty.", field: "phone" };
   if (linkedinUrl && !httpsUrl(linkedinUrl)) return { problem: "The LinkedIn or portfolio link should start with https://", field: "linkedinUrl" };
-  if (!resumeUrl) return { problem: "Add a link to your résumé (Google Drive, Dropbox, LinkedIn or your own site).", field: "resumeUrl" };
-  if (!httpsUrl(resumeUrl)) return { problem: "The résumé link should start with https://", field: "resumeUrl" };
+  if (!resumeUrl && !opts.resumeFile) return { problem: "Add a link to your résumé (Google Drive, Dropbox, LinkedIn or your own site).", field: "resumeUrl" };
+  if (resumeUrl && !httpsUrl(resumeUrl)) return { problem: "The résumé link should start with https://", field: "resumeUrl" };
   if (!i.consent) return { problem: "Please agree to how your application is handled.", field: "consent" };
   return { value: { name, email, phone, location, linkedinUrl, resumeUrl, coverNote } };
 }

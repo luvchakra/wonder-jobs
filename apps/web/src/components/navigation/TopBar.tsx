@@ -113,7 +113,6 @@ export function TopBar() {
             ...(mode === "user"
               ? ([
                   { id: "plan", href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
-                  { id: "connections", href: "/app/profile#connections", label: "Sign-in connections", icon: KeyRound },
                   { id: "api_keys", href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
                   { id: "notifications", href: "/app/settings/notifications", label: "Notifications & email", icon: Bell },
                   { id: "your_data", href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },

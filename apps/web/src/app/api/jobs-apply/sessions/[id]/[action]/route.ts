@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { fail, parse, send, webTenant } from "@/server/jobsApply/http";
 import { ConfirmSchema, DomainSchema, ModeSchema, SubmitSettingSchema } from "@/server/jobsApply/schemas";
-import { endCloud } from "@/server/jobsApply/cloud";
 import { act, WEB_ACTIONS, type WebAction } from "@/server/jobsApply/service";
 
 export const runtime = "nodejs";
@@ -26,10 +25,7 @@ export async function POST(req: Request, ctx: Ctx) {
     body = parsed;
   }
   try {
-    const out = await act(t, id, action as WebAction, body);
-    // Cancelled, confirmed or tracked: the cloud browser (if any) closes with it. Stop keeps it open for "Continue".
-    if (out.status === 200 && (action === "cancel" || action === "confirm" || action === "tracked")) await endCloud(t, id, action).catch(() => undefined);
-    return send(out);
+    return send(await act(t, id, action as WebAction, body));
   } catch (e) {
     console.error("[jobs-apply/sessions/[id]/[action]]", e);
     return fail(503, "UNAVAILABLE", "Couldn't save the session.");

@@ -22,7 +22,6 @@ export const CAPABILITIES = [
   "fill_declarations",
   "fill_government_ids",
   "final_submit",
-  "portal_sign_in",
   "send_email",
   "change_career_dna",
   "change_search_preferences",
@@ -73,10 +72,6 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   fill_declarations: { key: "fill_declarations", label: "Answer legal declarations", description: "Criminal-record questions with your saved answer, and tick the form's consent and agree boxes. Never a signature. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   fill_government_ids: { key: "fill_government_ids", label: "Enter ID numbers", description: "PAN, Aadhaar, passport and similar numbers you saved — stored encrypted, shown only masked. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   final_submit: { key: "final_submit", label: "Submit applications", description: "Press the employer's final Submit button for you, once every required field holds your own confirmed answer. Off unless you turn it on — here or for one job.", risk: "high", external: true, default: "off" },
-  // Sign-in connections (WJ-316): the cloud browser signs in to an employer's portal with the candidate's saved
-  // sign-in, or creates the account with a password Wonder generates. Only when the candidate presses it for that
-  // application; Off means never.
-  portal_sign_in: { key: "portal_sign_in", label: "Sign in to job portals", description: "When an application asks you to sign in (Workday and similar), sign in with your saved connection, or create the account for you with a strong password Wonder keeps. Only when you press it for that application.", risk: "high", external: true, default: "ask" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },

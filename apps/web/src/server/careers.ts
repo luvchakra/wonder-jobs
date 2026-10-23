@@ -13,10 +13,12 @@ import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import type { Session } from "./auth";
 import { table } from "./db/table";
 import { sha256Hex } from "./crypto";
-import { HiringError, requirePermission } from "./hiring";
+import { HiringError, openJobs, requirePermission } from "./hiring";
 import { sendMail } from "./notify";
 import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "./email/layout";
 import { siteUrl } from "@/lib/siteUrl";
+import { hashKey } from "@/lib/ids";
+import { decryptFile, encryptFile, resumeFileStore } from "./resume/files";
 import { can } from "@/domain/org/permissions";
 import type { EmployerJob, OrgRole } from "@/domain/org/types";
 import {
@@ -63,7 +65,9 @@ type AppRow = {
   last_action_at: string;
   reminders_sent: number;
   last_reminded_at: string | null;
+  via?: "site" | "wonderjobs";
 };
+type FileRow = { application_id: string; org_id: string; filename: string; mime: string; ciphertext: string; created_at: string };
 type EventRow = { application_id: string; org_id: string; event: string; actor: string | null; detail: string | null; at: string };
 type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; status: string; created_by: string; updated_at: string };
 type OrgRow = { id: string; name: string; website: string | null; verified?: boolean };
@@ -73,6 +77,7 @@ const sites = () => table<SiteRow>("career_sites");
 const siteJobs = () => table<SiteJobRow>("career_site_jobs");
 const apps = () => table<AppRow>("job_applications");
 const events = () => table<EventRow>("job_application_events");
+const files = () => table<FileRow>("job_application_files");
 const jobs = () => table<JobRow>("employer_jobs");
 const orgs = () => table<OrgRow>("hiring_orgs");
 const members = () => table<MemberRow>("hiring_members");
@@ -105,6 +110,7 @@ const toApp = (r: AppRow): Application => ({
   location: r.location ?? undefined,
   linkedinUrl: r.linkedin_url ?? undefined,
   resumeUrl: r.resume_url ?? undefined,
+  via: r.via ?? "site",
   coverNote: r.cover_note,
   status: r.status,
   createdAt: r.created_at,
@@ -322,6 +328,80 @@ export async function submitApplication(site: Site, jobId: string, input: Applic
   return { id: row.id, notify: () => notifySubmitted(row, job, site) };
 }
 
+// ---- Easy Apply (WonderJobs listings) -----------------------------------------------------------------------
+/** The key a résumé copy is encrypted under: the company's, bound to the application (see resume/files.ts). */
+const fileOwner = (orgId: string) => `org:${orgId}`;
+
+export interface EasyApplyInput {
+  /** The listing as the candidate has it: its id and any it was merged with. One of them is the WonderJobs listing. */
+  listingIds: string[];
+  name: string;
+  phone?: string;
+  location?: string;
+  linkedinUrl?: string;
+  coverNote?: string;
+  /** One of the candidate's own uploaded résumé files; a copy goes with the application. */
+  resumeFileId: string;
+  consent: boolean;
+}
+
+/**
+ * WonderJobs Easy Apply (owner, 2026-10-23): a signed-in candidate applies to a job a company posted in its
+ * WonderJobs workspace, from inside WonderJobs, on their own press. Their account email, the details they
+ * confirmed and a copy of the résumé file they chose go into that company's applications — the same table,
+ * emails, reminders and decisions as a career site's. One application per job and email (a second is a 409).
+ */
+export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id: string; jobTitle: string; company: string; notify: () => Promise<void> }> {
+  if (!s.email) throw new HiringError("Sign in with your email to use Easy Apply.", 403);
+  const clean = cleanApplication({ ...input, email: s.email, resumeUrl: "" }, { resumeFile: true });
+  if ("problem" in clean) throw new HiringError(clean.problem);
+  const listing = new Set(input.listingIds.filter((x) => x.startsWith("employers_")));
+  const found = (await openJobs()).find(({ job }) => listing.has(`employers_${hashKey(`employers:${job.id}`)}`));
+  if (!found) throw new HiringError("This position is no longer open.", 404);
+  const { job, org } = found;
+  const file = await resumeFileStore().read(s.tenantId, input.resumeFileId);
+  if (!file) throw new HiringError("Choose one of your résumés.", 400);
+  const v = clean.value;
+  if (await apps().one({ job_id: job.id, email: v.email })) throw new HiringError("You've already applied for this position.", 409);
+  const appId = id("app");
+  const at = now();
+  const row: AppRow = {
+    id: appId,
+    org_id: org.id,
+    job_id: job.id,
+    site_id: null,
+    name: v.name,
+    email: v.email,
+    phone: v.phone || null,
+    location: v.location || null,
+    linkedin_url: v.linkedinUrl || null,
+    resume_url: null,
+    cover_note: v.coverNote,
+    status: "new",
+    status_token_hash: sha256Hex(statusToken(appId)),
+    consent_at: at,
+    created_at: at,
+    updated_at: at,
+    last_action_at: at,
+    reminders_sent: 0,
+    last_reminded_at: null,
+    via: "wonderjobs",
+  };
+  await apps().insert(row);
+  await files().insert({ application_id: appId, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), appId, file.bytes), created_at: at });
+  await record(row, "submitted", "applicant", "WonderJobs Easy Apply");
+  const jobRow = await jobs().one({ id: job.id, org_id: org.id });
+  return { id: appId, jobTitle: job.title, company: org.name, notify: () => (jobRow ? notifySubmitted(row, jobRow, undefined) : Promise.resolve()) };
+}
+
+/** The résumé sent with an Easy Apply application, for someone in that workspace who may view applications. */
+export async function applicationResume(s: Session, orgId: string, applicationId: string): Promise<{ filename: string; mime: string; bytes: Buffer }> {
+  await requirePermission(s, orgId, "applications.view");
+  const f = await files().one({ application_id: applicationId, org_id: orgId });
+  if (!f) throw new HiringError("This application has no résumé file.", 404);
+  return { filename: f.filename, mime: f.mime, bytes: decryptFile(fileOwner(orgId), applicationId, f.ciphertext) };
+}
+
 export interface ApplicationStatusView {
   status: ApplicationStatus;
   statusLabel: string;
@@ -520,18 +600,18 @@ async function emailCandidate(a: AppRow, jobTitle: string, site: SiteRow | Site 
   return r.sent;
 }
 
-async function notifySubmitted(a: AppRow, job: JobRow, site: Site): Promise<void> {
+async function notifySubmitted(a: AppRow, job: JobRow, site: Site | undefined): Promise<void> {
   try {
     await emailCandidate(a, job.title, site, {});
     const team = await recipientsFor(a.org_id, site);
     const mail = renderTeamEmail({
       heading: `New application: ${a.name}`,
-      intro: `${a.name} applied for ${job.title} on ${site.name}.`,
+      intro: `${a.name} applied for ${job.title} ${site ? `on ${site.name}` : "with WonderJobs Easy Apply"}.`,
       rows: [
         ["Email", a.email],
         ...(a.phone ? [["Phone", a.phone] as [string, string]] : []),
         ...(a.location ? [["Location", a.location] as [string, string]] : []),
-        ["Résumé", a.resume_url ?? "—"],
+        ["Résumé", a.resume_url ?? (a.via === "wonderjobs" ? "Attached — open the application" : "—")],
         ...(a.linkedin_url ? [["LinkedIn / portfolio", a.linkedin_url] as [string, string]] : []),
         ...(a.cover_note ? [["Note", a.cover_note.slice(0, 600)] as [string, string]] : []),
       ],

@@ -54,7 +54,7 @@ export function ApplicationsTab({ orgId, canDecide, openId }: { orgId: string; c
               <button type="button" onClick={() => setOpen(a.id)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:bg-surface-2">
                 <span className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                   <span className="block truncate text-[15px] font-semibold text-ink">{a.name}</span>
-                  <span className="block truncate text-[12px] text-ink-3">{[a.jobTitle, a.siteName && `via ${a.siteName}`, `applied ${relativeTime(a.createdAt)}`].filter(Boolean).join(" · ")}</span>
+                  <span className="block truncate text-[12px] text-ink-3">{[a.jobTitle, a.siteName ? `via ${a.siteName}` : a.via === "wonderjobs" && "via WonderJobs", `applied ${relativeTime(a.createdAt)}`].filter(Boolean).join(" · ")}</span>
                 </span>
                 <Badge tone={TONE[a.status]}>{APPLICATION_STATUS_LABEL[a.status]}</Badge>
               </button>
@@ -167,12 +167,12 @@ function ApplicationDetail({ orgId, a, canDecide, onClose, onChanged }: { orgId:
         <div>
           <p className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
             <Badge tone={TONE[a.status]}>{APPLICATION_STATUS_LABEL[a.status]}</Badge> {a.jobTitle} · applied {relativeTime(a.createdAt)}
-            {a.siteName ? ` via ${a.siteName}` : ""}
+            {a.siteName ? ` via ${a.siteName}` : a.via === "wonderjobs" ? " via WonderJobs Easy Apply" : ""}
           </p>
           {row("Email", a.email, `mailto:${a.email}`)}
           {row("Phone", a.phone)}
           {row("Location", a.location)}
-          {row("Résumé", a.resumeUrl, httpsOnly(a.resumeUrl))}
+          {a.via === "wonderjobs" ? row("Résumé", "Download", `/api/hiring/${encodeURIComponent(orgId)}/applications/${encodeURIComponent(a.id)}/resume`) : row("Résumé", a.resumeUrl, httpsOnly(a.resumeUrl))}
           {row("LinkedIn", a.linkedinUrl, httpsOnly(a.linkedinUrl))}
           {a.coverNote && <p className="mt-2 whitespace-pre-wrap rounded-[10px] bg-surface-2 px-3 py-2 text-[13px] text-ink-2">{a.coverNote}</p>}
           {!canDecide && <p className="mt-3 text-[12px] text-ink-3">Hiring managers and owners decide on applications.</p>}
