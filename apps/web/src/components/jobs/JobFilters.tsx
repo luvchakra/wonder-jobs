@@ -99,8 +99,10 @@ function JobTypeChips({ filters, onChange, className }: { filters: Filters; onCh
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
-/** How many Refine settings are on (work mode, salary and sort show on the page in their own controls). */
-const refineCount = (f: Filters) => (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.sourceIds.length + (f.freshnessDays ? 1 : 0);
+/** How many of Refine's settings are changed from where they start — one per setting (view, job types, work
+ * mode, salary, places, level, posted, sources, Hide Pipeline, strictly within the profile, sort). */
+const refineCount = (f: Filters, sort: JobSort) =>
+  [f.minFit, f.jobTypes?.length, f.workModes.length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline, f.strictProfile, sort !== "best_match"].filter(Boolean).length;
 
 const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
@@ -108,7 +110,7 @@ const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border
 export function RefineButton({ className }: { className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
-  const count = useJobsStore((s) => refineCount(s.filters));
+  const count = useJobsStore((s) => refineCount(s.filters, s.sort));
   return (
     <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", more && "border-brand-200 bg-brand-50", className)}>
       <SlidersHorizontal className="size-5" aria-hidden />
@@ -188,12 +190,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = refineCount(filters);
+  const sort = useJobsStore((s) => s.sort);
+  const activeCount = refineCount(filters, sort);
   // Salary's choices, and the one set now if it isn't among them.
   const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [lakh(filters.minSalary)] : [])])].sort((x, y) => x - y);
   // All three picked reads "All modes", so the pill stays short enough to read whole on a phone.
-  const workModesShown = filters.workModes.length >= Object.keys(WORK_MODE_LABEL).length ? "All modes" : filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ") || "Work mode";
-  const salaryShown = filters.minSalary ? `₹${lakh(filters.minSalary)}L+` : "Salary";
+  // None picked is any: the pills say so, as the search does.
+  const workModesShown = !filters.workModes.length || filters.workModes.length >= Object.keys(WORK_MODE_LABEL).length ? "All modes" : filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ");
+  const salaryShown = filters.minSalary ? `₹${lakh(filters.minSalary)}L+` : "Any salary";
   // Work mode and Salary open Refine at their own section: scrolled to, focused and lit for a moment.
   const [section, setSection] = useState<RefineSection | null>(null);
   const openAt = (at: RefineSection) => {
@@ -420,7 +424,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null });
+                  // Everything back to where the mode starts: places too (Full Time's follow the profile again).
+                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, locations: filters.skipProfile ? [] : undefined });
+                  useJobsStore.getState().setSort("best_match");
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
               >
