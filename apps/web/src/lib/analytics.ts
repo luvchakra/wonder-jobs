@@ -14,6 +14,7 @@ export type AnalyticsEvent =
   | "workflow_waiting_for_user"
   | "job_viewed"
   | "apply_listing_opened"
+  | "easy_apply_sent"
   | "custom_resume_generated"
   | "custom_resume_downloaded"
   | "job_saved"
@@ -66,7 +67,6 @@ export type AnalyticsEvent =
   | "jobsapply_candidate_submitted"
   | "jobsapply_wonder_submitted"
   | "jobsapply_background_submit"
-  | "jobsapply_portal_sign_in"
   | "jobsapply_submission_unknown"
   | "jobsapply_guided_used"
   | "jobsapply_pack_exported";

@@ -95,11 +95,3 @@ export function fillGate(s: JobsApplySession, input: { host: string; decision: F
   return { ok: true, mappings };
 }
 
-/**
- * May the cloud browser sign in to (or create) a portal account for this application (WJ-316)? Only on the
- * candidate's own press for it, through resolveCapability: "Off" in Automation always wins.
- */
-export function portalSignInDecision(policy: AutomationPolicy | undefined, level: AutomationLevel | undefined): "run" | "skip" {
-  if (!policy) return "run"; // never saved: the press itself is the candidate's yes; nothing runs without it
-  return resolveCapability("portal_sign_in", policy, level ?? "guided", policy.portal_sign_in === "off" ? undefined : "allow") === "skip" ? "skip" : "run";
-}

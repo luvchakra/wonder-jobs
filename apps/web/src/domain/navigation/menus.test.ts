@@ -4,7 +4,7 @@ import { arrangeMenu, cleanMenu, defaultMenu, isMenuId } from "./menus";
 describe("menus a platform admin arranges", () => {
   it("start as today's menus: every item, in its order, none hidden", () => {
     expect(cleanMenu("account", undefined)).toEqual(defaultMenu("account"));
-    expect(defaultMenu("account").order).toEqual(["account", "plan", "connections", "api_keys", "notifications", "your_data", "hiring", "analytics", "help"]);
+    expect(defaultMenu("account").order).toEqual(["account", "plan", "api_keys", "notifications", "your_data", "hiring", "analytics", "help"]);
     expect(defaultMenu("you").order).toEqual(["ask_wonder", "skill_up", "recruiters", "resumes", "job_sources", "automation", "ai_provider", "search_history"]);
     expect([isMenuId("you"), isMenuId("toString"), isMenuId("nope")]).toEqual([true, false, false]);
   });
@@ -16,8 +16,8 @@ describe("menus a platform admin arranges", () => {
   });
 
   it("put an item the saved order doesn't know back at its default place, shown", () => {
-    const c = cleanMenu("account", { order: ["help", "account", "plan", "connections", "api_keys", "notifications", "your_data", "analytics"], hidden: [] });
-    expect(c.order).toEqual(["help", "account", "plan", "connections", "api_keys", "notifications", "your_data", "hiring", "analytics"]);
+    const c = cleanMenu("account", { order: ["help", "account", "plan", "api_keys", "notifications", "your_data", "analytics"], hidden: [] });
+    expect(c.order).toEqual(["help", "account", "plan", "api_keys", "notifications", "your_data", "hiring", "analytics"]);
   });
 
   it("never hide Account in the account menu; every You row can be hidden", () => {

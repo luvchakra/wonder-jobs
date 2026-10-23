@@ -26,6 +26,7 @@ import { companyColor } from "@/components/jobs/JobCard";
 import { ShareJobButton } from "@/components/jobs/ShareJobButton";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { CustomResumeButton } from "@/components/jobs/CustomResumeButton";
+import { EasyApply } from "@/components/jobs/EasyApply";
 import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
 import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
@@ -65,7 +66,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
   // get Apply, which opens the employer's listing.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
-  // Posted on WonderJobs by the employer: Easy Apply, on every device, opens the apply link they gave WonderJobs.
+  // Posted on WonderJobs by the employer: Easy Apply, on every device, sends the application to them inside WonderJobs.
   const wonderJob = !!job?.sourceIds.includes("employers");
   const helperInstalled = useExtensionInstalled(1500);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
@@ -302,7 +303,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
         <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <Card className="flex flex-col gap-2">
-            {desktop && !wonderJob ? (
+            {wonderJob ? (
+              <>
+                <EasyApply job={job} />
+                <CustomResumeButton job={job} />
+              </>
+            ) : desktop ? (
               // Desktop: Easy Apply fills the employer's form with the browser extension; without it, the listing itself.
               <>
                 {canApply ? (
@@ -352,7 +358,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 {!limits.applyWithWonder && <PlanGate reason="Easy Apply fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
               </>
             ) : (
-              // Phones and tablets, and every WonderJobs listing: Apply opens the listing's own apply link.
+              // Phones and tablets: Apply opens the employer's own page, to fill in there.
               <>
                 <a
                   href={job.applyUrl}
@@ -361,12 +367,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   onClick={() =>
                     track("apply_listing_opened", {
                       jobId: job.id,
-                      from: wonderJob ? "wonderjobs" : "mobile",
+                      from: "mobile",
                     })
                   }
                   className="wj-gradient-bg wj-press inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] px-5 text-[15px] font-medium text-white shadow-brand hover:brightness-105"
                 >
-                  {wonderJob ? "Easy Apply" : "Apply"} <ExternalLink className="size-4" aria-hidden />
+                  Apply <ExternalLink className="size-4" aria-hidden />
                 </a>
                 <CustomResumeButton job={job} />
               </>

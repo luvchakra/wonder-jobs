@@ -13,7 +13,6 @@ export const MENUS = {
     items: [
       { id: "account", label: "Account" },
       { id: "plan", label: "Plan & billing" },
-      { id: "connections", label: "Sign-in connections" },
       { id: "api_keys", label: "API keys" },
       { id: "notifications", label: "Notifications & email" },
       { id: "your_data", label: "Your data" },

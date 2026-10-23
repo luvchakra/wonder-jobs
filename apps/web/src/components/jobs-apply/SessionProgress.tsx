@@ -31,7 +31,7 @@ function state(m: FieldMapping): { label: string; tone: "success" | "brand" | "w
 }
 
 /** "What Wonder did / what it couldn't / what needs you" for the live form (§31, §39, §164). */
-export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen, onGuided, onStop, cloud = false }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void; onGuided?: () => void; onStop?: () => void; /** The helper runs in the cloud browser shown above, not in the candidate's own Chrome. */ cloud?: boolean }) {
+export function SessionProgress({ session, progress, helperConnected, fillDecision, onPair, onOpen, onGuided, onStop }: { session: PublicSession; progress: ApplyProgress; helperConnected: boolean | null; fillDecision?: string; onPair: () => void; onOpen: () => void; onGuided?: () => void; onStop?: () => void }) {
   const form = session.form;
   // Waiting for the form isn't forever: after FORM_WAIT_MS with nothing from the page, say so and offer next steps.
   const [now, setNow] = useState(() => Date.now());
@@ -71,7 +71,7 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>The site wants you to sign in or create an account first — do that there; the helper picks up when the form shows.</li>
             <li>The link opened the job description or a job board — press Apply on that page.</li>
-            <li>{cloud ? "The page didn't load in the cloud browser — open it in your own browser instead." : "The helper isn't on that page — open the helper there and choose Fill, or allow the site when it asks."}</li>
+            <li>The helper isn&apos;t on that page — open the helper there and choose Fill, or allow the site when it asks.</li>
           </ul>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={onOpen}>
@@ -96,11 +96,7 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
 
       {!form && wait !== "timed_out" && (
         <div className="mt-4 rounded-[14px] bg-surface-2 p-4 text-[13px] text-ink-2">
-          {cloud ? (
-            <p className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin text-brand-600" aria-hidden /> Wonder is reading the employer&apos;s page in the cloud browser above. When it finds the application form, this updates.
-            </p>
-          ) : helperConnected === false ? (
+          {helperConnected === false ? (
             <>
               <p className="font-medium text-ink">The browser helper isn&apos;t connected to this application.</p>
               <p className="mt-1">Open the employer&apos;s page; if you use the WonderJobs helper, reconnect it. Otherwise switch to guided mode — every value is ready to copy.</p>
@@ -131,13 +127,11 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
             {progress.fillable > 0 && <> · <strong className="font-medium text-brand-700">{progress.fillable} ready to fill</strong></>}
             {progress.needsYou > 0 && <> · <strong className="font-medium text-warning-600">{progress.needsYou} need{progress.needsYou === 1 ? "s" : ""} you</strong></>}
           </p>
-          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{cloud ? "Choose Fill above." : `Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderJobs panel on the employer's page.`}</p>}
-          {/* The cloud browser shows the page above; the extension's page is in another tab — the way back to it. */}
-          {!cloud && (
-            <button type="button" className="mt-1 text-[12px] font-medium text-brand-600 hover:underline" onClick={onOpen}>
-              Open the employer&apos;s page
-            </button>
-          )}
+          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{`Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderJobs panel on the employer's page.`}</p>}
+          {/* The extension's page is in another tab — the way back to it. */}
+          <button type="button" className="mt-1 text-[12px] font-medium text-brand-600 hover:underline" onClick={onOpen}>
+            Open the employer&apos;s page
+          </button>
           {steps.map((step) => (
             <div key={step} className="mt-4">
               {steps.length > 1 && <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Step {step}</p>}

@@ -11,7 +11,6 @@ import { Card } from "@/components/common/Card";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
 import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
-import { ConnectionsCard } from "@/components/account/ConnectionsCard";
 import { useBillingStore } from "@/store/billing";
 import { ProfilePhoto } from "@/components/account/ProfilePhoto";
 import { Button } from "@/components/common/Button";
@@ -140,7 +139,6 @@ function ProfileInner() {
         </Link>
       </div>
       <PlanCard returnState={billingReturn} />
-      <ConnectionsCard />
       <JobsLakeApiCard returnState={params.get("api")} />
       <YourDataCard />
       <Card padding="none" className="mt-4">

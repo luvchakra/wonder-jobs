@@ -67,8 +67,8 @@ export function Preflight(props: {
   fillPolicy: FillDecision;
   handoffPolicy: FillDecision;
   helperInstalled: boolean | null;
-  /** This deployment has a cloud browser: Fill for me works without the extension (phones included). */
-  cloudAvailable?: boolean;
+  /** A desktop browser: the only place the form is filled for you (with the extension). Phones and tablets get Guide me and the Pack. */
+  desktop: boolean;
   busy: boolean;
   blockedReason?: string;
   onStart: () => void;
@@ -111,10 +111,9 @@ export function Preflight(props: {
         </p>
         {showMethods && (
           <div role="radiogroup" aria-label="Application method" className="mt-3 flex flex-col gap-2">
-            {METHODS.map((m) => {
+            {METHODS.filter((m) => props.desktop || m.key !== "helper").map((m) => {
               const selected = props.method === m.key;
-              const helperReady = props.helperInstalled === true || props.cloudAvailable === true;
-              const recommended = m.key === "helper" ? helperReady : m.key === "guided" && props.helperInstalled === false && !props.cloudAvailable;
+              const recommended = m.key === "helper" ? props.helperInstalled === true : m.key === "guided" && (!props.desktop || props.helperInstalled === false);
               const disabled = m.key === "helper" && props.fillPolicy === "skip";
               return (
                 <button
@@ -132,8 +131,7 @@ export function Preflight(props: {
                       {m.title} {recommended && <Badge tone="brand">Recommended</Badge>}
                     </span>
                     <span className="block text-[12px] text-ink-3">{m.body}</span>
-                    {m.key === "helper" && props.helperInstalled === false && !props.cloudAvailable && <span className="mt-1 block text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
-                    {m.key === "helper" && props.helperInstalled === false && props.cloudAvailable && <span className="mt-1 block text-[12px] text-ink-3">Wonder fills it in the background and asks you here</span>}
+                    {m.key === "helper" && props.helperInstalled === false && <span className="mt-1 block text-[12px] font-medium text-warning-600">Needs the WonderJobs browser helper</span>}
                     {disabled && <span className="mt-1 block text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   </span>
                 </button>
@@ -141,7 +139,7 @@ export function Preflight(props: {
             })}
           </div>
         )}
-        {props.method === "helper" && props.helperInstalled === false && !props.cloudAvailable && (
+        {props.method === "helper" && props.helperInstalled === false && (
           <p className="mt-2 text-[12px] text-ink-2">
             <Link href="/extension" className="font-medium text-brand-600 hover:underline">
               Install the browser helper

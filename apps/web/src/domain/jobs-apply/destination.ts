@@ -128,17 +128,6 @@ export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDoma
 }
 
 /**
- * Can Apply for this job fill it in the background (WJ-311)? Only when the link opens an applicant-tracking
- * system's own job page, where the form is. A job board's or a careers site's listing needs someone to press
- * its Apply first, which the helper never does, so those go to the Apply page instead.
- */
-export function backgroundFillable(job: Pick<CanonicalJob, "applyUrl" | "companyDomain" | "onEmployerSite" | "lake">): boolean {
-  const d = destinationFor(job);
-  // A job board's listing whose Apply link opens for the cloud browser: it follows that link first (WJ-315).
-  return d?.type === "ats" || (d?.type === "aggregator" && isFollowableBoard(d.domain));
-}
-
-/**
  * Greenhouse's own form for a Greenhouse job (WJ-317). Its board pages and the company career pages that embed
  * them (coinbase.com/…?gh_jid=…) wrap the form in a frame — and some company sites refuse automated browsers —
  * while Greenhouse serves the same application form at job_app?for={board}&token={job id}. A company page names

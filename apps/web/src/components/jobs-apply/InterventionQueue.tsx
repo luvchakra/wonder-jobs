@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Hand, ShieldCheck, Sparkles } from "lucide-react";
 import { MEMORY_LABEL, PROVENANCE_LABEL } from "@/domain/jobs-apply/profile";
-import Link from "next/link";
 import type { ApplicationField, InterventionItem, MemoryKey } from "@/domain/jobs-apply/types";
 import type { PublicSession } from "@/services/jobs-apply/client";
 import { Badge } from "@/components/common/Badge";
@@ -22,25 +21,20 @@ const CATEGORY: Partial<Record<InterventionItem["category"], string>> = {
 
 /**
  * §51–§52 "Needs you": one card per question, open items first.
- * `headless` (Apply for this job, WJ-311): nobody sees the employer's form, so every answer is given here —
- * with the form's own choices when it has them — and "answer on the form" points to finishing that one step.
  */
-export function InterventionQueue({ session, onResolve, onDraft, onRemember, busyId, headless = false, onFinish }: { session: PublicSession; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busyId?: string | null; headless?: boolean; onFinish?: () => void }) {
-  // Headless: required questions first, and the count matches the Apply button's "Answer N questions".
-  const open = session.interventions.filter((i) => i.status === "open").sort((a, b) => (headless ? Number(!!b.required) - Number(!!a.required) : 0));
-  const required = open.filter((i) => i.required).length;
-  const optional = open.length - required;
+export function InterventionQueue({ session, onResolve, onDraft, onRemember, busyId }: { session: PublicSession; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busyId?: string | null }) {
+  const open = session.interventions.filter((i) => i.status === "open");
   const done = session.interventions.filter((i) => i.status !== "open");
   if (!session.interventions.length) return null;
   return (
     <Card aria-labelledby="wj-needs-you">
       <h2 id="wj-needs-you" className="flex items-center gap-2 text-[18px] font-semibold text-ink">
-        <Hand className="size-5 text-warning-600" aria-hidden /> Needs you{!open.length ? "" : headless ? ` — ${[required && `${required} required`, optional && `${optional} optional`].filter(Boolean).join(" · ")}` : ` — ${open.length} item${open.length === 1 ? "" : "s"}`}
+        <Hand className="size-5 text-warning-600" aria-hidden /> Needs you{!open.length ? "" : ` — ${open.length} item${open.length === 1 ? "" : "s"}`}
       </h2>
-      <p className="mt-1 text-[13px] text-ink-3">{open.length ? (headless ? `${required ? "Wonder needs the required ones to finish the form" : "Nothing here is required"}${optional ? "; optional ones can be skipped" : ""}. Your answers go only into this application.` : "The application is asking for things only you can provide. Answer here, or directly on the employer's form.") : "Everything that needed you is handled."}</p>
+      <p className="mt-1 text-[13px] text-ink-3">{open.length ? "The application is asking for things only you can provide. Answer here, or directly on the employer's form." : "Everything that needed you is handled."}</p>
       <ol className="mt-4 flex flex-col gap-3">
         {open.map((item, i) => (
-          <InterventionCard key={item.id} n={i + 1} item={item} field={session.formFields.find((f) => f.id === item.fieldId)} memoryKey={memoryKeyOf(session, item)} onResolve={onResolve} onDraft={onDraft} onRemember={onRemember} busy={busyId === item.id} headless={headless} onFinish={onFinish} />
+          <InterventionCard key={item.id} n={i + 1} item={item} field={session.formFields.find((f) => f.id === item.fieldId)} memoryKey={memoryKeyOf(session, item)} onResolve={onResolve} onDraft={onDraft} onRemember={onRemember} busy={busyId === item.id} />
         ))}
       </ol>
       {done.length > 0 && (
@@ -75,7 +69,7 @@ function choicesOf(field?: ApplicationField): string[] | null {
 
 const INPUT_TYPE: Partial<Record<ApplicationField["type"], string>> = { date: "date", number: "number", email: "email", url: "url", phone: "tel" };
 
-function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRemember, busy, headless, onFinish }: { n: number; item: InterventionItem; field?: ApplicationField; memoryKey?: MemoryKey; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busy: boolean; headless: boolean; onFinish?: () => void }) {
+function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRemember, busy }: { n: number; item: InterventionItem; field?: ApplicationField; memoryKey?: MemoryKey; onResolve: (item: InterventionItem, body: ResolveBody) => Promise<void>; onDraft: (question: string, metric?: string) => Promise<string>; onRemember: (key: MemoryKey, value: string) => void; busy: boolean }) {
   const [value, setValue] = useState(item.suggestion?.value ?? "");
   const [aiText, setAiText] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
@@ -117,31 +111,7 @@ function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRem
         <Badge tone={item.required ? "warning" : "neutral"}>{item.required ? "Required" : "Optional"}</Badge>
       </div>
 
-      {item.kind === "answer_on_portal" && headless && (
-        <>
-          <p className="mt-2 flex items-start gap-2 text-[13px] text-ink-2">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> Wonder answers {CATEGORY[item.category] ?? "sensitive"} questions only if you turn that on with your own answers, in{" "}
-            <Link href="/app/automation/settings" className="font-medium text-brand-600 hover:underline">
-              Automation → Sensitive questions
-            </Link>
-            .
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {onFinish && (
-              <Button size="sm" variant="outline" onClick={onFinish}>
-                Answer it on the employer&apos;s page
-              </Button>
-            )}
-            {optional && (
-              <Button size="sm" variant="ghost" onClick={() => onResolve(item, { action: "skip" })} disabled={busy}>
-                Skip
-              </Button>
-            )}
-          </div>
-        </>
-      )}
-
-      {item.kind === "answer_on_portal" && !headless && (
+      {item.kind === "answer_on_portal" && (
         <>
           <p className="mt-2 flex items-start gap-2 text-[13px] text-ink-2">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> Answer this on the employer&apos;s form. Wonder never answers {CATEGORY[item.category] ?? "sensitive"} questions for you — it doesn&apos;t assume them.
@@ -203,11 +173,9 @@ function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRem
             <Button size="sm" onClick={submitValue} disabled={busy || !value.trim()}>
               Use this
             </Button>
-            {!headless && (
-              <Button size="sm" variant="outline" onClick={() => onResolve(item, { action: "answered_on_portal" })} disabled={busy}>
-                I&apos;ll answer on the form
-              </Button>
-            )}
+            <Button size="sm" variant="outline" onClick={() => onResolve(item, { action: "answered_on_portal" })} disabled={busy}>
+              I&apos;ll answer on the form
+            </Button>
             {optional && (
               <Button size="sm" variant="ghost" onClick={() => onResolve(item, { action: "skip" })} disabled={busy}>
                 Skip
@@ -258,11 +226,9 @@ function InterventionCard({ n, item, field, memoryKey, onResolve, onDraft, onRem
                 {aiText === null ? "Draft with Wonder" : "Regenerate"}
               </Button>
             )}
-            {!headless && (
-              <Button size="sm" variant="ghost" onClick={() => onResolve(item, { action: "answered_on_portal" })} disabled={busy}>
-                I&apos;ll answer on the form
-              </Button>
-            )}
+            <Button size="sm" variant="ghost" onClick={() => onResolve(item, { action: "answered_on_portal" })} disabled={busy}>
+              I&apos;ll answer on the form
+            </Button>
             {optional && (
               <Button size="sm" variant="ghost" onClick={() => onResolve(item, { action: "skip" })} disabled={busy}>
                 Skip
