@@ -115,21 +115,16 @@ function JobsHome() {
       {/* Full Time or Part Time: the whole width on a phone, the first thing on the page. */}
       <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-3 w-full sm:max-w-sm" />
       {/* Full Time: what Wonder searches for, with one tap to change it. */}
-      {mode === "full_time" && <WantedRole search={search} className="mb-3" />}
+      {mode === "full_time" && <WantedRole className="mb-3" />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
-        // What was searched and "Search as" live in Refine — the list stays the page.
-        refineTop={
-          <>
-            {/* Part Time leaves the Career Profile's role out, so it isn't shown there. */}
-            {mode === "full_time" && <WantedRole search={search} inline />}
-            {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
-            {roles.length > 0 && <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} />}
-          </>
-        }
+        // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
+        refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} /> : undefined}
         footer={
           <div className="mt-6">
             <h1 className="wj-sr-only">Find jobs</h1>
+            {/* What the list is from — every source's count a tap away — under the jobs, out of the way. */}
+            {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
             <RelevanceNoteBar notes={search.readiness.notes} />
           </div>
         }
