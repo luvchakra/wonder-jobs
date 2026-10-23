@@ -92,8 +92,11 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const filtersKey = JSON.stringify({ ...filters, query: "" });
   const effective = useMemo(() => {
     const f = JSON.parse(filtersKey) as typeof filters;
-    // Saved's words are its own plain look-up (savedTextMatches below), not Find's search.
-    return { ...f, query: savedOnly ? "" : query, onlySaved: savedOnly, minFit: savedOnly ? null : f.minFit };
+    // Saved's words are its own plain look-up (savedTextMatches below), not Find's search. Saved keeps only
+    // its own controls (job types, Hide Pipeline): Find's Refine — work mode, salary, level, places… — never
+    // hides a job the candidate saved.
+    if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
+    return { ...f, query, onlySaved: false };
   }, [filtersKey, query, savedOnly]);
   // "Posted more than two weeks ago" and the freshness window don't need a minute's precision: re-check hourly.
   const hour = Math.floor(now / 3_600_000) * 3_600_000;
@@ -101,7 +104,9 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const goal = useCareerStore((s) => s.dna.careerGoal);
   const field = useMemo(() => fieldTerms(headline, goal), [headline, goal]);
   const inPipeline = useMemo(() => new Set([...appByJob.values()].filter((a) => a.status !== "saved").map((a) => a.jobId)), [appByJob]);
-  const filterResult = useMemo(() => applyJobFilters(order, jobs, matches, rejected, saved, effective, hour, field, inPipeline), [order, jobs, matches, rejected, saved, effective, hour, field, inPipeline]);
+  // Saved lists every saved job still known, newest saved first — not only those in Find's latest results.
+  const listed = useMemo(() => (savedOnly ? Object.keys(saved).filter((id) => jobs[id]).sort((a, b) => saved[b].localeCompare(saved[a])) : order), [savedOnly, saved, jobs, order]);
+  const filterResult = useMemo(() => applyJobFilters(listed, jobs, matches, rejected, saved, effective, hour, field, inPipeline), [listed, jobs, matches, rejected, saved, effective, hour, field, inPipeline]);
   const results = useMemo(() => {
     const list = savedOnly && query.trim() ? filterResult.visibleIds.filter((id) => savedTextMatches(jobs[id], query)) : [...filterResult.visibleIds];
     list.sort((a, b) => {

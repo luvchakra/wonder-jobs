@@ -359,9 +359,9 @@ export const useJobsStore = create<JobsState>()(
  * store — a filter keystroke, a link check — so this, the expensive part (sorting and copying up to 300 jobs),
  * is recomputed only when what it's made from changed.
  */
-let catalogMemo: { from: unknown[]; out: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "beforeWords"> } | null = null;
+let catalogMemo: { from: unknown[]; out: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "beforeWords" | "wordsCatalog"> } | null = null;
 function persistedCatalog(s: JobsState) {
-  const from = [s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords];
+  const from = [s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords, s.wordsCatalog];
   if (catalogMemo && catalogMemo.from.every((x, i) => x === from[i])) return catalogMemo.out;
   const out = buildPersistedCatalog(s);
   catalogMemo = { from, out };
@@ -390,14 +390,22 @@ function buildPersistedCatalog(s: JobsState) {
   const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
   // The profile's results set aside while typed words are searched: kept too, so clearing the words after
   // the phone reloads the tab brings them back instead of searching again.
-  const aside = s.beforeWords;
+  const beforeWords = trimAside(s.beforeWords);
+  // Part Time's last results, set aside while Full Time shows the profile's: kept too, so Part Time shows
+  // them after the app is reopened instead of asking to search again.
+  const words = trimAside(s.wordsCatalog);
+  const wordsCatalog = words && s.wordsCatalog ? { ...words, searchedFor: s.wordsCatalog.searchedFor } : undefined;
+  return { jobs, order, matches, quality, aiFits, beforeWords, wordsCatalog };
+}
+
+/** A set-aside list kept in storage: its best PERSISTED_ASIDE jobs, descriptions shortened. */
+function trimAside(aside: Pick<JobsState, "jobs" | "order" | "matches"> | undefined) {
   const asideOrder = aside ? [...aside.order].sort((a, b) => (aside.matches[b]?.score ?? 0) - (aside.matches[a]?.score ?? 0)).slice(0, PERSISTED_ASIDE).filter((id) => aside.jobs[id]) : [];
-  const beforeWords = aside && asideOrder.length
+  return aside && asideOrder.length
     ? {
         order: aside.order.filter((id) => asideOrder.includes(id)),
-        jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
+        jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, (j.description?.length ?? 0) > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
         matches: Object.fromEntries(asideOrder.flatMap((id) => (aside.matches[id] ? [[id, aside.matches[id]] as const] : []))),
       }
     : undefined;
-  return { jobs, order, matches, quality, aiFits, beforeWords };
 }

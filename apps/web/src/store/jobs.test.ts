@@ -116,6 +116,28 @@ describe("the profile's results set aside under typed words", () => {
     expect(saved.beforeWords!.jobs.a.description.length).toBeLessThan(1600); // kept short in storage
     vi.restoreAllMocks();
   });
+
+  it("keep Part Time's last results too, so Part Time shows them after a reload without searching again", () => {
+    vi.spyOn(mode, "getClientMode").mockReturnValue({ mode: "user" } as ReturnType<typeof mode.getClientMode>);
+    useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined, wordsCatalog: undefined });
+    const s = useJobsStore.getState();
+    const full = (id: string) => ({ ...job(id), description: "A real posting." }) as CanonicalJob;
+    s.replaceCatalog([full("p")]);
+    s.replaceCatalog([full("barista")], "barista in pune");
+    s.setMatches([match("barista", 60)]);
+    // Back to Full Time: the profile's list on screen, Part Time's set aside.
+    expect(useJobsStore.getState().restoreProfileCatalog()).toBe(true);
+    const opts = useJobsStore.persist.getOptions();
+    const stored = JSON.parse(JSON.stringify(opts.partialize!(useJobsStore.getState())));
+    expect(stored.wordsCatalog?.searchedFor).toBe("barista in pune");
+    expect(stored.wordsCatalog?.order).toEqual(["barista"]);
+    // After the reload, opening Part Time puts them back.
+    useJobsStore.setState(opts.merge!(stored, useJobsStore.getState()) as Partial<ReturnType<typeof useJobsStore.getState>>);
+    expect(useJobsStore.getState().restoreWordsCatalog()).toBe(true);
+    expect(useJobsStore.getState().order).toEqual(["barista"]);
+    expect(useJobsStore.getState().searchedFor).toBe("barista in pune");
+    vi.restoreAllMocks();
+  });
 });
 
 describe("Hide Pipeline", () => {

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
+import { useHydration } from "@/store/hydration";
 import type { JobFilters } from "@/domain/jobs/types";
 import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
@@ -87,6 +88,14 @@ function JobsHome() {
     setPickedRole(id);
     if (mode === "part_time") useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
   };
+  // Opening Find in Part Time shows Part Time's last results (kept, even after the app was closed), never a
+  // new search: with the profile's list on screen, the words' list set aside comes back.
+  const hydrated = useHydration((h) => h.hydrated);
+  useEffect(() => {
+    if (!hydrated) return;
+    const s = useJobsStore.getState();
+    if (findModeOf(s.filters) === "part_time" && !s.searchedFor) s.restoreWordsCatalog();
+  }, [hydrated]);
   const switchMode = (m: FindMode) => {
     const s = useJobsStore.getState();
     // That mode's filters, with the Refine settings the candidate last left in it.
