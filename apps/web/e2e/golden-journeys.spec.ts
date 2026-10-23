@@ -404,12 +404,12 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(main.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
     await main.getByRole("button", { name: "Save", exact: true }).click();
     // Work mode and Salary open Refine at their own section; what's picked there shows on the pill.
-    await main.getByRole("button", { name: "Work mode: Work mode" }).click();
+    await main.getByRole("button", { name: "Work mode: All modes" }).click();
     await expect(main.getByRole("group", { name: "Work mode" })).toBeFocused();
     await main.getByRole("group", { name: "Work mode" }).getByRole("button", { name: "Remote", exact: true }).click();
     await main.getByRole("button", { name: "Save", exact: true }).click();
     await expect(main.getByRole("button", { name: "Work mode: Remote" })).toBeVisible();
-    await main.getByRole("button", { name: "Salary: Salary" }).click();
+    await main.getByRole("button", { name: "Salary: Any salary" }).click();
     await expect(main.getByRole("group", { name: "Salary" })).toBeFocused();
     await main.getByRole("group", { name: "Salary" }).getByRole("button", { name: "₹20L+", exact: true }).click();
     await main.getByRole("button", { name: "Save", exact: true }).click();

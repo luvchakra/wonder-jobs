@@ -8,6 +8,7 @@ import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
+import { searchScope } from "@/domain/jobs/searchScope";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
 import { useAuthStore } from "@/store/auth";
@@ -138,7 +139,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       const query = (opts.query ?? readiness.query).trim();
       // Typed words and roles carry their own role, so only a profile search waits on the profile's blockers.
       if (!query || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
-      const locations = opts.locations ?? readiness.locations;
+      // Refine's places, work modes and pay first; the Career Profile's only for what Refine leaves open.
+      const { locations, workModes, minSalary } = searchScope(useJobsStore.getState().filters, { locations: readiness.locations, workModes: dna.workModes, minSalary: dna.minSalary }, opts);
       // Job types asked for (words like "part time", or the pills under the search box): the sources that list them go first.
       const jobTypes = opts.jobTypes?.length ? opts.jobTypes : (useJobsStore.getState().filters.jobTypes ?? []);
       try {
@@ -150,7 +152,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             automationLevel: level,
             provider: { provider: ai.activeProvider, model: ai.activeModel, billing: AI_PROVIDERS[ai.activeProvider].billing },
             sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
-            searchCriteria: { query, locations, workModes: opts.workModes ?? (opts.skipProfile ? [] : dna.workModes), ...(opts.skipProfile ? {} : { minSalary: dna.minSalary }), ...(jobTypes.length ? { jobTypes } : {}) },
+            searchCriteria: { query, locations, workModes, ...(minSalary != null ? { minSalary } : {}), ...(jobTypes.length ? { jobTypes } : {}) },
             minMatchThreshold: 60,
             maxResults: 100,
             notify: "never",
@@ -186,10 +188,11 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.
       const typedPlaces = intent.locations.length ? intent.locations : places ?? [];
       if (typedPlaces.length) useCareerStore.getState().recordSearch(typedPlaces);
-      const locations = intent.locations.length ? intent.locations : skip ? [] : (places ?? readiness.locations);
+      // Places typed in the words win; then the places given (Refine's Location), else the mode's own default.
+      const locations = intent.locations.length ? intent.locations : (places ?? (skip ? (useJobsStore.getState().filters.locations ?? []) : undefined));
       return sayBusy(search({ query, locations, workModes: intent.workModes.length ? intent.workModes : undefined, careerGoal: text.trim(), origin: "words", jobTypes: intent.jobTypes, skipProfile: skip }));
     },
-    [search, sources, readiness.locations, readiness.query],
+    [search, sources, readiness.query],
   );
 
   const searchAsRole = useCallback(
