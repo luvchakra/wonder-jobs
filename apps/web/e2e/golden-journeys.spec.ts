@@ -129,6 +129,44 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await page.waitForURL(/\/app\/applications\/[^/]+\/interview$/);
   });
 
+  test("GJ-005d interview prep offers a timed test, a mock interview and flashcards, and practice trends in Insights", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.getByRole("tablist", { name: "Applications by stage" }).getByRole("tab", { name: /Interview/ }).click();
+    await page.getByRole("link", { name: /^Prepare/ }).first().click();
+    await page.waitForURL(/\/interview$/);
+    const prep = page.url();
+    // Test: ten questions, ten seconds each; a pass needs 90%. Demo mode shows a labelled sample.
+    await page.getByRole("link", { name: /Practice test/ }).click();
+    await page.getByRole("button", { name: "Start test" }).click();
+    for (let i = 1; i <= 10; i++) {
+      await expect(page.getByText(`Question ${i} of 10`)).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("group", { name: "Options" }).getByRole("button").first().click();
+    }
+    await expect(page.getByText(/^(Pass|Fail)$/)).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Save score" }).click();
+    await expect(page.getByRole("button", { name: "Saved" })).toBeDisabled();
+    // Mock interview: answer, end, get a score kept with the application.
+    await page.goto(`${prep}/mock`);
+    await page.getByRole("button", { name: "Start interview" }).click();
+    await page.getByRole("textbox", { name: "Your answer" }).fill("I led a migration of our sign-in platform across five teams and cut incidents by forty percent over two quarters.");
+    await page.getByRole("button", { name: "Send answer" }).click();
+    await expect(page.getByRole("textbox", { name: "Your answer" })).toBeVisible();
+    await page.getByRole("button", { name: "End interview" }).click();
+    await expect(page.getByText("To improve")).toBeVisible({ timeout: 15_000 });
+    // Flashcards: twenty, flip and sort.
+    await page.goto(`${prep}/cards`);
+    await page.getByRole("button", { name: "Make my cards" }).click();
+    await expect(page.getByText("1 / 20")).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Show the answer" }).click();
+    await page.getByRole("button", { name: "Know it" }).click();
+    await expect(page.getByText("1 of 20 known")).toBeVisible();
+    // Insights trends what was kept.
+    await page.goto("/app/insights");
+    await expect(page.getByRole("heading", { name: "Interview practice" })).toBeVisible();
+    await expect(page.getByText("Practice tests")).toBeVisible();
+    await expect(page.getByText("Work on next", { exact: false })).toBeVisible();
+  });
+
   test("GJ-006 a submitted application opens into its real timeline, not the prepare flow", async ({ page }) => {
     // app_google is status "submitted" — routes to the detail/timeline page, unlike a "saved"/"preparing"
     // application, which ApplicationCard instead routes into /prepare (see docs/TEST_EXECUTION_REPORT.md).

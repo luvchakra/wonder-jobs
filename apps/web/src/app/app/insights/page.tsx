@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { FUNNEL_STAGES } from "@/domain/applications/types";
+import { practiceTrend, QUIZ_PASS } from "@/domain/applications/practice";
 
 /** Every count opens the list it counts. */
 const ROW = "-mx-2 items-center rounded-[10px] px-2 py-1.5 hover:bg-surface-2";
@@ -55,6 +56,8 @@ export default function InsightsPage() {
     [runs],
   );
   const max = Math.max(1, ...funnel.map((f) => f.n));
+  // Interview practice: the test scores and mock interview reviews the candidate kept.
+  const practice = useMemo(() => practiceTrend(Object.values(applications)), [applications]);
 
   return (
     <div>
@@ -80,6 +83,52 @@ export default function InsightsPage() {
           <h2 className="mb-2 text-[15px] font-semibold text-ink">Strong matches per run</h2>
           {runSeries.length ? <Sparkbars series={runSeries} className="h-20" /> : <p className="text-sm text-ink-3">Your first search starts the trend.</p>}
           <p className="mt-2 text-[12px] text-ink-3">Last {runSeries.length} completed runs</p>
+        </Card>
+        <Card className="lg:col-span-3">
+          <h2 className="mb-3 text-[15px] font-semibold text-ink">Interview practice</h2>
+          {practice.tests.length || practice.mocks.length ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              <div>
+                <p className="text-[13px] font-medium text-ink-2">Practice tests</p>
+                {practice.tests.length ? (
+                  <>
+                    <Sparkbars series={practice.tests} className="mt-2 h-16" />
+                    <p className="mt-1.5 text-[12px] text-ink-3">
+                      Latest {practice.tests[practice.tests.length - 1]}% · {practice.testsPassed} passed (≥{Math.round(QUIZ_PASS * 100)}%)
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-[12.5px] text-ink-3">No saved test scores yet.</p>
+                )}
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-ink-2">Mock interviews</p>
+                {practice.mocks.length ? (
+                  <>
+                    <Sparkbars series={practice.mocks} className="mt-2 h-16" />
+                    <p className="mt-1.5 text-[12px] text-ink-3">
+                      Latest {practice.mocks[practice.mocks.length - 1]}/100
+                      {practice.mockChange !== undefined && ` · ${practice.mockChange >= 0 ? "+" : ""}${practice.mockChange} since your first`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-[12.5px] text-ink-3">No mock interviews yet.</p>
+                )}
+              </div>
+              {practice.latest && (
+                <Link href={`/app/applications/${practice.latest.applicationId}/interview/mock`} className="-m-2 rounded-[12px] p-2 hover:bg-surface-2">
+                  <p className="text-[13px] font-medium text-ink-2">Work on next{practice.latest.company && ` · from ${practice.latest.company}`}</p>
+                  <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-[12.5px] text-ink-2">
+                    {practice.latest.improvements.slice(0, 3).map((i) => (
+                      <li key={i}>{i}</li>
+                    ))}
+                  </ul>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-ink-3">Practise for an interview — Pipeline → Interview → Prepare — and your scores trend here.</p>
+          )}
         </Card>
         <Card>
           <h2 className="mb-3 text-[15px] font-semibold text-ink">Fit across your catalog</h2>

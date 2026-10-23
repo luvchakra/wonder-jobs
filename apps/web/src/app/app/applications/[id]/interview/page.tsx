@@ -1,10 +1,12 @@
 "use client";
 import { use, useMemo } from "react";
-import { CalendarDays, CheckCircle2, ExternalLink, Lightbulb, MessageCircleQuestion } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, CheckCircle2, ChevronRight, ExternalLink, GraduationCap, Layers, Lightbulb, MessageCircleQuestion, Mic, Timer } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
-import { interviewPrep } from "@/domain/applications/interviewPrep";
+import { interviewPrep, learnLinks } from "@/domain/applications/interviewPrep";
+import { QUIZ_LENGTH, QUIZ_PASS } from "@/domain/applications/practice";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
@@ -63,6 +65,30 @@ export default function InterviewPrepPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="flex flex-col gap-4">
+        <section aria-label="Practise" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {(() => {
+            const p = app.practice;
+            const best = p?.quizzes.reduce((m, q) => Math.max(m, q.score), -1) ?? -1;
+            const deck = p?.flashcards;
+            return [
+              { href: "test", icon: Timer, title: "Practice test", line: best >= 0 ? `Best ${best}/${QUIZ_LENGTH}${best / QUIZ_LENGTH >= QUIZ_PASS ? " · passed" : ""}` : `${QUIZ_LENGTH} questions, 10 s each` },
+              { href: "mock", icon: Mic, title: "Mock interview", line: p?.mocks[0] ? `Last score ${p.mocks[0].score}/100` : "Up to 10 minutes, scored" },
+              { href: "cards", icon: Layers, title: "Flashcards", line: deck ? `${deck.known.length} of ${deck.cards.length} known` : "20 cards to practise" },
+            ].map((t) => (
+              <Link key={t.href} href={`/app/applications/${id}/interview/${t.href}`} className="wj-card wj-elevate flex items-center gap-3 p-3.5">
+                <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-brand-50 text-brand-600">
+                  <t.icon className="size-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold text-ink">{t.title}</span>
+                  <span className="block truncate text-[12px] text-ink-3">{t.line}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
+              </Link>
+            ));
+          })()}
+        </section>
+
         <Section icon={CheckCircle2} title="Lead with" hint="Skills they ask for that you have — with a line from your own history to tell.">
           {prep.leadWith.length ? (
             <ul className="flex flex-col gap-2">
@@ -133,6 +159,25 @@ export default function InterviewPrepPage({ params }: { params: Promise<{ id: st
             )}
           </Fold>
         )}
+        <Fold title="Learn before the interview" hint="Courses and videos for these skills, and this company's interviews">
+          <ul className="mb-4 flex flex-col gap-3">
+            {learnLinks(prep, role).map((l) => (
+              <li key={l.topic}>
+                <p className="mb-1 flex items-center gap-1.5 text-[13px] font-semibold text-ink-2">
+                  <GraduationCap className="size-3.5 text-ink-4" aria-hidden />
+                  {l.topic}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {l.links.map((x) => (
+                    <a key={x.name} href={x.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[12px] font-medium text-brand-700 hover:bg-brand-50">
+                      {x.name} <ExternalLink className="size-3" aria-hidden />
+                    </a>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Fold>
       </div>
     </div>
   );

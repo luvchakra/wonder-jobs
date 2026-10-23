@@ -21,6 +21,7 @@ const SHOWN: { keys: Capability[]; label: string }[] = [
   { keys: ["save_jobs"], label: "Save strong matches" },
   { keys: ["generate_resume"], label: "Draft a tailored résumé" },
   { keys: ["generate_cover_letter"], label: "Draft a cover letter" },
+  { keys: ["interview_practice"], label: "Write interview practice (test, flashcards, mock interview)" },
   { keys: ["fill_application"], label: "Fill an employer's form in your browser" },
   { keys: ["submit_application"], label: "Open the employer's page with your materials" },
   { keys: ["send_email"], label: "Draft a follow-up email" },

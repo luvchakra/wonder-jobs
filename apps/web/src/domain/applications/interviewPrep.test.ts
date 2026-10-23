@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DNA, type CareerDNA } from "@/domain/career/types";
 import { EMPTY_HISTORY } from "@/domain/career/history";
-import { interviewPrep } from "./interviewPrep";
+import { interviewPrep, learnLinks } from "./interviewPrep";
 
 const dna: CareerDNA = {
   ...EMPTY_DNA,
@@ -44,5 +44,13 @@ describe("interview prep for one application", () => {
     const p = interviewPrep({ title: "Analyst", company: "X" }, EMPTY_DNA);
     expect([p.leadWith, p.gaps, p.lookingFor, p.niceToHave]).toEqual([[], [], [], []]);
     expect(p.questions).toHaveLength(2);
+  });
+
+  it("links to learning for the gaps first, then the strongest skills, and to this company's interviews", () => {
+    const p = interviewPrep({ title: "Engineering Manager", company: "Canonical", skills: ["Python", "iam", "Go"] }, dna);
+    const links = learnLinks(p, { title: "Engineering Manager", company: "Canonical" });
+    expect(links.map((l) => l.topic)).toEqual(["Interviews at Canonical", "Go", "iam", "Python"]);
+    expect(links[0].links[0].href).toBe("https://www.glassdoor.com/Search/results.htm?keyword=Canonical%20interview");
+    expect(links[1].links.map((l) => l.name)).toEqual(["Coursera", "LinkedIn Learning", "YouTube"]);
   });
 });
