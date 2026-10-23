@@ -177,8 +177,8 @@ export default function CareerDNAPage() {
                 onBlur={(e) => set("yearsExperience", Math.max(0, Math.min(50, Number(e.target.value) || 0)))}
               />
             </Field>
-            <Field label="Where" htmlFor="locs" hint="Pick each place from the list (real places worldwide); add “Remote” for remote roles.">
-              <PlaceInput id="locs" label="Where" places={draft.preferredLocations} onChange={(list) => set("preferredLocations", list)} placeholder={draft.preferredLocations.length ? "Add another place" : "e.g. Bengaluru, Remote"} />
+            <Field label="Where" htmlFor="locs" hint="Pick each place from the list (real places worldwide). For remote roles, pick Remote in Work mode.">
+              <PlaceInput id="locs" label="Where" places={draft.preferredLocations} onChange={(list) => set("preferredLocations", list)} placeholder={draft.preferredLocations.some((p) => !/^remote$/i.test(p.trim())) ? "Add another place" : "e.g. Bengaluru"} />
             </Field>
             <div>
               <p className="mb-1.5 text-[13px] font-medium text-ink-2">Work mode</p>

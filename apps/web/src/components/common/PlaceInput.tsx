@@ -8,8 +8,11 @@ import { cn } from "@/lib/cn";
 interface Place {
   name: string;
   detail: string;
-  kind: "city" | "country" | "remote";
+  kind: "city" | "country";
 }
+
+/** "Remote" is a work mode, not a place: never shown or added here, but one already in the list is kept as it was. */
+const isRemote = (p: string) => /^remote$/i.test(p.trim());
 
 // One answer per typed start, kept for the visit: the same letters never ask twice.
 const cache = new Map<string, Place[]>();
@@ -19,7 +22,10 @@ const cache = new Map<string, Place[]>();
  * becomes a pill under the box (× removes it) and the box is free for the next one, so several places can
  * be listed; Enter adds what's typed as it is. Nothing is added that wasn't picked or typed.
  */
-export function PlaceInput({ places: picked, onChange, label, id, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string }) {
+export function PlaceInput({ places: value, onChange: setPlaces, label, id, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string }) {
+  const picked = value.filter((p) => !isRemote(p));
+  const kept = value.filter(isRemote);
+  const onChange = (list: string[]) => setPlaces([...list, ...kept]);
   const [text, setText] = useState("");
   const typing = text.trim();
   const q = useDebounced(typing, 150);
@@ -53,7 +59,7 @@ export function PlaceInput({ places: picked, onChange, label, id, placeholder, c
   const expanded = open && shown.length > 0;
 
   const add = (name: string) => {
-    if (name && !has(name)) onChange([...picked, name]);
+    if (name && !isRemote(name) && !has(name)) onChange([...picked, name]);
     setText("");
     setActive(-1);
     box.current?.focus();

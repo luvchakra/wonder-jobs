@@ -4,12 +4,13 @@
  * the server (places.json) and is read once per instance, on the first search.
  */
 
+/** Remote isn't a place — it's a work mode (Find's Work mode, the Career Profile's work modes). */
 export interface PlaceSuggestion {
   /** What goes in the box ("Dubai"). */
   name: string;
   /** Where it is, to tell same-named places apart ("United Arab Emirates", "Ontario, Canada"). */
   detail: string;
-  kind: "city" | "country" | "remote";
+  kind: "city" | "country";
 }
 
 interface PlacesData {
@@ -49,7 +50,6 @@ export function searchIn(ix: Index, text: string, limit = 8): PlaceSuggestion[] 
       out.push(p);
     }
   };
-  if ("remote".startsWith(q)) add({ name: "Remote", detail: "Work from anywhere", kind: "remote" });
   ix.countryNames.forEach((c, i) => c.startsWith(q) && add({ name: ix.data.countries[i], detail: "Country", kind: "country" }));
   const city = (i: number) => {
     const [name, region, country] = ix.data.cities[i];

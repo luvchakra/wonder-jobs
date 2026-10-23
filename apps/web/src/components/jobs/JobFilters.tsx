@@ -363,7 +363,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             <span aria-hidden>Location</span>
             {/* Real places worldwide as you type; each picked one a pill, as many as wanted. */}
-            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).length ? "Add another place" : "Anywhere — e.g. Dubai, Remote"} />
+            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).some((p) => !/^remote$/i.test(p)) ? "Add another place" : "Anywhere — e.g. Dubai"} />
           </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Level

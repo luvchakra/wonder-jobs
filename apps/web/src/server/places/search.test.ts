@@ -27,9 +27,9 @@ describe("place suggestions", () => {
     expect(searchIn(ix, "york").map((p) => p.name)).toEqual(["New York City"]);
   });
 
-  it("ignores accents and case, offers Remote, and waits for two letters", () => {
+  it("ignores accents and case, never offers Remote (a work mode, not a place), and waits for two letters", () => {
     expect(searchIn(ix, "SÃO").map((p) => p.name)).toEqual(["Sao Paulo"]);
-    expect(searchIn(ix, "rem")[0]).toEqual({ name: "Remote", detail: "Work from anywhere", kind: "remote" });
+    expect(searchIn(ix, "remote")).toEqual([]);
     expect(searchIn(ix, "d")).toEqual([]);
   });
 
