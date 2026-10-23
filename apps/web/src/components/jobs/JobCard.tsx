@@ -117,15 +117,15 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           ))}
         </ul>
       )}
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-3 flex items-center gap-2">
         {status && <Badge tone="info">{status}</Badge>}
-        <span className="min-w-0 flex-1 truncate pb-2.5 text-[12px] text-ink-4">
+        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}
         </span>
         {onToggleSave && (
-          // Share above Save, at the card's corner.
-          <div className="relative z-10 -mr-1.5 -mb-1.5 flex shrink-0 flex-col items-center">
+          // Share, then Save, at the card's corner.
+          <div className="relative z-10 -mr-1.5 -mb-1.5 flex shrink-0 items-center">
           <ShareJobButton job={job} className="size-10 text-ink-2" />
           <button
             type="button"
