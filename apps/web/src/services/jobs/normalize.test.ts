@@ -129,6 +129,12 @@ describe("profileSearchQuery — the Career Profile searches “Role you want”
     expect(profileSearchQuery({ headline: "Target: Senior Director / SVP — IAM", careerGoal: "identity and access management" })).toBe("senior director identity access");
   });
 
+  it("searches a wanted job title as written, without the level held today", () => {
+    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "Executive partner" })).toBe("executive partner");
+    expect(profileSearchQuery({ headline: "Senior Director, IAM", careerGoal: "security architect" })).toBe("security architect");
+    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "chief information security officer" })).toBe("chief information security officer");
+  });
+
   it("keeps a level alone a level, so the Find page asks for the field instead of guessing it", () => {
     expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "director" })).toBe("director");
   });
