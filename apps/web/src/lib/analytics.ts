@@ -40,6 +40,7 @@ export type AnalyticsEvent =
   | "find_completed"
   | "opportunity_viewed"
   | "opportunity_saved"
+  | "application_removed"
   | "opportunity_rejected"
   | "why_viewed"
   | "why_filtered_viewed"

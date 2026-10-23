@@ -272,9 +272,11 @@ test.describe("PROGRESS", () => {
     await expect(page.getByText("Submitted").first()).toBeVisible();
   });
 
-  test("PROGRESS-002 what needs the candidate is listed under the pipeline, counted from real applications", async ({ page }) => {
+  test("PROGRESS-002 what needs the candidate is the top bar's Tasks, counted from real applications", async ({ page }) => {
     await page.goto("/demo?next=/app/applications");
     await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
+    await page.getByRole("link", { name: /^Tasks/ }).click();
+    await expect(page).toHaveURL(/\/app\/tasks$/);
     await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
     const line = page.locator("#main").getByRole("link", { name: /coming up|due|ready for your review|repl/i }).first();
     await expect(line).toBeVisible();
@@ -284,6 +286,15 @@ test.describe("PROGRESS", () => {
 });
 
 test.describe("WONDER", () => {
+  test("WONDER-000 Ask Wonder is a page under You (the top bar's icon is Tasks)", async ({ page }) => {
+    await page.goto("/demo?next=/app/you");
+    await page.locator("#main").getByRole("link", { name: /^Ask Wonder/ }).click();
+    await expect(page).toHaveURL(/\/app\/ask$/);
+    const box = page.getByRole("combobox", { name: "Command" });
+    await box.fill("Show my application progress");
+    await expect(page.locator("#wj-cmd-list [role='option']").first()).toContainText("applications active");
+  });
+
   test("WONDER-001 a natural-language intent leads to the right action", async ({ page }) => {
     await page.goto("/demo?next=/app");
     const top = await askWonder(page, "Show my application progress");

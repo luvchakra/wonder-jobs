@@ -1,14 +1,16 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, LogIn, LogOut, Search, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, ShieldCheck, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
+import { computeApplicationAttention } from "@/domain/career/attention";
+import { useNow } from "@/lib/motion";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
 import { useAuthStore } from "@/store/auth";
@@ -40,6 +42,9 @@ export function TopBar() {
   const cmd = useUIStore((s) => s.commandOpen);
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const applications = useApplicationsStore((s) => s.applications);
+  // How many things need the candidate (Tasks' badge) — the same list the Tasks page shows; the clock coarsened to the hour.
+  const hour = Math.floor(useNow() / 3_600_000);
+  const tasks = useMemo(() => computeApplicationAttention(applications, hour * 3_600_000).length, [applications, hour]);
   const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
@@ -181,7 +186,7 @@ export function TopBar() {
 
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Phones: avatar left, brand centred, Ask Wonder and bell right. */}
+      {/* Phones: avatar left, brand centred, Tasks and bell right. */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:hidden">
         <span className="pointer-events-auto">
           <WonderLogo href="/app" size={26} />
@@ -190,9 +195,11 @@ export function TopBar() {
       <div className="flex-1" />
 
       <RunningIndicator />
-      <button type="button" aria-label="Ask Wonder (Command+K)" onClick={() => setCmd(true)} className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
-        <Search className="size-5" aria-hidden />
-      </button>
+      {/* Tasks: what needs you (Needs attention). Ask Wonder is under You, and ⌘K on a computer. */}
+      <Link href="/app/tasks" aria-label={`Tasks${tasks ? `, ${tasks} need attention` : ""}`} title="Tasks" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
+        <ListChecks className="size-5" aria-hidden />
+        {tasks > 0 && <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white">{tasks > 9 ? "9+" : tasks}</span>}
+      </Link>
 
       {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
       <div className="md:relative" ref={notifRef}>

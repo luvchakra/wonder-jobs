@@ -27,6 +27,7 @@ export const MENUS = {
     title: "You page",
     where: "The rows under the Career Profile card on You. The Career Profile card is always there.",
     items: [
+      { id: "ask_wonder", label: "Ask Wonder" },
       { id: "skill_up", label: "Skill Up" },
       { id: "recruiters", label: "Recruiters" },
       { id: "resumes", label: "Résumés" },

@@ -6,24 +6,34 @@ import { Input } from "@/components/common/Input";
 import { useAskWonder } from "@/lib/useAskWonder";
 import { cn } from "@/lib/cn";
 
+/** ⌘K anywhere (on a computer): Ask Wonder in a dialog. On a phone it's its own page, from You (/app/ask). */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Ask Wonder" description="Search jobs, ask about your search or applications, or jump to a page." placement="top">
+      <AskWonderPanel active={open} onDone={onClose} />
+    </Modal>
+  );
+}
+
+/** Ask Wonder's box and its results — in the ⌘K dialog or on the Ask Wonder page. */
+export function AskWonderPanel({ active = true, onDone, className }: { active?: boolean; onDone: () => void; className?: string }) {
   const [q, setQ] = useState("");
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const close = () => {
     setQ("");
     setIdx(0);
-    onClose();
+    onDone();
   };
   const { results: filtered, go } = useAskWonder(q, close);
   useEffect(() => {
-    if (open) {
+    if (active) {
       const t = setTimeout(() => inputRef.current?.focus(), 30);
       return () => clearTimeout(t);
     }
-  }, [open]);
+  }, [active]);
   return (
-    <Modal open={open} onClose={close} title="Ask Wonder" description="Search jobs, ask about your search or applications, or jump to a page." placement="top">
+    <div className={className}>
       <Input
         ref={inputRef}
         value={q}
@@ -83,6 +93,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           );
         })}
       </div>
-    </Modal>
+    </div>
   );
 }
