@@ -36,7 +36,8 @@ function progress(a: Application) {
   return a.nextAction ? `Next: ${a.nextAction}` : undefined;
 }
 
-export function ApplicationCard({ application, job, compact = false, className }: { application: Application; job?: CanonicalJob; compact?: boolean; className?: string }) {
+/** `actionSpace`: the compact card leaves its bottom-right corner free for an action the list lays over it (e.g. Prepare). */
+export function ApplicationCard({ application, job, compact = false, actionSpace = false, className }: { application: Application; job?: CanonicalJob; compact?: boolean; actionSpace?: boolean; className?: string }) {
   const meta = APPLICATION_STATUS_META[application.status];
   const href = applicationHref(application);
   const info: ApplicationJob | undefined = job ?? application.job;
@@ -60,11 +61,11 @@ export function ApplicationCard({ application, job, compact = false, className }
           </span>
         </div>
         {step && <span className="block truncate text-[11.5px] font-medium text-brand-700">{step}</span>}
-        <div className="flex items-center justify-between gap-2">
+        <div className={cn("flex items-center justify-between gap-2", actionSpace && "min-h-9")}>
           <Badge tone={meta.tone} className="shrink-0">
             {meta.label}
           </Badge>
-          <span className="truncate text-[11px] text-ink-4">{application.appliedAt ? relativeTime(application.appliedAt) : relativeTime(application.createdAt)}</span>
+          <span className={cn("truncate text-[11px] text-ink-4", actionSpace && "hidden")}>{application.appliedAt ? relativeTime(application.appliedAt) : relativeTime(application.createdAt)}</span>
         </div>
       </Link>
     );

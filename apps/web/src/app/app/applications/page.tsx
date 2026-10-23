@@ -118,7 +118,12 @@ function ApplicationsInner() {
                 <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3" aria-label={label}>
                   {items.map((a) => (
                     <li key={a.id} className="relative">
-                      <ApplicationCard application={a} job={jobs[a.jobId]} compact className="pr-11" />
+                      <ApplicationCard application={a} job={jobs[a.jobId]} compact actionSpace={shownStage === "interview"} className="pr-11" />
+                      {shownStage === "interview" && (
+                        <Button size="sm" href={`/app/applications/${a.id}/interview`} className="absolute bottom-3 right-3" aria-label={`Prepare for the ${a.job?.company ?? jobs[a.jobId]?.company ?? ""} interview`}>
+                          Prepare
+                        </Button>
+                      )}
                       {shownStage === "submitted" && hasRecruiterResponse(a) && (
                         <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-info-100 px-2 py-0.5 text-[10px] font-medium text-info-600">Recruiter replied</span>
                       )}

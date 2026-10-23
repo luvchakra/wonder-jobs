@@ -81,7 +81,7 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
               category: "interview_upcoming",
               title: `Interview ${overdue ? "was due" : "coming up"} — ${company}`,
               body: `${job?.title ?? "Role"}. Wonder prepared a prep sheet.`,
-              href: "/app/interview-prep",
+              href: `/app/applications/${app.id}/interview`,
             }
           : {
               id: newId("ntf"),

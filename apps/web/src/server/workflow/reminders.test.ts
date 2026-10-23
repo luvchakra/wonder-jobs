@@ -64,7 +64,7 @@ describe("raiseDueReminders", () => {
     await seed(application({ followUps: [{ id: "f1", applicationId: "app-1", dueAt: at(1), kind: "interview", note: "Panel round", done: false }] }));
     const report = await raiseDueReminders(TENANT, NOW);
     expect(report.raised).toBe(1);
-    expect(report.notices[0]).toMatchObject({ notice: { title: "Interview coming up — PayCircle", href: "/app/interview-prep" }, key: expect.stringMatching(/^reminder-/) });
+    expect(report.notices[0]).toMatchObject({ notice: { title: "Interview coming up — PayCircle", href: "/app/applications/app-1/interview" }, key: expect.stringMatching(/^reminder-/) });
 
     const career = await readClientState<CareerDoc & { reminded: string[] }>(TENANT, "wj.career");
     expect(career!.notifications[0].category).toBe("interview_upcoming");

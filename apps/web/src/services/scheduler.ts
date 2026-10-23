@@ -88,7 +88,7 @@ function raiseReminders(now: number) {
       career.markReminded(f.id);
       career.notify(
         f.kind === "interview"
-          ? { category: "interview_upcoming", title: `Interview ${dueIn < 0 ? "was due" : "coming up"} — ${job?.company ?? "employer"}`, body: `${job?.title ?? "Role"}. Wonder prepared a prep sheet.`, href: "/app/interview-prep" }
+          ? { category: "interview_upcoming", title: `Interview ${dueIn < 0 ? "was due" : "coming up"} — ${job?.company ?? "employer"}`, body: `${job?.title ?? "Role"}. Wonder prepared a prep sheet.`, href: `/app/applications/${app.id}/interview` }
           : { category: "follow_up_due", title: `Follow-up ${dueIn < 0 ? "overdue" : "due soon"} — ${job?.company ?? "employer"}`, body: f.note, href: `/app/applications/${app.id}` },
       );
     }

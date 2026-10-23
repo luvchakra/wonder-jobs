@@ -56,7 +56,7 @@ export default function CalendarPage() {
           subtitle: [job?.company, job?.title].filter(Boolean).join(" – "),
           note: f.note || undefined,
           href: `/app/applications/${a.id}`,
-          action: interview ? { label: "Prepare", href: "/app/interview-prep" } : { label: "Write", href: `/app/applications/${a.id}` },
+          action: interview ? { label: "Prepare", href: `/app/applications/${a.id}/interview` } : { label: "Write", href: `/app/applications/${a.id}` },
         });
       }
     }
