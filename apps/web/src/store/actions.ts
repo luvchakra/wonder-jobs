@@ -17,7 +17,8 @@ export interface ExternalAction {
   label: string;
   /** Draft content the user reviewed (e.g. the email body). Never sent to analytics. */
   content: string;
-  status: "draft" | "confirmed" | "executing" | "succeeded" | "failed";
+  /** "cancelled": never ran — its application was removed from the Pipeline before it was sent. */
+  status: "draft" | "confirmed" | "executing" | "succeeded" | "failed" | "cancelled";
   attempts: number;
   createdAt: string;
   executedAt?: string;

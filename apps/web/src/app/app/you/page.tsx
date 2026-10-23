@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Sparkles } from "lucide-react";
+import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Search, Sparkles } from "lucide-react";
 import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { useAuthStore } from "@/store/auth";
@@ -47,6 +47,7 @@ export default function YouPage() {
   const menu = useMenu("you");
 
   const rows = arrangeMenu([
+    { id: "ask_wonder", href: "/app/ask", label: "Ask Wonder", value: "Ask, search or jump anywhere", icon: Search },
     { id: "skill_up", href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
     { id: "recruiters", href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
     { id: "resumes", href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },

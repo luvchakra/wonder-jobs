@@ -36,6 +36,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const order = useJobsStore((s) => s.order);
   const matches = useJobsStore((s) => s.matches);
   const saved = useJobsStore((s) => s.saved);
+  const removedFromPipeline = useJobsStore((s) => s.removedFromPipeline);
   const rejected = useJobsStore((s) => s.rejected);
   const save = useJobsStore((s) => s.save);
   const unsave = useJobsStore((s) => s.unsave);
@@ -111,10 +112,15 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const inPipeline = useMemo(() => new Set([...appByJob.values()].filter((a) => a.status !== "saved").map((a) => a.jobId)), [appByJob]);
   // Saved lists every saved job still known, newest saved first — not only those in Find's latest results.
   const listed = useMemo(() => (savedOnly ? Object.keys(saved).filter((id) => jobs[id]).sort((a, b) => saved[b].localeCompare(saved[a])) : order), [savedOnly, saved, jobs, order]);
-  const filterResult = useMemo(() => applyJobFilters(listed, jobs, matches, rejected, saved, effective, hour, field, inPipeline), [listed, jobs, matches, rejected, saved, effective, hour, field, inPipeline]);
+  // A job taken out of the Pipeline is back in Find like a saved one: an old posting isn't hidden as too old.
+  const kept = useMemo(() => (savedOnly ? saved : { ...removedFromPipeline, ...saved }), [savedOnly, saved, removedFromPipeline]);
+  const filterResult = useMemo(() => applyJobFilters(listed, jobs, matches, rejected, kept, effective, hour, field, inPipeline), [listed, jobs, matches, rejected, kept, effective, hour, field, inPipeline]);
   const results = useMemo(() => {
     const list = savedOnly && query.trim() ? filterResult.visibleIds.filter((id) => savedTextMatches(jobs[id], query)) : [...filterResult.visibleIds];
+    // A job just taken out of the Pipeline (the last day) leads Find, so the candidate sees where it went.
+    const back = (id: string) => (!savedOnly && removedFromPipeline[id] && hour - Date.parse(removedFromPipeline[id]) < 86_400_000 ? removedFromPipeline[id] : "");
     list.sort((a, b) => {
+      if (back(a) || back(b)) return back(b).localeCompare(back(a));
       if (sort === "date") return jobs[b].postedAt.localeCompare(jobs[a].postedAt);
       if (sort === "salary") return (jobs[b].salaryMax ?? 0) - (jobs[a].salaryMax ?? 0);
       // With words in the box, best match is how well a job answers them first, then how well it fits the profile.
@@ -123,7 +129,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       return score(b) - score(a) || jobs[b].postedAt.localeCompare(jobs[a].postedAt);
     });
     return list;
-  }, [filterResult, jobs, matches, sort, savedOnly, query]);
+  }, [filterResult, jobs, matches, sort, savedOnly, query, removedFromPipeline, hour]);
 
   const visible = results.slice(0, limit);
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
@@ -238,7 +244,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
                   match={matches[id]}
                   saved={!!saved[id]}
                   onToggleSave={toggleSave}
-                  status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : undefined}
+                  status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : removedFromPipeline[id] ? "Removed from Pipeline" : undefined}
                   compareSelected={compare.includes(id)}
                   onToggleCompare={compareMode ? toggleCompare : undefined}
                 />

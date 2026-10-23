@@ -94,6 +94,10 @@ interface JobsState {
   setSourceAvailability: (available: Record<string, boolean>) => void;
   /** Put back jobs the candidate saved or applied to that dropped out of the catalog (found again on the server); the results list is unchanged. */
   restoreJobs: (jobs: CanonicalJob[]) => void;
+  /** Jobs taken out of the Pipeline (jobId → when): back in the results, saying so on the card. */
+  removedFromPipeline: Record<string, string>;
+  /** A job whose application was removed from the Pipeline: back in Find's results (not hidden as not-for-me), marked as such. */
+  returnFromPipeline: (jobId: string, job?: CanonicalJob) => void;
 }
 
 /** The jobs the candidate saved that are still known — kept whatever a new search returns. */
@@ -314,6 +318,16 @@ export const useJobsStore = create<JobsState>()(
         get().rescore();
       },
       restoreJobs: (list) => set((s) => ({ jobs: { ...Object.fromEntries(list.map((j) => [j.id, j])), ...s.jobs } })),
+      removedFromPipeline: {},
+      returnFromPipeline: (jobId, job) =>
+        set((s) => {
+          const rejected = { ...s.rejected };
+          delete rejected[jobId];
+          const jobs = job && !s.jobs[jobId] ? { ...s.jobs, [jobId]: job } : s.jobs;
+          // In the list on screen again, first, when the job is known.
+          const order = jobs[jobId] && !s.order.includes(jobId) ? [jobId, ...s.order] : s.order;
+          return { jobs, order, rejected, removedFromPipeline: { ...s.removedFromPipeline, [jobId]: new Date().toISOString() } };
+        }),
       setFilters: (patch) => set((s) => withRefine(s, { ...s.filters, ...patch }, s.sort)),
       setSort: (sort) => set((s) => withRefine(s, s.filters, sort)),
       refine: {},
@@ -342,7 +356,7 @@ export const useJobsStore = create<JobsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -352,7 +366,8 @@ export const useJobsStore = create<JobsState>()(
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const base = { saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
+        const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },

@@ -83,14 +83,38 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await expect(page).toHaveURL(/\/app\/applications/);
     // Default view: a real pipeline (Preparing/Applied/Interview/Outcome), not a tab-switching list.
     await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Preparing" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Interview" })).toBeVisible();
+    // The stages are one row of counts; one stage's applications show at a time. Saved jobs aren't here (they're in Saved).
+    const stages = page.getByRole("tablist", { name: "Applications by stage" });
+    await stages.getByRole("tab", { name: /Interview/ }).click();
+    await expect(stages.getByRole("tab", { name: /Interview/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("list", { name: "Interview" }).or(page.getByText("Nothing in Interview yet."))).toBeVisible();
+    await expect(page.locator("#main").getByText("Saved", { exact: true })).toHaveCount(0);
+    // Needs attention is the Tasks page now, not under the pipeline.
+    await expect(page.getByRole("heading", { name: "Needs attention" })).toHaveCount(0);
     await expect(page.getByRole("tablist", { name: "Application status" })).not.toBeVisible();
     // A status deep link (?tab=…) opens the tab-based list.
     await page.goto("/app/applications?tab=all");
     await expect(page.getByRole("tablist", { name: "Application status" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^All/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: /^Interview/ })).toBeVisible();
+  });
+
+  test("GJ-005b removing an application from the Pipeline puts its job back in Find, marked", async ({ page }) => {
+    const stages = page.getByRole("tablist", { name: "Applications by stage" });
+    await stages.getByRole("tab", { name: /Preparing/ }).click();
+    const remove = page.getByRole("button", { name: /^Remove .+ from Pipeline$/ }).first();
+    // The card's own job: its title, to find it again in Find.
+    const title = (await remove.locator("xpath=..").locator("a span.line-clamp-2").innerText()).trim();
+    const company = (await remove.locator("xpath=..").locator("a span.font-semibold").first().innerText()).trim();
+    const before = Number((await stages.getByRole("tab", { name: /Preparing/ }).innerText()).match(/\d+/)![0]);
+    await remove.click();
+    await page.getByRole("dialog").getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(stages.getByRole("tab", { name: /Preparing/ })).toContainText(String(before - 1));
+    await page.getByRole("link", { name: "Find", exact: true }).first().click();
+    await page.waitForURL(/\/app\/jobs$/);
+    // Back in Find (old postings included, like saved ones), marked.
+    const card = page.getByRole("list", { name: "Job results" }).locator(":scope > li").filter({ hasText: title }).filter({ hasText: company }).filter({ hasText: "Removed from Pipeline" });
+    await expect(card.first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("GJ-006 a submitted application opens into its real timeline, not the prepare flow", async ({ page }) => {
@@ -629,7 +653,7 @@ test.describe("Golden journey — the phone keyboard (demo mode)", () => {
     // The shortcut works once the app is interactive: a press during hydration is lost (and pressing again
     // would toggle it shut), so wait for the stores to hydrate and the top bar's listener to attach first.
     await page.waitForFunction(() => performance.getEntriesByName("wj:hydrated").length > 0);
-    await expect(page.getByRole("button", { name: /Ask Wonder/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Tasks/ })).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
