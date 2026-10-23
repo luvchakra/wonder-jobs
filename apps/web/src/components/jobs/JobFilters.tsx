@@ -120,9 +120,9 @@ export function RefineButton({ className }: { className?: string }) {
 /** A pill that opens Refine at its own section, labelled with what's picked there. */
 function PillButton({ label, shown, open, onClick, className }: { label: string; shown: string; open: boolean; onClick: () => void; className?: string }) {
   return (
-    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1.5 pl-4 pr-2.5 text-left max-[380px]:pl-3", className)}>
+    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-3 max-[430px]:pr-2 max-[430px]:text-[13px]", className)}>
       <span className="min-w-0 flex-1 truncate">{shown}</span>
-      <ChevronDown className="size-4 shrink-0 text-ink-2" aria-hidden />
+      <ChevronDown className="size-4 shrink-0 text-ink-2 max-[430px]:size-3.5" aria-hidden />
     </button>
   );
 }
@@ -137,7 +137,7 @@ export function SortMenu({ className }: { className?: string }) {
   const sort = useJobsStore((s) => s.sort);
   const setSort = useJobsStore((s) => s.setSort);
   return (
-    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600", className)}>
+    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-3 [&_select]:outline-none", className)}>
       Sort by <span className="font-semibold text-ink">{SORT_LABEL[sort]}</span>
       <ChevronDown className="size-4 text-ink-2" aria-hidden />
       <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as JobSort)} className="absolute inset-0 cursor-pointer opacity-0">
@@ -167,8 +167,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   // Typing only changes the box; Search (or Enter) applies the words. Kept in step when something else
   // changes them (a link with ?q=, "clear" in the list).
   const [draft, setDraft] = useState(filters.query);
-  // Skip Career Profile with nothing typed: say what's needed instead of searching the profile.
-  const [needWords, setNeedWords] = useState(false);
+  // Part Time with nothing searchable typed: say what's needed instead of searching the profile. Kept with
+  // the words it was said for, so it goes the moment the box changes (typed, picked or dictated).
+  const [needWordsFor, setNeedWordsFor] = useState<string | null>(null);
   const [seenQuery, setSeenQuery] = useState(filters.query);
   if (seenQuery !== filters.query) {
     setSeenQuery(filters.query);
@@ -227,9 +228,10 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     const words = partTime ? text.trim() : "";
     // Part Time: only typed words are searched — nothing typed is asked for, not filled in from the profile.
     if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
-      setNeedWords(true);
+      setNeedWordsFor(text.trim());
       return;
     }
+    setNeedWordsFor(null);
     if (words && sourceSearch?.describe(words, splitPlaces(where))) {
       if (partTime) useJobsStore.getState().rememberSearch(words);
       sourceSearch.run(words, splitPlaces(where));
@@ -253,7 +255,6 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
-              setNeedWords(false);
               if (dictation.listening) dictation.rebase(e.target.value);
             }}
             onFocus={() => setBoxFocused(true)}
@@ -306,7 +307,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </button>
         </div>
       </form>
-      {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
+      {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {more && (
@@ -355,11 +356,11 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Location
-            {/* Real places worldwide as you type; several, separated by commas. */}
-            <PlaceInput value={where} onChange={setWhere} onEnter={() => commit()} placeholder="Anywhere — e.g. Dubai, Remote" />
-          </label>
+          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            <span aria-hidden>Location</span>
+            {/* Real places worldwide as you type; each picked one a pill, as many as wanted. */}
+            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).length ? "Add another place" : "Anywhere — e.g. Dubai, Remote"} />
+          </div>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Level
             <div className="flex flex-wrap gap-1">

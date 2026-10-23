@@ -65,6 +65,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
   // get Apply, which opens the employer's listing.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
+  // Posted on WonderJobs by the employer: Easy Apply, on every device, opens the apply link they gave WonderJobs.
+  const wonderJob = !!job?.sourceIds.includes("employers");
   const helperInstalled = useExtensionInstalled(1500);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
   const requestedTab = useSearchParams().get("tab");
@@ -281,21 +283,18 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   )}
                 </Fold>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so, and link the whole posting. */}
+              {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so,
+                  and link the whole posting — on the same line as Not for me. */}
+              {/(…|\.\.\.)\s*$/.test(description) && <p className="mt-3 text-[13px] text-ink-3">This is the part the source shares.</p>}
+              <div className="mt-1 flex items-center justify-between gap-2">
                 {/(…|\.\.\.)\s*$/.test(description) ? (
-                  <p className="text-[13px] text-ink-3">
-                    This is the part the source shares.{" "}
-                    <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 font-medium text-brand-600 hover:underline">
-                      Read the full description <ExternalLink className="size-3.5" aria-hidden />
-                    </a>
-                  </p>
+                  <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 text-[13px] font-medium text-brand-600 hover:underline">
+                    Read the full description <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
                 ) : (
                   <span />
                 )}
-                <div className="ml-auto">
-                  <NotForMeButton jobId={job.id} rejected={rejected} size="sm" full={false} />
-                </div>
+                <NotForMeButton jobId={job.id} rejected={rejected} size="sm" full={false} />
               </div>
             </>
           )}
@@ -303,7 +302,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
         <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           <Card className="flex flex-col gap-2">
-            {desktop ? (
+            {desktop && !wonderJob ? (
               // Desktop: Easy Apply fills the employer's form with the browser extension; without it, the listing itself.
               <>
                 {canApply ? (
@@ -353,7 +352,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 {!limits.applyWithWonder && <PlanGate reason="Easy Apply fills the employer's form for you." needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.applyWithWonder)} plans={plans} />}
               </>
             ) : (
-              // Phones and tablets: filling the employer's form isn't offered; Apply opens the listing itself.
+              // Phones and tablets, and every WonderJobs listing: Apply opens the listing's own apply link.
               <>
                 <a
                   href={job.applyUrl}
@@ -362,12 +361,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   onClick={() =>
                     track("apply_listing_opened", {
                       jobId: job.id,
-                      from: "mobile",
+                      from: wonderJob ? "wonderjobs" : "mobile",
                     })
                   }
                   className="wj-gradient-bg wj-press inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] px-5 text-[15px] font-medium text-white shadow-brand hover:brightness-105"
                 >
-                  Apply <ExternalLink className="size-4" aria-hidden />
+                  {wonderJob ? "Easy Apply" : "Apply"} <ExternalLink className="size-4" aria-hidden />
                 </a>
                 <CustomResumeButton job={job} />
               </>

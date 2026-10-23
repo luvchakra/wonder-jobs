@@ -60,14 +60,15 @@ export default function CareerDNAPage() {
     router.push(changed ? "/app/jobs?refresh=1" : "/app/jobs");
   };
 
-  // Change on Find's Looking for: straight to Role you want, its words selected to type over.
+  // Change on Find's Looking for: the page from its top (Back to Find, the title, Role you want all in view),
+  // with the cursor at the end of the role to go on typing.
   useEffect(() => {
     if (params.get("focus") !== "role") return;
     const el = document.getElementById("goal") as HTMLInputElement | null;
     if (!el) return;
-    el.scrollIntoView({ block: "center" });
-    el.focus();
-    el.select();
+    window.scrollTo({ top: 0 });
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(el.value.length, el.value.length);
     // Once, on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
