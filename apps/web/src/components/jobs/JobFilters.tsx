@@ -14,6 +14,7 @@ import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
 import { DictateButton } from "@/components/common/DictateButton";
+import { PlaceInput } from "@/components/common/PlaceInput";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -79,13 +80,16 @@ const historyFor = (items: string[], text: string) => {
   return items.filter((t) => t.toLowerCase() !== now && (!now || t.toLowerCase().includes(now)));
 };
 
+/** Refine's chips: small enough that each group fits one line on a phone. */
+const REFINE_CHIP = "h-8 px-2.5 text-[12px] max-[400px]:px-2";
+
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const picked = filters.jobTypes ?? [];
   return (
-    <div className={cn("flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]", className)}>
+    <div className={cn("flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]", className)}>
       {MODE_JOB_TYPES[findModeOf(filters)].map((t) => (
-        <Chip key={t} active={picked.includes(t)} onClick={() => onChange({ jobTypes: picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t] })} className="h-9 shrink-0 px-3 text-[12.5px]">
+        <Chip key={t} active={picked.includes(t)} onClick={() => onChange({ jobTypes: picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t] })} className={cn(REFINE_CHIP, "shrink-0")}>
           {modeJobTypeLabel(t, JOB_TYPE_LABEL[t])}
         </Chip>
       ))}
@@ -306,7 +310,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {more && (
-        <div className="grid grid-cols-1 gap-4 rounded-[16px] border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid grid-cols-1 gap-4 rounded-[16px] border border-line bg-surface p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
           {/* Back to the list without changing anything typed here. */}
           <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-9 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
             <ArrowLeft className="size-4" aria-hidden /> Back to jobs
@@ -315,9 +319,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           {views && (
             <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
               Show
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1">
                 {VIEWS.map((v) => (
-                  <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className="h-9 px-3 text-[12px]">
+                  <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
                     {v.label}
                   </Chip>
                 ))}
@@ -330,9 +334,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </div>
           <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={sectionClass("work_mode")}>
             Work mode
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1">
               {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className="h-9 px-3 text-[12px]">
+                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className={REFINE_CHIP}>
                   {WORK_MODE_LABEL[m]}
                 </Chip>
               ))}
@@ -340,12 +344,12 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </div>
           <div id="wj-refine-salary" role="group" aria-label="Salary" tabIndex={-1} className={sectionClass("salary")}>
             Salary
-            <div className="flex flex-wrap gap-1.5">
-              <Chip active={!filters.minSalary} onClick={() => onChange({ minSalary: undefined })} className="h-9 px-3 text-[12px]">
+            <div className="flex flex-wrap gap-1">
+              <Chip active={!filters.minSalary} onClick={() => onChange({ minSalary: undefined })} className={REFINE_CHIP}>
                 Any
               </Chip>
               {salaryOptions.map((l) => (
-                <Chip key={l} active={!!filters.minSalary && lakh(filters.minSalary) === l} onClick={() => onChange({ minSalary: l * 100_000 })} className="h-9 px-3 text-[12px]">
+                <Chip key={l} active={!!filters.minSalary && lakh(filters.minSalary) === l} onClick={() => onChange({ minSalary: l * 100_000 })} className={REFINE_CHIP}>
                   ₹{l}L+
                 </Chip>
               ))}
@@ -353,21 +357,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </div>
           <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Location
-            <Input
-              value={where}
-              onChange={(e) => setWhere(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commit();
-              }}
-              placeholder="Anywhere — e.g. Mumbai, Remote"
-              enterKeyHint="search"
-            />
+            {/* Real places worldwide as you type; several, separated by commas. */}
+            <PlaceInput value={where} onChange={setWhere} onEnter={() => commit()} placeholder="Anywhere — e.g. Dubai, Remote" />
           </label>
           <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
             Level
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1">
               {LEVELS.map((l) => (
-                <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className="h-9 px-3 text-[12px]">
+                <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className={REFINE_CHIP}>
                   {l.label}
                 </Chip>
               ))}
