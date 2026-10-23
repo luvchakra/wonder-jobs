@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
 import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/findMode";
-import { Chip, Input, Select, Segmented } from "@/components/common/Input";
+import { Chip, Input, Select } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
@@ -95,30 +95,69 @@ function JobTypeChips({ filters, onChange, className }: { filters: Filters; onCh
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
-/** How many Refine settings are on — the view and job types included, since they live in Refine too. */
-const refineCount = (f: Filters, sort: JobSort) =>
-  (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.workModes.length + f.sourceIds.length + (f.freshnessDays ? 1 : 0) + (f.minSalary ? 1 : 0) + (sort !== "best_match" ? 1 : 0);
+/** How many Refine settings are on (salary and sort have their own controls on the page). */
+const refineCount = (f: Filters) => (f.minFit ? 1 : 0) + (f.jobTypes?.length ?? 0) + (f.hideInPipeline ? 1 : 0) + (f.strictProfile ? 1 : 0) + (f.levels?.length ?? 0) + f.workModes.length + f.sourceIds.length + (f.freshnessDays ? 1 : 0);
 
-/** Opens and closes Find's Refine panel: beside Looking for in Full Time, beside the search box in Part Time. */
+const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
+
+/** Opens and closes Find's Refine panel: the first control in the row under Looking for / the search box. */
 export function RefineButton({ className }: { className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
-  const count = useJobsStore((s) => refineCount(s.filters, s.sort));
+  const count = useJobsStore((s) => refineCount(s.filters));
   return (
-    <Button type="button" variant={more ? "secondary" : "outline"} className={cn("h-11 shrink-0 rounded-full px-3 sm:h-12", className)} icon={<SlidersHorizontal className="size-4" aria-hidden />} onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine">
-      {count ? String(count) : null}
-    </Button>
+    <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold", more && "border-brand-200 bg-brand-50", className)}>
+      <SlidersHorizontal className="size-5" aria-hidden />
+      {count ? <span>{count}</span> : null}
+    </button>
+  );
+}
+
+/** A pill that is a native select: the phone's own picker, labelled with what's picked. */
+function PillSelect({ label, shown, value, onChange, children, className }: { label: string; shown: string; value: string; onChange: (v: string) => void; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={cn(PILL, "gap-1.5 pl-4 pr-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600", className)}>
+      <span className="min-w-0 flex-1 truncate">{shown}</span>
+      <ChevronDown className="size-4 shrink-0 text-ink-2" aria-hidden />
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0">
+        {children}
+      </select>
+    </label>
+  );
+}
+
+const SALARY_LAKH = [5, 10, 20, 30, 50];
+/** Location's "Somewhere else…": opens Refine, where any place can be typed. */
+const OTHER_PLACE = "__other";
+const SORT_LABEL: Record<JobSort, string> = { best_match: "Relevance", date: "Newest", salary: "Salary" };
+
+/** "Sort by Relevance ▾" — beside the line that says how many jobs are shown. */
+export function SortMenu({ className }: { className?: string }) {
+  const sort = useJobsStore((s) => s.sort);
+  const setSort = useJobsStore((s) => s.setSort);
+  return (
+    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600", className)}>
+      Sort by <span className="font-semibold text-ink">{SORT_LABEL[sort]}</span>
+      <ChevronDown className="size-4 text-ink-2" aria-hidden />
+      <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as JobSort)} className="absolute inset-0 cursor-pointer opacity-0">
+        {(Object.keys(SORT_LABEL) as JobSort[]).map((k) => (
+          <option key={k} value={k}>
+            {SORT_LABEL[k]}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
 /**
- * Full Time (the Career Profile's search): one "Search based on Career Profile". Part Time: what to search
- * (typing narrows the jobs already found; Enter searches every source for it, in those places), with Refine
- * beside the box (Full Time's Refine sits beside Looking for, on the page). Everything else — views, job
- * types, sort, work mode, freshness, salary, compare — is in Refine. The mode is the slider above the page
- * (domain/jobs/findMode.ts).
+ * Full Time searches the Career Profile (Looking for, on the page); Part Time what's typed in its box
+ * (typing narrows the jobs already found; Enter searches every source for it, in those places). Under
+ * either, one row: Refine, Location, Salary and the round search button. Everything else — views, job
+ * types, level, work mode, freshness, compare — is in Refine; sort sits beside the job count (SortMenu).
+ * The mode is the slider above the page (domain/jobs/findMode.ts).
  */
-export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, compare, onCompare, sourceSearch, refineTop, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sort: JobSort; onSort: (s: JobSort) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
+export function JobFiltersBar({ filters, onChange, views = true, compare, onCompare, sourceSearch, refineTop, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   // Refine is Find's own panel: leaving Find closes it.
@@ -149,7 +188,10 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const activeCount = refineCount(filters, sort);
+  const activeCount = refineCount(filters);
+  // Location's choices: anywhere, the profile's places, Remote, and whatever is set now.
+  const placeOptions = [...new Set(["", ...(sourceSearch?.places ?? []).map((p) => p), "Remote", places.join(", ")])];
+  const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [Math.round(filters.minSalary / 100_000)] : [])])].sort((x, y) => x - y);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
@@ -180,7 +222,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <form
-        className="flex flex-wrap gap-2"
+        className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           setBoxFocused(false);
@@ -188,8 +230,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
         }}
       >
         {partTime && (
-        <div className="order-1 flex min-w-0 flex-[1_1_16rem] items-center gap-2">
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
           <Input
             value={draft}
@@ -206,7 +247,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
             placeholder="Search jobs, skills or companies"
             aria-label="Search jobs"
             enterKeyHint="search"
-            className={cn("h-11 rounded-full pl-10 sm:h-12", dictation.supported ? "pr-20" : "pr-10")}
+            className={cn("h-12 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
           />
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
             {draft && (
@@ -237,24 +278,34 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
             />
           )}
         </div>
-        <RefineButton />
+        )}
+        {/* Refine, where, pay and the search — one row, the same in both modes. */}
+        <div className="flex items-center gap-2">
+          <RefineButton />
+          <PillSelect label="Location" shown={places.length ? places.join(", ") : "Anywhere"} value={places.join(", ")} className="flex-[1.2_1_0%]" onChange={(v) => {
+            if (v === OTHER_PLACE) return setMore(true);
+            setWhere(v);
+            onChange({ locations: splitPlaces(v) });
+          }}>
+            {placeOptions.map((p) => (
+              <option key={p} value={p}>
+                {p || "Anywhere"}
+              </option>
+            ))}
+            <option value={OTHER_PLACE}>Somewhere else…</option>
+          </PillSelect>
+          <PillSelect label="Minimum salary" shown={filters.minSalary ? `₹${Math.round(filters.minSalary / 100_000)}L+` : "Salary"} value={String(filters.minSalary ?? "")} className="flex-1" onChange={(v) => onChange({ minSalary: v ? Number(v) : undefined })}>
+            <option value="">Any salary</option>
+            {salaryOptions.map((l) => (
+              <option key={l} value={String(l * 100_000)}>
+                ₹{l} lakh+
+              </option>
+            ))}
+          </PillSelect>
+          <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-12 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+            <ArrowRight className="size-6" aria-hidden />
+          </button>
         </div>
-        )}
-        {partTime || !sourceSearch ? (
-          <Button type="submit" icon={<Search className="size-4" aria-hidden />} className="order-3 h-11 shrink-0 rounded-full max-sm:flex-1 sm:order-2 sm:h-12">
-            Search
-          </Button>
-        ) : (
-          // One pill, two actions: the search, and "Career Profile" as a link to the profile it searches.
-          <div className="wj-gradient-bg order-3 flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium text-white shadow-brand sm:order-2 sm:h-12 sm:flex-none">
-            <button type="submit" aria-label="Search based on Career Profile" className="inline-flex min-h-11 items-center gap-2 whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              <Search className="size-4" aria-hidden /> Search based on
-            </button>
-            <Link href="/app/career-dna?from=find" className="inline-flex min-h-11 items-center whitespace-nowrap underline decoration-white/70 underline-offset-4 hover:decoration-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              Career Profile
-            </Link>
-          </div>
-        )}
       </form>
       {needWords && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
@@ -323,14 +374,6 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
               <option value="30">Last month</option>
             </Select>
           </label>
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Minimum salary (₹ lakh)
-            <Input type="number" inputMode="numeric" min={0} step={1} value={filters.minSalary ? Math.round(filters.minSalary / 100_000) : ""} onChange={(e) => onChange({ minSalary: e.target.value ? Number(e.target.value) * 100_000 : undefined })} placeholder="e.g. 28" />
-          </label>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
-            Sort
-            <Segmented<JobSort> label="Sort" value={sort} onChange={onSort} options={[{ value: "best_match", label: "Best match" }, { value: "date", label: "Newest" }, { value: "salary", label: "Salary" }]} size="sm" />
-          </div>
           {/* Jobs you're already preparing, have applied to or are interviewing for. */}
           <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
@@ -367,8 +410,7 @@ export function JobFiltersBar({ filters, onChange, sort, onSort, views = true, c
               <button
                 type="button"
                 onClick={() => {
-                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined });
-                  onSort("best_match");
+                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null });
                 }}
                 className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
               >

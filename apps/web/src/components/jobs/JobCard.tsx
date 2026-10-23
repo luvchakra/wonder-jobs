@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { Bookmark, MapPin, ThumbsDown } from "lucide-react";
-import { WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
+import { Bookmark, CheckCircle2, ThumbsDown } from "lucide-react";
+import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
@@ -10,9 +10,8 @@ import { cn } from "@/lib/cn";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
-import { FitLabel } from "./MatchBadge";
+import { cardReasons } from "@/domain/jobs/cardReasons";
 import { JobDecision } from "./JobDecision";
-import { ShareJobButton } from "./ShareJobButton";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
 export function companyColor(name: string) {
@@ -23,7 +22,6 @@ export function companyColor(name: string) {
  * `decision` adds the outcome view (outcome spec §9): why Wonder surfaced it, things to consider,
  * and the next suggestion, with Prepare and Compare actions when their handlers are given.
  */
-const LEVEL_LABEL: Record<CanonicalJob["seniority"], string> = { junior: "Junior", mid: "Mid level", senior: "Senior", lead: "Lead", director: "Director" };
 const SOURCE_NAME = new Map(JOB_SOURCES.map((s) => [s.id, s.name]));
 
 /** Where the listing was found — the first source's name, "+1" when it was seen on more. */
@@ -33,31 +31,54 @@ export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): strin
   return unique.length ? `${unique[0]}${unique.length > 1 ? ` +${unique.length - 1}` : ""}` : "";
 }
 
+/** The match pill's colours, by fit — the percentage is a guide, so the fit label goes with it (title, screen readers). */
+const MATCH_TONE: Record<JobMatch["fit"], string> = {
+  strong: "bg-success-100 text-success-600",
+  worth_considering: "bg-brand-50 text-brand-700",
+  stretch: "bg-warning-100 text-warning-600",
+  low_fit: "bg-bg-soft text-ink-3",
+};
+
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   // The site a board's posting lives on ("naukri.com"), once its link has been followed.
   const origin = useJobsStore((s) => s.origins[job.id]);
   const type = jobTypeOf(job);
+  // The posting's own skills (its tags when it lists none) and the strongest parts of the computed match.
+  const tags = (job.skills.length ? job.skills : job.tags).filter((t) => t.length <= 24).slice(0, 3);
+  const reasons = cardReasons(job, match);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
       <div className="flex items-start gap-3">
-        <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 44} />
+        <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 48} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-tight text-ink">
-            <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
-              {job.company}
-            </Link>
-          </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" aria-hidden /> {job.location}
-            </span>
-            <span aria-hidden>•</span>
+          <div className="flex items-start gap-2">
+            <p className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight text-ink">
+              <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
+                {job.company}
+              </Link>
+            </p>
+            {match && (
+              <span className={cn("shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
+                {match.score}% Match<span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
+              </span>
+            )}
+          </div>
+          <h3 className="mt-1 text-[16px] font-semibold leading-snug text-ink">{job.title}</h3>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-3">
+            <span>{job.location}</span>
+            <span aria-hidden>·</span>
             <span>{WORK_MODE_LABEL[job.workMode]}</span>
             {type && (
               <>
-                <span aria-hidden>•</span>
+                <span aria-hidden>·</span>
                 <span title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[type]}</span>
+              </>
+            )}
+            {salary && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="font-medium text-ink-2">{salary}</span>
               </>
             )}
           </p>
@@ -75,46 +96,46 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             <ThumbsDown className="size-4" aria-hidden />
           </button>
         )}
-        {onToggleSave && (
-          <div className="-my-1 flex shrink-0 flex-col items-center">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                onToggleSave();
-              }}
-              aria-pressed={saved}
-              aria-label={saved ? "Remove from saved" : "Save job"}
-              className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-4")}
-            >
-              <Bookmark className="size-[18px]" fill={saved ? "currentColor" : "none"} aria-hidden />
-            </button>
-            <ShareJobButton job={job} />
-          </div>
-        )}
       </div>
-      {/* The two things every listing is judged on first, always in the same place — a missing salary says so. */}
-      <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-[12px] bg-surface-2 px-3 py-2">
-        <div className="min-w-0">
-          <dt className="text-[10px] font-semibold uppercase tracking-wide text-ink-4">Designation</dt>
-          <dd>
-            <h3 className="text-[14px] font-semibold leading-snug text-ink">{job.title}</h3>
-            <span className="text-[12px] text-ink-3">{LEVEL_LABEL[job.seniority]}</span>
-          </dd>
-        </div>
-        <div className="text-right">
-          <dt className="text-[10px] font-semibold uppercase tracking-wide text-ink-4">Salary</dt>
-          <dd className={cn("whitespace-nowrap text-[14px] font-semibold leading-snug", salary ? "text-ink" : "font-normal text-ink-4")}>{salary ?? "Not listed"}</dd>
-        </div>
-      </dl>
-      {/* Fit and where you are with it — the reasons, signals and tags are on the job's own page. */}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        {match && <FitLabel fit={match.fit} score={match.score} />}
+      {tags.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Skills">
+          {tags.map((t) => (
+            <li key={t} className="rounded-full bg-bg-soft px-3 py-1.5 text-[13px] text-ink">
+              {t}
+            </li>
+          ))}
+        </ul>
+      )}
+      {reasons.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-1.5" aria-label="Why it fits">
+          {reasons.map((r) => (
+            <li key={r} className="flex items-center gap-2 text-[14px] text-ink-2">
+              <CheckCircle2 className="size-[18px] shrink-0 fill-success-600 text-white" aria-hidden />
+              {r}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-3 flex items-center gap-2">
         {status && <Badge tone="info">{status}</Badge>}
-        <span className="ml-auto truncate text-[12px] text-ink-4">
+        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}
         </span>
+        {onToggleSave && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleSave();
+            }}
+            aria-pressed={saved}
+            aria-label={saved ? "Remove from saved" : "Save job"}
+            className={cn("relative z-10 -mr-1.5 -mb-1.5 flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
+          >
+            <Bookmark className="size-5" fill={saved ? "currentColor" : "none"} aria-hidden />
+          </button>
+        )}
       </div>
       {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}
       <div className={cn("flex flex-wrap items-center justify-end gap-2", (onPrepare || onToggleCompare) && "mt-3")}>

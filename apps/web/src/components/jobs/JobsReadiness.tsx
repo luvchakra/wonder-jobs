@@ -293,13 +293,14 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
     // One compact row: what Wonder searches for, and Change on the right, centred (the Career Profile is linked from the search button).
     // At the top of Find it is exactly as tall as Part Time's search box, so switching modes doesn't move what's below.
     return (
-      <div className={cn("flex items-center gap-2 rounded-[14px] border border-line bg-surface pl-3.5 pr-1.5 sm:gap-3 sm:pr-2", inline ? "mb-3 py-2 sm:max-w-xl" : "mb-2 h-11 sm:h-12", className)}>
+      // At the top of Find: one pill, the role and Change (the label is for screen readers); in Refine, labelled.
+      <div className={cn("flex items-center gap-2 border border-line bg-surface sm:gap-3", inline ? "mb-3 rounded-[14px] py-2 pl-3.5 pr-1.5 sm:max-w-xl sm:pr-2" : "mb-2 h-12 rounded-full pl-5 pr-1.5 shadow-xs", className)}>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-ink-3">
+          <p className={cn("flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-ink-3", !inline && "wj-sr-only")}>
             Looking for
             {skipped && <span className="rounded-full bg-bg-soft px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-ink-3">Skipped</span>}
           </p>
-          <p className={cn("truncate text-[14px] leading-5 first-letter:uppercase", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped in Part Time" : role || undefined}>
+          <p className={cn("truncate leading-5 first-letter:uppercase", inline ? "text-[14px]" : "text-[16px]", skipped ? "text-ink-4 line-through decoration-ink-4/60" : role ? "text-ink" : "text-ink-3")} title={skipped ? "Skipped in Part Time" : role || undefined}>
             {role || "No role yet"}
           </p>
         </div>
@@ -309,7 +310,7 @@ export function WantedRole({ search, className, inline = false }: { search: JobS
             setDraft(role);
             setEditing(true);
           }}
-          className={cn("inline-flex shrink-0 items-center self-center rounded-full px-3 text-[13px] font-semibold text-brand-600 hover:bg-brand-50", inline ? "min-h-11" : "min-h-9")}
+          className={cn("inline-flex min-h-11 shrink-0 items-center self-center rounded-full px-3 font-semibold text-brand-600 hover:bg-brand-50", inline ? "text-[13px]" : "text-[15px]")}
         >
           Change
         </button>
