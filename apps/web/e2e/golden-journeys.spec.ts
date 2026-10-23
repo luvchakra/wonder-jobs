@@ -117,6 +117,18 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await expect(card.first()).toBeVisible({ timeout: 20_000 });
   });
 
+  test("GJ-005c an interview card's Prepare opens that job's interview prep, built from the posting", async ({ page }) => {
+    await page.getByRole("tablist", { name: "Applications by stage" }).getByRole("tab", { name: /Interview/ }).click();
+    await page.getByRole("link", { name: /^Prepare/ }).first().click();
+    await page.waitForURL(/\/app\/applications\/[^/]+\/interview$/);
+    await expect(page.getByRole("heading", { name: "Lead with" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Practise these" })).toBeVisible();
+    // The Interview Prep tab is gone; its old address opens the next interview's prep.
+    await expect(page.getByRole("navigation", { name: "Pipeline" }).getByRole("link", { name: "Interview Prep" })).toHaveCount(0);
+    await page.goto("/app/interview-prep");
+    await page.waitForURL(/\/app\/applications\/[^/]+\/interview$/);
+  });
+
   test("GJ-006 a submitted application opens into its real timeline, not the prepare flow", async ({ page }) => {
     // app_google is status "submitted" — routes to the detail/timeline page, unlike a "saved"/"preparing"
     // application, which ApplicationCard instead routes into /prepare (see docs/TEST_EXECUTION_REPORT.md).

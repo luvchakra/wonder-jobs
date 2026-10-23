@@ -176,5 +176,5 @@ const STATUS_NOTICE: Partial<Record<ApplicationStatus, { title: string; action: 
 function statusNotice(a: Application, status: ApplicationStatus): Omit<Notification, "id" | "at" | "read"> {
   const meta = STATUS_NOTICE[status]!;
   const j = a.job ?? useJobsStore.getState().jobs[a.jobId];
-  return { category: status === "interview" ? "interview_upcoming" : "application_status", title: j ? `${meta.title}: ${j.company}` : meta.title, body: j ? j.title : "Your application moved on.", href: status === "interview" ? "/app/interview-prep" : `/app/applications/${a.id}`, action: meta.action };
+  return { category: status === "interview" ? "interview_upcoming" : "application_status", title: j ? `${meta.title}: ${j.company}` : meta.title, body: j ? j.title : "Your application moved on.", href: status === "interview" ? `/app/applications/${a.id}/interview` : `/app/applications/${a.id}`, action: meta.action };
 }

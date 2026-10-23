@@ -33,7 +33,6 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
       { href: "/app/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/app/dashboard", label: "This week", icon: LayoutDashboard },
       { href: "/app/insights", label: "Insights", icon: BarChart3 },
-      { href: "/app/interview-prep", label: "Interview Prep", icon: MessagesSquare },
     ],
   },
   {
