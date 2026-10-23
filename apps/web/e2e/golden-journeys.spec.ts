@@ -269,7 +269,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "4000"));
     await page.goto("/demo?next=/app/jobs");
     const main = page.locator("#main");
-    const summary = main.getByText(/^Showing \d+ jobs? for /);
+    const summary = main.getByText(/^Showing \S+ jobs? (for|from) /);
     await expect(summary).toBeVisible({ timeout: 20_000 });
     const before = await summary.innerText();
     await page.getByRole("radio", { name: "Part Time" }).click();
@@ -381,13 +381,13 @@ test.describe("Golden journey — search (demo mode)", () => {
     const box = (await kind.boundingBox())!;
     expect(box.width).toBeGreaterThan(330);
 
-    // Full Time: Looking for with Refine on its right (no Career Profile button), the profile's search with
-    // "Career Profile" as a link; no search box. The views and job types are in Refine, not on the page.
+    // Full Time: Looking for with Change, then Refine · Location · Salary and the round search; no search box.
+    // The views and job types are in Refine, not on the page.
     const main = page.locator("#main");
     await expect(main.getByText(/^Looking for/)).toBeVisible();
     await expect(main.getByRole("link", { name: "Edit Career Profile" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search based on Career Profile" })).toBeVisible();
-    await expect(main.getByRole("link", { name: "Career Profile", exact: true })).toHaveAttribute("href", "/app/career-dna?from=find");
+    await expect(main.getByRole("button", { name: "Change", exact: true })).toBeVisible();
     const views = async () => (await main.getByRole("button", { name: /^(All|Strong|For you)$/ }).allInnerTexts()).map((t) => t.trim());
     expect(await views()).toEqual([]);
     await expect(main.getByRole("button", { name: "Contract", exact: true })).toHaveCount(0);
@@ -446,7 +446,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(main.getByRole("heading", { name: "Nothing found for “barista”" })).toBeVisible({ timeout: 20_000 });
     await page.getByRole("textbox", { name: "Search jobs" }).fill("designer");
     await page.getByRole("button", { name: "Search", exact: true }).click();
-    const summary = main.getByText(/^Showing \d+ jobs? for /);
+    const summary = main.getByText(/^Showing \S+ jobs? (for|from) /);
     await expect(summary).toContainText("“designer”", { timeout: 20_000 });
     await full.click();
     await expect(summary).not.toContainText("“designer”");

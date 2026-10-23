@@ -10,7 +10,7 @@ import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
 import { JobCard } from "@/components/jobs/JobCard";
-import { JobFiltersBar, type SourceSearch } from "@/components/jobs/JobFilters";
+import { JobFiltersBar, SortMenu, type SourceSearch } from "@/components/jobs/JobFilters";
 import { savedTextMatches } from "@/domain/jobs/savedText";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
@@ -41,7 +41,6 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
   const filters = useJobsStore((s) => s.filters);
   const setFilters = useJobsStore((s) => s.setFilters);
   const sort = useJobsStore((s) => s.sort);
-  const setSort = useJobsStore((s) => s.setSort);
   const sources = useJobsStore((s) => s.sources);
   const applications = useApplicationsStore((s) => s.applications);
   const now = useNow();
@@ -132,12 +131,12 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       const count = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
       return `Showing ${results.length.toLocaleString("en-IN")} ${results.length === 1 ? "job" : "jobs"} for “${effective.query.trim() || searchedFor}” from ${count} ${count === 1 ? "source" : "sources"}`;
     }
-    const what = effective.query.trim() || searched.query;
-    const where = effective.locations?.length ? effective.locations : searched.locations;
+    // Full Time: what is Looking for and where is the Location pill, both just above — the line counts.
+    const what = effective.query.trim();
     const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
     const n = results.length.toLocaleString("en-IN");
-    return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} ${where.length ? `in ${where.join(", ")}` : "anywhere"} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  }, [savedOnly, header, searched, results, effective.query, effective.locations, jobs, isSearching, partTime, searchedFor]);
+    return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
+  }, [savedOnly, header, searched, results, effective.query, jobs, isSearching, partTime, searchedFor]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
@@ -161,8 +160,6 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
           setFilters(p);
           setLimit(PAGE);
         }}
-        sort={sort}
-        onSort={setSort}
         sources={sources}
         compare={compareMode}
         onCompare={(on) => {
@@ -215,7 +212,13 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
       ) : (
         <>
           <h2 className="wj-sr-only">Job results</h2>
-          {summary && <p className="mb-3 text-[13px] text-ink-3">{summary}</p>}
+          {/* How many, from where — and the order they're in. */}
+          {(summary || !savedOnly) && (
+            <div className="mb-3 flex items-center gap-3">
+              <p className="min-w-0 flex-1 text-[13px] text-ink-3">{summary}</p>
+              {!savedOnly && <SortMenu />}
+            </div>
+          )}
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
             {visible.map((id) => (
               <li key={id}>

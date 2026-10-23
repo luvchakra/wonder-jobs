@@ -10,7 +10,6 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
-import { RefineButton } from "@/components/jobs/JobFilters";
 import { SlideToggle } from "@/components/common/SlideToggle";
 import { FIND_MODES, findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
@@ -115,13 +114,8 @@ function JobsHome() {
     <>
       {/* Full Time or Part Time: the whole width on a phone, the first thing on the page. */}
       <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-3 w-full sm:max-w-sm" />
-      {/* Full Time: what Wonder searches for, with one tap to change it, and Refine on its right. */}
-      {mode === "full_time" && (
-        <div className="mb-2 flex items-center gap-2">
-          <WantedRole search={search} className="mb-0 min-w-0 flex-1" />
-          <RefineButton />
-        </div>
-      )}
+      {/* Full Time: what Wonder searches for, with one tap to change it. */}
+      {mode === "full_time" && <WantedRole search={search} className="mb-3" />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // What was searched and "Search as" live in Refine — the list stays the page.
