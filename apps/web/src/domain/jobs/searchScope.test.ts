@@ -9,12 +9,17 @@ describe("searchScope — Refine first, then the Career Profile", () => {
   });
 
   it("takes only the profile's places when none are picked (Full Time); work mode and Salary none picked mean any", () => {
-    expect(searchScope({ locations: undefined, workModes: [], minSalary: undefined }, profile)).toEqual({ locations: ["Remote"], workModes: [], minSalary: undefined });
+    expect(searchScope({ locations: undefined, workModes: [], minSalary: undefined }, { ...profile, locations: ["Pune", "Remote"] })).toEqual({ locations: ["Pune"], workModes: [], minSalary: undefined });
   });
 
   it("never takes the profile's in Part Time", () => {
     expect(searchScope({ locations: undefined, workModes: [], minSalary: undefined }, profile, { skipProfile: true })).toEqual({ locations: [], workModes: [], minSalary: undefined });
     expect(searchScope({ locations: ["Pune"], workModes: [], minSalary: undefined }, profile, { skipProfile: true }).locations).toEqual(["Pune"]);
+  });
+
+  it("never searches Remote as a place — that's Work mode; with no other place, it's anywhere", () => {
+    expect(searchScope({ locations: undefined, workModes: ["remote", "hybrid", "onsite"], minSalary: undefined }, profile).locations).toEqual([]);
+    expect(searchScope({ locations: ["Dubai", "Remote"], workModes: [], minSalary: undefined }, profile).locations).toEqual(["Dubai"]);
   });
 
   it("lets places or modes given for one search (typed words, a role, a wider retry) win", () => {

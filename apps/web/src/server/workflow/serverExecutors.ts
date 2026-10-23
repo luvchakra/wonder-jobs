@@ -48,12 +48,14 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       ctx.setProgress(1, 1);
       ctx.addEvidence({ label: "Skills", value: `${dna.skills.length} skills · ${dna.skills.filter((s) => s.level >= 4).length} strong` });
       ctx.addEvidence({ label: "Target", value: `${dna.seniority} · ${dna.industries.slice(0, 3).join(", ")}` });
-      ctx.addEvidence({ label: "Locations", value: dna.preferredLocations.join(", ") });
+      // Places and pay are the search's own (Refine's, for a Find search), not the Career Profile's.
+      const criteria = ctx.run.config.searchCriteria;
+      ctx.addEvidence({ label: "Locations", value: criteria.locations.join(", ") || "Anywhere" });
       return {
         provenance: "SYSTEM_DERIVED",
         data: {
-          preferredLocations: dna.preferredLocations,
-          minSalary: dna.minSalary,
+          preferredLocations: criteria.locations,
+          minSalary: criteria.minSalary,
           careerGoal: ctx.run.config.careerGoal || dna.careerGoal,
           seniority: dna.seniority,
           skillCount: dna.skills.length,

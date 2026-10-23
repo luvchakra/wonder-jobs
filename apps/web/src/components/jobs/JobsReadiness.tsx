@@ -10,6 +10,7 @@ import type { JobSearch } from "@/lib/useJobSearch";
 import { foundNothing } from "@/lib/useJobSearch";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
+import { useUIStore } from "@/store/ui";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useWorkflowStore } from "@/store/workflow";
 import { Button } from "@/components/common/Button";
@@ -153,7 +154,9 @@ function SourcesStep({ blocker }: { blocker: Extract<ReadinessBlocker, { kind: "
 /** The first thing weakening relevance, with one fix. Dismissed notes stay hidden for this visit. */
 export function RelevanceNoteBar({ notes }: { notes: RelevanceNote[] }) {
   const [hidden, setHidden] = useState<string[]>([]);
-  const note = notes.find((n) => !hidden.includes(noteKey(n)));
+  // Places are Refine's now: once it has some (or the work mode is Remote), "where do you want to work?" is answered.
+  const placesSet = useJobsStore((s) => !!s.filters.locations?.some((p) => !/^remote$/i.test(p)) || s.filters.workModes.includes("remote"));
+  const note = notes.find((n) => !hidden.includes(noteKey(n)) && !(n.kind === "no_location" && placesSet));
   if (!note) return null;
   return (
     <div role="status" className="mb-4 flex items-start gap-3 rounded-[14px] border border-warning-600/25 bg-warning-100/40 p-3">
@@ -233,9 +236,9 @@ function NoteBody({ note }: { note: RelevanceNote }) {
       </form>
     );
   }
-  // no_location
+  // no_location — answered in Refine (Location, or Work mode for Remote), where the search reads it.
   const choose = (place: string) => {
-    updateDNA({ preferredLocations: [place], workModes: place === "Remote" ? ["remote"] : dna.workModes });
+    useJobsStore.getState().setFilters(place === "Remote" ? { workModes: ["remote"] } : { locations: [place] });
     track("jobs_readiness_action", { step: "location_set" });
   };
   return (
@@ -250,7 +253,7 @@ function NoteBody({ note }: { note: RelevanceNote }) {
         <Button size="sm" variant="outline" onClick={() => choose("Remote")}>
           Remote
         </Button>
-        <Button size="sm" variant="ghost" href="/app/career-dna">
+        <Button size="sm" variant="ghost" onClick={() => useUIStore.getState().setRefineOpen(true)}>
           Somewhere else
         </Button>
       </div>

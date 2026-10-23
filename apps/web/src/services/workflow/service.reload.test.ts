@@ -33,4 +33,18 @@ describe("workflow service after a reload", () => {
     expect(() => svc.stop("run_prev")).not.toThrow();
     expect(() => svc.cancel("run_prev")).not.toThrow();
   });
+
+  it("a 'running' copy synced in after this page loaded (another tab, an earlier session) doesn't block new searches", () => {
+    const svc = getWorkflowService();
+    // The engine has already loaded the store (above); now a copy of another session's run arrives, still RUNNING.
+    useWorkflowStore.setState((s) => ({ runs: { ...s.runs, run_synced: { ...(leftRunning as object), id: "run_synced", status: "RUNNING" } as never } }));
+    expect(selectActiveRun(useWorkflowStore.getState())?.id).toBe("run_synced");
+    // Nothing on this page drives it: it's recorded as stopped, as a reload would, and no longer counts as active.
+    expect(svc.hasActiveRun()).toBe(false);
+    expect(useWorkflowStore.getState().runs.run_synced.status).toBe("STOPPED");
+    // A server-run (scheduled) one is left alone.
+    useWorkflowStore.setState((s) => ({ runs: { ...s.runs, run_server: { ...(leftRunning as object), id: "run_server", trigger: "schedule", status: "RUNNING" } as never } }));
+    expect(svc.hasActiveRun()).toBe(true);
+    expect(useWorkflowStore.getState().runs.run_server.status).toBe("RUNNING");
+  });
 });

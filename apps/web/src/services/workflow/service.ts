@@ -107,7 +107,22 @@ class WorkflowService {
     return new TemplateAIService(provider, record, cost);
   }
 
+  /**
+   * A run started on a device (`manual`) that the store says is still going but this page isn't running —
+   * a copy synced in after this page loaded (another tab, the same account's earlier session) — has no
+   * process behind it: nothing will finish or stop it, and it would block every new search. It's recorded
+   * as stopped, exactly as a reload would (`engine.hydrate`); completed stages and found jobs are kept.
+   * Server-run (`schedule`) runs are left alone.
+   */
+  private releaseOrphans() {
+    const orphans = Object.values(useWorkflowStore.getState().runs).filter((r) => r.trigger === "manual" && isActive(r.status) && r.status !== "WAITING_FOR_USER" && !this.engine.isDriving(r.id));
+    if (!orphans.length) return;
+    this.engine.hydrate(structuredClone(orphans));
+    useWorkflowStore.getState().upsertRuns(orphans.map((r) => structuredClone(this.engine.getRun(r.id)!)));
+  }
+
   hasActiveRun() {
+    this.releaseOrphans();
     return Object.values(useWorkflowStore.getState().runs).some((r) => isActive(r.status));
   }
 
@@ -143,6 +158,7 @@ class WorkflowService {
   /** Stops a live run; one that's already over (or was interrupted by a reload and restored as stopped) needs nothing. */
   stop(id: string) {
     this.hydrate();
+    this.releaseOrphans();
     const run = this.engine.getRun(id);
     if (!run || !isActive(run.status) || run.status === "STOPPING") return;
     this.engine.stop(id);

@@ -99,10 +99,13 @@ function JobTypeChips({ filters, onChange, className }: { filters: Filters; onCh
 
 const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filter(Boolean);
 
-/** How many of Refine's settings are changed from where they start — one per setting (view, job types, work
- * mode, salary, places, level, posted, sources, Hide Pipeline, strictly within the profile, sort). */
-const refineCount = (f: Filters, sort: JobSort) =>
-  [f.minFit, f.jobTypes?.length, f.workModes.length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline, f.strictProfile, sort !== "best_match"].filter(Boolean).length;
+/**
+ * How many of Refine's settings differ from where they start — one per setting. At their start (count 0): the
+ * view All, no job type, All modes (none or all three), Any salary, no places picked, no level, Posted any time,
+ * every source, Hide Pipeline and "strictly within" off. Sort is beside the job count, not in Refine.
+ */
+const refineCount = (f: Filters) =>
+  [f.minFit, f.jobTypes?.length, f.workModes.length > 0 && f.workModes.length < Object.keys(WORK_MODE_LABEL).length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline, f.strictProfile].filter(Boolean).length;
 
 const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
@@ -110,7 +113,7 @@ const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border
 export function RefineButton({ className }: { className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
-  const count = useJobsStore((s) => refineCount(s.filters, s.sort));
+  const count = useJobsStore((s) => refineCount(s.filters));
   return (
     <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", more && "border-brand-200 bg-brand-50", className)}>
       <SlidersHorizontal className="size-5" aria-hidden />
@@ -190,8 +193,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     const now = (filters.locations ?? sourceSearch?.places ?? []).join(", ");
     if (splitPlaces(now).join("|") !== splitPlaces(where).join("|")) setWhere(now);
   }
-  const sort = useJobsStore((s) => s.sort);
-  const activeCount = refineCount(filters, sort);
+  const activeCount = refineCount(filters);
   // Salary's choices, and the one set now if it isn't among them.
   const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [lakh(filters.minSalary)] : [])])].sort((x, y) => x - y);
   // All three picked reads "All modes", so the pill stays short enough to read whole on a phone.

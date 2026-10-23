@@ -9,7 +9,7 @@
  */
 import { newId } from "@/lib/ids";
 import { resolveCapability, type AutomationPolicy, type Capability } from "@/domain/automation/policy";
-import { assertTransition, isTerminal, type RunStatus } from "./status";
+import { assertTransition, isActive, isTerminal, type RunStatus } from "./status";
 import { STAGES, STAGE_KEYS, STAGE_ORDER, type StageKey } from "./stages";
 import { resolveRunValue } from "./resolve";
 import type {
@@ -135,6 +135,11 @@ export class WorkflowEngine {
   // ---------------------------------------------------------------- queries
   getRun(id: string) {
     return this.runs.get(id);
+  }
+  /** Whether this engine is the one carrying the run forward (it started or resumed it here, and it isn't over). */
+  isDriving(id: string) {
+    const run = this.runs.get(id);
+    return !!run && isActive(run.status);
   }
   listRuns() {
     return [...this.runs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));

@@ -11,7 +11,7 @@ interface Place {
   kind: "city" | "country";
 }
 
-/** "Remote" is a work mode, not a place: never shown or added here, but one already in the list is kept as it was. */
+/** "Remote" is a work mode, not a place: never shown or added here (one left in an old list is dropped on the next change). */
 const isRemote = (p: string) => /^remote$/i.test(p.trim());
 
 // One answer per typed start, kept for the visit: the same letters never ask twice.
@@ -24,8 +24,7 @@ const cache = new Map<string, Place[]>();
  */
 export function PlaceInput({ places: value, onChange: setPlaces, label, id, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string }) {
   const picked = value.filter((p) => !isRemote(p));
-  const kept = value.filter(isRemote);
-  const onChange = (list: string[]) => setPlaces([...list, ...kept]);
+  const onChange = (list: string[]) => setPlaces(list);
   const [text, setText] = useState("");
   const typing = text.trim();
   const q = useDebounced(typing, 150);

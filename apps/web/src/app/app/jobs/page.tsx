@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useHydration } from "@/store/hydration";
+import { placesOnly } from "@/domain/jobs/searchScope";
 import type { JobFilters } from "@/domain/jobs/types";
 import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
@@ -161,7 +162,8 @@ function JobsHome() {
             const kinds = d.jobTypes.length ? `, ${d.jobTypes.map((t) => JOB_TYPE_LABEL[t].toLowerCase()).join(" or ")} only` : "";
             return what ? `“${what}”${d.locations.length ? ` in ${d.locations.join(", ")}` : " anywhere"}${kinds}${d.highPay ? ", highest pay first" : ""}` : null;
           },
-          places: search.readiness.locations,
+          // The profile's places, not "Remote" (a work mode — Refine's Work mode).
+          places: placesOnly(search.readiness.locations) ?? [],
           runPlaces: (places) => {
             // A picked "Search as" role only searches here, when the candidate taps Search.
             const searched = typeof pickedRole === "string" ? search.searchAsRole(pickedRole, places) : search.searchNow({ locations: places });
