@@ -54,9 +54,7 @@ export async function refreshCompanies(
       counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
       if (o.postedAt >= weekAgo) fresh.set(r.domain, (fresh.get(r.domain) ?? 0) + 1);
     }
-  // H-1B totals from the last Department of Labor file, by exact (normalized) company name; null when it names none.
-  const h1b = await store.h1bFor([...new Set(records.map((r) => r.nameKey))]).catch(() => undefined);
-  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at, ...(h1b ? { h1b: h1b.get(r.nameKey) ?? null } : {}) })));
+  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at })));
 
   // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
   // the one their title states.

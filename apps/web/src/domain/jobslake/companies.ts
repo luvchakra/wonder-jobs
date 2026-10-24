@@ -3,7 +3,6 @@
  * host of a job's apply link on the employer's own site — never guessed from the name. A job whose source
  * gives no domain is matched to one by its exact (normalized) company name, as JobsLake saw it elsewhere.
  */
-import type { CompanyFacts } from "@/domain/jobs/types";
 import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/destination";
 
 /** Hiring platforms and boards: their host is the platform's, not the employer's. */
@@ -46,7 +45,25 @@ export function companyKey(name: string): string {
 }
 
 /** What JobsLake keeps about a company — only what sources reported, plus its cached logo. */
-export type { CompanyFacts };
+/** Facts about an employer exactly as a source reported them; `from` names that source. */
+export interface CompanyFacts {
+  industry?: string;
+  employees?: number;
+  /** The year the employee count is from, when the source dates it. */
+  employeesAsOf?: number;
+  employeeRange?: string;
+  hqCity?: string;
+  hqCountry?: string;
+  founded?: number;
+  fundingStage?: string;
+  ticker?: string;
+  exchange?: string;
+  /** Annual revenue as the source states it, in its own currency. */
+  revenue?: { amount: number; currency: string; year?: number };
+  /** The source's own id for the company (a Wikidata item, "Q96186334"). */
+  sourceId?: string;
+  from: string;
+}
 
 /** One employer's totals from a US Department of Labor LCA disclosure file (certified H-1B applications only). */
 export interface H1bRecord {
@@ -78,8 +95,6 @@ export interface CompanyRecord {
   /** What a source reported about the company itself (TheirStack's job data), with when it was last seen. */
   facts?: CompanyFacts;
   factsAt?: string;
-  /** Its certified H-1B applications in the US Department of Labor's latest disclosure file, matched by name. */
-  h1b?: H1bRecord | null;
   /** Wikidata's facts for the item whose official website is this domain; null when it has none. */
   wikidata?: CompanyFacts | null;
   wikidataAt?: string;

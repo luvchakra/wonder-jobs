@@ -3,7 +3,7 @@
  * industry, stock listing and revenue, for companies whose official website (P856) is the domain JobsLake recorded
  * from their postings. A company is matched only by that website, never by name; one with no item gets nothing.
  */
-import type { CompanyFacts } from "@/domain/jobs/types";
+import type { CompanyFacts } from "@/domain/jobslake/companies";
 
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const UA = "WonderJobs/1.0 (https://jobs.wonderapps.biz; company facts for job seekers)";
