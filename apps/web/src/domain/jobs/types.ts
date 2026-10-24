@@ -182,6 +182,8 @@ export interface JobFilters {
   skipProfile?: boolean;
   /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
   hideInPipeline?: boolean;
+  /** Saved's own Easy Apply only: just the saved jobs posted on WonderJobs. Find's Refine uses `sourceIds` instead. */
+  savedEasyApply?: boolean;
   /** Show postings older than two weeks too (they're hidden as "too old" otherwise; saved ones always show). */
   includeOld?: boolean;
   sourceIds: string[];

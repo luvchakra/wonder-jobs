@@ -10,7 +10,7 @@ import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
 import { JobCard } from "@/components/jobs/JobCard";
-import { JobFiltersBar, SortMenu, type SourceSearch } from "@/components/jobs/JobFilters";
+import { EASY_APPLY_SOURCE, JobFiltersBar, SortMenu, type SourceSearch } from "@/components/jobs/JobFilters";
 import { savedTextMatches } from "@/domain/jobs/savedText";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/components/jobs/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
@@ -99,8 +99,8 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
     const f = JSON.parse(filtersKey) as typeof filters;
     // Saved's words are its own plain look-up (savedTextMatches below), not Find's search. Saved keeps only
     // its own controls (job types, Hide Pipeline): Find's Refine — work mode, salary, level, places… — never
-    // hides a job the candidate saved.
-    if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
+    // hides a job the candidate saved. Its own Easy Apply only narrows to the jobs posted on WonderJobs.
+    if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: f.savedEasyApply ? [EASY_APPLY_SOURCE] : [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
     // Full Time with no places picked: the Career Profile's places.
     // Remote is a work mode (Work mode filters it), never a place: "Remote" alone would hide every other job.
     const places = placesOnly(f.locations ?? (f.skipProfile ? undefined : sourceSearch?.places));
