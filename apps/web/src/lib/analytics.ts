@@ -18,6 +18,7 @@ export type AnalyticsEvent =
   | "custom_resume_generated"
   | "custom_resume_downloaded"
   | "custom_resume_edited"
+  | "application_marked"
   | "job_saved"
   | "job_rejected"
   | "application_preparation_started"

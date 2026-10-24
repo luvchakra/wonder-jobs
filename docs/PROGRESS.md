@@ -503,6 +503,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Job card rating: ★ 4.3 (WJ-384)
 - ✅ Search details: Back to Find when opened from Find (WJ-385)
 - ✅ Résumé editor: template format, round bullets, Cancel (WJ-386)
+- ✅ Résumé card: Edit, use-it note, Mark as completed / abandoned (WJ-387)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
