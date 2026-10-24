@@ -393,11 +393,17 @@ web.describe("JobsApply in WonderJobs", () => {
 
   web("GJ4 / APPLY-072…077: guided mode — copy, download, open, then the candidate confirms", async ({ page }, info) => {
     await page.goto(APPLY);
-    await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
-    // How you apply is set once in Automation; this job changes it here (WJ-272).
-    await page.getByRole("button", { name: "Change for this job" }).click();
-    await page.getByRole("radio", { name: /Guide me/ }).click();
-    await page.getByRole("button", { name: "Start application" }).click();
+    if (info.project.name === "Mobile Chrome") {
+      // A phone applies the traditional way: one Start, then everything to copy.
+      await expect(page.getByRole("heading", { name: /^Apply on .+ site$/ })).toBeVisible({ timeout: 30_000 });
+      await page.getByRole("button", { name: "Start", exact: true }).click();
+    } else {
+      await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
+      // How you apply is set once in Automation; this job changes it here (WJ-272).
+      await page.getByRole("button", { name: "Change for this job" }).click();
+      await page.getByRole("radio", { name: /Guide me/ }).click();
+      await page.getByRole("button", { name: "Start application" }).click();
+    }
     await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
     // Only the first step is open; the rest open as the candidate reaches them.
     await page.getByText("Your details", { exact: true }).click();
@@ -417,15 +423,17 @@ web.describe("JobsApply in WonderJobs", () => {
     await expect(page.getByRole("heading", { name: "Recently submitted" })).toBeVisible({ timeout: 20_000 });
   });
 
-  web("UI-003/005/007/008: preflight on a phone — no horizontal scroll, labelled controls", async ({ page }) => {
+  web("UI-003/005/007/008: the Apply page on a phone — no horizontal scroll, nothing about filling for you", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(APPLY);
-    await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: /^Apply on .+ site$/ })).toBeVisible({ timeout: 30_000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
-    await page.getByRole("button", { name: "Change for this job" }).click();
-    await expect(page.getByRole("radiogroup", { name: "Application method" })).toBeVisible();
-    await expect(page.getByRole("list", { name: "Application steps" })).toBeVisible();
-    await page.getByText("Documents", { exact: true }).click();
-    await expect(page.getByRole("radiogroup", { name: "Résumé to use" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toHaveCount(0);
+    await expect(page.getByText(/browser helper|Fill for me/i)).toHaveCount(0);
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Fill the form with Wonder beside you" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/^What Wonder did/)).toHaveCount(0);
+    for (const gone of ["Options", "Continue application"]) await expect(page.getByText(gone, { exact: true })).toHaveCount(0);
   });
 
   web("admin: JobsApply operations shows adapters, domain policies and counts only", async ({ page }, info) => {

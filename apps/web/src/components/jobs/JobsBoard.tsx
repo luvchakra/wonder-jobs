@@ -203,6 +203,10 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
               showAnyway();
               setLimit(PAGE);
             }}
+            onFix={(patch) => {
+              setFilters(patch);
+              setLimit(PAGE);
+            }}
             variant="empty"
             // The words typed hide what Wonder has: the answer is to search every source for them, not to drop them.
             search={searchInEmpty ? { label: sourceSearch!.describe(effective.query.trim(), effective.locations ?? []), run: () => sourceSearch!.run(effective.query.trim(), effective.locations ?? []), places: typedPlaces } : undefined}

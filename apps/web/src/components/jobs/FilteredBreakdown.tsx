@@ -11,6 +11,22 @@ import { useUIStore } from "@/store/ui";
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
 export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false };
 
+/** One filter's own undo, for when it is what hides the jobs: the patch, and the button's words. */
+const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; label: string }>> = {
+  job_type: { patch: { jobTypes: [] }, label: "Show every job type" },
+  work_mode: { patch: { workModes: [] }, label: "Show every work mode" },
+  min_salary: { patch: { minSalary: undefined }, label: "Show any salary" },
+  no_salary: { patch: { salaryListed: false }, label: "Include jobs without pay" },
+  level: { patch: { levels: [] }, label: "Show every level" },
+  location: { patch: { locations: [] }, label: "Show every place" },
+  min_fit: { patch: { minFit: null, exactFit: false }, label: "Show every fit" },
+  freshness: { patch: { freshnessDays: null }, label: "Show any date" },
+  too_old: { patch: { includeOld: true }, label: "Show older jobs too" },
+  source: { patch: { sourceIds: [] }, label: "Show every source" },
+  company: { patch: { company: "" }, label: "Show every company" },
+  in_pipeline: { patch: { hideInPipeline: false }, label: "Show jobs in my Pipeline" },
+};
+
 const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "job_type", "other_mode", "company", "location", "profile", "in_pipeline", "search_text"];
 
 /**
@@ -19,7 +35,7 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_
  * an explanation the candidate can act on. Always pairs the two required actions: relax everything at
  * once, or go make the underlying preference change deliberately.
  */
-export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] } }) {
+export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; /** Lifts one filter (the main reason) — kept in this mode's Refine. */ onFix?: (patch: Record<string, unknown>) => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] } }) {
   if (result.hiddenTotal === 0) return null;
   const reasons = REASON_ORDER.filter((r) => result.hiddenByReason[r]).sort((a, b) => (result.hiddenByReason[b] ?? 0) - (result.hiddenByReason[a] ?? 0));
   // "Show me anyway" clears every preference filter but never un-hides a job marked "not for me" —
@@ -46,28 +62,57 @@ export function FilteredBreakdown({ result, onShowAnyway, variant = "compact", s
   }
 
   if (variant === "empty") {
+    // The main reason leads, with its own one-tap fix; the rest are listed under it.
+    const top = reasons[0];
+    const fix = top && onFix ? ONE_FIX[top] : undefined;
+    const n = top ? (result.hiddenByReason[top] ?? 0) : 0;
+    const rest = reasons.slice(1);
     return (
       <div className="flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center">
         <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
           <EyeOff className="size-5" aria-hidden />
         </div>
-        <h2 className="text-base font-semibold text-ink">No jobs match right now</h2>
-        <p className="mt-1 max-w-sm text-sm text-ink-3">
-          Wonder has {result.totalCatalog} discovered {result.totalCatalog === 1 ? "opportunity" : "opportunities"}, all hidden by your current filters — not a sign there&apos;s nothing out there.
-        </p>
-        <ul className="mt-4 flex flex-wrap justify-center gap-1.5" aria-label="Why jobs are hidden">
-          {reasons.map((r) => (
-            <li key={r}>
-              <Badge>
-                {result.hiddenByReason[r]} {FILTER_REASON_LABEL[r]}
-              </Badge>
-            </li>
-          ))}
-        </ul>
+        {fix ? (
+          <>
+            <h2 className="text-base font-semibold text-ink">
+              {n} {n === 1 ? "job is" : "jobs are"} {FILTER_REASON_LABEL[top]}
+            </h2>
+            <p className="mt-1 max-w-sm text-sm text-ink-3">Your Refine settings hide {n === result.totalCatalog ? "every job" : `${n} of the ${result.totalCatalog} jobs`} Wonder found.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-base font-semibold text-ink">No jobs match right now</h2>
+            <p className="mt-1 max-w-sm text-sm text-ink-3">
+              Wonder has {result.totalCatalog} discovered {result.totalCatalog === 1 ? "opportunity" : "opportunities"}, all hidden by your current filters — not a sign there&apos;s nothing out there.
+            </p>
+          </>
+        )}
+        {(fix ? rest : reasons).length > 0 && (
+          <ul className="mt-4 flex flex-wrap justify-center gap-1.5" aria-label="Why jobs are hidden">
+            {(fix ? rest : reasons).map((r) => (
+              <li key={r}>
+                <Badge>
+                  {result.hiddenByReason[r]} {FILTER_REASON_LABEL[r]}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <Button size="sm" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
-            Show me anyway
-          </Button>
+          {fix ? (
+            <Button size="sm" onClick={() => onFix!(fix.patch)}>
+              {fix.label}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
+              Show me anyway
+            </Button>
+          )}
+          {fix && rest.length > 0 && (
+            <Button size="sm" variant="outline" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
+              Show me anyway
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"

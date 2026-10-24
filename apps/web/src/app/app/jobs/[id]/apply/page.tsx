@@ -166,11 +166,14 @@ export default function ApplyWithWonderPage({
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
   const fillPolicy = fillDecision(policy, level);
   const handoffPolicy = handoffDecision(policy, level);
-  const chosenMethod: Method = methodTouched
-    ? method
-    : defaultMethod === "helper" && (!desktop || helperInstalled === false || fillPolicy === "skip")
-      ? "guided"
-      : defaultMethod;
+  // A phone or tablet always applies with Guide me: the form is filled by hand on the employer's page.
+  const chosenMethod: Method = !desktop
+    ? "guided"
+    : methodTouched
+      ? method
+      : defaultMethod === "helper" && (helperInstalled === false || fillPolicy === "skip")
+        ? "guided"
+        : defaultMethod;
 
   // Load: an unfinished session for this job is offered for recovery (§71).
   useEffect(() => {
@@ -617,7 +620,7 @@ export default function ApplyWithWonderPage({
           </Button>
         }
       />
-      <ApplyStepper current={step} />
+      {desktop && <ApplyStepper current={step} />}
 
       {!loaded || (resumeFilesPending && !resumeOptions.length) ? (
         <PageLoading rows={3} />
@@ -643,6 +646,19 @@ export default function ApplyWithWonderPage({
           }
           followUpDue={app ? applications[app.id]?.followUpAt : undefined}
         />
+      ) : s && inSession && !desktop ? (
+        // Phone or tablet: the traditional way — open the employer's page, copy from here, say when it's sent.
+        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          <GuidedApplication
+            pack={s.pack}
+            applyUrl={s.destination.url}
+            memory={answerMemory}
+            onOpen={openEmployer}
+            onDownloadFile={downloadFile}
+            onRemember={rememberAnswer}
+          />
+          <ApplicationReview session={s} onConfirm={confirm} busy={busy} />
+        </div>
       ) : s && inSession ? (
         <>
           {recovered && (
@@ -883,6 +899,22 @@ export default function ApplyWithWonderPage({
               Wonder couldn&apos;t continue: {error} Nothing was submitted.
             </p>
           )}
+          {!desktop ? (
+            <Card className="mx-auto flex max-w-2xl flex-col gap-3">
+              <h2 className="text-[17px] font-semibold text-ink">Apply on {job.company}&apos;s site</h2>
+              <p className="text-[13px] text-ink-2">Open the employer&apos;s page and fill the form there — your details, answers and documents are ready here to copy.</p>
+              <p className="truncate text-[13px] text-ink-3">
+                Résumé: <span className="text-ink-2">{choice?.label ?? "none yet"}</span>
+              </p>
+              {!destination ? (
+                <p className="text-[12px] text-danger-600">This job has no application link to open.</p>
+              ) : (
+                <Button onClick={() => start(false)} loading={busy} disabled={!choice || !!shownDuplicate} full>
+                  Start
+                </Button>
+              )}
+            </Card>
+          ) : (
           <Preflight
             company={job.company}
             prepareHref={prepareHref}
@@ -912,6 +944,7 @@ export default function ApplyWithWonderPage({
             }
             onStart={() => start(false)}
           />
+          )}
         </>
       )}
     </div>

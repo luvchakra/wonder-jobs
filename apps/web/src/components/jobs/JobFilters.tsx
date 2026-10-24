@@ -332,7 +332,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               Show
               <div className="flex flex-wrap gap-1">
                 {VIEWS.map((v) => (
-                  <Chip key={v.value} active={view === v.value} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
+                  <Chip key={v.value} active={view === v.value} isDefault={v.value === "all"} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
                     {v.label}
                   </Chip>
                 ))}
@@ -347,7 +347,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             Work mode
             <div className="flex flex-wrap gap-1">
               {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className={REFINE_CHIP}>
+                <Chip key={m} active={filters.workModes.includes(m)} isDefault={filters.workModes.length === Object.keys(WORK_MODE_LABEL).length} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className={REFINE_CHIP}>
                   {WORK_MODE_LABEL[m]}
                 </Chip>
               ))}
@@ -356,7 +356,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           <div id="wj-refine-salary" role="group" aria-label="Salary" tabIndex={-1} className={sectionClass("salary")}>
             Salary
             <div className="flex flex-wrap gap-1">
-              <Chip active={!filters.minSalary} onClick={() => onChange({ minSalary: undefined })} className={REFINE_CHIP}>
+              <Chip active={!filters.minSalary} isDefault onClick={() => onChange({ minSalary: undefined })} className={REFINE_CHIP}>
                 Any
               </Chip>
               {salaryOptions.map((l) => (
