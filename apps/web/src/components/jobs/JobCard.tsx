@@ -34,6 +34,19 @@ export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): strin
 }
 
 /** The match pill's colours, by fit — the percentage is a guide, so the fit label goes with it (title, screen readers). */
+const MODE_WORD = /^(remote|hybrid|on-?site|in-?office)$/i;
+
+/**
+ * A posting's places in one short line: the first place and how many more ("San Francisco, CA +2"). The work-mode
+ * words some sources list among the places ("San Francisco · Remote · Hybrid") are dropped — the card shows the mode.
+ */
+export function shortPlace(location: string): string {
+  const parts = location.split(/\s+[•·|]\s+|\s*;\s*/).map((p) => p.trim()).filter(Boolean);
+  const places = parts.filter((p) => !MODE_WORD.test(p));
+  if (!places.length) return parts[0] ?? location;
+  return places.length > 1 ? `${places[0]} +${places.length - 1}` : places[0];
+}
+
 const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center rounded-full px-3 text-[12px] font-semibold text-white";
 
 const MATCH_TONE: Record<JobMatch["fit"], string> = {
@@ -75,14 +88,16 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           ) : null}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold leading-tight text-ink">
+          {/* The title leads (two lines at most); the company and the first place share the line below it. */}
+          <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink">
             <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
-              {job.company}
+              {job.title}
             </Link>
-          </p>
-          <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-ink">{job.title}</h3>
+          </h3>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-3">
-            <span>{job.location}</span>
+            <span className="font-medium text-ink-2">{job.company}</span>
+            <span aria-hidden>·</span>
+            <span title={job.location}>{shortPlace(job.location)}</span>
             <span aria-hidden>·</span>
             <span>{WORK_MODE_LABEL[job.workMode]}</span>
             {type && (
