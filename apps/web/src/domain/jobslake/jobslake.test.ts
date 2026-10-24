@@ -8,6 +8,7 @@ import { deriveAlerts, summarizeHealth, type SourceRun } from "./health";
 import { planSearch, type PlannableSource } from "./planner";
 import { PROTOCOL_VERSION, validateOpportunity, type JobSourceDescriptor } from "./protocol";
 import { toCanonicalJob } from "./wonderjobs";
+import { readableJobId } from "@/domain/jobs/types";
 
 const NOW = Date.parse("2026-09-24T08:00:00Z");
 const LONG = "We are hiring an experienced leader to build our identity platform. You will own strategy, roadmap and delivery across teams, partner with security engineering, and grow a world class organization serving millions of customers every single day across many regions and products.";
@@ -63,6 +64,16 @@ describe("canonicalize — dedupe and provenance", () => {
     expect(o.provenance.find((p) => p.field === "compensation")).toMatchObject({ sourceId: "adzuna", confidence: "low" });
     expect(o.quality).toMatchObject({ employerVerified: true, sourceCount: 2, compensationDisclosed: true });
     expect(validateOpportunity(o)).toEqual([]);
+  });
+
+  it("keeps each source's own job id on its sighting, readable on the job page", () => {
+    const r = canonicalize([
+      { source: ats, job: job({ id: "c1", externalId: "gh:acme:4012345", applyUrl: "https://boards.greenhouse.io/acme/jobs/4012345" }) },
+      { source: agg, job: job({ id: "a1", sourceId: "adzuna", externalId: "9", applyUrl: "https://boards.greenhouse.io/acme/jobs/4012345" }) },
+    ], NOW);
+    const ids = toCanonicalJob(r.opportunities[0]).lake!.sightings.map((x) => readableJobId(x.sourceJobId)).sort();
+    expect(ids).toEqual(["4012345", "9"]);
+    expect([readableJobId("https://x.test/job/1"), readableJobId(undefined), readableJobId("REQ-77")]).toEqual([null, null, "REQ-77"]);
   });
 
   it("takes the job type a source reported over one read from a title, and says which", () => {
