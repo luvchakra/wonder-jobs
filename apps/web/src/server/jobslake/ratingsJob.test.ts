@@ -29,7 +29,8 @@ function explorium(balances: Record<string, number>, opts: { rateLimit?: boolean
     const hits = asked.filter((a) => /^(fig|str)/.test(a.domain));
     if (hits.length * cost > balances[key] || asked.length > (opts.maxPerCall ?? 50)) return new Response("{}", { status: 403 });
     balances[key] -= hits.length * cost;
-    return Response.json({ data: asked.map((a) => (/^(fig|str)/.test(a.domain) ? { input: { domain: a.domain }, business_id: "b".repeat(32), data: { ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9, ratings_ceo_approval: 0.93, ratings_ceo_approval_count: 116, ratings_recommend_to_friend: 0.79, ratings_business_outlook: 0.79, ratings_culture_values: null } } : { input: { domain: a.domain }, business_id: null, data: null })) });
+    const matched = hits.length;
+    return Response.json({ credit_usage: { total_credits: matched * cost, total_results: matched }, data: asked.map((a) => (/^(fig|str)/.test(a.domain) ? { input: { domain: a.domain }, business_id: "b".repeat(32), data: { ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9, ratings_ceo_approval: 0.93, ratings_ceo_approval_count: 116, ratings_recommend_to_friend: 0.79, ratings_business_outlook: 0.79, ratings_culture_values: null } } : { input: { domain: a.domain }, business_id: null, data: null })) });
   }) as unknown as typeof fetch;
   return { f, calls, balances };
 }
@@ -96,15 +97,32 @@ describe("the ratings job", () => {
     expect(again.status).toBe("complete");
   });
 
-  it("stops instead of spending on when a company turns out to cost more than 2 credits", async () => {
+  it("carries on, and says so, when Explorium prices a company above 2 credits — it goes by Explorium's own credit_usage, not by the balance", async () => {
     const { companies, store } = await setup(["fig1.com", "fig2.com", "fig3.com", "fig4.com", "fig5.com", "fig6.com"], ["key-pricey-111"]);
     const x = explorium({ "key-pricey-111": 100 }, { cost: 3, maxPerCall: 2 });
     const r = await runRatings({ companies, keys: store, fetcher: x.f, now: NOW });
-    expect(r.status).toBe("stopped");
-    expect(r.message).toBe("Explorium charged 3 credits per company, above the 2-credit limit, so the job stopped. Nothing more was spent.");
-    // The key stays on the list, and only the first batch was paid for.
-    expect((await store.list()).length).toBe(1);
-    expect(x.balances["key-pricey-111"]).toBeGreaterThan(90);
+    expect(r.status).toBe("complete");
+    expect(r.rated).toBe(6);
+    expect(r.notes).toEqual(["Explorium charged 3 credits per company on a batch, above the 2 expected."]);
+    expect(x.balances["key-pricey-111"]).toBe(100 - 6 * 3);
+  });
+
+  it("does not mistake other use of the Explorium account for a higher price", async () => {
+    // The owner's real case: 100 credits, 27 rated for 54, and 4 more credits used elsewhere on the account.
+    const { companies, store } = await setup(Array.from({ length: 27 }, (_, i) => `fig${i}.com`).concat(["x1.com", "x2.com"]), ["key-shared-111"]);
+    const x = explorium({ "key-shared-111": 100 });
+    let first = true;
+    const f = (async (url: string, init?: RequestInit) => {
+      const res = await x.f(url, init);
+      if (!url.endsWith("/v2/credits") && first) {
+        first = false;
+        x.balances["key-shared-111"] -= 4;
+      }
+      return res;
+    }) as unknown as typeof fetch;
+    const r = await runRatings({ companies, keys: store, fetcher: f, now: NOW });
+    expect(r.status).toBe("complete");
+    expect(r.notes).toEqual([]);
   });
 
   it("when Explorium refuses a batch the key can still pay for, tries a smaller one instead of deleting the key", async () => {

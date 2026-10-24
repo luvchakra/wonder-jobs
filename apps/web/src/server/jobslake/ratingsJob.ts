@@ -21,11 +21,12 @@ export interface RetiredKey {
 }
 
 /**
- * The most a company Explorium matches may cost, in credits (owner, 2026-10-24: "stick to 2 credits per company").
- * Explorium's usage page shows the ratings enrichment at 2. The job asks only for ratings, never another enrichment,
- * and if the balance ever shows it costing more than this it stops instead of spending on.
+ * What a company Explorium matches costs, in credits (owner, 2026-10-24: "stick to 2 credits per company"): the
+ * figure on Explorium's usage page for the ratings enrichment. Batches are sized by it. The job asks only for
+ * ratings, never another enrichment. If Explorium ever reports a higher price for a batch (its own `credit_usage`,
+ * not a guess from the balance, which other use of the account also moves), the job notes it and carries on.
  */
-export const MAX_CREDITS_PER_COMPANY = 2;
+export const CREDITS_PER_COMPANY = 2;
 
 export interface RatingsRunReport {
   /** complete: nothing is waiting · needs_key: keys ran out with companies left · more: time's up, call again · stopped: Explorium or the network is in the way. */
@@ -39,6 +40,8 @@ export interface RatingsRunReport {
   /** Companies still waiting for a lookup. */
   left: number;
   message: string;
+  /** Things worth knowing that didn't stop the job (a batch Explorium priced above 2 credits a company). */
+  notes: string[];
 }
 
 let running = false;
@@ -51,7 +54,7 @@ export async function runRatings(
   const startedAt = Date.now();
   const budget = opts.budgetMs ?? 40_000;
   const staleBefore = new Date((opts.now ?? Date.now()) - RATINGS_TTL_MS).toISOString();
-  const report: RatingsRunReport = { status: "complete", checked: 0, rated: 0, notFound: 0, retired: [], keysLeft: 0, left: 0, message: "" };
+  const report: RatingsRunReport = { status: "complete", checked: 0, rated: 0, notFound: 0, retired: [], keysLeft: 0, left: 0, message: "", notes: [] };
   const finish = async (status: RatingsRunReport["status"], message: string) => {
     report.status = status;
     report.message = message;
@@ -62,8 +65,7 @@ export async function runRatings(
   if (running) return finish("stopped", "A ratings job is already running. Wait for it to finish.");
   running = true;
   try {
-    let cost = MAX_CREDITS_PER_COMPANY;
-    let spent: { key: string; before: number; matched: number } | undefined;
+    let cost = CREDITS_PER_COMPANY;
     for (;;) {
       const due = await companies.needingRatings(EXPLORIUM_BATCH, staleBefore);
       if (!due.length) return await finish("complete", "All companies are covered — no company left.");
@@ -97,12 +99,8 @@ export async function runRatings(
         await retire("out of credits", 0);
         continue;
       }
-      // What the last batch actually cost, per company it matched, from the balance before and after.
-      if (spent && spent.matched > 0 && spent.key === key.id && spent.before > credits.remaining) cost = Math.max(1, Math.ceil((spent.before - credits.remaining) / spent.matched));
-      spent = undefined;
-      if (cost > MAX_CREDITS_PER_COMPANY) return await finish("stopped", `Explorium charged ${cost} credits per company, above the ${MAX_CREDITS_PER_COMPANY}-credit limit, so the job stopped. Nothing more was spent.`);
 
-      // Ask for as many companies as the credits can pay for at the measured cost — and if Explorium still says
+      // Ask for as many companies as the credits can pay for at the cost per company — and if Explorium still says
       // no while the key has credits, for half as many, down to one. A key is only deleted when it can't pay for one.
       let size = Math.max(1, Math.min(due.length, Math.floor(credits.remaining / cost)));
       let res = await exploriumRatings(secret, due.slice(0, size), opts.fetcher);
@@ -125,7 +123,15 @@ export async function runRatings(
       const at = new Date().toISOString();
       await companies.setRatings(res.ratings, batch.map((b) => b.domain), at);
       await keyStore.touch(key.id, { lastUsedAt: at });
-      spent = { key: key.id, before: credits.remaining, matched: res.ratings.size };
+      // Explorium's own account of what the batch cost. Above 2 a company: say so, size the next batches by it, go on.
+      if (res.usage) {
+        const each = res.usage.credits / res.usage.results;
+        if (each > cost) {
+          cost = Math.ceil(each);
+          const note = `Explorium charged ${Math.round(each * 10) / 10} credits per company on a batch, above the ${CREDITS_PER_COMPANY} expected.`;
+          if (!report.notes.includes(note)) report.notes.push(note);
+        }
+      }
       report.checked += batch.length;
       report.rated += res.ratings.size;
       report.notFound += batch.length - res.ratings.size;

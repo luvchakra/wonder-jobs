@@ -59,6 +59,7 @@ export default function RatingsPage() {
       const rep = r.data;
       checked += rep.checked;
       rated += rep.rated;
+      for (const note of rep.notes) setLog((l) => (l.some((x) => x.text === note) ? l : [...l, { tone: "warning", text: note }]));
       for (const k of rep.retired) setLog((l) => [...l, { tone: "warning", text: `Key ${k.label ? `“${k.label}” ` : ""}${k.masked} removed from the list — ${k.reason}${k.creditsLeft ? ` (${num(k.creditsLeft)} credit${k.creditsLeft === 1 ? "" : "s"} left)` : ""}.` }]);
       setLog((l) => [...l.filter((x) => !x.text.startsWith("Looked up")), { tone: "info", text: `Looked up ${num(checked)} ${checked === 1 ? "company" : "companies"} so far — ${num(rated)} with a rating.` }]);
       reload();
