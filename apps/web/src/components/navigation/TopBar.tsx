@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, ShieldCheck, User, UserPlus } from "lucide-react";
+import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, ShieldCheck, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -118,6 +118,8 @@ export function TopBar() {
                   { id: "your_data", href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
                 ] as const)
               : []),
+            // Which AI writes Wonder's drafts (WonderJobs AI or the candidate's own key).
+            { id: "ai_provider", href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
             // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
             { id: "hiring", href: "/app/hiring", label: "Hiring", icon: Building2 },
             // The sidebar's Analytics, for phones (no sidebar there).

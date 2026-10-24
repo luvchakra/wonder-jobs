@@ -22,7 +22,7 @@ const cache = new Map<string, Place[]>();
  * becomes a pill under the box (× removes it) and the box is free for the next one, so several places can
  * be listed; Enter adds what's typed as it is. Nothing is added that wasn't picked or typed.
  */
-export function PlaceInput({ places: value, onChange: setPlaces, label, id, placeholder, className }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string }) {
+export function PlaceInput({ places: value, onChange: setPlaces, label, id, placeholder, className, inputClassName }: { places: string[]; onChange: (places: string[]) => void; label: string; id?: string; placeholder?: string; className?: string; /** e.g. a shorter box in Refine. */ inputClassName?: string }) {
   const picked = value.filter((p) => !isRemote(p));
   const onChange = (list: string[]) => setPlaces(list);
   const [text, setText] = useState("");
@@ -75,6 +75,7 @@ export function PlaceInput({ places: value, onChange: setPlaces, label, id, plac
         aria-autocomplete="list"
         aria-activedescendant={expanded && active >= 0 ? `${listId}-${active}` : undefined}
         aria-label={label}
+        className={inputClassName}
         autoComplete="off"
         value={text}
         onChange={(e) => {

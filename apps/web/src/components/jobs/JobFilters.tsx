@@ -81,7 +81,7 @@ const historyFor = (items: string[], text: string) => {
 };
 
 /** Refine's chips: small enough that each group fits one line on a phone. */
-const REFINE_CHIP = "h-8 px-2.5 text-[12px] max-[400px]:px-2";
+const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[400px]:px-2";
 
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
@@ -214,7 +214,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     const t = setTimeout(() => setSection(null), 1600);
     return () => clearTimeout(t);
   }, [more, section]);
-  const sectionClass = (at: RefineSection) => cn("-m-2 flex flex-col gap-1.5 rounded-[12px] p-2 text-[13px] font-medium text-ink-2 outline-none transition-shadow", section === at && "ring-2 ring-brand-400 bg-brand-50/60");
+  const sectionClass = (at: RefineSection) => cn("-m-1.5 flex flex-col gap-1 rounded-[12px] p-1.5 text-[13px] font-medium text-ink-2 outline-none transition-shadow", section === at && "ring-2 ring-brand-400 bg-brand-50/60");
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
@@ -321,14 +321,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {more && (
-        <div className="grid grid-cols-1 gap-4 rounded-[16px] border border-line bg-surface p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
+        <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
           {/* Back to the list without changing anything typed here. */}
-          <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-9 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
+          <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-8 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
             <ArrowLeft className="size-4" aria-hidden /> Back to jobs
           </button>
-          {refineTop && <div className="border-b border-line pb-3 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
+          {refineTop && <div className="border-b border-line pb-2 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
           {views && (
-            <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+            <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
               Show
               <div className="flex flex-wrap gap-1">
                 {VIEWS.map((v) => (
@@ -339,7 +339,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Job type
             <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
           </div>
@@ -366,12 +366,12 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             <span aria-hidden>Location</span>
             {/* Real places worldwide as you type; each picked one a pill, as many as wanted. */}
-            <PlaceInput label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).some((p) => !/^remote$/i.test(p)) ? "Add another place" : "Anywhere — e.g. Dubai"} />
+            <PlaceInput inputClassName="h-9 text-[14px]" label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).some((p) => !/^remote$/i.test(p)) ? "Add another place" : "Anywhere — e.g. Dubai"} />
           </div>
-          <div className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Level
             <div className="flex flex-wrap gap-1">
               {LEVELS.map((l) => (
@@ -381,9 +381,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium text-ink-2">
+          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Posted
-            <Select value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
+            <Select className="h-9 text-[14px]" value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
               <option value="">Any time</option>
               <option value="1">Last 24 hours</option>
               <option value="7">Last week</option>
@@ -391,12 +391,12 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             </Select>
           </label>
           {/* Jobs you're already preparing, have applied to or are interviewing for. */}
-          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+          <label className="flex min-h-8 cursor-pointer items-center gap-2.5 text-[13px] text-ink sm:col-span-2 lg:col-span-3">
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
             <span>Hide Pipeline: jobs you&apos;re already applying to</span>
           </label>
           {!partTime && (
-          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-ink sm:col-span-2 lg:col-span-3">
+          <label className="flex min-h-8 cursor-pointer items-center gap-2.5 text-[13px] text-ink sm:col-span-2 lg:col-span-3">
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
             <span>
               Search strictly within your{" "}
@@ -407,7 +407,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </label>
           )}
           {/* One action: keep what's set here and go back to the list. */}
-          <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-3 sm:col-span-2 md:bottom-2 lg:col-span-3">
+          <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-2 sm:col-span-2 md:bottom-2 lg:col-span-3">
             <Button
               className="min-w-0 flex-1 sm:flex-none"
               onClick={() => {
@@ -419,7 +419,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 text-[13px] sm:col-span-2 lg:col-span-3">
-            <button type="button" onClick={() => onCompare(!compare)} aria-pressed={compare} className="inline-flex min-h-9 items-center gap-1.5 font-medium text-brand-600 hover:underline">
+            <button type="button" onClick={() => onCompare(!compare)} aria-pressed={compare} className="inline-flex min-h-8 items-center gap-1.5 font-medium text-brand-600 hover:underline">
               <GitCompareArrows className="size-3.5" aria-hidden /> {compare ? "Stop comparing" : "Compare jobs"}
             </button>
             {activeCount > 0 && (
@@ -430,7 +430,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
                   onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, locations: filters.skipProfile ? [] : undefined });
                   useJobsStore.getState().setSort("best_match");
                 }}
-                className="inline-flex min-h-9 items-center font-medium text-ink-3 hover:text-ink hover:underline"
+                className="inline-flex min-h-8 items-center font-medium text-ink-3 hover:text-ink hover:underline"
               >
                 Clear refinements
               </button>

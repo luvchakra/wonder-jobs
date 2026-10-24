@@ -13,6 +13,7 @@ export const MENUS = {
     items: [
       { id: "account", label: "Account" },
       { id: "plan", label: "Plan & billing" },
+      { id: "ai_provider", label: "AI provider" },
       { id: "api_keys", label: "API keys" },
       { id: "notifications", label: "Notifications & email" },
       { id: "your_data", label: "Your data" },
@@ -32,7 +33,6 @@ export const MENUS = {
       { id: "resumes", label: "Career Profile" },
       { id: "job_sources", label: "Job sources" },
       { id: "automation", label: "Automation" },
-      { id: "ai_provider", label: "AI provider" },
       { id: "search_history", label: "Search history" },
     ],
     alwaysShown: [],
