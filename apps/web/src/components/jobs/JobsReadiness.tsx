@@ -287,6 +287,9 @@ export function WantedRole({ className }: { className?: string }) {
 /** “126 found so far in 9 sources” — the running search's own counts. */
 export const foundSoFar = (found: number, sources: number) => `${found.toLocaleString("en-IN")} found so far in ${sources} ${sources === 1 ? "source" : "sources"}`;
 
+/** Which "Search as" a search ran as: the role's name, My profile for the Career Profile, nothing for typed words. */
+export const searchedAs = (c: { role?: { title: string }; origin?: "profile" | "words" }): string | null => c.role?.title ?? (c.origin === "profile" ? "My profile" : null);
+
 export function SearchStatusLine({ search, monitoring = false }: { search: JobSearch; monitoring?: boolean }) {
   // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
@@ -319,6 +322,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
             ) : null}
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
               For “{active.config.searchCriteria.query}”{where.length ? ` in ${where.join(", ")}` : ""}
+              {searchedAs(active.config) && <span className="font-medium text-brand-700"> · as {searchedAs(active.config)}</span>}
             </p>
           </Link>
         </div>
