@@ -11,6 +11,7 @@
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { LOGO_TTL_MS, companiesFrom, companyStore, fetchLogo, type CompanyStore } from "./companies";
 import { jobsLakeStore } from "./store";
+import { wikidataFacts } from "./wikidata";
 import { retypeFromTitle } from "@/domain/jobs/jobType";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 
@@ -21,13 +22,19 @@ export interface CompanyRefreshReport {
   logosFound: number;
   /** Stored postings given the job type their title states this run. */
   jobTypesFilled: number;
+  /** Companies looked up on Wikidata this run, and how many it had facts for. */
+  wikidataChecked: number;
+  wikidataFound: number;
 }
+
+/** How long Wikidata's facts (or the finding that it has none) are trusted before they're looked for again. */
+export const WIKIDATA_TTL_MS = 30 * 86_400_000;
 
 /** The most postings read per refresh (PostgREST answers at most 1,000 rows a request). */
 const MAX_POSTINGS = 1000;
 
 export async function refreshCompanies(
-  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; savePostings?: (opps: CanonicalOpportunity[]) => Promise<void>; fetcher?: typeof fetch } = {},
+  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; savePostings?: (opps: CanonicalOpportunity[]) => Promise<void>; fetcher?: typeof fetch; wikidataLimit?: number; wikidata?: typeof wikidataFacts } = {},
 ): Promise<CompanyRefreshReport> {
   const now = opts.now ?? Date.now();
   const startedAt = Date.now();
@@ -47,9 +54,7 @@ export async function refreshCompanies(
       counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
       if (o.postedAt >= weekAgo) fresh.set(r.domain, (fresh.get(r.domain) ?? 0) + 1);
     }
-  // H-1B totals from the last Department of Labor file, by exact (normalized) company name; null when it names none.
-  const h1b = await store.h1bFor([...new Set(records.map((r) => r.nameKey))]).catch(() => undefined);
-  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at, ...(h1b ? { h1b: h1b.get(r.nameKey) ?? null } : {}) })));
+  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at })));
 
   // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
   // the one their title states.
@@ -58,6 +63,19 @@ export async function refreshCompanies(
     return t ? [{ ...o, jobType: t, jobTypeFrom: "title" as const }] : [];
   });
   if (typed.length) await (opts.savePostings ?? ((x) => jobsLakeStore().upsertOpportunities(x)))(typed);
+
+  // Wikidata's facts for companies never looked up (or not for a month), 40 to a query, within the time budget.
+  const wiki = { checked: 0, found: 0 };
+  const due2 = await store.needingWikidata(opts.wikidataLimit ?? 200, new Date(now - WIKIDATA_TTL_MS).toISOString());
+  for (let i = 0; i < due2.length && Date.now() - startedAt < budget; i += 40) {
+    const batch = due2.slice(i, i + 40);
+    // A batch Wikidata refuses is left for the next run; the rest still go.
+    const facts = await (opts.wikidata ?? wikidataFacts)(batch, opts.fetcher ?? fetch).catch(() => undefined);
+    if (!facts) continue;
+    await store.setWikidata(facts, batch, new Date().toISOString());
+    wiki.checked += batch.length;
+    wiki.found += facts.size;
+  }
 
   // Logos never looked for (or not for a month), a few at a time, within the time budget.
   const due = await store.needingLogo(opts.logoLimit ?? 150, new Date(now - LOGO_TTL_MS).toISOString());
@@ -75,5 +93,5 @@ export async function refreshCompanies(
       }
     }),
   );
-  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found, jobTypesFilled: typed.length };
+  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found, jobTypesFilled: typed.length, wikidataChecked: wiki.checked, wikidataFound: wiki.found };
 }

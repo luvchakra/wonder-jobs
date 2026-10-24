@@ -5,7 +5,9 @@
  * call and THEIRSTACK_MONTHLY_CREDITS a month. Its postings are never served to JobsLake API keys
  * (its terms don't permit redistribution as a dataset) and each one is labelled as coming from TheirStack.
  */
-import type { CompanyFacts, Job } from "@/domain/jobs/types";
+import type { Job } from "@/domain/jobs/types";
+import type { CompanyFacts } from "@/domain/jobslake/companies";
+import { recordCompanyFacts } from "@/server/jobslake/companies";
 import { locationScope } from "@/domain/jobslake/planner";
 import { corePhrase, normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import type { SearchCriteria, SourceFetcher } from "./providers";
@@ -112,7 +114,6 @@ export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
     title: j.job_title,
     company: j.company_object?.name || j.company || "",
     companyDomain: j.company_domain || j.company_object?.domain || undefined,
-    companyFacts: theirStackFacts(j.company_object),
     location: j.location || j.locations?.[0]?.display_name || j.short_location || j.country || (j.remote ? "Remote" : ""),
     remote: j.remote ?? undefined,
     description: j.description ?? "",
@@ -210,6 +211,9 @@ export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; m
     break;
   }
   if (!data) throw new TheirStackError(`TheirStack: ${last} on all ${order.length} key(s)`);
+  // What TheirStack says about each company goes straight to JobsLake's company directory, once per company —
+  // never into the postings themselves.
+  await recordCompanyFacts(data.flatMap((j) => { const facts = theirStackFacts(j.company_object); const domain = j.company_domain || j.company_object?.domain; return facts && domain ? [{ domain, name: j.company_object?.name || j.company || "", facts, source: "theirstack" }] : []; })).catch(() => {});
   const seen = new Set<string>();
   const out: Job[] = [];
   for (const j of data.slice(0, limit)) {

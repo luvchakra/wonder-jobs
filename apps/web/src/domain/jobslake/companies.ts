@@ -3,7 +3,6 @@
  * host of a job's apply link on the employer's own site — never guessed from the name. A job whose source
  * gives no domain is matched to one by its exact (normalized) company name, as JobsLake saw it elsewhere.
  */
-import type { CompanyFacts } from "@/domain/jobs/types";
 import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/destination";
 
 /** Hiring platforms and boards: their host is the platform's, not the employer's. */
@@ -46,7 +45,25 @@ export function companyKey(name: string): string {
 }
 
 /** What JobsLake keeps about a company — only what sources reported, plus its cached logo. */
-export type { CompanyFacts };
+/** Facts about an employer exactly as a source reported them; `from` names that source. */
+export interface CompanyFacts {
+  industry?: string;
+  employees?: number;
+  /** The year the employee count is from, when the source dates it. */
+  employeesAsOf?: number;
+  employeeRange?: string;
+  hqCity?: string;
+  hqCountry?: string;
+  founded?: number;
+  fundingStage?: string;
+  ticker?: string;
+  exchange?: string;
+  /** Annual revenue as the source states it, in its own currency. */
+  revenue?: { amount: number; currency: string; year?: number };
+  /** The source's own id for the company (a Wikidata item, "Q96186334"). */
+  sourceId?: string;
+  from: string;
+}
 
 /** One employer's totals from a US Department of Labor LCA disclosure file (certified H-1B applications only). */
 export interface H1bRecord {
@@ -78,14 +95,16 @@ export interface CompanyRecord {
   /** What a source reported about the company itself (TheirStack's job data), with when it was last seen. */
   facts?: CompanyFacts;
   factsAt?: string;
-  /** Its certified H-1B applications in the US Department of Labor's latest disclosure file, matched by name. */
-  h1b?: H1bRecord | null;
+  /** Wikidata's facts for the item whose official website is this domain; null when it has none. */
+  wikidata?: CompanyFacts | null;
+  wikidataAt?: string;
 }
 
 /** What JobsLake knows about a company, every value from a named source or its own postings; no logo. */
 export interface CompanyProfile {
   name: string;
   facts?: CompanyRecord["facts"];
+  wikidata?: CompanyFacts;
   openJobs?: number;
   newJobs7d?: number;
   countedAt?: string;
@@ -102,22 +121,34 @@ export interface CompanyLine {
   label: string;
   value: string;
   source: string;
+  /** The source's own page for this company, when it has one. */
+  href?: string;
 }
 
-/** The facts JobsLake has for a company, in the order they're shown; nothing it doesn't have. */
+const compact = (v: number, locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(v);
+const CURRENCY: Record<string, string> = { "United States dollar": "$", euro: "€", "pound sterling": "£", "Indian rupee": "₹", "Japanese yen": "¥" };
+
+/** The facts JobsLake has for a company, in the order they're shown; each from the first source that has it. */
 export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[] {
   const n = (v: number) => v.toLocaleString(locale);
   const out: CompanyLine[] = [];
-  const f = p.facts;
-  if (f) {
-    const size = f.employees ? `${n(f.employees)} employees` : f.employeeRange ? `${f.employeeRange.replace("-", "–")} employees` : "";
-    if (size) out.push({ label: "Size", value: size, source: f.from });
-    if (f.industry) out.push({ label: "Industry", value: f.industry.charAt(0).toUpperCase() + f.industry.slice(1), source: f.from });
-    if (f.hqCountry) out.push({ label: "Headquarters", value: f.hqCountry, source: f.from });
-    if (f.founded) out.push({ label: "Founded", value: String(f.founded), source: f.from });
-    const stage = f.ticker ? `Public (${f.ticker})` : f.fundingStage ? stageLabel(f.fundingStage) : "";
-    if (stage) out.push({ label: "Funding", value: stage, source: f.from });
-  }
+  const sets = [p.facts, p.wikidata].filter((f): f is CompanyFacts => !!f);
+  const add = (label: string, pick: (f: CompanyFacts) => string | undefined, year?: (f: CompanyFacts) => number | undefined) => {
+    for (const f of sets) {
+      const value = pick(f);
+      if (!value) continue;
+      const y = year?.(f);
+      out.push({ label, value, source: `${f.from}${y ? `, ${y}` : ""}`, ...(f.from === "Wikidata" && f.sourceId ? { href: `https://www.wikidata.org/wiki/${f.sourceId}` } : {}) });
+      return;
+    }
+  };
+  add("Size", (f) => (f.employees ? `${n(f.employees)} employees` : f.employeeRange ? `${f.employeeRange.replace("-", "–")} employees` : undefined), (f) => (f.employees ? f.employeesAsOf : undefined));
+  add("Industry", (f) => f.industry && f.industry.charAt(0).toUpperCase() + f.industry.slice(1));
+  add("Headquarters", (f) => [f.hqCity, f.hqCountry].filter(Boolean).join(", ") || undefined);
+  add("Founded", (f) => (f.founded ? String(f.founded) : undefined));
+  add("Listed", (f) => (f.ticker ? `${f.exchange ? `${f.exchange}: ` : ""}${f.ticker}` : undefined));
+  if (!out.some((l) => l.label === "Listed")) add("Funding", (f) => (f.fundingStage ? stageLabel(f.fundingStage) || undefined : undefined));
+  add("Revenue", (f) => (f.revenue ? (CURRENCY[f.revenue.currency] ? `${CURRENCY[f.revenue.currency]}${compact(f.revenue.amount, locale)}` : `${compact(f.revenue.amount, locale)} ${f.revenue.currency}`) : undefined), (f) => f.revenue?.year);
   if (p.openJobs !== undefined && p.openJobs > 0) out.push({ label: "Hiring", value: `${n(p.openJobs)} open ${p.openJobs === 1 ? "role" : "roles"}${p.newJobs7d ? ` · ${n(p.newJobs7d)} new this week` : ""}`, source: "JobsLake, last two weeks" });
   if (p.h1b) out.push({ label: "H-1B visas", value: `${n(p.h1b.filings)} certified ${p.h1b.filings === 1 ? "application" : "applications"}${p.h1b.medianWage ? ` · median $${n(p.h1b.medianWage)}` : ""}`, source: `US Dept. of Labor, ${p.h1b.through}` });
   return out;

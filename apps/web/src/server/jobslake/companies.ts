@@ -4,7 +4,7 @@
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { cleanDomain, companyKey, employerDomainOf, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyKey, employerDomainOf, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** How long a logo (or the finding that there is none) is trusted before it's looked for again. */
@@ -18,6 +18,10 @@ export interface CompanyStore {
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
+  /** Companies whose Wikidata facts were never looked for, or not since `staleBefore` — oldest first. */
+  needingWikidata(limit: number, staleBefore: string): Promise<string[]>;
+  /** Stores what Wikidata has for each looked-for domain (null: nothing). */
+  setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string): Promise<void>;
   /** H-1B totals for these company-name keys, from the last loaded Department of Labor file. */
   h1bFor(nameKeys: string[]): Promise<Map<string, H1bRecord>>;
   /** Stores one file's H-1B totals (rows keyed by company-name key); `replace` removes the previous file's first. */
@@ -30,14 +34,13 @@ function extraCols(r: CompanyRecord) {
     ...(r.openJobs !== undefined ? { open_jobs: r.openJobs, counted_at: r.countedAt } : {}),
     ...(r.newJobs7d !== undefined ? { new_jobs_7d: r.newJobs7d } : {}),
     ...(r.facts ? { facts: r.facts, facts_at: r.factsAt ?? r.lastSeenAt } : {}),
-    ...(r.h1b !== undefined ? { h1b: r.h1b } : {}),
   };
 }
+const wikidataOf = (v: unknown): CompanyFacts | null => (v && typeof v === "object" && "from" in v ? (v as CompanyFacts) : null);
 const extraFields = (r: CompanyRecord): Partial<CompanyRecord> => ({
   ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
   ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
   ...(r.facts ? { facts: r.facts, factsAt: r.factsAt ?? r.lastSeenAt } : {}),
-  ...(r.h1b !== undefined ? { h1b: r.h1b } : {}),
 });
 
 class MemoryCompanies implements CompanyStore {
@@ -66,6 +69,19 @@ class MemoryCompanies implements CompanyStore {
       .slice(0, limit)
       .map((r) => r.domain);
   }
+  async needingWikidata(limit: number, staleBefore: string) {
+    return [...this.rows.values()]
+      .filter((r) => !r.wikidataAt || r.wikidataAt < staleBefore)
+      .sort((a, b) => (a.wikidataAt ?? "").localeCompare(b.wikidataAt ?? ""))
+      .slice(0, limit)
+      .map((r) => r.domain);
+  }
+  async setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string) {
+    for (const d of checked) {
+      const r = this.rows.get(d);
+      if (r) this.rows.set(d, { ...r, wikidata: found.get(d) ?? null, wikidataAt: at });
+    }
+  }
   async h1bFor(nameKeys: string[]) {
     return new Map(nameKeys.flatMap((k) => (this.h1b.has(k) ? [[k, this.h1b.get(k)!] as const] : [])));
   }
@@ -75,8 +91,8 @@ class MemoryCompanies implements CompanyStore {
   }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; h1b?: H1bRecord | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b ? { h1b: r.h1b } : {}) });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; wikidata?: unknown; wikidata_at?: string | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -113,6 +129,18 @@ class SupabaseCompanies implements CompanyStore {
     const { data, error } = await this.sb().select("domain").or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
     if (error) throw new Error(error.message);
     return (data ?? []).map((r: { domain: string }) => r.domain);
+  }
+  async needingWikidata(limit: number, staleBefore: string) {
+    const { data, error } = await this.sb().select("domain").or(`wikidata_at.is.null,wikidata_at.lt.${staleBefore}`).order("wikidata_at", { ascending: true, nullsFirst: true }).limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { domain: string }) => r.domain);
+  }
+  async setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string) {
+    // One update per company: the facts differ for each.
+    for (const d of checked) {
+      const { error } = await this.sb().update({ wikidata: found.get(d) ?? {}, wikidata_at: at }).eq("domain", d);
+      if (error) throw new Error(error.message);
+    }
   }
   private h1bTable() {
     return getSupabaseAdmin()!.schema("wonderjobs").from("jobslake_h1b_employers");
@@ -161,10 +189,24 @@ export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toI
     if (!domain || !nameKey) continue;
     const sources = o.sourceRecords.map((r) => r.sourceId);
     const prev = out.get(domain);
-    const facts = o.employer.facts ?? prev?.facts;
-    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now, ...(facts ? { facts, factsAt: now } : {}) });
+    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
   }
   return [...out.values()];
+}
+
+/**
+ * Facts a source reported about companies (TheirStack's `company_object`), written to the company directory —
+ * the one place they're kept. A company is identified by the domain the source reported, as everywhere here.
+ */
+export async function recordCompanyFacts(items: { domain: string; name: string; facts: CompanyFacts; source: string }[], store: CompanyStore = companyStore()): Promise<void> {
+  const now = new Date().toISOString();
+  const by = new Map<string, CompanyRecord>();
+  for (const i of items) {
+    const domain = cleanDomain(i.domain);
+    const nameKey = companyKey(i.name);
+    if (domain && nameKey) by.set(domain, { domain, name: i.name, nameKey, sources: [i.source], firstSeenAt: now, lastSeenAt: now, facts: i.facts, factsAt: now });
+  }
+  if (by.size) await store.upsert([...by.values()]);
 }
 
 export async function recordCompanies(opps: CanonicalOpportunity[]): Promise<void> {
@@ -226,12 +268,13 @@ export async function companyProfile(q: { domain?: string; name?: string }, stor
   const nameKey = q.name ? companyKey(q.name) : "";
   const r = (domain ? await store.byDomain(domain) : undefined) ?? (nameKey ? await store.byName(nameKey) : undefined);
   const key = r?.nameKey ?? nameKey;
-  // The refresh copies H-1B totals onto a company; one it hasn't matched (or reached yet) is looked up by name.
-  const h1b = r?.h1b ?? (key ? (await store.h1bFor([key])).get(key) : undefined);
+  // H-1B totals live only in the Department of Labor table, read here by the company's name key.
+  const h1b = key ? (await store.h1bFor([key])).get(key) : undefined;
   if (!r && !h1b) return undefined;
   return {
     name: r?.name ?? q.name ?? "",
     ...(r?.facts ? { facts: r.facts } : {}),
+    ...(r?.wikidata ? { wikidata: r.wikidata } : {}),
     ...(r?.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
     ...(r?.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
     ...(h1b ? { h1b } : {}),

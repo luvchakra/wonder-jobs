@@ -13,6 +13,6 @@ export async function GET(req: Request) {
   if (session instanceof NextResponse) return session;
   const u = new URL(req.url);
   const p = await companyProfile({ domain: u.searchParams.get("d")?.slice(0, 253) ?? undefined, name: u.searchParams.get("n")?.slice(0, 200) ?? undefined }).catch(() => undefined);
-  if (!p) return NextResponse.json({ error: "No company data" }, { status: 404, headers: { "cache-control": "private, max-age=3600" } });
-  return NextResponse.json(p, { headers: { "cache-control": "private, max-age=3600" } });
+  if (!p) return NextResponse.json({ error: "No company data" }, { status: 404, headers: { "cache-control": "private, max-age=600" } });
+  return NextResponse.json(p, { headers: { "cache-control": "private, max-age=600" } });
 }
