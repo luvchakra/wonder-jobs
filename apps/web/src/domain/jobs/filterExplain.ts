@@ -159,7 +159,7 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   not_saved: { showAnyway: { onlySaved: false }, preference: { label: "See all jobs", href: "/app/jobs" } },
   too_old: { showAnyway: { includeOld: true }, preference: { label: "See recent jobs", href: "/app/jobs" } },
   work_mode: { showAnyway: { workModes: [] }, preference: { label: "Change work modes", href: "/app/career-dna" } },
-  source: { showAnyway: { sourceIds: [] }, preference: { label: "Change sources", href: "/app/jobs" } },
+  source: { showAnyway: { sourceIds: [], savedEasyApply: false }, preference: { label: "Change sources", href: "/app/jobs" } },
   min_fit: { showAnyway: { minFit: null }, preference: { label: "Change minimum fit", href: "/app/jobs" } },
   freshness: { showAnyway: { freshnessDays: null }, preference: { label: "Change how recent", href: "/app/jobs" } },
   min_salary: { showAnyway: { minSalary: undefined }, preference: { label: "Change minimum salary", href: "/app/career-dna" } },

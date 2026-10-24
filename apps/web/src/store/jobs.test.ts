@@ -154,6 +154,24 @@ describe("Hide Pipeline", () => {
   });
 });
 
+describe("Saved's Easy Apply only", () => {
+  it("is kept with the account, apart from Find's sources, and survives a mode switch", () => {
+    const st = () => useJobsStore.getState();
+    st().setFilters({ savedEasyApply: true });
+    const opts = useJobsStore.persist.getOptions();
+    const saved = opts.partialize!(st()) as { savedEasyApply?: boolean };
+    expect(saved.savedEasyApply).toBe(true);
+    const fresh = { ...st(), filters: { ...st().filters, savedEasyApply: false } };
+    expect((opts.merge!(saved, fresh) as { filters: { savedEasyApply?: boolean } }).filters.savedEasyApply).toBe(true);
+    // Find's Refine is untouched by it.
+    expect(st().filters.sourceIds).toEqual([]);
+    st().switchFindMode("part_time");
+    expect(st().filters.savedEasyApply).toBe(true);
+    st().switchFindMode("full_time");
+    st().setFilters({ savedEasyApply: false });
+  });
+});
+
 describe("a running search's arrivals", () => {
   beforeEach(() => useJobsStore.setState({ jobs: {}, order: [], matches: {}, closed: {}, saved: {}, searchedFor: "", beforeWords: undefined }));
 

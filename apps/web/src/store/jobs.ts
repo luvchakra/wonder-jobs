@@ -123,7 +123,7 @@ function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<Jobs
   return { filters, sort, refine: sameRefine(s.refine[mode], now) ? s.refine : { ...s.refine, [mode]: now } };
 }
 
-function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipProfile?: boolean; sort?: JobSort; partTimeQuery?: unknown }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort" | "partTimeQuery"> {
+function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean; sort?: JobSort; partTimeQuery?: unknown }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort" | "partTimeQuery"> {
   const raw = (p.refine && typeof p.refine === "object" ? p.refine : {}) as Record<string, unknown>;
   const refine: JobsState["refine"] = {};
   for (const m of ["full_time", "part_time"] as const) {
@@ -134,7 +134,7 @@ function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipPro
   const { sort, ...narrowing } = refine[mode] ?? { ...refineDefaults(mode), hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? "best_match" };
   // The mode's start, then everything kept for it (places, job types and view included); Part Time's words too.
   const partTimeQuery = typeof p.partTimeQuery === "string" ? p.partTimeQuery.slice(0, 200) : "";
-  return { refine, sort, partTimeQuery, filters: { ...filters, ...FIND_MODE_PATCH[mode], ...narrowing, ...(mode === "part_time" ? { query: partTimeQuery } : {}) } };
+  return { refine, sort, partTimeQuery, filters: { ...filters, ...FIND_MODE_PATCH[mode], ...narrowing, ...(p.savedEasyApply ? { savedEasyApply: true } : {}), ...(mode === "part_time" ? { query: partTimeQuery } : {}) } };
 }
 
 /** How many searches each history keeps. */
@@ -371,7 +371,7 @@ export const useJobsStore = create<JobsState>()(
       skipHydration: true,
       version: 2,
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; skipProfile?: boolean };
+        const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
         return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
@@ -384,7 +384,7 @@ export const useJobsStore = create<JobsState>()(
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
-        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },

@@ -9,7 +9,7 @@ import { useUIStore } from "@/store/ui";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
-export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false, includeOld: true };
+export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, savedEasyApply: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false, includeOld: true };
 
 /** One filter's own undo, for when it is what hides the jobs: the patch, and the button's words. */
 const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; label: string }>> = {
@@ -22,7 +22,7 @@ const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; la
   min_fit: { patch: { minFit: null, exactFit: false }, label: "Show every fit" },
   freshness: { patch: { freshnessDays: null }, label: "Show any date" },
   too_old: { patch: { includeOld: true }, label: "Show older jobs too" },
-  source: { patch: { sourceIds: [] }, label: "Show every source" },
+  source: { patch: { sourceIds: [], savedEasyApply: false }, label: "Show every source" },
   company: { patch: { company: "" }, label: "Show every company" },
   in_pipeline: { patch: { hideInPipeline: false }, label: "Show jobs in my Pipeline" },
 };

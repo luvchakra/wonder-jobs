@@ -163,6 +163,10 @@ export function SortMenu({ className }: { className?: string }) {
 export const EASY_APPLY_SOURCE = "employers";
 export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && sourceIds[0] === EASY_APPLY_SOURCE;
 
+const SAVED_TOGGLE = "inline-flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors";
+const SAVED_TOGGLE_ON = "border-brand-200 bg-brand-50 text-brand-700";
+const SAVED_TOGGLE_OFF = "border-line bg-surface text-ink-2 hover:text-ink";
+
 /**
  * Full Time searches the Career Profile (Looking for, on the page); Part Time what's typed in its box
  * (typing narrows the jobs already found; Enter searches every source for it, in those places). Under
@@ -517,10 +521,16 @@ function ShortlistFilters({ text, onText, filters, onChange, className }: { text
         )}
       </form>
       <JobTypeChips filters={filters} onChange={onChange} />
-      <label className={cn("inline-flex h-9 cursor-pointer select-none items-center gap-1.5 self-start rounded-full border px-3 text-[13px] font-medium transition-colors", filters.hideInPipeline ? "border-brand-200 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink-2 hover:text-ink")}>
-        <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-        Hide Pipeline
-      </label>
+      <div className="flex flex-wrap gap-2">
+        <label className={cn(SAVED_TOGGLE, filters.hideInPipeline ? SAVED_TOGGLE_ON : SAVED_TOGGLE_OFF)}>
+          <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+          Hide Pipeline
+        </label>
+        <label title="Only saved jobs you can send with Easy Apply" className={cn(SAVED_TOGGLE, filters.savedEasyApply ? SAVED_TOGGLE_ON : SAVED_TOGGLE_OFF)}>
+          <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.savedEasyApply} onChange={(e) => onChange({ savedEasyApply: e.target.checked })} />
+          Easy Apply only
+        </label>
+      </div>
     </div>
   );
 }
