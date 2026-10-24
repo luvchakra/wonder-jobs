@@ -15,6 +15,8 @@ export interface CompanyStore {
   upsert(records: CompanyRecord[]): Promise<void>;
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
+  /** The directory, most open roles first: a page of companies matching `q` (name or domain), and how many match. No logo bytes. */
+  list(q: string, limit: number, offset: number): Promise<{ total: number; rows: CompanyRecord[] }>;
   /** The companies with any of these domains or name keys — facts only, no logos. */
   facts(domains: string[], nameKeys: string[]): Promise<CompanyRecord[]>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
@@ -56,6 +58,12 @@ class MemoryCompanies implements CompanyStore {
   }
   async byDomain(domain: string) {
     return this.rows.get(domain);
+  }
+  async list(q: string, limit: number, offset: number) {
+    const k = q.trim().toLowerCase();
+    const all = [...this.rows.values()].filter((r) => !k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k));
+    all.sort((a, b) => (b.openJobs ?? -1) - (a.openJobs ?? -1) || a.name.localeCompare(b.name));
+    return { total: all.length, rows: all.slice(offset, offset + limit) };
   }
   async facts(domains: string[], nameKeys: string[]) {
     return [...this.rows.values()].filter((r) => domains.includes(r.domain) || nameKeys.includes(r.nameKey));
@@ -120,6 +128,16 @@ class SupabaseCompanies implements CompanyStore {
     const { data, error } = await this.sb().select("*").eq("domain", domain).maybeSingle();
     if (error) throw new Error(error.message);
     return data ? fromRow(data as Row) : undefined;
+  }
+  async list(q: string, limit: number, offset: number) {
+    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at";
+    // Only the characters a name or domain has go into the filter (it is a PostgREST expression).
+    const k = q.trim().toLowerCase().replace(/[^a-z0-9 .\-&']/g, "").slice(0, 80);
+    let query = this.sb().select(cols, { count: "exact" });
+    if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
+    const { data, error, count } = await query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
+    if (error) throw new Error(error.message);
+    return { total: count ?? 0, rows: (data ?? []).map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row)) };
   }
   async facts(domains: string[], nameKeys: string[]) {
     const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, facts, wikidata, wikidata_at";
@@ -313,3 +331,44 @@ export async function companyBriefs(qs: { d?: string; n: string }[], store: Comp
   }
   return out;
 }
+
+/** One company in the admin directory: its record's facts and counts, and its H-1B totals. */
+export interface DirectoryCompany {
+  domain: string;
+  name: string;
+  sources: string[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  logoChecked: boolean;
+  openJobs?: number;
+  newJobs7d?: number;
+  countedAt?: string;
+  facts?: CompanyFacts;
+  factsAt?: string;
+  wikidata?: CompanyFacts | null;
+  wikidataAt?: string;
+  h1b?: H1bRecord;
+}
+
+/** The admin Companies page: one page of the directory, each company with its H-1B totals read from their own table. */
+export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore()): Promise<{ total: number; companies: DirectoryCompany[] }> {
+  const { total, rows } = await store.list(q, limit, offset);
+  const h1b = await store.h1bFor([...new Set(rows.map((r) => r.nameKey))]);
+  return {
+    total,
+    companies: rows.map((r) => ({
+      domain: r.domain,
+      name: r.name,
+      sources: r.sources,
+      firstSeenAt: r.firstSeenAt,
+      lastSeenAt: r.lastSeenAt,
+      logoChecked: !!r.logoCheckedAt,
+      ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
+      ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
+      ...(r.facts ? { facts: r.facts, factsAt: r.factsAt } : {}),
+      ...(r.wikidata !== undefined ? { wikidata: r.wikidata, wikidataAt: r.wikidataAt } : {}),
+      ...(h1b.get(r.nameKey) ? { h1b: h1b.get(r.nameKey) } : {}),
+    })),
+  };
+}
+

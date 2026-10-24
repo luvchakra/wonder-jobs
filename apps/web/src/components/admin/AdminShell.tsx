@@ -28,6 +28,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
     links: [
       { href: `${LAKE}/insights`, label: "Insights" },
       { href: `${LAKE}/jobs`, label: "Jobs" },
+      { href: `${LAKE}/companies`, label: "Company directory" },
       { href: `${LAKE}/quality`, label: "Data quality" },
       { href: `${LAKE}/playground`, label: "Search playground" },
     ],

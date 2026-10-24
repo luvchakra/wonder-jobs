@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { companyLines } from "@/domain/jobslake/companies";
 import { theirStackFacts } from "@/server/jobs/theirstack";
-import { __MemoryCompanies, companiesFrom, companyBriefs, companyProfile, recordCompanyFacts } from "./companies";
+import { __MemoryCompanies, companiesFrom, companyBriefs, companyDirectory, companyProfile, recordCompanyFacts } from "./companies";
 import { refreshCompanies } from "./companyRefresh";
 import { h1bRows, loadH1b } from "./h1b";
 import { wikidataFacts } from "./wikidata";
@@ -106,5 +106,23 @@ describe("job card company briefs", () => {
     await recordCompanyFacts([{ domain: "figma.com", name: "Figma", facts: { employeeRange: "1001-5000", from: "TheirStack" }, source: "theirstack" }], store);
     const b = await companyBriefs([{ d: "figma.com", n: "Figma" }, { n: "Stripe, Inc." }, { n: "Nobody Ltd" }], store);
     expect(b).toEqual({ "figma.com": { size: "1K–5K employees", h1b: 61 }, "n:stripe, inc.": { h1b: 242 } });
+  });
+});
+
+describe("the admin company directory", () => {
+  it("lists companies most open roles first, with facts and H-1B totals, and searches by name or domain", async () => {
+    const store = new __MemoryCompanies();
+    await loadH1b(FILE, store);
+    await store.upsert([
+      { domain: "figma.com", name: "Figma, Inc.", nameKey: "figma", sources: ["greenhouse"], firstSeenAt: "2026-10-01T00:00:00Z", lastSeenAt: "2026-10-24T00:00:00Z", openJobs: 8, countedAt: "2026-10-24T00:00:00Z" },
+      { domain: "acme.com", name: "Acme", nameKey: "acme", sources: ["adzuna"], firstSeenAt: "2026-10-01T00:00:00Z", lastSeenAt: "2026-10-24T00:00:00Z", openJobs: 20, countedAt: "2026-10-24T00:00:00Z" },
+    ]);
+    const all = await companyDirectory("", 50, 0, store);
+    expect(all.total).toBe(2);
+    expect(all.companies.map((c) => c.domain)).toEqual(["acme.com", "figma.com"]);
+    expect(all.companies[1].h1b?.filings).toBe(61);
+    expect(all.companies[0].h1b).toBeUndefined();
+    expect((await companyDirectory("figma", 50, 0, store)).companies.map((c) => c.domain)).toEqual(["figma.com"]);
+    expect((await companyDirectory("", 1, 1, store)).companies.map((c) => c.domain)).toEqual(["figma.com"]);
   });
 });
