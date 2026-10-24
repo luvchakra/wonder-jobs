@@ -391,9 +391,9 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Account, security and privacy",
     summary: "Signing in, the avatar menu, password reset, what is stored where.",
     keywords: ["password", "reset", "forgot", "google", "magic link", "session", "sign out", "privacy", "security", "data", "delete", "encryption", "audit", "avatar", "account", "sync", "other browser", "different browser", "confirm email"],
-    updated: "2026-10-16",
+    updated: "2026-10-24",
     body: [
-      "Sign in with email and password, a magic link, or Google. Sessions are cookies verified on the server; requests without one are refused. Account (avatar menu → Account) shows your name, plan and AI provider, whether your data is synced, Notifications on this device, the activity email, Plan & billing and Your data, and has Sign out.",
+      "Sign in with email and password, a magic link, or Google. Sessions are cookies verified on the server; requests without one are refused. Account (avatar menu → Account) shows your name, plan and AI provider, Plan & billing, JobsLake API and Your data. Sign out is at the end of the avatar menu.",
       "- Forgot your password? Use 'Forgot password?' on the sign-in page. The link in the email opens a page to choose a new one and signs you in.",
       "- Show or hide what you typed with the eye icon on any password field.",
       "- An email link opened in a different browser or app from the one you started in (often a mail app's own browser) can't finish there. If it was to confirm your email, that's already done — sign in to continue. A password reset link only works in the browser you asked for it from: ask for a new one there.",
