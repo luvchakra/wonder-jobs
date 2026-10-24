@@ -103,10 +103,14 @@ const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"
  * Returns domain by normalized name; names with no such item are absent.
  */
 export async function wikidataWebsites(names: string[], fetcher: typeof fetch = fetch): Promise<Map<string, { domain: string; sourceId: string }>> {
+  // Each name as written, and without its trailing legal form ("Tata Consultancy Services Limited" → "… Services"):
+  // Wikidata's labels rarely carry one. A label counts only when it normalizes to the company's name.
   const wanted = new Map<string, string>();
   for (const n of names) {
     const key = companyKey(n);
-    if (key && n.length <= 80 && !/[\u0000-\u001f]/.test(n) && !wanted.has(n)) wanted.set(n, key);
+    if (!key || n.length > 80 || /[\u0000-\u001f]/.test(n)) continue;
+    const bare = n.replace(/(?:[\s,.]+(?:inc|incorporated|llc|llp|ltd|limited|pvt|private|plc|corp|corporation|co|company|gmbh|ag|sa|bv|pte|pty))+\.?$/i, "").trim();
+    for (const v of new Set([n, bare])) if (v && !wanted.has(v)) wanted.set(v, key);
   }
   if (!wanted.size) return new Map();
   const rows = await sparql(

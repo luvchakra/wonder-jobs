@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const domain = u.searchParams.get("d") ?? undefined;
   const name = u.searchParams.get("n")?.slice(0, 200) ?? undefined;
   const logo = await companyLogo({ domain, name }).catch(() => undefined);
-  if (!logo) return new NextResponse(null, { status: 404, headers: { "cache-control": "private, max-age=86400" } });
+  if (!logo) return new NextResponse(null, { status: 404, headers: { "cache-control": "private, max-age=600" } });
   return new NextResponse(new Uint8Array(logo.data), {
     headers: {
       "content-type": logo.type,
