@@ -1,12 +1,10 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Search, Sparkles } from "lucide-react";
+import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Search } from "lucide-react";
 import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
-import { AI_PROVIDERS } from "@/domain/ai/types";
 import { useAuthStore } from "@/store/auth";
 import { useAutomationStore } from "@/store/automation";
-import { useAIStore } from "@/store/ai";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
@@ -32,7 +30,6 @@ export default function YouPage() {
   const email = useAuthStore((s) => s.email);
   const sources = useJobsStore((s) => s.sources);
   const level = useAutomationStore((s) => s.defaultLevel);
-  const provider = useAIStore((s) => s.config.activeProvider);
   const schedules = useWorkflowStore((s) => s.schedules);
   const runCount = useWorkflowStore((s) => Object.keys(s.runs).length);
   const name = dna.name || email?.split("@")[0] || "You";
@@ -53,7 +50,6 @@ export default function YouPage() {
     { id: "resumes", href: "/app/resume-studio", label: "Career Profile", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { id: "job_sources", href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
     { id: "automation", href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
-    { id: "ai_provider", href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
     { id: "search_history", href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
   ], menu);
 

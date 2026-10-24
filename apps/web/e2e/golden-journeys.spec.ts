@@ -238,7 +238,7 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
     await page.waitForURL(/\/app\/you$/);
     // The name card at the top is the Career Profile's entry; account, plan and data live in the avatar menu (WJ-281).
     await expect(page.getByRole("link", { name: /Career Profile$/ })).toBeVisible();
-    for (const label of ["Career Profile", "Job sources", "Automation", "AI provider", "Search history"]) {
+    for (const label of ["Career Profile", "Job sources", "Automation", "Search history"]) {
       await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
     }
     await page.getByRole("link", { name: /^Automation/ }).click();
