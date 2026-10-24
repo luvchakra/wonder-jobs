@@ -500,6 +500,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Job page: customized résumé shown with Preview and Download (.docx) (WJ-381)
 - ✅ Customized résumé: full-screen preview, edit in place, save, download the edited .docx (WJ-382)
 - ✅ Search banner: “as My profile” / “as <role>” (WJ-383)
+- ✅ Job card rating: ★ 4.3 (WJ-384)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

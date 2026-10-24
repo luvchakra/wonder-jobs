@@ -11,4 +11,11 @@ describe("rating stars", () => {
     expect(html).toContain(">3.5<");
     expect(renderToStaticMarkup(createElement(RatingStars, { value: 4.5, inline: true }))).toContain("width:90%");
   });
+
+  it("has a short form for cards: one star and the number", () => {
+    const html = renderToStaticMarkup(createElement(RatingStars, { value: 4.3, compact: true, title: "Explorium" }));
+    expect(html.match(/★/g)).toHaveLength(1);
+    expect(html).toContain(">4.3<");
+    expect(html).toContain('aria-label="Rated 4.3 out of 5. Explorium"');
+  });
 });
