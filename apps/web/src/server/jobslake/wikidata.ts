@@ -98,7 +98,9 @@ const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"
 
 /**
  * The official website of companies whose postings name none: an organization on Wikidata whose English label is
- * the company's name exactly (same normalized name), with one official website, not dissolved. A name that more
+ * the company's name exactly (same normalized name), with one official website, not dissolved. "Organization" is
+ * read from what only organizations state (industry, headquarters, legal form, employees or a stock listing), never
+ * a place (population) or a person: walking the class tree (P31/P279*) takes ~45 s and timed out every batch. A name that more
  * than one item, or one item with several sites, answers differently is left out — never guessed.
  * Returns domain by normalized name; names with no such item are absent.
  */
@@ -114,7 +116,7 @@ export async function wikidataWebsites(names: string[], fetcher: typeof fetch = 
   }
   if (!wanted.size) return new Map();
   const rows = await sparql(
-    `SELECT ?label ?item ?site WHERE { VALUES ?label { ${[...wanted.keys()].map(quote).join(" ")} } ?item rdfs:label ?label ; wdt:P856 ?site . ?item wdt:P31/wdt:P279* wd:Q43229 . FILTER NOT EXISTS { ?item wdt:P576 ?gone } }`,
+    `SELECT ?label ?item ?site WHERE { VALUES ?label { ${[...wanted.keys()].map(quote).join(" ")} } ?item rdfs:label ?label ; wdt:P856 ?site . FILTER EXISTS { ?item wdt:P452|wdt:P159|wdt:P1454|wdt:P1128|wdt:P414 ?org } FILTER NOT EXISTS { ?item wdt:P576 ?gone } FILTER NOT EXISTS { ?item wdt:P1082 ?people } FILTER NOT EXISTS { ?item wdt:P31 wd:Q5 } }`,
     fetcher,
   );
   const found = new Map<string, { domains: Set<string>; items: Set<string> }>();
