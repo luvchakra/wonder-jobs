@@ -76,8 +76,8 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
         {/* The match sits under the logo, so the company and the title get the card's whole width. */}
         <div className="flex shrink-0 flex-col items-center gap-1">
           <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 36 : 44} />
-          {/* The company's employee-review rating, just under the logo. */}
-          {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} className="-mt-0.5" />}
+          {/* The company's employee-review rating, just under the logo, in its short form: ★ 4.3. */}
+          {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} size={13} compact className="-mt-0.5" />}
           {match && (
             <span className={cn("rounded-[8px] px-1.5 py-0.5 text-center text-[12px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
               {match.score}%<span className="mt-0.5 block text-[10px] font-medium">Match</span>

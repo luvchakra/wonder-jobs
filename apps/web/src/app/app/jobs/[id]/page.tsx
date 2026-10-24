@@ -43,6 +43,7 @@ import { useMediaQuery } from "@/lib/motion";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
+import { RatingStars } from "@/components/jobs/RatingStars";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -147,9 +148,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 {job.company}
                 {brief?.size && <span className="font-normal text-ink-3">{` · ${brief.size}`}</span>}
                 {brief?.rating ? (
-                  <span className="font-normal text-ink-3" title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`}>
+                  <span className="font-normal text-ink-3">
                     {" · "}
-                    <span className="text-[#f5a623]" aria-hidden>★</span> {brief.rating.value.toFixed(1)}
+                    {/* The job page has room for the long form: five stars and the number. */}
+                    <RatingStars value={brief.rating.value} size={13} inline className="align-[-1px]" title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} />
                   </span>
                 ) : null}
                 {brief?.h1b ? (
