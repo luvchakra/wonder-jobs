@@ -159,6 +159,10 @@ export function SortMenu({ className }: { className?: string }) {
   );
 }
 
+/** Easy Apply works only on jobs posted on WonderJobs: the "WonderJobs employers" source. */
+export const EASY_APPLY_SOURCE = "employers";
+export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && sourceIds[0] === EASY_APPLY_SOURCE;
+
 /**
  * Full Time searches the Career Profile (Looking for, on the page); Part Time what's typed in its box
  * (typing narrows the jobs already found; Enter searches every source for it, in those places). Under
@@ -326,10 +330,17 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {more && (
         <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
-          {/* Back to the list without changing anything typed here. */}
-          <button type="button" onClick={() => setMore(false)} className="-mb-1 inline-flex min-h-8 items-center gap-1.5 self-start text-[13px] font-medium text-ink-2 hover:text-ink sm:col-span-2 lg:col-span-3">
-            <ArrowLeft className="size-4" aria-hidden /> Back to jobs
-          </button>
+          <div className="-mb-1 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-3">
+            {/* Back to the list without changing anything typed here. */}
+            <button type="button" onClick={() => setMore(false)} className="inline-flex min-h-8 items-center gap-1.5 text-[13px] font-medium text-ink-2 hover:text-ink">
+              <ArrowLeft className="size-4" aria-hidden /> Back to jobs
+            </button>
+            {/* Easy Apply is for jobs companies posted on WonderJobs, so this narrows the list to that one source. */}
+            <label title="Only jobs you can send with Easy Apply" className="flex min-h-8 shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
+              <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={easyApplyOnly(filters.sourceIds)} onChange={(e) => onChange({ sourceIds: e.target.checked ? [EASY_APPLY_SOURCE] : [] })} />
+              <span>Easy Apply only</span>
+            </label>
+          </div>
           {refineTop && <div className="border-b border-line pb-2 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
           {/* Show and Posted share a row: both are short. */}
           <div className="flex items-start gap-3 sm:col-span-2 lg:col-span-3">
