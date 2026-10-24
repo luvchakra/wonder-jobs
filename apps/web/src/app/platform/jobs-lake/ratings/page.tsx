@@ -4,13 +4,19 @@ import type { RatingKey } from "@/server/jobslake/ratingKeys";
 import type { RatingsRunReport } from "@/server/jobslake/ratingsJob";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
-import { LoadError, Loading, PageTitle, Panel, adminFetch, num, useAdmin } from "@/components/jobslake/ui";
+import { Input, Select } from "@/components/common/Input";
+import { RATINGS_FREQUENCIES, type RatingsFrequency } from "@/domain/scheduler/settings";
+import type { RatingRun } from "@/server/jobslake/ratingRuns";
+import { LoadError, Loading, PageTitle, Panel, ResponsiveTable, adminFetch, num, useAdmin } from "@/components/jobslake/ui";
 
 interface RatingsView {
   keys: RatingKey[];
   coverage: { companies: number; rated: number; waiting: number };
+  schedule: { enabled: boolean; frequency: RatingsFrequency; notifyEmail: string; nextRunAt?: string; lastScheduledAt?: string };
+  runs: RatingRun[];
 }
+
+const STATUS_LABEL: Record<RatingRun["status"], string> = { complete: "Complete", needs_key: "Needs a key", more: "In progress", stopped: "Stopped" };
 
 type Line = { tone: "info" | "success" | "warning"; text: string };
 
@@ -24,6 +30,25 @@ export default function RatingsPage() {
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<Line[]>([]);
   const stop = useRef(false);
+  const [freq, setFreq] = useState<RatingsFrequency | "off" | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleMsg, setScheduleMsg] = useState("");
+  const frequency: RatingsFrequency | "off" = freq ?? (data ? (data.schedule.enabled ? data.schedule.frequency : "off") : "weekly");
+  const notifyEmail = email ?? data?.schedule.notifyEmail ?? "";
+
+  async function saveSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingSchedule(true);
+    setScheduleMsg("");
+    const r = await adminFetch<unknown>("ratings/schedule", { method: "POST", body: JSON.stringify({ enabled: frequency !== "off", ...(frequency !== "off" ? { frequency } : {}), notifyEmail }) });
+    setSavingSchedule(false);
+    if (!r.ok) return setScheduleMsg(r.error.message);
+    setScheduleMsg("Saved.");
+    setFreq(null);
+    setEmail(null);
+    reload();
+  }
 
   async function addKey(e: React.FormEvent) {
     e.preventDefault();
@@ -50,13 +75,16 @@ export default function RatingsPage() {
     setLog([{ tone: "info", text: "Started…" }]);
     let checked = 0;
     let rated = 0;
+    // One id for the whole click, so its steps are one line in the history.
+    let runId: string | undefined;
     for (;;) {
-      const r = await adminFetch<RatingsRunReport>("ratings/run", { method: "POST" });
+      const r = await adminFetch<RatingsRunReport & { runId?: string }>("ratings/run", { method: "POST", body: JSON.stringify({ runId }) });
       if (!r.ok) {
         setLog((l) => [...l, { tone: "warning", text: r.error.message }]);
         break;
       }
       const rep = r.data;
+      runId = rep.runId ?? runId;
       checked += rep.checked;
       rated += rep.rated;
       for (const note of rep.notes) setLog((l) => (l.some((x) => x.text === note) ? l : [...l, { tone: "warning", text: note }]));
@@ -102,6 +130,34 @@ export default function RatingsPage() {
             )}
           </Panel>
 
+          <Panel title="Schedule">
+            <p className="mb-3 text-[12.5px] text-ink-3">
+              The job runs by itself on this schedule, spending the keys below the same way. {data.schedule.enabled ? `Next run: ${data.schedule.nextRunAt ? new Date(data.schedule.nextRunAt).toLocaleString() : "—"}.` : "It is turned off."}
+              {data.schedule.lastScheduledAt ? ` Last scheduled run: ${relativeTime(data.schedule.lastScheduledAt)}.` : ""}
+            </p>
+            <form onSubmit={saveSchedule} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <label className="text-[12.5px] text-ink-3 sm:w-52">
+                How often
+                <Select value={frequency} onChange={(e) => setFreq(e.target.value as RatingsFrequency | "off")} className="mt-1 h-10">
+                  {(Object.keys(RATINGS_FREQUENCIES) as RatingsFrequency[]).map((f) => (
+                    <option key={f} value={f}>
+                      {RATINGS_FREQUENCIES[f].label}
+                    </option>
+                  ))}
+                  <option value="off">Off (run it myself)</option>
+                </Select>
+              </label>
+              <label className="min-w-0 flex-1 text-[12.5px] text-ink-3">
+                Email when no key is left
+                <Input value={notifyEmail} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-1 h-10" />
+              </label>
+              <Button type="submit" size="sm" className="h-10" disabled={savingSchedule || (freq === null && email === null)}>
+                {savingSchedule ? "Saving…" : "Save"}
+              </Button>
+            </form>
+            {scheduleMsg && <p className="mt-2 text-[12.5px] text-ink-3">{scheduleMsg}</p>}
+          </Panel>
+
           <Panel title={`API keys (${data.keys.length})`}>
             <p className="mb-3 text-[12.5px] text-ink-3">Spent in this order. A key that runs out of credits, or that Explorium refuses, is removed automatically and the next one takes over. Keys are stored encrypted and never shown again.</p>
             {data.keys.length ? (
@@ -134,8 +190,54 @@ export default function RatingsPage() {
             </form>
             {addError && <p className="mt-2 text-[12.5px] text-danger-600">{addError}</p>}
           </Panel>
+
+          <Panel title="History">
+            <ResponsiveTable
+              rows={data.runs}
+              rowKey={(r) => r.id}
+              empty="No runs yet. The first one appears here."
+              columns={[
+                { header: "When", cell: (r) => <span title={new Date(r.startedAt).toLocaleString()}>{relativeTime(r.startedAt)}</span>, className: "whitespace-nowrap" },
+                { header: "Run by", cell: (r) => (r.trigger === "scheduled" ? "Schedule" : r.actor ?? "Admin") },
+                { header: "Result", cell: (r) => <RunResult r={r} /> },
+                { header: "Companies left", cell: (r) => num(r.left), className: "tabular-nums text-right" },
+              ]}
+              card={(r) => (
+                <div className="text-[13px]">
+                  <p className="font-medium text-ink">
+                    {relativeTime(r.startedAt)} · {r.trigger === "scheduled" ? "Schedule" : r.actor ?? "Admin"}
+                  </p>
+                  <RunResult r={r} />
+                </div>
+              )}
+            />
+          </Panel>
         </div>
       )}
     </>
+  );
+}
+
+/** One history line: what it did, which keys it used up, and who was told. */
+function RunResult({ r }: { r: RatingRun }) {
+  return (
+    <span className="block text-[12.5px] text-ink-2">
+      <span className="font-medium text-ink">{STATUS_LABEL[r.status]}</span> — looked up {num(r.checked)}, {num(r.rated)} with a rating, {num(r.notFound)} none found. {num(r.left)} left, {num(r.keysLeft)} key{r.keysLeft === 1 ? "" : "s"} on the list.
+      {r.retired.map((k, i) => (
+        <span key={i} className="block text-ink-3">
+          Key {k.label ? `“${k.label}” ` : ""}{k.masked} removed — {k.reason}.
+        </span>
+      ))}
+      {r.notes.map((n) => (
+        <span key={n} className="block text-warning-600">
+          {n}
+        </span>
+      ))}
+      {r.email && (
+        <span className="block text-ink-3">
+          {r.email.sent ? `Emailed ${r.email.to}: a new key is needed.` : `Email to ${r.email.to} not sent (${r.email.reason ?? "failed"}).`}
+        </span>
+      )}
+    </span>
   );
 }

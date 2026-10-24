@@ -366,3 +366,20 @@
     .wj-sweep { animation: none; transform: none; width: 100%; opacity: 0.5; }
   }
 }
+
+/* A job card's spare room: the box takes whatever height is left over and adds none of its own (size containment), and
+   its text shows only when two lines fit in it — so the summary never makes a card taller or shows half a line. */
+.wj-fill {
+  container-type: size;
+}
+.wj-fill-text {
+  display: none;
+}
+@container (min-height: 36px) {
+  .wj-fill-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
