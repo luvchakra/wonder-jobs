@@ -29,10 +29,14 @@ export function Avatar({ name, size = 36, className, self = false }: { name: str
  * Company tile: the company's logo from JobsLake's cache when it has one (`logo`: signed-in pages only), else
  * its initial on the company's color. A logo that isn't there just leaves the initial — never a guess.
  */
+/** Bumped when JobsLake finds logos for more companies (2: names resolved through Wikidata, 2026-10-24). */
+const LOGO_VERSION = 2;
+
 export function CompanyLogo({ name, color, size = 40, className, logo, domain }: { name: string; color?: string; size?: number; className?: string; logo?: boolean; domain?: string }) {
   const [failed, setFailed] = useState(false);
   const known = name.trim() && name !== "?" && name !== "Unknown company";
-  const src = logo && known && !failed && getClientMode().mode === "user" ? `/api/company-logo?n=${encodeURIComponent(name.trim())}${domain ? `&d=${encodeURIComponent(domain)}` : ""}` : null;
+  // `v` changes when how logos are found changes, so a browser's cached "no logo" answer from before is not reused.
+  const src = logo && known && !failed && getClientMode().mode === "user" ? `/api/company-logo?n=${encodeURIComponent(name.trim())}${domain ? `&d=${encodeURIComponent(domain)}` : ""}&v=${LOGO_VERSION}` : null;
   return (
     <span
       className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-line bg-surface font-bold", className)}
