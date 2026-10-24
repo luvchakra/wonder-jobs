@@ -273,9 +273,9 @@ describe("each mode's All (WJ-367: freelance gigs were showing in Full Time)", (
     expect(applyJobFilters(ids, jobs, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: false }, NOW).hiddenByReason.other_mode).toBe(4);
   });
 
-  it("Part Time shows every job type, full-time ones too: it searches only the words typed (“barista in Pune” found only full-time jobs)", () => {
-    expect(run({ skipProfile: true })).toEqual(["perm", "gig", "pt", "intern", "contract", "untyped", "titled"]);
-    expect(explainJobVisibility(jobs.perm, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: true }, NOW).reason).toBeNull();
+  it("Part Time shows every job type but full-time (owner, 2026-10-24: full-time jobs were showing in Part Time); untyped jobs show in both", () => {
+    expect(run({ skipProfile: true })).toEqual(["gig", "pt", "intern", "contract", "untyped", "titled"]);
+    expect(explainJobVisibility(jobs.perm, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: true }, NOW).reason).toBe("other_mode");
   });
 
   it("a picked job type, and the Saved tab, aren't narrowed by the mode", () => {

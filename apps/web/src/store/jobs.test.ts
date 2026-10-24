@@ -279,3 +279,16 @@ describe("a job opened outside Find's list", () => {
     expect(useJobsStore.getState().matches.missing).toBeUndefined();
   });
 });
+
+describe("Part Time's search words", () => {
+  it("come back in the box after a trip to Full Time", () => {
+    useJobsStore.setState({ refine: {}, partTimeQuery: "", filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } });
+    const s = useJobsStore.getState();
+    s.switchFindMode("part_time");
+    useJobsStore.getState().setFilters({ query: "database admin" });
+    useJobsStore.getState().switchFindMode("full_time");
+    expect(useJobsStore.getState().filters.query).toBe("");
+    useJobsStore.getState().switchFindMode("part_time");
+    expect(useJobsStore.getState().filters.query).toBe("database admin");
+  });
+});
