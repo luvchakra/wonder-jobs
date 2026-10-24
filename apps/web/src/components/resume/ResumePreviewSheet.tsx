@@ -17,9 +17,10 @@ import { cn } from "@/lib/cn";
  * drop the changes, Save to keep them (the pages re-flow in the same template) and Download for the Word file of
  * what's on screen, edits included.
  */
-export function ResumePreviewSheet({ resume, file, subtitle, onClose, onDownload, onSave, downloading }: { resume: GeneratedResume; file: string; subtitle: string; onClose: () => void; onDownload: (r: GeneratedResume) => void; onSave: (doc: ResumeDocument) => GeneratedResume | null; downloading: boolean }) {
+export function ResumePreviewSheet({ resume, file, subtitle, onClose, onDownload, onSave, downloading, startEditing = false }: { resume: GeneratedResume; file: string; subtitle: string; onClose: () => void; onDownload: (r: GeneratedResume) => void; onSave: (doc: ResumeDocument) => GeneratedResume | null; downloading: boolean; startEditing?: boolean }) {
   const [current, setCurrent] = useState(resume);
-  const [draft, setDraft] = useState<ResumeDocument | null>(null);
+  // Opened with Edit: straight into editing; Cancel or Save then shows the pages.
+  const [draft, setDraft] = useState<ResumeDocument | null>(() => (startEditing ? structuredClone(resume.document) : null));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !draft && onClose();

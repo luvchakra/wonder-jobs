@@ -2,12 +2,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Download, Eye, FileText, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, Download, FileText, Loader2, Pencil, RefreshCw, XCircle } from "lucide-react";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { getTemplate, templateForResume } from "@/domain/resume/templates";
 import { generateResume, renderSaved, type GeneratedResume, type GenerationStage } from "@/services/resume/generate";
 import { downloadDocx, resumeFilename } from "@/services/resume/download";
 import { useCareerStore } from "@/store/career";
+import { useApplicationsStore } from "@/store/applications";
 import { useAutomationStore } from "@/store/automation";
 import { usePlan } from "@/lib/usePlan";
 import { track } from "@/lib/analytics";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/cn";
 
 type Phase = { kind: "idle" } | { kind: "generating"; progress: number } | { kind: "ready"; resume: GeneratedResume };
 
-// The full-screen preview and editor load only when Preview is opened.
+// The full-screen editor and preview load only when Edit is opened.
 const ResumePreviewSheet = dynamic(() => import("@/components/resume/ResumePreviewSheet").then((m) => m.ResumePreviewSheet), { ssr: false });
 
 const STAGES_WITH_TARGET: GenerationStage[] = ["select", "tailor", "render", "paginate", "ats"];
@@ -24,8 +25,9 @@ const STAGES_WITH_TARGET: GenerationStage[] = ["select", "tailor", "render", "pa
 /**
  * Generate Customized Resume on a job's page (owner, 2026-10-22): Generating Custom Resume… (filling up as each
  * step finishes), then — nothing downloads by itself (owner, 2026-10-25) — Re-generate Resume with the new résumé
- * just below it: its file name, Preview (full screen, where Edit changes its words and Save keeps them) and Download
- * (Word, .docx — the edited version once it has been edited). The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
+ * just below it: its file name, Edit (full screen, in the template's format; Save keeps the changes) and Download
+ * (Word, .docx — the edited version once it has been edited), a note to use that file when applying for this job, and
+ * Mark as completed / Mark as abandoned for the candidate to record how the application went (owner, 2026-10-25). The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
  * ordered for this job, in the template they chose (the first one when they never chose; never asked here), as a
  * Word file built in this browser. Nothing calls a model; Automation → Draft a tailored résumé set to Off still wins.
  * A résumé already made for this job is offered for download straight away.
@@ -141,7 +143,7 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
         <button type="button" onClick={() => void generate()} className={cn(base, plain)}>
           <RefreshCw className="size-4" aria-hidden /> Re-generate Resume
         </button>
-        {/* The résumé just made: never downloaded by itself — Preview shows it, Download saves the Word file. */}
+        {/* The résumé just made: never downloaded by itself — Edit changes it, Download saves the Word file. */}
         <div className="flex flex-col gap-2.5 rounded-[16px] border border-line bg-surface p-3">
           <div className="flex min-w-0 items-center gap-3">
             <FileText className="size-5 shrink-0 text-brand-600" aria-hidden />
@@ -152,22 +154,24 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setPreview(true)} className={small}>
-              <Eye className="size-4" aria-hidden /> Preview
+              <Pencil className="size-4" aria-hidden /> Edit
             </button>
             <button type="button" onClick={() => download(resume)} disabled={downloading} aria-busy={downloading} className={small}>
               {downloading ? <Loader2 className="size-4 wj-animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} Download
             </button>
           </div>
         </div>
-        <Link href="/app/resume-studio" className="text-center text-[12px] text-ink-3 hover:underline">
-          Saved in My Resume
-        </Link>
+        <p className="text-[12px] leading-snug text-ink-3">
+          Download this résumé and attach it when you apply for this job — it&apos;s made for {job.company}. It&apos;s also <Link href="/app/resume-studio" className="text-brand-600 hover:underline">saved in My Resume</Link>.
+        </p>
+        <ApplicationOutcome job={job} />
         {preview && (
           <ResumePreviewSheet
             resume={resume}
             file={file}
             subtitle={`For ${job.title} at ${job.company}`}
             downloading={downloading}
+            startEditing
             onClose={() => setPreview(false)}
             onDownload={download}
             onSave={(doc) => {
@@ -186,5 +190,35 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
     <button type="button" onClick={() => void generate()} className={cn(base, plain)}>
       Generate Customized Resume
     </button>
+  );
+}
+
+/**
+ * The candidate's own record of how this job's application went (owner, 2026-10-25): Mark as completed puts it in
+ * Pipeline as Submitted, Mark as abandoned as Withdrawn — their word, recorded on the application's timeline as theirs.
+ * Nothing is sent anywhere.
+ */
+function ApplicationOutcome({ job }: { job: CanonicalJob }) {
+  const app = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === job.id));
+  const mark = (outcome: "completed" | "abandoned") => {
+    const store = useApplicationsStore.getState();
+    const a = app ?? store.create(job.id, "saved");
+    if (outcome === "completed") store.setStatus(a.id, "submitted", { type: "submitted", title: "Marked as completed by you", detail: `Applied to ${job.company} yourself` });
+    else store.setStatus(a.id, "withdrawn", { type: "outcome", title: "Marked as abandoned by you", detail: `Not applying to ${job.company}` });
+    track("application_marked", { jobId: job.id, outcome });
+    toast.success(outcome === "completed" ? "Marked as completed" : "Marked as abandoned", "It's in Pipeline.");
+  };
+  const done = app?.status === "submitted";
+  const dropped = app?.status === "withdrawn";
+  const btn = "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-[12px] border px-2 text-[12.5px] font-medium wj-press";
+  return (
+    <div className="grid grid-cols-2 gap-2" role="group" aria-label="How did this application go?">
+      <button type="button" aria-pressed={done} onClick={() => !done && mark("completed")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "border-line bg-surface text-ink hover:bg-surface-2")}>
+        <CheckCircle2 className="size-4" aria-hidden /> {done ? "Completed" : "Mark as completed"}
+      </button>
+      <button type="button" aria-pressed={dropped} onClick={() => !dropped && mark("abandoned")} className={cn(btn, dropped ? "border-line-strong bg-bg-soft text-ink-2" : "border-line bg-surface text-ink hover:bg-surface-2")}>
+        <XCircle className="size-4" aria-hidden /> {dropped ? "Abandoned" : "Mark as abandoned"}
+      </button>
+    </div>
   );
 }
