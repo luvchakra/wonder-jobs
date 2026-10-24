@@ -493,6 +493,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JobsLake company facts: size, industry, hiring activity and H-1B sponsorship (US Dept. of Labor) on a job's Company section (WJ-370)
 - ✅ Company facts from Wikidata (employees, founded, HQ, industry, listing, revenue), by the company's own website (WJ-371)
 - ✅ JobsLake portal: Company directory — every company with its facts, H-1B totals, sources and last checks (WJ-373)
+- ✅ Logos and company data for postings that name no domain: official website from Wikidata by exact name, plus home-page icons (WJ-377)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

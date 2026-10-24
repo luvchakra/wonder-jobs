@@ -20,6 +20,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.digest: the activity digest's on/off choice and its send log (server-written; the client reads it through /api/digest).
 // wj.billingadmin / wj.apiplan: billing-admin state (automatic discounts, the money-call ledger) and JobsLake API pricing, platform tenant only.
 // wj.scheduler / wj.cronruns: the platform scheduler's settings and its recent cron runs (counts only), platform tenant only.
+// wj.companynames: names whose Wikidata website lookup found nothing, with the date (nameDomains.ts), platform tenant only.
 // wj.ratingruns: the company-ratings job's run history (counts and masked key names only), platform tenant only.
 // wj.notifyprefs: what the person wants pushed or emailed (Notification center).
 // wj.notifyadmin: the platform's notification settings (Admin → Settings → Notifications), platform tenant only.
@@ -27,7 +28,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.accountmenu / wj.youmenu: the account menu's and the You page's order and hidden items, set by a platform admin for every user, platform tenant only.
 // wj.avatar: the candidate's profile photo (a small JPEG/PNG/WebP), read and written only through /api/avatar.
 // wj.sensitive: the candidate's answers to sensitive questions (EEO, work authorization, declarations) and ID numbers — all encrypted.
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin"] as const;
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.companynames", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;

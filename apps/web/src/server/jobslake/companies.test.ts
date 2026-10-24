@@ -69,6 +69,14 @@ describe("logos — fetched once, cached, only for known companies", () => {
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
     expect(store.rows.get("acme.com")?.logo).toBeNull();
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
-    expect(fetcher).toHaveBeenCalledTimes(2); // both places, once
+    expect(fetcher).toHaveBeenCalledTimes(3); // both places and the home page, once
+  });
+});
+
+describe("icons a home page declares", () => {
+  it("keeps only the company's own site, touch icons and larger sizes first", async () => {
+    const { iconLinks } = await import("./companies");
+    const html = `<link rel="icon" href="/f.png" sizes="32x32"><link rel="apple-touch-icon" href="/t.png" sizes="180x180"><link rel="icon" href="https://evil.example/x.png"><link rel="icon" href="http://169.254.169.254/x.png"><link rel="stylesheet" href="/a.css">`;
+    expect(iconLinks(html, "https://www.acme.com/", "acme.com")).toEqual(["https://www.acme.com/t.png", "https://www.acme.com/f.png"]);
   });
 });

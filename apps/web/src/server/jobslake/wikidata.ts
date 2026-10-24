@@ -1,9 +1,10 @@
 /**
  * Company facts from Wikidata (CC0, wikidata.org): employees (with the year they're from), founded, headquarters,
  * industry, stock listing and revenue, for companies whose official website (P856) is the domain JobsLake recorded
- * from their postings. A company is matched only by that website, never by name; one with no item gets nothing.
+ * from their postings. A company is matched only by that website; one with no item gets nothing. `wikidataWebsites`
+ * goes the other way for postings that name no domain: an exact-name organization with one official website.
  */
-import type { CompanyFacts } from "@/domain/jobslake/companies";
+import { cleanDomain, companyKey, employerDomainOf, type CompanyFacts } from "@/domain/jobslake/companies";
 
 const ENDPOINT = "https://query.wikidata.org/sparql";
 const UA = "WonderJobs/1.0 (https://jobs.wonderapps.biz; company facts for job seekers)";
@@ -90,5 +91,42 @@ export async function wikidataFacts(domains: string[], fetcher: typeof fetch = f
     else for (const [k, v] of Object.entries(f)) if (!(k in lead) && !(k === "employeesAsOf" && "employees" in lead)) Object.assign(lead, { [k]: v });
   }
   for (const [d, f] of out) if (size(f) <= 2) out.delete(d);
+  return out;
+}
+
+const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"@en`;
+
+/**
+ * The official website of companies whose postings name none: an organization on Wikidata whose English label is
+ * the company's name exactly (same normalized name), with one official website, not dissolved. A name that more
+ * than one item, or one item with several sites, answers differently is left out — never guessed.
+ * Returns domain by normalized name; names with no such item are absent.
+ */
+export async function wikidataWebsites(names: string[], fetcher: typeof fetch = fetch): Promise<Map<string, { domain: string; sourceId: string }>> {
+  const wanted = new Map<string, string>();
+  for (const n of names) {
+    const key = companyKey(n);
+    if (key && n.length <= 80 && !/[\u0000-\u001f]/.test(n) && !wanted.has(n)) wanted.set(n, key);
+  }
+  if (!wanted.size) return new Map();
+  const rows = await sparql(
+    `SELECT ?label ?item ?site WHERE { VALUES ?label { ${[...wanted.keys()].map(quote).join(" ")} } ?item rdfs:label ?label ; wdt:P856 ?site . ?item wdt:P31/wdt:P279* wd:Q43229 . FILTER NOT EXISTS { ?item wdt:P576 ?gone } }`,
+    fetcher,
+  );
+  const found = new Map<string, { domains: Set<string>; items: Set<string> }>();
+  for (const b of rows) {
+    const label = b.label?.value;
+    const key = label ? wanted.get(label) : undefined;
+    const domain = cleanDomain(b.site?.value);
+    const id = qid(b.item?.value);
+    // A website that is a hiring platform's or a board's is not the employer's.
+    if (!key || !domain || !id || !employerDomainOf(`https://${domain}`, true)) continue;
+    const e = found.get(key) ?? { domains: new Set<string>(), items: new Set<string>() };
+    e.domains.add(domain);
+    e.items.add(id);
+    found.set(key, e);
+  }
+  const out = new Map<string, { domain: string; sourceId: string }>();
+  for (const [key, e] of found) if (e.domains.size === 1 && e.items.size === 1) out.set(key, { domain: [...e.domains][0], sourceId: [...e.items][0] });
   return out;
 }
