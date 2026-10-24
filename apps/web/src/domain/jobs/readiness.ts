@@ -16,10 +16,10 @@ export type ReadinessBlocker =
   /** Nothing to search with: no headline, goal, skills or work history. */
   | { kind: "profile"; hasResume: boolean; resumeFileId?: string }
   /**
-   * A profile, but no role can be read from it. `level`: "Role you want" names only a level
-   * ("director"), so the question is which field. Otherwise `suggested` is their latest job title.
+   * A profile, but no role can be read from it (or only a level, from the headline). `suggested` is their
+   * latest job title.
    */
-  | { kind: "role"; suggested?: string; level?: string }
+  | { kind: "role"; suggested?: string }
   /** No job source can be searched on this deployment. */
   | { kind: "sources"; needsSetup: string[]; off: string[] };
 
@@ -69,10 +69,9 @@ export function jobsReadiness(input: ReadinessInput): Readiness {
   let blocker: ReadinessBlocker | undefined;
   const usable = input.sources.filter((s) => s.integrated && s.enabled && s.available !== false);
   if (!hasProfile(dna)) blocker = { kind: "profile", hasResume: input.resumeFileIds.length > 0, resumeFileId: input.resumeFileIds[0] };
-  else if (!query || onlyLevel(query)) {
-    const wanted = stripSelfReference(dna.careerGoal).trim();
-    blocker = onlyLevel(wanted) ? { kind: "role", level: wanted } : { kind: "role", suggested: latestTitle?.trim() || undefined };
-  }
+  // A role the candidate wants is searched as they wrote it, even a level alone ("director", owner 2026-10-24):
+  // matches to their profile still rank first. Only a level read from the headline, with nothing wanted, asks.
+  else if (!query || (onlyLevel(query) && !stripSelfReference(dna.careerGoal).trim())) blocker = { kind: "role", suggested: latestTitle?.trim() || undefined };
   else if (!usable.length)
     blocker = { kind: "sources", needsSetup: input.sources.filter((s) => s.integrated && s.available === false).map((s) => s.name), off: input.sources.filter((s) => s.integrated && !s.enabled && s.available !== false).map((s) => s.name) };
 

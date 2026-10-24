@@ -525,7 +525,7 @@ export function defaultSearchQuery(dna: { headline: string; careerGoal: string }
  * job title — takes the level of the current role ("Senior Director" + "identity and access management" →
  * "senior director identity access"); a wanted title is searched as written ("Executive partner" stays
  * "executive partner", never "senior director executive partner"). A level alone in "Role you want"
- * ("director") stays a level, so the Find page asks for its field rather than guessing one.
+ * ("director") is searched as it is — no field is guessed for it.
  */
 export function profileSearchQuery(dna: { headline: string; careerGoal: string }): string {
   const terms = (s: string) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t));

@@ -105,6 +105,8 @@ export default function CareerDNAPage() {
           disabled={!dirty}
           onClick={() => {
             updateDNA(draft);
+            // Opened from Find (Change): saving goes back there, and Find searches with what was saved.
+            if (fromFind) return backToFind();
             // Saving stamps a new time on the stored profile; take it, so the form matches what was saved.
             const stored = useCareerStore.getState().dna;
             seen.current = stored;
@@ -122,7 +124,7 @@ export default function CareerDNAPage() {
           <div className="px-5 pb-5 pt-4">
             <h2 className="text-[15px] font-semibold text-ink">What you&apos;re looking for</h2>
             <p className="mb-3 text-[12px] text-ink-3">What Wonder searches for. Say the role and its field.</p>
-            <Field label="Role you want" htmlFor="goal" hint="e.g. “Director, identity and access management” — not a level alone.">
+            <Field label="Role you want" htmlFor="goal" hint="e.g. “Director, identity and access management”.">
               <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />
             </Field>
           </div>

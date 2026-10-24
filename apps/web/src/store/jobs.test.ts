@@ -263,3 +263,19 @@ describe("Refine, per Find mode", () => {
     expect(useJobsStore.getState().recentSearches).toEqual(["barista"]);
   });
 });
+
+describe("a job opened outside Find's list", () => {
+  it("is compared with the Career Profile on demand, once, and keeps an existing match", () => {
+    const full = { ...job("x"), location: "Remote", country: "", workMode: "remote", currency: "USD", observedAt: "2026-10-01T00:00:00Z", description: "Build billing APIs.", requirements: [], niceToHave: [], skills: ["APIs"], seniority: "senior", industry: "Technology", applyUrl: "https://acme.test/x", applyPath: "employer_site", onEmployerSite: true, repostCount: 0, tags: [], canonicalKey: "x", sourceIds: ["greenhouse"], duplicateOf: [] } as unknown as CanonicalJob;
+    useJobsStore.setState({ jobs: { x: full }, order: [], matches: {}, aiFits: {}, filters: { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false } });
+    useJobsStore.getState().scoreOne("x");
+    const m = useJobsStore.getState().matches.x;
+    expect(m?.jobId).toBe("x");
+    expect(typeof m?.score).toBe("number");
+    useJobsStore.setState({ matches: { x: match("x", 99) } });
+    useJobsStore.getState().scoreOne("x");
+    expect(useJobsStore.getState().matches.x.score).toBe(99);
+    useJobsStore.getState().scoreOne("missing");
+    expect(useJobsStore.getState().matches.missing).toBeUndefined();
+  });
+});
