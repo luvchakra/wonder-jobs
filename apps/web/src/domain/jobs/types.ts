@@ -8,11 +8,19 @@ export const WORK_MODE_LABEL: Record<WorkMode, string> = { remote: "Remote", hyb
 export interface CompanyFacts {
   industry?: string;
   employees?: number;
+  /** The year the employee count is from, when the source dates it. */
+  employeesAsOf?: number;
   employeeRange?: string;
+  hqCity?: string;
   hqCountry?: string;
   founded?: number;
   fundingStage?: string;
   ticker?: string;
+  exchange?: string;
+  /** Annual revenue as the source states it, in its own currency. */
+  revenue?: { amount: number; currency: string; year?: number };
+  /** The source's own id for the company (a Wikidata item, "Q96186334"). */
+  sourceId?: string;
   from: string;
 }
 

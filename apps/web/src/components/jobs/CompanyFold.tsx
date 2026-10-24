@@ -8,8 +8,9 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { companyColor } from "./JobCard";
 
 /**
- * A job's Company section: what JobsLake knows about the employer (size and industry as TheirStack reports them,
- * its open roles, H-1B filings from the Department of Labor), each with its source. Shows only what was found.
+ * A job's Company section: what JobsLake knows about the employer (size, industry, HQ, founding, listing and
+ * revenue as TheirStack or Wikidata report them, its open roles, H-1B filings from the Department of Labor), each
+ * with its source. Shows only what was found.
  */
 export function CompanyFold({ job, open }: { job: Pick<CanonicalJob, "company" | "companyDomain" | "industry">; open?: boolean }) {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
@@ -43,7 +44,13 @@ export function CompanyFold({ job, open }: { job: Pick<CanonicalJob, "company" |
               <dt className="w-24 shrink-0 text-ink-3">{l.label}</dt>
               <dd className="min-w-0 flex-1 text-ink">
                 {l.value}
-                <span className="block text-[11.5px] text-ink-4">{l.source}</span>
+                {l.href ? (
+                  <a href={l.href} target="_blank" rel="noreferrer" className="block text-[11.5px] text-ink-4 hover:underline">
+                    {l.source}
+                  </a>
+                ) : (
+                  <span className="block text-[11.5px] text-ink-4">{l.source}</span>
+                )}
               </dd>
             </div>
           ))}

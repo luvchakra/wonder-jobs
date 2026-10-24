@@ -5,6 +5,7 @@ import { theirStackFacts } from "@/server/jobs/theirstack";
 import { __MemoryCompanies, companiesFrom, companyProfile } from "./companies";
 import { refreshCompanies } from "./companyRefresh";
 import { h1bRows, loadH1b } from "./h1b";
+import { wikidataFacts } from "./wikidata";
 
 const FILE = { fiscalYear: 2026, through: "FY2026 Q3", employers: [{ name: "Stripe, LLC", filings: 202, medianWage: 160368 }, { name: "Stripe, Inc.", filings: 40, medianWage: 171621 }, { name: "Figma, Inc.", filings: 61, medianWage: 202959 }] };
 const opp = (name: string, domain: string, postedAt: string, facts?: object) =>
@@ -29,7 +30,7 @@ describe("JobsLake company facts", () => {
     await loadH1b(FILE, store);
     const now = Date.parse("2026-10-24T00:00:00Z");
     const facts = { employeeRange: "1001-5000", industry: "internet", from: "TheirStack" };
-    await refreshCompanies({ now, store, logoLimit: 0, postings: async () => [opp("Figma", "figma.com", "2026-10-22T00:00:00Z", facts), opp("Figma", "figma.com", "2026-10-12T00:00:00Z"), opp("Acme", "acme.com", "2026-10-23T00:00:00Z")] });
+    await refreshCompanies({ now, store, logoLimit: 0, wikidata: async () => new Map(), postings: async () => [opp("Figma", "figma.com", "2026-10-22T00:00:00Z", facts), opp("Figma", "figma.com", "2026-10-12T00:00:00Z"), opp("Acme", "acme.com", "2026-10-23T00:00:00Z")] });
     expect(store.rows.get("figma.com")).toMatchObject({ openJobs: 2, newJobs7d: 1, facts, h1b: { filings: 61, through: "FY2026 Q3" } });
     expect(store.rows.get("acme.com")).toMatchObject({ openJobs: 1, newJobs7d: 1, h1b: null });
 
@@ -48,5 +49,44 @@ describe("JobsLake company facts", () => {
   it("a search's companies keep the facts their postings carried", () => {
     const [c] = companiesFrom([opp("Figma", "figma.com", "2026-10-22T00:00:00Z", { industry: "internet", from: "TheirStack" })], "2026-10-24T00:00:00Z");
     expect(c.facts).toEqual({ industry: "internet", from: "TheirStack" });
+  });
+});
+
+describe("Wikidata company facts", () => {
+  const rows = (vars: Record<string, string>[]) => ({ results: { bindings: vars.map((v) => Object.fromEntries(Object.entries(v).map(([k, value]) => [k, { value }]))) } });
+  const fetcher = (async (_url: string, init: RequestInit) => {
+    const q = new URLSearchParams(String(init.body)).get("query") ?? "";
+    const site = "https://www.figma.com";
+    const body = q.includes("P1128")
+      ? rows([{ site, item: "http://www.wikidata.org/entity/Q1", employees: "300", at: "2020-01-01T00:00:00Z" }, { site, item: "http://www.wikidata.org/entity/Q1", employees: "1500", at: "2024-01-01T00:00:00Z" }])
+      : q.includes("P2139")
+        ? rows([{ site, item: "http://www.wikidata.org/entity/Q2", revenue: "749000000", unitLabel: "United States dollar", at: "2024-01-01T00:00:00Z" }])
+        : rows([{ site, item: "http://www.wikidata.org/entity/Q1", inception: "2012-01-01T00:00:00Z", hqLabel: "San Francisco", countryLabel: "United States", industryLabel: "software industry" }, { site, item: "http://www.wikidata.org/entity/Q2", ticker: "FIG", exchangeLabel: "New York Stock Exchange" }]);
+    return new Response(JSON.stringify(body), { status: 200 });
+  }) as unknown as typeof fetch;
+
+  it("matches companies by their official website, takes the latest dated figures and merges items for one site", async () => {
+    const m = await wikidataFacts(["figma.com", "nobody.example"], fetcher);
+    expect([...m.keys()]).toEqual(["figma.com"]);
+    const f = m.get("figma.com")!;
+    expect(f).toMatchObject({ from: "Wikidata", founded: 2012, hqCity: "San Francisco", employees: 1500, employeesAsOf: 2024, ticker: "FIG", revenue: { amount: 749000000, currency: "United States dollar", year: 2024 } });
+    expect(companyLines({ name: "Figma", wikidata: f })).toEqual([
+      { label: "Size", value: "1,500 employees", source: "Wikidata, 2024", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+      { label: "Industry", value: "Software industry", source: "Wikidata", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+      { label: "Headquarters", value: "San Francisco, United States", source: "Wikidata", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+      { label: "Founded", value: "2012", source: "Wikidata", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+      { label: "Listed", value: "New York Stock Exchange: FIG", source: "Wikidata", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+      { label: "Revenue", value: "$749M", source: "Wikidata, 2024", href: `https://www.wikidata.org/wiki/${f.sourceId}` },
+    ]);
+  });
+
+  it("the daily refresh stores Wikidata's facts, and that it had none, so neither is looked up again for a month", async () => {
+    const store = new __MemoryCompanies();
+    const now = Date.parse("2026-10-24T00:00:00Z");
+    const r = await refreshCompanies({ now, store, logoLimit: 0, fetcher, postings: async () => [opp("Figma", "figma.com", "2026-10-22T00:00:00Z"), opp("Acme", "acme.com", "2026-10-22T00:00:00Z")] });
+    expect(r).toMatchObject({ wikidataChecked: 2, wikidataFound: 1 });
+    expect(store.rows.get("figma.com")?.wikidata).toMatchObject({ founded: 2012 });
+    expect(store.rows.get("acme.com")?.wikidata).toBeNull();
+    expect((await refreshCompanies({ now, store, logoLimit: 0, fetcher, postings: async () => [] })).wikidataChecked).toBe(0);
   });
 });

@@ -4,6 +4,7 @@
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
+import type { CompanyFacts } from "@/domain/jobs/types";
 import { cleanDomain, companyKey, employerDomainOf, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
@@ -18,6 +19,10 @@ export interface CompanyStore {
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
+  /** Companies whose Wikidata facts were never looked for, or not since `staleBefore` — oldest first. */
+  needingWikidata(limit: number, staleBefore: string): Promise<string[]>;
+  /** Stores what Wikidata has for each looked-for domain (null: nothing). */
+  setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string): Promise<void>;
   /** H-1B totals for these company-name keys, from the last loaded Department of Labor file. */
   h1bFor(nameKeys: string[]): Promise<Map<string, H1bRecord>>;
   /** Stores one file's H-1B totals (rows keyed by company-name key); `replace` removes the previous file's first. */
@@ -33,6 +38,7 @@ function extraCols(r: CompanyRecord) {
     ...(r.h1b !== undefined ? { h1b: r.h1b } : {}),
   };
 }
+const wikidataOf = (v: unknown): CompanyFacts | null => (v && typeof v === "object" && "from" in v ? (v as CompanyFacts) : null);
 const extraFields = (r: CompanyRecord): Partial<CompanyRecord> => ({
   ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
   ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
@@ -66,6 +72,19 @@ class MemoryCompanies implements CompanyStore {
       .slice(0, limit)
       .map((r) => r.domain);
   }
+  async needingWikidata(limit: number, staleBefore: string) {
+    return [...this.rows.values()]
+      .filter((r) => !r.wikidataAt || r.wikidataAt < staleBefore)
+      .sort((a, b) => (a.wikidataAt ?? "").localeCompare(b.wikidataAt ?? ""))
+      .slice(0, limit)
+      .map((r) => r.domain);
+  }
+  async setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string) {
+    for (const d of checked) {
+      const r = this.rows.get(d);
+      if (r) this.rows.set(d, { ...r, wikidata: found.get(d) ?? null, wikidataAt: at });
+    }
+  }
   async h1bFor(nameKeys: string[]) {
     return new Map(nameKeys.flatMap((k) => (this.h1b.has(k) ? [[k, this.h1b.get(k)!] as const] : [])));
   }
@@ -75,8 +94,8 @@ class MemoryCompanies implements CompanyStore {
   }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; h1b?: H1bRecord | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b ? { h1b: r.h1b } : {}) });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; h1b?: H1bRecord | null; wikidata?: unknown; wikidata_at?: string | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b ? { h1b: r.h1b } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -113,6 +132,18 @@ class SupabaseCompanies implements CompanyStore {
     const { data, error } = await this.sb().select("domain").or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
     if (error) throw new Error(error.message);
     return (data ?? []).map((r: { domain: string }) => r.domain);
+  }
+  async needingWikidata(limit: number, staleBefore: string) {
+    const { data, error } = await this.sb().select("domain").or(`wikidata_at.is.null,wikidata_at.lt.${staleBefore}`).order("wikidata_at", { ascending: true, nullsFirst: true }).limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r: { domain: string }) => r.domain);
+  }
+  async setWikidata(found: Map<string, CompanyFacts>, checked: string[], at: string) {
+    // One update per company: the facts differ for each.
+    for (const d of checked) {
+      const { error } = await this.sb().update({ wikidata: found.get(d) ?? {}, wikidata_at: at }).eq("domain", d);
+      if (error) throw new Error(error.message);
+    }
   }
   private h1bTable() {
     return getSupabaseAdmin()!.schema("wonderjobs").from("jobslake_h1b_employers");
@@ -232,6 +263,7 @@ export async function companyProfile(q: { domain?: string; name?: string }, stor
   return {
     name: r?.name ?? q.name ?? "",
     ...(r?.facts ? { facts: r.facts } : {}),
+    ...(r?.wikidata ? { wikidata: r.wikidata } : {}),
     ...(r?.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
     ...(r?.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
     ...(h1b ? { h1b } : {}),

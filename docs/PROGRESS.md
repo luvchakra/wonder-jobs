@@ -491,6 +491,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Job page: Easy Apply on computers, Apply to the listing on phones, Generate Customized Resume; Stop ends a search at once (WJ-368)
 - ✅ Job page: Generate Customized Resume makes and downloads a Word résumé in your template; sections inside the opened description (WJ-369)
 - ✅ JobsLake company facts: size, industry, hiring activity and H-1B sponsorship (US Dept. of Labor) on a job's Company section (WJ-370)
+- ✅ Company facts from Wikidata (employees, founded, HQ, industry, listing, revenue), by the company's own website (WJ-371)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
