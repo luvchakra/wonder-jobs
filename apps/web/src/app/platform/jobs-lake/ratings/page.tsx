@@ -34,8 +34,18 @@ export default function RatingsPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState("");
+  const [testing, setTesting] = useState(false);
   const frequency: RatingsFrequency | "off" = freq ?? (data ? (data.schedule.enabled ? data.schedule.frequency : "off") : "weekly");
   const notifyEmail = email ?? data?.schedule.notifyEmail ?? "";
+
+  async function sendTest() {
+    setTesting(true);
+    setScheduleMsg("");
+    const r = await adminFetch<{ to: string; sent: boolean; reason?: string }>("ratings/test-email", { method: "POST" });
+    setTesting(false);
+    if (!r.ok) return setScheduleMsg(r.error.message);
+    setScheduleMsg(r.data.sent ? `Test email sent to ${r.data.to}. Check the inbox (and spam).` : `The test email to ${r.data.to} was not sent: ${r.data.reason ?? "failed"}.`);
+  }
 
   async function saveSchedule(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +163,9 @@ export default function RatingsPage() {
               </label>
               <Button type="submit" size="sm" className="h-10" disabled={savingSchedule || (freq === null && email === null)}>
                 {savingSchedule ? "Saving…" : "Save"}
+              </Button>
+              <Button type="button" size="sm" variant="outline" className="h-10" onClick={sendTest} disabled={testing}>
+                {testing ? "Sending…" : "Send test email"}
               </Button>
             </form>
             {scheduleMsg && <p className="mt-2 text-[12.5px] text-ink-3">{scheduleMsg}</p>}

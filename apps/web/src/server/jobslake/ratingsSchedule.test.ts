@@ -5,7 +5,7 @@ import { saveScheduler } from "@/server/scheduler/store";
 import { stateStore } from "@/server/state";
 import { listRatingRuns } from "./ratingRuns";
 import type { RatingsRunReport } from "./ratingsJob";
-import { renderNeedsKeyEmail, runScheduledRatings } from "./ratingsSchedule";
+import { renderNeedsKeyEmail, renderTestEmail, runScheduledRatings, sendRatingsTestEmail } from "./ratingsSchedule";
 
 const report = (o: Partial<RatingsRunReport> = {}): RatingsRunReport => ({ status: "complete", checked: 10, rated: 6, notFound: 4, retired: [], keysLeft: 1, left: 0, message: "All companies are covered — no company left.", notes: [], ...o });
 const day = (n: number) => new Date(Date.parse("2026-10-26T01:50:00Z") + n * 86_400_000);
@@ -82,6 +82,14 @@ describe("the scheduled ratings run", () => {
     expect((await listRatingRuns())[0].email?.sent).toBe(false);
     await saveScheduler({ ...SCHEDULER_DEFAULTS, ratings: { ...SCHEDULER_DEFAULTS.ratings, enabled: false } }, "test");
     expect(await runScheduledRatings({ now: day(30), run: async () => report(), send })).toMatchObject({ outcome: "skipped", reason: "Turned off in Company ratings" });
+  });
+
+  it("sends a test email to the address set, and reports a mailbox that isn't set up", async () => {
+    const got: string[] = [];
+    expect(await sendRatingsTestEmail("kunalc.iit@gmail.com", async (m) => (got.push(m.to + "|" + m.subject), { sent: true }))).toEqual({ to: "kunalc.iit@gmail.com", sent: true });
+    expect(got).toEqual(["kunalc.iit@gmail.com|WonderJobs: test email from Company ratings"]);
+    expect(await sendRatingsTestEmail("kunalc.iit@gmail.com", async () => ({ sent: false, reason: "no email provider configured" }))).toEqual({ to: "kunalc.iit@gmail.com", sent: false, reason: "no email provider configured" });
+    expect(renderTestEmail("https://jobs.example").text).toContain("platform mailbox reaches this address");
   });
 
   it("the email names the count and links to the page", () => {

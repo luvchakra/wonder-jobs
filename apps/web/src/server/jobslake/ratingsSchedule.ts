@@ -27,6 +27,22 @@ export function renderNeedsKeyEmail(p: { left: number; origin: string }) {
   return { subject: "WonderJobs: company ratings need a new Explorium API key", ...mail };
 }
 
+/** A test message, so the owner can see the platform mailbox reaches the address the "no key left" email goes to. */
+export function renderTestEmail(origin: string) {
+  const C = EMAIL_COLORS;
+  const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 12px">Test email from Company ratings</div>
+<div style="font-size:14px;line-height:1.55;color:${C.ink}">If you can read this, the platform mailbox reaches this address. When the ratings job runs out of API keys with companies still waiting, you'll get an email like this one asking for a new key.</div>`;
+  const bodyText = "If you can read this, the platform mailbox reaches this address. When the ratings job runs out of API keys with companies still waiting, you'll get an email like this one asking for a new key.";
+  const mail = renderEmailLayout({ origin, preheader: "The platform mailbox reaches this address", bodyHtml, bodyText, reason: "You're getting this because someone pressed Send test email in Company ratings for this address.", settingsLink: false });
+  return { subject: "WonderJobs: test email from Company ratings", ...mail };
+}
+
+/** Sends the test message to the address in the schedule settings; says plainly when the mailbox isn't set up. */
+export async function sendRatingsTestEmail(to: string, send: Mailer = sendMail): Promise<{ to: string; sent: boolean; reason?: string }> {
+  const r = await send({ to, ...renderTestEmail(siteUrl().origin) });
+  return { to, sent: r.sent, ...(r.reason ? { reason: r.reason } : {}) };
+}
+
 export interface ScheduledRatingsResult {
   outcome: "ok" | "skipped" | "failed";
   reason?: string;
