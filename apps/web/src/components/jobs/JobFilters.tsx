@@ -107,7 +107,7 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
 const refineCount = (f: Filters) =>
   [f.minFit, f.jobTypes?.length, f.workModes.length > 0 && f.workModes.length < Object.keys(WORK_MODE_LABEL).length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline, f.strictProfile].filter(Boolean).length;
 
-const PILL = "relative flex h-12 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
+const PILL = "relative flex h-10 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
 /** Opens and closes Find's Refine panel: the first control in the row under Looking for / the search box. */
 export function RefineButton({ className }: { className?: string }) {
@@ -116,7 +116,7 @@ export function RefineButton({ className }: { className?: string }) {
   const count = useJobsStore((s) => refineCount(s.filters));
   return (
     <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", more && "border-brand-200 bg-brand-50", className)}>
-      <SlidersHorizontal className="size-5" aria-hidden />
+      <SlidersHorizontal className="size-4" aria-hidden />
       {count ? <span>{count}</span> : null}
     </button>
   );
@@ -249,9 +249,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   };
   if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       <form
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           setBoxFocused(false);
@@ -275,7 +275,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             placeholder="Search jobs, skills or companies"
             aria-label="Search jobs"
             enterKeyHint="search"
-            className={cn("h-12 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
+            className={cn("h-10 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
           />
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
             {draft && (
@@ -312,8 +312,8 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           <RefineButton />
           <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="min-w-0 flex-auto" />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
-          <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-12 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-            <ArrowRight className="size-6" aria-hidden />
+          <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+            <ArrowRight className="size-5" aria-hidden />
           </button>
         </div>
       </form>
