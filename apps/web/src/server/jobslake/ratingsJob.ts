@@ -21,10 +21,11 @@ export interface RetiredKey {
 }
 
 /**
- * What a company Explorium matches costs, in credits, until the job has measured it: the top of Explorium's own
- * "1 to 5". It is measured from the balance before and after each batch (a matched company cost 2 on the first run).
+ * The most a company Explorium matches may cost, in credits (owner, 2026-10-24: "stick to 2 credits per company").
+ * Explorium's usage page shows the ratings enrichment at 2. The job asks only for ratings, never another enrichment,
+ * and if the balance ever shows it costing more than this it stops instead of spending on.
  */
-const ASSUMED_COST = 5;
+export const MAX_CREDITS_PER_COMPANY = 2;
 
 export interface RatingsRunReport {
   /** complete: nothing is waiting · needs_key: keys ran out with companies left · more: time's up, call again · stopped: Explorium or the network is in the way. */
@@ -61,7 +62,7 @@ export async function runRatings(
   if (running) return finish("stopped", "A ratings job is already running. Wait for it to finish.");
   running = true;
   try {
-    let cost = ASSUMED_COST;
+    let cost = MAX_CREDITS_PER_COMPANY;
     let spent: { key: string; before: number; matched: number } | undefined;
     for (;;) {
       const due = await companies.needingRatings(EXPLORIUM_BATCH, staleBefore);
@@ -99,6 +100,7 @@ export async function runRatings(
       // What the last batch actually cost, per company it matched, from the balance before and after.
       if (spent && spent.matched > 0 && spent.key === key.id && spent.before > credits.remaining) cost = Math.max(1, Math.ceil((spent.before - credits.remaining) / spent.matched));
       spent = undefined;
+      if (cost > MAX_CREDITS_PER_COMPANY) return await finish("stopped", `Explorium charged ${cost} credits per company, above the ${MAX_CREDITS_PER_COMPANY}-credit limit, so the job stopped. Nothing more was spent.`);
 
       // Ask for as many companies as the credits can pay for at the measured cost — and if Explorium still says
       // no while the key has credits, for half as many, down to one. A key is only deleted when it can't pay for one.
