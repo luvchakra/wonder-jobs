@@ -2,7 +2,7 @@
 
 ## Every session
 
-- **End every message with the IST time** on its own last line, read fresh from `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` (e.g. `2026-10-20 20:00 IST`). This applies to every reply. Never reuse an old time.
+- **End every message with the IST time to the second** on its own last line, read fresh from `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST'` (e.g. `2026-10-25 01:33:08 IST`). This applies to every reply. Never reuse an old time.
 - **Start from the latest `main`.** Run `git fetch origin main && git merge origin/main` (or rebase, if the branch is yours alone) before any other work and again before every push. Resolve conflicts first.
 
 ## Real data only
@@ -95,6 +95,12 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
 - Default from the candidate's data instead of adding a selector.
 - At most one line of help. No repeated explanations, badges or "why" blocks on list items.
 - When you change a page, its count of visible controls should go down, not up.
+
+## Editing a document (owner, 2026-10-25)
+
+- **Every edit can be cancelled.** An editor shows Cancel beside Save, and Escape cancels too; cancelling leaves the document exactly as it was.
+- **The format never changes, during or after an edit.** The editor wears the document's own template: its fonts, colours, heading style, section order and titles, and alignment. Saving changes only the words. Skill groups, section order and template stay as they were (`domain/resume/edit.ts`).
+- **Every line item is a round bullet (•)**, one per line, in the editor and on the page. Enter starts the next bullet; Backspace in an empty one removes it. Nothing is cut off: fields grow to show all of their words.
 
 ## Ship fast (pre-launch)
 
