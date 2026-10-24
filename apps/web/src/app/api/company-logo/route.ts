@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   return new NextResponse(new Uint8Array(logo.data), {
     headers: {
       "content-type": logo.type,
-      "cache-control": "private, max-age=604800",
+      "cache-control": "private, max-age=2592000, stale-while-revalidate=604800",
       // An image, never a document: no sniffing, nothing runs if it's opened directly.
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; sandbox",

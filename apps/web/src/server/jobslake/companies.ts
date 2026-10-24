@@ -8,7 +8,7 @@ import type { CompanyRatings } from "@/domain/jobslake/ratings";
 import { cleanDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
-/** How long a logo (or the finding that there is none) is trusted before it's looked for again. */
+/** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
 export const LOGO_TTL_MS = 30 * 86_400_000;
 const MAX_LOGO_BYTES = 200_000;
 
@@ -80,11 +80,11 @@ class MemoryCompanies implements CompanyStore {
   }
   async setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
     const r = this.rows.get(domain);
-    if (r) this.rows.set(domain, { ...r, logo, logoCheckedAt: checkedAt });
+    if (r && !r.logo) this.rows.set(domain, { ...r, logo, logoCheckedAt: checkedAt });
   }
   async needingLogo(limit: number, staleBefore: string) {
     return [...this.rows.values()]
-      .filter((r) => !r.logoCheckedAt || r.logoCheckedAt < staleBefore)
+      .filter((r) => !r.logo && (!r.logoCheckedAt || r.logoCheckedAt < staleBefore))
       .sort((a, b) => (a.logoCheckedAt ?? "").localeCompare(b.logoCheckedAt ?? ""))
       .slice(0, limit)
       .map((r) => r.domain);
@@ -178,11 +178,11 @@ class SupabaseCompanies implements CompanyStore {
     return data?.[0] ? fromRow(data[0] as Row) : undefined;
   }
   async setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
-    const { error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain);
+    const { error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain).is("logo", null);
     if (error) throw new Error(error.message);
   }
   async needingLogo(limit: number, staleBefore: string) {
-    const { data, error } = await this.sb().select("domain").or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
+    const { data, error } = await this.sb().select("domain").is("logo", null).or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
     if (error) throw new Error(error.message);
     return (data ?? []).map((r: { domain: string }) => r.domain);
   }
@@ -376,7 +376,7 @@ export async function companyLogo(q: { domain?: string; name?: string }, now = D
   const company = (domain ? await store.byDomain(domain) : undefined) ?? (q.name ? await store.byName(companyKey(q.name)) : undefined);
   if (!company) return undefined;
   let logo = company.logo;
-  if (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS) {
+  if (!logo && (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS)) {
     logo = await fetchLogo(company.domain, fetcher);
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
