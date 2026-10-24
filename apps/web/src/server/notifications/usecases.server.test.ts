@@ -231,7 +231,7 @@ describe("Recruiters, hiring workspaces", () => {
   });
 });
 
-describe("In the bell, per kind (Notifications & email)", () => {
+describe("In the bell, per kind (Notifications)", () => {
   const career = () => writeClientState(T, "wj.career", PERSIST_VERSION.career, { dna: EMPTY_DNA, onboarded: true, activity: [], notifications: [], reminded: [] });
   const bell = async () => ((await readClientState<{ notifications: { title: string }[] }>(T, "wj.career"))?.notifications ?? []).map((n) => n.title);
 

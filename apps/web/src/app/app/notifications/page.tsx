@@ -62,7 +62,7 @@ export default function NotificationsPage() {
       )}
       <Link href="/app/settings/notifications" className="mt-4 flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">
         <span>
-          Notifications &amp; email
+          Notification settings
           <span className="block text-[12px] text-ink-3">Choose what you&apos;re told, and how</span>
         </span>
         <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
