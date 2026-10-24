@@ -130,6 +130,8 @@ function JobsHome() {
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
         refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} /> : undefined}
+        // A role picked under "Search as" counts as one Refine setting; Clear goes back to My profile (Part Time: none).
+        searchAs={{ set: typeof searchAs === "string", clear: () => pickSearchAs(mode === "part_time" ? false : null) }}
         footer={
           <div className="mt-6">
             <h1 className="wj-sr-only">Find jobs</h1>

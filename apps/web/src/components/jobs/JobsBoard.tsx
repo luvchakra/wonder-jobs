@@ -30,7 +30,7 @@ const PAGE = 24;
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
  * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; refineTop?: React.ReactNode; searchAs?: { set: boolean; clear: () => void }; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -184,6 +184,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         }}
         sourceSearch={sourceSearch}
         refineTop={refineTop}
+        searchAs={searchAs}
         shortlist={savedOnly ? { text: savedText, onText: setSavedText } : undefined}
         className="mb-3"
       />
