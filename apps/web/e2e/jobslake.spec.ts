@@ -348,10 +348,10 @@ test.describe("Candidate searches through JobsLake", () => {
     const first = page.getByRole("list", { name: "Job results" }).locator(":scope > li").first();
     await first.locator("a[href^='/app/jobs/']").first().click();
     await page.waitForURL(/\/app\/jobs\/[^/?]+$/);
-    // The job page's sections are folds in the opened description: why it fits, and where it was found.
-    await openDescription(page);
+    // Why it fits is folded above the description; where it was found is in the opened description.
     await page.getByText("Why it fits", { exact: true }).click();
     await expect(page.getByText(/Why Wonder thinks this fits|hasn't compared this role/).first()).toBeVisible();
+    await openDescription(page);
     await page.getByText("Sources & hiring signals", { exact: true }).click();
     await expect(page.getByRole("heading", { name: "Where this job was found" })).toBeVisible();
     await page.getByRole("button", { name: "Not for me" }).click();

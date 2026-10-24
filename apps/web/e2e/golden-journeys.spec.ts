@@ -44,8 +44,7 @@ test.describe("Golden journey — jobs (demo mode)", () => {
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
-    // "Why it fits" is a folded section in the opened description.
-    await openDescription(page);
+    // "Why it fits" is a folded section above the description.
     await page.getByText("Why it fits", { exact: true }).click();
     await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
 

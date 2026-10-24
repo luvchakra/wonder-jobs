@@ -168,6 +168,29 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               {rejected && <Badge tone="neutral">Marked not for me</Badge>}
             </div>
           )}
+          {/* Why it fits first, above the description. */}
+          <Fold className="mt-4" title="Why it fits" hint={match ? undefined : "Not compared with your profile yet"} open={requestedTab === "why"}>
+            {(decision.why.length > 0 || decision.consider.length > 0) && <JobDecision decision={decision} variant="detail" className="mb-4" />}
+            {match ? (
+              <ul className="flex flex-col gap-3">
+                {match.reasons.map((r) => (
+                  <li key={r.dimension} className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
+                      <div className={cn("h-full rounded-full", r.score >= 0.8 ? "bg-success-600" : r.score >= 0.55 ? "bg-brand-500" : "bg-warning-600")} style={{ width: `${Math.round(r.score * 100)}%` }} />
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-medium text-ink">
+                        {r.label} <span className="ml-1 text-[12px] font-normal text-ink-3">{r.score >= 0.8 ? "Strong" : r.score >= 0.55 ? "Good" : "Weak"}</span>
+                      </p>
+                      <p className="text-[13px] text-ink-3">{r.summary}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
+            )}
+          </Fold>
           <h2 className="mt-4 text-[15px] font-semibold text-ink">Job description</h2>
           <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{description}</p>
           {longDescription && (
@@ -175,34 +198,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               {expanded ? "Less" : "More"}
             </button>
           )}
-          {/* With the whole description open: why it fits, requirements, the company and the sources, then the full
+          {/* With the whole description open: requirements, the company and the sources, then the full
               description's link and Not for me on one row. */}
           {(expanded || !longDescription) && (
             <>
               <div className="mt-3 flex min-w-0 flex-col gap-3">
-                <Fold title="Why it fits" hint={match ? undefined : "Not compared with your profile yet"} open={requestedTab === "why"}>
-                  {(decision.why.length > 0 || decision.consider.length > 0) && <JobDecision decision={decision} variant="detail" className="mb-4" />}
-                  {match ? (
-                    <ul className="flex flex-col gap-3">
-                      {match.reasons.map((r) => (
-                        <li key={r.dimension} className="flex gap-3">
-                          <div className="mt-1.5 h-2 w-20 shrink-0 overflow-hidden rounded-full bg-bg-soft" aria-hidden>
-                            <div className={cn("h-full rounded-full", r.score >= 0.8 ? "bg-success-600" : r.score >= 0.55 ? "bg-brand-500" : "bg-warning-600")} style={{ width: `${Math.round(r.score * 100)}%` }} />
-                          </div>
-                          <div>
-                            <p className="text-[14px] font-medium text-ink">
-                              {r.label} <span className="ml-1 text-[12px] font-normal text-ink-3">{r.score >= 0.8 ? "Strong" : r.score >= 0.55 ? "Good" : "Weak"}</span>
-                            </p>
-                            <p className="text-[13px] text-ink-3">{r.summary}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
-                  )}
-                </Fold>
-
                 {hasRequirements && (
                   <Fold title="Requirements and skills">
                     {job.requirements.length > 0 && (
