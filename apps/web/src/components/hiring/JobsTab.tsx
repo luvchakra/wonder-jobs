@@ -182,7 +182,7 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
             <option value="full_time">Full-time</option>
             <option value="part_time">Part-time</option>
             <option value="contract">Contract</option>
-            <option value="internship">Internship</option>
+            <option value="internship">Intern</option>
             <option value="temporary">Short-term</option>
             <option value="gig">Gig</option>
           </Select>

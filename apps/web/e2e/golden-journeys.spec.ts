@@ -481,7 +481,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     await refine.click();
     expect(await views()).toEqual(["All", "Strong", "For you"]);
     for (const t of ["Permanent", "Contract", "Consultant", "Short-term"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
-    await expect(main.getByRole("button", { name: "Internship", exact: true })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Intern", exact: true })).toHaveCount(0);
     // Refine has one action: Save (no Search).
     await expect(main.getByRole("button", { name: "Save", exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
@@ -524,7 +524,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(page.getByRole("button", { name: "Search", exact: true })).toBeVisible();
     await expect(main.getByText(/^Looking for/)).toHaveCount(0);
     await refine.click();
-    for (const t of ["Contract", "Consultant", "Internship", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
+    for (const t of ["Contract", "Consultant", "Intern", "Short-term", "Gig"]) await expect(main.getByRole("button", { name: t, exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Permanent", exact: true })).toHaveCount(0);
     for (const t of ["Full-time", "Part-time"]) await expect(main.getByRole("button", { name: t, exact: true })).toHaveCount(0);
     expect(await views()).toEqual(["All", "Strong", "For you"]);
