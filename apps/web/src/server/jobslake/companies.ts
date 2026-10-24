@@ -4,7 +4,7 @@
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { cleanDomain, companyKey, employerDomainOf, type CompanyRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyKey, employerDomainOf, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** How long a logo (or the finding that there is none) is trusted before it's looked for again. */
@@ -18,14 +18,35 @@ export interface CompanyStore {
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
+  /** H-1B totals for these company-name keys, from the last loaded Department of Labor file. */
+  h1bFor(nameKeys: string[]): Promise<Map<string, H1bRecord>>;
+  /** Stores one file's H-1B totals (rows keyed by company-name key); `replace` removes the previous file's first. */
+  putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean): Promise<void>;
 }
+
+/** The refresh-only fields a record carries, as their columns; absent fields are left as they are. */
+function extraCols(r: CompanyRecord) {
+  return {
+    ...(r.openJobs !== undefined ? { open_jobs: r.openJobs, counted_at: r.countedAt } : {}),
+    ...(r.newJobs7d !== undefined ? { new_jobs_7d: r.newJobs7d } : {}),
+    ...(r.facts ? { facts: r.facts, facts_at: r.factsAt ?? r.lastSeenAt } : {}),
+    ...(r.h1b !== undefined ? { h1b: r.h1b } : {}),
+  };
+}
+const extraFields = (r: CompanyRecord): Partial<CompanyRecord> => ({
+  ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
+  ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
+  ...(r.facts ? { facts: r.facts, factsAt: r.factsAt ?? r.lastSeenAt } : {}),
+  ...(r.h1b !== undefined ? { h1b: r.h1b } : {}),
+});
 
 class MemoryCompanies implements CompanyStore {
   rows = new Map<string, CompanyRecord>();
+  h1b = new Map<string, H1bRecord>();
   async upsert(records: CompanyRecord[]) {
     for (const r of records) {
       const old = this.rows.get(r.domain);
-      this.rows.set(r.domain, old ? { ...old, name: r.name, nameKey: r.nameKey, sources: [...new Set([...old.sources, ...r.sources])], lastSeenAt: r.lastSeenAt, ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}) } : r);
+      this.rows.set(r.domain, old ? { ...old, name: r.name, nameKey: r.nameKey, sources: [...new Set([...old.sources, ...r.sources])], lastSeenAt: r.lastSeenAt, ...extraFields(r) } : r);
     }
   }
   async byDomain(domain: string) {
@@ -45,10 +66,17 @@ class MemoryCompanies implements CompanyStore {
       .slice(0, limit)
       .map((r) => r.domain);
   }
+  async h1bFor(nameKeys: string[]) {
+    return new Map(nameKeys.flatMap((k) => (this.h1b.has(k) ? [[k, this.h1b.get(k)!] as const] : [])));
+  }
+  async putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean) {
+    if (replace) this.h1b.clear();
+    for (const r of rows) this.h1b.set(r.nameKey, { filings: r.filings, ...(r.medianWage ? { medianWage: r.medianWage } : {}), fiscalYear: r.fiscalYear, through: r.through });
+  }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}) });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; h1b?: H1bRecord | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b !== undefined ? { h1b: r.h1b } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -63,7 +91,7 @@ class SupabaseCompanies implements CompanyStore {
     if (e1) throw new Error(e1.message);
     const old = new Map((existing ?? []).map((r: { domain: string; sources: string[]; first_seen_at: string }) => [r.domain, r]));
     // Counts come only from the daily refresh; a search's upsert leaves them as they were.
-    const rows = records.map((r) => ({ domain: r.domain, name: r.name, name_key: r.nameKey, sources: [...new Set([...(old.get(r.domain)?.sources ?? []), ...r.sources])], first_seen_at: old.get(r.domain)?.first_seen_at ?? r.firstSeenAt, last_seen_at: r.lastSeenAt, ...(r.openJobs !== undefined ? { open_jobs: r.openJobs, counted_at: r.countedAt } : {}) }));
+    const rows = records.map((r) => ({ domain: r.domain, name: r.name, name_key: r.nameKey, sources: [...new Set([...(old.get(r.domain)?.sources ?? []), ...r.sources])], first_seen_at: old.get(r.domain)?.first_seen_at ?? r.firstSeenAt, last_seen_at: r.lastSeenAt, ...extraCols(r) }));
     const { error } = await this.sb().upsert(rows, { onConflict: "domain" });
     if (error) throw new Error(error.message);
   }
@@ -80,10 +108,36 @@ class SupabaseCompanies implements CompanyStore {
   async setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
     const { error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain);
     if (error) throw new Error(error.message);
-  }  async needingLogo(limit: number, staleBefore: string) {
+  }
+  async needingLogo(limit: number, staleBefore: string) {
     const { data, error } = await this.sb().select("domain").or(`logo_checked_at.is.null,logo_checked_at.lt.${staleBefore}`).order("logo_checked_at", { ascending: true, nullsFirst: true }).limit(limit);
     if (error) throw new Error(error.message);
     return (data ?? []).map((r: { domain: string }) => r.domain);
+  }
+  private h1bTable() {
+    return getSupabaseAdmin()!.schema("wonderjobs").from("jobslake_h1b_employers");
+  }
+  async h1bFor(nameKeys: string[]) {
+    const out = new Map<string, H1bRecord>();
+    for (let i = 0; i < nameKeys.length; i += 200) {
+      const { data, error } = await this.h1bTable().select("name_key, filings, median_wage, fiscal_year, through").in("name_key", nameKeys.slice(i, i + 200));
+      if (error) throw new Error(error.message);
+      for (const r of (data ?? []) as { name_key: string; filings: number; median_wage: number | null; fiscal_year: number; through: string }[]) out.set(r.name_key, { filings: r.filings, ...(r.median_wage ? { medianWage: r.median_wage } : {}), fiscalYear: r.fiscal_year, through: r.through });
+    }
+    return out;
+  }
+  async putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean) {
+    this.sb();
+    // A new file replaces the last one's totals: rows it no longer names are removed first.
+    if (replace) {
+      const { error } = await this.h1bTable().delete().neq("name_key", "");
+      if (error) throw new Error(error.message);
+    }
+    const at = new Date().toISOString();
+    for (let i = 0; i < rows.length; i += 5000) {
+      const { error } = await this.h1bTable().upsert(rows.slice(i, i + 5000).map((r) => ({ name_key: r.nameKey, name: r.name, filings: r.filings, median_wage: r.medianWage ?? null, fiscal_year: r.fiscalYear, through: r.through, loaded_at: at })), { onConflict: "name_key" });
+      if (error) throw new Error(error.message);
+    }
   }
 }
 
@@ -107,7 +161,8 @@ export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toI
     if (!domain || !nameKey) continue;
     const sources = o.sourceRecords.map((r) => r.sourceId);
     const prev = out.get(domain);
-    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
+    const facts = o.employer.facts ?? prev?.facts;
+    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now, ...(facts ? { facts, factsAt: now } : {}) });
   }
   return [...out.values()];
 }
@@ -163,4 +218,22 @@ export async function companyLogo(q: { domain?: string; name?: string }, now = D
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
   return logo ? { data: Buffer.from(logo.data, "base64"), type: logo.type } : null;
+}
+
+/** A company's profile by the domain a source reported, else by its exact (normalized) name; undefined when JobsLake knows nothing. */
+export async function companyProfile(q: { domain?: string; name?: string }, store: CompanyStore = companyStore()): Promise<CompanyProfile | undefined> {
+  const domain = cleanDomain(q.domain);
+  const nameKey = q.name ? companyKey(q.name) : "";
+  const r = (domain ? await store.byDomain(domain) : undefined) ?? (nameKey ? await store.byName(nameKey) : undefined);
+  const key = r?.nameKey ?? nameKey;
+  // The refresh copies H-1B totals onto a company; one it hasn't reached yet is looked up by name.
+  const h1b = r?.h1b !== undefined ? (r.h1b ?? undefined) : key ? (await store.h1bFor([key])).get(key) : undefined;
+  if (!r && !h1b) return undefined;
+  return {
+    name: r?.name ?? q.name ?? "",
+    ...(r?.facts ? { facts: r.facts } : {}),
+    ...(r?.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
+    ...(r?.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
+    ...(h1b ? { h1b } : {}),
+  };
 }

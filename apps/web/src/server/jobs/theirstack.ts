@@ -5,7 +5,7 @@
  * call and THEIRSTACK_MONTHLY_CREDITS a month. Its postings are never served to JobsLake API keys
  * (its terms don't permit redistribution as a dataset) and each one is labelled as coming from TheirStack.
  */
-import type { Job } from "@/domain/jobs/types";
+import type { CompanyFacts, Job } from "@/domain/jobs/types";
 import { locationScope } from "@/domain/jobslake/planner";
 import { corePhrase, normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import type { SearchCriteria, SourceFetcher } from "./providers";
@@ -76,7 +76,7 @@ export interface TheirStackJob {
   salary_currency?: string | null;
   company?: string | null;
   company_domain?: string | null;
-  company_object?: { name?: string; domain?: string; industry?: string; is_recruiting_agency?: boolean } | null;
+  company_object?: { name?: string; domain?: string; industry?: string | null; is_recruiting_agency?: boolean; employee_count?: number | null; employee_count_range?: string | null; country?: string | null; founded_year?: number | null; funding_stage?: string | null; publicly_traded_symbol?: string | null; has_blurred_data?: boolean } | null;
   technology_slugs?: string[] | null;
   employment_statuses?: string[] | null;
 }
@@ -91,6 +91,16 @@ const hostOf = (u: string) => {
   }
 };
 
+/** What TheirStack reports about the company itself, as given; nothing when it reports none or blurs it. */
+export function theirStackFacts(c: TheirStackJob["company_object"]): CompanyFacts | undefined {
+  if (!c || c.has_blurred_data) return undefined;
+  const str = (v: unknown) => (typeof v === "string" && v.trim() && v.length <= 80 ? v.trim() : undefined);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : undefined);
+  const f: CompanyFacts = { industry: str(c.industry), employees: num(c.employee_count), employeeRange: str(c.employee_count_range), hqCountry: str(c.country), founded: num(c.founded_year), fundingStage: str(c.funding_stage), ticker: str(c.publicly_traded_symbol), from: "TheirStack" };
+  for (const k of Object.keys(f) as (keyof CompanyFacts)[]) if (f[k] === undefined) delete f[k];
+  return Object.keys(f).length > 1 ? f : undefined;
+}
+
 /** One TheirStack posting as a WonderJobs raw posting. The apply link is the employer's own page when TheirStack knows it. */
 export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
   const apply = [j.final_url, j.url, j.source_url].find((u) => u && /^https?:\/\//i.test(u));
@@ -102,6 +112,7 @@ export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
     title: j.job_title,
     company: j.company_object?.name || j.company || "",
     companyDomain: j.company_domain || j.company_object?.domain || undefined,
+    companyFacts: theirStackFacts(j.company_object),
     location: j.location || j.locations?.[0]?.display_name || j.short_location || j.country || (j.remote ? "Remote" : ""),
     remote: j.remote ?? undefined,
     description: j.description ?? "",

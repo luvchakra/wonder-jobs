@@ -3,6 +3,7 @@
  * host of a job's apply link on the employer's own site — never guessed from the name. A job whose source
  * gives no domain is matched to one by its exact (normalized) company name, as JobsLake saw it elsewhere.
  */
+import type { CompanyFacts } from "@/domain/jobs/types";
 import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/destination";
 
 /** Hiring platforms and boards: their host is the platform's, not the employer's. */
@@ -45,6 +46,18 @@ export function companyKey(name: string): string {
 }
 
 /** What JobsLake keeps about a company — only what sources reported, plus its cached logo. */
+export type { CompanyFacts };
+
+/** One employer's totals from a US Department of Labor LCA disclosure file (certified H-1B applications only). */
+export interface H1bRecord {
+  filings: number;
+  /** Median offered annual wage in USD, when the filings state one. */
+  medianWage?: number;
+  fiscalYear: number;
+  /** The file's last quarter, e.g. "FY2026 Q3". */
+  through: string;
+}
+
 export interface CompanyRecord {
   domain: string;
   /** The name as most recently seen. */
@@ -60,4 +73,52 @@ export interface CompanyRecord {
   /** How many of its postings JobsLake saw in the last two weeks — set by the daily refresh only. */
   openJobs?: number;
   countedAt?: string;
+  /** Its postings first published in the last 7 days — set by the daily refresh only. */
+  newJobs7d?: number;
+  /** What a source reported about the company itself (TheirStack's job data), with when it was last seen. */
+  facts?: CompanyFacts;
+  factsAt?: string;
+  /** Its certified H-1B applications in the US Department of Labor's latest disclosure file, matched by name. */
+  h1b?: H1bRecord | null;
+}
+
+/** What JobsLake knows about a company, every value from a named source or its own postings; no logo. */
+export interface CompanyProfile {
+  name: string;
+  facts?: CompanyRecord["facts"];
+  openJobs?: number;
+  newJobs7d?: number;
+  countedAt?: string;
+  h1b?: H1bRecord;
+}
+
+const STAGE: Record<string, string> = { pre_seed: "Pre-seed", seed: "Seed", angel: "Angel", early_vc: "Early-stage VC", late_vc: "Late-stage VC", growth_equity_vc: "Growth equity", private_equity: "Private equity", post_ipo_equity: "Public", post_ipo_debt: "Public", post_ipo_secondary: "Public", debt_financing: "Debt financing", grant: "Grant" };
+/** Stages that say nothing about the company. */
+const NO_STAGE = new Set(["other", "undisclosed", "series_unknown", "venture_round_not_specified"]);
+const stageLabel = (s: string) => (NO_STAGE.has(s) ? "" : (STAGE[s] ?? (/^series_[a-z]$/.test(s) ? `Series ${s.slice(-1).toUpperCase()}` : s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()))));
+
+/** One fact about a company, as shown on a job's Company section, with where it came from. */
+export interface CompanyLine {
+  label: string;
+  value: string;
+  source: string;
+}
+
+/** The facts JobsLake has for a company, in the order they're shown; nothing it doesn't have. */
+export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[] {
+  const n = (v: number) => v.toLocaleString(locale);
+  const out: CompanyLine[] = [];
+  const f = p.facts;
+  if (f) {
+    const size = f.employees ? `${n(f.employees)} employees` : f.employeeRange ? `${f.employeeRange.replace("-", "–")} employees` : "";
+    if (size) out.push({ label: "Size", value: size, source: f.from });
+    if (f.industry) out.push({ label: "Industry", value: f.industry.charAt(0).toUpperCase() + f.industry.slice(1), source: f.from });
+    if (f.hqCountry) out.push({ label: "Headquarters", value: f.hqCountry, source: f.from });
+    if (f.founded) out.push({ label: "Founded", value: String(f.founded), source: f.from });
+    const stage = f.ticker ? `Public (${f.ticker})` : f.fundingStage ? stageLabel(f.fundingStage) : "";
+    if (stage) out.push({ label: "Funding", value: stage, source: f.from });
+  }
+  if (p.openJobs !== undefined && p.openJobs > 0) out.push({ label: "Hiring", value: `${n(p.openJobs)} open ${p.openJobs === 1 ? "role" : "roles"}${p.newJobs7d ? ` · ${n(p.newJobs7d)} new this week` : ""}`, source: "JobsLake, last two weeks" });
+  if (p.h1b) out.push({ label: "H-1B visas", value: `${n(p.h1b.filings)} certified ${p.h1b.filings === 1 ? "application" : "applications"}${p.h1b.medianWage ? ` · median $${n(p.h1b.medianWage)}` : ""}`, source: `US Dept. of Labor, ${p.h1b.through}` });
+  return out;
 }

@@ -40,8 +40,16 @@ export async function refreshCompanies(
   const at = new Date(now).toISOString();
   const records = companiesFrom(opps, at);
   const counts = new Map<string, number>();
-  for (const o of opps) for (const r of companiesFrom([o], at)) counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
-  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, countedAt: at })));
+  const fresh = new Map<string, number>();
+  const weekAgo = new Date(now - 7 * 86_400_000).toISOString();
+  for (const o of opps)
+    for (const r of companiesFrom([o], at)) {
+      counts.set(r.domain, (counts.get(r.domain) ?? 0) + 1);
+      if (o.postedAt >= weekAgo) fresh.set(r.domain, (fresh.get(r.domain) ?? 0) + 1);
+    }
+  // H-1B totals from the last Department of Labor file, by exact (normalized) company name; null when it names none.
+  const h1b = await store.h1bFor([...new Set(records.map((r) => r.nameKey))]).catch(() => undefined);
+  await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at, ...(h1b ? { h1b: h1b.get(r.nameKey) ?? null } : {}) })));
 
   // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
   // the one their title states.

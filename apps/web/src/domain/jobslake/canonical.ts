@@ -190,11 +190,12 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
   }));
   const lastObservedAt = ranked.reduce((m, o) => (o.job.observedAt > m ? o.job.observedAt : m), top.job.observedAt);
   const skills = [...new Set(ranked.flatMap((o) => o.job.skills))].slice(0, 20);
+  const facts = ranked.find((o) => o.job.companyFacts)?.job.companyFacts;
 
   const opp: CanonicalOpportunity = {
     id: `opp_${fnv(keysFor(top.job)[0])}`,
     protocolVersion: PROTOCOL_VERSION,
-    employer: { name: employer, domain: ranked.find((o) => o.job.companyDomain)?.job.companyDomain },
+    employer: { name: employer, domain: ranked.find((o) => o.job.companyDomain)?.job.companyDomain, ...(facts ? { facts } : {}) },
     title,
     normalizedTitle: normalizeTitle(title),
     locations: [location],
