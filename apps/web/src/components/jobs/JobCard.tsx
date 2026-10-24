@@ -7,6 +7,7 @@ import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
+import { track } from "@/lib/analytics";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
@@ -33,6 +34,8 @@ export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): strin
 }
 
 /** The match pill's colours, by fit — the percentage is a guide, so the fit label goes with it (title, screen readers). */
+const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center rounded-full px-3 text-[12px] font-semibold text-white";
+
 const MATCH_TONE: Record<JobMatch["fit"], string> = {
   strong: "bg-success-100 text-success-600",
   worth_considering: "bg-brand-50 text-brand-700",
@@ -60,6 +63,16 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               <span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
             </span>
           )}
+          {/* Apply straight from the list: a job posted on WonderJobs opens its page (Easy Apply); others open the employer's listing. */}
+          {job.sourceIds.includes("employers") ? (
+            <Link href={`/app/jobs/${job.id}`} className={APPLY_BTN}>
+              Apply
+            </Link>
+          ) : job.applyUrl ? (
+            <a href={job.applyUrl} target="_blank" rel="noreferrer" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "card" })} className={APPLY_BTN}>
+              Apply
+            </a>
+          ) : null}
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold leading-tight text-ink">
