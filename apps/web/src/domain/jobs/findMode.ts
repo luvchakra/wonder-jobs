@@ -41,11 +41,11 @@ export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIM
 
 /**
  * What each mode's All covers (owner, 2026-10-22: freelance gigs were showing in Full Time). Full Time: its own job
- * types — gigs, part-time jobs and internships are left out. Part Time: every job type, since it searches only what
- * the candidate typed (a full-time barista job is a real answer to "barista in Pune"). A job that states no type at
- * all (most employer career pages don't) shows in both.
+ * types — gigs, part-time jobs and internships are left out. Part Time: every type but full-time (owner, 2026-10-24:
+ * full-time jobs were showing in Part Time). A job that states no type at all (most employer career pages don't)
+ * shows in both.
  */
-export const MODE_COVERS: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: JOB_TYPES };
+export const MODE_COVERS: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: JOB_TYPES.filter((t) => t !== "full_time") };
 export const inMode = (t: JobType | undefined, mode: FindMode): boolean => !t || MODE_COVERS[mode].includes(t);
 
 /** A chip's own word: in Full Time, "Full-time" would only repeat the mode, so it reads "Permanent". */

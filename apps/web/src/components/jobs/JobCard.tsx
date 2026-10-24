@@ -51,20 +51,22 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
       <div className="flex items-start gap-3">
-        <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 48} />
+        {/* The match sits under the logo, so the company and the title get the card's whole width. */}
+        <div className="flex shrink-0 flex-col items-center gap-1.5">
+          <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 48} />
+          {match && (
+            <span className={cn("rounded-[10px] px-1.5 py-1 text-center text-[13px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
+              {match.score}%<span className="mt-0.5 block text-[10px] font-medium">Match</span>
+              <span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
+            </span>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            <p className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight text-ink">
-              <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
-                {job.company}
-              </Link>
-            </p>
-            {match && (
-              <span className={cn("shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
-                {match.score}% Match<span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
-              </span>
-            )}
-          </div>
+          <p className="truncate text-[17px] font-semibold leading-tight text-ink">
+            <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
+              {job.company}
+            </Link>
+          </p>
           <h3 className="mt-1 text-[16px] font-semibold leading-snug text-ink">{job.title}</h3>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-3">
             <span>{job.location}</span>

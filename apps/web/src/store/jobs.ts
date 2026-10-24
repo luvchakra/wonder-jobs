@@ -91,6 +91,8 @@ interface JobsState {
   refine: Partial<Record<FindMode, RefineSettings>>;
   /** Find's slider: that mode's filters, with its own Refine settings back. */
   switchFindMode: (mode: FindMode) => void;
+  /** Part Time's search words, kept while Full Time is on screen (and across reloads), so coming back shows them again. */
+  partTimeQuery: string;
   setSourceEnabled: (id: string, enabled: boolean) => void;
   /** From the server: which sources this deployment can query. */
   setSourceAvailability: (available: Record<string, boolean>) => void;
@@ -121,7 +123,7 @@ function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<Jobs
   return { filters, sort, refine: sameRefine(s.refine[mode], now) ? s.refine : { ...s.refine, [mode]: now } };
 }
 
-function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipProfile?: boolean; sort?: JobSort }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort"> {
+function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipProfile?: boolean; sort?: JobSort; partTimeQuery?: unknown }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort" | "partTimeQuery"> {
   const raw = (p.refine && typeof p.refine === "object" ? p.refine : {}) as Record<string, unknown>;
   const refine: JobsState["refine"] = {};
   for (const m of ["full_time", "part_time"] as const) {
@@ -130,8 +132,9 @@ function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; skipPro
   }
   const mode: FindMode = p.skipProfile ? "part_time" : "full_time";
   const { sort, ...narrowing } = refine[mode] ?? { ...refineDefaults(mode), hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? "best_match" };
-  // The mode's start, then everything kept for it (places, job types and view included).
-  return { refine, sort, filters: { ...filters, ...FIND_MODE_PATCH[mode], ...narrowing } };
+  // The mode's start, then everything kept for it (places, job types and view included); Part Time's words too.
+  const partTimeQuery = typeof p.partTimeQuery === "string" ? p.partTimeQuery.slice(0, 200) : "";
+  return { refine, sort, partTimeQuery, filters: { ...filters, ...FIND_MODE_PATCH[mode], ...narrowing, ...(mode === "part_time" ? { query: partTimeQuery } : {}) } };
 }
 
 /** How many searches each history keeps. */
@@ -340,11 +343,16 @@ export const useJobsStore = create<JobsState>()(
       setFilters: (patch) => set((s) => withRefine(s, { ...s.filters, ...patch }, s.sort)),
       setSort: (sort) => set((s) => withRefine(s, s.filters, sort)),
       refine: {},
+      partTimeQuery: "",
       switchFindMode: (mode) =>
         set((s) => {
           const kept = s.refine[mode] ?? refineDefaults(mode);
           const { sort, ...narrowing } = kept;
-          return withRefine(s, { ...s.filters, ...FIND_MODE_PATCH[mode], ...narrowing }, sort);
+          // Leaving Part Time keeps its words; coming back puts them in the box again.
+          const leaving = findModeOf(s.filters);
+          const partTimeQuery = leaving === "part_time" ? s.filters.query : s.partTimeQuery;
+          const words = mode === "part_time" ? { query: partTimeQuery } : {};
+          return { ...withRefine(s, { ...s.filters, ...FIND_MODE_PATCH[mode], ...narrowing, ...words }, sort), partTimeQuery };
         }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
       setSourceAvailability: (available) =>
@@ -376,7 +384,7 @@ export const useJobsStore = create<JobsState>()(
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
-        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile };
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },
