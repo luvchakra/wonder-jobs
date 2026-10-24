@@ -103,7 +103,9 @@ describe("the ratings job", () => {
     expect(x.calls.filter((c) => c.startsWith("enrich")).length).toBe(1);
     const rated = [...companies.rows.values()].find((r) => r.ratings)!;
     const lines = companyLines({ name: rated.name, ratings: rated.ratings!, ratingsAt: rated.ratingsAt });
-    expect(lines).toEqual([{ label: "Rating", value: "4.1 out of 5 · 321 reviews", source: expect.stringMatching(/^Explorium employee reviews, \w{3} 20\d\d$/) }]);
+    expect(lines).toEqual([{ label: "Rating", value: "4.1 out of 5 · 321 reviews", source: expect.stringMatching(/^Explorium employee reviews, \w{3} 20\d\d$/), stars: 4.1, detail: "Work-life 3.9" }]);
+    // The rating leads the Company section, ahead of the other facts.
+    expect(companyLines({ name: "X", ratings: rated.ratings!, wikidata: { founded: 2012, from: "Wikidata" } as never }).map((l) => l.label)).toEqual(["Rating", "Founded"]);
     expect(companyBrief({ name: "", ratings: rated.ratings!, ratingsAt: rated.ratingsAt }).rating).toMatchObject({ value: 4.1, reviews: 321 });
     expect((await companyBriefs([{ d: rated.domain, n: rated.name }], companies))[rated.domain]?.rating?.value).toBe(4.1);
   });

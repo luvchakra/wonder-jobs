@@ -6,6 +6,7 @@ import { getClientMode } from "@/lib/mode";
 import { Fold } from "@/components/common/Fold";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { companyColor } from "./JobCard";
+import { RatingStars } from "./RatingStars";
 
 /**
  * A job's Company section: what JobsLake knows about the employer (size, industry, HQ, founding, listing and
@@ -43,7 +44,9 @@ export function CompanyFold({ job, open }: { job: Pick<CanonicalJob, "company" |
             <div key={l.label} className="flex gap-3 py-2">
               <dt className="w-24 shrink-0 text-ink-3">{l.label}</dt>
               <dd className="min-w-0 flex-1 text-ink">
-                {l.value}
+                {l.stars !== undefined ? <RatingStars value={l.stars} size={14} inline title={`${l.value} — ${l.source}`} /> : null}
+                {l.stars !== undefined ? <span className="ml-1.5 text-ink-3">{l.value.replace(/^[\d.]+ out of 5/, "out of 5")}</span> : l.value}
+                {l.detail && <span className="block text-[12px] text-ink-3">{l.detail}</span>}
                 {l.href ? (
                   <a href={l.href} target="_blank" rel="noreferrer" className="block text-[11.5px] text-ink-4 hover:underline">
                     {l.source}
