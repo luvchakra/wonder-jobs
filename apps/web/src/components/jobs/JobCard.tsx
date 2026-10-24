@@ -7,6 +7,7 @@ import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
+import type { CompanyBrief } from "@/domain/jobslake/companies";
 import { track } from "@/lib/analytics";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
@@ -56,7 +57,7 @@ const MATCH_TONE: Record<JobMatch["fit"], string> = {
   low_fit: "bg-bg-soft text-ink-3",
 };
 
-export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare }: { job: CanonicalJob; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
+export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare, brief }: { job: CanonicalJob; brief?: CompanyBrief | null; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   // The site a board's posting lives on ("naukri.com"), once its link has been followed.
   const origin = useJobsStore((s) => s.origins[job.id]);
@@ -153,6 +154,8 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}
+          {brief?.size && ` · ${brief.size}`}
+          {brief?.h1b ? <span title="Certified H-1B applications in the US Department of Labor's latest disclosure file">{` · H-1B ${brief.h1b.toLocaleString("en-US")}`}</span> : null}
         </span>
         {onToggleSave && (
           // Share, then Save, at the card's corner.
