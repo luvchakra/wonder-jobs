@@ -19,7 +19,7 @@ export function SectionTabs() {
     activeRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [pathname, youMenu]);
   // Only on a section's own pages — a detail page (one application, one run) has its own back link.
-  if (!section || !section.items.some((i) => i.href === pathname || (isActivePath(pathname, i) && pathname.split("/").length <= 3))) return null;
+  if (!section || !section.items.some((i) => i.href === pathname)) return null;
   const fixed = section.items.filter((i) => !i.menuId);
   const items = section.items.some((i) => i.menuId) ? [...fixed, ...arrangeMenu(section.items.filter((i) => i.menuId).map((i) => ({ ...i, id: i.menuId! })), youMenu)] : section.items;
   return (

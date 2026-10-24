@@ -1,4 +1,4 @@
-import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, CalendarDays, Database, Dna, GraduationCap, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, CalendarDays, Database, Dna, FileText, GraduationCap, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -40,13 +40,15 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
   {
     title: "You",
     items: [
-      // Career Profile first, once (its résumés page is part of it); the rest in the You page's row order (SectionTabs).
-      { href: "/app/career-dna", label: "Career Profile", icon: Dna, match: (p) => under("/app/career-dna", "/app/resume-studio")(p) },
+      // Career Profile first; the rest in the You page's row order (SectionTabs).
+      { href: "/app/career-dna", label: "Career Profile", icon: Dna },
       { href: "/app/ask", label: "Ask Wonder", icon: Search, menuId: "ask_wonder" },
       // Getting better at what the jobs ask for: skill gaps from the candidate's own matches, and where to learn them.
       { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap, menuId: "skill_up" },
       // Whether companies can find and message them, and those conversations.
       { href: "/app/recruiters", label: "Recruiters", icon: MessagesSquare, menuId: "recruiters" },
+      // The You page's second "Career Profile" row; as a tab it says what it is, so Career Profile shows once.
+      { href: "/app/resume-studio", label: "Résumés", icon: FileText, menuId: "resumes" },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings", menuId: "job_sources" },
       { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation"), menuId: "automation" },
       { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs", menuId: "search_history" },
