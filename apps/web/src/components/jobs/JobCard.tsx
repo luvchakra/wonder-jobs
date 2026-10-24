@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Bookmark, CheckCircle2, ThumbsDown } from "lucide-react";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
@@ -15,6 +16,7 @@ import { Badge } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";
 import { RatingStars } from "./RatingStars";
+import { jdSummary } from "@/domain/jobs/jdSummary";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
@@ -66,9 +68,11 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   // The posting's own skills (its tags when it lists none) and the strongest parts of the computed match.
   const tags = (job.skills.length ? job.skills : job.tags).filter((t) => t.length <= 24).slice(0, 3);
   const reasons = cardReasons(job, match);
+  // The posting's own first sentences about the role, shown only where the card has spare room (see .wj-fill).
+  const summary = useMemo(() => jdSummary(job.description), [job.description]);
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
-      <div className="flex items-start gap-3">
+      <div className="flex items-stretch gap-3">
         {/* The match sits under the logo, so the company and the title get the card's whole width. */}
         <div className="flex shrink-0 flex-col items-center gap-1">
           <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 36 : 44} />
@@ -91,7 +95,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             </a>
           ) : null}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
           {/* The title leads (two lines at most); the company and the first place share the line below it. */}
           <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink">
             <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
@@ -136,6 +140,12 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
                 </li>
               ))}
             </ul>
+          )}
+          {/* Fills whatever room is left beside the logo column — never makes the card taller, and shows only when two lines fit. */}
+          {summary && (
+            <div className="wj-fill mt-1.5 min-h-0 flex-1" title="From the job description">
+              <p className="wj-fill-text text-[12.5px] leading-[1.4] text-ink-3">{summary}</p>
+            </div>
           )}
         </div>
         {onReject && (
