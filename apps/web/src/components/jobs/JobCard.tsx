@@ -49,26 +49,26 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   const tags = (job.skills.length ? job.skills : job.tags).filter((t) => t.length <= 24).slice(0, 3);
   const reasons = cardReasons(job, match);
   return (
-    <article className={cn("wj-card wj-elevate relative flex flex-col p-4", className)}>
+    <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
       <div className="flex items-start gap-3">
         {/* The match sits under the logo, so the company and the title get the card's whole width. */}
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
-          <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 38 : 48} />
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 36 : 44} />
           {match && (
-            <span className={cn("rounded-[10px] px-1.5 py-1 text-center text-[13px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
+            <span className={cn("rounded-[8px] px-1.5 py-0.5 text-center text-[12px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
               {match.score}%<span className="mt-0.5 block text-[10px] font-medium">Match</span>
               <span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
             </span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-semibold leading-tight text-ink">
+          <p className="truncate text-[15px] font-semibold leading-tight text-ink">
             <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
               {job.company}
             </Link>
           </p>
-          <h3 className="mt-1 text-[16px] font-semibold leading-snug text-ink">{job.title}</h3>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-3">
+          <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-ink">{job.title}</h3>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-3">
             <span>{job.location}</span>
             <span aria-hidden>·</span>
             <span>{WORK_MODE_LABEL[job.workMode]}</span>
@@ -85,6 +85,26 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               </>
             )}
           </p>
+          {/* Skills and why it fits sit beside the logo, so nothing leaves a gap under it. */}
+          {tags.length > 0 && (
+            <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Skills">
+              {tags.map((t) => (
+                <li key={t} className="rounded-full bg-bg-soft px-2.5 py-0.5 text-[12px] text-ink">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
+          {reasons.length > 0 && (
+            <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5" aria-label="Why it fits">
+              {reasons.map((r) => (
+                <li key={r} className="flex items-center gap-1 text-[12.5px] text-ink-2">
+                  <CheckCircle2 className="size-3.5 shrink-0 fill-success-600 text-white" aria-hidden />
+                  {r}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         {onReject && (
           <button
@@ -100,26 +120,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           </button>
         )}
       </div>
-      {tags.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Skills">
-          {tags.map((t) => (
-            <li key={t} className="rounded-full bg-bg-soft px-3 py-1.5 text-[13px] text-ink">
-              {t}
-            </li>
-          ))}
-        </ul>
-      )}
-      {reasons.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-1.5" aria-label="Why it fits">
-          {reasons.map((r) => (
-            <li key={r} className="flex items-center gap-2 text-[14px] text-ink-2">
-              <CheckCircle2 className="size-[18px] shrink-0 fill-success-600 text-white" aria-hidden />
-              {r}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-1 flex items-center gap-2">
         {status && <Badge tone="info">{status}</Badge>}
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
@@ -127,8 +128,8 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
         </span>
         {onToggleSave && (
           // Share, then Save, at the card's corner.
-          <div className="relative z-10 -mr-1.5 -mb-1.5 flex shrink-0 items-center">
-          <ShareJobButton job={job} className="size-10 text-ink-2" />
+          <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
+          <ShareJobButton job={job} className="size-9 text-ink-2" />
           <button
             type="button"
             onClick={(e) => {
@@ -137,7 +138,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             }}
             aria-pressed={saved}
             aria-label={saved ? "Remove from saved" : "Save job"}
-            className={cn("flex size-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
+            className={cn("flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
           >
             <Bookmark className="size-5" fill={saved ? "currentColor" : "none"} aria-hidden />
           </button>
