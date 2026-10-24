@@ -14,7 +14,7 @@ export const JOB_TYPE_LABEL: Record<JobType, string> = {
   part_time: "Part-time",
   contract: "Contract",
   consultant: "Consultant",
-  internship: "Internship",
+  internship: "Intern",
   temporary: "Short-term",
   gig: "Gig",
 };
