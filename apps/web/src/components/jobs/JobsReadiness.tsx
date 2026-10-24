@@ -409,7 +409,7 @@ export function RoleChips({ roles, current, onPick, busy, allowNone = false }: {
   return (
     <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
       <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>
-      <Chip active={current === null} onClick={() => pick(null)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
+      <Chip active={current === null} isDefault onClick={() => pick(null)} className="h-9 shrink-0 px-3 text-[12px]" disabled={busy}>
         My profile
       </Chip>
       {roles.map((r) => (
