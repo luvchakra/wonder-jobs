@@ -185,7 +185,7 @@ export function JobsBoard({ header, footer, refineTop, empty, sourceSearch, sear
         sourceSearch={sourceSearch}
         refineTop={refineTop}
         shortlist={savedOnly ? { text: savedText, onText: setSavedText } : undefined}
-        className="mb-4"
+        className="mb-3"
       />
       {partTimeIdle ? (
         partTimeMiss ? (

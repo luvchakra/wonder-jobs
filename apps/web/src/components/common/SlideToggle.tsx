@@ -26,7 +26,7 @@ export function SlideToggle<T extends string>({ value, options, onChange, label,
       ref={track}
       role="radiogroup"
       aria-label={label}
-      className={cn("relative grid touch-pan-y select-none grid-cols-2 rounded-full border border-line bg-surface p-1", className)}
+      className={cn("relative grid touch-pan-y select-none grid-cols-2 rounded-full border border-line bg-surface p-0.5", className)}
       onPointerDown={(e) => {
         dragged.current = false;
         start.current = { x: e.clientX, moved: false };
@@ -65,7 +65,7 @@ export function SlideToggle<T extends string>({ value, options, onChange, label,
     >
       <span
         aria-hidden
-        className={cn("wj-gradient-bg pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full shadow-brand", drag === null && "transition-transform duration-200 ease-out motion-reduce:transition-none")}
+        className={cn("wj-gradient-bg pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-0.125rem)] rounded-full shadow-brand", drag === null && "transition-transform duration-200 ease-out motion-reduce:transition-none")}
         style={{ transform: `translateX(${at * 100}%)` }}
       />
       {options.map((o, i) => {
@@ -85,7 +85,7 @@ export function SlideToggle<T extends string>({ value, options, onChange, label,
               }
               pick(o.value);
             }}
-            className={cn("relative z-10 min-h-11 rounded-full px-4 text-[15px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500", lit ? "text-white" : "text-ink-2 hover:text-ink")}
+            className={cn("relative z-10 min-h-9 rounded-full px-4 text-[14px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500", lit ? "text-white" : "text-ink-2 hover:text-ink")}
           >
             {o.label}
           </button>

@@ -270,14 +270,14 @@ export function WantedRole({ className }: { className?: string }) {
   // One pill: the role and Change (the label is for screen readers). As tall as Part Time's search box,
   // so switching modes doesn't move what's below.
   return (
-    <div className={cn("mb-2 flex h-12 items-center gap-2 rounded-full border border-line bg-surface pl-5 pr-1.5 shadow-xs sm:gap-3", className)}>
+    <div className={cn("mb-2 flex h-10 items-center gap-2 rounded-full border border-line bg-surface pl-4 pr-1 shadow-xs sm:gap-3", className)}>
       <div className="min-w-0 flex-1">
         <p className="wj-sr-only">Looking for</p>
-        <p className={cn("truncate text-[16px] leading-5 first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
+        <p className={cn("truncate text-[15px] leading-5 first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
           {role || "No role yet"}
         </p>
       </div>
-      <Link href="/app/career-dna?from=find&focus=role" className="inline-flex min-h-11 shrink-0 items-center self-center rounded-full px-3 text-[15px] font-semibold text-brand-600 hover:bg-brand-50">
+      <Link href="/app/career-dna?from=find&focus=role" className="inline-flex min-h-8 shrink-0 items-center self-center rounded-full px-3 text-[14px] font-semibold text-brand-600 hover:bg-brand-50">
         Change
       </Link>
     </div>

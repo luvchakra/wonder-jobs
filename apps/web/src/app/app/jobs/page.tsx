@@ -123,9 +123,9 @@ function JobsHome() {
   return (
     <>
       {/* Full Time or Part Time: the whole width on a phone, the first thing on the page. */}
-      <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-3 w-full sm:max-w-sm" />
+      <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-2 w-full sm:max-w-sm" />
       {/* Full Time: what Wonder searches for, with one tap to change it. */}
-      {mode === "full_time" && <WantedRole className="mb-3" />}
+      {mode === "full_time" && <WantedRole className="mb-2" />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
