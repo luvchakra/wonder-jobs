@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import Link from "next/link";
-import { Bookmark, CheckCircle2, ThumbsDown } from "lucide-react";
+import { ArrowUpRight, Bookmark, CheckCircle2, ThumbsDown, Zap } from "lucide-react";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { COMPANIES } from "@/services/mock/catalog";
@@ -51,7 +51,7 @@ export function shortPlace(location: string): string {
   return places.length > 1 ? `${places[0]} +${places.length - 1}` : places[0];
 }
 
-const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center rounded-full px-3 text-[12px] font-semibold text-white";
+const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center gap-0.5 rounded-full px-2.5 text-[12px] font-semibold text-white";
 
 const MATCH_TONE: Record<JobMatch["fit"], string> = {
   strong: "bg-success-100 text-success-600",
@@ -84,14 +84,17 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               <span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
             </span>
           )}
-          {/* Apply straight from the list: a job posted on WonderJobs opens its page (Easy Apply); others open the employer's listing. */}
+          {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
+              (a job posted on WonderJobs; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
-            <Link href={`/app/jobs/${job.id}`} className={APPLY_BTN}>
+            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderJobs" className={APPLY_BTN}>
+              <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
               Apply
             </Link>
           ) : job.applyUrl ? (
-            <a href={job.applyUrl} target="_blank" rel="noreferrer" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "card" })} className={APPLY_BTN}>
+            <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "card" })} className={APPLY_BTN}>
               Apply
+              <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
             </a>
           ) : null}
         </div>
