@@ -1,11 +1,13 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Loader2, RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Download, Eye, FileText, Loader2, RefreshCw } from "lucide-react";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { getTemplate, templateForResume } from "@/domain/resume/templates";
 import { generateResume, renderSaved, type GeneratedResume, type GenerationStage } from "@/services/resume/generate";
-import { downloadDocx } from "@/services/resume/download";
+import { downloadDocx, resumeFilename } from "@/services/resume/download";
+import { Modal } from "@/components/common/Modal";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { usePlan } from "@/lib/usePlan";
@@ -13,14 +15,17 @@ import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
 import { cn } from "@/lib/cn";
 
-type Phase = { kind: "idle" } | { kind: "generating"; progress: number } | { kind: "ready"; resume: GeneratedResume } | { kind: "downloading"; resume: GeneratedResume } | { kind: "downloaded"; resume: GeneratedResume };
+type Phase = { kind: "idle" } | { kind: "generating"; progress: number } | { kind: "ready"; resume: GeneratedResume };
+
+// The page-by-page viewer loads only when Preview is opened.
+const ResumeViewer = dynamic(() => import("@/components/resume/ResumeViewer").then((m) => m.ResumeViewer), { ssr: false });
 
 const STAGES_WITH_TARGET: GenerationStage[] = ["select", "tailor", "render", "paginate", "ats"];
 
 /**
- * Generate Customized Resume on a job's page (owner, 2026-10-22): one button that becomes the whole flow —
- * Generating Custom Resume… (filling up as each step finishes) → Download custom resume → Downloading resume… →
- * Re-generate Resume. The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
+ * Generate Customized Resume on a job's page (owner, 2026-10-22): Generating Custom Resume… (filling up as each
+ * step finishes), then — nothing downloads by itself (owner, 2026-10-25) — Re-generate Resume with the new résumé
+ * just below it: its file name, Preview (the pages as they'll print) and Download (Word, .docx). The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
  * ordered for this job, in the template they chose (the first one when they never chose; never asked here), as a
  * Word file built in this browser. Nothing calls a model; Automation → Draft a tailored résumé set to Off still wins.
  * A résumé already made for this job is offered for download straight away.
@@ -87,17 +92,18 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
     }
   };
 
+  const [downloading, setDownloading] = useState(false);
+  const [preview, setPreview] = useState(false);
   const download = (resume: GeneratedResume) => {
-    setPhase({ kind: "downloading", resume });
+    setDownloading(true);
     try {
       downloadDocx(resume, existing?.name);
       track("custom_resume_downloaded", { jobId: job.id });
-      // The file is built here and handed to the browser at once; the label stays a moment so the change is seen.
-      setTimeout(() => setPhase({ kind: "downloaded", resume }), 1200);
     } catch (e) {
-      setPhase({ kind: "ready", resume });
       toast.error("Couldn't download it", e instanceof Error ? e.message : "Try again.");
     }
+    // The file is built here and handed to the browser at once; the spinner stays a moment so the tap is seen.
+    setTimeout(() => setDownloading(false), 800);
   };
 
   // A résumé already made for this job: ready to download without making it again.
@@ -126,28 +132,41 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
   }
   if (phase.kind === "ready" || fromBefore) {
     const resume = phase.kind === "ready" ? phase.resume : fromBefore!;
+    const file = resumeFilename(resume, "docx", existing?.name);
+    const small = "inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[13px] font-medium text-ink wj-press hover:bg-surface-2";
     return (
-      <button type="button" onClick={() => download(resume)} className={cn(base, filled)}>
-        <Download className="size-4" aria-hidden /> Download custom resume
-      </button>
-    );
-  }
-  if (phase.kind === "downloading") {
-    return (
-      <button type="button" disabled aria-busy className={cn(base, filled, "opacity-90")}>
-        <Loader2 className="size-4 wj-animate-spin" aria-hidden /> Downloading resume…
-      </button>
-    );
-  }
-  if (phase.kind === "downloaded") {
-    return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <button type="button" onClick={() => void generate()} className={cn(base, plain)}>
           <RefreshCw className="size-4" aria-hidden /> Re-generate Resume
         </button>
+        {/* The résumé just made: never downloaded by itself — Preview shows it, Download saves the Word file. */}
+        <div className="flex flex-col gap-2.5 rounded-[16px] border border-line bg-surface p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <FileText className="size-5 shrink-0 text-brand-600" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[12px] text-ink-3">Résumé · {getTemplate(resume.template.id)?.name ?? "your"} template</span>
+              <span className="block truncate text-[14px] text-ink" title={file}>{file}</span>
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setPreview(true)} className={small}>
+              <Eye className="size-4" aria-hidden /> Preview
+            </button>
+            <button type="button" onClick={() => download(resume)} disabled={downloading} aria-busy={downloading} className={small}>
+              {downloading ? <Loader2 className="size-4 wj-animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} Download
+            </button>
+          </div>
+        </div>
         <Link href="/app/resume-studio" className="text-center text-[12px] text-ink-3 hover:underline">
-          In {getTemplate(phase.resume.template.id)?.name ?? "your"} template · saved in My resumes
+          Saved in My Resume
         </Link>
+        <Modal open={preview} onClose={() => setPreview(false)} title={file} description={`For ${job.title} at ${job.company}`} size="lg" footer={
+          <button type="button" onClick={() => download(resume)} disabled={downloading} className={cn(base, filled, "sm:w-auto")}>
+            <Download className="size-4" aria-hidden /> Download (.docx)
+          </button>
+        }>
+          {preview && <ResumeViewer layout={resume.layout} title={file} />}
+        </Modal>
       </div>
     );
   }
