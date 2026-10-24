@@ -47,6 +47,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const job = useJobsStore((s) => s.jobs[id]);
   useRecoverJobs([id]);
   const match = useJobsStore((s) => s.matches[id]);
+  // A job opened from outside Find's list (Saved, Pipeline, a link) is compared with the profile here.
+  const hasJobToScore = useJobsStore((s) => !!s.jobs[id] && !s.matches[id]);
+  useEffect(() => {
+    if (hasJobToScore) useJobsStore.getState().scoreOne(id);
+  }, [hasJobToScore, id]);
   const quality = useJobsStore((s) => s.quality[id]);
   const saved = useJobsStore((s) => !!s.saved[id]);
   const origin = useJobsStore((s) => s.origins[id]);

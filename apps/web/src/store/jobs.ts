@@ -59,6 +59,8 @@ interface JobsState {
   loadInitial: () => void;
   /** Re-score the catalog against the current Career DNA (after onboarding / DNA edits). */
   rescore: () => void;
+  /** Compares one job with the Career Profile when it has no match yet (a job opened from Saved, Pipeline or a link, outside Find's list). */
+  scoreOne: (id: string) => void;
   replaceCatalog: (jobs: CanonicalJob[], searchedFor?: string) => void;
   /** A running search's later arrivals, added after what's already listed (the run's final `replaceCatalog` settles the list). */
   appendCatalog: (jobs: CanonicalJob[]) => void;
@@ -211,6 +213,13 @@ export const useJobsStore = create<JobsState>()(
         const scope = matchScope(get().filters, dna);
         for (const id of order) matches[id] = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery, ...scope }), aiFits[id], profile);
         set({ matches });
+      },
+      scoreOne: (id) => {
+        const { jobs, matches, aiFits } = get();
+        if (!jobs[id] || matches[id]) return;
+        const { dna, learnedSignals } = useCareerStore.getState();
+        const m = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery: get().searchedFor || undefined, ...matchScope(get().filters, dna) }), aiFits[id], profileKey(dna));
+        set((s) => ({ matches: { ...s.matches, [id]: m } }));
       },
       replaceCatalog: (list, searchedFor = "") =>
         set((s) => {
