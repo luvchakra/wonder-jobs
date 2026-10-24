@@ -11,7 +11,7 @@ const PAGE = 50;
 
 /** What a company's facts say, one line per fact, each with the source it came from. */
 function Facts({ c }: { c: DirectoryCompany }) {
-  const lines = companyLines({ name: c.name, facts: c.facts, wikidata: c.wikidata ?? undefined, h1b: c.h1b, openJobs: c.openJobs, newJobs7d: c.newJobs7d });
+  const lines = companyLines({ name: c.name, facts: c.facts, wikidata: c.wikidata ?? undefined, ratings: c.ratings ?? undefined, ratingsAt: c.ratingsAt, h1b: c.h1b, openJobs: c.openJobs, newJobs7d: c.newJobs7d });
   if (!lines.length) return <span className="text-ink-4">None yet</span>;
   return (
     <ul className="space-y-0.5">

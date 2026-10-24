@@ -146,6 +146,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               <p className="text-[15px] font-semibold text-ink">
                 {job.company}
                 {brief?.size && <span className="font-normal text-ink-3">{` · ${brief.size}`}</span>}
+                {brief?.rating ? (
+                  <span className="font-normal text-ink-3" title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`}>
+                    {" · "}
+                    <span className="text-[#f5a623]" aria-hidden>★</span> {brief.rating.value.toFixed(1)}
+                  </span>
+                ) : null}
                 {brief?.h1b ? (
                   <span className="font-normal text-ink-3" title="Certified H-1B applications in the US Department of Labor's latest disclosure file">
                     {` · H-1B ${brief.h1b.toLocaleString("en-US")}`}
