@@ -28,14 +28,16 @@ function explorium(balances: Record<string, number>, opts: { rateLimit?: boolean
     const hits = asked.filter((a) => /^(fig|str)/.test(a.domain));
     if (hits.length * 2 > balances[key] || asked.length > (opts.maxPerCall ?? 50)) return new Response("{}", { status: 403 });
     balances[key] -= hits.length * 2;
-    return Response.json({ data: asked.map((a) => (/^(fig|str)/.test(a.domain) ? { input: { domain: a.domain }, business_id: "b".repeat(32), data: { ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9 } } : { input: { domain: a.domain }, business_id: null, data: null })) });
+    return Response.json({ data: asked.map((a) => (/^(fig|str)/.test(a.domain) ? { input: { domain: a.domain }, business_id: "b".repeat(32), data: { ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9, ratings_ceo_approval: 0.93, ratings_ceo_approval_count: 116, ratings_recommend_to_friend: 0.79, ratings_business_outlook: 0.79, ratings_culture_values: null } } : { input: { domain: a.domain }, business_id: null, data: null })) });
   }) as unknown as typeof fetch;
   return { f, calls, balances };
 }
 
 describe("Explorium ratings", () => {
-  it("reads only ratings it can trust: overall 1–5, the category ratings, the review count", () => {
+  it("reads only ratings it can trust: overall 1–5, the category ratings, the review count, the shares of reviewers", () => {
     expect(parseExploriumRatings({ ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9, ratings_cutlure_values: 4.6, ratings_senior_management: 9 })).toEqual({ overall: 4.1, reviews: 321, categories: { workLife: 3.9, culture: 4.6 }, from: "Explorium" });
+    // Figma's real answer from Explorium: shares are fractions, floats carry noise, culture is null (no rating, not a bug).
+    expect(parseExploriumRatings({ ratings_all_reviews_count: 203, ratings_business_outlook: 0.7900000214576721, ratings_career_opportunities: 3.5999999046325684, ratings_ceo_approval: 0.9300000071525574, ratings_ceo_approval_count: 116, ratings_compensation_benefits: 4, ratings_culture_values: null, ratings_diversity_inclusion: 4.199999809265137, ratings_overall: 4.099999904632568, ratings_recommend_to_friend: 0.7900000214576721, ratings_senior_management: 3.4000000953674316, ratings_work_life_balance: 3.200000047683716, total_reviews_count: 203, company_score: null })).toEqual({ overall: 4.1, reviews: 203, ceoApproval: 93, ceoVotes: 116, recommend: 79, outlook: 79, categories: { workLife: 3.2, compensation: 4, career: 3.6, management: 3.4, diversity: 4.2 }, from: "Explorium" });
     expect(parseExploriumRatings({ ratings_overall: 0 })).toBeUndefined();
     expect(parseExploriumRatings(null)).toBeUndefined();
   });
@@ -122,7 +124,7 @@ describe("the ratings job", () => {
     await runRatings({ companies, keys: store, fetcher: explorium({ "key-small-111": 20 }).f, now: NOW });
     const rated = [...companies.rows.values()].find((r) => r.ratings)!;
     const lines = companyLines({ name: rated.name, ratings: rated.ratings!, ratingsAt: rated.ratingsAt });
-    expect(lines).toEqual([{ label: "Rating", value: "4.1 out of 5 · 321 reviews", source: expect.stringMatching(/^Explorium employee reviews, \w{3} 20\d\d$/), stars: 4.1, detail: "Work-life 3.9" }]);
+    expect(lines).toEqual([{ label: "Rating", value: "4.1 out of 5 · 321 reviews", source: expect.stringMatching(/^Explorium employee reviews, \w{3} 20\d\d$/), stars: 4.1, details: ["Work-life 3.9", "CEO approval 93% (116 votes) · Would recommend 79% · Positive outlook 79%"] }]);
     // The rating leads the Company section, ahead of the other facts.
     expect(companyLines({ name: "X", ratings: rated.ratings!, wikidata: { founded: 2012, from: "Wikidata" } as never }).map((l) => l.label)).toEqual(["Rating", "Founded"]);
     expect(companyBrief({ name: "", ratings: rated.ratings!, ratingsAt: rated.ratingsAt }).rating).toMatchObject({ value: 4.1, reviews: 321 });

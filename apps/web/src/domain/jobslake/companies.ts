@@ -132,8 +132,8 @@ export interface CompanyLine {
   href?: string;
   /** A rating out of 5, shown as stars. */
   stars?: number;
-  /** A second line under the value (a rating's category breakdown). */
-  detail?: string;
+  /** Lines under the value (a rating's category breakdown, then what reviewers say). */
+  details?: string[];
 }
 
 const compact = (v: number, locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(v);
@@ -146,7 +146,10 @@ export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[]
   if (p.ratings) {
     const c = p.ratings.categories ?? {};
     const parts = [["Work-life", c.workLife], ["Culture", c.culture], ["Pay & benefits", c.compensation], ["Career growth", c.career], ["Management", c.management], ["Diversity", c.diversity]].filter((x): x is [string, number] => typeof x[1] === "number").map(([k, v]) => `${k} ${v.toFixed(1)}`);
-    out.push({ label: "Rating", value: `${p.ratings.overall.toFixed(1)} out of 5${p.ratings.reviews ? ` · ${n(p.ratings.reviews)} reviews` : ""}`, source: `${p.ratings.from} employee reviews${p.ratingsAt ? `, ${ratingMonth(p.ratingsAt, locale)}` : ""}`, stars: p.ratings.overall, ...(parts.length ? { detail: parts.join(" · ") } : {}) });
+    const r = p.ratings;
+    const says = [r.ceoApproval !== undefined ? `CEO approval ${r.ceoApproval}%${r.ceoVotes ? ` (${n(r.ceoVotes)} votes)` : ""}` : "", r.recommend !== undefined ? `Would recommend ${r.recommend}%` : "", r.outlook !== undefined ? `Positive outlook ${r.outlook}%` : ""].filter(Boolean);
+    const details = [parts.join(" · "), says.join(" · ")].filter(Boolean);
+    out.push({ label: "Rating", value: `${r.overall.toFixed(1)} out of 5${r.reviews ? ` · ${n(r.reviews)} reviews` : ""}`, source: `${r.from} employee reviews${p.ratingsAt ? `, ${ratingMonth(p.ratingsAt, locale)}` : ""}`, stars: r.overall, ...(details.length ? { details } : {}) });
   }
   const sets = [p.facts, p.wikidata].filter((f): f is CompanyFacts => !!f);
   const add = (label: string, pick: (f: CompanyFacts) => string | undefined, year?: (f: CompanyFacts) => number | undefined) => {
