@@ -51,3 +51,16 @@ describe("wikidataWebsites", () => {
     expect(out.size).toBe(0);
   });
 });
+
+describe("wikidataWebsites name forms", () => {
+  it("also asks for the name without its legal form, and maps the answer back to the company", async () => {
+    let body = "";
+    const fetcher = (async (_u: string, init: RequestInit) => {
+      body = new URLSearchParams(String(init.body)).get("query") ?? "";
+      return new Response(JSON.stringify({ results: { bindings: [{ label: { value: "Tata Consultancy Services" }, item: { value: "http://www.wikidata.org/entity/Q1" }, site: { value: "https://www.tcs.com/" } }] } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const out = await wikidataWebsites(["Tata Consultancy Services Pvt. Ltd."], fetcher);
+    expect(body).toContain('"Tata Consultancy Services"@en');
+    expect(out.get("tata consultancy services")).toEqual({ domain: "tcs.com", sourceId: "Q1" });
+  });
+});
