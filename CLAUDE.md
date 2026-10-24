@@ -90,7 +90,7 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
 
 ## Minimal UI
 
-- One primary action per screen. A list item carries at most one action (e.g. Save).
+- One primary action per screen. A list item carries at most one action (e.g. Save); a job card carries Apply and Save (owner, 2026-10-24).
 - Fold settings, rare options and explanations (`components/common/Fold.tsx`, or Refine).
 - Default from the candidate's data instead of adding a selector.
 - At most one line of help. No repeated explanations, badges or "why" blocks on list items.
