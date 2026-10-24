@@ -493,6 +493,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ JobsLake company facts: size, industry, hiring activity and H-1B sponsorship (US Dept. of Labor) on a job's Company section (WJ-370)
 - ✅ Company facts from Wikidata (employees, founded, HQ, industry, listing, revenue), by the company's own website (WJ-371)
 - ✅ JobsLake portal: Company directory — every company with its facts, H-1B totals, sources and last checks (WJ-373)
+- ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

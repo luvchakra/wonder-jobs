@@ -14,6 +14,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";
+import { RatingStars } from "./RatingStars";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
 
@@ -87,6 +88,8 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               Apply
             </a>
           ) : null}
+          {/* The company's employee-review rating, under Apply where the column has room. */}
+          {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} className="mt-0.5" />}
         </div>
         <div className="min-w-0 flex-1">
           {/* The title leads (two lines at most); the company and the first place share the line below it. */}
