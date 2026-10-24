@@ -9,7 +9,7 @@ import { useUIStore } from "@/store/ui";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
-export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false };
+export const CLEAR_FILTERS_PATCH = { workModes: [] as never[], locations: [] as string[], levels: [] as never[], jobTypes: [] as never[], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [] as never[], minFit: null, exactFit: false, freshnessDays: null, minSalary: undefined, onlySaved: false, includeOld: true };
 
 /** One filter's own undo, for when it is what hides the jobs: the patch, and the button's words. */
 const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; label: string }>> = {
@@ -27,6 +27,9 @@ const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; la
   in_pipeline: { patch: { hideInPipeline: false }, label: "Show jobs in my Pipeline" },
 };
 
+/** Hidden for reasons "Show me anyway" doesn't lift: the candidate's own "not for me", the other mode's kind of job (Part Time leaves out full-time jobs, and the other way round), and the words searched. */
+const KEPT_HIDDEN: FilterReason[] = ["rejected", "other_mode", "search_text"];
+
 const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "job_type", "other_mode", "company", "location", "profile", "in_pipeline", "search_text"];
 
 /**
@@ -37,6 +40,8 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_
  */
 export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; /** Lifts one filter (the main reason) — kept in this mode's Refine. */ onFix?: (patch: Record<string, unknown>) => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] } }) {
   if (result.hiddenTotal === 0) return null;
+  // How many "Show me anyway" would bring back; the button shows only when that's some.
+  const revealable = result.hiddenTotal - KEPT_HIDDEN.reduce((n, r) => n + (result.hiddenByReason[r] ?? 0), 0);
   const reasons = REASON_ORDER.filter((r) => result.hiddenByReason[r]).sort((a, b) => (result.hiddenByReason[b] ?? 0) - (result.hiddenByReason[a] ?? 0));
   // "Show me anyway" clears every preference filter but never un-hides a job marked "not for me" —
   // that needs its own explicit undo (spec: never silently reverse a candidate's own rejection). Say
@@ -103,12 +108,12 @@ export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "comp
             <Button size="sm" onClick={() => onFix!(fix.patch)}>
               {fix.label}
             </Button>
-          ) : (
+          ) : revealable > 0 ? (
             <Button size="sm" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
               Show me anyway
             </Button>
-          )}
-          {fix && rest.length > 0 && (
+          ) : null}
+          {fix && revealable > (result.hiddenByReason[top] ?? 0) && (
             <Button size="sm" variant="outline" onClick={onShowAnyway} icon={<EyeOff className="size-4" aria-hidden />}>
               Show me anyway
             </Button>
@@ -145,9 +150,11 @@ export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "comp
         ))}
       </span>
       <span className="ml-auto flex items-center gap-2">
-        <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
-          Show me anyway
-        </button>
+        {revealable > 0 && (
+          <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
+            Show me anyway
+          </button>
+        )}
         <Link href="/app/career-dna?from=find" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
           Update Career Profile preferences
         </Link>
