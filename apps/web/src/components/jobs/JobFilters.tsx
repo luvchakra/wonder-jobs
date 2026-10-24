@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
@@ -102,10 +101,10 @@ const splitPlaces = (text: string) => text.split(",").map((p) => p.trim()).filte
 /**
  * How many of Refine's settings differ from where they start — one per setting. At their start (count 0): the
  * view All, no job type, All modes (none or all three), Any salary, no places picked, no level, Posted any time,
- * every source, Hide Pipeline and "strictly within" off. Sort is beside the job count, not in Refine.
+ * every source and Hide Pipeline off. Sort is beside the job count, not in Refine.
  */
 const refineCount = (f: Filters) =>
-  [f.minFit, f.jobTypes?.length, f.workModes.length > 0 && f.workModes.length < Object.keys(WORK_MODE_LABEL).length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline, f.strictProfile].filter(Boolean).length;
+  [f.minFit, f.jobTypes?.length, f.workModes.length > 0 && f.workModes.length < Object.keys(WORK_MODE_LABEL).length, f.minSalary, f.skipProfile ? f.locations?.length : f.locations !== undefined, f.levels?.length, f.freshnessDays, f.sourceIds.length, f.hideInPipeline].filter(Boolean).length;
 
 const PILL = "relative flex h-10 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
@@ -395,17 +394,6 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
             <span>Hide Pipeline: jobs you&apos;re already applying to</span>
           </label>
-          {!partTime && (
-          <label className="flex min-h-8 cursor-pointer items-center gap-2.5 text-[13px] text-ink sm:col-span-2 lg:col-span-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.strictProfile} onChange={(e) => onChange({ strictProfile: e.target.checked })} />
-            <span>
-              Search strictly within your{" "}
-              <Link href="/app/career-dna" className="font-medium text-brand-600 underline-offset-2 hover:underline">
-                Career Profile
-              </Link>
-            </span>
-          </label>
-          )}
           {/* One action: keep what's set here and go back to the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-2 sm:col-span-2 md:bottom-2 lg:col-span-3">
             <Button

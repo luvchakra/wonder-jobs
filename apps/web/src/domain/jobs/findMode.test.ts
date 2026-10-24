@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIND_MODES, FIND_MODE_PATCH, FULL_TIME_JOB_TYPES, MODE_JOB_TYPES, PART_TIME_JOB_TYPES, findModeOf, modeJobTypeLabel } from "./findMode";
+import { FIND_MODES, FIND_MODE_PATCH, FULL_TIME_JOB_TYPES, MODE_JOB_TYPES, PART_TIME_JOB_TYPES, findModeOf, modeJobTypeLabel, readRefine } from "./findMode";
 
 describe("Find's Full Time and Part Time", () => {
   it("is Full Time unless the profile is skipped", () => {
@@ -29,5 +29,11 @@ describe("Find's Full Time and Part Time", () => {
     expect(MODE_JOB_TYPES).toEqual({ full_time: FULL_TIME_JOB_TYPES, part_time: PART_TIME_JOB_TYPES });
     expect(modeJobTypeLabel("full_time", "Full-time")).toBe("Permanent");
     expect(modeJobTypeLabel("contract", "Contract")).toBe("Contract");
+  });
+});
+
+describe("readRefine", () => {
+  it("never restores the retired \"strictly within your Career Profile\" on", () => {
+    expect(readRefine({ strictProfile: true, hideInPipeline: true })).toMatchObject({ strictProfile: false, hideInPipeline: true });
   });
 });

@@ -95,7 +95,8 @@ export function readRefine(raw: unknown): RefineSettings | undefined {
     levels: strings(r.levels) as RefineSettings["levels"],
     company: typeof r.company === "string" ? r.company : "",
     salaryListed: r.salaryListed === true,
-    strictProfile: r.strictProfile === true,
+    // "Search strictly within your Career Profile" left Refine (owner, 2026-10-24): never restored on.
+    strictProfile: false,
     hideInPipeline: r.hideInPipeline === true,
     sourceIds: strings(r.sourceIds),
     freshnessDays: typeof r.freshnessDays === "number" ? r.freshnessDays : null,

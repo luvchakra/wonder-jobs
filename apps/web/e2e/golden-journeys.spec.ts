@@ -528,9 +528,8 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(main.getByRole("button", { name: "Permanent", exact: true })).toHaveCount(0);
     for (const t of ["Full-time", "Part-time"]) await expect(main.getByRole("button", { name: t, exact: true })).toHaveCount(0);
     expect(await views()).toEqual(["All", "Strong", "For you"]);
-    // Part Time's Refine has nothing from the Career Profile's role: no Looking for, no "strictly within your Career Profile".
+    // Part Time's Refine has nothing from the Career Profile's role: no Looking for.
     await expect(main.getByText(/^Looking for/)).toHaveCount(0);
-    await expect(main.getByText(/Search strictly within your/)).toHaveCount(0);
     await main.getByLabel(/^Hide Pipeline/).check();
     await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
     await main.getByLabel(/^Hide Pipeline/).uncheck();
