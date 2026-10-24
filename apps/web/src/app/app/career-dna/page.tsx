@@ -94,7 +94,8 @@ export default function CareerDNAPage() {
         className="mb-2 md:mb-3"
       />
       {/* Stays in view below the top bar while the long form scrolls, so Save is always one tap away. */}
-      <div className="sticky top-16 z-20 -mx-4 mb-4 flex items-center justify-end gap-2 border-b border-line/70 bg-bg/90 px-4 py-2.5 backdrop-blur md:mx-0 md:rounded-b-[14px] md:px-0">
+      {/* Follows the top bar: right under it while it shows, at the very top once it has slid away (--wj-top-hidden). */}
+      <div style={{ top: "calc(4rem - var(--wj-top-hidden, 0px))" }} className="sticky z-20 -mx-4 mb-4 flex items-center justify-end gap-2 border-b border-line/70 bg-bg/90 px-4 py-2.5 backdrop-blur transition-[top] duration-300 ease-out motion-reduce:transition-none md:mx-0 md:rounded-b-[14px] md:px-0">
         <Badge className="mr-auto">Updated {formatDate(dna.updatedAt)}</Badge>
         {dirty && (
           <span role="status" className="text-[12px] font-medium text-warning-600">
