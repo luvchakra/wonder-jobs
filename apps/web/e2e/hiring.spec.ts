@@ -112,9 +112,9 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
   test("HIRE-003 the Owner creates a workspace, posts a draft, is told what's missing, and opens it", async ({ browser }) => {
     const owner = (people.owner = await signedIn(browser, "hire-owner", accounts));
     const { page } = owner;
-    // Hiring is in the avatar menu.
-    await page.getByRole("button", { name: "Profile menu" }).click();
-    await page.getByRole("menuitem", { name: "Hiring" }).click();
+    // Hiring is a row under You.
+    await page.goto("/app/you");
+    await page.locator("#main").getByRole("link", { name: /^Hiring/ }).click();
     await page.waitForURL(/\/app\/hiring/);
     await page.getByLabel("Company name").fill(COMPANY);
     await page.getByRole("button", { name: "Create workspace" }).click();
