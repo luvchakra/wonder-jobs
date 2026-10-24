@@ -59,7 +59,7 @@ export async function resolveNameDomains(
   const due = keys
     .filter((k) => !known.has(k) && !(checked[k] && now - Date.parse(checked[k]) < NAME_TTL_MS))
     .sort((a, b) => byKey.get(b)!.count - byKey.get(a)!.count)
-    .slice(0, p.limit ?? 120);
+    .slice(0, p.limit ?? 400);
 
   let resolved = 0;
   const records: CompanyRecord[] = [];

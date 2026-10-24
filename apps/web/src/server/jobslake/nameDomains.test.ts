@@ -64,3 +64,16 @@ describe("wikidataWebsites name forms", () => {
     expect(out.get("tata consultancy services")).toEqual({ domain: "tcs.com", sourceId: "Q1" });
   });
 });
+
+describe("wikidataWebsites query", () => {
+  it("never walks the class tree (P279*), which took ~45 s and timed out every batch", async () => {
+    let query = "";
+    const fetcher = (async (_u: string, init: RequestInit) => {
+      query = new URLSearchParams(String(init.body)).get("query") ?? "";
+      return new Response(JSON.stringify({ results: { bindings: [] } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await wikidataWebsites(["HSBC"], fetcher);
+    expect(query).not.toContain("P279*");
+    expect(query).toContain("wdt:P1082");
+  });
+});
