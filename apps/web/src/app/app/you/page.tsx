@@ -40,7 +40,7 @@ export default function YouPage() {
     { id: "ask_wonder", href: "/app/ask", label: "Ask Wonder", value: "Ask, search or jump anywhere", icon: Search },
     { id: "skill_up", href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
     { id: "recruiters", href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
-    { id: "resumes", href: "/app/resume-studio", label: "Career Profile", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
+    { id: "resumes", href: "/app/resume-studio", label: "My Resume", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { id: "job_sources", href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
     // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
     { id: "hiring", href: "/app/hiring", label: "Hiring", value: "Post jobs, review applicants", icon: Building2 },

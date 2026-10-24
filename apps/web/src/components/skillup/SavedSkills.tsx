@@ -131,7 +131,7 @@ function ResumeStep({ item, on }: { item: SavedSkill; on: boolean }) {
           Add to Career Profile
         </button>
         <Link href="/app/resume-studio" className="inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-brand-600 hover:underline">
-          <FileText className="size-4" aria-hidden /> Open Résumés
+          <FileText className="size-4" aria-hidden /> Open My Resume
         </Link>
       </div>
     </div>

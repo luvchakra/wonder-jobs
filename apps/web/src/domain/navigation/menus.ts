@@ -28,7 +28,7 @@ export const MENUS = {
       { id: "ask_wonder", label: "Ask Wonder" },
       { id: "skill_up", label: "Skill Up" },
       { id: "recruiters", label: "Recruiters" },
-      { id: "resumes", label: "Career Profile" },
+      { id: "resumes", label: "My Resume" },
       { id: "job_sources", label: "Job sources" },
       { id: "hiring", label: "Hiring" },
       { id: "search_history", label: "Search history" },

@@ -45,7 +45,7 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
       { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap },
       // Whether companies can find and message them, and those conversations.
       { href: "/app/recruiters", label: "Recruiters", icon: MessagesSquare },
-      { href: "/app/resume-studio", label: "Résumés", icon: FileText },
+      { href: "/app/resume-studio", label: "My Resume", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
       { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
       { href: "/app/hiring", label: "Hiring", icon: Building2 },
