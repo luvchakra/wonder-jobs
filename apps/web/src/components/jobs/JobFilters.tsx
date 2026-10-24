@@ -326,31 +326,50 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             <ArrowLeft className="size-4" aria-hidden /> Back to jobs
           </button>
           {refineTop && <div className="border-b border-line pb-2 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
-          {views && (
-            <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-              Show
-              <div className="flex flex-wrap gap-1">
-                {VIEWS.map((v) => (
-                  <Chip key={v.value} active={view === v.value} isDefault={v.value === "all"} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
-                    {v.label}
-                  </Chip>
-                ))}
+          {/* Show and Posted share a row: both are short. */}
+          <div className="flex items-start gap-3 sm:col-span-2 lg:col-span-3">
+            {views && (
+              <div className="flex min-w-0 flex-1 flex-col gap-1 text-[13px] font-medium text-ink-2">
+                Show
+                <div className="flex flex-wrap gap-1">
+                  {VIEWS.map((v) => (
+                    <Chip key={v.value} active={view === v.value} isDefault={v.value === "all"} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
+                      {v.label}
+                    </Chip>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            <label className="flex w-32 shrink-0 flex-col gap-1 text-[13px] font-medium text-ink-2">
+              Posted
+              <Select className="h-9 text-[14px]" value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
+                <option value="">Any time</option>
+                <option value="1">Last 24 hours</option>
+                <option value="7">Last week</option>
+                <option value="30">Last month</option>
+              </Select>
+            </label>
+          </div>
           <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
             Job type
             <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
           </div>
-          <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={sectionClass("work_mode")}>
-            Work mode
-            <div className="flex flex-wrap gap-1">
-              {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
-                <Chip key={m} active={filters.workModes.includes(m)} isDefault={filters.workModes.length === Object.keys(WORK_MODE_LABEL).length} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className={REFINE_CHIP}>
-                  {WORK_MODE_LABEL[m]}
-                </Chip>
-              ))}
+          {/* Work mode, with Hide Pipeline beside it (jobs you're already preparing, have applied to or are interviewing for). */}
+          <div className="flex items-end gap-3">
+            <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={cn(sectionClass("work_mode"), "min-w-0 flex-1")}>
+              Work mode
+              <div className="flex flex-wrap gap-1">
+                {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
+                  <Chip key={m} active={filters.workModes.includes(m)} isDefault={filters.workModes.length === Object.keys(WORK_MODE_LABEL).length} onClick={() => onChange({ workModes: filters.workModes.includes(m) ? filters.workModes.filter((x) => x !== m) : [...filters.workModes, m] })} className={REFINE_CHIP}>
+                    {WORK_MODE_LABEL[m]}
+                  </Chip>
+                ))}
+              </div>
             </div>
+            <label title="Hide jobs you're already applying to" className="flex min-h-7 shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
+              <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
+              <span>Hide Pipeline</span>
+            </label>
           </div>
           <div id="wj-refine-salary" role="group" aria-label="Salary" tabIndex={-1} className={sectionClass("salary")}>
             Salary
@@ -380,20 +399,6 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-            Posted
-            <Select className="h-9 text-[14px]" value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
-              <option value="">Any time</option>
-              <option value="1">Last 24 hours</option>
-              <option value="7">Last week</option>
-              <option value="30">Last month</option>
-            </Select>
-          </label>
-          {/* Jobs you're already preparing, have applied to or are interviewing for. */}
-          <label className="flex min-h-8 cursor-pointer items-center gap-2.5 text-[13px] text-ink sm:col-span-2 lg:col-span-3">
-            <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-            <span>Hide Pipeline: jobs you&apos;re already applying to</span>
-          </label>
           {/* One action: keep what's set here and go back to the list. */}
           <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-2 sm:col-span-2 md:bottom-2 lg:col-span-3">
             <Button
