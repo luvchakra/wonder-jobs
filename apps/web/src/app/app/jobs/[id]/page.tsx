@@ -31,6 +31,7 @@ import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
 import { CompanyFold } from "@/components/jobs/CompanyFold";
 import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
+import { jobBriefKey, useCompanyBriefs } from "@/components/jobs/useCompanyBriefs";
 import { checkOneJobLink } from "@/lib/useLinkCheck";
 import { useAuthStore } from "@/store/auth";
 import { describeDecision } from "@/domain/jobs/decision";
@@ -47,6 +48,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const job = useJobsStore((s) => s.jobs[id]);
   useRecoverJobs([id]);
+  // The company's size and H-1B filings, from JobsLake, for the line under its name.
+  const briefs = useCompanyBriefs(job ? [job] : []);
+  const brief = job ? briefs.get(jobBriefKey(job)) : undefined;
   const match = useJobsStore((s) => s.matches[id]);
   // A job opened from outside Find's list (Saved, Pipeline, a link) is compared with the profile here.
   const hasJobToScore = useJobsStore((s) => !!s.jobs[id] && !s.matches[id]);
@@ -139,7 +143,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
           <div className="flex items-start gap-3">
             <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={40} />
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-ink">{job.company}</p>
+              <p className="text-[15px] font-semibold text-ink">
+                {job.company}
+                {brief?.size && <span className="font-normal text-ink-3">{` · ${brief.size}`}</span>}
+                {brief?.h1b ? (
+                  <span className="font-normal text-ink-3" title="Certified H-1B applications in the US Department of Labor's latest disclosure file">
+                    {` · H-1B ${brief.h1b.toLocaleString("en-US")}`}
+                  </span>
+                ) : null}
+              </p>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="size-3.5" aria-hidden /> {job.location}
