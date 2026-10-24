@@ -3,29 +3,24 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { arrangeMenu } from "@/domain/navigation/menus";
-import { useMenu } from "@/lib/menus";
 import { isActivePath, sectionFor } from "./nav";
 
 /** The pages of the place you're in (Applications, Profile, Settings), as tabs at its top. */
 export function SectionTabs() {
   const pathname = usePathname();
   const section = sectionFor(pathname);
-  // You's tabs follow the You page's rows, in the order set for everyone (Career Profile always first).
-  const youMenu = useMenu("you");
   // The current page's tab in view, when the row is wider than the screen.
   const activeRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [pathname, youMenu]);
+  }, [pathname]);
   // Only on a section's own pages — a detail page (one application, one run) has its own back link.
-  if (!section || !section.items.some((i) => i.href === pathname)) return null;
-  const fixed = section.items.filter((i) => !i.menuId);
-  const items = section.items.some((i) => i.menuId) ? [...fixed, ...arrangeMenu(section.items.filter((i) => i.menuId).map((i) => ({ ...i, id: i.menuId! })), youMenu)] : section.items;
+  // You has no tab row (owner, 2026-10-24): its pages are the rows on the You page.
+  if (!section || section.title === "You" || !section.items.some((i) => i.href === pathname)) return null;
   return (
     <nav aria-label={section.title} className="-mx-4 mb-4 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] md:mx-0 md:px-0">
       <ul className="flex">
-        {items.map((item) => {
+        {section.items.map((item) => {
           const active = isActivePath(pathname, item);
           return (
             <li key={item.href} className="shrink-0">

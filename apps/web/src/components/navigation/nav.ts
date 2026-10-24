@@ -6,8 +6,6 @@ export interface NavItem {
   icon: LucideIcon;
   /** Whether this item is the current page — defaults to the href and anything under it. */
   match?: (pathname: string) => boolean;
-  /** Its row on the You page (`domain/navigation/menus.ts`): the You tabs follow that row order. */
-  menuId?: string;
 }
 
 const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
@@ -40,18 +38,17 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
   {
     title: "You",
     items: [
-      // Career Profile first; the rest in the You page's row order (SectionTabs).
+      // Not shown as tabs (SectionTabs): the You page's rows are the way in. Kept for the place's grouping and Ask Wonder's "Go to".
       { href: "/app/career-dna", label: "Career Profile", icon: Dna },
-      { href: "/app/ask", label: "Ask Wonder", icon: Search, menuId: "ask_wonder" },
+      { href: "/app/ask", label: "Ask Wonder", icon: Search },
       // Getting better at what the jobs ask for: skill gaps from the candidate's own matches, and where to learn them.
-      { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap, menuId: "skill_up" },
+      { href: "/app/skill-up", label: "Skill Up", icon: GraduationCap },
       // Whether companies can find and message them, and those conversations.
-      { href: "/app/recruiters", label: "Recruiters", icon: MessagesSquare, menuId: "recruiters" },
-      // The You page's second "Career Profile" row; as a tab it says what it is, so Career Profile shows once.
-      { href: "/app/resume-studio", label: "Résumés", icon: FileText, menuId: "resumes" },
-      { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings", menuId: "job_sources" },
-      { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation"), menuId: "automation" },
-      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs", menuId: "search_history" },
+      { href: "/app/recruiters", label: "Recruiters", icon: MessagesSquare },
+      { href: "/app/resume-studio", label: "Résumés", icon: FileText },
+      { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
+      { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
+      { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
     ],
   },
 ];
