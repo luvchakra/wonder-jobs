@@ -80,13 +80,13 @@ const historyFor = (items: string[], text: string) => {
 };
 
 /** Refine's chips: small enough that each group fits one line on a phone. */
-const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[400px]:px-2";
+const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[430px]:px-2 max-[380px]:px-1.5 max-[380px]:text-[11.5px]";
 
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const picked = filters.jobTypes ?? [];
   return (
-    <div className={cn("flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]", className)}>
+    <div className={cn("flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5", className)}>
       {MODE_JOB_TYPES[findModeOf(filters)].map((t) => (
         <Chip key={t} active={picked.includes(t)} onClick={() => onChange({ jobTypes: picked.includes(t) ? picked.filter((x) => x !== t) : [...picked, t] })} className={cn(REFINE_CHIP, "shrink-0")}>
           {modeJobTypeLabel(t, JOB_TYPE_LABEL[t])}
