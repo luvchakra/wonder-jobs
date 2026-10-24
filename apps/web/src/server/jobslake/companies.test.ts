@@ -43,7 +43,7 @@ describe("company identity — reported, never guessed", () => {
 });
 
 describe("logos — fetched once, cached, only for known companies", () => {
-  it("finds a known company by domain or by name, fetches its logo once, and serves the cache after", async () => {
+  it("finds a known company by domain or by name, fetches its logo once, and serves the cache after, never refetching a stored one", async () => {
     await recordCompanies([opp("IBM", "ibm.com", "https://x", false)]);
     const fetcher = vi.fn(async () => new Response(PNG, { status: 200 }));
     const first = await companyLogo({ name: "IBM Corporation" }, Date.now(), fetcher as unknown as typeof fetch);
@@ -53,7 +53,8 @@ describe("logos — fetched once, cached, only for known companies", () => {
     await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await companyLogo({ domain: "ibm.com" }, Date.now() + LOGO_TTL_MS + 1, fetcher as unknown as typeof fetch);
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    // A stored logo is never looked for again, however old.
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("never fetches for a company JobsLake hasn't recorded", async () => {

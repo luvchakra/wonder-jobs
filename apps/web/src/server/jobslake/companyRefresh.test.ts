@@ -52,7 +52,9 @@ describe("JobsLake's daily company refresh", () => {
     expect(fetched).toEqual([]);
     expect(store.rows.get("ibm.com")?.openJobs).toBe(1);
     const later = await refreshCompanies({ wikidata: async () => new Map(), websites: async () => new Map(), now: Date.now() + LOGO_TTL_MS + 86_400_000, store, fetcher, postings: async () => [] });
-    expect(later.logosChecked).toBe(2);
+    // Only the company with no logo is looked for again; IBM's stored logo is kept.
+    expect(later.logosChecked).toBe(1);
+    expect(store.rows.get("ibm.com")?.logo).toMatchObject({ type: "image/png" });
   });
 
   it("gives stored postings the job type their title states — also over a source's Full-time it contradicts — and leaves the rest alone", async () => {
