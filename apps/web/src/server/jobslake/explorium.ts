@@ -27,7 +27,7 @@ export async function exploriumCredits(key: string, fetcher: typeof fetch = fetc
 
 export type EnrichResult =
   /** `ratings` holds each asked domain Explorium had a rating for; the others were looked up and had none. */
-  | { kind: "ok"; ratings: Map<string, CompanyRatings> }
+  | { kind: "ok"; ratings: Map<string, CompanyRatings>; /** What Explorium says this request cost, from its own `credit_usage` (asked for with the `credit-usage` header). */ usage?: { credits: number; results: number } }
   /** The key is out of credits (402), or Explorium refused it (401/403): it won't work again. */
   | { kind: "exhausted" }
   | { kind: "rejected" }
@@ -41,7 +41,7 @@ export async function exploriumRatings(key: string, companies: { domain: string;
   try {
     const res = await fetcher(`${API}/v2/businesses/company_ratings_by_employees/enrich`, {
       method: "POST",
-      headers: { api_key: key, "content-type": "application/json", accept: "application/json" },
+      headers: { api_key: key, "content-type": "application/json", accept: "application/json", "credit-usage": "true" },
       body: JSON.stringify({ businesses_to_match: companies.slice(0, EXPLORIUM_BATCH).map((c) => ({ name: c.name.slice(0, 200), domain: c.domain })) }),
       cache: "no-store",
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -50,7 +50,7 @@ export async function exploriumRatings(key: string, companies: { domain: string;
     if (res.status === 401 || res.status === 403) return { kind: "rejected" };
     if (res.status === 429) return { kind: "limited" };
     if (!res.ok) return { kind: "error", message: `Explorium answered ${res.status}` };
-    const body = (await res.json().catch(() => null)) as { data?: { input?: { domain?: string | null }; business_id?: string | null; data?: unknown }[] } | null;
+    const body = (await res.json().catch(() => null)) as { data?: { input?: { domain?: string | null }; business_id?: string | null; data?: unknown }[]; credit_usage?: { total_credits?: unknown; total_results?: unknown } } | null;
     if (!Array.isArray(body?.data)) return { kind: "error", message: "Explorium's answer wasn't in the expected shape" };
     const ratings = new Map<string, CompanyRatings>();
     for (const row of body.data) {
@@ -58,7 +58,9 @@ export async function exploriumRatings(key: string, companies: { domain: string;
       const r = row.business_id ? parseExploriumRatings(row.data) : undefined;
       if (domain && r) ratings.set(domain, r);
     }
-    return { kind: "ok", ratings };
+    const u = body.credit_usage;
+    const usage = typeof u?.total_credits === "number" && typeof u?.total_results === "number" && u.total_results > 0 ? { credits: u.total_credits, results: u.total_results } : undefined;
+    return { kind: "ok", ratings, ...(usage ? { usage } : {}) };
   } catch {
     return { kind: "error", message: "Couldn't reach Explorium" };
   }
