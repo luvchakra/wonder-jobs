@@ -36,6 +36,7 @@ export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {
     url: r.url,
     observedAt: r.observedAt,
     canonical: r === top,
+    ...(r.sourceJobId ? { sourceJobId: r.sourceJobId } : {}),
   }));
   return {
     id: top.legacyJobId,

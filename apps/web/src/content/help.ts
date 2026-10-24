@@ -160,7 +160,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Job sources",
     summary: "Where postings come from, and what each source can and cannot do.",
     keywords: ["sources", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "part time", "part-time", "gig", "gigs", "freelance", "freelancer", "job type", "career sites", "greenhouse", "lever", "ashby", "jazzhr", "smartrecruiters", "the muse", "where do jobs come from", "needs setup", "switch off", "jobslake", "via"],
-    updated: "2026-10-18",
+    updated: "2026-10-24",
     body: [
       "Wonder searches real, public job feeds and reads every posting itself. Nothing is invented, sampled or generated for your account.",
       "- Company career sites — public Greenhouse, Lever and Ashby boards of companies hiring in India and remotely (Stripe, Airbnb, Figma, GitLab, Databricks, Coinbase, Cloudflare, Twilio, MongoDB, Elastic, Datadog, Rubrik, Zscaler, Druva, Groww, CRED, Meesho, Atlan, Notion, Linear, Ramp, Replit, OpenAI, Zapier and more). Applications go straight to the employer.",
@@ -173,7 +173,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Adzuna India — India-wide postings across boards; each card names the site the job lives on once Wonder has followed the link (“naukri.com via Adzuna India”). It shows 'Needs setup' and is skipped on a deployment where it isn't connected.",
       "- TheirStack — a licensed, paid job-data provider that includes postings from LinkedIn, Indeed, job boards and career sites worldwide. Because it's paid per job, Wonder asks it last, and only when the free sources found too few jobs matching your words; the search's Details always show a row for it saying why it was or wasn't asked. It shows 'Needs setup' where it isn't connected.",
       "Wonder doesn't search LinkedIn, Indeed, Naukri, Foundit or Glassdoor itself — they offer no public job APIs. Postings from some of them can arrive through TheirStack, and every card says where it came from. Turn sources on or off under You → Job sources; a source that's off is skipped in your next search.",
-      "One search asks every source you have switched on, and the same role posted on several sources becomes one job. Every card says which source it came from (“via …”). Open a job → Sources & hiring signals → “Where this job was found” to see every listing, which one WonderJobs shows (the employer's own site when there is one) and which source each key field came from; “Check … now” re-reads the original listing. A search's Details show how many sources answered and what each returned.",
+      "One search asks every source you have switched on, and the same role posted on several sources becomes one job. Every card says which source it came from (“via …”). Open a job → Sources & hiring signals → “Where this job was found” to see every listing (with that source's own Job ID when it gives one), which one WonderJobs shows (the employer's own site when there is one) and which source each key field came from; “Check … now” re-reads the original listing. A search's Details show how many sources answered and what each returned.",
     ],
   },
   {

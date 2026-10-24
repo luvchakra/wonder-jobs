@@ -100,6 +100,18 @@ Vercel's free plan allows 100 deployments a day and counts every deployment it c
 - **Watch the budget.** Before deployment-heavy work, count the last 24 hours' deployments; above ~70 of 100, hold docs-only merges and keep the rest for production and hotfixes.
 - **When the cap is hit** ("Deployment rate limited", `api-deployments-free-per-day`): it's infrastructure, not a test failure. Stop pushing to anything that deploys (refused deployments aren't queued), wait until the oldest counted deployment is 24 hours old, then redeploy only the latest `main`, once.
 
+## Token economy
+
+Measured on the 2026-10-22→24 session (2,226 model turns, 31 PRs): about 908M of its ~920M tokens were cached context re-read on every turn (412k average). Output was 1.4M. So the cost is **context size × number of turns**, and every rule below cuts one of the two:
+
+- **Keep sessions short.** Context only grows within a session. Start a new session (or `/compact`) after a batch of merged work instead of running one session for days; carry state in `docs/` and PRs, not in the conversation.
+- **Batch small requests into one PR.** Several UI tweaks asked close together go in one branch and one PR (add to the open PR while CI runs). Each PR costs about 6 turns of create → subscribe → wake → check → merge → notify, plus a production build.
+- **One turn per CI wake.** On `check_suite.completed` for the PR's head, read the check runs once and merge in the same turn. Don't reply to the `subscription.created` wake beyond one line, and don't re-check state that the event already gave.
+- **Text before pixels.** To check a UI change, run `node apps/web/scripts/ui-check.mjs <path> --click "<role>:<name>" --select "<css>"` against a dev server. It prints each element's text and box in a few hundred tokens. Take a screenshot (`--shot x.jpg`: 1x JPEG, clipped) only when the look itself matters, at most once per change. Never Read Playwright `test-results/` traces, videos or full-page PNGs (one was 530k characters); read `error-context.md` instead.
+- **Read narrowly.** `grep -n` first, then `sed -n 'a,bp'` or Read with offset/limit. Don't re-read a file you just edited or one already in context, and don't Read whole large files (`JobFilters.tsx`, `help.ts`, `store/jobs.ts`).
+- **Quiet commands.** Pipe output through `| tail -n 20` or `grep -E "Tests|FAIL|error"`. Run the unit tests for the touched area, never the whole suite. Use `-q` for git.
+- **Short replies.** Report the outcome and what the owner should check, not the steps taken.
+
 ## Repository layout
 
 - Monorepo with npm workspaces. The Next.js app lives in `apps/web` (Vercel root directory).

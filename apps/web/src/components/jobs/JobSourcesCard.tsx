@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ExternalLink, RefreshCw } from "lucide-react";
-import type { JobLakeProvenance } from "@/domain/jobs/types";
+import { readableJobId, type JobLakeProvenance } from "@/domain/jobs/types";
 import { formatDate, relativeTime } from "@/lib/format";
 import { refreshJob } from "@/services/jobs/jobsLakeClient";
 import { Card } from "@/components/common/Card";
@@ -57,6 +57,7 @@ export function JobSourcesCard({ lake }: { lake: JobLakeProvenance }) {
                 {s.employerSource && <Badge tone="success">Employer</Badge>}
               </div>
               <p className="mt-0.5 text-[12px] text-ink-4">
+                {readableJobId(s.sourceJobId) ? `Job ID ${readableJobId(s.sourceJobId)} · ` : ""}
                 {s.provider !== s.sourceName ? `${s.provider} · ` : ""}seen {relativeTime(s.observedAt)}
                 {byField.get(s.sourceName) ? ` · ${byField.get(s.sourceName)!.join(", ")} from here` : ""}
               </p>

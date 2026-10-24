@@ -79,6 +79,19 @@ export interface JobSourceSighting {
   url: string;
   observedAt: string;
   canonical: boolean;
+  /** The source's own id for this posting, as it sent it (e.g. `gh:acme:4012345`, an Adzuna number). */
+  sourceJobId?: string;
+}
+
+/**
+ * A source's job id as a person would read it: the last part of a prefixed id (`gh:acme:4012345` → `4012345`).
+ * Nothing when the source only gave a link or something too long to be an id.
+ */
+export function readableJobId(id: string | undefined): string | null {
+  const v = (id ?? "").trim();
+  if (!v || /^https?:\/\//i.test(v)) return null;
+  const last = v.split(":").pop()!.trim();
+  return last && last.length <= 40 && !/\s/.test(last) ? last : null;
 }
 
 export interface JobLakeProvenance {
