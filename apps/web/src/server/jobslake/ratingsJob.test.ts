@@ -13,7 +13,8 @@ const co = (domain: string, name = domain) => ({ domain, name, nameKey: name.toL
  * A pretend Explorium, as the real one behaved: each key has a balance, a matched company costs 2 credits ("fig*" and
  * "str*" match, others are free), and a request that costs more than the balance is refused with 403.
  */
-function explorium(balances: Record<string, number>, opts: { rateLimit?: boolean; maxPerCall?: number } = {}) {
+function explorium(balances: Record<string, number>, opts: { rateLimit?: boolean; maxPerCall?: number; cost?: number } = {}) {
+  const cost = opts.cost ?? 2;
   const calls: { kind: string; size?: number }[] = [];
   const f = (async (url: string, init?: RequestInit) => {
     const key = (init?.headers as Record<string, string>).api_key;
@@ -26,8 +27,8 @@ function explorium(balances: Record<string, number>, opts: { rateLimit?: boolean
     calls.push({ kind: "enrich", size: asked.length });
     if (opts.rateLimit) return new Response("{}", { status: 429 });
     const hits = asked.filter((a) => /^(fig|str)/.test(a.domain));
-    if (hits.length * 2 > balances[key] || asked.length > (opts.maxPerCall ?? 50)) return new Response("{}", { status: 403 });
-    balances[key] -= hits.length * 2;
+    if (hits.length * cost > balances[key] || asked.length > (opts.maxPerCall ?? 50)) return new Response("{}", { status: 403 });
+    balances[key] -= hits.length * cost;
     return Response.json({ data: asked.map((a) => (/^(fig|str)/.test(a.domain) ? { input: { domain: a.domain }, business_id: "b".repeat(32), data: { ratings_overall: 4.14, total_reviews_count: 321, ratings_work_life_balance: 3.9, ratings_ceo_approval: 0.93, ratings_ceo_approval_count: 116, ratings_recommend_to_friend: 0.79, ratings_business_outlook: 0.79, ratings_culture_values: null } } : { input: { domain: a.domain }, business_id: null, data: null })) });
   }) as unknown as typeof fetch;
   return { f, calls, balances };
@@ -93,6 +94,17 @@ describe("the ratings job", () => {
     await store.add("key-new-333", "new");
     const again = await runRatings({ companies, keys: store, fetcher: explorium({ "key-new-333": 1000 }).f, now: NOW });
     expect(again.status).toBe("complete");
+  });
+
+  it("stops instead of spending on when a company turns out to cost more than 2 credits", async () => {
+    const { companies, store } = await setup(["fig1.com", "fig2.com", "fig3.com", "fig4.com", "fig5.com", "fig6.com"], ["key-pricey-111"]);
+    const x = explorium({ "key-pricey-111": 100 }, { cost: 3, maxPerCall: 2 });
+    const r = await runRatings({ companies, keys: store, fetcher: x.f, now: NOW });
+    expect(r.status).toBe("stopped");
+    expect(r.message).toBe("Explorium charged 3 credits per company, above the 2-credit limit, so the job stopped. Nothing more was spent.");
+    // The key stays on the list, and only the first batch was paid for.
+    expect((await store.list()).length).toBe(1);
+    expect(x.balances["key-pricey-111"]).toBeGreaterThan(90);
   });
 
   it("when Explorium refuses a batch the key can still pay for, tries a smaller one instead of deleting the key", async () => {
