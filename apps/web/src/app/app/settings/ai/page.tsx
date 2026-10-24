@@ -28,7 +28,7 @@ function AISettingsInner() {
   const wantSwitch = params.get("switch") as AIProviderId | null;
   // "Encrypted at rest" is only true when this deployment has persistent storage configured; without it,
   // secretStore falls back to an in-memory map (server/secrets.ts) that never survives a restart — the
-  // same distinction Profile's CloudSyncCard already makes, which this page's copy must not contradict.
+  // so this page's copy must not claim it then.
   const [backend, setBackend] = useState<"supabase" | "local" | "unknown">("unknown");
   useEffect(() => {
     fetch("/api/state/status", { cache: "no-store" })
