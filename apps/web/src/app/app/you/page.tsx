@@ -1,10 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Bot, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Search } from "lucide-react";
-import { AUTOMATION_LEVEL_META } from "@/domain/automation/policy";
+import { Building2, ChevronRight, Database, FileText, GraduationCap, History, MessagesSquare, Search } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
-import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
@@ -14,11 +12,9 @@ import { Avatar } from "@/components/common/Avatar";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 
-/** What each automation level means in a few words — the level's name alone ("Work with me") doesn't say what Wonder does. */
-const LEVEL_IN_WORDS: Record<string, string> = { assist: "Asks before everything", guided: "Asks when it matters", autonomous: "Acts on your rules", continuous: "Acts and keeps watch" };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** You: who Wonder is searching for (the Career Profile, at the top), then what it works with, in the order a search uses it. Account, plan and data are in the avatar menu. */
+/** You: who Wonder is searching for (the Career Profile, at the top), then what it works with, in the order a search uses it. Account, plan, data and Automation are in the avatar menu. */
 export default function YouPage() {
   const dna = useCareerStore((s) => s.dna);
   const resumes = useCareerStore((s) => s.savedResumes.length);
@@ -29,8 +25,6 @@ export default function YouPage() {
   }, [loadFiles]);
   const email = useAuthStore((s) => s.email);
   const sources = useJobsStore((s) => s.sources);
-  const level = useAutomationStore((s) => s.defaultLevel);
-  const schedules = useWorkflowStore((s) => s.schedules);
   const runCount = useWorkflowStore((s) => Object.keys(s.runs).length);
   const name = dna.name || email?.split("@")[0] || "You";
   const integrated = sources.filter((s) => s.integrated);
@@ -39,7 +33,6 @@ export default function YouPage() {
   // The headline says what they do; failing that, the goal without its lead-in ("Find senior product roles…" → "senior product roles…").
   const goal = stripSelfReference(dna.careerGoal.trim()).replace(/^(?:find(?:\s+me)?|looking\s+for|search(?:\s+for)?|i\s+want)\s+/i, "");
   const wants = headline || goal;
-  const active = Object.values(schedules).filter((x) => x.enabled).length;
   // The order and rows a platform admin set for everyone (Admin → Settings → Menus).
   const menu = useMenu("you");
 
@@ -49,7 +42,8 @@ export default function YouPage() {
     { id: "recruiters", href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
     { id: "resumes", href: "/app/resume-studio", label: "Career Profile", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { id: "job_sources", href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
-    { id: "automation", href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
+    // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
+    { id: "hiring", href: "/app/hiring", label: "Hiring", value: "Post jobs, review applicants", icon: Building2 },
     { id: "search_history", href: "/app/runs", label: "Search history", value: runCount ? plural(runCount, "search", "searches") : "None yet", icon: History },
   ], menu);
 

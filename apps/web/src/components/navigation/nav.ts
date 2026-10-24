@@ -1,4 +1,4 @@
-import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, CalendarDays, Database, Dna, FileText, GraduationCap, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, Building2, CalendarDays, Database, Dna, FileText, GraduationCap, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -21,7 +21,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/app/jobs", label: "Find", icon: Search, match: (p) => p === "/app" || under("/app/jobs")(p) || (p.startsWith("/app/runs/") && p !== "/app/runs/new") },
   { href: "/app/saved", label: "Saved", icon: Bookmark },
   { href: "/app/applications", label: "Pipeline", icon: LayoutList, match: under("/app/applications", "/app/dashboard", "/app/calendar", "/app/insights", "/app/interview-prep") },
-  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/ask", "/app/career-dna", "/app/skill-up", "/app/recruiters", "/app/resume-studio", "/app/settings", "/app/automation", "/app/profile", "/app/notifications")(p) },
+  { href: "/app/you", label: "You", icon: UserRound, match: (p) => p === "/app/runs" || under("/app/you", "/app/ask", "/app/career-dna", "/app/skill-up", "/app/recruiters", "/app/resume-studio", "/app/settings", "/app/automation", "/app/hiring", "/app/profile", "/app/notifications")(p) },
 ];
 
 /** Each place's pages, shown as tabs at the top of it and as a group in the mobile menu. */
@@ -48,6 +48,7 @@ export const SECTION_TABS: { title: string; items: NavItem[] }[] = [
       { href: "/app/resume-studio", label: "Résumés", icon: FileText },
       { href: "/app/settings", label: "Job sources", icon: Database, match: (p) => p === "/app/settings" },
       { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
+      { href: "/app/hiring", label: "Hiring", icon: Building2 },
       { href: "/app/runs", label: "Search history", icon: History, match: (p) => p === "/app/runs" },
     ],
   },

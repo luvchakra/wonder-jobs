@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, Bot, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -118,8 +118,8 @@ export function TopBar() {
               : []),
             // Which AI writes Wonder's drafts (WonderJobs AI or the candidate's own key).
             { id: "ai_provider", href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
-            // Employers and recruiters: the company's hiring workspace (anyone can set one up or join by invitation).
-            { id: "hiring", href: "/app/hiring", label: "Hiring", icon: Building2 },
+            // How much Wonder does on its own: the level, a rule per action, schedules.
+            { id: "automation", href: "/app/automation/settings", label: "Automation", icon: Bot },
             // The sidebar's Analytics, for phones (no sidebar there).
             { id: "analytics", href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
             { id: "help", href: "/help", label: "Get Help", icon: LifeBuoy },
