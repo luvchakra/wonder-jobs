@@ -10,7 +10,7 @@ import { useResumeFilesStore } from "@/store/resumeFiles";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
-import { COMPANIES, JOB_SOURCES } from "@/services/mock/catalog";
+import { JOB_SOURCES } from "@/services/mock/catalog";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -29,6 +29,7 @@ import { CustomResumeButton } from "@/components/jobs/CustomResumeButton";
 import { EasyApply } from "@/components/jobs/EasyApply";
 import { JobDecision } from "@/components/jobs/JobDecision";
 import { JobSourcesCard } from "@/components/jobs/JobSourcesCard";
+import { CompanyFold } from "@/components/jobs/CompanyFold";
 import { HiddenJobNotice } from "@/components/jobs/HiddenJobNotice";
 import { checkOneJobLink } from "@/lib/useLinkCheck";
 import { useAuthStore } from "@/store/auth";
@@ -99,7 +100,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
       </div>
     );
   }
-  const company = COMPANIES.find((c) => c.name === job.company);
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   // JobsLake's sightings when present (they include sources WonderJobs has no entry for); otherwise the known sources.
   const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
@@ -241,27 +241,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   </Fold>
                 )}
 
-                <Fold title="Company" open={requestedTab === "company"}>
-                  <div className="flex items-center gap-3">
-                    <CompanyLogo name={job.company} color={company?.color} size={44} />
-                    <div>
-                      <h2 className="text-[15px] font-semibold text-ink">{job.company}</h2>
-                      <p className="text-[13px] text-ink-3">
-                        {job.industry} · {company ? (company.size === "enterprise" ? "Large company" : company.size === "scaleup" ? "Scale-up" : "Startup") : "Company size not listed"} · HQ {company?.hq ?? job.location}
-                      </p>
-                    </div>
-                  </div>
-                  <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
-                    <div className="rounded-[12px] bg-surface-2 p-3">
-                      <dt className="text-ink-3">Website</dt>
-                      <dd className="font-medium text-ink">{job.companyDomain ?? "—"}</dd>
-                    </div>
-                    <div className="rounded-[12px] bg-surface-2 p-3">
-                      <dt className="text-ink-3">Industry</dt>
-                      <dd className="font-medium text-ink">{job.industry}</dd>
-                    </div>
-                  </dl>
-                </Fold>
+                <CompanyFold job={job} open={requestedTab === "company"} />
 
                 <Fold title="Sources & hiring signals" hint={`${origin ? `On ${origin}, via ` : "Via "}${sources.map((s) => s.name).join(", ")}`} open={requestedTab === "sources"}>
                   {job.foundAs && <p className="mb-3 text-[13px] text-ink-3">Found by your &ldquo;{job.foundAs.title}&rdquo; search.</p>}

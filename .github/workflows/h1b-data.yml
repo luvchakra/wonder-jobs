@@ -1,0 +1,51 @@
+# JobsLake's H-1B sponsorship data (owner, 2026-10-24). Once a month, finds the newest LCA disclosure file on the
+# US Department of Labor's OFLC performance page (published quarterly), totals its certified H-1B applications per
+# employer (apps/web/scripts/h1b/aggregate.py) and posts them to /api/cron/h1b, which replaces the last file's.
+# The daily company refresh then copies each company's totals onto it. Needs the repository secret CRON_SECRET.
+name: H-1B data
+
+on:
+  schedule:
+    - cron: "41 3 2 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h1b-data
+  cancel-in-progress: false
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet openpyxl==3.1.5
+      - name: Load the newest file
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET isn't set as a repository secret, so H-1B data can't be loaded."
+            exit 0
+          fi
+          page=$(curl -fsSL --max-time 60 https://www.dol.gov/agencies/eta/foreign-labor/performance)
+          # The newest fiscal year and quarter the page links to.
+          link=$(echo "$page" | grep -oE 'href="[^"]*LCA_Disclosure_Data_FY[0-9]{4}_Q[1-4]\.xlsx"' | sed -E 's/^href="|"$//g' \
+            | awk '{ match($0, /FY[0-9]{4}_Q[1-4]/); print substr($0, RSTART, RLENGTH) " " $0 }' | sort -r | head -n 1 | cut -d' ' -f2)
+          [ -n "$link" ] || { echo "::error::No LCA disclosure file found on the DOL page"; exit 1; }
+          case "$link" in http*) url="$link" ;; *) url="https://www.dol.gov$link" ;; esac
+          file=$(basename "$url")
+          echo "Loading $url"
+          curl -fsSL --max-time 900 -o "$file" "$url"
+          python3 apps/web/scripts/h1b/aggregate.py "$file" | gzip -c > h1b.json.gz
+          ls -la h1b.json.gz
+          curl -fsS --max-time 120 -X POST -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/gzip" \
+            --data-binary @h1b.json.gz "$SITE/api/cron/h1b"
+          echo

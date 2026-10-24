@@ -14,6 +14,7 @@ export interface RawPosting {
   title: string;
   company: string;
   companyDomain?: string;
+  companyFacts?: Job["companyFacts"];
   /** Free-text location as the source shows it (city, region, "Worldwide", ...). */
   location: string;
   remote?: boolean;
@@ -251,6 +252,7 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     company: raw.company.trim() || "Unknown company",
     // A domain the source reported, else the employer's own site the apply link is on — never guessed from the name.
     companyDomain: raw.companyDomain || employerDomainOf(raw.applyUrl, raw.employerSite),
+    ...(raw.companyFacts ? { companyFacts: raw.companyFacts } : {}),
     location,
     country,
     workMode,

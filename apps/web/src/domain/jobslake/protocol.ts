@@ -6,7 +6,7 @@
  * Pure types and validation only: nothing here fetches, stores or knows about a candidate.
  */
 import type { JobType, JobTypeFrom } from "@/domain/jobs/jobType";
-import type { WorkMode } from "@/domain/jobs/types";
+import type { CompanyFacts, WorkMode } from "@/domain/jobs/types";
 
 export const PROTOCOL_VERSION = "1.0" as const;
 export type ProtocolVersion = typeof PROTOCOL_VERSION;
@@ -127,7 +127,7 @@ export interface FreshnessMetadata {
 export interface CanonicalOpportunity {
   id: string;
   protocolVersion: ProtocolVersion;
-  employer: { name: string; domain?: string };
+  employer: { name: string; domain?: string; facts?: CompanyFacts };
   title: string;
   normalizedTitle: string;
   locations: string[];
