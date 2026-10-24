@@ -130,6 +130,10 @@ export interface CompanyLine {
   source: string;
   /** The source's own page for this company, when it has one. */
   href?: string;
+  /** A rating out of 5, shown as stars. */
+  stars?: number;
+  /** A second line under the value (a rating's category breakdown). */
+  detail?: string;
 }
 
 const compact = (v: number, locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(v);
@@ -139,6 +143,11 @@ const CURRENCY: Record<string, string> = { "United States dollar": "$", euro: "�
 export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[] {
   const n = (v: number) => v.toLocaleString(locale);
   const out: CompanyLine[] = [];
+  if (p.ratings) {
+    const c = p.ratings.categories ?? {};
+    const parts = [["Work-life", c.workLife], ["Culture", c.culture], ["Pay & benefits", c.compensation], ["Career growth", c.career], ["Management", c.management], ["Diversity", c.diversity]].filter((x): x is [string, number] => typeof x[1] === "number").map(([k, v]) => `${k} ${v.toFixed(1)}`);
+    out.push({ label: "Rating", value: `${p.ratings.overall.toFixed(1)} out of 5${p.ratings.reviews ? ` · ${n(p.ratings.reviews)} reviews` : ""}`, source: `${p.ratings.from} employee reviews${p.ratingsAt ? `, ${ratingMonth(p.ratingsAt, locale)}` : ""}`, stars: p.ratings.overall, ...(parts.length ? { detail: parts.join(" · ") } : {}) });
+  }
   const sets = [p.facts, p.wikidata].filter((f): f is CompanyFacts => !!f);
   const add = (label: string, pick: (f: CompanyFacts) => string | undefined, year?: (f: CompanyFacts) => number | undefined) => {
     for (const f of sets) {
@@ -156,7 +165,6 @@ export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[]
   add("Listed", (f) => (f.ticker ? `${f.exchange ? `${f.exchange}: ` : ""}${f.ticker}` : undefined));
   if (!out.some((l) => l.label === "Listed")) add("Funding", (f) => (f.fundingStage ? stageLabel(f.fundingStage) || undefined : undefined));
   add("Revenue", (f) => (f.revenue ? (CURRENCY[f.revenue.currency] ? `${CURRENCY[f.revenue.currency]}${compact(f.revenue.amount, locale)}` : `${compact(f.revenue.amount, locale)} ${f.revenue.currency}`) : undefined), (f) => f.revenue?.year);
-  if (p.ratings) out.push({ label: "Rating", value: `${p.ratings.overall.toFixed(1)} out of 5${p.ratings.reviews ? ` · ${n(p.ratings.reviews)} reviews` : ""}`, source: `${p.ratings.from} employee reviews${p.ratingsAt ? `, ${ratingMonth(p.ratingsAt, locale)}` : ""}` });
   if (p.openJobs !== undefined && p.openJobs > 0) out.push({ label: "Hiring", value: `${n(p.openJobs)} open ${p.openJobs === 1 ? "role" : "roles"}${p.newJobs7d ? ` · ${n(p.newJobs7d)} new this week` : ""}`, source: "JobsLake, last two weeks" });
   if (p.h1b) out.push({ label: "H-1B visas", value: `${n(p.h1b.filings)} certified ${p.h1b.filings === 1 ? "application" : "applications"}${p.h1b.medianWage ? ` · median $${n(p.h1b.medianWage)}` : ""}`, source: `US Dept. of Labor, ${p.h1b.through}` });
   return out;
