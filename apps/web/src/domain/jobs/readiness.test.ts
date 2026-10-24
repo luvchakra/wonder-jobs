@@ -34,10 +34,10 @@ describe("the readiness ladder: the one thing between the candidate and relevant
   it("searches the role the candidate wants, not the role they hold — the reported case: “Role you want” set to “director” still searched the headline “iam sme practice lead”", () => {
     const dna: CareerDNA = { ...iamDna, headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "IAM Director" };
     expect(jobsReadiness(input({ dna })).query).toBe("iam director");
-    // A level alone can't be searched (sources drop level words): ask which one, keeping their word.
+    // A level alone is searched as written too (owner, 2026-10-24): saving “director” searches “director”.
     const levelOnly = jobsReadiness(input({ dna: { ...dna, careerGoal: "director" } }));
-    expect(levelOnly.blocker).toEqual({ kind: "role", level: "director" });
-    expect(levelOnly.query).toBe("");
+    expect(levelOnly.blocker).toBeUndefined();
+    expect(levelOnly.query).toBe("director");
     // Nothing wanted yet: the current role is searched, as before.
     expect(jobsReadiness(input({ dna: { ...dna, careerGoal: "" } })).query).toBe("iam sme practice lead");
   });

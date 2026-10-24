@@ -29,7 +29,7 @@ export const MENUS = {
       { id: "ask_wonder", label: "Ask Wonder" },
       { id: "skill_up", label: "Skill Up" },
       { id: "recruiters", label: "Recruiters" },
-      { id: "resumes", label: "Résumés" },
+      { id: "resumes", label: "Career Profile" },
       { id: "job_sources", label: "Job sources" },
       { id: "automation", label: "Automation" },
       { id: "ai_provider", label: "AI provider" },

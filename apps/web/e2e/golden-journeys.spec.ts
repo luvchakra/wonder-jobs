@@ -99,6 +99,16 @@ test.describe("Golden journey — applications (demo mode)", () => {
     await expect(page.getByRole("tab", { name: /^Interview/ })).toBeVisible();
   });
 
+  test("GJ-020b Save on the Career Profile opened from Find goes back to Find and searches the role as written, even a level alone", async ({ page }) => {
+    await page.goto("/app/career-dna?from=find&focus=role");
+    await page.locator("#goal").fill("director");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await page.waitForURL(/\/app\/jobs/);
+    await expect(page.getByText(/Which director role\?/)).toHaveCount(0);
+    await expect(page.locator("#main").getByText("director", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/(Searching for|For|for) “director”/).first()).toBeVisible({ timeout: 30_000 });
+  });
+
   test("GJ-005b removing an application from the Pipeline puts its job back in Find, marked", async ({ page }) => {
     const stages = page.getByRole("tablist", { name: "Applications by stage" });
     await stages.getByRole("tab", { name: /Preparing/ }).click();
@@ -228,7 +238,7 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
     await page.waitForURL(/\/app\/you$/);
     // The name card at the top is the Career Profile's entry; account, plan and data live in the avatar menu (WJ-281).
     await expect(page.getByRole("link", { name: /Career Profile$/ })).toBeVisible();
-    for (const label of ["Résumés", "Job sources", "Automation", "AI provider", "Search history"]) {
+    for (const label of ["Career Profile", "Job sources", "Automation", "AI provider", "Search history"]) {
       await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
     }
     await page.getByRole("link", { name: /^Automation/ }).click();

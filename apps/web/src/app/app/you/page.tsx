@@ -50,7 +50,7 @@ export default function YouPage() {
     { id: "ask_wonder", href: "/app/ask", label: "Ask Wonder", value: "Ask, search or jump anywhere", icon: Search },
     { id: "skill_up", href: "/app/skill-up", label: "Skill Up", value: "What your jobs ask for", icon: GraduationCap },
     { id: "recruiters", href: "/app/recruiters", label: "Recruiters", value: "Let companies find you", icon: MessagesSquare },
-    { id: "resumes", href: "/app/resume-studio", label: "Résumés", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
+    { id: "resumes", href: "/app/resume-studio", label: "Career Profile", value: files || resumes ? [files ? `${files} uploaded` : "", resumes ? `${resumes} designed` : ""].filter(Boolean).join(" · ") : "None yet", icon: FileText },
     { id: "job_sources", href: "/app/settings", label: "Job sources", value: `${on} of ${integrated.length} searched`, icon: Database },
     { id: "automation", href: "/app/automation/settings", label: "Automation", value: `${LEVEL_IN_WORDS[level] ?? AUTOMATION_LEVEL_META[level]?.label ?? "Not set"} · ${active ? `${active} scheduled` : "no schedule"}`, icon: Bot },
     { id: "ai_provider", href: "/app/settings/ai", label: "AI provider", value: AI_PROVIDERS[provider] ? (AI_PROVIDERS[provider].billing === "byok" ? `Your ${AI_PROVIDERS[provider].name} key` : `${AI_PROVIDERS[provider].name} · included`) : provider, icon: Sparkles },
