@@ -37,8 +37,10 @@ import { toast } from "@/components/feedback/Toast";
  * overrides, provenance, actions, log, provider — is one click down under "See how Wonder worked",
  * not deleted.
  */
-export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function RunDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string }> }) {
   const { id } = use(params);
+  // Opened from Find's search banner: back goes to Find (owner, 2026-10-25); from Search history, back there.
+  const back = use(searchParams).from === "find" ? { href: "/app/jobs", label: "Back to Find" } : { href: "/app/runs", label: "Search history" };
   const run = useWorkflowStore((s) => s.runs[id]);
   const runs = useWorkflowStore((s) => s.runs);
   const jobs = useJobsStore((s) => s.jobs);
@@ -59,7 +61,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
   if (!run) {
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader back={{ href: "/app/runs", label: "Search history" }} title="Search not found" />
+        <PageHeader back={back} title="Search not found" />
         <EmptyState title="This search isn't available" body="It may have been removed from your history." action={{ label: "See search history", href: "/app/runs" }} />
       </div>
     );
@@ -95,7 +97,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader back={{ href: "/app/runs", label: "Search history" }} eyebrow={`${run.trigger === "schedule" ? "Scheduled search" : "Search"}${run.config.role ? ` as ${run.config.role.title}` : ""} · ${relativeTime(run.startedAt ?? run.createdAt)}`} title={`“${request}”`} />
+      <PageHeader back={back} eyebrow={`${run.trigger === "schedule" ? "Scheduled search" : "Search"}${run.config.role ? ` as ${run.config.role.title}` : ""} · ${relativeTime(run.startedAt ?? run.createdAt)}`} title={`“${request}”`} />
       <p className="wj-sr-only" aria-live="polite" aria-atomic="true">
         {experience.title}. {experience.summary}
       </p>
