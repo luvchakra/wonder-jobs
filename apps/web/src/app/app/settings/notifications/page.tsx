@@ -13,7 +13,7 @@ export default function NotificationSettingsPage() {
   const signedIn = useAuthStore((s) => s.mode) === "user";
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Notifications & email" description="Choose what you're told, and how." back={{ href: "/app/notifications", label: "Notifications" }} />
+      <PageHeader title="Notifications" description="Choose what you're told, and how." back={{ href: "/app/notifications", label: "Notification center" }} />
       {signedIn ? (
         <>
           <PushNotifications />

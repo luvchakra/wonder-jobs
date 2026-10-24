@@ -12,11 +12,9 @@ export const MENUS = {
     where: "The avatar's menu, or the ••• button on a phone. Account and Sign out are always there; Admin shows only to admins, last.",
     items: [
       { id: "account", label: "Account" },
-      { id: "plan", label: "Plan & billing" },
       { id: "ai_provider", label: "AI provider" },
       { id: "api_keys", label: "API keys" },
-      { id: "notifications", label: "Notifications & email" },
-      { id: "your_data", label: "Your data" },
+      { id: "notifications", label: "Notifications" },
       { id: "hiring", label: "Hiring" },
       { id: "analytics", label: "Analytics" },
       { id: "help", label: "Get Help" },

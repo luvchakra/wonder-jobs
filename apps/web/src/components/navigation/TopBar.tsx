@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, CreditCard, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, ShieldCheck, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, Building2, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -109,13 +109,11 @@ export function TopBar() {
           [
             // The account holder's own things; what Wonder works from is under You, the week's activity under Pipeline.
             { id: "account", href: "/app/profile", label: "Account", icon: User },
-            // The Account page's main sections, one tap from anywhere (signed-in accounts only).
+            // One tap from anywhere (signed-in accounts only); Plan & billing and Your data are on Account itself.
             ...(mode === "user"
               ? ([
-                  { id: "plan", href: "/app/profile#plan", label: "Plan & billing", icon: CreditCard },
                   { id: "api_keys", href: "/app/profile#jobslake-api", label: "API keys", icon: KeyRound },
-                  { id: "notifications", href: "/app/settings/notifications", label: "Notifications & email", icon: Bell },
-                  { id: "your_data", href: "/app/profile#your-data", label: "Your data", icon: ShieldCheck },
+                  { id: "notifications", href: "/app/settings/notifications", label: "Notifications", icon: Bell },
                 ] as const)
               : []),
             // Which AI writes Wonder's drafts (WonderJobs AI or the candidate's own key).
