@@ -7,7 +7,6 @@ import type { CanonicalJob } from "@/domain/jobs/types";
 import { getTemplate, templateForResume } from "@/domain/resume/templates";
 import { generateResume, renderSaved, type GeneratedResume, type GenerationStage } from "@/services/resume/generate";
 import { downloadDocx, resumeFilename } from "@/services/resume/download";
-import { Modal } from "@/components/common/Modal";
 import { useCareerStore } from "@/store/career";
 import { useAutomationStore } from "@/store/automation";
 import { usePlan } from "@/lib/usePlan";
@@ -17,15 +16,16 @@ import { cn } from "@/lib/cn";
 
 type Phase = { kind: "idle" } | { kind: "generating"; progress: number } | { kind: "ready"; resume: GeneratedResume };
 
-// The page-by-page viewer loads only when Preview is opened.
-const ResumeViewer = dynamic(() => import("@/components/resume/ResumeViewer").then((m) => m.ResumeViewer), { ssr: false });
+// The full-screen preview and editor load only when Preview is opened.
+const ResumePreviewSheet = dynamic(() => import("@/components/resume/ResumePreviewSheet").then((m) => m.ResumePreviewSheet), { ssr: false });
 
 const STAGES_WITH_TARGET: GenerationStage[] = ["select", "tailor", "render", "paginate", "ats"];
 
 /**
  * Generate Customized Resume on a job's page (owner, 2026-10-22): Generating Custom Resume… (filling up as each
  * step finishes), then — nothing downloads by itself (owner, 2026-10-25) — Re-generate Resume with the new résumé
- * just below it: its file name, Preview (the pages as they'll print) and Download (Word, .docx). The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
+ * just below it: its file name, Preview (full screen, where Edit changes its words and Save keeps them) and Download
+ * (Word, .docx — the edited version once it has been edited). The résumé is the candidate's own Career Profile (filled from the résumé they uploaded),
  * ordered for this job, in the template they chose (the first one when they never chose; never asked here), as a
  * Word file built in this browser. Nothing calls a model; Automation → Draft a tailored résumé set to Off still wins.
  * A résumé already made for this job is offered for download straight away.
@@ -34,6 +34,7 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
   const dna = useCareerStore((s) => s.dna);
   const chosen = useCareerStore((s) => s.resumeTemplateId);
   const saveResume = useCareerStore((s) => s.saveResume);
+  const updateResume = useCareerStore((s) => s.updateResume);
   const policy = useAutomationStore((s) => s.policy);
   const { limits } = usePlan();
   const existing = useCareerStore((s) => s.savedResumes.find((r) => r.target?.jobId === job.id));
@@ -131,7 +132,8 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
     );
   }
   if (phase.kind === "ready" || fromBefore) {
-    const resume = phase.kind === "ready" ? phase.resume : fromBefore!;
+    // The saved copy (with any edits) once there is one; the result just made until then.
+    const resume = before ?? (phase.kind === "ready" ? phase.resume : fromBefore!);
     const file = resumeFilename(resume, "docx", existing?.name);
     const small = "inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[13px] font-medium text-ink wj-press hover:bg-surface-2";
     return (
@@ -160,13 +162,23 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
         <Link href="/app/resume-studio" className="text-center text-[12px] text-ink-3 hover:underline">
           Saved in My Resume
         </Link>
-        <Modal open={preview} onClose={() => setPreview(false)} title={file} description={`For ${job.title} at ${job.company}`} size="lg" footer={
-          <button type="button" onClick={() => download(resume)} disabled={downloading} className={cn(base, filled, "sm:w-auto")}>
-            <Download className="size-4" aria-hidden /> Download (.docx)
-          </button>
-        }>
-          {preview && <ResumeViewer layout={resume.layout} title={file} />}
-        </Modal>
+        {preview && (
+          <ResumePreviewSheet
+            resume={resume}
+            file={file}
+            subtitle={`For ${job.title} at ${job.company}`}
+            downloading={downloading}
+            onClose={() => setPreview(false)}
+            onDownload={download}
+            onSave={(doc) => {
+              const next = renderSaved(doc, resume.template.id);
+              if (!next) return null;
+              if (existing) updateResume(existing.id, doc, next.layout.pages.length);
+              track("custom_resume_edited", { jobId: job.id });
+              return next;
+            }}
+          />
+        )}
       </div>
     );
   }
