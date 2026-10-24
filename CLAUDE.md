@@ -1,122 +1,189 @@
 # WonderJobs — working rules for Claude
 
-## End every message with the time in IST
+## Every session
 
-Every message Claude sends to the owner ends with the current time in Indian Standard Time, on its own last line, read from the clock at the moment of sending — not remembered or estimated (owner, 2026-10-20). Get it with `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` and write it as, e.g., `2026-10-20 20:00 IST`. This applies to every reply, including short ones and ones that only report a background notification. Update it each time; never reuse an earlier message's time.
-
-## Always start from the latest `main`
-
-Before doing anything else in a session (reading code, planning, editing, answering questions about the codebase), fetch and integrate the latest `main`:
-
-```bash
-git fetch origin main
-git merge origin/main        # or: git rebase origin/main, when the branch is yours alone
-```
-
-- Do this at the start of every session and again before every push (a fetch and merge — seconds, not a reason to delay).
-- If `main` has moved, resolve conflicts first; never build on a stale base.
-- Only after the working branch is up to date with `origin/main` may other activity begin.
+- **End every message with the IST time** on its own last line, read fresh from `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` (e.g. `2026-10-20 20:00 IST`). This applies to every reply. Never reuse an old time.
+- **Start from the latest `main`.** Run `git fetch origin main && git merge origin/main` (or rebase, if the branch is yours alone) before any other work and again before every push. Resolve conflicts first.
 
 ## Real data only
 
-WonderJobs earns trust by never showing a candidate anything it did not actually find, compute or receive. Every change must keep that true:
+Never show a candidate anything WonderJobs didn't actually find, compute or receive.
 
-- **Signed-in accounts see only real data.** Jobs come from live sources through `apps/web/src/server/jobs/providers.ts`; matches, quality signals, insights and counts are computed from those postings and the candidate's own Career DNA. Nothing is seeded, generated, sampled or hardcoded for a real account — not a job, a company, a number, a chart series, a "typical" value or a canned search term. Generated data (`services/mock/*`) exists for demo and local mode only, gated on `getClientMode().mode !== "user"`; never widen that gate.
-- **Never substitute a default for the candidate's intent.** A search query, location, threshold or goal comes from what the candidate typed or from their Career DNA (`defaultSearchQuery` in `services/jobs/normalize.ts`); when nothing can be derived, ask — do not fall back to a placeholder like "product manager".
-- **When a real value is unavailable, say so.** A source without credentials is "Needs setup", a failed fetch is "Unavailable", an empty result is an empty state with the reason. Do not fill the gap.
-- **Show provenance.** A run says what it searched, where, and across which sources; per-source counts are evidence on the search stage; AI drafts are labelled AI-generated. If a number appears in the UI, the candidate must be able to see where it came from.
-- **Verify before claiming.** When asked whether data is real, or before asserting a source works, check the actual code path and the production logs (`/api/jobs/search` runtime logs on Vercel) or reproduce the fetch — do not answer from the docs.
+- **Signed-in accounts see only real data.**
+  - Jobs come from live sources (`server/jobs/providers.ts`).
+  - Matches, signals, insights and counts are computed from those postings and the candidate's Career DNA.
+  - Nothing is seeded, sampled or hardcoded for a real account.
+  - Mock data (`services/mock/*`) is for demo/local only, gated on `getClientMode().mode !== "user"`. Never widen that gate.
+- **No defaults in place of intent.**
+  - Query, location, threshold and goal come from what the candidate typed or from their Career DNA (`defaultSearchQuery` in `services/jobs/normalize.ts`).
+  - If neither gives a value, ask. Never use a placeholder.
+- **Say when a value is unavailable.** A source without credentials says "Needs setup"; a failed fetch says "Unavailable"; an empty result gives its reason. Never fill the gap.
+- **Show provenance.**
+  - A run shows what was searched, where, and across which sources, with per-source counts.
+  - AI drafts are labelled AI-generated.
+  - The candidate can trace every number shown.
+- **Verify before claiming.** Check the code path and the Vercel `/api/jobs/search` runtime logs, or reproduce the fetch. Don't answer from the docs.
 
 ## AI and agent governance
 
-WonderJobs already separates "what AI may decide" from "what only application code may decide." Every change must keep that separation, not blur it:
-
-- **AI proposes, application code decides.** `services/ai/service.ts` / `domain/ai/types.ts` is the only boundary through which app code talks to a model (WonderJobs AI template provider, or Anthropic/OpenAI/Gemini BYOK); AI output is a draft or a proposal — resume text, a cover letter, a screening answer, a follow-up email, a career insight. It is never the thing that decides whether an action is authorized, who a job belongs to, or whether an external side effect happens.
-- **`domain/automation/policy.ts::resolveCapability` is the single deterministic gate**, already wired in front of every AI-touching or external-effect capability (generate résumé/cover letter, send email, submit application, change Career DNA, etc.). It combines a capability's fixed risk tier, the candidate's chosen automation level (Assist/Guided/Autonomous/Continuous), and their per-capability policy (automatic/ask/off). Never add a code path — AI-driven or otherwise — that performs a gated action without going through this function. If a policy or automation-level lookup fails or is missing, that must fail closed (ask the candidate, or don't run the capability) — never default to automatic execution.
-- **Final submission to an employer is the candidate's opt-in, never Wonder's default** (owner decision, 2026-10-08, WJ-249). The browser helper may press an employer's final Submit button only when final submission is turned on for that application — by the candidate's per-job / per-application choice, or their account default in Settings (capability `final_submit`, default **off**) — resolved through `resolveCapability`, failing closed (a missing or unreadable setting means no submission). It submits only when every required field on the page is filled with the candidate's own confirmed answer, at most once per job (idempotency key `submit:{jobId}:me`), and every submission is audited (`APPLICATION_SUBMITTED`) and shown as "Submitted by Wonder" on the application. A per-job or per-application "Never" always wins. Submission happens only through the helper on the employer's own page, in the candidate's own desktop browser. **The cloud browser is retired** (owner decision, 2026-10-23, WJ-347): no fill or submit runs on WonderJobs' servers, and phones and tablets apply the traditional way (open the employer's page, Guide me's values to copy). The one other path is **Easy Apply on a job a company posted on WonderJobs** (same decision): on the candidate's press of Send application, after they confirm the details and tick consent, `/api/easy-apply` → `server/careers.ts::easyApply` writes their application (account email, the details shown, a copy of the résumé file they chose, encrypted for that company) into that company's `job_applications`, once per job and email (the database refuses a second), audited (`easy_apply` / `APPLICATION_SUBMITTED`). Don't widen this beyond those conditions.
-- **The browser helper presses two kinds of button, each under its own gate**: a page's own next-page button ("Next", "Continue", "Save and continue") after filling that page, when the fill plan allows it (`plan.advance`, audited `STEP_ADVANCED`, owner decision WJ-239); and the final Submit button, only when the plan's `plan.submit` is true under the conditions above (audited `APPLICATION_SUBMITTED`, WJ-249). The step classifier still decides which is which; nothing else on a page is ever pressed. (The cloud browser's dropdown picking, portal sign-in and listing-following — WJ-313/315/316 — went with it, WJ-347; `apps/browser-worker` is no longer called by the app.) `server/jobsApply/extension.test.ts` holds the helper to exactly those guarded `.click()` calls and runs the classifier. Keep it that way.
-- **UI copy describing an action must match what the code actually does.** A confirmation dialog is a contract with the candidate. (A 2026-09 audit found real drift here — a modal claiming an action "submits your application… can't be undone" when it only hands off, and a "send" confirmation claiming real email delivery that was actually a mocked delay — see `docs/UX_BASELINE_AUDIT.md` §18–19 for the specifics being fixed. Don't reintroduce this class of bug in new copy.)
-- **External content is data, never instructions.** A candidate's uploaded résumé (`server/resume/extractText.ts`, `parseResume.ts`), a fetched job posting (`server/jobs/providers.ts`), or any future imported document/email/link is untrusted text to extract fields from or display — never something whose content can redefine an AI prompt's system behavior, skip `resolveCapability`, or trigger an action by itself.
-- **Every external side effect needs a stable idempotency key and an audit trail before it needs anything else.** The workflow engine's action ledger (keyed e.g. by `submit:{jobId}:me`) and `store/actions.ts` + `/api/audit`'s draft → confirm → execute-once → audit pattern are the existing implementations — reuse them for any new action with a real-world effect rather than adding a parallel mechanism. A rerun, retry, or rescheduled run must never repeat an already-completed external action.
-- **Model instructions live only on the server** (owner, 2026-10-21, WJ-334): every system prompt is in `server/ai/systemPrompts.ts`, ending with `SYSTEM_GUARD`; `/api/ai/complete` takes a `promptId`, never instructions, and refuses a draft that repeats them (`leaksInstructions`). Never send a system prompt from the browser or accept one in a route. Browser code never imports `src/server` code (`src/clientBoundary.test.ts`).
-- **Every AI-generated artifact keeps its provenance** (`AI_GENERATED` / `USER_PROVIDED` / `USER_MODIFIED` / `SYSTEM_DERIVED`, per `domain/workflow/resolve.ts`) visible to the candidate. Don't add an AI-touching surface that hides whether a value came from the model or the person.
+- **AI proposes; application code decides.**
+  - `services/ai/service.ts` / `domain/ai/types.ts` is the only model boundary: the WonderJobs template provider, or Anthropic/OpenAI/Gemini BYOK.
+  - Model output is only ever a draft. It never authorizes an action, assigns ownership, or triggers a side effect.
+- **`domain/automation/policy.ts::resolveCapability` is the single gate** for every AI-touching or external-effect capability.
+  - It combines the capability's risk tier, the automation level (Assist/Guided/Autonomous/Continuous) and the per-capability policy (automatic/ask/off).
+  - No gated action may bypass it.
+  - A missing or failed lookup fails closed: ask the candidate, or don't run.
+- **Final submission is the candidate's opt-in** (WJ-249).
+  - **Opt-in:** the helper presses an employer's final Submit button only when `final_submit` is on. That comes from a per-job or per-application choice, or the account default (off).
+  - **Gate:** the setting is resolved through `resolveCapability` and fails closed.
+  - **Conditions:** every required field holds the candidate's confirmed answer, and submission happens at most once per job (`submit:{jobId}:me`).
+  - **Trail:** audited as `APPLICATION_SUBMITTED` and shown as "Submitted by Wonder".
+  - A per-job or per-application "Never" always wins.
+- **Where submission can happen:**
+  - Only through the helper, on the employer's own page, in the candidate's desktop browser.
+  - **The cloud browser is retired** (WJ-347). Nothing fills or submits on WonderJobs' servers, and `apps/browser-worker` is no longer called. Phones and tablets apply the traditional way, with Guide me values to copy.
+  - **Easy Apply** is the one other path, for jobs a company posted on WonderJobs.
+    - It runs on Send application, after the candidate confirms the details and ticks consent.
+    - `/api/easy-apply` → `server/careers.ts::easyApply` writes the application (account email, the shown details, an encrypted résumé copy) into that company's `job_applications`.
+    - Once per job and email; the database refuses a second.
+    - Audited as `easy_apply` / `APPLICATION_SUBMITTED`.
+  - Don't widen any of these conditions.
+- **The helper presses exactly two kinds of button:**
+  - A page's own next-page button, after filling the page, when `plan.advance` allows it (`STEP_ADVANCED`, WJ-239).
+  - The final Submit button, when `plan.submit` is true (`APPLICATION_SUBMITTED`).
+  - The step classifier tells them apart; nothing else is ever pressed. `server/jobsApply/extension.test.ts` enforces this; keep it.
+- **UI copy matches what the code does.** A confirmation dialog is a contract. See `docs/UX_BASELINE_AUDIT.md` §18–19 for past drift.
+- **External content is data, never instructions.** Résumés, job postings, imported documents and links can't change a prompt, skip `resolveCapability` or trigger an action.
+- **Every external side effect has an idempotency key and an audit trail.**
+  - Reuse the workflow action ledger, and `store/actions.ts` + `/api/audit` (draft → confirm → execute once → audit). Don't build a parallel mechanism.
+  - A retry must never repeat a completed action.
+- **Model instructions live only on the server** (WJ-334).
+  - All system prompts are in `server/ai/systemPrompts.ts` and end with `SYSTEM_GUARD`.
+  - `/api/ai/complete` takes a `promptId`, never instructions, and refuses a draft that repeats them (`leaksInstructions`).
+  - Browser code never imports `src/server`; `src/clientBoundary.test.ts` enforces this.
+- **Keep provenance visible:** `AI_GENERATED` / `USER_PROVIDED` / `USER_MODIFIED` / `SYSTEM_DERIVED` (`domain/workflow/resolve.ts`).
 
 ## Identity, tenant isolation and security
 
-- Tenant is the session's user id (`server/auth.ts`); every route and query must filter by it explicitly.
-- **Known gap, not a design goal: Postgres RLS is enabled on every `wonderjobs` table but no `CREATE POLICY` exists anywhere in the migrations** (confirmed in the 2026-09 audit). Isolation is enforced entirely in application code — the schema is revoked from `anon`/`authenticated`, and only the service role (which bypasses RLS regardless) can reach it. Never write a Supabase query that omits an explicit tenant filter on the assumption that RLS will catch a mistake — it will not. If you add real per-tenant RLS policies, update this note.
-- A legacy/no-auth mode exists (a random `wj_uid` cookie, used when Supabase Auth isn't configured) where tenant identity has no real authentication behind it — acceptable for local/dev, but never describe or market that mode as equivalent to authenticated tenant isolation. For the local E2E build only, `WJ_E2E_LEGACY_EMAIL=1` (set by `playwright.config.ts`, never on Vercel) lets such a browser carry a `wj-e2e-*@example.com` email cookie so invitation-by-email journeys run without Supabase (`server/auth.ts::legacyTestEmail`); it is never read when real sign-in is configured.
-- Secrets (BYOK provider keys) are AES-256-GCM encrypted server-side and masked on read (`server/secrets.ts`); never log a decrypted key, pass one to the client, or add a new secret type that skips this store.
-- **Hiring workspaces and roles** (owner, 2026-10-20, WJ-333): employers and recruiters work in a company's hiring workspace (`wonderjobs.hiring_*`, `employer_jobs`). A member has one role — Owner, Hiring manager or Recruiter — and what each may do is decided only by `domain/org/permissions.ts::can`, checked on the server in `server/hiring.ts` for every action against the caller's own membership; a missing or unknown role can do nothing. Org-scoped queries filter by `org_id` after that check; invitations are accepted only by the invited email. Easy Apply (WJ-347) is a candidate's write into a company's applications, on their press — like applying on a career site; the company reads it only through `applications.view`, and the résumé copy only via `applicationResume`. Exactly two reads cross tenants, by design: open job listings (public postings, shown to job seekers as the "WonderJobs employers" source) and `talent_profiles`, which exist only while a job seeker turned on Open to recruiters and hold only what they saw on You → Recruiters (first name and last initial, headline, level, years, skills, places, work modes, an optional line — never contact details or work history). A company may message a job seeker only while they're open to recruiters and haven't declined or blocked it. Keep it that way.
-- **Sign-in connections are retired** with the cloud browser (WJ-347): no code reads `wonderjobs.portal_connections` any more (the table is kept, unused, until a migration drops it). WonderJobs never signs in to a portal for the candidate, and the extension's helper never reads a password field.
+- **Tenant = the session's user id** (`server/auth.ts`). Every route and query filters by it explicitly.
+- **RLS is enabled but there are no policies.**
+  - Isolation lives entirely in app code; only the service role, which bypasses RLS, reaches the schema.
+  - Never omit the tenant filter.
+  - If you add real RLS policies, update this note.
+- **Legacy no-auth mode is dev only.**
+  - It uses a random `wj_uid` cookie. Never present it as real isolation.
+  - `WJ_E2E_LEGACY_EMAIL=1` is local E2E only (set by `playwright.config.ts`, never on Vercel). It allows a `wj-e2e-*@example.com` email cookie (`legacyTestEmail`) and is ignored when real sign-in is configured.
+- **BYOK secrets** are AES-256-GCM encrypted and masked on read (`server/secrets.ts`).
+  - Never log a decrypted key or send one to the client.
+  - Never add a secret type outside this store.
+- **Hiring workspaces** (WJ-333) live in `wonderjobs.hiring_*` and `employer_jobs`.
+  - Roles are Owner, Hiring manager and Recruiter.
+  - Only `domain/org/permissions.ts::can` decides what a role may do. `server/hiring.ts` checks it on the server for every action, against the caller's own membership. An unknown role can do nothing.
+  - Org queries filter by `org_id` after that check.
+  - Invitations can be accepted only by the invited email.
+  - Companies read Easy Apply applications only through `applications.view`, and the résumé only via `applicationResume`.
+- **Only two reads cross tenants:**
+  - Open job listings, shown as the "WonderJobs employers" source.
+  - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history.
+  - A company may message a job seeker only while they're open to recruiters and haven't declined or blocked it.
+- **Sign-in connections are retired** (WJ-347). `portal_connections` is unused and kept until a migration drops it. Wonder never signs in to a portal, and the helper never reads a password field.
 
 ## Minimal UI
 
-Every page stays minimalistic. Before adding a control, look for one to remove.
+- One primary action per screen. A list item carries at most one action (e.g. Save).
+- Fold settings, rare options and explanations (`components/common/Fold.tsx`, or Refine).
+- Default from the candidate's data instead of adding a selector.
+- At most one line of help. No repeated explanations, badges or "why" blocks on list items.
+- When you change a page, its count of visible controls should go down, not up.
 
-- **Fewest buttons and options possible.** One primary action per screen; a list item carries at most one action (e.g. Save) — the rest live on the item's own page.
-- **Fold, don't show.** Settings, rarely used options, explanations and advanced controls go behind a collapsed row (`components/common/Fold.tsx`) or Refine — never laid out all at once.
-- **Default instead of asking.** Pick a sensible default from the candidate's data rather than adding a selector; don't add choices the candidate doesn't need to make.
-- **Short copy.** One line of help at most; no repeated explanations, badges or "why" blocks on list items.
-- When changing a page, count its visible controls before and after; the number should go down, not up.
+## Ship fast (pre-launch)
 
-## Ship fast (pre-launch — no end users yet)
-
-The owner tests changes themselves. Speed of getting a change in front of them beats exhaustive pre-push verification. Until this section is changed:
-
-- **Every change goes through a pull request; merge it yourself, without asking** (owner, 2026-10-16). Never push to `main` directly. Commit, push a `claude/<topic>` branch, open the PR, turn on GitHub auto-merge (squash) for it, and get CI green; it merges itself when CI passes, or squash-merge it yourself the moment it's green. Don't ask the owner first, and never end a turn waiting for a go-ahead to merge (owner, 2026-10-20: "merge automatically, no need to ask") — the moment CI is green, merge, confirm the production deploy, send the push notification, and report it as done. Production deploys from `main` a couple of minutes later and the owner tests there. Branches don't get Vercel previews.
-- **Before pushing, run only fast, relevant checks**: `npx tsc --noEmit -p apps/web`, lint on the files you changed, and the unit tests for the areas you touched (`npx vitest run <paths>`). CI runs the full `npm run check` (lint, typecheck, all tests, production build) on the PR — let it, don't duplicate it locally.
-- **E2E runs nightly at 03:00 IST, not on pull requests** (`.github/workflows/e2e-nightly.yml`, `docs/testing/README.md`). Don't run the whole `npm run e2e`, `npm run a11y`, full-app browser walkthroughs or before/after comparisons on other builds unless the owner asks. Before merging something risky — sign-in, permissions, a database migration, payments, a new cross-feature flow — run the affected specs locally (`npm run e2e -- e2e/<spec>.ts --project=chromium` from `apps/web`) or start the nightly on the branch by hand (Actions → E2E nightly → Run workflow). A quick look at the one screen you changed is enough otherwise.
-- **Pre-launch, E2E may use production** (owner, 2026-10-16: the app isn't live). The nightly and local runs may create disposable `wj-e2e-*@example.com` accounts in the production Supabase project and run the real-account walk-through against the production deployment, with `E2E_ALLOW_PRODUCTION=true`. Tests only ever create and delete their own `wj-e2e-*` data. At launch, set `E2E_ALLOW_PRODUCTION` to `"false"` in the workflow and move E2E to a separate test project.
-- **A red nightly is fixed before anything else merges.** Check the latest "E2E nightly" run (and the open "E2E nightly failing" issue) before merging; if it's red or flaky, find the root cause and fix that first — "flaky" is not a root cause. Never skip, disable or delete a test to get green.
-- **Help content moves with the feature.** A change that adds, removes or renames a user-facing feature updates the help guide (`apps/web/src/content/help.ts`, signed-in only at `/help`) in the same PR, in the UI's own words, and moves that section's `updated` date. `content/help.test.ts` fails on a link to a missing help section or app route. Don't let e2e specs block a push; fix the ones a change breaks only when CI runs them or the owner asks.
-- **Release notes when the owner confirms a version is live** (owner, 2026-10-19). When the owner says a new version is live, add one entry at the top of `apps/web/src/content/releaseNotes.ts` (shown in the help guide's Release notes section): today's date, a short title, `through` = the last merged PR it covers, and one high-level line per user-facing change merged since the previous entry's `through` (`git log` of `main` since then), in the UI's own words. Never add an entry before that confirmation; ship it as its own small PR, or with the next code PR.
-- **Notify the owner when a task is done.** When a requested task is finished (merged, or blocked on something only the owner can do), send a push notification (the `PushNotification` tool) with a one-line summary of the outcome — e.g. "PR #66 merged: Adzuna jobs now show their source site". One per finished task, not per step.
-- **Still required, because they're cheap and protect trust**: the rules above (real data only, AI governance, tenant isolation), and a unit test for any change to `domain/automation/policy.ts`, `domain/workflow/*`, anything gating an AI-touching or external-effect action, or a Supabase query/migration (verify the tenant filter explicitly — RLS won't catch it).
+- **Every change is a PR from a `claude/<topic>` branch; merge it yourself** (owner, 2026-10-16/20). Never push to `main`.
+  - Turn on auto-merge (squash), or squash-merge the moment CI is green on the latest commit.
+  - Before merging, check: no conflict, no open blocking review, and the latest E2E nightly isn't red.
+  - Never wait for a go-ahead.
+  - Then confirm the production deploy and send one `PushNotification` per finished task (or one when blocked on the owner).
+- **Before pushing, run only:**
+  - `npx tsc --noEmit -p apps/web`
+  - lint on the changed files
+  - `npx vitest run <touched paths>`
+  - plus a local production build when build config changes.
+  - CI runs the full `npm run check`.
+- **E2E runs nightly at 03:00 IST, not on PRs** (`.github/workflows/e2e-nightly.yml`).
+  - Run specific specs (`npm run e2e -- e2e/<spec>.ts --project=chromium`) only for risky changes: sign-in, permissions, migrations, payments, cross-feature flows. Or trigger the nightly on the branch.
+  - Otherwise, a quick look at the changed screen is enough.
+- **Pre-launch, E2E may use production** (`E2E_ALLOW_PRODUCTION=true`). Tests create and delete only their own `wj-e2e-*` data. At launch, set it to `"false"` and move E2E to a separate project.
+- **A red nightly is fixed first.** Find the root cause; "flaky" isn't one. Never skip, disable or delete a test.
+- **Help moves with the feature.**
+  - Any user-facing add, remove or rename updates `src/content/help.ts` in the same PR, in the UI's words, and bumps that section's `updated` date.
+  - `help.test.ts` checks the links.
+- **Release notes come only after the owner says a version is live.**
+  - Add one entry at the top of `src/content/releaseNotes.ts`: date, title, `through` (the last merged PR), and one line per user-facing change since the previous `through`.
+  - Ship it in its own small PR or with the next code PR.
+- **Always required:**
+  - The rules above.
+  - A unit test for any change to `domain/automation/policy.ts`, `domain/workflow/*`, any gate on an AI or external-effect action, or any Supabase query or migration. Verify the tenant filter.
 
 ## Performance
 
-The app must feel instant (owner, 2026-10-19). Every change keeps these true; measure before and after when a change touches a hot path:
+The app must feel instant. Measure before and after on hot paths.
 
-- **Measure first, from real numbers.** Before optimising or when something feels slow, read the evidence: `pg_stat_statements` (top queries by total time, calls and mean), Supabase's performance advisors, table sizes, and the size of each `app_state` document. Fix the biggest measured cost, not a guess.
-- **Persisted stores stay small and are written rarely.** A persisted store is serialised and sent whole, so: persist only what a reload needs (a `partialize` that caps lists and trims text — see `store/jobs.ts`, `store/workflow.ts::compactRuns`); keep an expensive `partialize` memoised on the references it reads (it runs on every `set`); and never call `set` in a tight loop — batch it (one `set` for many items, e.g. `upsertRuns`). `remoteStorage.ts` already slows saves of large documents (over 100 KB: serialise every 1.5 s, push every 3 s, never more than 10 s late); don't bypass it, and don't add a store that grows without a cap.
-- **Every query is indexed for how it's filtered, and returns only what's needed.** A new `where`, `order by` or JSON containment (`@>`) on a table that can grow gets an index in the same migration (`jobslake_opportunities` has a GIN index on `data`). Select the columns you need, not `*` or a whole `data` document, when the caller doesn't use it all. Keep an explicit tenant filter on every tenant query (as always).
-- **Don't write what didn't change.** Upserts skip unchanged rows (`put_state` compares before writing); "last seen" style bumps are throttled (`touchTenant`: at most every five minutes per instance). A no-op save must cost close to nothing.
-- **Cache shared, slowly-changing reads; never per-tenant data across tenants.** Read-mostly shared data (the JobsLake warm pool, sources, companies) is cached in memory per server instance with a short TTL and updated in place by the instance's own writes (`core.ts::warmPool`). Tenant data is never cached in a way another tenant could read.
-- **Opening a page never does background work the candidate didn't ask for.** No search, refresh or sync on open beyond loading what's stored (owner, 2026-10-19); timers and polling need a reason, the longest interval that works, and must stop when the page is hidden or the work is done.
-- **Lists render cheaply.** Results are paged (`PAGE`), list items are memoised with stable, id-taking callbacks (`JobsBoard.tsx::JobResult`), components subscribe to the narrowest store slice they use, and filtering or sorting a list is memoised on its real inputs — typed words debounced, the clock coarsened to what the check needs (hours for "too old"), never a new object per keystroke.
-- **Heavy code loads when it's used.** Dialogs, editors, PDF and document tools, and anything only some pages need load through `next/dynamic` or `import()` on first use (the Ask Wonder palette, pdf-lib); demo-only code never ships on a signed-in path when it can be avoided.
-- **Fetch in parallel, once.** A page's independent requests start together; the same data isn't fetched twice on one page; responses that don't change per request are cacheable.
+- **Measure first.** Use `pg_stat_statements`, Supabase advisors, table sizes and `app_state` document sizes, and fix the biggest real cost.
+- **Small, rarely written persisted stores.**
+  - Persist only what a reload needs, with a capped, trimmed `partialize` (`store/jobs.ts`, `store/workflow.ts::compactRuns`), memoised on its inputs.
+  - Never call `set` in a loop; batch it (`upsertRuns`).
+  - Don't bypass `remoteStorage.ts` throttling, and don't add an uncapped store.
+- **Index every new filter, order or `@>`** in the same migration. Select only the columns you need, and keep the tenant filter.
+- **Don't write what didn't change.** `put_state` compares before writing; `touchTenant` writes at most every 5 minutes.
+- **Cache only shared, slow-changing reads in memory**, with a short TTL (`core.ts::warmPool`). Never cache tenant data where another tenant could read it.
+- **Opening a page loads what's stored, and nothing else.**
+  - No search, refresh or sync on open.
+  - Timers need a reason and the longest interval that works, and stop when the page is hidden or the work is done.
+- **Cheap lists.**
+  - Page results (`PAGE`).
+  - Memoise items with stable, id-taking callbacks (`JobsBoard.tsx::JobResult`).
+  - Subscribe to narrow store slices.
+  - Memoise filtering and sorting; debounce typing.
+- **Lazy-load heavy code** (dialogs, editors, PDF tools) via `next/dynamic` or `import()`. Keep demo-only code off signed-in paths.
+- **Fetch in parallel, once per page.**
 
 ## Build-slot budget
 
-Vercel's free plan allows 100 deployments a day and counts every deployment it creates, including ones the ignored-build step cancels. Running out blocks production, so deployments are a budget, production first.
+Vercel's free plan allows 100 deployments a day, cancelled ones included. Running out blocks production.
 
-- **No branch deployments.** `apps/web/vercel.json` turns off automatic deployments for every branch with a `/` in its name (`"*/**": false`); only `main` deploys. Always name working branches with a prefix (`claude/<topic>`). A branch without one gets a preview and spends a slot. No second Vercel project may be linked to this repository.
-- **Merge automatically once green** (owner, 2026-10-15 and 2026-10-16, WJ-306; replaces "merge now" / "build now"). Normal builds come only from merged PRs. As soon as a PR's CI is green on its latest commit, it has no conflict or open blocking review, and the latest E2E nightly isn't red (see "Ship fast"), squash-merge it without asking, then confirm the production deploy and notify once. Don't merge a red or conflicted PR — fix it first. Every merge is still a production build, so finish a change in one PR rather than merging partial steps. The same holds for anything else that deploys on merge (e.g. the cloud browser's Fly deploy).
-- **One merge to `main` = one production deployment, so merge in bigger pieces.** Squash-merge, and keep the tracker, progress and test updates in the same PR as the code they describe. Don't open docs-only PRs while a code PR is open or about to open.
-- **Tests run on GitHub Actions, never on Vercel.** Never re-run a failed run hoping it passes; find the cause first.
-- **Verify before pushing, then push once.** Typecheck, lint, the touched unit tests (and a local production build when the change touches build config) before the first push, so there are no fix-up pushes.
-- **Watch the budget.** Before deployment-heavy work, count the last 24 hours' deployments; above ~70 of 100, hold docs-only merges and keep the rest for production and hotfixes.
-- **When the cap is hit** ("Deployment rate limited", `api-deployments-free-per-day`): it's infrastructure, not a test failure. Stop pushing to anything that deploys (refused deployments aren't queued), wait until the oldest counted deployment is 24 hours old, then redeploy only the latest `main`, once.
+- **Only `main` deploys.** `apps/web/vercel.json` sets `"*/**": false`, so always use a `/` in branch names. Never link a second Vercel project.
+- **One merge = one production build.**
+  - Finish a change in one PR, with its tracker and test updates.
+  - No docs-only PRs while a code PR is open.
+- **Tests run on GitHub Actions, never on Vercel.** Never re-run a failed run without finding the cause.
+- **Check the budget before deployment-heavy work.** Above ~70 deployments in the last 24 hours, hold docs-only merges.
+- **When the cap is hit** (`api-deployments-free-per-day`):
+  - Stop pushing to anything that deploys.
+  - Wait until the oldest counted deployment is 24 hours old.
+  - Then redeploy the latest `main` once.
 
 ## Token economy
 
-Measured on the 2026-10-22→24 session (2,226 model turns, 31 PRs): about 908M of its ~920M tokens were cached context re-read on every turn (412k average). Output was 1.4M. So the cost is **context size × number of turns**, and every rule below cuts one of the two:
+Measured over 2,226 turns in the 2026-10-22→24 session: about 908M of ~920M tokens were cached context re-read on every turn. Output was 1.4M. So cost ≈ context size × turns.
 
-- **Keep sessions short.** Context only grows within a session. Start a new session (or `/compact`) after a batch of merged work instead of running one session for days; carry state in `docs/` and PRs, not in the conversation.
-- **Batch small requests into one PR.** Several UI tweaks asked close together go in one branch and one PR (add to the open PR while CI runs). Each PR costs about 6 turns of create → subscribe → wake → check → merge → notify, plus a production build.
-- **One turn per CI wake.** On `check_suite.completed` for the PR's head, read the check runs once and merge in the same turn. Don't reply to the `subscription.created` wake beyond one line, and don't re-check state that the event already gave.
-- **Text before pixels.** To check a UI change, run `node apps/web/scripts/ui-check.mjs <path> --click "<role>:<name>" --select "<css>"` against a dev server. It prints each element's text and box in a few hundred tokens. Take a screenshot (`--shot x.jpg`: 1x JPEG, clipped) only when the look itself matters, at most once per change. Never Read Playwright `test-results/` traces, videos or full-page PNGs (one was 530k characters); read `error-context.md` instead.
-- **Read narrowly.** `grep -n` first, then `sed -n 'a,bp'` or Read with offset/limit. Don't re-read a file you just edited or one already in context, and don't Read whole large files (`JobFilters.tsx`, `help.ts`, `store/jobs.ts`).
-- **Quiet commands.** Pipe output through `| tail -n 20` or `grep -E "Tests|FAIL|error"`. Run the unit tests for the touched area, never the whole suite. Use `-q` for git.
-- **Short replies.** Report the outcome and what the owner should check, not the steps taken.
+- **Keep sessions short.** Start a new session or `/compact` after each batch of work. Keep state in `docs/` and PRs.
+- **Batch small requests into one PR.** Each PR costs about 6 turns plus a production build.
+- **One turn per CI wake.** On `check_suite.completed`, read the check runs and merge in the same turn. Answer `subscription.created` in one line, if at all.
+- **Text before pixels.**
+  - Use `node apps/web/scripts/ui-check.mjs <path> --click "<role>:<name>" --select "<css>"`.
+  - Use `--shot x.jpg` only when the look matters, at most once per change.
+  - Never Read Playwright traces, videos or full-page PNGs; read `error-context.md` instead.
+- **Read narrowly.**
+  - `grep -n` first, then read with offset/limit.
+  - Never read whole large files (`JobFilters.tsx`, `help.ts`, `store/jobs.ts`).
+  - Don't re-read files already in context.
+- **Quiet commands.** Use `| tail -n 20`, `git -q`, and run only the touched tests.
+- **Short replies.** Give the outcome and what to check.
 
 ## Repository layout
 
-- Monorepo with npm workspaces. The Next.js app lives in `apps/web` (Vercel root directory).
-- `npm run check` (from the root or `apps/web`) runs lint, typecheck, tests and the production build; CI runs it on every PR (see "Ship fast" for what to run locally).
-- Database schema lives in `apps/web/supabase/migrations/`; the bundled registry in `apps/web/src/server/migrations/index.ts` must match it (a unit test enforces this).
-- `docs/IMPLEMENTATION_TRACKER.md` tracks requirement status: add a short row per feature (a few lines, not an essay) — include the security/governance implication when the change touches automation policy, AI providers, or external actions.
-- `docs/PROGRESS.md` is the high-level progress tracker: one line per finished story. It no longer needs to mirror the help guide's roadmap.
-- `docs/UX_BASELINE_AUDIT.md`, `docs/UX_CAPABILITY_MAP.md` and `docs/UX_SIMPLIFICATION_DECISIONS.md` are the current UX-simplification planning docs (Phase 1, Step 1 complete as of 2026-09-23) — consult them before changing navigation, information architecture, or any screen they inventory, rather than re-deriving the current implementation from scratch.
+- npm-workspaces monorepo. The Next.js app is `apps/web` (the Vercel root). `npm run check` = lint + typecheck + tests + build.
+- Schema: `apps/web/supabase/migrations/`. It must match `src/server/migrations/index.ts` (a test enforces this).
+- `docs/IMPLEMENTATION_TRACKER.md`: a short row per feature. Note the security or governance implication for automation, AI provider or external-action changes.
+- `docs/PROGRESS.md`: one line per finished story.
+- Before changing navigation or an inventoried screen, read `docs/UX_BASELINE_AUDIT.md`, `UX_CAPABILITY_MAP.md` and `UX_SIMPLIFICATION_DECISIONS.md`.
