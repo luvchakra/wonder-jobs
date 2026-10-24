@@ -76,7 +76,7 @@ class MemoryCompanies implements CompanyStore {
 }
 
 type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; h1b?: H1bRecord | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b !== undefined ? { h1b: r.h1b } : {}) });
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.h1b ? { h1b: r.h1b } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -226,8 +226,8 @@ export async function companyProfile(q: { domain?: string; name?: string }, stor
   const nameKey = q.name ? companyKey(q.name) : "";
   const r = (domain ? await store.byDomain(domain) : undefined) ?? (nameKey ? await store.byName(nameKey) : undefined);
   const key = r?.nameKey ?? nameKey;
-  // The refresh copies H-1B totals onto a company; one it hasn't reached yet is looked up by name.
-  const h1b = r?.h1b !== undefined ? (r.h1b ?? undefined) : key ? (await store.h1bFor([key])).get(key) : undefined;
+  // The refresh copies H-1B totals onto a company; one it hasn't matched (or reached yet) is looked up by name.
+  const h1b = r?.h1b ?? (key ? (await store.h1bFor([key])).get(key) : undefined);
   if (!r && !h1b) return undefined;
   return {
     name: r?.name ?? q.name ?? "",
