@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { companyLines } from "@/domain/jobslake/companies";
 import { theirStackFacts } from "@/server/jobs/theirstack";
-import { __MemoryCompanies, companiesFrom, companyProfile, recordCompanyFacts } from "./companies";
+import { __MemoryCompanies, companiesFrom, companyBriefs, companyProfile, recordCompanyFacts } from "./companies";
 import { refreshCompanies } from "./companyRefresh";
 import { h1bRows, loadH1b } from "./h1b";
 import { wikidataFacts } from "./wikidata";
@@ -96,5 +96,15 @@ describe("Wikidata company facts", () => {
     expect(store.rows.get("figma.com")?.wikidata).toMatchObject({ founded: 2012 });
     expect(store.rows.get("acme.com")?.wikidata).toBeNull();
     expect((await refreshCompanies({ now, store, logoLimit: 0, fetcher, postings: async () => [] })).wikidataChecked).toBe(0);
+  });
+});
+
+describe("job card company briefs", () => {
+  it("gives each page's companies their size and H-1B filings in one go, by domain or by name", async () => {
+    const store = new __MemoryCompanies();
+    await loadH1b(FILE, store);
+    await recordCompanyFacts([{ domain: "figma.com", name: "Figma", facts: { employeeRange: "1001-5000", from: "TheirStack" }, source: "theirstack" }], store);
+    const b = await companyBriefs([{ d: "figma.com", n: "Figma" }, { n: "Stripe, Inc." }, { n: "Nobody Ltd" }], store);
+    expect(b).toEqual({ "figma.com": { size: "1K–5K employees", h1b: 61 }, "n:stripe, inc.": { h1b: 242 } });
   });
 });

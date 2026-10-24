@@ -153,3 +153,22 @@ export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[]
   if (p.h1b) out.push({ label: "H-1B visas", value: `${n(p.h1b.filings)} certified ${p.h1b.filings === 1 ? "application" : "applications"}${p.h1b.medianWage ? ` · median $${n(p.h1b.medianWage)}` : ""}`, source: `US Dept. of Labor, ${p.h1b.through}` });
   return out;
 }
+
+/** The two facts a job card shows about its company. */
+export interface CompanyBrief {
+  /** "1.5K employees" or "1K–5K employees". */
+  size?: string;
+  /** Certified H-1B applications in the latest Department of Labor file. */
+  h1b?: number;
+}
+
+/** How a card's company is asked for and answered: its domain when it has one, else its name. */
+export const briefKey = (q: { d?: string; n: string }) => (q.d ? q.d.toLowerCase() : `n:${q.n.trim().toLowerCase()}`);
+
+export function companyBrief(p: CompanyProfile, locale = "en-US"): CompanyBrief {
+  const f = [p.facts, p.wikidata].find((x) => x?.employees || x?.employeeRange);
+  const short = (v: string) => (/^\d+$/.test(v) ? compact(Number(v), locale) : v);
+  const size = f?.employees ? `${compact(f.employees, locale)} employees` : f?.employeeRange ? `${f.employeeRange.split("-").map(short).join("–")} employees` : undefined;
+  return { ...(size ? { size } : {}), ...(p.h1b ? { h1b: p.h1b.filings } : {}) };
+}
+

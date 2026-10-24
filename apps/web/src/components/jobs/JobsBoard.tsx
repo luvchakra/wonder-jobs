@@ -21,6 +21,8 @@ import { useCareerStore } from "@/store/career";
 import { useLinkCheck } from "@/lib/useLinkCheck";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
+import { jobBriefKey, useCompanyBriefs } from "./useCompanyBriefs";
+import type { CompanyBrief } from "@/domain/jobslake/companies";
 
 const PAGE = 24;
 
@@ -132,6 +134,8 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
   }, [filterResult, jobs, matches, sort, savedOnly, query, removedFromPipeline, hour]);
 
   const visible = results.slice(0, limit);
+  // Size and H-1B filings for the companies on screen, one request per page of new ones.
+  const briefs = useCompanyBriefs(useMemo(() => visible.flatMap((id) => (jobs[id] ? [jobs[id]] : [])), [visible, jobs]));
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
   const isSearching = !!searching;
   // What the catalog on screen was searched for ("" = the Career Profile's own search).
@@ -247,6 +251,7 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
                   id={id}
                   job={jobs[id]}
                   match={matches[id]}
+                  brief={briefs.get(jobBriefKey(jobs[id]))}
                   saved={!!saved[id]}
                   onToggleSave={toggleSave}
                   status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : removedFromPipeline[id] ? "Removed from Pipeline" : undefined}
@@ -298,6 +303,6 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
 }
 
 /** One card in the results, with its id-taking handlers bound here so the card itself can skip re-renders. */
-const JobResult = memo(function JobResult({ id, onToggleSave, onToggleCompare, ...card }: { id: string; job: CanonicalJob; match?: JobMatch; saved: boolean; status?: string; compareSelected: boolean; onToggleSave: (id: string) => void; onToggleCompare?: (id: string) => void }) {
+const JobResult = memo(function JobResult({ id, onToggleSave, onToggleCompare, ...card }: { id: string; job: CanonicalJob; match?: JobMatch; brief?: CompanyBrief | null; saved: boolean; status?: string; compareSelected: boolean; onToggleSave: (id: string) => void; onToggleCompare?: (id: string) => void }) {
   return <JobCard {...card} onToggleSave={() => onToggleSave(id)} onToggleCompare={onToggleCompare ? () => onToggleCompare(id) : undefined} />;
 });

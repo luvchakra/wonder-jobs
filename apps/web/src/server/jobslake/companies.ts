@@ -4,7 +4,7 @@
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { cleanDomain, companyKey, employerDomainOf, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** How long a logo (or the finding that there is none) is trusted before it's looked for again. */
@@ -15,6 +15,8 @@ export interface CompanyStore {
   upsert(records: CompanyRecord[]): Promise<void>;
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
+  /** The companies with any of these domains or name keys — facts only, no logos. */
+  facts(domains: string[], nameKeys: string[]): Promise<CompanyRecord[]>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
@@ -54,6 +56,9 @@ class MemoryCompanies implements CompanyStore {
   }
   async byDomain(domain: string) {
     return this.rows.get(domain);
+  }
+  async facts(domains: string[], nameKeys: string[]) {
+    return [...this.rows.values()].filter((r) => domains.includes(r.domain) || nameKeys.includes(r.nameKey));
   }
   async byName(nameKey: string) {
     return [...this.rows.values()].filter((r) => r.nameKey === nameKey).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))[0];
@@ -115,6 +120,15 @@ class SupabaseCompanies implements CompanyStore {
     const { data, error } = await this.sb().select("*").eq("domain", domain).maybeSingle();
     if (error) throw new Error(error.message);
     return data ? fromRow(data as Row) : undefined;
+  }
+  async facts(domains: string[], nameKeys: string[]) {
+    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, facts, wikidata, wikidata_at";
+    const [a, b] = await Promise.all([
+      domains.length ? this.sb().select(cols).in("domain", domains) : Promise.resolve({ data: [], error: null }),
+      nameKeys.length ? this.sb().select(cols).in("name_key", nameKeys) : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (a.error || b.error) throw new Error((a.error ?? b.error)!.message);
+    return [...(a.data ?? []), ...(b.data ?? [])].map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row));
   }
   async byName(nameKey: string) {
     const { data, error } = await this.sb().select("*").eq("name_key", nameKey).order("last_seen_at", { ascending: false }).limit(1);
@@ -279,4 +293,23 @@ export async function companyProfile(q: { domain?: string; name?: string }, stor
     ...(r?.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
     ...(h1b ? { h1b } : {}),
   };
+}
+
+/**
+ * What a job card shows about each of a page's companies (size, H-1B filings), in one read of each table:
+ * by the domain a source reported, else by exact (normalized) name. Keyed as asked; a company with neither is absent.
+ */
+export async function companyBriefs(qs: { d?: string; n: string }[], store: CompanyStore = companyStore()): Promise<Record<string, CompanyBrief>> {
+  const asks = qs.slice(0, 60).map((q) => ({ key: briefKey(q), domain: cleanDomain(q.d), nameKey: companyKey(q.n ?? "") }));
+  const rows = await store.facts([...new Set(asks.flatMap((a) => (a.domain ? [a.domain] : [])))], [...new Set(asks.flatMap((a) => (a.nameKey ? [a.nameKey] : [])))]);
+  const byDomain = new Map(rows.map((r) => [r.domain, r]));
+  const byName = new Map(rows.map((r) => [r.nameKey, r]));
+  const found = asks.map((a) => ({ ...a, r: (a.domain ? byDomain.get(a.domain) : undefined) ?? (a.nameKey ? byName.get(a.nameKey) : undefined) }));
+  const h1b = await store.h1bFor([...new Set(found.map((f) => f.r?.nameKey ?? f.nameKey).filter(Boolean))]);
+  const out: Record<string, CompanyBrief> = {};
+  for (const f of found) {
+    const b = companyBrief({ name: "", ...(f.r?.facts ? { facts: f.r.facts } : {}), ...(f.r?.wikidata ? { wikidata: f.r.wikidata } : {}), ...(h1b.get(f.r?.nameKey ?? f.nameKey) ? { h1b: h1b.get(f.r?.nameKey ?? f.nameKey) } : {}) });
+    if (b.size || b.h1b) out[f.key] = b;
+  }
+  return out;
 }
