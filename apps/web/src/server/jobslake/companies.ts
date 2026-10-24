@@ -308,19 +308,59 @@ function imageType(bytes: Uint8Array): string | undefined {
 /** Where a logo is looked for, best first: a 128px icon from Google's favicon service (404 when it has none), then the site's own touch icon. */
 export const logoUrls = (domain: string) => [`https://www.google.com/s2/favicons?domain=${domain}&sz=128`, `https://${domain}/apple-touch-icon.png`];
 
+/** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
+export function iconLinks(html: string, pageUrl: string, domain: string): string[] {
+  const out: { url: string; size: number; touch: boolean }[] = [];
+  for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
+    const attr = (n: string) => new RegExp(`\\b${n}\\s*=\\s*["']([^"']*)["']`, "i").exec(tag)?.[1];
+    const rel = attr("rel")?.toLowerCase() ?? "";
+    const href = attr("href");
+    if (!href || !/\bicon\b|apple-touch-icon/.test(rel)) continue;
+    try {
+      const u = new URL(href, pageUrl);
+      // Only the company's own site: a page can't point the server at another host.
+      if (!/^https?:$/.test(u.protocol) || cleanDomain(u.hostname) !== domain) continue;
+      out.push({ url: u.toString(), size: Number(/(\d+)x\d+/.exec(attr("sizes") ?? "")?.[1] ?? 0), touch: rel.includes("apple-touch-icon") });
+    } catch {
+      // A malformed link: skip it.
+    }
+  }
+  return out.sort((a, b) => Number(b.touch) - Number(a.touch) || b.size - a.size).map((x) => x.url);
+}
+
+async function imageFrom(url: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"] | undefined> {
+  try {
+    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8" } });
+    if (!res.ok) return undefined;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // Tiny files are placeholders; huge ones aren't icons.
+    if (bytes.length < 200 || bytes.length > MAX_LOGO_BYTES) return undefined;
+    const type = imageType(bytes);
+    return type ? { data: Buffer.from(bytes).toString("base64"), type, from: new URL(url).hostname } : undefined;
+  } catch {
+    // Unreachable or too slow: try the next place.
+    return undefined;
+  }
+}
+
 export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"]> {
   for (const url of logoUrls(domain)) {
-    try {
-      const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8" } });
-      if (!res.ok) continue;
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      // Tiny files are placeholders; huge ones aren't icons.
-      if (bytes.length < 200 || bytes.length > MAX_LOGO_BYTES) continue;
-      const type = imageType(bytes);
-      if (type) return { data: Buffer.from(bytes).toString("base64"), type, from: new URL(url).hostname };
-    } catch {
-      // Unreachable or too slow: try the next place.
+    const logo = await imageFrom(url, fetcher);
+    if (logo) return logo;
+  }
+  // Last: the icons the company's own home page declares (many sites serve none at the standard paths).
+  try {
+    const page = `https://${domain}/`;
+    const res = await fetcher(page, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "text/html" } });
+    if (res.ok) {
+      const html = (await res.text()).slice(0, 200_000);
+      for (const url of iconLinks(html, res.url || page, domain).slice(0, 3)) {
+        const logo = await imageFrom(url, fetcher);
+        if (logo) return logo;
+      }
     }
+  } catch {
+    // No home page: no logo.
   }
   return null;
 }

@@ -11,7 +11,8 @@
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { LOGO_TTL_MS, companiesFrom, companyStore, fetchLogo, type CompanyStore } from "./companies";
 import { jobsLakeStore } from "./store";
-import { wikidataFacts } from "./wikidata";
+import { wikidataFacts, wikidataWebsites } from "./wikidata";
+import { resolveNameDomains } from "./nameDomains";
 import { retypeFromTitle } from "@/domain/jobs/jobType";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 
@@ -25,6 +26,10 @@ export interface CompanyRefreshReport {
   /** Companies looked up on Wikidata this run, and how many it had facts for. */
   wikidataChecked: number;
   wikidataFound: number;
+  /** Companies with no domain on their postings: how many, how many were asked about, how many got an official website. */
+  namesWithoutDomain: number;
+  namesAsked: number;
+  namesResolved: number;
 }
 
 /** How long Wikidata's facts (or the finding that it has none) are trusted before they're looked for again. */
@@ -34,7 +39,7 @@ export const WIKIDATA_TTL_MS = 30 * 86_400_000;
 const MAX_POSTINGS = 1000;
 
 export async function refreshCompanies(
-  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; savePostings?: (opps: CanonicalOpportunity[]) => Promise<void>; fetcher?: typeof fetch; wikidataLimit?: number; wikidata?: typeof wikidataFacts } = {},
+  opts: { now?: number; logoLimit?: number; budgetMs?: number; concurrency?: number; store?: CompanyStore; postings?: () => Promise<CanonicalOpportunity[]>; savePostings?: (opps: CanonicalOpportunity[]) => Promise<void>; fetcher?: typeof fetch; wikidataLimit?: number; wikidata?: typeof wikidataFacts; websites?: typeof wikidataWebsites; nameLimit?: number } = {},
 ): Promise<CompanyRefreshReport> {
   const now = opts.now ?? Date.now();
   const startedAt = Date.now();
@@ -55,6 +60,9 @@ export async function refreshCompanies(
       if (o.postedAt >= weekAgo) fresh.set(r.domain, (fresh.get(r.domain) ?? 0) + 1);
     }
   await store.upsert(records.map((r) => ({ ...r, openJobs: counts.get(r.domain) ?? 0, newJobs7d: fresh.get(r.domain) ?? 0, countedAt: at })));
+
+  // Companies whose postings name no domain: their official website from Wikidata, by exact name, so they get a row too.
+  const names = await resolveNameDomains(opps, { store, at, limit: opts.nameLimit, fetcher: opts.fetcher, lookup: opts.websites });
 
   // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
   // the one their title states.
@@ -93,5 +101,5 @@ export async function refreshCompanies(
       }
     }),
   );
-  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found, jobTypesFilled: typed.length, wikidataChecked: wiki.checked, wikidataFound: wiki.found };
+  return { postings: opps.length, companies: records.length, logosChecked: checked, logosFound: found, jobTypesFilled: typed.length, wikidataChecked: wiki.checked, wikidataFound: wiki.found, namesWithoutDomain: names.unresolved, namesAsked: names.asked, namesResolved: names.resolved };
 }
