@@ -115,7 +115,8 @@ export interface ResumeDocument {
   /** Every section with content; templates choose which to show and in what order. Empty sections never exist. */
   sections: ResumeSection[];
   target?: { jobId: string; title: string; company: string };
-  metadata: { builtAt: string; careerProfileUpdatedAt: string };
+  /** `editedAt`: when the candidate last changed it by hand in the preview (its edited lines then read USER_PROVIDED). */
+  metadata: { builtAt: string; careerProfileUpdatedAt: string; editedAt?: string };
 }
 
 export type SectionOf<T extends ResumeSectionType> = Extract<ResumeSection, { type: T }>;
