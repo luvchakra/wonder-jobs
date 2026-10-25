@@ -50,8 +50,8 @@ describe("the readiness ladder: the one thing between the candidate and relevant
   it("a ready profile searches its own words, in its own locations", () => {
     const r = jobsReadiness(input());
     expect(r.blocker).toBeUndefined();
-    // "Role you want" (the field) is what's searched, at the level held today.
-    expect(r.query).toBe("senior director identity access");
+    // "Role you want" (the field) is what's searched, as written — the level held today isn't added to it.
+    expect(r.query).toBe("identity access management");
     expect(r.locations).toEqual(["Mumbai"]);
     expect(r.field).toContain("identity");
   });
@@ -60,7 +60,7 @@ describe("the readiness ladder: the one thing between the candidate and relevant
 describe("relevance notes — what weakens the match, each with one fix", () => {
   it("flags the reported case: a daily search for “product manager” on an IAM director's account", () => {
     const r = jobsReadiness(input({ scheduledWorkflows: [wf("product manager")] }));
-    expect(r.notes).toContainEqual({ kind: "stale_schedule", workflowId: "wf_1", name: "Daily Job Discovery", query: "product manager", suggested: "senior director identity access" });
+    expect(r.notes).toContainEqual({ kind: "stale_schedule", workflowId: "wf_1", name: "Daily Job Discovery", query: "product manager", suggested: "identity access management" });
   });
 
   it("leaves a saved search in the candidate's field alone, including a spelled-out one, and a role's own search", () => {

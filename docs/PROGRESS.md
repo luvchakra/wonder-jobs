@@ -522,6 +522,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Automation: computer-only section hidden on phones and tablets (WJ-403)
 - ✅ Automation: level card hidden on phones and tablets (WJ-404)
 - ✅ Account: plan badge names every plan (Max no longer reads Free) (WJ-405)
+- ✅ Find: a wanted role is searched exactly as written (WJ-406)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
