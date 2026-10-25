@@ -2,7 +2,7 @@
  * Raises every due interview and follow-up reminder across accounts and nudges each person (push, or email
  * when no push reached them, as their Notify me about choices allow). Cheap — a read per account and a write
  * only when there's something to say — and idempotent through `career.reminded`, so it can run as often as
- * it's called: by the daily job and by the reminders check every few hours.
+ * it's called: by the daily job and by the reminders check every hour.
  */
 import { nudge, nudgeChosen } from "@/server/notifications/deliver";
 import { listTenantsWithDueReminders } from "./dueTenants";
