@@ -1,6 +1,7 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useUIStore } from "@/store/ui";
+import { cardStatus } from "@/domain/applications/cardStatus";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
@@ -15,7 +16,7 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { cn } from "@/lib/cn";
 import { Modal } from "@/components/common/Modal";
-import { Field, Select } from "@/components/common/Input";
+import { Chip, Field, Select } from "@/components/common/Input";
 import { ApplicationCard } from "@/components/applications/ApplicationCard";
 
 type Tab = "all" | "in_progress" | "submitted" | "interview" | "outcome";
@@ -74,6 +75,8 @@ function ApplicationsInner() {
   // The stage last opened, kept between visits; until one is picked, the first with anything in it.
   const pickedStage = useUIStore((s) => s.pipelineStage) ?? null;
   const setPickedStage = useUIStore((s) => s.setPipelineStage);
+  // A status within the stage shown (Offer, Rejected…), until another stage is opened.
+  const [statusFilter, setStatusFilter] = useState<{ stage: StatusGroup; status: ApplicationStatus } | null>(null);
   const shownStage = pickedStage ?? STAGES.find((st) => list.some((a) => groupOf(a) === st.group))?.group ?? "in_progress";
   const [removing, setRemoving] = useState<Application | null>(null);
   // Jobs that left the search results are found again; every application keeps its own copy of its job.
@@ -113,11 +116,30 @@ function ApplicationsInner() {
               })}
             </div>
             {(() => {
-              const items = list.filter((a) => groupOf(a) === shownStage);
+              const inStage = list.filter((a) => groupOf(a) === shownStage);
+              // The statuses this stage holds now, with counts: a filter row only when there's more than one.
+              const statuses = [...new Set(inStage.map((a) => a.status))];
+              const picked = statusFilter?.stage === shownStage && statuses.includes(statusFilter.status) ? statusFilter.status : null;
+              const items = picked ? inStage.filter((a) => a.status === picked) : inStage;
               const label = STAGES.find((st) => st.group === shownStage)!.label;
+              const filters =
+                statuses.length > 1 ? (
+                  <div role="group" aria-label={`Filter ${label} by status`} className="-mt-1 mb-3 flex flex-wrap gap-1.5">
+                    <Chip active={!picked} isDefault onClick={() => setStatusFilter(null)} className="h-8 px-3 text-[12px]">
+                      All {inStage.length}
+                    </Chip>
+                    {statuses.map((st) => (
+                      <Chip key={st} active={picked === st} onClick={() => setStatusFilter(picked === st ? null : { stage: shownStage, status: st })} className="h-8 px-3 text-[12px]">
+                        {cardStatus({ status: st }).label} {inStage.filter((a) => a.status === st).length}
+                      </Chip>
+                    ))}
+                  </div>
+                ) : null;
               return items.length === 0 ? (
                 <p className="rounded-[12px] border border-dashed border-line px-3 py-4 text-center text-[13px] text-ink-3">Nothing in {label} yet.</p>
               ) : (
+                <>
+                {filters}
                 <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3" aria-label={label}>
                   {items.map((a) => (
                     <li key={a.id} className="relative">
@@ -136,6 +158,7 @@ function ApplicationsInner() {
                     </li>
                   ))}
                 </ul>
+                </>
               );
             })()}
           </section>
