@@ -124,9 +124,12 @@ describe("profileSearchQuery — the Career Profile searches “Role you want”
     expect(profileSearchQuery({ headline: "Data Analyst — Acme", careerGoal: "Product manager in fintech" })).toBe("product manager");
   });
 
-  it("gives a wanted field with no level the level held today", () => {
-    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "identity and access management" })).toBe("senior director identity access");
-    expect(profileSearchQuery({ headline: "Target: Senior Director / SVP — IAM", careerGoal: "identity and access management" })).toBe("senior director identity access");
+  it("searches a wanted field, or a single word, as written — never with the level held today in front", () => {
+    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "identity and access management" })).toBe("identity access management");
+    expect(profileSearchQuery({ headline: "Target: Senior Director / SVP — IAM", careerGoal: "identity and access management" })).toBe("identity access management");
+    // Reported 2026-10-25: "leadership" was searched as "senior director leadership".
+    expect(profileSearchQuery({ headline: "Target: Senior Director / SVP — IAM & AI Transformation", careerGoal: "Leadership" })).toBe("leadership");
+    expect(profileSearchQuery({ headline: "Senior Director", careerGoal: "platform" })).toBe("platform");
   });
 
   it("searches a wanted job title as written, without the level held today", () => {

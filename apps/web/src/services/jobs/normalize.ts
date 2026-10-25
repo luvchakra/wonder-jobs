@@ -521,17 +521,15 @@ export function defaultSearchQuery(dna: { headline: string; careerGoal: string }
 
 /**
  * The Career Profile's own search. "Role you want" is what Wonder searches for (the profile page says
- * so); the current role is searched only when no role is wanted. A wanted field alone — no level and no
- * job title — takes the level of the current role ("Senior Director" + "identity and access management" →
- * "senior director identity access"); a wanted title is searched as written ("Executive partner" stays
- * "executive partner", never "senior director executive partner"). A level alone in "Role you want"
- * ("director") is searched as it is — no field is guessed for it.
+ * so), exactly as written — a title ("Executive partner"), a level ("director"), a field ("identity and
+ * access management") or a single word ("leadership") — and never with a level borrowed from the role
+ * held today: that put "senior director" in front of "leadership" (owner, 2026-10-25). Fit to the level
+ * held today still ranks matches; it just isn't added to the words searched. The current role is
+ * searched only when no role is wanted.
  */
 export function profileSearchQuery(dna: { headline: string; careerGoal: string }): string {
   const terms = (s: string) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t));
   const goal = terms(stripSelfReference(stripHeadlineLabel(dna.careerGoal)));
   if (!goal.length) return defaultSearchQuery(dna);
-  if (goal.some((t) => SENIORITY_WORDS.has(t) || TITLE_WORDS.has(t))) return goal.slice(0, 4).join(" ");
-  const level = terms(stripHeadlineLabel(dna.headline)).filter((t) => SENIORITY_WORDS.has(t)).slice(0, 2);
-  return [...level, ...goal].slice(0, 4).join(" ");
+  return goal.slice(0, 4).join(" ");
 }
