@@ -20,7 +20,7 @@ const seen = () => {
 };
 
 /**
- * Find's Full Time / Part Time switch, in the top bar beside the avatar (owner, 2026-10-25): a round icon button — the
+ * Find's Full Time / Part Time switch, in the top bar (owner, 2026-10-25; centred between the avatar and the logo on a phone, see TopBar): a round icon button — the
  * current kind's icon with a chevron — that opens a menu of "Full Time Jobs" and "Part Time Jobs". A soft pulse
  * invites the first tap, then stops for good. Choosing one switches Find's mode in place.
  */
@@ -64,7 +64,7 @@ export function FindModeMenu() {
   };
 
   return (
-    <div ref={ref} className="relative order-first">
+    <div ref={ref} className="relative">
       <button
         type="button"
         aria-haspopup="menu"
@@ -72,17 +72,17 @@ export function FindModeMenu() {
         aria-label={`Kind of jobs: ${now.label}`}
         title={now.label}
         onClick={toggle}
-        className="relative grid size-10 place-items-center rounded-full wj-gradient-bg text-white shadow-brand wj-press"
+        className="relative grid size-8 place-items-center rounded-full wj-gradient-bg text-white shadow-brand wj-press"
       >
         {hint && <span aria-hidden className="absolute inset-0 -z-10 rounded-full bg-brand-400 motion-safe:animate-ping" />}
-        <Icon className="size-[18px]" aria-hidden />
+        <Icon className="size-[14.4px]" aria-hidden />
         {/* The chevron says it opens. */}
-        <span aria-hidden className="absolute -bottom-0.5 -right-0.5 grid size-[18px] place-items-center rounded-full bg-surface text-brand-700 shadow-sm ring-1 ring-brand-200">
-          <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} strokeWidth={3} />
+        <span aria-hidden className="absolute -bottom-0.5 -right-0.5 grid size-[14.4px] place-items-center rounded-full bg-surface text-brand-700 shadow-sm ring-1 ring-brand-200">
+          <ChevronDown className={cn("size-[9.6px] transition-transform", open && "rotate-180")} strokeWidth={3} />
         </span>
       </button>
       {open && (
-        <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-12 z-40 w-[17rem] rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+        <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-10 z-40 w-[17rem] rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
           {MODES.map((m) => {
             const on = m.mode === current;
             const I = m.icon;
