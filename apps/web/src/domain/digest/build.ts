@@ -68,6 +68,24 @@ const STRONG_HREF = "/app/jobs?fit=strong";
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
 
+/**
+ * What's waiting on the candidate: profile gaps that hold matching back, applications ready for review, learned
+ * patterns to confirm. In the digest email, and on Needs attention (the top bar's checklist) as Actions required.
+ */
+export function actionsRequired(input: Pick<DigestInput, "dna" | "learnedSignals" | "applications">): DigestItem[] {
+  const { dna } = input;
+  const forReview = input.applications.filter((a) => a.status === "ready_for_review").length;
+  const toConfirm = input.learnedSignals.filter((s) => s.status === "suggested").length;
+  const out: DigestItem[] = [];
+  if (!dna.careerGoal.trim()) out.push({ text: "Add the role you want — searches need it.", href: "/app/career-dna" });
+  if (!dna.preferredLocations.length) out.push({ text: "Add where you want to work, so matches can judge location.", href: "/app/career-dna" });
+  if (dna.skills.length < 3) out.push({ text: "Add your main skills, so matches can judge fit.", href: "/app/career-dna" });
+  if (!dna.minSalary) out.push({ text: "Add your minimum salary, so pay can be judged.", href: "/app/career-dna" });
+  if (forReview) out.push({ text: `${plural(forReview, "application")} ${forReview === 1 ? "is" : "are"} ready for your review.`, href: "/app/applications" });
+  if (toConfirm) out.push({ text: `Confirm or turn off ${plural(toConfirm, "pattern")} Wonder learned.`, href: "/app/career-dna" });
+  return out;
+}
+
 export function buildDigest(input: DigestInput): Digest {
   const { now, since, dna } = input;
   const t = now.getTime();
@@ -115,7 +133,6 @@ export function buildDigest(input: DigestInput): Digest {
       const j = input.jobs[m.jobId];
       return { jobId: m.jobId, title: j.title, company: j.company, location: j.location || undefined, href: `/app/jobs/${encodeURIComponent(m.jobId)}` };
     });
-  const toConfirm = input.learnedSignals.filter((s) => s.status === "suggested").length;
 
   const facts: DigestFact[] = [];
   const fact = (key: string, label: string, value: string | number) => facts.push({ key, label, value: String(value) });
@@ -174,13 +191,7 @@ export function buildDigest(input: DigestInput): Digest {
           : { label: "Open WonderJobs", href: "/app" };
 
   // ---- waiting on you
-  const dependencies: DigestItem[] = [];
-  if (!dna.careerGoal.trim()) dependencies.push({ text: "Add the role you want — searches need it.", href: "/app/career-dna" });
-  if (!dna.preferredLocations.length) dependencies.push({ text: "Add where you want to work, so matches can judge location.", href: "/app/career-dna" });
-  if (dna.skills.length < 3) dependencies.push({ text: "Add your main skills, so matches can judge fit.", href: "/app/career-dna" });
-  if (!dna.minSalary) dependencies.push({ text: "Add your minimum salary, so pay can be judged.", href: "/app/career-dna" });
-  if (forReview) dependencies.push({ text: `${plural(forReview, "application")} ${forReview === 1 ? "is" : "are"} ready for your review.`, href: "/app/applications" });
-  if (toConfirm) dependencies.push({ text: `Confirm or turn off ${plural(toConfirm, "pattern")} Wonder learned.`, href: "/app/career-dna" });
+  const dependencies = actionsRequired(input);
 
   // ---- going well / needs improvement
   const goingWell: DigestItem[] = [];

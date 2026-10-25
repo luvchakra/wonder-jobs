@@ -1,13 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, ListTodo, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { buildDigest, type DigestItem } from "@/domain/digest/build";
-import { APPLICATION_STATUS_META, type ApplicationStatus } from "@/domain/applications/types";
 import { FIT_META, type FitLabel } from "@/domain/jobs/types";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
-import { Button } from "@/components/common/Button";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
@@ -118,17 +115,12 @@ export default function DashboardPage() {
   // Ordinal, so one hue light → dark (strongest fit darkest).
   const FIT_SHADE: Record<FitLabel, string> = { strong: "bg-brand-700", worth_considering: "bg-brand-500", stretch: "bg-brand-300", low_fit: "bg-brand-100" };
 
-  const STAGES: ApplicationStatus[] = ["saved", "preparing", "ready_for_review", "submitted", "under_review", "interview", "offer"];
-  const pipeline = STAGES.map((s) => ({ s, n: apps.filter((a) => a.status === s).length }));
-  const pipeMax = Math.max(1, ...pipeline.map((p) => p.n));
 
   const suggestions = [...digest.suggestions, ...ai];
   const dayLabel = (t: number) => new Date(t).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
   return (
     <div>
-      <PageHeader title="Dashboard" description="Your last 7 days, from your own account." actions={<Button href={digest.cta.href} iconRight={<ArrowRight className="size-4" aria-hidden />}>{digest.cta.label}</Button>} />
-
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Strong matches" value={fact("jobs.strongMatches")} hint={fact("waiting.strongMatches") ? `${formatNumber(fact("waiting.strongMatches"))} not yet decided` : "All decided"} href="/app/jobs?fit=strong" />
         <Kpi label="Applications sent" value={fact("activity.applied")} hint="Last 7 days" href="/app/applications" />
@@ -136,20 +128,13 @@ export default function DashboardPage() {
         <Kpi label="Jobs reviewed" value={fact("activity.jobsReviewed")} hint="Last 7 days" href="/app/runs" />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <AlertTriangle className="size-4 text-warning-600" aria-hidden /> Heads up
-          </h2>
-          <ItemList items={digest.headsUp} icon={AlertTriangle} tone="text-warning-600" empty="Nothing urgent right now." />
-        </Card>
-        <Card>
-          <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <ListTodo className="size-4 text-brand-600" aria-hidden /> Actions required
-          </h2>
-          <ItemList items={digest.dependencies} icon={ListTodo} tone="text-brand-600" empty="Nothing is waiting on you." />
-        </Card>
-      </div>
+      {/* Actions required is on Needs attention (the top bar's checklist). */}
+      <Card className="mt-4">
+        <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink">
+          <AlertTriangle className="size-4 text-warning-600" aria-hidden /> Heads up
+        </h2>
+        <ItemList items={digest.headsUp} icon={AlertTriangle} tone="text-warning-600" empty="Nothing urgent right now." />
+      </Card>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -206,24 +191,6 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="lg:col-span-3">
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Application pipeline</h2>
-          {apps.length ? (
-            <ul className="flex flex-col gap-2">
-              {pipeline.map((p) => (
-                <li key={p.s} className="grid grid-cols-[120px_1fr_32px] items-center gap-3 text-[13px]" title={`${APPLICATION_STATUS_META[p.s].label}: ${p.n}`}>
-                  <span className="truncate text-ink-2">{APPLICATION_STATUS_META[p.s].label}</span>
-                  <span className="h-2.5 rounded-full bg-bg-soft">
-                    <span className="block h-2.5 rounded-full bg-brand-500" style={{ width: p.n ? `${Math.max(3, (p.n / pipeMax) * 100)}%` : "0" }} />
-                  </span>
-                  <span className="text-right tabular-nums text-ink">{p.n}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-ink-3">No applications yet — start one from a job you like.</p>
-          )}
-        </Card>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
