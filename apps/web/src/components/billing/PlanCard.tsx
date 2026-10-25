@@ -44,7 +44,8 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     const id = window.setInterval(async () => {
       tries++;
       const d = await load(true);
-      if (d?.plan === "pro" || tries >= 10) {
+      // Any paid plan (Pro or Max) means the provider's webhook has landed.
+      if ((d && d.plan !== "free") || tries >= 10) {
         window.clearInterval(id);
         setWaiting(false);
       }

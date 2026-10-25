@@ -11,6 +11,12 @@ export type PaidPlanId = Exclude<PlanId, "free">;
 export const PLAN_RANK: Record<PlanId, number> = { free: 0, pro: 1, max: 2 };
 export const planAtLeast = (plan: PlanId, min: PlanId) => PLAN_RANK[plan] >= PLAN_RANK[min];
 
+/** The plan's name for a badge ("Free plan", "Pro", "Max"): its own label from the plans in force, never a guess from "is it Pro". */
+export function planBadgeLabel(plan: PlanId, plans?: Partial<Record<PlanId, { label: string }>>): string {
+  const label = plans?.[plan]?.label ?? DEFAULT_PLANS.plans[plan].label;
+  return plan === "free" ? `${label} plan` : label;
+}
+
 export interface PlanLimits {
   label: string;
   tagline: string;

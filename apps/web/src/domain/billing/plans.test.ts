@@ -63,3 +63,13 @@ describe("plan highlights — extra feature lines an operator adds", () => {
     expect(tooMany.plans.pro.highlights).toEqual([]);
   });
 });
+
+describe("planBadgeLabel", () => {
+  it("names every plan by its own label — Max is not Free", async () => {
+    const { planBadgeLabel } = await import("./plans");
+    expect(planBadgeLabel("free")).toBe("Free plan");
+    expect(planBadgeLabel("pro")).toBe("Pro");
+    expect(planBadgeLabel("max")).toBe("Max");
+    expect(planBadgeLabel("max", { max: { label: "Max+" } })).toBe("Max+");
+  });
+});
