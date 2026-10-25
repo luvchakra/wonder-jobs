@@ -6,6 +6,8 @@
  * Each keeps an order and a set of hidden items. An item a saved order doesn't know (added in a later release)
  * takes its default place and is shown until an admin says otherwise.
  */
+import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
+
 export const MENUS = {
   account: {
     title: "Account menu",
@@ -33,6 +35,12 @@ export const MENUS = {
       { id: "hiring", label: "Hiring" },
       { id: "search_history", label: "Search history" },
     ],
+    alwaysShown: [],
+  },
+  find_kinds: {
+    title: "Find menu",
+    where: "The Full Time / Part Time menu on Find: the coming-soon kinds listed under Full Time Jobs and Part Time Jobs (both always there). Hide one and nobody sees it.",
+    items: UPCOMING_KINDS,
     alwaysShown: [],
   },
 } as const satisfies Record<string, { title: string; where: string; items: readonly { id: string; label: string }[]; alwaysShown: readonly string[] }>;
