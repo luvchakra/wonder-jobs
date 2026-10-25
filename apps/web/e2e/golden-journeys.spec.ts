@@ -432,7 +432,12 @@ test.describe("Golden journey — search (demo mode)", () => {
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
     await page.goto("/demo?next=/app/jobs");
     const main = page.locator("#main");
-    const kind = page.getByRole("radiogroup", { name: "Kind of work" });
+    // Full Time / Part Time: the round menu in the top bar, beside the avatar.
+    const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
+    const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
+      await kindBtn.click();
+      await page.getByRole("menuitemradio", { name: label }).click();
+    };
     const refine = main.getByRole("button", { name: /^Refine/ });
     await expect(refine).toHaveAccessibleName("Refine");
     await refine.click();
@@ -440,29 +445,31 @@ test.describe("Golden journey — search (demo mode)", () => {
     await main.getByRole("button", { name: "Back to jobs" }).click();
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
     // Part Time starts with nothing set; Full Time's setting comes back with it.
-    await kind.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind("Part Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine");
-    await kind.getByRole("radio", { name: "Full Time" }).click();
+    await pickKind("Full Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
     // Kept between visits, per mode.
     await page.waitForTimeout(1500);
     await page.reload();
-    await expect(kind.getByRole("radio", { name: "Full Time" })).toHaveAttribute("aria-checked", "true");
+    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
-    await kind.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind("Part Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine");
   });
 
-  test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the slider slides", async ({ page }) => {
+  test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the top bar menu switches", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/demo?next=/app/jobs");
-    const kind = page.getByRole("radiogroup", { name: "Kind of work" });
-    const full = kind.getByRole("radio", { name: "Full Time" });
-    const part = kind.getByRole("radio", { name: "Part Time" });
-    await expect(full).toHaveAttribute("aria-checked", "true");
-    // The slider spans the phone's width (inside the page's gutters).
-    const box = (await kind.boundingBox())!;
-    expect(box.width).toBeGreaterThan(330);
+    // Full Time / Part Time: the round menu in the top bar, beside the avatar.
+    const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
+    const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
+      await kindBtn.click();
+      await page.getByRole("menuitemradio", { name: label }).click();
+    };
+    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    // The menu's button sits in the top bar, beside the avatar.
+    await expect(page.locator("header[data-top-bar]").getByRole("button", { name: /^Kind of jobs/ })).toBeVisible();
 
     // Full Time: Looking for with Change, then Refine · Work mode · Salary and the round search; no search box.
     // The views and job types are in Refine, not on the page.
@@ -502,20 +509,16 @@ test.describe("Golden journey — search (demo mode)", () => {
     await main.getByRole("group", { name: "Work mode" }).getByRole("button", { name: "Remote", exact: true }).click();
     await main.getByRole("group", { name: "Salary" }).getByRole("button", { name: "Any", exact: true }).click();
     await main.getByRole("button", { name: "Save", exact: true }).click();
-    // Opening Refine at a section scrolled to it: back to the top, where the slider is.
+    // Opening Refine at a section scrolled to it: back to the top, where the top bar is.
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     // Where Refine and the search button sit: switching modes mustn't move them.
     const rows = async () => Promise.all([refine, main.locator("form").getByRole("button", { name: /^Search/ }).first()].map(async (l) => Math.round((await l.boundingBox())!.y)));
     const fullRows = await rows();
 
-    // Slide the thumb across to Part Time.
-    await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 6 });
-    await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 6 });
-    await page.mouse.up();
-    await expect(part).toHaveAttribute("aria-checked", "true");
+    // Pick Part Time from the menu.
+    await pickKind("Part Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Part Time Jobs");
     for (const [i, y] of (await rows()).entries()) expect(Math.abs(y - fullRows[i])).toBeLessThanOrEqual(1);
 
     // Part Time: the box with Refine on its right, and Search; no Looking for. In Refine: its job types
@@ -550,9 +553,9 @@ test.describe("Golden journey — search (demo mode)", () => {
     await page.getByRole("button", { name: "Search", exact: true }).click();
     const summary = main.getByText(/^Showing \S+ jobs? (for|from) /);
     await expect(summary).toContainText("“designer”", { timeout: 20_000 });
-    await full.click();
+    await pickKind("Full Time Jobs");
     await expect(summary).not.toContainText("“designer”");
-    await part.click();
+    await pickKind("Part Time Jobs");
     await expect(summary).toContainText("“designer”");
     // The last searches show under the box while it has focus, newest first; × removes one, a tap searches it again.
     const words = page.getByRole("textbox", { name: "Search jobs" });
@@ -567,14 +570,14 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(recent).toHaveCount(0);
     await expect(summary).toContainText("“designer”", { timeout: 20_000 });
 
-    // Tap and the keyboard switch back too.
-    await full.click();
-    await expect(full).toHaveAttribute("aria-checked", "true");
-    await full.focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(part).toHaveAttribute("aria-checked", "true");
-    await page.keyboard.press("ArrowLeft");
-    await expect(full).toHaveAttribute("aria-checked", "true");
+    // The menu switches back, and Escape closes it without choosing.
+    await pickKind("Full Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    await kindBtn.click();
+    await expect(page.getByRole("menu", { name: "Kind of jobs" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu", { name: "Kind of jobs" })).toHaveCount(0);
+    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 });

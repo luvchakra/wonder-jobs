@@ -12,8 +12,7 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
-import { SlideToggle } from "@/components/common/SlideToggle";
-import { FIND_MODES, findModeOf, type FindMode } from "@/domain/jobs/findMode";
+import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
@@ -47,7 +46,11 @@ function JobsHome() {
   }, [params, search, router]);
   // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet,
   // null = My profile, false = none (Part Time only, and its start: only the words typed).
-  const [pickedRole, setPickedRole] = useState<string | null | false | undefined>(undefined);
+  // The role picked under "Search as", for the mode it was picked in (switching Full Time / Part Time in the top bar forgets it).
+  const mode = useJobsStore((s) => findModeOf(s.filters));
+  const [picked, setPicked] = useState<{ mode: FindMode; role: string | null | false } | undefined>(undefined);
+  const pickedRole = picked && picked.mode === mode ? picked.role : undefined;
+  const setPickedRole = (role: string | null | false | undefined) => setPicked(role === undefined ? undefined : { mode, role });
 
   // Clearing the typed words brings back the profile's results and view as they were before the words
   // were searched — not what's left of the words' results. (After a reload nothing is kept: search again.)
@@ -70,7 +73,6 @@ function JobsHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the words change
   }, [query]);
   const firstName = dna.name.split(" ")[0];
-  const mode = useJobsStore((s) => findModeOf(s.filters));
   const typed = useJobsStore((s) => s.filters.query.trim().toLowerCase());
   // Part Time searches only words, so its "Search as" starts with none picked; picking one puts that role's
   // words in the box (to search with Search), and it stays picked only while the box holds them.
@@ -97,17 +99,6 @@ function JobsHome() {
     const s = useJobsStore.getState();
     if (findModeOf(s.filters) === "part_time" && !s.searchedFor) s.restoreWordsCatalog();
   }, [hydrated]);
-  const switchMode = (m: FindMode) => {
-    const s = useJobsStore.getState();
-    // That mode's filters, with the Refine settings the candidate last left in it.
-    s.switchFindMode(m);
-    setPickedRole(undefined);
-    // Each mode shows its own results, as they were (nothing is searched): Full Time the profile's,
-    // Part Time its last typed search's — or, before one, a prompt to type (JobsBoard).
-    if (m === "full_time" && s.searchedFor) s.restoreProfileCatalog();
-    if (m === "part_time" && !s.searchedFor) s.restoreWordsCatalog();
-  };
-
   if (search.readiness.blocker) {
     return (
       <div className="mx-auto max-w-xl pt-2 md:pt-6">
@@ -122,8 +113,7 @@ function JobsHome() {
 
   return (
     <>
-      {/* Full Time or Part Time: the whole width on a phone, the first thing on the page. */}
-      <SlideToggle label="Kind of work" value={mode} options={FIND_MODES} onChange={switchMode} className="mb-2 w-full sm:max-w-sm" />
+      {/* Full Time or Part Time is chosen from the menu in the top bar, beside the avatar. */}
       {/* Full Time: what Wonder searches for, with one tap to change it. */}
       {mode === "full_time" && <WantedRole className="mb-2" />}
       <JobsBoard
