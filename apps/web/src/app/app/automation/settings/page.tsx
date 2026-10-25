@@ -107,17 +107,21 @@ export default function AutomationSettingsPage() {
   );
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Automation" description="How much Wonder does on its own, and when it searches without you." />
-      <Card padding="sm" className="mb-3">
-        <AutomationLevelSelector value={level} onChange={setLevel} compact />
-        <div className="mt-3 border-t border-line pt-3">
-          <h2 className="mb-2 text-[13.5px] font-semibold text-ink">With “{AUTOMATION_LEVEL_META[level].label}”, Wonder…</h2>
-          {groups(false)}
-        </div>
-        <p className="mt-3 flex items-start gap-1.5 text-[12px] text-ink-3">
-          <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Wonder never sends an email or message itself — it drafts, you press send. It submits an application only where you turn on Submit applications.
-        </p>
-      </Card>
+      <PageHeader title="Automation" description={handheld ? "The searches Wonder runs on its own." : "How much Wonder does on its own, and when it searches without you."} />
+      {/* Computer only (owner, 2026-10-25): on a phone or tablet the level and what it lets Wonder do aren't shown —
+          only the scheduled searches (and Change one action). */}
+      {handheld === false && (
+        <Card padding="sm" className="mb-3">
+          <AutomationLevelSelector value={level} onChange={setLevel} compact />
+          <div className="mt-3 border-t border-line pt-3">
+            <h2 className="mb-2 text-[13.5px] font-semibold text-ink">With “{AUTOMATION_LEVEL_META[level].label}”, Wonder…</h2>
+            {groups(false)}
+          </div>
+          <p className="mt-3 flex items-start gap-1.5 text-[12px] text-ink-3">
+            <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Wonder never sends an email or message itself — it drafts, you press send. It submits an application only where you turn on Submit applications.
+          </p>
+        </Card>
+      )}
       {/* Computer only: on a phone or tablet the browser helper can't run, so this section isn't shown there at all. */}
       {handheld === false && (
         <Card padding="sm" className="mb-3">

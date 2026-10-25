@@ -321,9 +321,10 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "How much Wonder handles",
     summary: "Work with me or Work independently, how you apply, sensitive questions, and per-action rules.",
     keywords: ["automation", "level", "help me", "work with me", "work independently", "keep watch", "assist", "guided", "autonomous", "continuous", "policy", "permission", "ask me", "risk", "capability", "change one action", "restore defaults", "does on its own"],
-    updated: "2026-10-24",
+    updated: "2026-10-25",
     body: [
       "avatar menu → Automation asks “How much should Wonder handle?” with two choices: Work with me (recommended) and Work independently. Under it, the page lists exactly what Wonder does on its own, asks you first, and never — read from the same rule the app enforces, so it can't drift from what happens. Sending is never Wonder's — not an email, not a message — and it submits an application only where you set Submit for me to Always.",
+      "- On a phone or tablet, Automation shows only your scheduled searches and Change one action; the level (Work with me or Work independently) and the browser-helper settings (On your computer) are set on a computer.",
       "- Work with me: searching, comparing and drafting happen on their own where you allow them, and Wonder asks before anything that matters.",
       "- Work independently: anything you've set to Automatic under Change one action runs without asking each time — including preparing and handing off applications — and the helper fills a form as soon as it opens when filling is Automatic.",
       "- A level saved earlier as Help me or Keep watch shows as the nearer of the two.",
