@@ -510,6 +510,8 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Job page: source job id (WJ-391)
 - ✅ Pipeline: status filter within a stage (WJ-392)
 - ✅ Pipeline → Applied: Promising / Follow up / Waiting / Gone quiet (WJ-393)
+- ✅ Pipeline → Interview: rounds done counter and filter (WJ-394)
+- ✅ Pipeline → Preparing: résumé made / Apply opened filters (WJ-395)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

@@ -94,6 +94,8 @@ export interface Application {
   job?: ApplicationJob;
   /** Interview practice for this job: test scores, mock interview reviews, the flashcard deck. */
   practice?: ApplicationPractice;
+  /** Interview rounds the candidate says they've done for this job (Pipeline → Interview's counter). */
+  interviewRounds?: number;
 }
 
 /** What an application keeps of its job: the posting's own facts, nothing derived. */
