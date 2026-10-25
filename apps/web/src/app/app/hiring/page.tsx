@@ -21,7 +21,7 @@ import { TeamTab } from "@/components/hiring/TeamTab";
 import { ApplicationsTab } from "@/components/hiring/ApplicationsTab";
 import { WorkspaceSettings } from "@/components/hiring/WorkspaceSettings";
 import { VerifyCompany } from "@/components/hiring/VerifyCompany";
-import { WorkspacesTable } from "@/components/hiring/WorkspacesTable";
+import { WorkspacesTable, workspaceTotals } from "@/components/hiring/WorkspacesTable";
 import { DeleteWorkspace } from "@/components/hiring/DeleteWorkspace";
 import { Plus } from "lucide-react";
 import type { Organization } from "@/domain/org/types";
@@ -122,20 +122,23 @@ function HiringPage() {
       )}
     </>
   );
+  const totals = workspaceTotals(data.workspaces);
   if (listView)
     return (
       <div className="mx-auto max-w-4xl">
-        <PageHeader
-          title="Hiring"
-          description="Your companies' hiring workspaces. Open one to post jobs, see applications and work with your team."
-          actions={
-            <Button icon={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
-              New workspace
-            </Button>
-          }
-        />
+        {/* Hiring's own colour (teal), so it reads as the employer side of WonderJobs. */}
+        <div className="mb-4 rounded-[18px] bg-gradient-to-br from-teal-600 to-cyan-700 px-4 py-3.5 text-white shadow-sm">
+          <p className="text-[11.5px] font-medium uppercase tracking-wide text-teal-100">Hiring</p>
+          <h1 className="text-[20px] font-semibold leading-tight">Your companies</h1>
+          <p className="mt-1 text-[12.5px] text-teal-50">
+            {totals.companies} {totals.companies === 1 ? "company" : "companies"} · {totals.openJobs} open {totals.openJobs === 1 ? "job" : "jobs"} · {totals.newApplications} new {totals.newApplications === 1 ? "application" : "applications"}
+          </p>
+        </div>
         <Invitations data={data} onChange={load} />
         <WorkspacesTable workspaces={data.workspaces} onOpen={(w) => switchTo(w.org.id)} onEdit={(w) => setEditing(w.org)} onDelete={(w) => setDeleting(w.org)} />
+        <Button variant="ghost" size="sm" className="mt-2" icon={<Plus className="size-4" aria-hidden />} onClick={() => setCreating(true)}>
+          New workspace
+        </Button>
         {dialogs}
       </div>
     );
