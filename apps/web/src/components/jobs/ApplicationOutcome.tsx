@@ -2,6 +2,7 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { useApplicationsStore } from "@/store/applications";
+import { MARKED_ABANDONED, MARKED_COMPLETED } from "@/domain/applications/cardStatus";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { track } from "@/lib/analytics";
@@ -26,8 +27,8 @@ export function ApplicationOutcome({ job }: { job: CanonicalJob }) {
   const mark = (outcome: "completed" | "abandoned") => {
     const store = useApplicationsStore.getState();
     const a = app ?? store.create(job.id, "saved");
-    if (outcome === "completed") store.setStatus(a.id, "submitted", { type: "submitted", title: "Marked as completed by you", detail: `Applied to ${job.company} yourself` });
-    else store.setStatus(a.id, "withdrawn", { type: "outcome", title: "Marked as abandoned by you", detail: `Not applying to ${job.company}` });
+    if (outcome === "completed") store.setStatus(a.id, "submitted", { type: "submitted", title: MARKED_COMPLETED, detail: `Applied to ${job.company} yourself` });
+    else store.setStatus(a.id, "withdrawn", { type: "outcome", title: MARKED_ABANDONED, detail: `Not applying to ${job.company}` });
     track("application_marked", { jobId: job.id, outcome });
     toast.success(outcome === "completed" ? "Marked as completed" : "Marked as abandoned", "It's in Pipeline.");
   };
