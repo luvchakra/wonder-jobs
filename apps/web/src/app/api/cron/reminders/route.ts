@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Every few hours (GitHub Actions, bearer CRON_SECRET — Vercel's plan runs its own crons once a day): raises the
+ * Every hour (GitHub Actions, bearer CRON_SECRET — Vercel's plan runs its own crons once a day): raises the
  * interview and follow-up reminders that fell due since the last check, so one due this evening isn't raised
  * tomorrow morning. Idempotent; the daily run does the same. Off when Scheduler → reminders is off.
  */

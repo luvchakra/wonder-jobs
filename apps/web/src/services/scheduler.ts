@@ -5,6 +5,7 @@
  * would call, and raises reminder notifications from real application data
  * (spec §45). One tick per minute; every decision is idempotent.
  */
+import { cleanReminder, reminderLeadMs } from "@/domain/calendar/reminder";
 import { conditionMet } from "@/domain/workflow/engine";
 import { isDue } from "@/domain/workflow/schedule";
 import { isActive } from "@/domain/workflow/status";
@@ -83,8 +84,11 @@ function raiseReminders(now: number) {
     for (const f of app.followUps) {
       if (f.done || career.reminded.includes(f.id)) continue;
       const dueIn = new Date(f.dueAt).getTime() - now;
-      const window = leads[f.kind] ?? DAY;
-      if (dueIn > window || dueIn < -DAY) continue;
+      // A reminder the candidate set with push or email goes from the server (it writes the bell too).
+      const own = cleanReminder(f.remind);
+      if (own?.channels.some((c) => c !== "app")) continue;
+      const window = reminderLeadMs(f.remind, leads[f.kind] ?? DAY);
+      if (window === null || dueIn > window || dueIn < -DAY) continue;
       career.markReminded(f.id);
       career.notify(
         f.kind === "interview"

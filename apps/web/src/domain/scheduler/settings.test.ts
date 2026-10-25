@@ -37,4 +37,11 @@ describe("the reminders check every few hours", () => {
     expect(nextCronRun("17 */3 * * *", new Date("2026-10-22T22:30:00Z"))).toBe("2026-10-23T00:17:00.000Z");
     expect(describeCron("30 1 * * *")).toBe("Daily at 01:30 UTC");
   });
+
+  it("is described and scheduled every hour", async () => {
+    const { describeCron, nextCronRun } = await import("./settings");
+    expect(describeCron("17 * * * *")).toBe("Every hour at :17");
+    expect(nextCronRun("17 * * * *", new Date("2026-10-22T10:20:00Z"))).toBe("2026-10-22T11:17:00.000Z");
+    expect(nextCronRun("17 * * * *", new Date("2026-10-22T23:30:00Z"))).toBe("2026-10-23T00:17:00.000Z");
+  });
 });

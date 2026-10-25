@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, Mail, Timer } from "lucide-react";
+import dynamic from "next/dynamic";
+import { AlertCircle, Bell, BellOff, CalendarDays, ChevronLeft, ChevronRight, Mail, Plus, Timer } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
@@ -12,10 +13,16 @@ import { CalendarSubscribe } from "@/components/calendar/CalendarSubscribe";
 import { useNow } from "@/lib/motion";
 import { formatTime } from "@/lib/format";
 import type { UpcomingItem } from "@/domain/career/types";
+import type { ApplicationFollowUp } from "@/domain/applications/types";
+import { momentumOf } from "@/domain/applications/momentum";
+import { describeReminder } from "@/domain/calendar/reminder";
 import { cn } from "@/lib/cn";
 
 type Kind = UpcomingItem["kind"];
-type CalendarItem = UpcomingItem & { note?: string; action: { label: string; href: string } };
+type CalendarItem = UpcomingItem & { note?: string; action: { label: string; href: string }; followUp?: { applicationId: string; item: ApplicationFollowUp }; suggested?: boolean };
+
+// Add and Reminder open a dialog, loaded only when opened.
+const EventDialog = dynamic(() => import("@/components/calendar/EventDialog").then((m) => m.EventDialog), { ssr: false });
 
 const KIND: Record<Kind, { icon: typeof Mail; dot: string; tile: string; plural: [string, string] }> = {
   interview: { icon: CalendarDays, dot: "bg-blue-500", tile: "bg-blue-100 text-blue-600", plural: ["interview", "interviews"] },
@@ -33,6 +40,8 @@ export default function CalendarPage() {
   const [monthOverride, setMonthOverride] = useState<Date | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const dayRef = useRef<HTMLDivElement>(null);
+  // Add (on the picked day), or one event's reminder.
+  const [dialog, setDialog] = useState<null | { editing?: { applicationId: string; followUp: ApplicationFollowUp; label: string } }>(null);
   // On a phone the day's list is below the month: bring it into view.
   const show = (dayKey: string) => {
     setPicked(dayKey);
@@ -57,12 +66,22 @@ export default function CalendarPage() {
           note: f.note || undefined,
           href: `/app/applications/${a.id}`,
           action: interview ? { label: "Prepare", href: `/app/applications/${a.id}/interview` } : { label: "Write", href: `/app/applications/${a.id}` },
+          followUp: { applicationId: a.id, item: f },
         });
       }
     }
+    // Today: sent a week or more ago with no reply and nothing planned (Pipeline → Applied's Follow up), suggested.
+    const today = new Date(now).toISOString();
+    for (const a of Object.values(applications)) {
+      if (a.followUps.some((f) => !f.done)) continue;
+      const m = momentumOf(a, now);
+      if (m.momentum !== "follow_up") continue;
+      const job = a.job ?? jobs[a.jobId];
+      out.push({ id: `suggest-${a.id}`, at: today, kind: "follow_up", title: "Follow up — suggested", subtitle: [job?.company, job?.title].filter(Boolean).join(" – "), note: m.reason, href: `/app/applications/${a.id}`, action: { label: "Follow up", href: `/app/applications/${a.id}?followup=1` }, suggested: true });
+    }
     for (const s of Object.values(schedules)) if (s.enabled && s.nextRunAt) out.push({ id: s.id, at: s.nextRunAt, kind: "scheduled_run", title: "Scheduled search", subtitle: s.name, href: `/app/automation/scheduled/${s.id}`, action: { label: "Open", href: `/app/automation/scheduled/${s.id}` } });
     return out.sort((a, b) => a.at.localeCompare(b.at));
-  }, [applications, jobs, schedules]);
+  }, [applications, jobs, schedules, now]);
 
   const first = month;
   const startOffset = (first.getDay() + 6) % 7; // Monday first
@@ -76,7 +95,7 @@ export default function CalendarPage() {
     byDay.set(k, [...(byDay.get(k) ?? []), e]);
   }
   const dayItems = byDay.get(selected) ?? [];
-  const overdue = (e: CalendarItem) => e.kind !== "scheduled_run" && new Date(e.at).getTime() < now;
+  const overdue = (e: CalendarItem) => e.kind !== "scheduled_run" && !e.suggested && new Date(e.at).getTime() < now;
   const overdueCount = events.filter(overdue).length;
   // An empty day points to the next thing after it.
   const next = events.find((e) => new Date(e.at).getTime() >= new Date(selected).getTime() + 86_400_000);
@@ -89,7 +108,7 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <PageHeader title="Calendar" description="Interviews, follow-ups and scheduled searches." actions={<CalendarSubscribe />} />
+      <PageHeader title="Calendar" description="Interviews, follow-ups and scheduled searches, with reminders." actions={<CalendarSubscribe />} />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card>
           <div className="mb-4 flex items-center justify-between">
@@ -166,7 +185,12 @@ export default function CalendarPage() {
             <h2 id="cal-day" className="text-[15px] font-semibold text-ink">
               {new Date(selected).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
             </h2>
-            {selected === todayKey && <span className="text-[12px] font-medium text-brand-700">Today</span>}
+            <span className="flex items-center gap-2">
+              {selected === todayKey && <span className="text-[12px] font-medium text-brand-700">Today</span>}
+              <Button size="sm" variant="outline" icon={<Plus className="size-4" aria-hidden />} onClick={() => setDialog({})}>
+                Add
+              </Button>
+            </span>
           </div>
           {overdueCount > 0 && (
             <Link href="/app/tasks" className="mb-3 flex items-center gap-2 rounded-[12px] bg-danger-100 px-3 py-2 text-[12.5px] font-medium text-danger-600 hover:opacity-90">
@@ -183,7 +207,7 @@ export default function CalendarPage() {
                   const I = KIND[e.kind].icon;
                   const late = overdue(e);
                   return (
-                    <li key={e.id} className="flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3">
+                    <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[14px] border border-line bg-surface-2 p-3">
                       <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-[12px]", KIND[e.kind].tile)}>
                         <I className="size-4" aria-hidden />
                       </span>
@@ -195,6 +219,13 @@ export default function CalendarPage() {
                         </span>
                         {e.note && <span className="block truncate text-[12px] text-ink-4">{e.note}</span>}
                       </Link>
+                      {e.followUp && (
+                        // Its reminder, in words; tapping it changes it.
+                        <button type="button" onClick={() => setDialog({ editing: { applicationId: e.followUp!.applicationId, followUp: e.followUp!.item, label: [e.title, e.subtitle].filter(Boolean).join(" · ") } })} className="order-last basis-full text-left text-[11.5px] font-medium text-ink-3 hover:text-brand-700">
+                          {e.followUp.item.remind?.channels.length === 0 ? <BellOff className="mr-1 inline size-3.5 align-[-2px]" aria-hidden /> : <Bell className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />}
+                          {e.followUp.item.remind ? describeReminder(e.followUp.item.remind) : "Usual reminder"}
+                        </button>
+                      )}
                       <Button size="sm" variant={late ? "primary" : "outline"} href={e.action.href}>
                         {e.action.label}
                       </Button>
@@ -215,6 +246,7 @@ export default function CalendarPage() {
           )}
         </Card>
       </div>
+      {dialog && <EventDialog day={new Date(selected)} editing={dialog.editing} onClose={() => setDialog(null)} />}
     </div>
   );
 }

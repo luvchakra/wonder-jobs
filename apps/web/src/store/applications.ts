@@ -6,6 +6,7 @@ import { createRemoteStorage } from "./remoteStorage";
 import { applicationJobOf, type Application, type ApplicationArtifact, type ApplicationEvent, type ApplicationJob, type ApplicationStatus, type ArtifactType, type ArtifactVersion } from "@/domain/applications/types";
 import type { Notification } from "@/domain/career/types";
 import { newId } from "@/lib/ids";
+import type { EventReminder } from "@/domain/calendar/reminder";
 import { interactionFor, useJobsStore } from "./jobs";
 import { useCareerStore } from "./career";
 
@@ -26,7 +27,9 @@ interface ApplicationsState {
   restoreVersion: (id: string, type: ArtifactType, versionId: string) => void;
   setNextAction: (id: string, nextAction?: string, followUpAt?: string) => void;
   completeFollowUp: (id: string, followUpId: string) => void;
-  addFollowUp: (id: string, f: { dueAt: string; kind: "follow_up" | "interview" | "thank_you"; note: string }) => void;
+  addFollowUp: (id: string, f: { dueAt: string; kind: "follow_up" | "interview" | "thank_you"; note: string; remind?: EventReminder }) => void;
+  /** The candidate's reminder for one follow-up or interview (Calendar). */
+  setFollowUpReminder: (id: string, followUpId: string, remind: EventReminder) => void;
   remove: (id: string) => void;
   /** Keeps a finished practice test, mock interview or flashcard deck on the application (capped, newest first). */
   recordPractice: (id: string, add: Parameters<typeof withAttempt>[1]) => void;
@@ -170,6 +173,12 @@ export const useApplicationsStore = create<ApplicationsState>()(
           const a = s.applications[id];
           if (!a) return s;
           return { applications: { ...s.applications, [id]: { ...a, followUps: a.followUps.map((f) => (f.id === followUpId ? { ...f, done: true } : f)) } } };
+        }),
+      setFollowUpReminder: (id, followUpId, remind) =>
+        set((s) => {
+          const a = s.applications[id];
+          if (!a) return s;
+          return { applications: { ...s.applications, [id]: { ...a, followUps: a.followUps.map((f) => (f.id === followUpId ? { ...f, remind } : f)) } } };
         }),
       addFollowUp: (id, f) =>
         set((s) => {

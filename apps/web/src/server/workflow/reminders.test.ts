@@ -45,6 +45,12 @@ describe("isDueForReminder", () => {
     expect(isDueForReminder({ dueAt: at(-7), done: false, kind: "follow_up" }, now)).toBe(false);
   });
 
+  it("uses the candidate's own reminder when set, and none when no way is picked", () => {
+    expect(isDueForReminder({ dueAt: at(1.5), done: false, kind: "interview", remind: { before: 60, channels: ["push"] } }, now)).toBe(false);
+    expect(isDueForReminder({ dueAt: at(0.03), done: false, kind: "interview", remind: { before: 60, channels: ["push"] } }, now)).toBe(true);
+    expect(isDueForReminder({ dueAt: at(0.03), done: false, kind: "interview", remind: { before: 60, channels: [] } }, now)).toBe(false);
+  });
+
   it("says nothing about work already done", () => {
     expect(isDueForReminder({ dueAt: at(0.5), done: true, kind: "follow_up" }, now)).toBe(false);
   });
@@ -68,6 +74,15 @@ describe("raiseDueReminders", () => {
 
     const career = await readClientState<CareerDoc & { reminded: string[] }>(TENANT, "wj.career");
     expect(career!.notifications[0].category).toBe("interview_upcoming");
+    expect(career!.reminded).toContain("f1");
+  });
+
+  it("carries the ways the candidate picked, and leaves the bell out when In app isn't one", async () => {
+    await seed(application({ followUps: [{ id: "f1", applicationId: "app-1", dueAt: at(0.5), kind: "interview", note: "Round 2", done: false, remind: { before: 1440, channels: ["push", "email"] } }] }));
+    const report = await raiseDueReminders(TENANT, NOW);
+    expect(report.notices[0].channels).toEqual(["push", "email"]);
+    const career = await readClientState<CareerDoc & { reminded: string[] }>(TENANT, "wj.career");
+    expect(career!.notifications).toEqual([]);
     expect(career!.reminded).toContain("f1");
   });
 

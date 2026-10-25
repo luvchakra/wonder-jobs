@@ -11,7 +11,7 @@ let tenant = "t-notify";
 vi.mock("@/server/auth", () => ({ requireSession: async () => ({ tenantId: tenant }) }));
 vi.mock("@/server/privacy/records", () => ({ isErased: async () => false }));
 
-import { deliver, nudge } from "./deliver";
+import { deliver, nudge, nudgeChosen } from "./deliver";
 import { stateStore } from "@/server/state";
 import { PUT } from "@/app/api/state/route";
 import { GET as inbox } from "@/app/api/inbox/route";
@@ -73,5 +73,15 @@ describe("saving the career document from a tab that was open all night", () => 
     expect(saved.state.reminded).toEqual(["f-1"]);
     // And the tab can read it back when the candidate returns.
     expect((await (await inbox()).json()).notifications.map((x: { id: string }) => x.id)).toEqual(["n-rem", "n-old"]);
+  });
+
+  it("sends a Calendar reminder each way the candidate picked — push and email both — email once per key", async () => {
+    const reminder = { category: "interview_upcoming" as const, title: "Interview coming up — Acme", body: "Round 2", href: "/app/applications/a1/interview" };
+    pushSent = 1;
+    expect(await nudgeChosen(T, reminder, ["push", "email"], "reminder-f1")).toEqual({ pushed: 1, emailed: true });
+    expect(await nudgeChosen(T, reminder, ["push", "email"], "reminder-f1")).toEqual({ pushed: 1, emailed: false });
+    expect(await nudgeChosen(T, reminder, ["app"], "reminder-f2")).toEqual({ pushed: 0, emailed: false });
+    expect(mails).toHaveLength(1);
+    expect(mails[0].text).toContain("email reminder for this on your WonderJobs Calendar");
   });
 });
