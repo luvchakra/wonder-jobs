@@ -118,14 +118,11 @@ export default function AutomationSettingsPage() {
           <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> Wonder never sends an email or message itself — it drafts, you press send. It submits an application only where you turn on Submit applications.
         </p>
       </Card>
-      {handheld ? (
-        <Fold title="On your computer" hint="The browser helper: how you apply, filling forms, submitting, sensitive questions" className="mb-3">
-          {desktop}
-        </Fold>
-      ) : (
+      {/* Computer only: on a phone or tablet the browser helper can't run, so this section isn't shown there at all. */}
+      {handheld === false && (
         <Card padding="sm" className="mb-3">
           <h2 className="text-[13.5px] font-semibold text-ink">On your computer</h2>
-          <p className="mb-2 text-[12px] text-ink-3">With the browser helper. On a phone or tablet you apply on the employer&apos;s site, with Guide me&apos;s values to copy.</p>
+          <p className="mb-2 text-[12px] text-ink-3">With the browser helper.</p>
           {desktop}
         </Card>
       )}
