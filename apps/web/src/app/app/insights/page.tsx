@@ -1,11 +1,17 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FUNNEL_STAGES } from "@/domain/applications/types";
+import { pct } from "@/domain/analytics/periods";
+import { BarChart } from "@/components/charts/BarChart";
+import { RefreshButton } from "@/components/common/RefreshButton";
 import { practiceTrend, QUIZ_PASS } from "@/domain/applications/practice";
 
 /** Every count opens the list it counts. */
-const ROW = "-mx-2 items-center rounded-[10px] px-2 py-1.5 hover:bg-surface-2";
+const ROW = "-mx-2 items-center rounded-[10px] px-2 py-1 hover:bg-surface-2";
+const H2 = "text-[14px] font-semibold text-ink";
+/** Runs per page of the chart. */
+const RUNS_SHOWN = 8;
 import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
@@ -13,8 +19,7 @@ import { useWorkflowStore } from "@/store/workflow";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { CareerInsightCard, Sparkbars } from "@/components/career/CareerInsightCard";
-import { formatNumber } from "@/lib/format";
-import { EmptyState } from "@/components/common/States";
+import { formatDate, formatNumber } from "@/lib/format";
 
 export default function InsightsPage() {
   const insights = useCareerStore((s) => s.insights);
@@ -26,7 +31,7 @@ export default function InsightsPage() {
 
   const funnel = useMemo(() => {
     const apps = Object.values(applications);
-    return FUNNEL_STAGES.map((f) => ({ ...f, n: f.statuses ? apps.filter((a) => f.statuses!.includes(a.status)).length : apps.length }));
+    return FUNNEL_STAGES.filter((f) => f.insights).map((f) => ({ ...f, n: apps.filter(f.reached).length }));
   }, [applications]);
 
   const fitBreakdown = useMemo(() => {
@@ -46,46 +51,83 @@ export default function InsightsPage() {
     return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
   }, [matches, jobs, order]);
 
-  const runSeries = useMemo(
+  const completed = useMemo(
     () =>
       Object.values(runs)
         .filter((r) => r.status === "COMPLETED" || r.status === "COMPLETED_WITH_WARNINGS")
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        .slice(-8)
-        .map((r) => r.summary.strongMatches),
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [runs],
   );
+  // The chart's window over completed searches: the latest 8, or 8 earlier at a time.
+  const [runPage, setRunPage] = useState(0);
+  const runEnd = completed.length - runPage * RUNS_SHOWN;
+  const shownRuns = completed.slice(Math.max(0, runEnd - RUNS_SHOWN), runEnd);
+  const runDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  // Wonder's read of the latest completed search only: one left from an older search no longer describes your list.
+  const latest = completed.at(-1);
+  const current = latest ? insights.filter((i) => i.id === `ins_${latest.id}`) : [];
   const max = Math.max(1, ...funnel.map((f) => f.n));
+  const fitTotal = Object.values(fitBreakdown).reduce((n, v) => n + v, 0);
+  const strongTotal = fitBreakdown.strong;
   // Interview practice: the test scores and mock interview reviews the candidate kept.
   const practice = useMemo(() => practiceTrend(Object.values(applications)), [applications]);
 
   return (
     <div>
-      <PageHeader title="Insights" description="What's working, from your own activity." />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <h2 className="mb-4 text-[15px] font-semibold text-ink">Application funnel</h2>
+      <PageHeader title="Insights" description="What's working, from your own activity." actions={<RefreshButton />} />
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <Card padding="sm" className="lg:col-span-2">
+          <h2 className={H2}>Application funnel</h2>
+          <p className="mb-2 text-[11.5px] text-ink-3">Every application that reached each step · % of the step before</p>
           <ul className="space-y-1">
-            {funnel.map((f) => (
+            {funnel.map((f, i) => (
               <li key={f.key}>
-                <Link href={`/app/applications?stage=${f.key}`} className={ROW + " grid grid-cols-[90px_1fr_40px] gap-3"}>
+                <Link href={`/app/applications?stage=${f.key}`} className={ROW + " grid grid-cols-[84px_1fr_64px] gap-3"}>
                   <span className="text-ink-2">{f.label}</span>
                   <div className="h-3 rounded-full bg-bg-soft" aria-hidden>
                     <div className="h-3 rounded-full bg-brand-500" style={{ width: `${(f.n / max) * 100}%` }} />
                   </div>
-                  <span className="text-right font-semibold text-ink">{f.n}</span>
+                  <span className="text-right font-semibold tabular-nums text-ink">
+                    {f.n}
+                    {i > 0 && <span className="ml-1 text-[11px] font-normal text-ink-3">{pct(f.n, funnel[i - 1].n)}</span>}
+                  </span>
                 </Link>
               </li>
             ))}
           </ul>
         </Card>
-        <Card>
-          <h2 className="mb-2 text-[15px] font-semibold text-ink">Strong matches per run</h2>
-          {runSeries.length ? <Sparkbars series={runSeries} className="h-20" /> : <p className="text-sm text-ink-3">Your first search starts the trend.</p>}
-          <p className="mt-2 text-[12px] text-ink-3">Last {runSeries.length} completed runs</p>
+        <Card padding="sm">
+          <h2 className={H2}>Strong matches per search</h2>
+          <p className="mb-2 text-[11.5px] text-ink-3">{completed.length} completed searches</p>
+          {shownRuns.length ? (
+            <BarChart
+              yLabel="Strong matches"
+              xLabel="Search"
+              unit="strong matches"
+              range={{
+                label: `${runDate(shownRuns[0].createdAt)} – ${runDate(shownRuns.at(-1)!.createdAt)}`,
+                onPrev: runEnd > RUNS_SHOWN ? () => setRunPage((p) => p + 1) : undefined,
+                onNext: runPage > 0 ? () => setRunPage((p) => p - 1) : undefined,
+              }}
+              points={shownRuns.map((r) => ({
+                key: r.id,
+                tick: runDate(r.createdAt),
+                label: new Date(r.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+                value: r.summary.strongMatches,
+                details: [
+                  { label: "Jobs reviewed", value: formatNumber(r.summary.jobsRetained) },
+                  { label: "Strong", value: pct(r.summary.strongMatches, r.summary.jobsRetained) },
+                  { label: r.trigger === "schedule" ? "Scheduled" : "Manual", value: "" },
+                ],
+                href: `/app/runs/${r.id}`,
+              }))}
+            />
+          ) : (
+            <p className="text-sm text-ink-3">Your first search starts the trend.</p>
+          )}
         </Card>
-        <Card className="lg:col-span-3">
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Interview practice</h2>
+        <Card padding="sm" className="lg:col-span-3">
+          <h2 className={`mb-2 ${H2}`}>Interview practice</h2>
           {practice.tests.length || practice.mocks.length ? (
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <div>
@@ -130,8 +172,9 @@ export default function InsightsPage() {
             <p className="text-sm text-ink-3">Practise for an interview — Pipeline → Interview → Prepare — and your scores trend here.</p>
           )}
         </Card>
-        <Card>
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Fit across your catalog</h2>
+        <Card padding="sm">
+          <h2 className={H2}>Fit across your catalog</h2>
+          <p className="mb-2 text-[11.5px] text-ink-3">{formatNumber(fitTotal)} jobs in your list now</p>
           <ul className="space-y-0.5 text-[13px]">
             {(
               [
@@ -145,21 +188,26 @@ export default function InsightsPage() {
                 <Link href={`/app/jobs?fit=${k}&exact=1`} className={ROW + " flex gap-2"}>
                   <span className={`size-2.5 rounded-full ${c}`} aria-hidden />
                   <span className="flex-1 text-ink-2">{l}</span>
-                  <span className="font-semibold text-ink">{formatNumber(fitBreakdown[k])}</span>
+                  <span className="w-10 text-right text-[12px] tabular-nums text-ink-3">{pct(fitBreakdown[k], fitTotal)}</span>
+                  <span className="w-10 text-right font-semibold tabular-nums text-ink">{formatNumber(fitBreakdown[k])}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </Card>
-        <Card>
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">Skills that drive strong matches</h2>
+        <Card padding="sm">
+          <h2 className={H2}>Skills that drive strong matches</h2>
+          <p className="mb-2 text-[11.5px] text-ink-3">Skills the {formatNumber(strongTotal)} strong {strongTotal === 1 ? "match asks" : "matches ask"} for</p>
           {bySkill.length ? (
             <ul className="space-y-0.5 text-[13px]">
               {bySkill.map(([s, n]) => (
                 <li key={s}>
                   <Link href={`/app/jobs?fit=strong&exact=1&q=${encodeURIComponent(s)}`} className={ROW + " flex justify-between"}>
                     <span className="text-ink-2">{s}</span>
-                    <span className="font-semibold text-ink">{n}</span>
+                    <span>
+                      <span className="mr-2 text-[12px] tabular-nums text-ink-3">{pct(n, strongTotal)} of strong</span>
+                      <span className="font-semibold tabular-nums text-ink">{n}</span>
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -168,18 +216,17 @@ export default function InsightsPage() {
             <p className="text-sm text-ink-3">No strong matches yet.</p>
           )}
         </Card>
-        <Card>
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">From Wonder</h2>
-          {insights.length ? (
+        {latest && current.length > 0 && (
+          <Card padding="sm">
+            <h2 className={H2}>From Wonder</h2>
+            <p className="mb-3 text-[12px] text-ink-3">AI-generated · your search of {formatDate(latest.createdAt)}</p>
             <div className="space-y-4">
-              {insights.map((i) => (
+              {current.map((i) => (
                 <CareerInsightCard key={i.id} insight={i} />
               ))}
             </div>
-          ) : (
-            <EmptyState title="No insights yet" body="Wonder writes an insight at the end of every run." />
-          )}
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   );

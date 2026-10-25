@@ -7,6 +7,10 @@ import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notif
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
+import { NOTIFY_TOPICS, topicOf, type NotifyTopic } from "@/domain/notifications/prefs";
+
+/** Each kind's chip, short. */
+const TOPIC_CHIP: Record<NotifyTopic, string> = { messages: "Messages", interviews: "Interviews", follow_ups: "Follow-ups", matches: "Matches", searches: "Searches", applications: "Applications", saved_jobs: "Saved jobs" };
 import { EmptyState } from "@/components/common/States";
 
 /**
@@ -16,10 +20,13 @@ import { EmptyState } from "@/components/common/States";
 export default function NotificationsPage() {
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  // All, Unread, or one kind (Messages, Interviews…) — the kinds Notifications & email lists, those present here.
+  const [show, setShow] = useState<"all" | "unread" | NotifyTopic>("all");
   const all = visibleNotifications(notifications);
   const unread = all.filter((n) => !n.read).length;
-  const list = unreadOnly ? all.filter((n) => !n.read) : all;
+  const kinds = NOTIFY_TOPICS.map((t) => ({ id: t.id, label: TOPIC_CHIP[t.id], n: all.filter((n) => topicOf(n.category) === t.id).length })).filter((k) => k.n > 0);
+  const unreadOnly = show === "unread";
+  const list = show === "all" ? all : unreadOnly ? all.filter((n) => !n.read) : all.filter((n) => topicOf(n.category) === show);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -31,13 +38,18 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
-      <div className="mb-3 flex gap-1.5" role="group" aria-label="Show">
-        <Chip active={!unreadOnly} onClick={() => setUnreadOnly(false)} className="h-9 px-3">
-          All
+      <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Show">
+        <Chip active={show === "all"} onClick={() => setShow("all")} className="h-8 shrink-0 px-3 text-[12.5px]">
+          All · {all.length}
         </Chip>
-        <Chip active={unreadOnly} onClick={() => setUnreadOnly(true)} className="h-9 px-3">
+        <Chip active={unreadOnly} onClick={() => setShow("unread")} className="h-8 shrink-0 px-3 text-[12.5px]">
           Unread{unread ? ` · ${unread}` : ""}
         </Chip>
+        {kinds.map((k) => (
+          <Chip key={k.id} active={show === k.id} onClick={() => setShow(show === k.id ? "all" : k.id)} className="h-8 shrink-0 px-3 text-[12.5px]">
+            {k.label} · {k.n}
+          </Chip>
+        ))}
       </div>
       {list.length === 0 ? (
         <EmptyState title={unreadOnly ? "Nothing unread" : "You're all caught up"} body="Messages, reminders and how your searches went appear here." />

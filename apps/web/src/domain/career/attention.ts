@@ -22,7 +22,7 @@ export function describeRunActivity(run: WorkflowRun): string {
   return `${run.workflowName} ${verb} — ${plural(s.jobsDiscovered, "job")} discovered, ${plural(duplicatesRemoved, "duplicate")} removed, ${plural(s.jobsRetained, "job")} matched, ${plural(s.strongMatches, "role")} worth reviewing.`;
 }
 
-export type ApplicationAttentionReason = "follow_up_overdue" | "follow_up_due" | "interview_soon" | "ready_for_review" | "employer_response";
+export type ApplicationAttentionReason = "follow_up_overdue" | "follow_up_due" | "interview_soon" | "ready_for_review" | "employer_response" | "offer";
 
 export interface ApplicationAttentionItem {
   applicationId: string;
@@ -30,32 +30,47 @@ export interface ApplicationAttentionItem {
   reason: ApplicationAttentionReason;
   label: string;
   dueAt?: string;
+  /** The one thing to do about it, and where (Needs attention's button). */
+  action: { label: string; href: string };
 }
 
+/** An application that ended (rejected, withdrawn) asks nothing more of the candidate. */
+const ENDED = new Set(["rejected", "withdrawn"]);
+
 /**
- * What a candidate needs to act on across their applications — real due follow-ups, upcoming
- * interviews, materials ready for review, and recent employer responses. Shared by Home and the
- * Applications page so "needs attention" can never mean two different things in two places.
+ * What a candidate needs to act on across their applications — real due follow-ups, upcoming interviews,
+ * materials ready for review, an employer's recent reply, an offer to answer — each with the one thing to do.
+ * Shared by Needs attention, its badge and Ask Wonder, so "needs attention" never means two things. Outcomes the
+ * candidate set themselves (rejected, withdrawn) are not things to do.
  */
 export function computeApplicationAttention(applications: Record<string, Application>, now: number): ApplicationAttentionItem[] {
   const items: ApplicationAttentionItem[] = [];
   for (const app of Object.values(applications)) {
+    if (ENDED.has(app.status)) continue;
+    const base = `/app/applications/${app.id}`;
     for (const f of app.followUps) {
       if (f.done) continue;
       const due = new Date(f.dueAt).getTime();
-      if (f.kind === "follow_up" && due - now < 2 * DAY_MS) {
-        items.push({ applicationId: app.id, jobId: app.jobId, reason: due < now ? "follow_up_overdue" : "follow_up_due", label: due < now ? "Follow-up overdue" : "Follow-up due soon", dueAt: f.dueAt });
+      if (f.kind !== "interview" && due - now < 2 * DAY_MS) {
+        const thanks = f.kind === "thank_you";
+        items.push({ applicationId: app.id, jobId: app.jobId, reason: due < now ? "follow_up_overdue" : "follow_up_due", label: thanks ? (due < now ? "Thank-you note overdue" : "Thank-you note due") : due < now ? "Follow-up overdue" : "Follow-up due", dueAt: f.dueAt, action: { label: "Write", href: `${base}?followup=1` } });
       }
-      if (f.kind === "interview" && due - now < 2 * DAY_MS) {
-        items.push({ applicationId: app.id, jobId: app.jobId, reason: "interview_soon", label: "Interview coming up", dueAt: f.dueAt });
+      // An interview from 2 days ahead until it's a day past.
+      if (f.kind === "interview" && due - now < 2 * DAY_MS && now - due < DAY_MS) {
+        items.push({ applicationId: app.id, jobId: app.jobId, reason: "interview_soon", label: due < now ? "Interview — how did it go?" : "Interview coming up", dueAt: f.dueAt, action: due < now ? { label: "Update", href: base } : { label: "Prepare", href: `${base}/interview` } });
       }
     }
     if (app.status === "ready_for_review") {
-      items.push({ applicationId: app.id, jobId: app.jobId, reason: "ready_for_review", label: "Materials ready for your review" });
+      items.push({ applicationId: app.id, jobId: app.jobId, reason: "ready_for_review", label: "Materials ready for your review", action: { label: "Review", href: `${base}/prepare` } });
+    }
+    const recent = (iso: string, days: number) => now - new Date(iso).getTime() < days * DAY_MS;
+    if (app.status === "offer") {
+      const offerAt = [...app.events].reverse().find((e) => e.type === "outcome")?.at;
+      if (!offerAt || recent(offerAt, 14)) items.push({ applicationId: app.id, jobId: app.jobId, reason: "offer", label: "Offer — respond", action: { label: "Open", href: base } });
     }
     const lastEvent = app.events[app.events.length - 1];
-    if (lastEvent && (lastEvent.type === "recruiter_response" || lastEvent.type === "outcome") && now - new Date(lastEvent.at).getTime() < 5 * DAY_MS) {
-      items.push({ applicationId: app.id, jobId: app.jobId, reason: "employer_response", label: lastEvent.title });
+    if (lastEvent?.type === "recruiter_response" && recent(lastEvent.at, 5)) {
+      items.push({ applicationId: app.id, jobId: app.jobId, reason: "employer_response", label: "Employer replied", action: { label: "Reply", href: base } });
     }
   }
   items.sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
@@ -78,6 +93,7 @@ export function summarizeApplicationAttention(items: ApplicationAttentionItem[])
     part(n(["follow_up_due", "follow_up_overdue"]), "follow-up due", "follow-ups due"),
     part(n(["ready_for_review"]), "application ready for your review", "applications ready for your review"),
     part(n(["employer_response"]), "employer reply", "employer replies"),
+    part(n(["offer"]), "offer to answer", "offers to answer"),
   ]
     .filter(Boolean)
     .join(" · ");

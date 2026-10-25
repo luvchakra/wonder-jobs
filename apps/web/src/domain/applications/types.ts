@@ -117,11 +117,21 @@ export function handedOffAt(a: Pick<Application, "events">): ApplicationEvent | 
   return [...a.events].reverse().find((e) => e.type === "note" && titles.includes(e.title));
 }
 
-/** The application funnel (Insights): each stage counts every application that reached it, and the Pipeline list opens on the same set (?stage=). */
-export const FUNNEL_STAGES: { key: string; label: string; statuses: ApplicationStatus[] | null }[] = [
-  { key: "all", label: "Saved", statuses: null },
-  { key: "prepared", label: "Prepared", statuses: ["ready_for_review", "submitted", "under_review", "interview", "offer", "rejected", "withdrawn"] },
-  { key: "submitted", label: "Submitted", statuses: ["submitted", "under_review", "interview", "offer", "rejected", "withdrawn"] },
-  { key: "interview", label: "Interview", statuses: ["interview", "offer"] },
-  { key: "offer", label: "Offer", statuses: ["offer"] },
+const SENT: ApplicationStatus[] = ["submitted", "under_review", "interview", "offer"];
+const sent = (a: Pick<Application, "status" | "appliedAt" | "events">) => SENT.includes(a.status) || Boolean(a.appliedAt) || a.events.some((e) => e.type === "submitted");
+const interviewed = (a: Pick<Application, "status" | "followUps" | "events" | "interviewRounds">) =>
+  a.status === "interview" || a.status === "offer" || (a.interviewRounds ?? 0) > 0 || a.followUps.some((f) => f.kind === "interview") || a.events.some((e) => e.type === "interview");
+
+/**
+ * The application funnel (Insights): each stage counts every application that reached it — from what happened to it,
+ * not only where it is now (one rejected after an interview still reached Interview; one withdrawn before it was
+ * sent never reached Applied) — and the Pipeline list opens on the same set (?stage=). A job only saved isn't in the
+ * Pipeline, so it isn't counted. `prepared` is kept for Analytics' links.
+ */
+export const FUNNEL_STAGES: { key: string; label: string; reached: (a: Application) => boolean; insights: boolean }[] = [
+  { key: "all", label: "In Pipeline", reached: (a) => a.status !== "saved", insights: true },
+  { key: "prepared", label: "Prepared", reached: (a) => a.status === "ready_for_review" || sent(a), insights: false },
+  { key: "submitted", label: "Applied", reached: sent, insights: true },
+  { key: "interview", label: "Interview", reached: interviewed, insights: true },
+  { key: "offer", label: "Offer", reached: (a) => a.status === "offer", insights: true },
 ];

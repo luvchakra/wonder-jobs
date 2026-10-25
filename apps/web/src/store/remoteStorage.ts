@@ -208,6 +208,19 @@ async function revalidate() {
   }
 }
 
+/**
+ * Refresh (This week, Insights): reconcile with the server again now — newer server copies are re-read in place, as
+ * on page load. Edits made on this page still win. Resolves once done; false when the server couldn't be read.
+ */
+export async function refreshFromServer(): Promise<boolean> {
+  if (!syncsToServer()) return true;
+  // Read the server afresh (not the copy fetched on page load), then reconcile as on load.
+  loadAllPromise = null;
+  revalidated = false;
+  await revalidate();
+  return (await loadAll()) !== null;
+}
+
 function serializePending() {
   if (serializeTimer) clearTimeout(serializeTimer);
   serializeTimer = null;
