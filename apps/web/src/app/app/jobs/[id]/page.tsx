@@ -44,7 +44,7 @@ import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { RatingStars } from "@/components/jobs/RatingStars";
-import { ApplicationOutcome, useAsksOutcome } from "@/components/jobs/ApplicationOutcome";
+import { ApplicationOutcome, noteApplyOpened, useAsksOutcome } from "@/components/jobs/ApplicationOutcome";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -75,7 +75,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
   const { limits, plans } = usePlan();
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
-  const markApplyOpened = useJobsStore((s) => s.markApplyOpened);
   const asksOutcome = useAsksOutcome(id);
   // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
   // get Apply, which opens the employer's listing.
@@ -337,7 +336,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => {
-                        markApplyOpened(job.id);
+                        noteApplyOpened(job.id);
                         track("apply_listing_opened", {
                           jobId: job.id,
                           from: "no_extension",
@@ -354,7 +353,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => {
-                      markApplyOpened(job.id);
+                      noteApplyOpened(job.id);
                       track("apply_listing_opened", {
                         jobId: job.id,
                         from: "desktop",
@@ -375,7 +374,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => {
-                    markApplyOpened(job.id);
+                    noteApplyOpened(job.id);
                     track("apply_listing_opened", {
                       jobId: job.id,
                       from: "mobile",

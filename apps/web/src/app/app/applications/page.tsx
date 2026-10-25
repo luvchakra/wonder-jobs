@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useUIStore } from "@/store/ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
@@ -70,7 +71,9 @@ function ApplicationsInner() {
   const visible = (tab === "all" ? list : list.filter((a) => groupOf(a) === tab)).filter((a) => !stage?.statuses || pickedTab || stage.statuses.includes(a.status));
   const candidates = Object.keys(saved).filter((id) => jobs[id] && !list.some((a) => a.jobId === id));
   // The stage shown: the one picked, else the first with anything in it.
-  const [pickedStage, setPickedStage] = useState<StatusGroup | null>(null);
+  // The stage last opened, kept between visits; until one is picked, the first with anything in it.
+  const pickedStage = useUIStore((s) => s.pipelineStage) ?? null;
+  const setPickedStage = useUIStore((s) => s.setPipelineStage);
   const shownStage = pickedStage ?? STAGES.find((st) => list.some((a) => groupOf(a) === st.group))?.group ?? "in_progress";
   const [removing, setRemoving] = useState<Application | null>(null);
   // Jobs that left the search results are found again; every application keeps its own copy of its job.

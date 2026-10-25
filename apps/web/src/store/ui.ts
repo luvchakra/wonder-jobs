@@ -18,11 +18,16 @@ interface UIState {
   /** Find's Refine panel — opened from its own button or from "Refine search options" when nothing shows. */
   refineOpen: boolean;
   setRefineOpen: (v: boolean | ((open: boolean) => boolean)) => void;
+  /** The Pipeline stage last opened (Preparing, Applied, Interview, Outcome) — the one tab kept between visits (owner, 2026-10-25). */
+  pipelineStage?: PipelineStage;
+  setPipelineStage: (g: PipelineStage) => void;
 }
 
-/** Cross-cutting UI state: whether the Ask Wonder field and the account menu are open. It's a momentary overlay, not a device
- *  preference, so nothing is persisted — the store keeps its persist wrapper only so StoreHydrator can
- *  treat every store the same way. */
+export type PipelineStage = "in_progress" | "submitted" | "interview" | "outcome";
+const STAGES: PipelineStage[] = ["in_progress", "submitted", "interview", "outcome"];
+
+/** Cross-cutting UI state: whether the Ask Wonder field and the account menu are open — momentary, never persisted —
+ *  and the one kept preference, Pipeline's last-opened stage. */
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
@@ -36,7 +41,15 @@ export const useUIStore = create<UIState>()(
       bumpPhoto: () => set((s) => ({ photoVersion: s.photoVersion + 1 })),
       refineOpen: false,
       setRefineOpen: (v) => set((s) => ({ refineOpen: typeof v === "function" ? v(s.refineOpen) : v })),
+      pipelineStage: undefined,
+      setPipelineStage: (g) => set({ pipelineStage: g }),
     }),
-    { name: "wj.ui", storage: createRemoteStorage(), skipHydration: true, version: 1, partialize: () => ({}) },
+    { name: "wj.ui", storage: createRemoteStorage(), skipHydration: true, version: 1, partialize: (s) => (s.pipelineStage ? { pipelineStage: s.pipelineStage } : {}),
+      // Only a known stage comes back.
+      merge: (p, current) => {
+        const g = (p as { pipelineStage?: unknown } | undefined)?.pipelineStage;
+        return { ...current, ...(STAGES.includes(g as PipelineStage) ? { pipelineStage: g as PipelineStage } : {}) };
+      },
+    },
   ),
 );

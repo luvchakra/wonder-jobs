@@ -9,6 +9,12 @@ import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
 import { cn } from "@/lib/cn";
 
+/** Apply opened on the employer's site (job page or card): remembered for the job's page, and the job enters Pipeline → Preparing. */
+export function noteApplyOpened(jobId: string) {
+  useJobsStore.getState().markApplyOpened(jobId);
+  useApplicationsStore.getState().startPreparing(jobId, "Opened Apply on the employer's site");
+}
+
 /** Whether a job's page asks how the application went: once Apply was opened, a résumé was made for it, or it was already marked. */
 export function useAsksOutcome(jobId: string): boolean {
   const opened = useJobsStore((s) => !!s.applyOpenedAt[jobId]);
