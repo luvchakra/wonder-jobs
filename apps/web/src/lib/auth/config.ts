@@ -8,11 +8,9 @@
  *                because the browser client owns and refreshes it)
  * - `wj_user`    the verified user id, set by the proxy so the client can
  *                namespace local state synchronously
- * - `wj_demo`    "1" while the browser is in demo mode (seeded, device-only)
  */
 export const AUTH_COOKIE = "wj-auth";
 export const USER_COOKIE = "wj_user";
-export const DEMO_COOKIE = "wj_demo";
 /** Keep each cookie comfortably under the 4 KB browser limit. */
 export const COOKIE_CHUNK = 3000;
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
@@ -23,7 +21,7 @@ export function supabaseAuthEnv() {
   return url && key ? { url, key } : null;
 }
 
-/** True when Supabase Auth is configured; otherwise the app runs in local/demo mode only. */
+/** True when Supabase Auth is configured; otherwise the app runs in local development mode only. */
 export function authConfigured() {
   return supabaseAuthEnv() !== null;
 }

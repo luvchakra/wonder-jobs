@@ -1,16 +1,15 @@
 /**
  * Stage executors for the Run Wonder workflow. Each does real work on real
- * data (mock sources, deterministic AI) and reports progress through the
+ * data (JobsLake search, the candidate's AI) and reports progress through the
  * engine context — the UI only ever renders engine state.
  */
 import { RestartSignal, StopSignal, type StageContext, type StageExecutor } from "@/domain/workflow/engine";
 import type { StageKey } from "@/domain/workflow/stages";
-import type { CanonicalJob, Job, JobMatch, JobQuality } from "@/domain/jobs/types";
+import type { CanonicalJob, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
-import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
+import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import type { CareerDNA } from "@/domain/career/types";
-import { getSourceAdapter, SourceUnavailableError } from "@/services/jobs/sources";
 import type { AIService } from "@/services/ai/service";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
@@ -75,112 +74,44 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const sourceIds = ctx.run.config.sourceIds.length ? ctx.run.config.sourceIds : useJobsStore.getState().sources.filter((s) => s.enabled).map((s) => s.id);
       const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && s.available !== false && sourceIds.includes(s.id));
       ctx.setProgress(0, null);
-      // Signed in: search only through JobsLake — one request, every source, deduplicated with provenance.
+      // Search only through JobsLake — one request, every source, deduplicated with provenance.
       // When JobsLake is off or doesn't answer, the run says so; it never goes to a source directly.
-      if (getClientMode().mode === "user") {
-        if (!enabled.length) ctx.fail({ category: "user_action_required", message: "No job sources are switched on. Turn one on and search again.", actions: ["fix_config", "stop"] });
-        if (!jobsLakeCapability().search) ctx.fail({ category: "recoverable", message: "JobsLake search is switched off on this deployment, so Wonder can't search right now.", actions: ["retry", "stop"] });
-        const lake = await searchWithJobsLake(ctx, enabled.map((s) => s.id));
-        if (!lake) ctx.fail({ category: "recoverable", message: "JobsLake didn't answer, so no new jobs were found. Retry in a moment.", actions: ["retry", "stop"] });
-        else {
-          lakeCache.set(ctx.run.id, lake);
-          rawCache.delete(ctx.run.id);
-          const m = lake.response.metadata;
-          const discovered = m.retrieved + m.warm;
-          ctx.setProgress(discovered, discovered);
-          if (!lake.jobs.length) {
-            const failed = lake.response.sources.filter((x) => x.outcome === "timeout" || x.outcome === "unavailable").map((x) => x.sourceName);
-            const allFailed = failed.length > 0 && m.sourcesSucceeded === 0;
-            ctx.fail({ category: allFailed ? "recoverable" : "user_action_required", message: allFailed ? `All sources failed (${failed.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
-          }
-          const perSource = Object.fromEntries(lake.response.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved]));
-          return { data: { jobIds: lake.jobs.map((j) => j.id), perSource, searchedWith: "JobsLake", requestId: lake.response.requestId }, counts: { discovered, sources: m.sourcesSucceeded } };
-        }
+      if (!enabled.length) ctx.fail({ category: "user_action_required", message: "No job sources are switched on. Turn one on and search again.", actions: ["fix_config", "stop"] });
+      if (!jobsLakeCapability().search) ctx.fail({ category: "recoverable", message: "JobsLake search is switched off on this deployment, so Wonder can't search right now.", actions: ["retry", "stop"] });
+      const lake = await searchWithJobsLake(ctx, enabled.map((s) => s.id));
+      if (!lake) return ctx.fail({ category: "recoverable", message: "JobsLake didn't answer, so no new jobs were found. Retry in a moment.", actions: ["retry", "stop"] });
+      lakeCache.set(ctx.run.id, lake);
+      const m = lake.response.metadata;
+      const discovered = m.retrieved + m.warm;
+      ctx.setProgress(discovered, discovered);
+      if (!lake.jobs.length) {
+        const failed = lake.response.sources.filter((x) => x.outcome === "timeout" || x.outcome === "unavailable").map((x) => x.sourceName);
+        const allFailed = failed.length > 0 && m.sourcesSucceeded === 0;
+        ctx.fail({ category: allFailed ? "recoverable" : "user_action_required", message: allFailed ? `All sources failed (${failed.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
       }
-      lakeCache.delete(ctx.run.id);
-      const discovered: Job[] = [];
-      const perSource: Record<string, number> = {};
-      const failures: string[] = [];
-      // Every source at once: the slowest one decides how long this takes, not the sum of them all.
-      await Promise.all(
-        enabled.map(async (src) => {
-          const adapter = getSourceAdapter(src.id);
-          if (!adapter) return;
-          try {
-            for await (const page of adapter.search(ctx.run.config.searchCriteria, { sleep: ctx.sleep })) {
-              await ctx.checkpoint();
-              discovered.push(...page.jobs);
-              perSource[src.id] = (perSource[src.id] ?? 0) + page.jobs.length;
-              ctx.setProgress(discovered.length, null);
-              ctx.setCounts({ discovered: discovered.length, sources: Object.keys(perSource).length });
-            }
-            ctx.addEvidence({ label: src.name, value: `${(perSource[src.id] ?? 0).toLocaleString("en-IN")} jobs`, tone: "success" });
-          } catch (e) {
-            if (e instanceof SourceUnavailableError) {
-              if (e.kind === "needs_setup") {
-                ctx.addEvidence({ label: src.name, value: "Needs setup", tone: "warning" });
-                ctx.warn(`${src.name} isn't configured on this deployment yet, so it was skipped.`);
-              } else {
-                failures.push(src.name);
-                ctx.addEvidence({ label: src.name, value: "Unavailable", tone: "danger" });
-                ctx.warn(`${src.name} is temporarily unavailable: ${e.message}`);
-              }
-            } else throw e;
-          }
-        }),
-      );
-      ctx.setProgress(discovered.length, discovered.length);
-      if (!discovered.length) {
-        ctx.fail({ category: failures.length ? "recoverable" : "user_action_required", message: failures.length ? `All sources failed (${failures.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
-      }
-      // Keep raw postings in memory for later stages without bloating persisted state.
-      rawCache.set(ctx.run.id, discovered);
-      return { data: { jobIds: discovered.map((j) => j.id), perSource }, counts: { discovered: discovered.length, sources: enabled.length } };
+      const perSource = Object.fromEntries(lake.response.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved]));
+      return { data: { jobIds: lake.jobs.map((j) => j.id), perSource, searchedWith: "JobsLake", requestId: lake.response.requestId }, counts: { discovered, sources: m.sourcesSucceeded } };
     },
 
     dedupe: async (ctx) => {
       const lake = lakeCache.get(ctx.run.id);
-      if (lake) {
-        // JobsLake already merged cross-posted duplicates (by apply URL, identity and content), keeping every sighting.
-        const m = lake.response.metadata;
-        canonicalCache.set(ctx.run.id, lake.jobs);
-        ctx.setProgress(lake.jobs.length, lake.jobs.length);
-        ctx.setCounts({ unique: lake.jobs.length, duplicates: m.duplicates });
-        ctx.addEvidence({ label: "Unique opportunities", value: lake.jobs.length.toLocaleString("en-IN"), tone: "success" });
-        ctx.addEvidence({ label: "Cross-posted duplicates merged", value: m.duplicates.toLocaleString("en-IN") });
-        const multi = lake.jobs.filter((j) => (j.lake?.sightings.length ?? 0) > 1).length;
-        if (multi) ctx.addEvidence({ label: "Found on more than one source", value: multi.toLocaleString("en-IN"), tone: "info" });
-        const invalid = m.unique - m.live;
-        if (invalid > 0) ctx.addEvidence({ label: "Left out: incomplete postings", value: invalid.toLocaleString("en-IN"), tone: "warning" });
-        const cut = m.live + m.warm - lake.jobs.length;
-        if (cut > 0) ctx.addEvidence({ label: "Left out: beyond the first " + lake.jobs.length.toLocaleString("en-IN"), value: cut.toLocaleString("en-IN"), tone: "info" });
-        await ctx.checkpoint();
-        return { provenance: "SYSTEM_DERIVED", data: { jobIds: lake.jobs.map((j) => j.id) }, counts: { unique: lake.jobs.length, duplicates: m.duplicates } };
-      }
-      const raw = rawCache.get(ctx.run.id) ?? [];
-      const out: CanonicalJob[] = [];
-      let processed = 0;
-      ctx.setProgress(0, raw.length);
-      // Process in chunks so pause/stop/restart stay responsive and counts are real.
-      const groups = new Map<string, Job[]>();
-      for (let i = 0; i < raw.length; i += CHUNK) {
-        const chunk = raw.slice(i, i + CHUNK);
-        for (const j of deduplicate(chunk)) {
-          const list = groups.get(j.canonicalKey) ?? [];
-          groups.set(j.canonicalKey, list);
-        }
-        processed += chunk.length;
-        ctx.setProgress(processed, raw.length);
-        await ctx.sleep(0);
-        await ctx.checkpoint();
-      }
-      out.push(...deduplicate(raw));
-      canonicalCache.set(ctx.run.id, out);
-      const dupes = raw.length - out.length;
-      ctx.setCounts({ unique: out.length, duplicates: dupes });
-      ctx.addEvidence({ label: "Unique opportunities", value: out.length.toLocaleString("en-IN"), tone: "success" });
-      ctx.addEvidence({ label: "Cross-posted duplicates removed", value: dupes.toLocaleString("en-IN") });
-      return { provenance: "SYSTEM_DERIVED", data: { jobIds: out.map((j) => j.id) }, counts: { unique: out.length, duplicates: dupes } };
+      // The search results live in memory only; a reload between stages loses them, so this says so instead of continuing with nothing.
+      if (!lake) return ctx.fail({ category: "recoverable", message: "The search results were lost when the page reloaded. Search again.", actions: ["retry", "stop"] });
+      // JobsLake already merged cross-posted duplicates (by apply URL, identity and content), keeping every sighting.
+      const m = lake.response.metadata;
+      canonicalCache.set(ctx.run.id, lake.jobs);
+      ctx.setProgress(lake.jobs.length, lake.jobs.length);
+      ctx.setCounts({ unique: lake.jobs.length, duplicates: m.duplicates });
+      ctx.addEvidence({ label: "Unique opportunities", value: lake.jobs.length.toLocaleString("en-IN"), tone: "success" });
+      ctx.addEvidence({ label: "Cross-posted duplicates merged", value: m.duplicates.toLocaleString("en-IN") });
+      const multi = lake.jobs.filter((j) => (j.lake?.sightings.length ?? 0) > 1).length;
+      if (multi) ctx.addEvidence({ label: "Found on more than one source", value: multi.toLocaleString("en-IN"), tone: "info" });
+      const invalid = m.unique - m.live;
+      if (invalid > 0) ctx.addEvidence({ label: "Left out: incomplete postings", value: invalid.toLocaleString("en-IN"), tone: "warning" });
+      const cut = m.live + m.warm - lake.jobs.length;
+      if (cut > 0) ctx.addEvidence({ label: "Left out: beyond the first " + lake.jobs.length.toLocaleString("en-IN"), value: cut.toLocaleString("en-IN"), tone: "info" });
+      await ctx.checkpoint();
+      return { provenance: "SYSTEM_DERIVED", data: { jobIds: lake.jobs.map((j) => j.id) }, counts: { unique: lake.jobs.length, duplicates: m.duplicates } };
     },
 
     understand: async (ctx) => {
@@ -486,7 +417,6 @@ function providerName(id: string) {
 }
 
 // Per-run working memory for large intermediate results (not persisted).
-const rawCache = new Map<string, Job[]>();
 const lakeCache = new Map<string, { response: SearchResponse; jobs: CanonicalJob[] }>();
 const canonicalCache = new Map<string, CanonicalJob[]>();
 const matchCache = new Map<string, JobMatch[]>();
@@ -500,7 +430,7 @@ export function typedQuery(config: { origin?: "profile" | "words"; role?: unknow
 
 /** Rehydrate working memory for a rerun from the parent run's caches, when available. */
 export function inheritCaches(parentRunId: string, childRunId: string) {
-  for (const cache of [rawCache, lakeCache, canonicalCache, matchCache, qualityCache, rankedCache] as Map<string, unknown>[]) {
+  for (const cache of [lakeCache, canonicalCache, matchCache, qualityCache, rankedCache] as Map<string, unknown>[]) {
     const v = cache.get(parentRunId);
     if (v !== undefined) cache.set(childRunId, v);
   }

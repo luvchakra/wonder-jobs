@@ -111,7 +111,7 @@ export function decideInstallBanner(i: InstallInputs): InstallVariant {
 
 /** Routes the banner never appears on: auth callbacks/redirects, print or export views, embeds. */
 export function isExcludedInstallRoute(pathname: string, search = ""): boolean {
-  if (/^\/(auth|demo)(\/|$)/.test(pathname)) return true;
+  if (/^\/auth(\/|$)/.test(pathname)) return true;
   if (/(^|\/)(print|export|embed)(\/|$)/.test(pathname)) return true;
   return /[?&](embed|print)=/.test(search);
 }

@@ -9,7 +9,7 @@ import { validateResume } from "./validate";
 import { renderResumePdf } from "@/services/resume/pdf";
 import { buildResumeDocx } from "@/services/resume/docx";
 import { extractDocxText, extractPdfText, readZipEntries, readZipEntry } from "@/server/resume/extractText";
-import { SEED_DNA } from "@/services/mock/seed";
+import { SEED_DNA } from "@/testing/sample/seed";
 
 /**
  * Résumé template tests (spec §50 TPL-001…030, §51 CROSS-001…015, §55 PDF-001…020, §56

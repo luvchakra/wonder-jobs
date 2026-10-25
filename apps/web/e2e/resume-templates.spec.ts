@@ -1,16 +1,17 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openApp } from "./fixtures/sample";
 
 /**
  * Résumé template gallery journeys RESUME-TPL-001…030 (spec §54) and visual baselines (§52, §87).
- * Demo mode: the sample candidate has a synthetic work history, so every preview is the real
+ * The sample candidate (e2e/fixtures/sample.ts) has a synthetic work history, so every preview is the real
  * renderer drawing that candidate's facts. Chromium only (this sandbox's browser).
  */
 
-const STUDIO = "/demo?next=%2Fapp%2Fresume-studio%3Ftab%3Dtemplates";
+const STUDIO = "/app/resume-studio?tab=templates";
 const cards = (page: Page) => page.getByRole("list", { name: "Resume templates" }).getByRole("article");
 
 async function open(page: Page) {
-  await page.goto(STUDIO);
+  await openApp(page, STUDIO);
   await expect(page.getByRole("heading", { name: "Choose a resume template" })).toBeVisible({ timeout: 20_000 });
   await page.evaluate(() => document.fonts.ready);
 }
@@ -39,7 +40,7 @@ async function generate(page: Page) {
   await expect(page.getByText(/^Résumé ready|isn't ready yet|needs attention/).first()).toBeVisible({ timeout: 20_000 });
 }
 
-/** Adds roles to the demo candidate's stored profile so the résumé runs to two pages. */
+/** Adds roles to the sample candidate's stored profile so the résumé runs to two pages. */
 async function lengthenHistory(page: Page) {
   await page.evaluate(() => {
     const key = Object.keys(localStorage).find((k) => k.endsWith("wj.career"))!;
@@ -217,6 +218,6 @@ test.describe("Résumé template visual baselines", () => {
   test("visual: gallery (desktop)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await open(page);
-    await expect(page.getByRole("list", { name: "Resume templates" })).toHaveScreenshot("gallery.png", { maxDiffPixelRatio: 0.02 });
+    await expect(page.getByRole("list", { name: "Resume templates" })).toHaveScreenshot("gallery.png", { maxDiffPixelRatio: 0.02, mask: [page.locator("[data-top-bar]")] });
   });
 });

@@ -84,7 +84,7 @@ function writeLocal(name: string, value: string) {
   memoryFallback.set(name, value);
 }
 
-/** Local keys are namespaced per signed-in user (or the demo) so a shared device never mixes accounts. */
+/** Local keys are namespaced per signed-in user so a shared device never mixes accounts. */
 function localKey(name: string) {
   return storageKeyFor(name, getClientMode());
 }
@@ -237,7 +237,7 @@ function serializePending() {
     touched.add(name);
     changed.push(name);
   }
-  if (changed.length && !syncsToServer()) return; // demo: device only
+  if (changed.length && !syncsToServer()) return; // signed out: device only
   if (changed.length) {
     markDirty(changed);
     for (const n of changed) pendingPush.add(n);

@@ -3,7 +3,7 @@ import type { CanonicalJob, JobMatch } from "@/domain/jobs/types";
 import * as mode from "@/lib/mode";
 import { useJobsStore } from "./jobs";
 
-const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-10-01T00:00:00Z" }) as unknown as CanonicalJob;
+const job = (id: string) => ({ id, title: id, company: "Acme", postedAt: "2026-10-01T00:00:00Z", description: "" }) as unknown as CanonicalJob;
 const match = (jobId: string, score: number) => ({ jobId, score, fit: "strong" }) as unknown as JobMatch;
 
 describe("clearing typed words", () => {

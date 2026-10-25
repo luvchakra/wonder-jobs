@@ -21,7 +21,7 @@ export default function NotificationSettingsPage() {
           <DigestEmailCard />
         </>
       ) : (
-        // Choices are kept with an account; demo and local mode have none to keep them in.
+        // Choices are kept with an account; a signed-out browser has none to keep them in.
         <p className="text-[13px] text-ink-3">Sign in to choose what WonderJobs tells you, and how.</p>
       )}
     </div>

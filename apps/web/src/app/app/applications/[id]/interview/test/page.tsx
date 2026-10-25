@@ -18,10 +18,9 @@ type Phase = { kind: "intro" } | { kind: "loading" } | { kind: "run"; i: number;
 /** A ten-question test on the job, ten seconds a question; 90% passes. */
 export default function PracticeTestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { app, job, allowed, sample, ask } = useInterviewPractice(id);
+  const { app, job, allowed, ask } = useInterviewPractice(id);
   const recordPractice = useApplicationsStore((s) => s.recordPractice);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [byModel, setByModel] = useState(true);
   const [phase, setPhase] = useState<Phase>({ kind: "intro" });
   const [now, setNow] = useState(() => Date.now());
   const back = { href: `/app/applications/${id}/interview`, label: "Interview prep" };
@@ -62,11 +61,9 @@ export default function PracticeTestPage({ params }: { params: Promise<{ id: str
     setPhase({ kind: "loading" });
     try {
       const res = await ask("interview_quiz");
-      let qs = res.byModel ? parseQuiz(res.text) : null;
-      if (!res.byModel && sample && job) qs = (await import("@/services/mock/practice")).demoQuiz(job);
+      const qs = res.byModel ? parseQuiz(res.text) : null;
       if (!qs) throw new Error(res.byModel ? "The AI's test didn't come back complete. Try again." : NEEDS_AI);
       setQuestions(qs);
-      setByModel(res.byModel);
       setNow(Date.now());
       setPhase({ kind: "run", i: 0, answers: Array(qs.length).fill(null), deadline: Date.now() + QUIZ_SECONDS * 1000 });
     } catch (e) {
@@ -170,7 +167,7 @@ export default function PracticeTestPage({ params }: { params: Promise<{ id: str
                   {r.score}/{r.total}
                 </p>
                 <p className={cn("mt-2 text-[16px] font-semibold", r.passed ? "text-success-600" : "text-danger-600")}>{r.passed ? "Pass" : "Fail"}</p>
-                <p className="mt-1 text-[12.5px] text-ink-3">{Math.round(QUIZ_PASS * 100)}% needed to pass{!byModel && " · sample test (demo)"}</p>
+                <p className="mt-1 text-[12.5px] text-ink-3">{Math.round(QUIZ_PASS * 100)}% needed to pass</p>
                 <div className="mt-4 flex justify-center gap-2">
                   <Button
                     disabled={phase.saved}
@@ -189,7 +186,7 @@ export default function PracticeTestPage({ params }: { params: Promise<{ id: str
               </Card>
               <Card>
                 <h2 className="mb-2 flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-                  Answers <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-ink-3">{byModel ? <><Sparkles className="size-3" aria-hidden /> AI-generated</> : "Sample (demo)"}</span>
+                  Answers <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-ink-3"><Sparkles className="size-3" aria-hidden /> AI-generated</span>
                 </h2>
                 <ol className="flex flex-col gap-3">
                   {questions.map((q, i) => {

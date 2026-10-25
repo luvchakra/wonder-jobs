@@ -23,7 +23,7 @@ function openLink(link: string) {
 
 /**
  * "Subscribe" to a live-updating feed of real interviews, follow-ups and scheduled runs from Google,
- * Outlook or Apple Calendar. Demo mode has no server-side tenant to sign a link for, so the button
+ * Outlook or Apple Calendar. A signed-out browser has no server-side tenant to sign a link for, so the button
  * doesn't render there rather than offering a link that can't work.
  */
 export function CalendarSubscribe() {

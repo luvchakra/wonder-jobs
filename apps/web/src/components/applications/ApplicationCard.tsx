@@ -7,7 +7,6 @@ import { WORK_MODE_LABEL, type CanonicalJob } from "@/domain/jobs/types";
 import { formatDate, formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
-import { companyColor } from "@/components/jobs/JobCard";
 import { cn } from "@/lib/cn";
 
 const STILL_PREPARING = new Set(["preparing", "ready_for_review", "saved"]);
@@ -70,7 +69,7 @@ export function ApplicationCard({ application, job, compact = false, actionSpace
     return (
       <Link href={href} className={cn("wj-card wj-elevate flex flex-col gap-2 p-3", className)}>
         <div className="flex items-start gap-2.5">
-          <CompanyLogo name={info?.company ?? "?"} domain={info?.companyDomain} logo color={info ? companyColor(info.company) : undefined} size={32} />
+          <CompanyLogo name={info?.company ?? "?"} domain={info?.companyDomain} logo size={32} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-semibold text-ink">{company}</span>
             <span className="line-clamp-2 text-[12px] text-ink-2">{title}</span>
@@ -91,7 +90,7 @@ export function ApplicationCard({ application, job, compact = false, actionSpace
 
   return (
     <Link href={href} className={cn("wj-card wj-elevate flex items-center gap-3 p-4", className)}>
-      <CompanyLogo name={info?.company ?? "?"} domain={info?.companyDomain} logo color={info ? companyColor(info.company) : undefined} size={44} />
+      <CompanyLogo name={info?.company ?? "?"} domain={info?.companyDomain} logo size={44} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14px] font-semibold text-ink">{company}</span>
         <span className="block truncate text-[13px] text-ink-2">{title}</span>

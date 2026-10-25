@@ -108,10 +108,10 @@ describe("searching on open, without a button", () => {
     }
   });
 
-  it("doesn't search when blocked, already searching, or in the demo", () => {
+  it("doesn't search when blocked, already searching, or signed out", () => {
     expect(autoSearchDecision({ readiness: jobsReadiness(input({ dna: EMPTY_DNA })), mode: "user", activeRun: false }).reason).toBe("blocked");
     expect(autoSearchDecision({ readiness: ready, mode: "user", activeRun: true }).reason).toBe("active");
-    expect(autoSearchDecision({ readiness: ready, mode: "demo", activeRun: false }).reason).toBe("demo");
+    expect(autoSearchDecision({ readiness: ready, mode: "local", activeRun: false }).reason).toBe("signed_out");
   });
 
   it("picks the latest run that searched", () => {

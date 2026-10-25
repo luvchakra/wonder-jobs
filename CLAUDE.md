@@ -13,7 +13,7 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
   - Jobs come from live sources (`server/jobs/providers.ts`).
   - Matches, signals, insights and counts are computed from those postings and the candidate's Career DNA.
   - Nothing is seeded, sampled or hardcoded for a real account.
-  - Mock data (`services/mock/*`) is for demo/local only, gated on `getClientMode().mode !== "user"`. Never widen that gate.
+  - There is no demo mode and no sample data in the product (removed 2026-10-25). The sample candidate and postings live in `src/testing/sample/` and `apps/web/e2e/fixtures/sample.ts`, for tests only; the one server hook is `WJ_E2E_FIXTURE_JOBS` (`server/jobslake/e2eFixture.ts`), set only by `playwright.config.ts`, never on Vercel. Never import them from product code.
 - **No defaults in place of intent.**
   - Query, location, threshold and goal come from what the candidate typed or from their Career DNA (`defaultSearchQuery` in `services/jobs/normalize.ts`).
   - If neither gives a value, ask. Never use a placeholder.
@@ -144,7 +144,7 @@ The app must feel instant. Measure before and after on hot paths.
   - Memoise items with stable, id-taking callbacks (`JobsBoard.tsx::JobResult`).
   - Subscribe to narrow store slices.
   - Memoise filtering and sorting; debounce typing.
-- **Lazy-load heavy code** (dialogs, editors, PDF tools) via `next/dynamic` or `import()`. Keep demo-only code off signed-in paths.
+- **Lazy-load heavy code** (dialogs, editors, PDF tools) via `next/dynamic` or `import()`.
 - **Fetch in parallel, once per page.**
 
 ## Build-slot budget

@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/navigation/Sidebar";
 import { TopBar } from "@/components/navigation/TopBar";
 import { MobileNav } from "@/components/navigation/MobileNav";
-import { DemoBanner } from "@/components/navigation/DemoBanner";
 import { SectionTabs } from "@/components/navigation/SectionTabs";
 import { Toaster } from "@/components/feedback/Toast";
 import { StoreHydrator } from "@/store/StoreHydrator";
@@ -48,7 +47,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <StoreHydrator>
       <div className="flex min-h-dvh flex-col bg-bg">
-        <DemoBanner />
         <div className="flex min-w-0 flex-1">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">

@@ -13,7 +13,6 @@ import { useAuthStore } from "./auth";
 import { onRemoteChange } from "./remoteStorage";
 import { setScheduleOwner } from "@/services/scheduler";
 import { getWorkflowService } from "@/services/workflow/service";
-import { isDemoSeeded, seedDemo } from "@/services/mock/demo";
 import { getClientMode } from "@/lib/mode";
 import { getSupabaseBrowser } from "@/lib/auth/browser";
 import { WonderJobsAIProvider } from "@/services/ai/service";
@@ -58,9 +57,6 @@ async function bootstrapIdentity() {
 function finishBoot() {
   const mode = getClientMode();
   useAuthStore.getState().set({ mode: mode.mode, userId: mode.mode === "user" ? mode.userId : null });
-  // Demo / local development: the sample candidate, applied once per device.
-  if (mode.mode !== "user" && !isDemoSeeded()) seedDemo();
-  // The catalog is needed by the first screen and is cheap (~40 ms); compute before paint so nothing flashes.
   if (typeof performance !== "undefined") performance.mark("wj:boot");
   useJobsStore.getState().loadInitial();
   markHydrated();

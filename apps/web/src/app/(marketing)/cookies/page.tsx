@@ -28,14 +28,11 @@ export default function CookiesPage() {
               <li>
                 <strong>wj_uid</strong>: only on deployments running without sign-in (local development) — an HTTP-only random id that keeps that browser&apos;s data together.
               </li>
-              <li>
-                <strong>wj_demo</strong>: set when you enter the demo so the product runs on sample data. Cleared when you exit the demo.
-              </li>
             </ul>
           ),
         },
         { id: "storage", title: "Browser storage", body: <p>The app also caches your own data in your browser&apos;s local storage so pages open instantly. It is namespaced per account and cleared on sign-out.</p> },
-        { id: "control", title: "Your choices", body: <p>Blocking these cookies means you can&apos;t stay signed in, but the public pages and the demo still work. You can clear them any time from your browser settings.</p> },
+        { id: "control", title: "Your choices", body: <p>Blocking these cookies means you can&apos;t stay signed in, but the public pages still work. You can clear them any time from your browser settings.</p> },
       ]}
     />
   );

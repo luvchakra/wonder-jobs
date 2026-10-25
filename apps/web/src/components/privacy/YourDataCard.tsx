@@ -17,21 +17,11 @@ import { downloadBlob } from "@/lib/download";
  * The dialog copy describes exactly what `eraseAccount` does — including what is kept and why.
  */
 export function YourDataCard() {
-  const mode = useAuthStore((s) => s.mode);
   const userId = useAuthStore((s) => s.userId);
   const [busy, setBusy] = useState<"export" | "erase" | null>(null);
   const [erasing, setErasing] = useState(false);
   const [phrase, setPhrase] = useState("");
   const contact = grievanceContact();
-
-  if (mode === "demo") {
-    return (
-      <Card className="mt-4">
-        <p className="text-[15px] font-semibold text-ink">Your data</p>
-        <p className="mt-1 text-[13px] text-ink-2">The demo stores nothing on our servers — its sample data lives only in this browser and is cleared when you leave the demo.</p>
-      </Card>
-    );
-  }
 
   const exportData = async () => {
     setBusy("export");

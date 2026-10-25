@@ -89,7 +89,7 @@ const approxTokens = (s: string) => Math.max(1, Math.round(s.length / 4));
 /**
  * WonderJobs AI. When the deployment has a platform model (see
  * server/providers/platform.ts) requests go through `/api/ai/complete` with
- * provider "wonderjobs"; otherwise, and for the demo, the deterministic
+ * provider "wonderjobs"; otherwise, and when signed out, the deterministic
  * template draft is returned so the product always works. Which one happened
  * is visible in the usage record's model ("wonder-1" = template).
  */

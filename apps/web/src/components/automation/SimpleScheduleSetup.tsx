@@ -10,7 +10,7 @@ import { defaultSearchQuery, profileSearchQuery } from "@/services/jobs/normaliz
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { roleSearch } from "@/domain/career/roles";
 import { RolePicker } from "@/components/career/RolePicker";
-import { describeSchedule } from "@/services/mock/templates";
+import { describeSchedule } from "@/domain/workflow/scheduleTemplates";
 import { scheduleAllowance } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";

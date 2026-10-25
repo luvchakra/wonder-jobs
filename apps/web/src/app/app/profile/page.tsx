@@ -49,7 +49,6 @@ function ProfileInner() {
   const dna = useCareerStore((s) => s.dna);
   const config = useAIStore((s) => s.config);
   const email = useAuthStore((s) => s.email);
-  const mode = useAuthStore((s) => s.mode);
   const billingReturn = params.get("billing") ?? (params.get("upgrade") === "1" ? "upgrade" : null);
   // Until billing has loaded the plan is unknown — nothing is shown rather than "Free plan".
   const billing = useBillingStore((st) => st.data);
@@ -62,7 +61,7 @@ function ProfileInner() {
         <ProfilePhoto name={displayName} size={56} />
         <div className="min-w-0 flex-1">
           <p className="text-[17px] font-semibold text-ink">{displayName}</p>
-          <p className="truncate text-[13px] text-ink-3">{dna.headline || email || (mode === "demo" ? "Sample candidate" : "")}</p>
+          <p className="truncate text-[13px] text-ink-3">{dna.headline || email || ""}</p>
           <div className="mt-1 flex gap-2">
             {billing && <Badge tone={billing.plan === "free" ? "neutral" : "brand"}>{planBadgeLabel(billing.plan, billing.plans)}</Badge>}
             <Badge>{AI_PROVIDERS[config.activeProvider].name}</Badge>

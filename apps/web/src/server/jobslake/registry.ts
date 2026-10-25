@@ -16,6 +16,7 @@ import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, placesToSearch, SMARTRECRUITER
 import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
 import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured, type CustomFetchResult } from "./custom";
 import { readCredential } from "./credentials";
+import { fixtureJobs, fixtureJobsOn } from "./e2eFixture";
 import { jobsLakeStore } from "./store";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 
@@ -89,7 +90,7 @@ export async function getSource(id: string): Promise<SourceRecord | undefined> {
 export async function isAvailable(s: SourceRecord): Promise<boolean> {
   switch (s.config.kind) {
     case "builtin":
-      return ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
+      return fixtureJobsOn() || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
     case "ats_board":
     case "feed":
     case "structured":
@@ -133,6 +134,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
+      if (fixtureJobsOn()) return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
       if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby") {
         const r = await fetchAtsBoards(boardsOf(s.id), c, depth);
         return { jobs: r.jobs, warnings: r.failures.map((f) => `${f.slug}: ${f.message}`) };

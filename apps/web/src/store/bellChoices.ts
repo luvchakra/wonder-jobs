@@ -1,6 +1,6 @@
 /**
  * Which kinds of notification this person keeps in their bell (Notifications & email → In the bell), for notices
- * raised in this tab. Read once a page load for signed-in accounts; until then, and in demo or local mode, all are kept.
+ * raised in this tab. Read once a page load for signed-in accounts; until then, and when signed out, all are kept.
  */
 import { topicOf, type NotifyPrefs } from "@/domain/notifications/prefs";
 import type { Notification } from "@/domain/career/types";

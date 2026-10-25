@@ -1,6 +1,6 @@
 "use client";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { AUTH_COOKIE, COOKIE_MAX_AGE, DEMO_COOKIE, USER_COOKIE, chunkNames, fromBase64Url, joinChunks, splitChunks, supabaseAuthEnv, toBase64Url } from "./config";
+import { AUTH_COOKIE, COOKIE_MAX_AGE, USER_COOKIE, chunkNames, fromBase64Url, joinChunks, splitChunks, supabaseAuthEnv, toBase64Url } from "./config";
 
 function readCookie(name: string): string | undefined {
   if (typeof document === "undefined") return undefined;
@@ -64,10 +64,6 @@ export function getSupabaseBrowser(): SupabaseClient | null {
 export function rememberUser(userId: string | null) {
   if (userId) {
     writeCookie(USER_COOKIE, userId);
-    // A real session always wins over demo mode (see getClientMode), but clear the demo cookie outright
-    // rather than just outrank it: leaving it around is how someone who tried the demo before signing up
-    // ends up confused later by any other code that still reads it directly.
-    deleteCookie(DEMO_COOKIE);
   } else {
     deleteCookie(USER_COOKIE);
   }
@@ -75,10 +71,6 @@ export function rememberUser(userId: string | null) {
 
 export function readUserCookie() {
   return readCookie(USER_COOKIE) ?? null;
-}
-
-export function readDemoCookie() {
-  return readCookie(DEMO_COOKIE) === "1";
 }
 
 /** Sign out everywhere: revoke the refresh token, drop cookies, forget this user's local copy. */

@@ -1,7 +1,6 @@
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { computeQuality } from "@/services/jobs/matching";
-import { COMPANIES } from "@/services/mock/catalog";
 import type { PublicJobTeaser } from "@/components/auth/JobTeaser";
 import { findJobById } from "./lookup";
 
@@ -32,13 +31,10 @@ export async function publicJobTeaser(next: string | null | undefined): Promise<
   const job = await findJobById(id).catch(() => null);
   if (!job) return null;
   const source = SOURCES_BY_ID[job.sourceId];
-  const company = COMPANIES.find((c) => c.name === job.company);
   return {
     title: job.title,
     company: job.company,
     companyDomain: job.companyDomain,
-    companyHq: company?.hq,
-    companySize: company?.size,
     location: job.location,
     workMode: job.workMode,
     salary: formatSalaryRange(job.salaryMin, job.salaryMax, job.currency),

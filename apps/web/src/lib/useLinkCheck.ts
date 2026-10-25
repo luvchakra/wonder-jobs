@@ -34,7 +34,7 @@ async function check(urls: string[]): Promise<Record<string, LinkCheck>> {
 
 /**
  * Checks that the jobs on screen still open on their own sites, a batch at a time, and takes the ones
- * that have closed off the list. Signed-in only (the demo's sample postings aren't real pages). A job
+ * that have closed off the list. Signed-in only. A job
  * whose link was found open in the last 6 hours isn't checked again; one that can't be told stays.
  */
 export function useLinkCheck(jobIds: string[]) {

@@ -9,8 +9,7 @@ const asked = new Set<string>();
 
 /**
  * Jobs the candidate saved or applied to can drop out of the search results; find any of these ids that
- * aren't known any more on the server (asked once per id a session) and put them back. Signed-in only —
- * demo jobs are generated and never stored.
+ * aren't known any more on the server (asked once per id a session) and put them back. Signed-in only.
  */
 export function useRecoverJobs(ids: (string | undefined)[]) {
   const known = useJobsStore((s) => s.jobs);

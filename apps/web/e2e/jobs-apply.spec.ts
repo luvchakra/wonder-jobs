@@ -2,12 +2,13 @@ import { test as base, expect, chromium, type BrowserContext, type Page, type Ro
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { openApp } from "./fixtures/sample";
 
 /**
  * JobsApply end to end (spec §118–§141). The WonderJobs helper (the real MV3 extension) is loaded
  * into Chromium; employers' pages are WonderJobs' own mock portals (`e2e/fixtures/portals`), served
  * by request interception — no real employer site is ever contacted and nothing is submitted
- * anywhere (§150). Demo mode: the sample candidate and the demo "Razorpay" application, whose
+ * anywhere (§150). The sample candidate (fixtures/sample.ts) and its "Razorpay" application, whose
  * Application Pack already has a résumé, cover letter and answers.
  *
  * The test build of the extension differs from the shipped one in exactly two ways, both written
@@ -22,9 +23,9 @@ const EXT_SRC = path.resolve(__dirname, "../../../extension");
 const CHROMIUM = process.env.PW_CHROMIUM_PATH || (fs.existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
 
 const JOB = "job_razorpay_spm";
-const APPLY = `/demo?next=/app/jobs/${JOB}/apply`;
+const APPLY = `/app/jobs/${JOB}/apply`;
 
-/** Which mock portal answers a URL. `employerPage` is what the demo job's own apply link serves in a given test. */
+/** Which mock portal answers a URL. `employerPage` is what the sample job's own apply link serves in a given test. */
 function portalFor(url: URL, employerPage: string): string | null {
   if (url.pathname === "/__portal/_submit.js") return "_submit.js";
   if (url.hostname === "evil-redirect.test") return "mock-evil.html";
@@ -100,7 +101,7 @@ const test = base.extend<Fixtures>({
 /* ------------------------------------------------------------------ steps */
 
 async function openApply(page: Page) {
-  await page.goto(APPLY);
+  await openApp(page, APPLY);
   await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -365,7 +366,8 @@ web.describe("JobsApply in WonderJobs", () => {
   });
 
   web("APPLY-001/002: Easy Apply on a computer where a résumé exists, explained where it doesn't; Apply opens the listing on a phone", async ({ page }, info) => {
-    await page.goto(`/demo?next=/app/jobs/${JOB}`);
+    // Neither job was posted on WonderJobs, so each applies on the employer's own site.
+    await openApp(page, "/app/jobs/job_airbnb_pm");
     if (info.project.name === "Mobile Chrome") {
       // Phones and tablets don't fill the employer's form: Apply opens the listing itself, in a new tab.
       const apply = page.getByRole("link", { name: "Apply", exact: true });
@@ -375,24 +377,29 @@ web.describe("JobsApply in WonderJobs", () => {
       await expect(page.getByRole("link", { name: "Easy Apply" })).toHaveCount(0);
       return;
     }
-    await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
-    // No extension in this browser: Easy Apply says it needs one, and offers the listing itself instead.
-    await expect(page.getByText("Easy Apply needs the WonderJobs browser extension.")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
     // Without any résumé, Easy Apply isn't offered at all; a customized résumé is the next step.
-    await page.goto("/app/jobs/job_airbnb_pm");
     await expect(page.getByRole("button", { name: "Generate Customized Resume" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("link", { name: "Easy Apply" })).toHaveCount(0);
+    // With one, it is — and with no extension in this browser it says it needs one, and offers the listing itself instead.
+    await page.goto("/app/jobs/job_microsoft_spm");
+    await page.getByRole("button", { name: "Generate Customized Resume" }).click();
+    await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Easy Apply needs the WonderJobs browser extension.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
+    // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and it asks for the résumé file.
+    await page.goto(`/app/jobs/${JOB}`);
+    await page.getByRole("button", { name: "Easy Apply", exact: true }).click();
+    await expect(page.getByRole("dialog").getByText("Easy Apply sends your résumé file.")).toBeVisible({ timeout: 10_000 });
   });
 
   web("GJ5 / APPLY-006: an application already submitted is flagged before anything starts", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs/job_google_pm/apply");
+    await openApp(page, "/app/jobs/job_google_pm/apply");
     await expect(page.getByRole("heading", { name: "Wonder found an existing application for this opportunity" })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("link", { name: "View application" })).toHaveAttribute("href", "/app/applications/app_google");
   });
 
   web("GJ4 / APPLY-072…077: guided mode — copy, download, open, then the candidate confirms", async ({ page }, info) => {
-    await page.goto(APPLY);
+    await openApp(page, APPLY);
     if (info.project.name === "Mobile Chrome") {
       // A phone applies the traditional way: one Start, then everything to copy.
       await expect(page.getByRole("heading", { name: /^Apply on .+ site$/ })).toBeVisible({ timeout: 30_000 });
@@ -425,7 +432,7 @@ web.describe("JobsApply in WonderJobs", () => {
 
   web("UI-003/005/007/008: the Apply page on a phone — no horizontal scroll, nothing about filling for you", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(APPLY);
+    await openApp(page, APPLY);
     await expect(page.getByRole("heading", { name: /^Apply on .+ site$/ })).toBeVisible({ timeout: 30_000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toHaveCount(0);

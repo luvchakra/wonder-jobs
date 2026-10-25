@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isServerStage } from "@/server/workflow/serverExecutors";
-import { SCHEDULE_TEMPLATES } from "@/services/mock/templates";
+import { SCHEDULE_TEMPLATES } from "@/domain/workflow/scheduleTemplates";
 import { buildFromTemplate, CADENCES, cadenceId, SEARCH_TEMPLATES } from "./searchTemplates";
 import type { ScheduledSearchInput } from "./simpleSchedule";
 

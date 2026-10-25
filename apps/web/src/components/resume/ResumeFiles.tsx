@@ -31,17 +31,6 @@ export function ResumeFiles() {
     void load();
   }, [load]);
 
-  if (status === "demo") {
-    return (
-      <section aria-labelledby="resume-files" className="rounded-[16px] border border-dashed border-line p-4">
-        <h2 id="resume-files" className="text-[17px] font-semibold text-ink">
-          Your résumé files
-        </h2>
-        <p className="mt-1 text-[13px] text-ink-3">Uploading your own résumé isn&apos;t part of the demo — it&apos;s stored with your account. Create an account to upload one and use it when you apply.</p>
-      </section>
-    );
-  }
-
   const onPick = async (file: File | undefined) => {
     if (!file) return;
     setBusy("upload");

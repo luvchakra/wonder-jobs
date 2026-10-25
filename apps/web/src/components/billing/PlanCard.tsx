@@ -12,7 +12,6 @@ import { formatMoney } from "@/domain/billing/format";
 import { discountTerm } from "@/domain/billing/discounts";
 import { formatDate } from "@/lib/format";
 import { useBillingStore } from "@/store/billing";
-import { useAuthStore } from "@/store/auth";
 
 async function post<T>(url: string, body: unknown = {}): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -27,15 +26,14 @@ async function post<T>(url: string, body: unknown = {}): Promise<T> {
  * this account's slice of the billing ledger. Paying happens on the provider's own page.
  */
 export function PlanCard({ returnState }: { returnState: string | null }) {
-  const mode = useAuthStore((s) => s.mode);
   const { data, status, load } = useBillingStore();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [waiting, setWaiting] = useState(returnState === "success");
 
   useEffect(() => {
-    if (mode !== "demo") void load(returnState !== null);
-  }, [mode, load, returnState]);
+    void load(returnState !== null);
+  }, [load, returnState]);
 
   // Back from checkout: the redirect proves nothing, so poll until the provider's webhook lands (or give up honestly).
   useEffect(() => {
@@ -53,14 +51,6 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     return () => window.clearInterval(id);
   }, [waiting, load]);
 
-  if (mode === "demo") {
-    return (
-      <Card id="plan" className="mt-4 scroll-mt-20">
-        <p className="text-[15px] font-semibold text-ink">Plan &amp; billing</p>
-        <p className="mt-1 text-[13px] text-ink-2">Billing isn&apos;t part of the demo. Create an account to see plans and pay with Razorpay or Stripe.</p>
-      </Card>
-    );
-  }
   if (status !== "ready" || !data) {
     return (
       <Card id="plan" className="mt-4 scroll-mt-20">
