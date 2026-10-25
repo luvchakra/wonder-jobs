@@ -4,7 +4,8 @@ import Link from "next/link";
 import { CheckCircle2, Download, ExternalLink, FileText, Puzzle, Trash2 } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
-import { APPLICATION_STATUSES, APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
+import { APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
+import { STATUS_CHOICES, statusChoiceOf } from "@/domain/applications/cardStatus";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { formatDate, formatSalaryRange } from "@/lib/format";
 import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
@@ -126,13 +127,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   {salary ? ` · ${salary}` : ""}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[13px]">
-                  {job && (
-                    <Link href={`/app/jobs/${job.id}`} className="font-medium text-brand-600 hover:underline">
-                      View job
-                    </Link>
-                  )}
-                  <Link href={`/app/applications/${app.id}/prepare`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
-                    <FileText className="size-3.5" aria-hidden /> Materials ({app.artifacts.length})
+                  {/* The job's page holds its materials now — the customized résumé to edit and download, Apply and the marks (owner, 2026-10-25). */}
+                  <Link href={`/app/jobs/${app.jobId}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+                    <FileText className="size-3.5" aria-hidden /> Job &amp; materials
                   </Link>
                   {job && (
                     <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
@@ -209,7 +206,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <Field label="Status" htmlFor="status">
               <Select
                 id="status"
-                value={app.status}
+                value={statusChoiceOf(app.status)}
                 onChange={(e) => {
                   const next = e.target.value as ApplicationStatus;
                   const prev = app.status;
@@ -219,12 +216,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   // (rather than a confirm-before dialog) keeps the one-click flow but makes the finality
                   // reversible, consistent with how Remove application already asks first.
                   const isFinal = next === "rejected" || next === "withdrawn";
-                  toast.success(`Marked ${APPLICATION_STATUS_META[next].label}`, undefined, isFinal ? { label: "Undo", onClick: () => setStatus(app.id, prev) } : undefined);
+                  toast.success(`Marked ${STATUS_CHOICES.find((c) => c.value === next)?.label ?? APPLICATION_STATUS_META[next].label}`, undefined, isFinal ? { label: "Undo", onClick: () => setStatus(app.id, prev) } : undefined);
                 }}
               >
-                {APPLICATION_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {APPLICATION_STATUS_META[s].label}
+                {/* As Pipeline groups them: the finer stages Wonder tracks itself show as theirs. */}
+                {STATUS_CHOICES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </Select>

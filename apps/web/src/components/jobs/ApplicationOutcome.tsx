@@ -2,7 +2,7 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { useApplicationsStore } from "@/store/applications";
-import { MARKED_COMPLETED, MARKED_WITHDRAWN } from "@/domain/applications/cardStatus";
+import { MARKED_APPLIED, MARKED_WITHDRAWN } from "@/domain/applications/cardStatus";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { track } from "@/lib/analytics";
@@ -24,27 +24,27 @@ export function useAsksOutcome(jobId: string): boolean {
 }
 
 /**
- * The candidate's own record of how this job's application went (owner, 2026-10-25): Mark as completed puts it in
+ * The candidate's own record of how this job's application went (owner, 2026-10-25): Mark as applied puts it in
  * Pipeline as Submitted, Mark as withdrawn as Withdrawn — their word, recorded on the application's timeline as theirs.
  * Nothing is sent anywhere. Shown once Apply was opened on the employer's site or a résumé was made for the job.
  */
 export function ApplicationOutcome({ job }: { job: CanonicalJob }) {
   const app = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === job.id));
-  const mark = (outcome: "completed" | "withdrawn") => {
+  const mark = (outcome: "applied" | "withdrawn") => {
     const store = useApplicationsStore.getState();
     const a = app ?? store.create(job.id, "saved");
-    if (outcome === "completed") store.setStatus(a.id, "submitted", { type: "submitted", title: MARKED_COMPLETED, detail: `Applied to ${job.company} yourself` });
+    if (outcome === "applied") store.setStatus(a.id, "submitted", { type: "submitted", title: MARKED_APPLIED, detail: `Applied to ${job.company} yourself` });
     else store.setStatus(a.id, "withdrawn", { type: "outcome", title: MARKED_WITHDRAWN, detail: `Not applying to ${job.company}` });
     track("application_marked", { jobId: job.id, outcome });
-    toast.success(outcome === "completed" ? "Marked as completed" : "Marked as withdrawn", "It's in Pipeline.");
+    toast.success(outcome === "applied" ? "Marked as applied" : "Marked as withdrawn", "It's in Pipeline.");
   };
   const done = app?.status === "submitted";
   const dropped = app?.status === "withdrawn";
   const btn = "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-[12px] border px-2 text-[12.5px] font-medium wj-press";
   return (
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="How did this application go?">
-      <button type="button" aria-pressed={done} onClick={() => !done && mark("completed")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "border-line bg-surface text-ink hover:bg-surface-2")}>
-        <CheckCircle2 className="size-4" aria-hidden /> {done ? "Completed" : "Mark as completed"}
+      <button type="button" aria-pressed={done} onClick={() => !done && mark("applied")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "border-line bg-surface text-ink hover:bg-surface-2")}>
+        <CheckCircle2 className="size-4" aria-hidden /> {done ? "Applied" : "Mark as applied"}
       </button>
       <button type="button" aria-pressed={dropped} onClick={() => !dropped && mark("withdrawn")} className={cn(btn, dropped ? "border-line-strong bg-bg-soft text-ink-2" : "border-line bg-surface text-ink hover:bg-surface-2")}>
         <XCircle className="size-4" aria-hidden /> {dropped ? "Withdrawn" : "Mark as withdrawn"}
