@@ -7,7 +7,7 @@ import { MENU_IDS, cleanMenu, defaultMenu, type MenuConfig, type MenuId } from "
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 
-const KEY = { account: "wj.accountmenu", you: "wj.youmenu" } as const satisfies Record<MenuId, string>;
+const KEY = { account: "wj.accountmenu", you: "wj.youmenu", find_kinds: "wj.findkindsmenu" } as const satisfies Record<MenuId, string>;
 
 /** A menu in force; today's default when none is saved or the store can't be read (menus keep working). */
 export async function loadMenu<M extends MenuId>(menu: M): Promise<MenuConfig<M>> {

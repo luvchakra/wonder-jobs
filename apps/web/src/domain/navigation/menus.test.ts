@@ -29,4 +29,16 @@ describe("menus a platform admin arranges", () => {
     const c = cleanMenu("account", { order: ["help", "automation", "account"], hidden: ["analytics"] });
     expect(arrangeMenu(["account", "automation", "analytics", "help"].map((id) => ({ id })), c).map((i) => i.id)).toEqual(["help", "automation", "account"]);
   });
+
+  it("the Find menu's coming-soon kinds follow UPCOMING_KINDS, in its order, and each can be hidden or shown", async () => {
+    const { UPCOMING_KINDS } = await import("@/domain/jobs/upcomingKinds");
+    expect(defaultMenu("find_kinds").order).toEqual(UPCOMING_KINDS.map((k) => k.id));
+    expect(defaultMenu("find_kinds").order).toEqual(["internships", "teaching", "cofounders", "talent_services", "therapists", "events_social", "buy_sell_rent"]);
+    // None is always shown: an admin can hide every one (Full Time Jobs and Part Time Jobs aren't in this list at all).
+    expect(cleanMenu("find_kinds", { hidden: defaultMenu("find_kinds").order }).hidden).toHaveLength(7);
+    const c = cleanMenu("find_kinds", { hidden: ["therapists", "nope"] });
+    expect(arrangeMenu([...UPCOMING_KINDS], c).map((k) => k.id)).not.toContain("therapists");
+    expect(arrangeMenu([...UPCOMING_KINDS], c)).toHaveLength(6);
+    expect(isMenuId("find_kinds")).toBe(true);
+  });
 });
