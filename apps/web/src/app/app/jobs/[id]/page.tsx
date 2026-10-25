@@ -101,8 +101,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const hasJob = !!job;
   // A posting saved before its HTML was cleaned (Arbeitnow escapes its markup) still reads as plain text.
   const description = !job ? "" : looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
-  // The description in another language, on the candidate's pick (`translate_job`); the original is never changed.
-  const translation = useJobTranslation({ id, description });
+  // The posting's own words (title, description, requirements, nice-to-haves) in another language, on the candidate's pick
+  // (`translate_job`); the original is never changed. Skills, places, the company and WonderJobs' own labels stay as they are.
+  const translation = useJobTranslation({ id, title: job?.title ?? "", description, requirements: job?.requirements ?? [], niceToHave: job?.niceToHave ?? [] });
   useEffect(() => {
     if (mode === "user" && hasJob) void checkOneJobLink(id);
   }, [mode, hasJob, id]);
@@ -125,6 +126,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
 
   const decision = describeDecision(job, match, quality, application);
+  const tx = translation.state?.status === "done" ? translation.state.texts : null;
+  const txLang = translation.state?.status === "done" ? translation.state.language : undefined;
+  const txDir = txLang === "ar" ? "rtl" : undefined;
+  const requirements = tx?.requirements ?? job.requirements;
+  const niceToHave = tx?.niceToHave ?? job.niceToHave;
   const longDescription = description.length > 280 || description.split("\n").length > 6;
   const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
   // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
@@ -132,7 +138,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     <div className="mx-auto max-w-5xl">
       <PageHeader
         back={{ href: "/app/jobs", label: "Jobs" }}
-        title={job.title}
+        title={tx?.title ?? job.title}
         actions={
           <div className="flex items-center gap-2">
             <ShareJobButton job={job} className="size-10 border border-line bg-surface text-ink-2" />
@@ -250,11 +256,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             </p>
           )}
           <p
-            lang={translation.state?.status === "done" ? translation.state.language : undefined}
-            dir={translation.state?.status === "done" && translation.state.language === "ar" ? "rtl" : undefined}
+            lang={txLang}
+            dir={txDir}
             className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6", translation.state?.status === "loading" && "opacity-60")}
           >
-            {translation.state?.status === "done" ? translation.state.text : description}
+            {tx?.description ?? description}
           </p>
           {longDescription && (
             <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
@@ -268,21 +274,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               <div className="mt-3 flex min-w-0 flex-col gap-3">
                 {hasRequirements && (
                   <Fold title="Requirements and skills">
-                    {job.requirements.length > 0 && (
-                      <ul className="flex flex-col gap-2">
-                        {job.requirements.map((r) => (
-                          <li key={r} className="flex items-start gap-2 text-[14px] text-ink-2">
+                    {requirements.length > 0 && (
+                      <ul lang={txLang} dir={txDir} className="flex flex-col gap-2">
+                        {requirements.map((r, i) => (
+                          <li key={i} className="flex items-start gap-2 text-[14px] text-ink-2">
                             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-hidden /> {r}
                           </li>
                         ))}
                       </ul>
                     )}
-                    {job.niceToHave.length > 0 && (
+                    {niceToHave.length > 0 && (
                       <>
                         <h3 className="mt-5 text-[13px] font-semibold text-ink-2">Nice to have</h3>
-                        <ul className="mt-1 flex flex-wrap gap-1.5">
-                          {job.niceToHave.map((n) => (
-                            <li key={n}>
+                        <ul lang={txLang} dir={txDir} className="mt-1 flex flex-wrap gap-1.5">
+                          {niceToHave.map((n, i) => (
+                            <li key={i}>
                               <Badge>{n}</Badge>
                             </li>
                           ))}
