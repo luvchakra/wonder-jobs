@@ -68,7 +68,8 @@ export function AutomationLevelSelector({ value: saved, onChange, className, com
                 <span className={cn("text-[14px] font-semibold", active ? "text-brand-700" : "text-ink")}>{meta.label}</span>
                 {meta.recommended && <Badge tone="brand">Recommended</Badge>}
               </span>
-              <span className="block text-[12px] text-ink-3">{active ? meta.description : meta.short}</span>
+              {/* Compact (phones): the one short line; the full description is for the wider layout. */}
+              <span className="block text-[12px] text-ink-3">{compact || !active ? meta.short : meta.description}</span>
             </span>
           </button>
         );
