@@ -1,11 +1,11 @@
 # Interview and follow-up reminders between Vercel's once-a-day runs (Vercel's plan allows daily crons only).
-# Calls /api/cron/reminders every 3 hours with the same CRON_SECRET Vercel's crons use; the route is idempotent,
+# Calls /api/cron/reminders every hour with the same CRON_SECRET Vercel's crons use; the route is idempotent,
 # so a missed or doubled call changes nothing. Needs the repository secret CRON_SECRET (same value as on Vercel).
 name: Reminders
 
 on:
   schedule:
-    - cron: "17 */3 * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:

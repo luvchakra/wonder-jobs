@@ -4,7 +4,7 @@
  * only when there's something to say — and idempotent through `career.reminded`, so it can run as often as
  * it's called: by the daily job and by the reminders check every few hours.
  */
-import { nudge } from "@/server/notifications/deliver";
+import { nudge, nudgeChosen } from "@/server/notifications/deliver";
 import { listTenantsWithDueReminders } from "./dueTenants";
 import { raiseDueReminders } from "./reminders";
 import { reminderLeads } from "@/domain/notifications/admin";
@@ -28,7 +28,8 @@ export async function runReminderPass(now: Date, maxTenants: number, deadline: n
       report.tenants++;
       report.raised += r.raised;
       // Already in the bell; a push, or an email when no push reached them (once per reminder).
-      for (const n of r.notices) await nudge(tenantId, n.notice, { email: { key: n.key } }, now);
+      // One the candidate set on the Calendar goes each way they picked.
+      for (const n of r.notices) await (n.channels ? nudgeChosen(tenantId, n.notice, n.channels, n.key, now) : nudge(tenantId, n.notice, { email: { key: n.key } }, now));
     } catch (e) {
       report.failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
     }

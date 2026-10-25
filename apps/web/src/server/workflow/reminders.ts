@@ -14,6 +14,7 @@ import { newId } from "@/lib/ids";
 import { readClientState, writeClientState } from "@/server/clientState";
 import { PERSIST_VERSION, type CareerDoc } from "./snapshot";
 import { bellFilter } from "@/server/notifications/prefs";
+import { cleanReminder, reminderLeadMs, type ReminderChannel } from "@/domain/calendar/reminder";
 
 const DAY = 86_400_000;
 /** How far ahead each kind is worth mentioning, and how long after it stays worth mentioning. */
@@ -33,14 +34,17 @@ export interface ReminderReport {
   tenantId: string;
   raised: number;
   /** What to nudge them with (each already in the bell), keyed once per reminder. */
-  notices: { notice: Pick<Notification, "category" | "title" | "body" | "href">; key: string }[];
+  /** `channels`: the ways the candidate picked for this one (Calendar); unset, their usual choices apply. */
+  notices: { notice: Pick<Notification, "category" | "title" | "body" | "href">; key: string; channels?: ReminderChannel[] }[];
 }
 
-export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "done" | "kind">, now: number, leads: Record<ApplicationFollowUp["kind"], number> = LEAD_TIME): boolean {
+export function isDueForReminder(followUp: Pick<ApplicationFollowUp, "dueAt" | "done" | "kind" | "remind">, now: number, leads: Record<ApplicationFollowUp["kind"], number> = LEAD_TIME): boolean {
   if (followUp.done) return false;
+  // The candidate's own reminder (Calendar) wins over the default lead; one with no ways picked is no reminder.
+  const lead = reminderLeadMs(followUp.remind, leads[followUp.kind]);
   const dueIn = new Date(followUp.dueAt).getTime() - now;
-  if (!Number.isFinite(dueIn)) return false;
-  return dueIn <= leads[followUp.kind] && dueIn >= -OVERDUE_GRACE;
+  if (lead === null || !Number.isFinite(dueIn)) return false;
+  return dueIn <= lead && dueIn >= -OVERDUE_GRACE;
 }
 
 /**
@@ -92,8 +96,10 @@ export async function raiseDueReminders(tenantId: string, now: Date = new Date()
               body: f.note,
               href: `/app/applications/${app.id}`,
             };
-      if (inBell(notification.category)) notifications.push(notification);
-      report.notices.push({ notice: { category: notification.category, title: notification.title, body: notification.body, href: notification.href }, key: `reminder-${f.id}` });
+      // Their own reminder: the bell only when they picked In app; otherwise their choice per kind.
+      const chosen = cleanReminder(f.remind)?.channels;
+      if (chosen ? chosen.includes("app") : inBell(notification.category)) notifications.push(notification);
+      report.notices.push({ notice: { category: notification.category, title: notification.title, body: notification.body, href: notification.href }, key: `reminder-${f.id}`, ...(chosen ? { channels: chosen } : {}) });
     }
   }
 

@@ -1,3 +1,4 @@
+import type { EventReminder } from "@/domain/calendar/reminder";
 import type { ApplicationPractice } from "./practice";
 import type { CanonicalJob } from "@/domain/jobs/types";
 export const APPLICATION_STATUSES = [
@@ -73,6 +74,8 @@ export interface ApplicationFollowUp {
   kind: "follow_up" | "interview" | "thank_you";
   note: string;
   done: boolean;
+  /** The candidate's own reminder for it (Calendar); unset, the default reminder applies. */
+  remind?: EventReminder;
 }
 
 export interface Application {
