@@ -7,6 +7,7 @@ import { AI_PROVIDERS } from "@/domain/ai/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/common/Card";
 import { PlanCard } from "@/components/billing/PlanCard";
+import { planBadgeLabel } from "@/domain/billing/plans";
 import { YourDataCard } from "@/components/privacy/YourDataCard";
 import { JobsLakeApiCard } from "@/components/account/JobsLakeApiCard";
 import { useBillingStore } from "@/store/billing";
@@ -50,7 +51,8 @@ function ProfileInner() {
   const email = useAuthStore((s) => s.email);
   const mode = useAuthStore((s) => s.mode);
   const billingReturn = params.get("billing") ?? (params.get("upgrade") === "1" ? "upgrade" : null);
-  const plan = useBillingStore((st) => st.data?.plan ?? "free");
+  // Until billing has loaded the plan is unknown — nothing is shown rather than "Free plan".
+  const billing = useBillingStore((st) => st.data);
   const displayName = dna.name || email?.split("@")[0] || "You";
   useSectionScroll();
   return (
@@ -62,7 +64,7 @@ function ProfileInner() {
           <p className="text-[17px] font-semibold text-ink">{displayName}</p>
           <p className="truncate text-[13px] text-ink-3">{dna.headline || email || (mode === "demo" ? "Sample candidate" : "")}</p>
           <div className="mt-1 flex gap-2">
-            <Badge tone={plan === "pro" ? "brand" : "neutral"}>{plan === "pro" ? "Pro" : "Free plan"}</Badge>
+            {billing && <Badge tone={billing.plan === "free" ? "neutral" : "brand"}>{planBadgeLabel(billing.plan, billing.plans)}</Badge>}
             <Badge>{AI_PROVIDERS[config.activeProvider].name}</Badge>
           </div>
         </div>
