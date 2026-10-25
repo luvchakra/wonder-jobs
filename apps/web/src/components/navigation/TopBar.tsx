@@ -269,7 +269,13 @@ export function TopBar() {
         </button>
         {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>
-      {onFind && hydrated && <FindModeMenu />}
+      {/* Phones: centred exactly between the avatar's right edge (16px gutter + the 46px avatar button) and the logo's
+          left edge (half of the centred logo, 26px high × 527/96 wide). From md up it sits at the start of the bar. */}
+      {onFind && hydrated && (
+        <div className="absolute inset-y-0 left-[62px] right-[calc(50%+71.35px)] flex items-center justify-center md:static md:order-first md:block">
+          <FindModeMenu />
+        </div>
+      )}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );
