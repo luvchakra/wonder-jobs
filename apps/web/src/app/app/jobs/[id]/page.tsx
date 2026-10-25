@@ -44,6 +44,9 @@ import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { RatingStars } from "@/components/jobs/RatingStars";
+import { DescriptionLanguage } from "@/components/jobs/DescriptionLanguage";
+import { useJobTranslation } from "@/lib/useJobTranslation";
+import { TRANSLATE_LANGUAGES } from "@/domain/jobs/translate";
 import { ApplicationOutcome, noteApplyOpened, useAsksOutcome } from "@/components/jobs/ApplicationOutcome";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -96,6 +99,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const closed = useJobsStore((s) => s.closed[id]);
   const mode = useAuthStore((s) => s.mode);
   const hasJob = !!job;
+  // A posting saved before its HTML was cleaned (Arbeitnow escapes its markup) still reads as plain text.
+  const description = !job ? "" : looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
+  // The description in another language, on the candidate's pick (`translate_job`); the original is never changed.
+  const translation = useJobTranslation({ id, description });
   useEffect(() => {
     if (mode === "user" && hasJob) void checkOneJobLink(id);
   }, [mode, hasJob, id]);
@@ -118,8 +125,6 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
 
   const decision = describeDecision(job, match, quality, application);
-  // A posting saved before its HTML was cleaned (Arbeitnow escapes its markup) still reads as plain text.
-  const description = looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
   const longDescription = description.length > 280 || description.split("\n").length > 6;
   const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
   // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
@@ -219,8 +224,38 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               <p className="text-sm text-ink-3">Wonder hasn&apos;t compared this role with your Career Profile yet — find opportunities to see how it fits.</p>
             )}
           </Fold>
-          <h2 className="mt-4 text-[15px] font-semibold text-ink">Job description</h2>
-          <p className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6")}>{description}</p>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <h2 className="text-[15px] font-semibold text-ink">Job description</h2>
+            {translation.allowed && <DescriptionLanguage value={translation.state?.language ?? null} busy={translation.state?.status === "loading"} onChange={(v) => void translation.pick(v)} />}
+          </div>
+          {translation.state && (
+            <p role="status" className={cn("mt-2 flex flex-wrap items-center gap-x-2 text-[12.5px]", translation.state.status === "error" ? "text-danger-600" : "text-ink-3")}>
+              {translation.state.status === "loading" && <>Translating to {TRANSLATE_LANGUAGES.find((l) => l.id === translation.state!.language)!.name}…</>}
+              {translation.state.status === "done" && (
+                <>
+                  <span>AI-translated to {TRANSLATE_LANGUAGES.find((l) => l.id === translation.state!.language)!.name}{translation.state.clipped ? " · the first part of a long posting" : ""}</span>
+                </>
+              )}
+              {translation.state.status === "error" && <span>{translation.state.message}</span>}
+              {translation.state.status === "error" && (
+                <button type="button" onClick={() => void translation.pick(translation.state!.language)} className="font-medium text-brand-600 hover:underline">
+                  Try again
+                </button>
+              )}
+              {translation.state.status !== "loading" && (
+                <button type="button" onClick={() => void translation.pick(null)} className="font-medium text-brand-600 hover:underline">
+                  Show original
+                </button>
+              )}
+            </p>
+          )}
+          <p
+            lang={translation.state?.status === "done" ? translation.state.language : undefined}
+            dir={translation.state?.status === "done" && translation.state.language === "ar" ? "rtl" : undefined}
+            className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6", translation.state?.status === "loading" && "opacity-60")}
+          >
+            {translation.state?.status === "done" ? translation.state.text : description}
+          </p>
           {longDescription && (
             <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
               {expanded ? "Less" : "More"}

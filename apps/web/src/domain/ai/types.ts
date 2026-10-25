@@ -90,7 +90,8 @@ export type AITask =
   | "cover_letter_generation"
   | "screening_answers"
   | "career_insights"
-  | "interview_practice";
+  | "interview_practice"
+  | "job_translation";
 
 export interface AIUsageRecord {
   id: string;

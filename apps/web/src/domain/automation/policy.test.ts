@@ -39,3 +39,18 @@ describe("drafts — 'Ask me' by default, since each is a paid AI call", () => {
     expect(migratePolicy({ generate_cover_letter: "off" }, 2).generate_cover_letter).toBe("off");
   });
 });
+
+describe("translate_job — translating a job description is an AI call the candidate's own pick asks for", () => {
+  it("is Ask me by default at every level, and only Off hides it", () => {
+    expect(CAPABILITY_META.translate_job).toMatchObject({ default: "ask", risk: "low", external: false });
+    for (const level of ["assist", "guided", "autonomous", "continuous"] as const) {
+      expect(resolveCapability("translate_job", defaultPolicy(), level)).toBe("ask");
+      expect(resolveCapability("translate_job", { ...defaultPolicy(), translate_job: "off" }, level)).toBe("skip");
+    }
+  });
+  it("a saved policy that predates it still gets the default, not a hidden menu", () => {
+    const { translate_job: _removed, ...older } = defaultPolicy();
+    void _removed;
+    expect(resolveCapability("translate_job", older as ReturnType<typeof defaultPolicy>, "guided")).toBe("ask");
+  });
+});

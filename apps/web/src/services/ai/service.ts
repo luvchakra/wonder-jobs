@@ -73,6 +73,11 @@ export interface AIService {
    * when no model is connected — there is no template for these, so nothing came back.
    */
   practice(input: GenerateArtifactInput & { kind: "interview_quiz" | "interview_flashcards" | "mock_interview" | "mock_review"; transcript?: string }): Promise<{ text: string; byModel: boolean }>;
+  /**
+   * A job description in another language (`translate_job`): the model's translation, shown as AI-translated.
+   * `byModel` is false when no model is connected — there is no template for a translation, so nothing came back.
+   */
+  translate(input: { text: string; language: string; runId?: string }): Promise<{ text: string; byModel: boolean }>;
   usage(): AIUsageRecord[];
 }
 
@@ -184,6 +189,13 @@ export class TemplateAIService implements AIService {
     const context = [contextFor(dna, job), historyFacts(dna), transcript !== undefined ? `\nINTERVIEW TRANSCRIPT SO FAR\n${transcript || "(none yet — ask the opening question)"}` : ""].filter(Boolean).join("\n");
     const res = await this.runFull("interview_practice", kind, context, "", runId, { extract: true, maxTokens: kind === "mock_interview" ? 300 : 4096 });
     return { text: res.text, byModel: !(res.model === "wonder-1" && res.text === "") };
+  }
+
+  async translate({ text, language, runId }: { text: string; language: string; runId?: string }) {
+    // The posting travels as data between tags (the server prompt says so); a tag lookalike inside it is dropped.
+    const context = `TARGET LANGUAGE: ${language}\n<posting>\n${text.replace(/<\/?posting>/gi, "")}\n</posting>`;
+    const res = await this.runFull("job_translation", "translate_job", context, "", runId, { extract: true, maxTokens: 6000 });
+    return { text: res.text.trim(), byModel: !(res.model === "wonder-1" && res.text === "") };
   }
 
   async generateResume({ job, dna, runId }: GenerateArtifactInput) {
