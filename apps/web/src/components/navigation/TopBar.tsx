@@ -10,6 +10,7 @@ import { WonderLogo } from "@/components/brand/WonderLogo";
 import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { computeApplicationAttention } from "@/domain/career/attention";
+import { actionsRequired } from "@/domain/digest/build";
 import { useNow } from "@/lib/motion";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
@@ -44,7 +45,12 @@ export function TopBar() {
   const applications = useApplicationsStore((s) => s.applications);
   // How many things need the candidate (Tasks' badge) — the same list the Tasks page shows; the clock coarsened to the hour.
   const hour = Math.floor(useNow() / 3_600_000);
-  const tasks = useMemo(() => computeApplicationAttention(applications, hour * 3_600_000).length, [applications, hour]);
+  const dna = useCareerStore((s) => s.dna);
+  const learnedSignals = useCareerStore((s) => s.learnedSignals);
+  const tasks = useMemo(
+    () => computeApplicationAttention(applications, hour * 3_600_000).length + actionsRequired({ dna, learnedSignals: learnedSignals ?? [], applications: Object.values(applications) }).filter((a) => a.href !== "/app/applications").length,
+    [applications, hour, dna, learnedSignals],
+  );
   const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
@@ -54,7 +60,6 @@ export function TopBar() {
   const mode = useAuthStore((s) => s.mode);
   const userId = useAuthStore((s) => s.userId);
   const email = useAuthStore((s) => s.email);
-  const dna = useCareerStore((s) => s.dna);
   const displayName = dna.name || email?.split("@")[0] || "You";
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);

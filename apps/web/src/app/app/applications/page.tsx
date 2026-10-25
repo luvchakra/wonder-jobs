@@ -72,7 +72,7 @@ function ApplicationsInner() {
   // A job only saved is in Saved, not the Pipeline: the Pipeline starts once an application is being prepared.
   const list = useMemo(() => Object.values(applications).filter((a) => a.status !== "saved").sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt)), [applications]);
   const counts = { all: list.length, in_progress: list.filter((a) => groupOf(a) === "in_progress").length, submitted: list.filter((a) => groupOf(a) === "submitted").length, interview: list.filter((a) => groupOf(a) === "interview").length, outcome: list.filter((a) => groupOf(a) === "outcome").length };
-  const visible = (tab === "all" ? list : list.filter((a) => groupOf(a) === tab)).filter((a) => !stage?.statuses || pickedTab || stage.statuses.includes(a.status));
+  const visible = (tab === "all" ? list : list.filter((a) => groupOf(a) === tab)).filter((a) => !stage || pickedTab || stage.reached(a));
   const candidates = Object.keys(saved).filter((id) => jobs[id] && !list.some((a) => a.jobId === id));
   // The stage shown: the one picked, else the first with anything in it.
   // The stage last opened, kept between visits; until one is picked, the first with anything in it.

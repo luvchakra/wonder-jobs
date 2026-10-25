@@ -140,7 +140,7 @@ describe("computeHomeAttention — applications needing attention", () => {
   it("flags materials ready for review", () => {
     const p = base();
     p.applications = { app_1: app({ status: "ready_for_review" }) };
-    expect(computeHomeAttention(p).applicationAttention).toEqual([{ applicationId: "app_1", jobId: "job_1", reason: "ready_for_review", label: "Materials ready for your review" }]);
+    expect(computeHomeAttention(p).applicationAttention).toEqual([{ applicationId: "app_1", jobId: "job_1", reason: "ready_for_review", label: "Materials ready for your review", action: { label: "Review", href: "/app/applications/app_1/prepare" } }]);
   });
 
   it("flags a recent employer response but not a stale one", () => {
@@ -276,5 +276,15 @@ describe("computeApplicationAttention", () => {
     const items = computeApplicationAttention(apps, NOW);
     expect(items.map((i) => i.reason)).toEqual(["follow_up_overdue", "ready_for_review"]);
     expect(items[0].dueAt).toBe(new Date(NOW - 2 * 86_400_000).toISOString());
+  });
+
+  it("asks nothing of an ended application, and asks for a reply to an offer", () => {
+    const at = new Date(NOW - 3_600_000).toISOString();
+    const apps = {
+      r: app({ id: "r", jobId: "j1", status: "rejected", events: [{ id: "e1", applicationId: "r", type: "outcome", at, title: "Rejected" }] }),
+      w: app({ id: "w", jobId: "j2", status: "withdrawn", followUps: [{ id: "f", applicationId: "w", dueAt: at, kind: "interview", note: "", done: false }] }),
+      o: app({ id: "o", jobId: "j3", status: "offer", events: [{ id: "e2", applicationId: "o", type: "outcome", at, title: "Offer received" }] }),
+    };
+    expect(computeApplicationAttention(apps, NOW).map((i) => [i.applicationId, i.reason, i.action.label])).toEqual([["o", "offer", "Open"]]);
   });
 });
