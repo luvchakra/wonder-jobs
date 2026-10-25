@@ -12,7 +12,7 @@ import type { CompanyBrief } from "@/domain/jobslake/companies";
 import { track } from "@/lib/analytics";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { Badge } from "@/components/common/Badge";
+import { Badge, type Tone } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";
 import { RatingStars } from "./RatingStars";
@@ -60,7 +60,7 @@ const MATCH_TONE: Record<JobMatch["fit"], string> = {
   low_fit: "bg-bg-soft text-ink-3",
 };
 
-export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare, brief }: { job: CanonicalJob; brief?: CompanyBrief | null; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
+export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare, brief, statusTone = "info" }: { job: CanonicalJob; brief?: CompanyBrief | null; statusTone?: Tone; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
   // The site a board's posting lives on ("naukri.com"), once its link has been followed.
   const origin = useJobsStore((s) => s.origins[job.id]);
@@ -169,7 +169,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
         )}
       </div>
       <div className="mt-1 flex items-center gap-2">
-        {status && <Badge tone="info">{status}</Badge>}
+        {status && <Badge tone={statusTone}>{status}</Badge>}
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}

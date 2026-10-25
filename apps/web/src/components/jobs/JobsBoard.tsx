@@ -23,6 +23,8 @@ import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
 import { jobBriefKey, useCompanyBriefs } from "./useCompanyBriefs";
 import type { CompanyBrief } from "@/domain/jobslake/companies";
+import { cardStatus } from "@/domain/applications/cardStatus";
+import type { Tone } from "@/components/common/Badge";
 
 const PAGE = 24;
 
@@ -254,7 +256,8 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
                   brief={briefs.get(jobBriefKey(jobs[id]))}
                   saved={!!saved[id]}
                   onToggleSave={toggleSave}
-                  status={closed[id] ? "posting closed" : appByJob.get(id) ? appByJob.get(id)!.status.replace(/_/g, " ") : removedFromPipeline[id] ? "Removed from Pipeline" : undefined}
+                  status={closed[id] ? "posting closed" : appByJob.get(id) ? cardStatus(appByJob.get(id)!).label : removedFromPipeline[id] ? "Removed from Pipeline" : undefined}
+                  statusTone={!closed[id] && appByJob.get(id) ? cardStatus(appByJob.get(id)!).tone : undefined}
                   compareSelected={compare.includes(id)}
                   onToggleCompare={compareMode ? toggleCompare : undefined}
                 />
@@ -303,6 +306,6 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
 }
 
 /** One card in the results, with its id-taking handlers bound here so the card itself can skip re-renders. */
-const JobResult = memo(function JobResult({ id, onToggleSave, onToggleCompare, ...card }: { id: string; job: CanonicalJob; match?: JobMatch; brief?: CompanyBrief | null; saved: boolean; status?: string; compareSelected: boolean; onToggleSave: (id: string) => void; onToggleCompare?: (id: string) => void }) {
+const JobResult = memo(function JobResult({ id, onToggleSave, onToggleCompare, ...card }: { id: string; job: CanonicalJob; match?: JobMatch; brief?: CompanyBrief | null; saved: boolean; status?: string; statusTone?: Tone; compareSelected: boolean; onToggleSave: (id: string) => void; onToggleCompare?: (id: string) => void }) {
   return <JobCard {...card} onToggleSave={() => onToggleSave(id)} onToggleCompare={onToggleCompare ? () => onToggleCompare(id) : undefined} />;
 });
