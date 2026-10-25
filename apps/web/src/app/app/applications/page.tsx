@@ -2,6 +2,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useUIStore } from "@/store/ui";
 import { cardStatus } from "@/domain/applications/cardStatus";
+import { MOMENTUM_META, MOMENTUM_ORDER, momentumOf, type Momentum } from "@/domain/applications/momentum";
+import { useNow } from "@/lib/motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
@@ -45,10 +47,6 @@ const STAGES: { group: StatusGroup; label: string }[] = [
   { group: "outcome", label: "Outcome" },
 ];
 
-function hasRecruiterResponse(a: Application) {
-  return a.events.some((e) => e.type === "recruiter_response");
-}
-
 function ApplicationsInner() {
   const params = useSearchParams();
   const router = useRouter();
@@ -77,6 +75,9 @@ function ApplicationsInner() {
   const setPickedStage = useUIStore((s) => s.setPipelineStage);
   // A status within the stage shown (Offer, Rejected…), until another stage is opened.
   const [statusFilter, setStatusFilter] = useState<{ stage: StatusGroup; status: ApplicationStatus } | null>(null);
+  // Applied: where each sent application actually stands (Promising, Follow up, Waiting, Gone quiet).
+  const [momentumFilter, setMomentumFilter] = useState<Momentum | null>(null);
+  const now = useNow();
   const shownStage = pickedStage ?? STAGES.find((st) => list.some((a) => groupOf(a) === st.group))?.group ?? "in_progress";
   const [removing, setRemoving] = useState<Application | null>(null);
   // Jobs that left the search results are found again; every application keeps its own copy of its job.
@@ -117,13 +118,30 @@ function ApplicationsInner() {
             </div>
             {(() => {
               const inStage = list.filter((a) => groupOf(a) === shownStage);
+              const label = STAGES.find((st) => st.group === shownStage)!.label;
+              // Applied is filtered by where each one stands, the other stages by status.
+              const applied = shownStage === "submitted";
+              const standing = new Map(applied ? inStage.map((a) => [a.id, momentumOf(a, now)] as const) : []);
+              const moments = MOMENTUM_ORDER.filter((m) => inStage.some((a) => standing.get(a.id)?.momentum === m));
+              const pickedMoment = applied && momentumFilter && moments.includes(momentumFilter) ? momentumFilter : null;
               // The statuses this stage holds now, with counts: a filter row only when there's more than one.
               const statuses = [...new Set(inStage.map((a) => a.status))];
-              const picked = statusFilter?.stage === shownStage && statuses.includes(statusFilter.status) ? statusFilter.status : null;
-              const items = picked ? inStage.filter((a) => a.status === picked) : inStage;
-              const label = STAGES.find((st) => st.group === shownStage)!.label;
-              const filters =
-                statuses.length > 1 ? (
+              const picked = !applied && statusFilter?.stage === shownStage && statuses.includes(statusFilter.status) ? statusFilter.status : null;
+              const items = pickedMoment ? inStage.filter((a) => standing.get(a.id)?.momentum === pickedMoment) : picked ? inStage.filter((a) => a.status === picked) : inStage;
+              const filters = applied ? (
+                moments.length > 1 ? (
+                  <div role="group" aria-label="Filter Applied by where each stands" className="-mt-1 mb-3 flex flex-wrap gap-1.5">
+                    <Chip active={!pickedMoment} isDefault onClick={() => setMomentumFilter(null)} className="h-8 px-3 text-[12px]">
+                      All {inStage.length}
+                    </Chip>
+                    {moments.map((m) => (
+                      <Chip key={m} active={pickedMoment === m} onClick={() => setMomentumFilter(pickedMoment === m ? null : m)} className="h-8 px-3 text-[12px]">
+                        {MOMENTUM_META[m].label} {inStage.filter((a) => standing.get(a.id)?.momentum === m).length}
+                      </Chip>
+                    ))}
+                  </div>
+                ) : null
+              ) : statuses.length > 1 ? (
                   <div role="group" aria-label={`Filter ${label} by status`} className="-mt-1 mb-3 flex flex-wrap gap-1.5">
                     <Chip active={!picked} isDefault onClick={() => setStatusFilter(null)} className="h-8 px-3 text-[12px]">
                       All {inStage.length}
@@ -143,14 +161,24 @@ function ApplicationsInner() {
                 <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3" aria-label={label}>
                   {items.map((a) => (
                     <li key={a.id} className="relative">
-                      <ApplicationCard application={a} job={jobs[a.jobId]} compact actionSpace={shownStage === "interview"} className="pr-11" />
+                      <ApplicationCard
+                        application={a}
+                        job={jobs[a.jobId]}
+                        compact
+                        actionSpace={shownStage === "interview" || standing.get(a.id)?.momentum === "follow_up"}
+                        badge={standing.get(a.id) ? MOMENTUM_META[standing.get(a.id)!.momentum] : undefined}
+                        note={standing.get(a.id)?.reason}
+                        className="pr-11"
+                      />
+                      {standing.get(a.id)?.momentum === "follow_up" && (
+                        <Button size="sm" href={`/app/applications/${a.id}?followup=1`} className="absolute bottom-3 right-3" aria-label={`Follow up with ${a.job?.company ?? jobs[a.jobId]?.company ?? "the employer"}`}>
+                          Follow up
+                        </Button>
+                      )}
                       {shownStage === "interview" && (
                         <Button size="sm" href={`/app/applications/${a.id}/interview`} className="absolute bottom-3 right-3" aria-label={`Prepare for the ${a.job?.company ?? jobs[a.jobId]?.company ?? ""} interview`}>
                           Prepare
                         </Button>
-                      )}
-                      {shownStage === "submitted" && hasRecruiterResponse(a) && (
-                        <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-info-100 px-2 py-0.5 text-[10px] font-medium text-info-600">Recruiter replied</span>
                       )}
                       <button type="button" onClick={() => setRemoving(a)} aria-label={`Remove ${a.job?.company ?? jobs[a.jobId]?.company ?? "this job"} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
                         <X className="size-4" aria-hidden />

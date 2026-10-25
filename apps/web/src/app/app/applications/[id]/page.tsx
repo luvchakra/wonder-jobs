@@ -81,8 +81,10 @@ const EVENT_FOR_STATUS: Partial<Record<ApplicationStatus, { type: "submitted" | 
   offer: { type: "outcome", title: "Offer received" },
 };
 
-export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ApplicationDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ followup?: string }> }) {
   const { id } = use(params);
+  // From Pipeline's Follow up: the follow-ups open, ready to log or schedule one.
+  const followUpOpen = use(searchParams).followup === "1";
   const router = useRouter();
   const app = useApplicationsStore((s) => s.applications[id]);
   const setStatus = useApplicationsStore((s) => s.setStatus);
@@ -267,7 +269,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               <p className="mt-2 pb-2 text-[12px] text-ink-3">With it on, Wonder&apos;s helper presses the employer&apos;s Submit once every required field holds your own answer. Applies when you apply with Wonder.</p>
             </Fold>
           )}
-          <Fold title="Follow-ups" hint={`${app.followUps.filter((f) => !f.done).length} to do`}>
+          <Fold title="Follow-ups" open={followUpOpen || undefined} hint={`${app.followUps.filter((f) => !f.done).length} to do`}>
             {app.followUps.length ? (
               <ul className="mb-3 flex flex-col gap-2">
                 {app.followUps.map((f) => (

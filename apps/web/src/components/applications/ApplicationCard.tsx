@@ -39,15 +39,16 @@ function progress(a: Application) {
   return a.nextAction ? `Next: ${a.nextAction}` : undefined;
 }
 
-/** `actionSpace`: the compact card leaves its bottom-right corner free for an action the list lays over it (e.g. Prepare). */
-export function ApplicationCard({ application, job, compact = false, actionSpace = false, className }: { application: Application; job?: CanonicalJob; compact?: boolean; actionSpace?: boolean; className?: string }) {
-  const meta = APPLICATION_STATUS_META[application.status];
+/** `actionSpace`: the compact card leaves its bottom-right corner free for an action the list lays over it (e.g. Prepare).
+ *  `badge` and `note` replace the status badge and the next-step line (Pipeline → Applied shows where each stands). */
+export function ApplicationCard({ application, job, compact = false, actionSpace = false, className, badge, note }: { application: Application; job?: CanonicalJob; compact?: boolean; actionSpace?: boolean; className?: string; badge?: { label: string; tone: (typeof APPLICATION_STATUS_META)[keyof typeof APPLICATION_STATUS_META]["tone"] }; note?: string }) {
+  const meta = badge ?? APPLICATION_STATUS_META[application.status];
   const href = applicationHref(application);
   const info: ApplicationJob | undefined = job ?? application.job;
   const company = info?.company ?? "Job details unavailable";
   const title = info?.title ?? "The posting couldn't be found again";
   const line = info ? facts(info) : "";
-  const step = progress(application);
+  const step = note ?? progress(application);
   const when = application.appliedAt ? `Applied ${relativeTime(application.appliedAt)}` : `Added ${relativeTime(application.createdAt)}`;
 
   if (compact) {
