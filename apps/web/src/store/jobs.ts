@@ -40,6 +40,9 @@ interface JobsState {
   linkOpenAt: Record<string, string>;
   markClosed: (jobId: string, reason: string) => void;
   markLinkOpen: (jobIds: string[]) => void;
+  /** When the candidate last opened a job's Apply on the employer's site (jobId → ISO time): its page then asks how it went. */
+  applyOpenedAt: Record<string, string>;
+  markApplyOpened: (jobId: string) => void;
   /** For a job board's posting (Adzuna): the site it lives on, as found by following its link (jobId → "naukri.com"). */
   origins: Record<string, string>;
   setOrigins: (byJob: Record<string, string>) => void;
@@ -158,6 +161,7 @@ export const useJobsStore = create<JobsState>()(
       rejected: {},
       closed: {},
       linkOpenAt: {},
+      applyOpenedAt: {},
       origins: {},
       markClosed: (jobId, reason) =>
         set((s) => {
@@ -170,6 +174,7 @@ export const useJobsStore = create<JobsState>()(
           return { closed, order: s.order.filter((id) => id !== jobId) };
         }),
       setOrigins: (byJob) => set((s) => ({ origins: { ...s.origins, ...byJob } })),
+      markApplyOpened: (id) => set((s) => ({ applyOpenedAt: { ...s.applyOpenedAt, [id]: new Date().toISOString() } })),
       markLinkOpen: (ids) => set((s) => ({ linkOpenAt: { ...s.linkOpenAt, ...Object.fromEntries(ids.map((id) => [id, new Date().toISOString()])) } })),
       filters: DEFAULT_FILTERS,
       sort: "best_match",
@@ -373,7 +378,7 @@ export const useJobsStore = create<JobsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
       // Demo/local: the catalog is regenerated deterministically, only decisions persist.
       // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
@@ -382,9 +387,10 @@ export const useJobsStore = create<JobsState>()(
         const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
         const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
         const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
+        const applyOpenedAt = Object.fromEntries(Object.entries(s.applyOpenedAt ?? {}).slice(-300));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
-        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },

@@ -44,6 +44,7 @@ import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 import { RatingStars } from "@/components/jobs/RatingStars";
+import { ApplicationOutcome, useAsksOutcome } from "@/components/jobs/ApplicationOutcome";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -74,6 +75,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Apply with Wonder needs a résumé to put in the form: this job's tailored one, a template résumé, or the candidate's own file.
   const { limits, plans } = usePlan();
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
+  const markApplyOpened = useJobsStore((s) => s.markApplyOpened);
+  const asksOutcome = useAsksOutcome(id);
   // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
   // get Apply, which opens the employer's listing.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
@@ -333,12 +336,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                       href={job.applyUrl}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() =>
+                      onClick={() => {
+                        markApplyOpened(job.id);
                         track("apply_listing_opened", {
                           jobId: job.id,
                           from: "no_extension",
-                        })
-                      }
+                        });
+                      }}
                       className="inline-flex items-center gap-0.5 font-medium text-brand-600 hover:underline"
                     >
                       go to the job listing <ExternalLink className="size-3" aria-hidden />
@@ -349,12 +353,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     href={job.applyUrl}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={() =>
+                    onClick={() => {
+                      markApplyOpened(job.id);
                       track("apply_listing_opened", {
                         jobId: job.id,
                         from: "desktop",
-                      })
-                    }
+                      });
+                    }}
                     className="inline-flex min-h-10 items-center justify-center gap-1 text-[13px] font-medium text-brand-600 hover:underline"
                   >
                     Go to the job listing <ExternalLink className="size-3.5" aria-hidden />
@@ -369,12 +374,13 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                   href={job.applyUrl}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() =>
+                  onClick={() => {
+                    markApplyOpened(job.id);
                     track("apply_listing_opened", {
                       jobId: job.id,
                       from: "mobile",
-                    })
-                  }
+                    });
+                  }}
                   className="wj-gradient-bg wj-press inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] px-5 text-[15px] font-medium text-white shadow-brand hover:brightness-105"
                 >
                   Apply <ExternalLink className="size-4" aria-hidden />
@@ -382,6 +388,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <CustomResumeButton job={job} />
               </>
             )}
+            {/* After Apply on the employer's site (or a résumé made for it): how did it go? */}
+            {asksOutcome && <ApplicationOutcome job={job} />}
           </Card>
         </aside>
       </div>

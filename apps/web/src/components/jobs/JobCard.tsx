@@ -92,7 +92,10 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               Apply
             </Link>
           ) : job.applyUrl ? (
-            <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => track("apply_listing_opened", { jobId: job.id, from: "card" })} className={APPLY_BTN}>
+            <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => {
+                useJobsStore.getState().markApplyOpened(job.id);
+                track("apply_listing_opened", { jobId: job.id, from: "card" });
+              }} className={APPLY_BTN}>
               Apply
               <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
             </a>

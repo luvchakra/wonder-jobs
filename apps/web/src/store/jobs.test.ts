@@ -154,6 +154,19 @@ describe("Hide Pipeline", () => {
   });
 });
 
+describe("Apply opened on the employer's site", () => {
+  it("is remembered with the account so the job's page asks how it went", () => {
+    const st = () => useJobsStore.getState();
+    st().markApplyOpened("job-1");
+    expect(st().applyOpenedAt["job-1"]).toBeTruthy();
+    const opts = useJobsStore.persist.getOptions();
+    const saved = opts.partialize!(st()) as { applyOpenedAt?: Record<string, string> };
+    expect(Object.keys(saved.applyOpenedAt ?? {})).toContain("job-1");
+    const fresh = { ...st(), applyOpenedAt: {} };
+    expect((opts.merge!(saved, fresh) as { applyOpenedAt: Record<string, string> }).applyOpenedAt["job-1"]).toBeTruthy();
+  });
+});
+
 describe("Saved's Easy Apply only", () => {
   it("is kept with the account, apart from Find's sources, and survives a mode switch", () => {
     const st = () => useJobsStore.getState();
