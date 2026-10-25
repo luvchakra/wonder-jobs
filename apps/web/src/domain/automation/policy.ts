@@ -13,6 +13,7 @@ export const CAPABILITIES = [
   "generate_resume",
   "generate_cover_letter",
   "interview_practice",
+  "translate_job",
   "save_jobs",
   "send_recruiter_message",
   "submit_application",
@@ -51,6 +52,10 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // Interview practice (owner, 2026-10-23): an AI call made only when the candidate presses Start on a job's
   // interview prep — that press is the "ask". Off hides the AI practice; nothing leaves WonderJobs.
   interview_practice: { key: "interview_practice", label: "Interview practice", description: "Write a practice test, flashcards and a mock interview for a job you're interviewing for, when you press Start.", risk: "low", external: false, default: "ask" },
+  // Translating a job description (owner, 2026-10-25): an AI call made only when the candidate picks a language on a
+  // job's page — that pick is the "ask". Off hides the language menu; the posting itself is never changed or stored
+  // translated, and a translation is shown as AI-translated beside a way back to the original.
+  translate_job: { key: "translate_job", label: "Translate job descriptions", description: "Translate a job's description into a language you pick, when you pick it.", risk: "low", external: false, default: "ask" },
   // Off by default: the saved list is the candidate's own picks (the owner found strong matches filling Saved unasked, 2026-10-09). Strong matches
   // are already one tap away under "Strong"; turning this on adds them to Saved automatically.
   save_jobs: { key: "save_jobs", label: "Save jobs", description: "Add strong matches to your saved list.", risk: "low", external: false, default: "off" },
