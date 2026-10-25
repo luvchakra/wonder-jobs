@@ -16,6 +16,8 @@ interface ApplicationsState {
   /** The candidate started on a job (opened its Apply, or made a résumé for it): into Pipeline → Preparing. Never moves an application back. */
   startPreparing: (jobId: string, title: string) => void;
   addEvent: (id: string, event: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
+  /** The candidate's count of interview rounds done (0–20); one more is noted on the timeline. */
+  setInterviewRounds: (id: string, rounds: number) => void;
   /** This application's "Submit for me" choice; undefined = account default. */
   setAutoSubmit: (id: string, choice: "on" | "off" | undefined) => void;
   addVersion: (id: string, type: ArtifactType, version: Omit<ArtifactVersion, "id" | "createdAt">) => ArtifactVersion;
@@ -93,6 +95,16 @@ export const useApplicationsStore = create<ApplicationsState>()(
           const { autoSubmit: _prev, ...rest } = a;
           void _prev;
           return { applications: { ...s.applications, [id]: choice ? { ...rest, autoSubmit: choice } : rest } };
+        }),
+      setInterviewRounds: (id, rounds) =>
+        set((s) => {
+          const a = s.applications[id];
+          if (!a) return s;
+          const n = Math.max(0, Math.min(20, Math.round(rounds)));
+          const was = a.interviewRounds ?? 0;
+          if (n === was) return s;
+          const events = n > was ? [...a.events, { id: newId("ev"), applicationId: id, type: "interview" as const, at: new Date().toISOString(), title: `Interview round ${n} done` }] : a.events;
+          return { applications: { ...s.applications, [id]: { ...a, interviewRounds: n, events } } };
         }),
       addEvent: (id, event) =>
         set((s) => {
