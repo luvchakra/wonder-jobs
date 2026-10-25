@@ -518,6 +518,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Search history and Hiring list redesigned (WJ-399)
 - ✅ Preparing cards show résumé and Apply status; Career Profile, Ask Wonder and Automation reworked (WJ-400)
 - ✅ Ask Wonder: saved-jobs count matches the Saved page (WJ-401)
+- ✅ Automation: compact level picker on phones (WJ-402)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
