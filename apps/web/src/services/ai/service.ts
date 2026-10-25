@@ -11,6 +11,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import { historyOf, sortExperience } from "@/domain/career/history";
 import type { CanonicalJob, Job } from "@/domain/jobs/types";
 import type { PromptId } from "@/domain/ai/prompts";
+import { parseTranslation, textsToTranslate, translationPrompt, type JobTexts } from "@/domain/jobs/translate";
 import { aiHistoryPrompt, rulesAsAIJson, type HistoryDraft } from "@/domain/career/historyImport";
 import { newId } from "@/lib/ids";
 
@@ -74,10 +75,12 @@ export interface AIService {
    */
   practice(input: GenerateArtifactInput & { kind: "interview_quiz" | "interview_flashcards" | "mock_interview" | "mock_review"; transcript?: string }): Promise<{ text: string; byModel: boolean }>;
   /**
-   * A job description in another language (`translate_job`): the model's translation, shown as AI-translated.
-   * `byModel` is false when no model is connected — there is no template for a translation, so nothing came back.
+   * A job's own words — title, description, requirements, nice-to-haves — in another language (`translate_job`): the
+   * model's translation, checked by `parseTranslation`, shown as AI-translated. `texts` is null when nothing usable came
+   * back; `byModel` is false when no model is connected — there is no template for a translation. `clipped`: a long
+   * description was translated in its first part only.
    */
-  translate(input: { text: string; language: string; runId?: string }): Promise<{ text: string; byModel: boolean }>;
+  translate(input: { job: JobTexts; language: string; runId?: string }): Promise<{ texts: JobTexts | null; byModel: boolean; clipped: boolean }>;
   usage(): AIUsageRecord[];
 }
 
@@ -191,11 +194,12 @@ export class TemplateAIService implements AIService {
     return { text: res.text, byModel: !(res.model === "wonder-1" && res.text === "") };
   }
 
-  async translate({ text, language, runId }: { text: string; language: string; runId?: string }) {
-    // The posting travels as data between tags (the server prompt says so); a tag lookalike inside it is dropped.
-    const context = `TARGET LANGUAGE: ${language}\n<posting>\n${text.replace(/<\/?posting>/gi, "")}\n</posting>`;
-    const res = await this.runFull("job_translation", "translate_job", context, "", runId, { extract: true, maxTokens: 6000 });
-    return { text: res.text.trim(), byModel: !(res.model === "wonder-1" && res.text === "") };
+  async translate({ job, language, runId }: { job: JobTexts; language: string; runId?: string }) {
+    // The posting travels as tagged data (the server prompt says so); tag lookalikes inside it are dropped, a long description clipped.
+    const { texts, clipped } = textsToTranslate(job);
+    const res = await this.runFull("job_translation", "translate_job", translationPrompt(language, texts), "", runId, { extract: true, maxTokens: 6000 });
+    // The reply is a proposal: application code decides what of it is shown.
+    return { texts: parseTranslation(res.text, texts), byModel: !(res.model === "wonder-1" && res.text === ""), clipped };
   }
 
   async generateResume({ job, dna, runId }: GenerateArtifactInput) {
