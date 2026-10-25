@@ -77,13 +77,14 @@ export function useAskWonder(q: string, onGo?: () => void) {
     const strong = jobsOrder.filter((id) => matches[id]?.fit === "strong" && !rejected[id] && !saved[id]).length;
     if (strong) out.push({ id: "strong", label: `Review ${strong} strong match${strong === 1 ? "" : "es"}`, hint: "Ranked by fit with your Career Profile", href: "/app/jobs?fit=strong", icon: Star, group: "Actions" });
     const started = new Set(apps.map((a) => a.jobId));
-    const toApply = Object.keys(saved).filter((id) => !started.has(id)).length;
+    // Only the saved jobs the Saved page can show (their details are known), not yet applied to — the same list.
+    const toApply = Object.keys(saved).filter((id) => jobs[id] && !started.has(id)).length;
     if (toApply) out.push({ id: "saved", label: `${toApply} saved job${toApply === 1 ? "" : "s"} to apply to`, href: "/app/saved", icon: Bookmark, group: "Actions" });
     const query = profileSearchQuery(dna);
     out.push({ id: "run", label: "Search again", hint: query ? `Every source, for “${query}”` : "Every source, for your Career Profile's role", href: "/app/jobs?refresh=1", icon: Play, group: "Actions" });
     if (!Object.keys(schedules).length) out.push({ id: "schedule", label: "Keep Wonder looking", hint: "A search that runs on its own and tells you what's worth it", href: "/app/automation/settings#scheduled", icon: Timer, group: "Actions" });
     return [...out, ...PRIMARY_NAV.map((n) => ({ id: n.href, label: n.label, href: n.href, icon: n.icon, group: "Go to" as const }))];
-  }, [applications, jobsOrder, matches, rejected, saved, dna, schedules, now]);
+  }, [applications, jobsOrder, jobs, matches, rejected, saved, dna, schedules, now]);
   const commands = useMemo<Command[]>(() => [...suggested.filter((c) => c.group === "Actions"), ...pages], [suggested, pages]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
