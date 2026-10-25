@@ -14,12 +14,15 @@ const STILL_PREPARING = new Set(["preparing", "ready_for_review", "saved"]);
 
 /**
  * Where an application's card leads: one already opened on the employer's site with Wonder goes back to that
- * application (Apply with Wonder picks up where it stopped and asks whether it was submitted); materials still
- * being worked on go to the Application Pack; anything past that to the application's own timeline.
+ * application (Apply with Wonder picks up where it stopped and asks whether it was submitted); one with an
+ * Application Pack drafted goes to the Pack; any other still being prepared goes to the job's page, with Apply,
+ * Generate Customized Resume and Mark as completed / withdrawn (owner, 2026-10-25); anything past that to the
+ * application's own timeline.
  */
-export function applicationHref(application: Pick<Application, "id" | "status" | "jobId" | "events">) {
+export function applicationHref(application: Pick<Application, "id" | "status" | "jobId" | "events"> & { artifacts?: Application["artifacts"] }) {
   if (!STILL_PREPARING.has(application.status)) return `/app/applications/${application.id}`;
-  return handedOffAt(application) ? `/app/jobs/${application.jobId}/apply` : `/app/applications/${application.id}/prepare`;
+  if (handedOffAt(application)) return `/app/jobs/${application.jobId}/apply`;
+  return application.artifacts?.length ? `/app/applications/${application.id}/prepare` : `/app/jobs/${application.jobId}`;
 }
 
 /** Location · work mode · pay, as the posting gave them — whatever it left out is left out here too. */
