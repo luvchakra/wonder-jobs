@@ -41,7 +41,20 @@ function progress(a: Application) {
 
 /** `actionSpace`: the compact card leaves its bottom-right corner free for an action the list lays over it (e.g. Prepare).
  *  `badge` and `note` replace the status badge and the next-step line (Pipeline → Applied shows where each stands). */
-export function ApplicationCard({ application, job, compact = false, actionSpace = false, className, badge, note }: { application: Application; job?: CanonicalJob; compact?: boolean; actionSpace?: boolean; className?: string; badge?: { label: string; tone: (typeof APPLICATION_STATUS_META)[keyof typeof APPLICATION_STATUS_META]["tone"] }; note?: string }) {
+/** Each status on the card as a small chip (e.g. "Résumé made", "Apply opened"). */
+function Tags({ tags }: { tags: string[] }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {tags.map((t) => (
+        <span key={t} className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-2">
+          {t}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function ApplicationCard({ application, job, compact = false, actionSpace = false, className, badge, note, tags = [] }: { application: Application; job?: CanonicalJob; compact?: boolean; actionSpace?: boolean; className?: string; badge?: { label: string; tone: (typeof APPLICATION_STATUS_META)[keyof typeof APPLICATION_STATUS_META]["tone"] }; note?: string; tags?: string[] }) {
   const meta = badge ?? APPLICATION_STATUS_META[application.status];
   const href = applicationHref(application);
   const info: ApplicationJob | undefined = job ?? application.job;
@@ -65,6 +78,7 @@ export function ApplicationCard({ application, job, compact = false, actionSpace
           </span>
         </div>
         {step && <span className="block truncate text-[11.5px] font-medium text-brand-700">{step}</span>}
+        {tags.length > 0 && <Tags tags={tags} />}
         <div className={cn("flex items-center justify-between gap-2", actionSpace && "min-h-9")}>
           <Badge tone={meta.tone} className="shrink-0">
             {meta.label}
@@ -91,6 +105,7 @@ export function ApplicationCard({ application, job, compact = false, actionSpace
           )}
         </span>
         {step && <span className="mt-1 block truncate text-[12px] font-medium text-brand-700">{step}</span>}
+        {tags.length > 0 && <span className="mt-1.5 block"><Tags tags={tags} /></span>}
       </span>
       <Badge tone={meta.tone} className="shrink-0">
         {meta.label}

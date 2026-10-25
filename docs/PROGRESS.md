@@ -516,6 +516,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ This week trimmed; Actions required moved to Needs attention (WJ-397)
 - ✅ Insights corrected; This week timeline and tappable charts; Needs attention merged; notification kinds; Refresh (WJ-398)
 - ✅ Search history and Hiring list redesigned (WJ-399)
+- ✅ Preparing cards show résumé and Apply status; Career Profile, Ask Wonder and Automation reworked (WJ-400)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

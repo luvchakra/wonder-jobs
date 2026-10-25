@@ -63,3 +63,17 @@ describe("buildImportPatch", () => {
     expect(p).toEqual({ yearsExperience: 7 });
   });
 });
+
+describe("a CV's target line", () => {
+  it("is offered as Role you want, with the latest role as the current one", async () => {
+    const { splitTargetHeadline, reviewResumeImport } = await import("./resumeImport");
+    const draft = { headline: "Target: Senior Director / SVP — IAM & AI", skills: [], evidence: { headline: "Target: Senior Director / SVP — IAM & AI" } };
+    const out = splitTargetHeadline(draft, "Director, IAM — Acme");
+    expect(out.careerGoal).toBe("Senior Director / SVP — IAM & AI");
+    expect(out.headline).toBe("Director, IAM — Acme");
+    expect(reviewResumeImport(out, {}).map((r) => r.field)).toEqual(["careerGoal", "headline"]);
+    expect(splitTargetHeadline(draft).headline).toBeUndefined();
+    const plain = { headline: "Director, IAM", evidence: { headline: "Director, IAM" } };
+    expect(splitTargetHeadline(plain)).toBe(plain);
+  });
+});

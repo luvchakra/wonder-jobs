@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, ChevronDown, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileUp, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -118,30 +117,41 @@ export default function CareerDNAPage() {
           Save changes
         </Button>
       </div>
-      <div className="flex flex-col gap-4">
-        {/* Two questions, each asked once: who you are today (what jobs are matched against) and
-            what you're looking for (what Wonder searches for). Everything else is one tap down. */}
-        <Card className="p-0">
-          <div className="px-5 pb-5 pt-4">
-            <h2 className="text-[15px] font-semibold text-ink">What you&apos;re looking for</h2>
-            <p className="mb-3 text-[12px] text-ink-3">What Wonder searches for. Say the role and its field.</p>
-            <Field label="Role you want" htmlFor="goal" hint="e.g. “Director, identity and access management”.">
+      <div className="flex flex-col gap-3">
+        {/* The quickest way to fill or refresh the profile: a résumé, read and offered field by field (nothing is
+            applied until ticked; Save keeps it). Open by default until the profile has a role and skills. */}
+        <details open={!!fillFrom || !draft.careerGoal.trim() || draft.skills.length < 3} className="group rounded-[18px] border border-brand-200 bg-gradient-to-br from-brand-50 to-surface">
+          <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600 text-white">
+              <FileUp className="size-4" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14.5px] font-semibold text-ink">Update from your résumé</span>
+              <span className="block truncate text-[12px] text-ink-3">Upload a PDF or Word file — Wonder fills your role, skills, history and contact; you tick what to keep</span>
+            </span>
+            <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="px-4 pb-4">
+            <ResumeImport
+              current={draft}
+              history={draft.history ?? {}}
+              onApply={(patch) => {
+                setDraft((d) => ({ ...d, ...patch }));
+                setImportRev((n) => n + 1);
+              }}
+              fileId={fillFrom}
+              onFileHandled={() => router.replace("/app/career-dna")}
+            />
+          </div>
+        </details>
+
+        {/* Who you are and what you want, in one card: every job is matched against this and searched for with it. */}
+        <Card padding="sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Role you want" htmlFor="goal" hint="What Wonder searches for, e.g. “Director, identity and access management”.">
               <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />
             </Field>
-          </div>
-          <MoreRow title="Other roles you'd take" hint={draft.careerGoal.trim() ? "Search as each of them with one tap" : "Add roles once you've named the one you want"} last>
-            <RolesCard bare />
-          </MoreRow>
-        </Card>
-
-        <Card>
-          <h2 className="text-[15px] font-semibold text-ink">About you</h2>
-          <p className="mb-4 text-[12px] text-ink-3">Who you are today. Every job is matched against this.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Name" htmlFor="name">
-              <Input id="name" value={draft.name} onChange={(e) => set("name", e.target.value)} />
-            </Field>
-            <Field label="Current role" htmlFor="headline" hint="Your title and field now, e.g. “Senior Manager — Identity & Access Management”.">
+            <Field label="Current role" htmlFor="headline">
               <Input id="headline" value={draft.headline} onChange={(e) => set("headline", e.target.value)} />
               {targetInHeadline && (
                 <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
@@ -159,6 +169,9 @@ export default function CareerDNAPage() {
                 </p>
               )}
             </Field>
+            <Field label="Name" htmlFor="name">
+              <Input id="name" value={draft.name} onChange={(e) => set("name", e.target.value)} />
+            </Field>
             <Field label="Years of experience" htmlFor="yoe">
               <Input
                 id="yoe"
@@ -172,13 +185,14 @@ export default function CareerDNAPage() {
             </Field>
           </div>
 
-          <div className="mt-5 border-t border-line pt-4">
-            <p className="text-[13px] font-medium text-ink-2">Skills</p>
-            <p className="mb-2 text-[12px] text-ink-3">Tap a skill to mark it a strength — strengths weigh more in matching.</p>
-            <ul className="flex flex-wrap gap-2">
+          <div className="mt-4 border-t border-line pt-3">
+            <p className="text-[13px] font-medium text-ink-2">
+              Skills <span className="font-normal text-ink-3">· tap one to mark it a strength (weighs more)</span>
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
               {draft.skills.map((s, i) => (
                 <li key={s.name} className={cn("inline-flex items-center rounded-full border text-[13px]", s.level >= 4 ? "border-brand-400 bg-brand-50" : "border-line bg-surface")}>
-                  <button type="button" aria-pressed={s.level >= 4} aria-label={`${s.name}${s.level >= 4 ? ", a strength" : ""}`} onClick={() => set("skills", draft.skills.map((x, j) => (j === i ? { ...x, level: (x.level >= 4 ? 3 : 5) as 3 | 5 } : x)))} className={cn("py-1.5 pl-3 pr-1 font-medium", s.level >= 4 ? "text-brand-700" : "text-ink")}>
+                  <button type="button" aria-pressed={s.level >= 4} aria-label={`${s.name}${s.level >= 4 ? ", a strength" : ""}`} onClick={() => set("skills", draft.skills.map((x, j) => (j === i ? { ...x, level: (x.level >= 4 ? 3 : 5) as 3 | 5 } : x)))} className={cn("py-1 pl-3 pr-1 font-medium", s.level >= 4 ? "text-brand-700" : "text-ink")}>
                     {s.name}
                   </button>
                   <button type="button" aria-label={`Remove ${s.name}`} onClick={() => set("skills", draft.skills.filter((_, j) => j !== i))} className="flex size-7 items-center justify-center rounded-full text-ink-4 hover:text-ink">
@@ -196,13 +210,14 @@ export default function CareerDNAPage() {
                     setNewSkill("");
                   }}
                 >
-                  <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-10 w-40 rounded-full" />
+                  <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-9 w-36 rounded-full" />
                 </form>
               </li>
             </ul>
           </div>
         </Card>
 
+        {/* Everything else, one tap down. */}
         <Card className="p-0">
           <MissingRoles
             history={historyOf(draft)}
@@ -211,13 +226,8 @@ export default function CareerDNAPage() {
               setImportRev((n) => n + 1);
             }}
           />
-          <MoreRow title="Fill from your résumé" hint="Reads roles, education and contact from a CV — you tick what to keep" open={!!fillFrom}>
-            <p className="mb-3 text-[12px] text-ink-3">Every suggestion shows the words it came from, and nothing is applied until you tick it. To keep a résumé for applying, <Link href="/app/resume-studio" className="text-brand-600 underline underline-offset-2">upload it under Résumés</Link>.</p>
-            <ResumeImport current={draft} history={draft.history ?? {}} onApply={(patch) => {
-                setDraft((d) => ({ ...d, ...patch }));
-                setImportRev((n) => n + 1);
-              }}
-              fileId={fillFrom} onFileHandled={() => router.replace("/app/career-dna")} />
+          <MoreRow title="Other roles you'd take" hint={draft.careerGoal.trim() ? "Search as each of them with one tap" : "Add roles once you've named the one you want"}>
+            <RolesCard bare />
           </MoreRow>
           <MoreRow title="Work history, education and contact" hint={`${historyOf(draft).experience.length} roles — what résumés are built from`}>
             <CareerHistoryEditor key={`${dna.updatedAt}-${importRev}`} value={historyOf(draft)} onChange={(h) => set("history", h)} />
@@ -231,7 +241,7 @@ export default function CareerDNAPage() {
               ))}
             </div>
           </MoreRow>
-          <MoreRow title="Strengths and growth areas">
+          <MoreRow title="Strengths and growth areas" hint="Used in your résumés and interview prep">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Strengths (one per line)" htmlFor="str">
                 <Textarea id="str" value={draft.strengths.join("\n")} onChange={(e) => set("strengths", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean))} />
@@ -244,17 +254,10 @@ export default function CareerDNAPage() {
           <MoreRow title="Application answers" hint="Salary, notice period, employment status — filled on forms for you">
             <RememberedAnswers />
           </MoreRow>
-          <MoreRow title="What Wonder has learned" hint="From the jobs you marked not for me">
+          <MoreRow title="What Wonder has learned" hint="From the jobs you marked not for me" last>
             <LearnedPreferences />
           </MoreRow>
-          <MoreRow title="Where this profile came from" last>
-            <p className="text-[12px] text-ink-3">
-              What you type here and what you choose to bring in from a résumé — last changed {formatDate(dna.updatedAt)}. Work-history entries show where each came from. LinkedIn isn&apos;t connected: it has no public API, so nothing here comes from there.
-            </p>
-          </MoreRow>
         </Card>
-
-        <p className="text-[12px] text-ink-4">Wonder may suggest changes here after a run, but never edits your Career Profile unless you allow it in Automation.</p>
       </div>
     </div>
   );
@@ -264,14 +267,14 @@ export default function CareerDNAPage() {
 function MoreRow({ title, hint, open, last, children }: { title: string; hint?: string; open?: boolean; last?: boolean; children: React.ReactNode }) {
   return (
     <details open={open} className={cn("group", !last && "border-b border-line")}>
-      <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold text-ink">{title}</span>
+          <span className="block text-[14px] font-semibold text-ink">{title}</span>
           {hint && <span className="block truncate text-[12px] text-ink-3">{hint}</span>}
         </span>
         <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <div className="px-5 pb-5">{children}</div>
+      <div className="px-4 pb-4">{children}</div>
     </details>
   );
 }

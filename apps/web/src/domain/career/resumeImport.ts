@@ -1,4 +1,5 @@
 import type { CareerDNA } from "./types";
+import { stripHeadlineLabel } from "@/services/jobs/normalize";
 
 /**
  * Reviewing a resume import against what the Career Profile already says (outcome spec §33–35:
@@ -11,9 +12,11 @@ import type { CareerDNA } from "./types";
  * - A list field (skills, industries, locations) only ever **adds** the items that are missing —
  *   existing items (and a skill's self-rated level) are never removed or changed by an import.
  */
-export type ImportField = "name" | "headline" | "yearsExperience" | "seniority" | "skills" | "industries" | "preferredLocations";
+export type ImportField = "careerGoal" | "name" | "headline" | "yearsExperience" | "seniority" | "skills" | "industries" | "preferredLocations";
 
 export interface ResumeImportDraft {
+  /** Role you want: a CV's "Target: …" / "Objective: …" line (`splitTargetHeadline`). */
+  careerGoal?: string;
   name?: string;
   headline?: string;
   yearsExperience?: number;
@@ -38,9 +41,9 @@ export interface ImportFieldReview {
 
 export type CurrentProfile = Partial<Pick<CareerDNA, ImportField>>;
 
-export const IMPORT_FIELD_ORDER: ImportField[] = ["name", "headline", "yearsExperience", "seniority", "skills", "industries", "preferredLocations"];
+export const IMPORT_FIELD_ORDER: ImportField[] = ["careerGoal", "name", "headline", "yearsExperience", "seniority", "skills", "industries", "preferredLocations"];
 
-const SCALARS = ["name", "headline", "yearsExperience", "seniority"] as const;
+const SCALARS = ["careerGoal", "name", "headline", "yearsExperience", "seniority"] as const;
 const norm = (s: string) => s.trim().toLowerCase();
 
 function scalarText(field: (typeof SCALARS)[number], v: unknown): string {
@@ -96,4 +99,24 @@ export function buildImportPatch(draft: ResumeImportDraft, current: CurrentProfi
     }
   }
   return patch;
+}
+
+/**
+ * A CV headline that names where the candidate is heading ("Target: Senior Director / SVP — IAM") is their Role you
+ * want, not their role today: it's offered as Role you want, and Current role becomes the latest role in the CV's
+ * work history ("Director — Acme"), or is left out when the CV has none.
+ */
+export function splitTargetHeadline(draft: ResumeImportDraft, latestRole?: string): ResumeImportDraft {
+  const head = draft.headline?.trim();
+  if (!head || stripHeadlineLabel(head) === head) return draft;
+  const evidence = { ...draft.evidence, careerGoal: draft.evidence.headline ?? head };
+  const out: ResumeImportDraft = { ...draft, careerGoal: stripHeadlineLabel(head), evidence };
+  if (latestRole?.trim()) {
+    out.headline = latestRole.trim();
+    evidence.headline = `Latest role in the work history: ${latestRole.trim()}`;
+  } else {
+    delete out.headline;
+    delete evidence.headline;
+  }
+  return out;
 }
