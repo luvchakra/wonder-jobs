@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Bookmark, CheckCircle2, ExternalLink, MapPin, Clock, Wallet } from "lucide-react";
@@ -8,7 +8,7 @@ import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
-import { WORK_MODE_LABEL } from "@/domain/jobs/types";
+import { WORK_MODE_LABEL, readableJobId } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/services/mock/catalog";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
@@ -76,6 +76,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const { limits, plans } = usePlan();
   const canApply = limits.applyWithWonder && (!!application?.artifacts.some((a) => a.type === "resume" && a.versions.length) || hasSavedResume || hasUploadedResume);
   const asksOutcome = useAsksOutcome(id);
+  // The posting's id at its source: the canonical sighting's, else the first one that has a readable id.
+  const sourceJobRef = useMemo(() => {
+    const sights = job?.lake?.sightings ?? [];
+    const pick = [...sights].sort((a, b) => Number(b.canonical) - Number(a.canonical)).find((x) => readableJobId(x.sourceJobId));
+    return pick ? { id: readableJobId(pick.sourceJobId)!, source: pick.sourceName } : null;
+  }, [job?.lake?.sightings]);
   // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
   // get Apply, which opens the employer's listing.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
@@ -293,6 +299,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               </div>
               {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so. */}
               {/(…|\.\.\.)\s*$/.test(description) && <p className="mt-3 text-[13px] text-ink-3">This is the part the source shares.</p>}
+              {/* The source's own id for this posting (from the sighting JobsLake used), to quote to the employer or find it again there. */}
+              {sourceJobRef && (
+                <p className="mt-2 text-[12.5px] text-ink-3">
+                  Job ID <span className="select-all font-medium text-ink-2">{sourceJobRef.id}</span> on {sourceJobRef.source}
+                </p>
+              )}
               {/* The posting on its own site, always one tap away — on the same line as Not for me. */}
               <div className="mt-1 flex items-center justify-between gap-2">
                 {job.applyUrl ? (
