@@ -16,6 +16,7 @@ import { Badge, type Tone } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";
 import { RatingStars } from "./RatingStars";
+import { noteApplyOpened } from "./ApplicationOutcome";
 import { jdSummary } from "@/domain/jobs/jdSummary";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
@@ -93,7 +94,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             </Link>
           ) : job.applyUrl ? (
             <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => {
-                useJobsStore.getState().markApplyOpened(job.id);
+                noteApplyOpened(job.id);
                 track("apply_listing_opened", { jobId: job.id, from: "card" });
               }} className={APPLY_BTN}>
               Apply

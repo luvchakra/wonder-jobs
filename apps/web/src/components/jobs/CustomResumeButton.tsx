@@ -8,6 +8,7 @@ import { getTemplate, templateForResume } from "@/domain/resume/templates";
 import { generateResume, renderSaved, type GeneratedResume, type GenerationStage } from "@/services/resume/generate";
 import { downloadDocx, resumeFilename } from "@/services/resume/download";
 import { useCareerStore } from "@/store/career";
+import { useApplicationsStore } from "@/store/applications";
 import { useAutomationStore } from "@/store/automation";
 import { usePlan } from "@/lib/usePlan";
 import { track } from "@/lib/analytics";
@@ -80,6 +81,8 @@ export function CustomResumeButton({ job, primary = false }: { job: CanonicalJob
         pageCount: result.layout.pages.length,
         target: { jobId: job.id, title: job.title, company: job.company },
       });
+      // Made a résumé for it: the job is now one the candidate is preparing.
+      useApplicationsStore.getState().startPreparing(job.id, "Customized résumé made");
       track("custom_resume_generated", {
         jobId: job.id,
         template: result.template.id,

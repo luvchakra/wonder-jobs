@@ -13,6 +13,8 @@ interface ApplicationsState {
   applications: Record<string, Application>;
   create: (jobId: string, status?: ApplicationStatus) => Application;
   setStatus: (id: string, status: ApplicationStatus, event?: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
+  /** The candidate started on a job (opened its Apply, or made a résumé for it): into Pipeline → Preparing. Never moves an application back. */
+  startPreparing: (jobId: string, title: string) => void;
   addEvent: (id: string, event: Omit<ApplicationEvent, "id" | "applicationId" | "at">) => void;
   /** This application's "Submit for me" choice; undefined = account default. */
   setAutoSubmit: (id: string, choice: "on" | "off" | undefined) => void;
@@ -69,6 +71,12 @@ export const useApplicationsStore = create<ApplicationsState>()(
         // Applying is the strongest evidence of what the candidate wants: learned like saving.
         const job = status === "submitted" ? useJobsStore.getState().jobs[get().applications[id]?.jobId ?? ""] : undefined;
         if (job) useCareerStore.getState().recordInteraction(interactionFor(job, "applied"));
+      },
+      startPreparing: (jobId, title) => {
+        const a = Object.values(get().applications).find((x) => x.jobId === jobId);
+        if (a && a.status !== "saved") return;
+        const app = a ?? get().create(jobId, "preparing");
+        get().setStatus(app.id, "preparing", { type: "prepared", title });
       },
       adopt: (app) =>
         set((s) => (s.applications[app.id] || Object.values(s.applications).some((a) => a.jobId === app.jobId) ? s : { applications: { ...s.applications, [app.id]: app } })),
