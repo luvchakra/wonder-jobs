@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Bell, Bot, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, Sparkles, User, UserPlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
@@ -24,6 +25,7 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { RunningIndicator } from "./RunningIndicator";
+import { FindModeMenu } from "./FindModeMenu";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 
@@ -51,6 +53,8 @@ export function TopBar() {
     () => computeApplicationAttention(applications, hour * 3_600_000).length + actionsRequired({ dna, learnedSignals: learnedSignals ?? [], applications: Object.values(applications) }).filter((a) => a.href !== "/app/applications").length,
     [applications, hour, dna, learnedSignals],
   );
+  // Full Time / Part Time is a choice on Find only: its menu sits beside the avatar there.
+  const onFind = usePathname() === "/app/jobs";
   const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
@@ -265,6 +269,7 @@ export function TopBar() {
         </button>
         {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>
+      {onFind && hydrated && <FindModeMenu />}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );
