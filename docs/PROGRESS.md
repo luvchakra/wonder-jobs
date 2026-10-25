@@ -506,6 +506,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Résumé card: Edit, use-it note, Mark as completed / withdrawn (WJ-387)
 - ✅ Job card: Completed / Withdrawn / stage badge (WJ-388)
 - ✅ Apply/résumé → Preparing; Pipeline remembers its stage; Saved shows status (WJ-389)
+- ✅ Mark as applied; Status follows Pipeline; Job & materials → job page (WJ-390)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
