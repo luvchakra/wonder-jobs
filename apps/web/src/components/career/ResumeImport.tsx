@@ -5,7 +5,8 @@ import type { CareerDNA } from "@/domain/career/types";
 import type { CareerHistory } from "@/domain/career/history";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { aiHistoryReader, buildHistoryPatch, groundAIHistory, historyDraftSize, mergeHistoryDrafts, reviewHistoryImport, type HistoryDraft } from "@/domain/career/historyImport";
-import { buildImportPatch, reviewResumeImport, type CurrentProfile, type ImportField, type ResumeImportDraft } from "@/domain/career/resumeImport";
+import { sortExperience } from "@/domain/career/history";
+import { buildImportPatch, reviewResumeImport, splitTargetHeadline, type CurrentProfile, type ImportField, type ResumeImportDraft } from "@/domain/career/resumeImport";
 import { useAIStore } from "@/store/ai";
 import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
@@ -21,6 +22,7 @@ import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 
 const LABELS: Record<ImportField, string> = {
+  careerGoal: "Role you want",
   name: "Name",
   headline: "Headline",
   yearsExperience: "Years of experience",
@@ -102,9 +104,12 @@ export function ResumeImport({ current, history, onApply, tone = "light", label 
       return;
     }
     setError(null);
-    setDraft(data.draft);
+    // "Target: …" is the role wanted; the CV's latest role is the one held today.
+    const latest = data.history ? sortExperience(data.history.experience)[0] : undefined;
+    const parsed = splitTargetHeadline(data.draft, latest ? `${latest.title}${latest.employer ? ` — ${latest.employer}` : ""}` : undefined);
+    setDraft(parsed);
     setSource(data.filename ?? from);
-    const review = reviewResumeImport(data.draft, current);
+    const review = reviewResumeImport(parsed, current);
     setChosen(new Set(review.filter((r) => r.defaultOn).map((r) => r.field)));
     if (withHistory && data.history) {
       setRulesHistory(data.history);
@@ -112,7 +117,7 @@ export function ResumeImport({ current, history, onApply, tone = "light", label 
       setChosenHistory(new Set(reviewHistoryImport(data.history, history).filter((r) => r.defaultOn).map((r) => r.key)));
     }
     setResumeText(data.text ?? "");
-    track("resume_imported", { fields: Object.keys(data.draft.evidence).length, conflicts: review.filter((r) => r.status === "conflict").length, history: data.history ? historyDraftSize(data.history) : 0 });
+    track("resume_imported", { fields: Object.keys(parsed.evidence).length, conflicts: review.filter((r) => r.status === "conflict").length, history: data.history ? historyDraftSize(data.history) : 0 });
   };
 
   const send = async (body: FormData | string, from: string, url = "/api/career/import-resume") => {

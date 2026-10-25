@@ -216,7 +216,8 @@ describe("employer (Owner)", () => {
     expect(role).toBe("owner");
     expect(org).toMatchObject({ name: "Acme", verified: false });
     const mine = await ok(call(owner, hiring.GET));
-    expect(mine.workspaces).toEqual([{ org, role: "owner" }]);
+    // A new workspace has just its owner on the team, and nothing open or waiting yet.
+    expect(mine.workspaces).toEqual([{ org, role: "owner", stats: { members: 1, openJobs: 0, newApplications: 0 } }]);
   });
 
   it("changes the company's name and website; open jobs show the new name; only an Owner can", async () => {

@@ -12,6 +12,8 @@ async function call<T>(url: string, init?: RequestInit & { json?: unknown }): Pr
 export interface Workspace {
   org: Organization;
   role: OrgRole;
+  /** Team size, open jobs and new applications, each only where the role may see it. */
+  stats?: { members: number; openJobs?: number; newApplications?: number };
 }
 export interface TalentMatch {
   profile: TalentProfile;

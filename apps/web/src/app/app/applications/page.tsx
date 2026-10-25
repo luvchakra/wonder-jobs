@@ -215,6 +215,7 @@ function ApplicationsInner() {
                         actionSpace={shownStage === "interview" || standing.get(a.id)?.momentum === "follow_up"}
                         badge={standing.get(a.id) ? MOMENTUM_META[standing.get(a.id)!.momentum] : interviewing && a.interviewRounds ? { label: `${a.interviewRounds} ${a.interviewRounds === 1 ? "round" : "rounds"} done`, tone: "brand" } : undefined}
                         note={standing.get(a.id)?.reason}
+                        tags={preparing ? (facetsOf.get(a.id) ?? []).map((f) => PREP_FACETS.find((x) => x.facet === f)!.label) : undefined}
                         className="pr-11"
                       />
                       {standing.get(a.id)?.momentum === "follow_up" && (

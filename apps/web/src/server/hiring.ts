@@ -81,6 +81,32 @@ export async function requirePermission(s: Session, orgId: string, permission: O
 export interface Workspace {
   org: Organization;
   role: OrgRole;
+  /** At a glance on Hiring's list — each only where the caller's role may see it (`can`). */
+  stats?: { members: number; openJobs?: number; newApplications?: number };
+}
+
+/**
+ * Hiring's list (owner, 2026-10-25): per workspace, its team size, its open jobs (jobs.view) and the applications
+ * nobody has looked at yet (applications.view). One query per table across all the caller's workspaces, filtered
+ * by `org_id` after each role check.
+ */
+async function workspaceStats(list: Workspace[]): Promise<Workspace[]> {
+  if (!list.length) return list;
+  const ids = (p: OrgPermission) => list.filter((w) => can(w.role, p)).map((w) => w.org.id);
+  const [team, open, fresh] = await Promise.all([
+    members().findIn("org_id", list.map((w) => w.org.id)),
+    ids("jobs.view").length ? jobs().findIn("org_id", ids("jobs.view"), { status: "open" as EmployerJobStatus }) : Promise.resolve([]),
+    ids("applications.view").length ? table<{ id: string; org_id: string; status: string }>("job_applications").findIn("org_id", ids("applications.view"), { status: "new" }) : Promise.resolve([]),
+  ]);
+  const n = (rows: { org_id: string }[], org: string) => rows.filter((r) => r.org_id === org).length;
+  return list.map((w) => ({
+    ...w,
+    stats: {
+      members: n(team, w.org.id),
+      ...(can(w.role, "jobs.view") ? { openJobs: n(open, w.org.id) } : {}),
+      ...(can(w.role, "applications.view") ? { newApplications: n(fresh, w.org.id) } : {}),
+    },
+  }));
 }
 
 /** The workspaces the caller belongs to, and invitations waiting for their email. */
@@ -94,7 +120,7 @@ export async function myWorkspaces(s: Session): Promise<{ me: string; workspaces
   const pending = s.email ? await invites().find({ email: email(s.email) }) : [];
   const open = pending.filter((i) => !mine.some((m) => m.org_id === i.org_id));
   const inviteOrgs = await orgs().findIn("id", open.map((i) => i.org_id));
-  return { me: s.tenantId, workspaces, invites: open.map((i) => ({ ...toInvite(i), orgName: inviteOrgs.find((o) => o.id === i.org_id)?.name ?? "A company" })) };
+  return { me: s.tenantId, workspaces: await workspaceStats(workspaces), invites: open.map((i) => ({ ...toInvite(i), orgName: inviteOrgs.find((o) => o.id === i.org_id)?.name ?? "A company" })) };
 }
 
 export async function createWorkspace(s: Session, input: { name: string; website?: string }): Promise<Workspace> {

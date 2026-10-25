@@ -65,6 +65,17 @@ describe("workspaces", () => {
     await expect(H.listOrgJobs(rec, a.org.id)).rejects.toMatchObject({ status: 403 });
   });
 
+  it("counts each workspace's team, open jobs and new applications on its own", async () => {
+    const a = await H.createWorkspace(owner, { name: "Acme" });
+    await H.createWorkspace(owner, { name: "Beta Labs" });
+    const j = await H.saveJob(owner, a.org.id, job);
+    await H.saveJob(owner, a.org.id, job);
+    await H.setJobStatus(owner, a.org.id, j.id, "open");
+    const stats = Object.fromEntries((await H.myWorkspaces(owner)).workspaces.map((w) => [w.org.name, w.stats]));
+    expect(stats.Acme).toEqual({ members: 1, openJobs: 1, newApplications: 0 });
+    expect(stats["Beta Labs"]).toEqual({ members: 1, openJobs: 0, newApplications: 0 });
+  });
+
   it("makes the creator the owner and lets invited people join only with the invited email", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     const inv = await H.inviteMember(owner, org.id, "rec@acme.com", "recruiter");
