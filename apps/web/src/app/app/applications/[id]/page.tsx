@@ -1,7 +1,7 @@
 "use client";
 import { use, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Download, ExternalLink, FileText, Puzzle, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock3, Download, ExternalLink, FileText, MessagesSquare, Puzzle, Send, Trash2, Trophy, Undo2, XCircle } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { APPLICATION_STATUS_META, type ApplicationStatus, type ArtifactType } from "@/domain/applications/types";
@@ -18,6 +18,7 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/States";
 import { Field, Input, Segmented, Select, Textarea } from "@/components/common/Input";
+import { cn } from "@/lib/cn";
 import { useAutomationStore } from "@/store/automation";
 import { submitDecision } from "@/domain/jobs-apply/policy";
 import { CompanyLogo } from "@/components/common/Avatar";
@@ -33,6 +34,16 @@ import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
 const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
 
 /** Offers the extension where it's actually useful: right where the candidate is about to go and retype all of this into the employer's form. */
+/** Each status chip's icon and its colours when it's the current one. */
+const STATUS_LOOK: Record<string, { icon: typeof Clock3; on: string }> = {
+  preparing: { icon: Clock3, on: "border-warning-600/40 bg-warning-100 text-warning-600" },
+  submitted: { icon: Send, on: "border-success-600/40 bg-success-100 text-success-600" },
+  interview: { icon: MessagesSquare, on: "border-brand-400 bg-brand-50 text-brand-700" },
+  offer: { icon: Trophy, on: "border-success-600/40 bg-success-100 text-success-600" },
+  rejected: { icon: XCircle, on: "border-danger-600/40 bg-danger-100 text-danger-600" },
+  withdrawn: { icon: Undo2, on: "border-line-strong bg-bg-soft text-ink" },
+};
+
 function ExtensionHint({ hasMaterials }: { hasMaterials: boolean }) {
   const installed = useExtensionInstalled();
   if (installed === null) return null;
@@ -203,30 +214,41 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
         <aside className="flex flex-col gap-4">
           <Card>
-            <Field label="Status" htmlFor="status">
-              <Select
-                id="status"
-                value={statusChoiceOf(app.status)}
-                onChange={(e) => {
-                  const next = e.target.value as ApplicationStatus;
-                  const prev = app.status;
-                  const ev = EVENT_FOR_STATUS[next];
-                  setStatus(app.id, next, ev ? { ...ev, detail: "Updated by you" } : undefined);
-                  // Rejected/Withdrawn read as final, unlike the other transitions here — an Undo action
-                  // (rather than a confirm-before dialog) keeps the one-click flow but makes the finality
-                  // reversible, consistent with how Remove application already asks first.
-                  const isFinal = next === "rejected" || next === "withdrawn";
-                  toast.success(`Marked ${STATUS_CHOICES.find((c) => c.value === next)?.label ?? APPLICATION_STATUS_META[next].label}`, undefined, isFinal ? { label: "Undo", onClick: () => setStatus(app.id, prev) } : undefined);
-                }}
-              >
-                {/* As Pipeline groups them: the finer stages Wonder tracks itself show as theirs. */}
-                {STATUS_CHOICES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            {/* Status as Pipeline has it: six chips, the current one lit in its colour, one tap to change. */}
+            <div role="radiogroup" aria-label="Status" className="flex flex-col gap-2">
+              <p className="text-[13px] font-medium text-ink-2">Status</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {STATUS_CHOICES.map((c) => {
+                  const on = statusChoiceOf(app.status) === c.value;
+                  const look = STATUS_LOOK[c.value];
+                  const Icon = look.icon;
+                  return (
+                    <button
+                      key={c.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => {
+                        if (on) return;
+                        const next = c.value;
+                        const prev = app.status;
+                        const ev = EVENT_FOR_STATUS[next];
+                        setStatus(app.id, next, ev ? { ...ev, detail: "Updated by you" } : undefined);
+                        // Rejected/Withdrawn read as final, unlike the other transitions here — an Undo action
+                        // (rather than a confirm-before dialog) keeps the one-tap flow but makes the finality
+                        // reversible, consistent with how Remove application already asks first.
+                        const isFinal = next === "rejected" || next === "withdrawn";
+                        toast.success(`Marked ${c.label}`, undefined, isFinal ? { label: "Undo", onClick: () => setStatus(app.id, prev) } : undefined);
+                      }}
+                      className={cn("wj-press flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-[12px] border px-1 text-[12px] font-medium transition-colors", on ? look.on : "border-line bg-surface text-ink-2 hover:border-line-strong hover:bg-surface-2")}
+                    >
+                      <Icon className={cn("size-[18px]", on ? "" : "text-ink-4")} aria-hidden />
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <p className="mt-2 text-[12px] text-ink-4">Never contacts the employer.</p>
           </Card>
           {!["submitted", "under_review", "interview", "offer", "rejected", "withdrawn"].includes(app.status) && (
