@@ -8,7 +8,7 @@ import { useLowPowerHint, useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 
 /* ------------------------------------------------------------ showcase */
-type Screen = { id: string; label: string; title: string; body: string; demo: string; desktop: React.ReactNode; phone: React.ReactNode };
+type Screen = { id: string; label: string; title: string; body: string; href: string; desktop: React.ReactNode; phone: React.ReactNode };
 
 /** Scroll-linked tilt/lift for the device frames (transforms only; off under reduced motion). */
 function useDeviceMotion() {
@@ -334,13 +334,13 @@ function PhoneApplication() {
 }
 
 const SCREENS: Screen[] = [
-  { id: "home", label: "Find", title: "Your jobs, the moment you open it", body: "Signed in means looking at relevant jobs: designation, pay and source on every card, best match first. Type a role and a place to search every source for it.", demo: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
-  { id: "find", label: "Search", title: "Real progress, in plain words", body: "Wonder says what it's searching, where, and what each source returned. Stop any time — everything already found stays. When it needs you, it says why.", demo: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
-  { id: "jobs", label: "Job", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile and your search. Each one says why Wonder ranked it there and what to weigh.", demo: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
-  { id: "applications", label: "Pipeline", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; you submit, or turn on Submit for me.", demo: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
+  { id: "home", label: "Find", title: "Your jobs, the moment you open it", body: "Signed in means looking at relevant jobs: designation, pay and source on every card, best match first. Type a role and a place to search every source for it.", href: "/sign-up", desktop: <DesktopHome />, phone: <PhoneHome /> },
+  { id: "find", label: "Search", title: "Real progress, in plain words", body: "Wonder says what it's searching, where, and what each source returned. Stop any time — everything already found stays. When it needs you, it says why.", href: "/sign-up", desktop: <DesktopFind />, phone: <PhoneFind /> },
+  { id: "jobs", label: "Job", title: "Every match explains itself", body: "Real postings, de-duplicated and compared with your Career Profile and your search. Each one says why Wonder ranked it there and what to weigh.", href: "/sign-up", desktop: <DesktopJobs />, phone: <PhoneJob /> },
+  { id: "applications", label: "Pipeline", title: "Your pipeline, then your click", body: "Preparing, applied, interview, outcome — and what needs you. Apply with Wonder fills the employer's form or guides you through it; you submit, or turn on Submit for me.", href: "/sign-up", desktop: <DesktopApplications />, phone: <PhoneApplication /> },
 ];
 
-/** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen deep-links into the demo. */
+/** Desktop + mobile frames, switchable by screen, with scroll-linked lift. Every screen links to sign-up. */
 export function ShowcaseSection() {
   const [active, setActive] = useState(0);
   const ref = useDeviceMotion();
@@ -389,7 +389,7 @@ export function ShowcaseSection() {
             <div className="text-center lg:text-left">
               <h3 className="text-[20px] font-semibold text-ink">{screen.title}</h3>
               <p className="mt-2 text-[14.5px] text-ink-2">{screen.body}</p>
-              <Button href={screen.demo} variant="dark" size="md" className="mt-4 rounded-full" iconRight={<ExternalLink className="size-4" aria-hidden />}>
+              <Button href={screen.href} variant="dark" size="md" className="mt-4 rounded-full" iconRight={<ExternalLink className="size-4" aria-hidden />}>
                 Start free
               </Button>
             </div>

@@ -1,13 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, COOKIE_MAX_AGE, DEMO_COOKIE, USER_COOKIE, authConfigured, chunkNames, splitChunks, toBase64Url, type StoredSession } from "@/lib/auth/config";
+import { AUTH_COOKIE, COOKIE_MAX_AGE, USER_COOKIE, authConfigured, chunkNames, splitChunks, toBase64Url, type StoredSession } from "@/lib/auth/config";
 import { safeNextPath } from "@/lib/safeRedirect";
 import { isCrossSiteMutation } from "@/lib/csrf";
 import { clientAddress, watchActivity } from "@/server/activityWatch";
 import { isExpired, readStoredSession, refreshStoredSession, verifyAccessToken } from "@/server/session";
 
 /**
- * Route guard. Product routes need a signed-in user unless the browser is in
- * demo mode; auth pages send signed-in users to the app. Expired sessions are
+ * Route guard. Product routes need a signed-in user; auth pages send signed-in users to the app. Expired sessions are
  * refreshed here so a returning user never sees a sign-in page for a token
  * that merely aged out. The verified user id is mirrored into a JS-readable
  * cookie so the client can namespace its local state before any request.
@@ -42,7 +41,6 @@ export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const isProtected = PROTECTED.some((r) => r.test(pathname));
   const isAuthPage = AUTH_PAGES.some((r) => r.test(pathname));
-  const demo = req.cookies.get(DEMO_COOKIE)?.value === "1";
 
   let stored = readStoredSession((n) => req.cookies.get(n)?.value);
   let refreshed: StoredSession | null = null;
@@ -59,7 +57,7 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
-  if (isProtected && !demo) {
+  if (isProtected) {
     const to = new URL("/sign-in", req.url);
     to.searchParams.set("next", pathname + search);
     const res = NextResponse.redirect(to);

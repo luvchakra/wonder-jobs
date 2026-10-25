@@ -22,7 +22,6 @@ import { cn } from "@/lib/cn";
 import { useAutomationStore } from "@/store/automation";
 import { submitDecision } from "@/domain/jobs-apply/policy";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { companyColor } from "@/components/jobs/JobCard";
 import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
 import { FollowUpAction } from "@/components/applications/FollowUpAction";
 import { Fold } from "@/components/common/Fold";
@@ -132,7 +131,7 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <div className="flex items-start gap-4">
-              <CompanyLogo name={job?.company ?? "?"} domain={job?.companyDomain} logo color={job ? companyColor(job.company) : undefined} size={52} />
+              <CompanyLogo name={job?.company ?? "?"} domain={job?.companyDomain} logo size={52} />
               <div className="min-w-0 flex-1">
                 <p className="text-[16px] font-semibold text-ink">{job?.company}</p>
                 <p className="text-[13px] text-ink-3">

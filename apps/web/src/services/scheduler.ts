@@ -14,7 +14,7 @@ import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useCareerStore } from "@/store/career";
 import { getWorkflowService } from "@/services/workflow/service";
-import { nextRunAt } from "@/services/mock/templates";
+import { nextRunAt } from "@/domain/workflow/scheduleTemplates";
 import { track } from "@/lib/analytics";
 
 const DAY = 86_400_000;

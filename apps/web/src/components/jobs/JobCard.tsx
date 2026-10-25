@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowUpRight, Bookmark, CheckCircle2, ThumbsDown, Zap } from "lucide-react";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
-import { COMPANIES } from "@/services/mock/catalog";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
@@ -20,10 +19,6 @@ import { noteApplyOpened } from "./ApplicationOutcome";
 import { jdSummary } from "@/domain/jobs/jdSummary";
 import { JobDecision } from "./JobDecision";
 import type { JobDecision as Decision } from "@/domain/jobs/decision";
-
-export function companyColor(name: string) {
-  return COMPANIES.find((c) => c.name === name)?.color;
-}
 
 /**
  * `decision` adds the outcome view (outcome spec §9): why Wonder surfaced it, things to consider,
@@ -76,7 +71,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       <div className="flex items-stretch gap-3">
         {/* The match sits under the logo, so the company and the title get the card's whole width. */}
         <div className="flex shrink-0 flex-col items-center gap-1">
-          <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={compact ? 36 : 44} />
+          <CompanyLogo name={job.company} domain={job.companyDomain} logo size={compact ? 36 : 44} />
           {/* The company's employee-review rating, just under the logo, in its short form: ★ 4.3. */}
           {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} size={13} compact className="-mt-0.5" />}
           {match && (

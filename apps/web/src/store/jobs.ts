@@ -4,9 +4,7 @@ import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource } from "@/domain/jobs/types";
 import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
-import { getClientMode } from "@/lib/mode";
-import { getUniverse } from "@/services/mock/universe";
-import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
+import { computeMatch } from "@/services/jobs/matching";
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
@@ -192,24 +190,8 @@ export const useJobsStore = create<JobsState>()(
       forgetSearch: (text, where = "find") => set((s) => ({ [HISTORY_KEY[where]]: s[HISTORY_KEY[where]].filter((x) => x !== text) })),
       loadInitial: () => {
         if (get().loaded) return;
-        if (getClientMode().mode === "user") {
-          // Real accounts only know jobs their runs discovered (already rehydrated); nothing is invented.
-          set({ loaded: true });
-          return;
-        }
-        const canonical = deduplicate(getUniverse().jobs);
-        const sources = Object.fromEntries(get().sources.map((s) => [s.id, s]));
-        const dna = useCareerStore.getState().dna;
-        const jobs: Record<string, CanonicalJob> = {};
-        const matches: Record<string, JobMatch> = {};
-        const quality: Record<string, JobQuality> = {};
-        const learnedSignals = useCareerStore.getState().learnedSignals;
-        for (const j of canonical) {
-          jobs[j.id] = j;
-          matches[j.id] = computeMatch(j, { dna, learnedSignals, ...matchScope(get().filters, dna) });
-          quality[j.id] = computeQuality(j, sources);
-        }
-        set({ jobs, order: canonical.map((j) => j.id), matches, quality, loaded: true });
+        // Only jobs the candidate's own searches found (already rehydrated); nothing is invented.
+        set({ loaded: true });
       },
       rescore: () => {
         const { jobs, order, loaded, aiFits } = get();
@@ -380,8 +362,7 @@ export const useJobsStore = create<JobsState>()(
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
         return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
-      // Demo/local: the catalog is regenerated deterministically, only decisions persist.
-      // Signed-in: the best of the last discovery persists too, so the product remembers real jobs between sessions.
+      // The best of the last discovery persists too, so the product remembers real jobs between sessions.
       partialize: (s) => {
         const recent = Date.now() - 7 * 86_400_000;
         const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
@@ -391,7 +372,6 @@ export const useJobsStore = create<JobsState>()(
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
         const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
-        if (getClientMode().mode !== "user") return base;
         return { ...base, ...persistedCatalog(s) };
       },
     },

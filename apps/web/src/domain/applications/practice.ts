@@ -38,8 +38,6 @@ export interface FlashcardDeck {
   cards: Flashcard[];
   /** Indexes of cards the candidate marked "Know it". */
   known: number[];
-  /** Demo/local sample cards (no model wrote them). */
-  sample?: boolean;
 }
 
 export interface MockTurn {
@@ -61,8 +59,6 @@ export interface MockSession extends MockReview {
   seconds: number;
   /** The questions asked, in order (answers aren't kept). */
   questions: string[];
-  /** A demo/local sample review (no model scored it). */
-  sample?: boolean;
 }
 
 export interface ApplicationPractice {

@@ -134,9 +134,8 @@ describe("decideInstallBanner", () => {
 });
 
 describe("isExcludedInstallRoute", () => {
-  it("excludes auth callbacks, demo redirects, print/export/embed views", () => {
+  it("excludes auth callbacks, print/export/embed views", () => {
     expect(isExcludedInstallRoute("/auth/callback")).toBe(true);
-    expect(isExcludedInstallRoute("/demo/exit")).toBe(true);
     expect(isExcludedInstallRoute("/app/resume-studio/print")).toBe(true);
     expect(isExcludedInstallRoute("/app/jobs", "?embed=1")).toBe(true);
   });

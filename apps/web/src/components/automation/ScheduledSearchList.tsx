@@ -10,7 +10,7 @@ import { nextScheduledRun } from "@/domain/workflow/schedule";
 import { buildFromTemplate, CADENCES, cadenceId, SEARCH_TEMPLATES, type SearchTemplate } from "@/domain/workflow/searchTemplates";
 import type { WorkflowSchedule } from "@/domain/workflow/types";
 import { defaultSearchQuery, profileSearchQuery } from "@/services/jobs/normalize";
-import { describeSchedule } from "@/services/mock/templates";
+import { describeSchedule } from "@/domain/workflow/scheduleTemplates";
 import { getWorkflowService } from "@/services/workflow/service";
 import { useAIStore } from "@/store/ai";
 import { useAutomationStore } from "@/store/automation";

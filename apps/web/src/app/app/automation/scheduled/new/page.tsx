@@ -1,7 +1,7 @@
 "use client";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { SCHEDULE_TEMPLATES } from "@/services/mock/templates";
+import { SCHEDULE_TEMPLATES } from "@/domain/workflow/scheduleTemplates";
 import type { LookFrequency } from "@/domain/workflow/simpleSchedule";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ScheduleBuilder } from "@/components/automation/ScheduleBuilder";

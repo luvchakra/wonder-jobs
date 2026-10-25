@@ -10,7 +10,7 @@ import { useResumeFilesStore } from "@/store/resumeFiles";
 import { APPLICATION_STATUS_META } from "@/domain/applications/types";
 import { WORK_MODE_LABEL, readableJobId } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
-import { JOB_SOURCES } from "@/services/mock/catalog";
+import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -22,7 +22,6 @@ import { EmptyState } from "@/components/common/States";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { MatchBadge } from "@/components/jobs/MatchBadge";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
-import { companyColor } from "@/components/jobs/JobCard";
 import { ShareJobButton } from "@/components/jobs/ShareJobButton";
 import { NotForMeButton } from "@/components/jobs/NotForMeButton";
 import { CustomResumeButton } from "@/components/jobs/CustomResumeButton";
@@ -161,7 +160,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-x-5">
         <Card className="min-w-0 lg:col-start-1">
           <div className="flex items-start gap-3">
-            <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={40} />
+            <CompanyLogo name={job.company} domain={job.companyDomain} logo size={40} />
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold text-ink">
                 {job.company}

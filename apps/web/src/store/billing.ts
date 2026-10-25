@@ -3,7 +3,6 @@ import { create } from "zustand";
 import type { BillingProviderId, ProviderAvailability, SubscriptionStatus } from "@/domain/billing/types";
 import type { PaidPlanId, PlanId, PlanLimits } from "@/domain/billing/plans";
 import type { PlanDiscount } from "@/domain/billing/discounts";
-import { getClientMode } from "@/lib/mode";
 
 /**
  * The account's plan, as the SERVER reports it (`/api/billing`). Not persisted and never written
@@ -35,9 +34,6 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   data: null,
   status: "idle",
   load: async (force = false) => {
-    // The demo has no account and no billing. Read from the cookie, not the auth store: on first render
-    // the store hasn't been told it's the demo yet, and asking would only earn a 401.
-    if (getClientMode().mode === "demo") return null;
     if (!force && (get().status === "loading" || get().status === "ready")) return get().data;
     set({ status: "loading" });
     try {

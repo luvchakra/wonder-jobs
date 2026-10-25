@@ -5,7 +5,6 @@ import { companyLines, type CompanyProfile } from "@/domain/jobslake/companies";
 import { getClientMode } from "@/lib/mode";
 import { Fold } from "@/components/common/Fold";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { companyColor } from "./JobCard";
 import { RatingStars } from "./RatingStars";
 
 /**
@@ -32,7 +31,7 @@ export function CompanyFold({ job, open }: { job: Pick<CanonicalJob, "company" |
   return (
     <Fold title="Company" hint={hint || undefined} open={open}>
       <div className="flex items-center gap-3">
-        <CompanyLogo name={job.company} domain={job.companyDomain} logo color={companyColor(job.company)} size={44} />
+        <CompanyLogo name={job.company} domain={job.companyDomain} logo size={44} />
         <div className="min-w-0">
           <h2 className="truncate text-[15px] font-semibold text-ink">{job.company}</h2>
           {job.companyDomain && <p className="text-[13px] text-ink-3">{job.companyDomain}</p>}

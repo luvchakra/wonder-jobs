@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Bell, CalendarDays, CheckCircle2, Dna, FileText, GitCompareArrows, Hand, KeyRound, LayoutList, LayoutTemplate, MessageCircleQuestion, MousePointerClick, Search, Smartphone, Sparkles, Target, ShieldCheck, Zap, Eye, Radar } from "lucide-react";
-import { JOB_SOURCES } from "@/services/mock/catalog";
+import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { ScrollReveal } from "@/components/common/ScrollReveal";
 import { Button } from "@/components/common/Button";
@@ -92,8 +92,8 @@ export function AgentSection() {
 
 /* ----------------------------------------------------------- journey */
 /**
- * Search to submitted, step by step. Each step shows the real screen (the app in demo mode with its
- * sample data — captured from the product, not drawn) except the employer's form, which is drawn because
+ * Search to submitted, step by step. Each step shows the real screen (captured from the product with a
+ * sample candidate, not drawn) except the employer's form, which is drawn because
  * it's the employer's page, not ours, and says so.
  */
 type JourneyStep = { key: string; t: string; s: string; body: string; shot?: { src: string; w: number; h: number; alt: string }; plan?: string };
@@ -228,7 +228,7 @@ function FormFillDrawing() {
 }
 
 /* ------------------------------------------------------------ features */
-/** `cta` overrides "See it in the demo" for features the demo can't show (it has no account to link). */
+/** `cta` overrides "Get started free" for features that link somewhere other than sign-up. */
 const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string; id?: string; plan?: string }[] = [
   { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, with each company's logo. Type or say anything else to search for it.", href: "/sign-up" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form with your details, résumé and saved answers, and leaves what's yours to answer. You submit — or turn on Submit for me.", href: "/sign-up", plan: "Pro" },

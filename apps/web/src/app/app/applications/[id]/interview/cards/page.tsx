@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 /** Twenty flashcards for the job: flip, know it / still learning, shuffle, practise what's left. Kept on the application. */
 export default function FlashcardsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { app, job, dna, allowed, sample, ask } = useInterviewPractice(id);
+  const { app, job, allowed, ask } = useInterviewPractice(id);
   const recordPractice = useApplicationsStore((s) => s.recordPractice);
   const deck = app?.practice?.flashcards;
   const [loading, setLoading] = useState(false);
@@ -62,10 +62,9 @@ export default function FlashcardsPage({ params }: { params: Promise<{ id: strin
     setLoading(true);
     try {
       const res = await ask("interview_flashcards");
-      let cards = res.byModel ? parseFlashcards(res.text) : null;
-      if (!res.byModel && sample && job) cards = (await import("@/services/mock/practice")).demoFlashcards(job, dna);
+      const cards = res.byModel ? parseFlashcards(res.text) : null;
       if (!cards) throw new Error(res.byModel ? "The AI's cards didn't come back complete. Try again." : NEEDS_AI);
-      recordPractice(id, { flashcards: { at: new Date().toISOString(), cards, known: [], sample: !res.byModel || undefined } });
+      recordPractice(id, { flashcards: { at: new Date().toISOString(), cards, known: [] } });
       setOrder(null);
       setPos(0);
       setFlipped(false);
@@ -108,13 +107,7 @@ export default function FlashcardsPage({ params }: { params: Promise<{ id: strin
               {known.size} of {deck.cards.length} known
             </span>
             <span className="inline-flex items-center gap-1">
-              {deck.sample ? (
-                "Sample (demo)"
-              ) : (
-                <>
-                  <Sparkles className="size-3" aria-hidden /> AI-generated
-                </>
-              )}
+              <Sparkles className="size-3" aria-hidden /> AI-generated
             </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-bg-soft" aria-hidden>

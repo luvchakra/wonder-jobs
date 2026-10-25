@@ -31,7 +31,6 @@ export default function SecurityPage() {
             <ul>
               <li>All product data lives in a dedicated database schema that the public database keys cannot reach; only the server, with a service key, can read or write it.</li>
               <li>Every query is scoped to the signed-in account in application code. There is no shared tenant.</li>
-              <li>Demo mode never writes to the server.</li>
             </ul>
           ),
         },

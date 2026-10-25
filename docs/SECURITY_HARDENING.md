@@ -20,7 +20,7 @@ What protects WonderJobs from someone using an AI model or agent to read, crawl 
 
 ## Canary data
 
-These invented postings exist only in the demo dataset (`services/mock/universe.ts`, `CANARIES`). Finding either name anywhere else means the demo data was copied.
+These invented postings exist only in the test sample (`src/testing/sample/universe.ts`, `CANARIES`; the product no longer has a demo). Finding either name anywhere else means that data was copied.
 
 - **Quillfeather Mapworks (sample)**: "Cartography Data Steward", Pune, `quillfeather-mapworks.example`
 - **Tamarind Lighthouse Co. (sample)**: "Tidal Archive Curator", Kochi, `tamarind-lighthouse.example`

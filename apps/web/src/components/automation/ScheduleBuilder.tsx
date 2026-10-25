@@ -7,7 +7,7 @@ import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import type { AutomationLevel } from "@/domain/automation/policy";
 import { STAGE_KEYS, STAGES, type StageKey } from "@/domain/workflow/stages";
 import type { Workflow, WorkflowSchedule } from "@/domain/workflow/types";
-import { describeSchedule, nextRunAt, SCHEDULE_TEMPLATES, type ScheduleTemplate } from "@/services/mock/templates";
+import { describeSchedule, nextRunAt, SCHEDULE_TEMPLATES, type ScheduleTemplate } from "@/domain/workflow/scheduleTemplates";
 import { useWorkflowStore } from "@/store/workflow";
 import { profileSearchQuery } from "@/services/jobs/normalize";
 import { useJobsStore } from "@/store/jobs";

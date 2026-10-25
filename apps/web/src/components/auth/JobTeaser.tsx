@@ -7,7 +7,6 @@ import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { Tabs } from "@/components/common/Tabs";
 import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
-import { companyColor } from "@/components/jobs/JobCard";
 import { WORK_MODE_LABEL, type JobQuality, type WorkMode } from "@/domain/jobs/types";
 import { cn } from "@/lib/cn";
 
@@ -39,8 +38,6 @@ export interface PublicJobTeaser {
   title: string;
   company: string;
   companyDomain?: string;
-  companyHq?: string;
-  companySize?: "startup" | "scaleup" | "enterprise";
   location: string;
   workMode: WorkMode;
   salary: string | null;
@@ -57,7 +54,6 @@ export interface PublicJobTeaser {
 
 type Tab = "overview" | "why" | "company" | "sources";
 
-const COMPANY_SIZE_LABEL = { startup: "Startup", scaleup: "Scale-up", enterprise: "Large company" } as const;
 
 /** Shown above the sign-in form for a shared job link: the real listing, the way a signed-in candidate would see it, minus the one thing that's genuinely personal — a match score — which needs an account to compute. */
 export function JobTeaser({ job }: { job: PublicJobTeaser }) {
@@ -69,7 +65,7 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
         <Sparkles className="size-3.5" aria-hidden /> Shared job — public details, no account needed
       </p>
       <div className="mt-2 flex items-start gap-3">
-        <CompanyLogo name={job.company} color={companyColor(job.company)} size={48} />
+        <CompanyLogo name={job.company} size={48} />
         <div className="min-w-0 flex-1">
           <h2 className="text-[17px] font-semibold leading-snug text-ink">{job.title}</h2>
           <p className="text-[13px] text-ink-3">{job.company}</p>
@@ -168,13 +164,12 @@ export function JobTeaser({ job }: { job: PublicJobTeaser }) {
         {tab === "company" && (
           <div>
             <div className="flex items-center gap-3">
-              <CompanyLogo name={job.company} color={companyColor(job.company)} size={40} />
+              <CompanyLogo name={job.company} size={40} />
               <div>
                 <h3 className="text-[14px] font-semibold text-ink">{job.company}</h3>
                 <p className="text-[12.5px] text-ink-3">
                   {job.industry}
-                  {job.companySize && ` · ${COMPANY_SIZE_LABEL[job.companySize]}`}
-                  {(job.companyHq ?? job.location) && ` · HQ ${job.companyHq ?? job.location}`}
+                  {job.location && ` · ${job.location}`}
                 </p>
               </div>
             </div>

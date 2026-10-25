@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Automated accessibility audit (WJ-075). Runs axe-core against the
- * production build's key public pages and the demo-mode app screens (which
- * need no real account), and fails the process if any "serious" or
+ * production build's key public pages and the app screens as the sample
+ * candidate of e2e/fixtures/sample.ts (signed in by cookie against a server
+ * with no Supabase, so no real account is needed), and fails the process if any "serious" or
  * "critical" violation is found. "Minor"/"moderate" findings are reported
  * but do not fail the run.
  *
@@ -19,12 +20,16 @@ import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createJiti } from "jiti";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url)) + "/..";
+// The sample candidate is TypeScript that imports the app through "@/…": load it the way the tests do.
+const jiti = createJiti(import.meta.url, { alias: { "@": path.join(ROOT, "src") } });
+const { openApp } = await jiti.import("../e2e/fixtures/sample.ts");
 const AXE_SOURCE = readFileSync(new URL("../../../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
 
 const PUBLIC_PAGES = ["/", "/sign-in", "/sign-up", "/forgot-password", "/about", "/privacy", "/terms", "/security", "/cookies"];
-const DEMO_PAGES = [
+const APP_PAGES = [
   "/help",
   "/app",
   "/app/jobs",
@@ -124,7 +129,9 @@ async function main() {
     const port = 3900 + Math.floor(Math.random() * 90);
     base = `http://localhost:${port}`;
     console.log(`Starting \`next start -p ${port}\` (set BASE=... to audit a server you already started)…`);
-    server = spawn("npx", ["next", "start", "-p", String(port)], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"], env: process.env });
+    // No Supabase (so the browser is signed in by cookie) and the sample postings; build with the same variables.
+    const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "", SUPABASE_SERVICE_ROLE_KEY: "", WJ_E2E_FIXTURE_JOBS: "1" };
+    server = spawn("npx", ["next", "start", "-p", String(port)], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"], env });
     await new Promise((resolve, reject) => {
       let out = "";
       const onData = (d) => {
@@ -140,7 +147,7 @@ async function main() {
 
   const executablePath = process.env.PW_CHROMIUM_PATH || (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
   const browser = await chromium.launch({ executablePath, args: ["--ignore-certificate-errors"] });
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true, reducedMotion: "reduce" });
+  const ctx = await browser.newContext({ baseURL: base, viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true, reducedMotion: "reduce" });
   const page = await ctx.newPage();
   // Settled DOM, not mid-transition: scroll-reveal opacity/transform transitions are
   // suppressed under prefers-reduced-motion (see .wj-reveal in globals.css), so a
@@ -148,11 +155,11 @@ async function main() {
 
   const findings = [];
   try {
-    // Enter demo mode once; its cookie carries across the rest of the pages in this context.
-    await page.goto(base + "/demo", { waitUntil: "load" });
+    // Sign in as the sample candidate once; its cookie and saved state carry across the rest of the pages in this context.
+    await openApp(page, "/app");
     await page.waitForFunction(() => document.querySelector("main h1"), null, { timeout: 20_000 }).catch(() => {});
 
-    for (const p of [...PUBLIC_PAGES, ...DEMO_PAGES]) {
+    for (const p of [...PUBLIC_PAGES, ...APP_PAGES]) {
       const violations = await auditPage(page, base + p).catch((e) => {
         console.error(`  ! ${p}: could not audit (${e.message})`);
         return [];
@@ -178,7 +185,7 @@ async function main() {
     byPage.get(f.page).push(f);
   }
 
-  console.log(`\nAudited ${PUBLIC_PAGES.length + DEMO_PAGES.length} pages and ${INTERACTIONS.length} interaction state(s), ${findings.length} violation group(s) found.\n`);
+  console.log(`\nAudited ${PUBLIC_PAGES.length + APP_PAGES.length} pages and ${INTERACTIONS.length} interaction state(s), ${findings.length} violation group(s) found.\n`);
   for (const [p, list] of byPage) {
     console.log(`${p}`);
     for (const f of list) console.log(`  [${f.impact}] ${f.id} — ${f.help} (${f.nodes} node${f.nodes === 1 ? "" : "s"}: ${f.targets.join(", ")})`);

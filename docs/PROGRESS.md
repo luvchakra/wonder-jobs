@@ -256,8 +256,8 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Sign-up / sign-in with email + password or magic link (Supabase Auth, PKCE) — WJ-063
 - ✅ Cookie sessions verified server-side; proxy guards `/app/*` and `/onboarding`; API routes 401 without a session
 - ✅ Per-user state namespaces; sign-out revokes, clears and forgets local copies
-- ✅ Demo mode under the avatar menu (`/demo`, `/demo/exit`, deep links `/demo?next=/app/jobs`)
-- ✅ A persistent demo-mode banner, visible on every `/app/*` screen (not just the avatar menu), with a one-click "Exit demo & sign in" — WJ-106
+- 🗑 Demo mode under the avatar menu (`/demo`, `/demo/exit`) — removed entirely (WJ-411)
+- 🗑 A persistent demo-mode banner with "Exit demo & sign in" — WJ-106, removed with the demo (WJ-411)
 - ✅ A real session always wins over a leftover demo cookie — fixed a real bug where trying the demo before signing in kept showing seeded demo data under a real account, since demo mode was checked before the signed-in session and sign-in never cleared it — WJ-103
 - ✅ Forgot password → emailed recovery link → `/reset-password` → signed in (25-check Playwright run, incl. single-use token, expired link, mismatch, old-password rejection) — WJ-079
 - ✅ Password reveal toggle on sign-in, sign-up and reset — WJ-080
@@ -527,6 +527,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Find: the dropdown is centred between avatar and logo, 20% smaller (WJ-408)
 - ✅ Find dropdown: coming-soon kinds (disabled), hide/show in Admin → Menus (WJ-409)
 - ✅ Job page: translate the title, description and requirements into English and other major languages (WJ-410)
+- ✅ Demo mode removed entirely: no `/demo`, no sample data in the product; tests use their own sample candidate and postings (WJ-411)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

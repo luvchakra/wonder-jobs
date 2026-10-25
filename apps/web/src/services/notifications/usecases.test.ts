@@ -22,7 +22,7 @@ import { DEFAULT_NOTIFY_PREFS } from "@/domain/notifications/prefs";
 import { setBellChoices } from "@/store/bellChoices";
 
 const HOUR = 3_600_000;
-const job = { id: "job_1", title: "IAM Director", company: "Acme", postedAt: "2026-10-01T00:00:00Z" } as unknown as CanonicalJob;
+const job = { id: "job_1", title: "IAM Director", company: "Acme", postedAt: "2026-10-01T00:00:00Z", description: "" } as unknown as CanonicalJob;
 const run = (over: Partial<WorkflowRun> & { strong?: number; found?: number; notify?: string; query?: string } = {}): WorkflowRun =>
   ({
     id: "run_1",

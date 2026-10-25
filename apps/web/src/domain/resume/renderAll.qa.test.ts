@@ -6,7 +6,7 @@ import { layoutResume } from "./layout";
 import { RESUME_TEMPLATES } from "./templates";
 import { validateResume } from "./validate";
 import { FIXTURES, PASTED_FIXTURE, REALISTIC_FIXTURE } from "./fixtures";
-import { SEED_DNA } from "@/services/mock/seed";
+import { SEED_DNA } from "@/testing/sample/seed";
 import { renderResumePdf } from "@/services/resume/pdf";
 import { buildResumeDocx } from "@/services/resume/docx";
 import type { CareerDNA } from "@/domain/career/types";

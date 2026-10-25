@@ -95,7 +95,7 @@ export function jobsReadiness(input: ReadinessInput): Readiness {
 
 const SEARCH_STAGES = new Set(["search"]);
 
-export type AutoSearchDecision = { run: true; reason: "first" } | { run: false; reason: "blocked" | "active" | "searched" | "demo" };
+export type AutoSearchDecision = { run: true; reason: "first" } | { run: false; reason: "blocked" | "active" | "searched" | "signed_out" };
 
 /** The most recent run that searched for jobs. */
 export function latestSearchRun(runs: WorkflowRun[]): WorkflowRun | undefined {
@@ -123,8 +123,8 @@ export function catalogSearchRun(runs: WorkflowRun[], searchedFor: string): Work
  * changed profile, an empty list or old results wait for the candidate's Search (Back to Find after a
  * Career Profile change asks for one itself), so opening the app never starts a search on its own.
  */
-export function autoSearchDecision(p: { readiness: Readiness; mode: "user" | "demo" | "local"; activeRun: boolean; last?: WorkflowRun }): AutoSearchDecision {
-  if (p.mode !== "user") return { run: false, reason: "demo" };
+export function autoSearchDecision(p: { readiness: Readiness; mode: "user" | "local"; activeRun: boolean; last?: WorkflowRun }): AutoSearchDecision {
+  if (p.mode !== "user") return { run: false, reason: "signed_out" };
   if (p.readiness.blocker) return { run: false, reason: "blocked" };
   if (p.activeRun) return { run: false, reason: "active" };
   if (p.last) return { run: false, reason: "searched" };

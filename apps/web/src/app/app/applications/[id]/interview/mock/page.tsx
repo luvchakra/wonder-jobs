@@ -25,7 +25,7 @@ const mmss = (ms: number) => {
 /** A mock interview for this job, up to ten minutes; scored with feedback at the end and kept on the application. */
 export default function MockInterviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { app, job, allowed, sample, ask } = useInterviewPractice(id);
+  const { app, job, allowed, ask } = useInterviewPractice(id);
   const recordPractice = useApplicationsStore((s) => s.recordPractice);
   const [phase, setPhase] = useState<Phase>("intro");
   const [turns, setTurns] = useState<MockTurn[]>([]);
@@ -54,8 +54,7 @@ export default function MockInterviewPage({ params }: { params: Promise<{ id: st
   const nextQuestion = async (so: MockTurn[]) => {
     setPhase("asking");
     const res = await ask("mock_interview", transcriptText(so));
-    let q = res.byModel ? parseMockQuestion(res.text) : null;
-    if (!res.byModel && sample && job) q = (await import("@/services/mock/practice")).demoMockQuestion(job, so);
+    const q = res.byModel ? parseMockQuestion(res.text) : null;
     if (!q) throw new Error(res.byModel ? "The interviewer didn't reply. Try again." : NEEDS_AI);
     if (ending.current) return;
     setTurns([...so, { q, a: "" }]);
@@ -89,10 +88,9 @@ export default function MockInterviewPage({ params }: { params: Promise<{ id: st
     setPhase("reviewing");
     try {
       const res = await ask("mock_review", transcriptText(asked));
-      let review = res.byModel ? parseMockReview(res.text) : null;
-      if (!res.byModel && sample) review = (await import("@/services/mock/practice")).demoReview(asked);
+      const review = res.byModel ? parseMockReview(res.text) : null;
       if (!review) throw new Error(res.byModel ? "The review didn't come back complete." : NEEDS_AI);
-      const session: MockSession = { id: newId("mock"), at: new Date().toISOString(), seconds: Math.round((Date.now() - startedAt) / 1000), questions: asked.map((t) => t.q), ...review, sample: !res.byModel || undefined };
+      const session: MockSession = { id: newId("mock"), at: new Date().toISOString(), seconds: Math.round((Date.now() - startedAt) / 1000), questions: asked.map((t) => t.q), ...review };
       recordPractice(id, { mock: session });
       setResult(session);
     } catch (e) {
@@ -217,7 +215,7 @@ export default function MockInterviewPage({ params }: { params: Promise<{ id: st
                 </p>
                 <p className="mx-auto mt-3 max-w-md text-[14px] text-ink-2">{result.summary}</p>
                 <p className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink-3">
-                  {result.sample ? "Sample review (demo)" : <><Sparkles className="size-3" aria-hidden /> AI-generated review</>} · saved · shows in Insights
+                  <Sparkles className="size-3" aria-hidden /> AI-generated review · saved · shows in Insights
                 </p>
               </Card>
               {result.strengths.length > 0 && (

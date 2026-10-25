@@ -12,7 +12,7 @@ import { signOutEverywhere } from "@/lib/auth/browser";
  * Asks a signed-in candidate to acknowledge the privacy notice in force (and confirm they're an adult)
  * whenever there is no record of them accepting this version — new accounts, Google sign-ins and existing
  * accounts after a material notice change alike. The acceptance is written to `consent_records`
- * server-side; nothing is assumed from the browser. Demo mode stores nothing and is not asked.
+ * server-side; nothing is assumed from the browser.
  */
 export function PrivacyNoticeGate() {
   const mode = useAuthStore((s) => s.mode);

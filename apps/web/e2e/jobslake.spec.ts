@@ -12,7 +12,7 @@ import { openDescription } from "./utils/jobPage";
  *   real auth is on). MCP journeys also need JOBSLAKE_MCP_ENABLED=1 and JOBSLAKE_MCP_TOKEN, shared
  *   with this process.
  * - Candidate journeys need a signed-in account, because only real accounts search through JobsLake
- *   (demo/local mode uses sample data by design). They create a disposable, pre-confirmed Supabase
+ *   (a local build has no real sources). They create a disposable, pre-confirmed Supabase
  *   account and delete it afterwards; without Supabase admin credentials they're BLOCKED, not faked.
  *
  * WJ-JL-038/039/040 (warm pool, search depth, scheduled runs) are asserted in unit tests —

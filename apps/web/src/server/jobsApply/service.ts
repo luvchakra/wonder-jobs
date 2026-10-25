@@ -34,7 +34,7 @@ const err = (status: number, code: string, message: string, extra: Record<string
 
 const nowIso = () => new Date().toISOString();
 
-/** The automation policy as the candidate saved it. Absent (demo mode, or never saved) → the gates fail closed to "ask". */
+/** The automation policy as the candidate saved it. Absent (never saved) → the gates fail closed to "ask". */
 export async function automationOf(tenantId: string): Promise<{ policy?: AutomationPolicy; level?: AutomationLevel }> {
   try {
     const st = await readClientState<{ policy?: AutomationPolicy; defaultLevel?: AutomationLevel }>(tenantId, "wj.automation");

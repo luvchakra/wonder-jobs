@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Bot, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogIn, LogOut, Sparkles, User, UserPlus } from "lucide-react";
+import { Bell, Bot, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
@@ -107,11 +107,6 @@ export function TopBar() {
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
     <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
-      {mode === "demo" && (
-        <p className="px-3 pb-2 pt-1.5 text-[11px] leading-snug text-ink-3">
-          You&apos;re exploring sample data. Nothing here is saved to an account.
-        </p>
-      )}
       {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
       {[
         ...arrangeMenu(
@@ -158,37 +153,24 @@ export function TopBar() {
         </button>
       )}
       <div className="my-1 border-t border-line" />
-      {mode === "demo" ? (
-        <>
-          <a role="menuitem" href="/sign-up" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-            <UserPlus className="size-4" aria-hidden /> Create your account
-          </a>
-          <a role="menuitem" href="/demo/exit?next=/sign-in" className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-            <LogIn className="size-4" aria-hidden /> Exit demo &amp; sign in
-          </a>
-        </>
-      ) : (
-        <>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={async () => {
-              setProfileOpen(false);
-              // Send any still-debounced write (e.g. just-completed onboarding) while the session
-              // is still valid — signOutEverywhere wipes this account's local copy immediately
-              // after, so anything not yet on the server by then never arrives.
-              await flushRemote(false);
-              await signOutEverywhere(userId);
-              // Full reload on purpose: drops every in-memory store before another account can sign in.
-              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-              window.location.href = "/";
-            }}
-            className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
-          >
-            <LogOut className="size-4" aria-hidden /> Sign out
-          </button>
-        </>
-      )}
+      <button
+        type="button"
+        role="menuitem"
+        onClick={async () => {
+          setProfileOpen(false);
+          // Send any still-debounced write (e.g. just-completed onboarding) while the session
+          // is still valid — signOutEverywhere wipes this account's local copy immediately
+          // after, so anything not yet on the server by then never arrives.
+          await flushRemote(false);
+          await signOutEverywhere(userId);
+          // Full reload on purpose: drops every in-memory store before another account can sign in.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+          window.location.href = "/";
+        }}
+        className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
+      >
+        <LogOut className="size-4" aria-hidden /> Sign out
+      </button>
     </div>
   );
 
@@ -263,7 +245,7 @@ export function TopBar() {
           <Avatar name={displayName} size={34} self />
           <span className="hidden text-left lg:block">
             <span className="block text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
-            <span className="block text-[11px] leading-tight text-ink-3">{mode === "demo" ? "Demo mode" : careerStatus}</span>
+            <span className="block text-[11px] leading-tight text-ink-3">{careerStatus}</span>
           </span>
           <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>

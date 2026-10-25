@@ -1,31 +1,28 @@
 import { test, expect } from "@playwright/test";
 import { openDescription } from "./utils/jobPage";
+import { openApp } from "./fixtures/sample";
+import { pickKind } from "./utils/findMode";
+import { stubPractice } from "./fixtures/ai";
 
 /**
- * Golden-journey coverage for the core candidate experience, entirely in demo mode (`wj_demo=1`) — no
- * real Supabase account needed, so every test here runs unconditionally, unlike auth.spec.ts's
- * account-dependent block. Demo mode auto-seeds a full job catalog, applications and Career DNA
- * synchronously on first client boot (src/store/StoreHydrator.tsx) and never gates behind onboarding
- * (Gate's redirect only fires for mode === "user"), so these tests go straight from demo entry to
- * real product screens with no setup step of their own.
+ * Golden-journey coverage for the core candidate experience, as a signed-in candidate with history — the sample
+ * candidate of e2e/fixtures/sample.ts, on a local web server with no Supabase (so no real account is needed and
+ * every test here runs unconditionally, unlike auth.spec.ts's account-dependent block). The product has no
+ * demo mode: the candidate's stores are filled before the page loads, and searches answer from the same sample
+ * postings through the real JobsLake path.
  */
 
-test.describe("Golden journey — demo entry", () => {
-  test("GJ-001 opening /demo (where the deployment enables it) enters demo mode and reaches the job list", async ({ page }) => {
-    // The public landing page no longer links to the demo (WJ-188); it is reachable only where
-    // WJ_DEMO_ENABLED=1, which this suite's web server sets.
-    await page.goto("/demo");
+test.describe("Golden journey — opening the app", () => {
+  test("GJ-001 a signed-in candidate opening the app reaches the job list, and there is no demo to enter", async ({ page }) => {
+    await openApp(page, "/app");
     await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
-    const cookies = await page.context().cookies();
-    expect(cookies.some((c) => c.name === "wj_demo" && c.value === "1")).toBe(true);
+    expect((await page.request.get("/demo", { maxRedirects: 0 })).status()).toBe(404);
   });
 });
 
-test.describe("Golden journey — jobs (demo mode)", () => {
+test.describe("Golden journey — jobs", () => {
   test.beforeEach(async ({ page }) => {
-    // Enter demo mode directly rather than repeating the landing-page click in every test — GJ-001 above
-    // already covers that the real click path itself works.
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
   });
 
   test("GJ-002 the jobs list is pre-seeded and a job opens into its detail page", async ({ page }) => {
@@ -40,22 +37,22 @@ test.describe("Golden journey — jobs (demo mode)", () => {
 
   test("GJ-003 a job's detail page explains the match and its save state can be toggled", async ({ page }) => {
     await page.goto("/app/jobs/job_google_pm");
-    // job_google_pm is pre-saved in the demo seed (services/mock/demo.ts).
+    // job_google_pm is saved in the sample candidate (e2e/fixtures/sample.ts).
     const saveBtn = page.getByRole("button", { name: /^(Save|Saved)$/ });
     await expect(saveBtn).toHaveText("Saved");
 
     // "Why it fits" is a folded section above the description.
     await page.getByText("Why it fits", { exact: true }).click();
-    await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // demo pre-computes matches for the whole catalog
+    await expect(page.getByText(/hasn't compared this role/i)).toHaveCount(0); // the sample candidate's matches are computed for the whole catalog
 
     await saveBtn.click();
     await expect(saveBtn).toHaveText("Save");
     await saveBtn.click();
-    await expect(saveBtn).toHaveText("Saved"); // restore seed state so other tests aren't affected
+    await expect(saveBtn).toHaveText("Saved"); // back as the sample candidate had it
   });
 
   test("GJ-004 marking a job not for me records a reason and can be undone", async ({ page }) => {
-    // job_microsoft_spm isn't part of the pre-saved/rejected seed set, so this test's state change is isolated.
+    // job_microsoft_spm isn't part of the saved/rejected set, so this test's state change is isolated.
     await page.goto("/app/jobs/job_microsoft_spm");
     await openDescription(page);
     await page.getByRole("button", { name: "Not for me" }).click();
@@ -73,9 +70,9 @@ test.describe("Golden journey — jobs (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — applications (demo mode)", () => {
+test.describe("Golden journey — applications", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/demo?next=/app/applications");
+    await openApp(page, "/app/applications");
   });
 
   test("GJ-005 the applications dashboard defaults to a timeline, pre-seeded across every stage, with the tab/list view still available", async ({ page }) => {
@@ -140,11 +137,12 @@ test.describe("Golden journey — applications (demo mode)", () => {
 
   test("GJ-005d interview prep offers a timed test, a mock interview and flashcards, and practice trends in Insights", async ({ page }) => {
     test.setTimeout(120_000);
+    await stubPractice(page);
     await page.getByRole("tablist", { name: "Applications by stage" }).getByRole("tab", { name: /Interview/ }).click();
     await page.getByRole("link", { name: /^Prepare/ }).first().click();
     await page.waitForURL(/\/interview$/);
     const prep = page.url();
-    // Test: ten questions, ten seconds each; a pass needs 90%. Demo mode shows a labelled sample.
+    // Test: ten questions, ten seconds each; a pass needs 90%. The model's replies are stood in for (fixtures/ai.ts): the server has none.
     await page.getByRole("link", { name: /Practice test/ }).click();
     await page.getByRole("button", { name: "Start test" }).click();
     for (let i = 1; i <= 10; i++) {
@@ -186,27 +184,26 @@ test.describe("Golden journey — applications (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — run Wonder (demo mode)", () => {
+test.describe("Golden journey — run Wonder", () => {
   test("GJ-007 a search from the search box stays on the job list, with that search's own page one tap away", async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
-    await page.goto("/demo?next=/app");
+    await openApp(page, "/app", { latencyMs: 700 });
     // Typed searches are Part Time's; Full Time is the Career Profile's own search.
-    await page.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind(page, "Part Time Jobs");
     await page.getByRole("textbox", { name: "Search jobs" }).fill("product manager in Bengaluru");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/jobs$/);
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
-    await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
+    await page.waitForURL(/\/app\/runs\/(?!new$)[^/?]+(\?.*)?$/, { timeout: 20_000 });
   });
 });
 
-test.describe("Golden journey — mobile navigation (demo mode)", () => {
+test.describe("Golden journey — mobile navigation", () => {
   // Pin a phone viewport so this journey exercises the mobile layout (bottom bar, no sidebar) even under
   // the desktop "chromium" project.
   test.use({ viewport: { width: 390, height: 844 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/demo?next=/app");
+    await openApp(page, "/app");
   });
 
   test("GJ-008 the bottom bar shows the four places directly, with no menu drawer or More catch-all", async ({ page }) => {
@@ -237,10 +234,12 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
     await page.waitForURL(/\/app\/you$/);
     // The name card at the top is the Career Profile's entry; account, plan and data live in the avatar menu (WJ-281).
     await expect(page.getByRole("link", { name: /Career Profile$/ })).toBeVisible();
-    for (const label of ["Career Profile", "Job sources", "Automation", "Search history"]) {
+    for (const label of ["Job sources", "Search history"]) {
       await expect(page.getByRole("link", { name: new RegExp(`^${label}`) })).toBeVisible();
     }
-    await page.getByRole("link", { name: /^Automation/ }).click();
+    // Automation is in the avatar menu, not a row here.
+    await page.getByRole("button", { name: "Profile menu" }).click();
+    await page.getByRole("menuitem", { name: "Automation" }).click();
     await page.waitForURL(/\/app\/automation\/settings$/);
     await expect(page.getByRole("heading", { name: "Scheduled searches" })).toBeVisible();
     await expect(bottomBar.getByRole("link", { name: "You" })).toHaveAttribute("aria-current", "page");
@@ -249,14 +248,12 @@ test.describe("Golden journey — mobile navigation (demo mode)", () => {
 
 test.describe("Golden journey — new candidate onboarding", () => {
   test("GJ-011 a new candidate without a CV types the role and lands on jobs", async ({ page }) => {
-    // A fresh browser in local mode (no demo cookie): nothing is seeded, so no role is prefilled.
-    await page.goto("/onboarding");
+    // A brand-new account: nothing is filled in, so no role is prefilled.
+    await openApp(page, "/onboarding", { empty: true });
     await expect(page.getByRole("heading", { name: "Add your CV, see your jobs" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Upload CV/ })).toBeVisible();
     await page.getByRole("button", { name: "No CV handy? Type it in" }).click();
     const show = page.getByRole("button", { name: "Show my jobs" });
-    // Local mode seeds the sample profile, so clear what it prefilled: with no role, nothing is assumed.
-    await page.getByLabel("Role you want").fill("");
     await expect(show).toBeDisabled(); // a role is required, never assumed
     await page.getByLabel("Role you want").fill("data analyst");
     await expect(show).toBeEnabled();
@@ -265,35 +262,36 @@ test.describe("Golden journey — new candidate onboarding", () => {
   });
 });
 
-test.describe("Golden journey — search (demo mode)", () => {
+test.describe("Golden journey — search", () => {
   test("GJ-012 a free-text search narrows the real catalog, not a canned result set", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     const results = page.getByRole("list", { name: "Job results" });
     // A distinctive, single-employer term (the default catalog view is paginated at 24, so a common word
     // like "google" — matched against skills/tags too, e.g. "Google Analytics" — can still fill a page
     // and not visibly shrink).
     // Typing alone changes nothing; Search applies the words.
-    await page.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind(page, "Part Time Jobs");
     await page.getByRole("textbox", { name: "Search jobs" }).fill("designer");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.locator("#main").getByText(/^Showing \d+ jobs? for “designer”/)).toBeVisible({ timeout: 20_000 });
-    // Every visible card is a real match for the typed text, not a fixed demo subset.
+    // The best results are real matches for the typed text, not a fixed set. (JobsLake also lists what it saw in
+    // other searches this week that fit the words more loosely, further down.)
     // (Top-level results only: each card carries its own "why" lists, which are list items too.)
     const items = await results.locator(":scope > li").all();
     expect(items.length).toBeGreaterThan(0);
-    for (const item of items) await expect(item).toContainText(/design/i);
+    for (const item of items.slice(0, 10)) await expect(item).toContainText(/design/i);
   });
 
   test("GJ-021 Saved's box filters the saved jobs as you type — no source search, no Search button, no Refine", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     const cards = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
     // Save two jobs from different companies.
     const companies: string[] = [];
     for (let i = 0; companies.length < 2 && i < 12; i++) {
       const card = cards.nth(i);
-      // The company is the card's first link.
-      const company = (await card.getByRole("link").first().innerText()).trim();
+      // The company is named on the line under the title.
+      const company = (await card.locator("span.font-medium.text-ink-2").first().innerText()).trim();
       if (!company || companies.includes(company)) continue;
       await card.getByRole("button", { name: "Save job" }).click();
       companies.push(company);
@@ -309,7 +307,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     // A plain text box: no second, browser-drawn ×.
     expect(await box.getAttribute("type")).not.toBe("search");
     const saved = page.getByRole("list", { name: "Job results" }).locator(":scope > li");
-    // The demo account comes with saved jobs of its own; these two are among them.
+    // The sample candidate comes with saved jobs of its own; these two are among them.
     await expect(saved.first()).toBeVisible();
     const all = await saved.count();
     expect(all).toBeGreaterThanOrEqual(2);
@@ -343,20 +341,19 @@ test.describe("Golden journey — search (demo mode)", () => {
     expect(searches).toBe(0);
     // Find's own words aren't touched by Saved's filter.
     await page.goto("/app/jobs");
-    await page.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind(page, "Part Time Jobs");
     await expect(page.getByRole("textbox", { name: "Search jobs" })).toHaveValue("");
   });
 
   test("GJ-022 Stop ends a search and brings back the list as it was before it started", async ({ page }) => {
     // Slow sources, so the search is still running when Stop is pressed.
-    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "4000"));
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs", { latencyMs: 4000 });
     const main = page.locator("#main");
     const summary = main.getByText(/^Showing \S+ jobs? (for|from) /);
     await expect(summary).toBeVisible({ timeout: 20_000 });
     const before = await summary.innerText();
-    await page.getByRole("radio", { name: "Part Time" }).click();
-    await page.getByRole("radio", { name: "Full Time" }).click();
+    await pickKind(page, "Part Time Jobs");
+    await pickKind(page, "Full Time Jobs");
     await page.getByRole("button", { name: "Search based on Career Profile" }).click();
     const stop = main.getByRole("button", { name: "Stop", exact: true });
     await expect(stop).toBeVisible({ timeout: 10_000 });
@@ -367,9 +364,8 @@ test.describe("Golden journey — search (demo mode)", () => {
 
   test("GJ-024 a running search's banner says what it's for in full, with Details and Stop", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "4000"));
-    await page.goto("/demo?next=/app/jobs");
-    await page.getByRole("radio", { name: "Part Time" }).click();
+    await openApp(page, "/app/jobs", { latencyMs: 4000 });
+    await pickKind(page, "Part Time Jobs");
     await page.getByRole("textbox", { name: "Search jobs" }).fill("designer in Pune");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     const banner = page.getByRole("status").filter({ hasText: "For “designer” in Pune" });
@@ -383,7 +379,7 @@ test.describe("Golden journey — search (demo mode)", () => {
   });
 
   test("GJ-025 Search as: Full Time always has one picked; Part Time starts with none, and a pick fills the box", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     const main = page.locator("#main");
     const pressed = async () => (await main.getByRole("group", { name: "Search as" }).getByRole("button").evaluateAll((els) => els.filter((e) => e.getAttribute("aria-pressed") === "true").map((e) => e.textContent?.trim())));
     // Full Time always has one picked: tapping My profile again keeps it.
@@ -393,7 +389,7 @@ test.describe("Golden journey — search (demo mode)", () => {
     expect(await pressed()).toEqual(["My profile"]);
     await main.getByRole("button", { name: "Back to jobs" }).click();
     // Part Time: none picked; a role puts its words in the box, tapping it again takes them out.
-    await page.getByRole("radio", { name: "Part Time" }).click();
+    await pickKind(page, "Part Time Jobs");
     await main.getByRole("button", { name: /^Refine/ }).click();
     expect(await pressed()).toEqual([]);
     const role = main.getByRole("group", { name: "Search as" }).getByRole("button").nth(1);
@@ -408,7 +404,7 @@ test.describe("Golden journey — search (demo mode)", () => {
 
   test("GJ-026 on a phone the top bar, then the bottom bar, slide away on scrolling down and come back on scrolling up", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     await expect(page.getByRole("list", { name: "Job results" }).locator(":scope > li").first()).toBeVisible({ timeout: 20_000 });
     const top = page.locator("[data-top-bar]");
     const bottom = page.getByRole("navigation", { name: "Primary" });
@@ -430,7 +426,7 @@ test.describe("Golden journey — search (demo mode)", () => {
   });
 
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     const main = page.locator("#main");
     // Full Time / Part Time: the round menu in the top bar, beside the avatar.
     const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
@@ -460,7 +456,7 @@ test.describe("Golden journey — search (demo mode)", () => {
 
   test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the top bar menu switches", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     // Full Time / Part Time: the round menu in the top bar, beside the avatar.
     const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
     const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
@@ -559,6 +555,8 @@ test.describe("Golden journey — search (demo mode)", () => {
     await expect(summary).toContainText("“designer”");
     // The last searches show under the box while it has focus, newest first; × removes one, a tap searches it again.
     const words = page.getByRole("textbox", { name: "Search jobs" });
+    // Part Time's box settles on its own words before it's cleared (clearing it first would be undone).
+    await expect(words).toHaveValue("designer");
     await words.fill("");
     await words.focus();
     const recent = main.getByRole("list", { name: "Recent searches" });
@@ -582,11 +580,11 @@ test.describe("Golden journey — search (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — application preparation (demo mode)", () => {
+test.describe("Golden journey — application preparation", () => {
   test("GJ-013 preparing an application generates a real, editable artifact with visible provenance", async ({ page }) => {
-    // app_meta is seeded "preparing" with no résumé drafted for it (services/mock/seed.ts). The résumé on
+    // app_meta is "preparing" with no résumé drafted for it (src/testing/sample/seed.ts). The résumé on
     // file is offered first (WJ-189); choosing to generate one for this role drafts a new one.
-    await page.goto("/demo?next=/app/applications/app_meta/prepare");
+    await openApp(page, "/app/applications/app_meta/prepare");
     await expect(page.getByRole("heading", { name: "Application Pack" })).toBeVisible();
     const generateChoice = page.getByRole("radio", { name: /Generate a résumé for this role/ });
     await generateChoice.check();
@@ -598,9 +596,9 @@ test.describe("Golden journey — application preparation (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — Ask Wonder (demo mode)", () => {
+test.describe("Golden journey — Ask Wonder", () => {
   test("GJ-014 a real question resolves to a real, data-backed action, not a canned chat reply", async ({ page }) => {
-    await page.goto("/demo?next=/app");
+    await openApp(page, "/app");
     const input = page.getByRole("combobox", { name: "Command" });
     // The shortcut listener attaches when the page hydrates; under load a press can land before that,
     // so press again until the palette opens (the shortcut itself is what's under test).
@@ -617,14 +615,16 @@ test.describe("Golden journey — Ask Wonder (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — automation (demo mode)", () => {
-  test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }) => {
-    await page.goto("/demo?next=/app/automation/settings");
+test.describe("Golden journey — automation", () => {
+  test("GJ-015 automation levels use plain language, and per-capability policy is real and changeable", async ({ page }, info) => {
+    await openApp(page, "/app/automation/settings");
     await expect(page.getByRole("heading", { name: "Automation" })).toBeVisible();
     // Phase 3.2 relabeling — plain language, not internal jargon.
     // Two choices (owner decision, 2026-10-09): Help me folded into Work with me, Keep watch into Work independently.
+    // On a computer only (owner, 2026-10-25): a phone or tablet shows the scheduled searches and "Change one action".
+    const handheld = info.project.name === "Mobile Chrome";
     for (const label of ["Work with me", "Work independently"]) {
-      await expect(page.getByText(label, { exact: true })).toBeVisible();
+      await expect(page.getByText(label, { exact: true })).toHaveCount(handheld ? 0 : 1);
     }
     // Per-action rules are folded under "Change one action".
     await page.getByText("Change one action").click();
@@ -642,14 +642,13 @@ test.describe("Golden journey — automation (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — manual intervention (demo mode)", () => {
+test.describe("Golden journey — manual intervention", () => {
   test("GJ-016 a running search can be paused mid-flight and continued without losing progress", async ({ page }) => {
-    // Sample sources answer slowly enough that the search is still running when it's paused.
-    await page.addInitScript(() => localStorage.setItem("wj.demoSourceLatencyMs", "700"));
-    await page.goto(`/demo?next=${encodeURIComponent("/app/jobs?search=product manager in Bengaluru")}`);
+    // The sources answer slowly enough that the search is still running when it's paused, even on a loaded machine.
+    await openApp(page, "/app/jobs?search=product manager in Bengaluru", { latencyMs: 2_500 });
     await page.waitForURL(/\/app\/jobs$/, { timeout: 20_000 });
     await page.locator("#main").getByRole("link", { name: "Details" }).first().click();
-    await page.waitForURL(/\/app\/runs\/(?!new$)[^/]+$/, { timeout: 20_000 });
+    await page.waitForURL(/\/app\/runs\/(?!new$)[^/?]+(\?.*)?$/, { timeout: 20_000 });
 
     // Pause/Continue live on the outcome card; the mobile status bar has its own labelled twin
     // ("Continue the search"), so scoping to the card keeps this one real control per action.
@@ -672,9 +671,9 @@ test.describe("Golden journey — manual intervention (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — advanced mode (demo mode)", () => {
+test.describe("Golden journey — advanced mode", () => {
   test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
-    await page.goto("/demo?next=/app/settings/ai");
+    await openApp(page, "/app/settings/ai");
     await expect(page.getByText("WonderJobs AI").first()).toBeVisible();
     // Several providers and usage are folded until opened.
     await page.getByText("Advanced: models and several providers").click();
@@ -687,16 +686,16 @@ test.describe("Golden journey — advanced mode (demo mode)", () => {
   });
 });
 
-test.describe("Golden journey — trust (demo mode)", () => {
+test.describe("Golden journey — trust", () => {
   test("GJ-018 Wonder discloses exactly what it can't do, in the same place it offers to help", async ({ page }) => {
-    await page.goto("/demo?next=/app/applications/app_google");
+    await openApp(page, "/app/applications/app_google");
     // The Phase 3.6 hand-off rewrite: Wonder drafts; the candidate sends from their own email.
     await page.getByText("Draft a follow-up email").click();
     await expect(page.getByText(/you copy it into your own email and send it/i)).toBeVisible();
   });
 });
 
-test.describe("Golden journey — the phone keyboard (demo mode)", () => {
+test.describe("Golden journey — the phone keyboard", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test("GJ-019 Ask Wonder's box and a sheet's fields stay above the on-screen keyboard", async ({ page }) => {
@@ -710,7 +709,7 @@ test.describe("Golden journey — the phone keyboard (demo mode)", () => {
         vv.dispatchEvent(new Event("resize"));
       };
     });
-    await page.goto("/demo?next=/app/jobs");
+    await openApp(page, "/app/jobs");
     // The shortcut works once the app is interactive: a press during hydration is lost (and pressing again
     // would toggle it shut), so wait for the stores to hydrate and the top bar's listener to attach first.
     await page.waitForFunction(() => performance.getEntriesByName("wj:hydrated").length > 0);

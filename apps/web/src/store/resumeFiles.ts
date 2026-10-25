@@ -1,15 +1,14 @@
 "use client";
 import { create } from "zustand";
 import type { UploadedResume } from "@/domain/resume/files";
-import { getClientMode } from "@/lib/mode";
 
 /**
  * The candidate's uploaded résumé files, as the server lists them. Metadata only; not persisted in the
- * browser (the files live encrypted on the server). The demo has no account, so nothing is fetched there.
+ * browser (the files live encrypted on the server).
  */
 interface ResumeFilesState {
   files: UploadedResume[];
-  status: "idle" | "loading" | "ready" | "error" | "demo";
+  status: "idle" | "loading" | "ready" | "error";
   load: (force?: boolean) => Promise<void>;
   upload: (file: File) => Promise<UploadedResume>;
   remove: (id: string) => Promise<void>;
@@ -26,7 +25,6 @@ export const useResumeFilesStore = create<ResumeFilesState>((set, get) => ({
   files: [],
   status: "idle",
   load: async (force = false) => {
-    if (getClientMode().mode === "demo") return set({ status: "demo", files: [] });
     if (!force && (get().status === "loading" || get().status === "ready")) return;
     set({ status: "loading" });
     try {

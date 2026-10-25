@@ -7,4 +7,4 @@ export const PRIVATE_PAGE: Pick<Metadata, "robots" | "other"> = { robots: { inde
 export const AI_CRAWLERS = ["GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web", "anthropic-ai", "CCBot", "PerplexityBot", "Google-Extended", "Applebot-Extended", "Bytespider", "Amazonbot", "meta-externalagent", "cohere-ai", "Diffbot"];
 
 /** Paths only a signed-in person (or the app itself) uses. Search engines may crawl the marketing pages and shared job pages, nothing else. */
-export const PRIVATE_PATHS = ["/app", "/api", "/help", "/platform", "/onboarding", "/demo", "/auth"];
+export const PRIVATE_PATHS = ["/app", "/api", "/help", "/platform", "/onboarding", "/auth"];

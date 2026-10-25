@@ -6,7 +6,7 @@ import type { CanonicalJob } from "@/domain/jobs/types";
 import { searchFinishedNotice } from "./service";
 
 const run = (strong: number, found: number, query = "iam director") => ({ id: "run_1", summary: { strongMatches: strong, jobsRetained: found }, config: { searchCriteria: { query } } }) as never;
-const job = { id: "job_1", title: "IAM Director", company: "Acme", postedAt: "2026-10-01T00:00:00Z" } as unknown as CanonicalJob;
+const job = { id: "job_1", title: "IAM Director", company: "Acme", postedAt: "2026-10-01T00:00:00Z", description: "" } as unknown as CanonicalJob;
 
 beforeEach(() => {
   useCareerStore.setState({ notifications: [] });
