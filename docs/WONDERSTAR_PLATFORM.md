@@ -256,14 +256,15 @@ so the design stays one system: same tokens, one primary action per screen, fold
    profile snapshots and scorecards (WJ-412) are already shaped this way.
 3. **Workspace core** — Hiring workspaces become `workspaces` with `module = "jobs"`; the permission matrix gains a
    module key.
-4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities.
+4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities: **a separate dataset per
+   module** (owner, 2026-10-28). Jobs' sources and listings are `module = 'jobs'` and nothing else ever reads them as
+   another module's; each module registers its own sources.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
-   **Started (WJ-413, 2026-10-28):** a third Find mode (`findMode.ts`: words like Part Time, searched as internships,
-   lists only postings that say they're one); companies post internships with a monthly stipend, duration and start
-   date (`domain/org/internship.ts`, `employer_jobs.internship`, migration 0032); Easy Apply shares education. Built on
-   Jobs' machinery first — moved behind the registry/manifest when step 1 lands. Next: Internshala-style persona fields
-   (graduation year, availability) and internship sources.
+   **Rule (owner, 2026-10-28): the jobs portal stays exactly as it is** (CLAUDE.md). Internships is built as its own
+   module at `/app/m/internships` with its own JobsLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
+   taken back out in WJ-414). Kept for it: `domain/org/internship.ts` (stipend a month, duration, start date) and
+   `employer_jobs.internship` (migration 0032).
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
 7. **Talent & Services** — adds quotes, payments and reviews.
 8. **Events & Social** — adds capacity, RSVP and waitlist.

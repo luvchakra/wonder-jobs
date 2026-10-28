@@ -8,7 +8,6 @@
  * Two reads cross tenants by design and only these: open job listings (they're public postings), and talent
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
-import { cleanInternship, type InternshipTerms } from "@/domain/org/internship";
 import { cleanQuestions, type ScreeningQuestion } from "@/domain/org/screening";
 import { randomUUID } from "node:crypto";
 import { companyProblem, normalizeWebsite, websiteDomain, workEmailMatches } from "@/domain/org/company";
@@ -39,7 +38,7 @@ export class HiringError extends Error {
 type OrgRow = { id: string; name: string; website: string | null; verified: boolean; created_by: string; created_at: string };
 type MemberRow = { org_id: string; tenant_id: string; role: OrgRole; email: string | null; name: string | null; joined_at: string };
 type InviteRow = { id: string; org_id: string; email: string; role: OrgRole; invited_by: string; created_at: string };
-type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; apply_url: string; screening?: ScreeningQuestion[] | null; internship?: InternshipTerms | null; status: EmployerJobStatus; created_by: string; created_at: string; updated_at: string };
+type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; apply_url: string; screening?: ScreeningQuestion[] | null; status: EmployerJobStatus; created_by: string; created_at: string; updated_at: string };
 type TalentRow = { tenant_id: string; display_name: string; headline: string; seniority: string; years_experience: number; skills: string[]; locations: string[]; work_modes: string[]; summary: string; updated_at: string };
 type ShortlistRow = { id: string; org_id: string; candidate_tenant: string; job_id: string | null; note: string; status: ShortlistStatus; added_by: string; created_at: string; updated_at: string };
 type ConversationRow = { id: string; org_id: string; candidate_tenant: string; job_id: string | null; status: ConversationStatus; started_by: string; created_at: string; updated_at: string };
@@ -61,7 +60,7 @@ const email = (s: string) => s.trim().toLowerCase();
 const toOrg = (r: OrgRow): Organization => ({ id: r.id, name: r.name, website: r.website ?? undefined, verified: !!r.verified, createdAt: r.created_at });
 const toMember = (r: MemberRow): Membership => ({ orgId: r.org_id, tenantId: r.tenant_id, role: r.role, email: r.email ?? undefined, name: r.name ?? undefined, joinedAt: r.joined_at });
 const toInvite = (r: InviteRow): OrgInvite => ({ id: r.id, orgId: r.org_id, email: r.email, role: r.role, invitedBy: r.invited_by, createdAt: r.created_at });
-const toJob = (r: JobRow): EmployerJob => ({ id: r.id, orgId: r.org_id, title: r.title, location: r.location, workMode: r.work_mode, jobType: (r.job_type ?? undefined) as EmployerJob["jobType"], salaryMin: r.salary_min ?? undefined, salaryMax: r.salary_max ?? undefined, currency: r.currency, description: r.description, skills: r.skills ?? [], applyUrl: r.apply_url, screening: r.screening ?? [], ...(r.internship ? { internship: r.internship } : {}), status: r.status, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at });
+const toJob = (r: JobRow): EmployerJob => ({ id: r.id, orgId: r.org_id, title: r.title, location: r.location, workMode: r.work_mode, jobType: (r.job_type ?? undefined) as EmployerJob["jobType"], salaryMin: r.salary_min ?? undefined, salaryMax: r.salary_max ?? undefined, currency: r.currency, description: r.description, skills: r.skills ?? [], applyUrl: r.apply_url, screening: r.screening ?? [], status: r.status, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at });
 const toTalent = (r: TalentRow): TalentProfile => ({ tenantId: r.tenant_id, displayName: r.display_name, headline: r.headline, seniority: r.seniority, yearsExperience: r.years_experience, skills: r.skills ?? [], locations: r.locations ?? [], workModes: r.work_modes ?? [], summary: r.summary, updatedAt: r.updated_at });
 const toShortlist = (r: ShortlistRow): ShortlistEntry => ({ id: r.id, orgId: r.org_id, candidateTenant: r.candidate_tenant, jobId: r.job_id ?? undefined, note: r.note, status: r.status, addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at });
 const toConversation = (r: ConversationRow): Conversation => ({ id: r.id, orgId: r.org_id, candidateTenant: r.candidate_tenant, jobId: r.job_id ?? undefined, status: r.status, startedBy: r.started_by, createdAt: r.created_at, updatedAt: r.updated_at });
@@ -355,7 +354,6 @@ export interface JobInput {
   skills?: string[];
   applyUrl: string;
   screening?: unknown;
-  internship?: unknown;
 }
 
 function checkJob(i: JobInput): ScreeningQuestion[] {
@@ -386,7 +384,6 @@ export async function saveJob(s: Session, orgId: string, input: JobInput, jobId?
     skills: (input.skills ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 25),
     apply_url: normalizeApplyUrl(input.applyUrl),
     screening,
-    internship: cleanInternship(input.internship, input.jobType) ?? null,
     updated_at: now(),
   };
   if (jobId) {

@@ -1,4 +1,3 @@
-import type { InternshipTerms } from "./internship";
 import type { ScreeningQuestion } from "./screening";
 /**
  * Employers and recruiters (owner, 2026-10-20). Everyone is a job seeker; a person may also belong to a company's
@@ -59,8 +58,6 @@ export interface EmployerJob {
   applyUrl: string;
   /** Questions every applicant answers (Easy Apply and career sites); none when empty. */
   screening: ScreeningQuestion[];
-  /** An internship's duration and start date (domain/org/internship.ts); only for jobType "internship". */
-  internship?: InternshipTerms;
   status: EmployerJobStatus;
   createdBy: string;
   createdAt: string;

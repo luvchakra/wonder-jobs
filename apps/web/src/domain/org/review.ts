@@ -55,16 +55,6 @@ export interface ApplicantProfile {
   headline?: string;
   skills: string[];
   yearsExperience?: number;
-  /** Where they studied, newest first (at most 3) — what an internship's team reads first (WJ-413). */
-  education?: ApplicantEducation[];
-}
-
-export interface ApplicantEducation {
-  institution: string;
-  degree?: string;
-  field?: string;
-  /** As the Career Profile has it, e.g. "2027" or "2027-05". */
-  endDate?: string;
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}+#.]+/gu, " ").trim();
@@ -93,19 +83,6 @@ export function cleanApplicantProfile(raw: unknown): ApplicantProfile | undefine
   const skills = Array.isArray(r.skills) ? r.skills.filter((s): s is string => typeof s === "string").map((s) => s.trim().slice(0, 60)).filter(Boolean).slice(0, 40) : [];
   const headline = typeof r.headline === "string" ? r.headline.trim().slice(0, 160) : "";
   const years = typeof r.yearsExperience === "number" && Number.isFinite(r.yearsExperience) && r.yearsExperience >= 0 && r.yearsExperience <= 60 ? Math.round(r.yearsExperience) : undefined;
-  const str = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
-  const education = (Array.isArray(r.education) ? r.education : [])
-    .flatMap((e): ApplicantEducation[] => {
-      if (!e || typeof e !== "object") return [];
-      const x = e as Record<string, unknown>;
-      const institution = str(x.institution, 160);
-      if (!institution) return [];
-      const degree = str(x.degree, 120);
-      const field = str(x.field, 120);
-      const endDate = str(x.endDate, 20);
-      return [{ institution, ...(degree ? { degree } : {}), ...(field ? { field } : {}), ...(endDate ? { endDate } : {}) }];
-    })
-    .slice(0, 3);
-  if (!skills.length && !headline && years == null && !education.length) return undefined;
-  return { ...(headline ? { headline } : {}), skills, ...(years != null ? { yearsExperience: years } : {}), ...(education.length ? { education } : {}) };
+  if (!skills.length && !headline && years == null) return undefined;
+  return { ...(headline ? { headline } : {}), skills, ...(years != null ? { yearsExperience: years } : {}) };
 }
