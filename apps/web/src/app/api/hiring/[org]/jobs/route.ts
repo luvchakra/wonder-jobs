@@ -17,6 +17,8 @@ const Job = z.object({
   description: z.string().max(8000),
   skills: z.array(z.string().max(60)).max(25).optional(),
   applyUrl: z.string().max(500),
+  // Checked in full by domain/org/screening.ts::cleanQuestions (at most 5, each well formed).
+  screening: z.array(z.record(z.string(), z.unknown())).max(10).optional(),
 });
 
 export async function GET(req: Request, ctx: Ctx) {

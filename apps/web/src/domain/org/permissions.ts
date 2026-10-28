@@ -15,13 +15,14 @@ export type OrgPermission =
   | "shortlist.decide" // interview / pass
   | "messages.send"
   | "messages.view"
-  | "applications.view" // applications from career sites
+  | "applications.view" // applications from career sites and Easy Apply
+  | "applications.review" // add a scorecard or a note (the team's own, never sent to the applicant)
   | "applications.decide"; // move an application on, which emails the applicant
 
 const MATRIX: Record<OrgRole, readonly OrgPermission[]> = {
-  owner: ["org.manage", "jobs.view", "jobs.edit", "talent.search", "shortlist.edit", "shortlist.view", "shortlist.decide", "messages.send", "messages.view", "applications.view", "applications.decide"],
-  hiring_manager: ["jobs.view", "jobs.edit", "shortlist.view", "shortlist.decide", "messages.view", "applications.view", "applications.decide"],
-  recruiter: ["jobs.view", "talent.search", "shortlist.edit", "shortlist.view", "messages.send", "messages.view", "applications.view"],
+  owner: ["org.manage", "jobs.view", "jobs.edit", "talent.search", "shortlist.edit", "shortlist.view", "shortlist.decide", "messages.send", "messages.view", "applications.view", "applications.review", "applications.decide"],
+  hiring_manager: ["jobs.view", "jobs.edit", "shortlist.view", "shortlist.decide", "messages.view", "applications.view", "applications.review", "applications.decide"],
+  recruiter: ["jobs.view", "talent.search", "shortlist.edit", "shortlist.view", "messages.send", "messages.view", "applications.view", "applications.review"],
 };
 
 export function can(role: OrgRole | undefined | null, permission: OrgPermission): boolean {

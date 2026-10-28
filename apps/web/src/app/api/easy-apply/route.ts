@@ -16,6 +16,8 @@ const Body = z.object({
   coverNote: z.string().max(4000).optional(),
   resumeFileId: z.string().regex(/^rf_[A-Za-z0-9_-]{8,40}$/),
   consent: z.literal(true),
+  answers: z.record(z.string().max(60), z.union([z.string().max(600), z.number()])).optional(),
+  profile: z.object({ headline: z.string().max(400).optional(), skills: z.array(z.string().max(120)).max(60).optional(), yearsExperience: z.number().optional() }).optional(),
 });
 
 /**

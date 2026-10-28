@@ -20,6 +20,8 @@ import { siteUrl } from "@/lib/siteUrl";
 import { hashKey } from "@/lib/ids";
 import { decryptFile, encryptFile, resumeFileStore } from "./resume/files";
 import { can } from "@/domain/org/permissions";
+import { cleanAnswers, unmetMustHaves, type ScreeningQuestion } from "@/domain/org/screening";
+import { applicantFit, cleanApplicantProfile, cleanReview, summarizeReviews, type ApplicantProfile, type ApplicationReview, type Recommendation } from "@/domain/org/review";
 import type { EmployerJob, OrgRole } from "@/domain/org/types";
 import {
   APPLICATION_STATUS_LABEL,
@@ -66,10 +68,13 @@ type AppRow = {
   reminders_sent: number;
   last_reminded_at: string | null;
   via?: "site" | "wonderjobs";
+  answers?: Record<string, string> | null;
+  profile?: ApplicantProfile | null;
 };
+type ReviewRow = { id: string; application_id: string; org_id: string; author_tenant: string; author_name: string; recommendation: Recommendation | null; note: string; created_at: string };
 type FileRow = { application_id: string; org_id: string; filename: string; mime: string; ciphertext: string; created_at: string };
 type EventRow = { application_id: string; org_id: string; event: string; actor: string | null; detail: string | null; at: string };
-type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; status: string; created_by: string; updated_at: string };
+type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; screening?: ScreeningQuestion[] | null; status: string; created_by: string; updated_at: string };
 type OrgRow = { id: string; name: string; website: string | null; verified?: boolean };
 type MemberRow = { org_id: string; tenant_id: string; role: OrgRole; email: string | null; name: string | null };
 
@@ -78,6 +83,7 @@ const siteJobs = () => table<SiteJobRow>("career_site_jobs");
 const apps = () => table<AppRow>("job_applications");
 const events = () => table<EventRow>("job_application_events");
 const files = () => table<FileRow>("job_application_files");
+const reviews = () => table<ReviewRow>("job_application_reviews");
 const jobs = () => table<JobRow>("employer_jobs");
 const orgs = () => table<OrgRow>("hiring_orgs");
 const members = () => table<MemberRow>("hiring_members");
@@ -112,6 +118,8 @@ const toApp = (r: AppRow): Application => ({
   resumeUrl: r.resume_url ?? undefined,
   via: r.via ?? "site",
   coverNote: r.cover_note,
+  ...(r.answers ? { answers: r.answers } : {}),
+  ...(r.profile ? { profile: r.profile } : {}),
   status: r.status,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -343,6 +351,41 @@ export interface EasyApplyInput {
   /** One of the candidate's own uploaded résumé files; a copy goes with the application. */
   resumeFileId: string;
   consent: boolean;
+  /** Answers to the job's screening questions, by question id. */
+  answers?: unknown;
+  /** What the candidate shares from their Career Profile: headline, skills, years of experience. */
+  profile?: unknown;
+}
+
+/** The WonderJobs listing behind one of the ids a candidate has for a job (it may have been merged with others). */
+async function easyApplyListing(listingIds: string[]) {
+  const listing = new Set(listingIds.filter((x) => x.startsWith("employers_")));
+  return (await openJobs()).find(({ job }) => listing.has(`employers_${hashKey(`employers:${job.id}`)}`)) ?? null;
+}
+
+/**
+ * What Easy Apply needs to know before it sends (owner, 2026-10-28): the job's screening questions, and whether this
+ * account already applied. The browser fills the answers it can from the candidate's own saved answers and asks only
+ * for the rest.
+ */
+export async function easyApplyForm(s: Session, listingIds: string[]): Promise<{ jobTitle: string; company: string; questions: ScreeningQuestion[]; applied: { id: string; status: ApplicationStatus } | null }> {
+  if (!s.email) throw new HiringError("Sign in with your email to use Easy Apply.", 403);
+  const found = await easyApplyListing(listingIds);
+  if (!found) throw new HiringError("This position is no longer open.", 404);
+  const mine = await apps().one({ job_id: found.job.id, email: s.email.toLowerCase() });
+  return { jobTitle: found.job.title, company: found.org.name, questions: found.job.screening, applied: mine ? { id: mine.id, status: mine.status } : null };
+}
+
+/** The applicant takes back an Easy Apply application the company hasn't moved on yet. It shows as withdrawn to the company. */
+export async function withdrawEasyApply(s: Session, applicationId: string): Promise<void> {
+  if (!s.email) throw new HiringError("Sign in with your email.", 403);
+  const a = await apps().one({ id: applicationId, email: s.email.toLowerCase(), via: "wonderjobs" });
+  if (!a) throw new HiringError("That application isn't yours.", 404);
+  if (!["new", "reviewing"].includes(a.status)) throw new HiringError(`It's already ${APPLICATION_STATUS_LABEL[a.status].toLowerCase()}, so it can't be withdrawn here. Write to the company instead.`, 409);
+  const at = now();
+  const n = await apps().update({ id: a.id, org_id: a.org_id, status: a.status }, { status: "withdrawn", updated_at: at, last_action_at: at });
+  if (!n) throw new HiringError("The company just changed this application. Reload and try again.", 409);
+  await record(a, "status:withdrawn", "applicant", "Withdrawn on WonderJobs");
 }
 
 /**
@@ -355,10 +398,11 @@ export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id
   if (!s.email) throw new HiringError("Sign in with your email to use Easy Apply.", 403);
   const clean = cleanApplication({ ...input, email: s.email, resumeUrl: "" }, { resumeFile: true });
   if ("problem" in clean) throw new HiringError(clean.problem);
-  const listing = new Set(input.listingIds.filter((x) => x.startsWith("employers_")));
-  const found = (await openJobs()).find(({ job }) => listing.has(`employers_${hashKey(`employers:${job.id}`)}`));
+  const found = await easyApplyListing(input.listingIds);
   if (!found) throw new HiringError("This position is no longer open.", 404);
   const { job, org } = found;
+  const answered = cleanAnswers(job.screening, input.answers);
+  if ("problem" in answered) throw new HiringError(answered.problem);
   const file = await resumeFileStore().read(s.tenantId, input.resumeFileId);
   if (!file) throw new HiringError("Choose one of your résumés.", 400);
   const v = clean.value;
@@ -386,6 +430,8 @@ export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id
     reminders_sent: 0,
     last_reminded_at: null,
     via: "wonderjobs",
+    answers: job.screening.length ? answered.answers : null,
+    profile: cleanApplicantProfile(input.profile) ?? null,
   };
   await apps().insert(row);
   await files().insert({ application_id: appId, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), appId, file.bytes), created_at: at });
@@ -441,14 +487,60 @@ export async function withdrawApplication(site: Site, token: string): Promise<{ 
 export interface ApplicationView extends Application {
   jobTitle: string;
   siteName?: string;
+  /** The job's screening questions as they are now, to show each answer with its question. */
+  questions: Pick<ScreeningQuestion, "id" | "prompt">[];
+  /** Must-have questions the answers don't meet (shown to the team; WonderJobs never acts on them). */
+  unmet: string[];
+  /** The job's skills the applicant shared, and those they didn't; null when either side lists none. */
+  fit: { matched: string[]; missing: string[] } | null;
+  /** The hiring team's scorecards, tallied. */
+  reviews: ReturnType<typeof summarizeReviews>;
 }
 
 export async function listApplications(s: Session, orgId: string): Promise<ApplicationView[]> {
   await requirePermission(s, orgId, "applications.view");
   const rows = await apps().find({ org_id: orgId }, { order: "created_at", desc: true, limit: 500 });
-  const [jobRows, siteRows] = await Promise.all([jobs().findIn("id", [...new Set(rows.map((r) => r.job_id))], { org_id: orgId }), sites().find({ org_id: orgId })]);
-  return rows.map((r) => ({ ...toApp(r), jobTitle: jobRows.find((j) => j.id === r.job_id)?.title ?? "Deleted job", siteName: siteRows.find((x) => x.id === r.site_id)?.name }));
+  const ids = rows.map((r) => r.id);
+  const [jobRows, siteRows, reviewRows] = await Promise.all([jobs().findIn("id", [...new Set(rows.map((r) => r.job_id))], { org_id: orgId }), sites().find({ org_id: orgId }), ids.length ? reviews().findIn("application_id", ids, { org_id: orgId }) : Promise.resolve([] as ReviewRow[])]);
+  return rows.map((r) => {
+    const job = jobRows.find((j) => j.id === r.job_id);
+    const questions = job?.screening ?? [];
+    // Only applications that answered the questions are judged on them: one sent before they were added has no answers.
+    const unmet = r.answers ? unmetMustHaves(questions, r.answers) : [];
+    return {
+      ...toApp(r),
+      jobTitle: job?.title ?? "Deleted job",
+      siteName: siteRows.find((x) => x.id === r.site_id)?.name,
+      questions: questions.map((q) => ({ id: q.id, prompt: q.prompt })),
+      unmet,
+      fit: applicantFit(job?.skills ?? [], r.profile ?? undefined),
+      reviews: summarizeReviews(reviewRows.filter((x) => x.application_id === r.id).map(toReview)),
+    };
+  });
 }
+
+// ---- scorecards and notes (the hiring team's own; never shown to the applicant) ------------------------------
+const toReview = (r: ReviewRow): ApplicationReview => ({ id: r.id, applicationId: r.application_id, authorTenant: r.author_tenant, authorName: r.author_name, ...(r.recommendation ? { recommendation: r.recommendation } : {}), note: r.note, createdAt: r.created_at });
+
+export async function listReviews(s: Session, orgId: string, applicationId: string): Promise<ApplicationReview[]> {
+  await requirePermission(s, orgId, "applications.view");
+  if (!(await apps().one({ id: applicationId, org_id: orgId }))) throw new HiringError("That application isn't in this workspace.", 404);
+  return (await reviews().find({ application_id: applicationId, org_id: orgId }, { order: "created_at" })).map(toReview);
+}
+
+/** Someone on the hiring team adds their scorecard (a recommendation and/or a note). Recorded in the history too. */
+export async function addReview(s: Session, orgId: string, applicationId: string, input: { recommendation?: unknown; note?: unknown }): Promise<ApplicationReview> {
+  const me = await requirePermission(s, orgId, "applications.review");
+  const a = await apps().one({ id: applicationId, org_id: orgId });
+  if (!a) throw new HiringError("That application isn't in this workspace.", 404);
+  const clean = cleanReview(input);
+  if ("problem" in clean) throw new HiringError(clean.problem);
+  const row: ReviewRow = { id: id("rev"), application_id: a.id, org_id: orgId, author_tenant: s.tenantId, author_name: (me.name || me.email || s.name || s.email || "Team member").slice(0, 80), recommendation: clean.recommendation ?? null, note: clean.note, created_at: now() };
+  await reviews().insert(row);
+  await record(a, clean.recommendation ? `review:${clean.recommendation}` : "review:note", s.tenantId);
+  return toReview(row);
+}
+
 
 export async function applicationHistory(s: Session, orgId: string, applicationId: string): Promise<ApplicationEvent[]> {
   await requirePermission(s, orgId, "applications.view");

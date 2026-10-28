@@ -54,3 +54,17 @@ describe("translate_job — translating a job description is an AI call the cand
     expect(resolveCapability("translate_job", older as ReturnType<typeof defaultPolicy>, "guided")).toBe("ask");
   });
 });
+
+describe("easy_apply — the candidate's press of Easy Apply sends at once, unless they chose to see it first", () => {
+  it("sends in one tap by default, at every level; Ask me shows the details first; Off turns it off", () => {
+    expect(CAPABILITY_META.easy_apply).toMatchObject({ default: "automatic", external: true });
+    for (const level of ["assist", "guided", "autonomous", "continuous"] as const) expect(resolveCapability("easy_apply", defaultPolicy(), level)).toBe("run");
+    expect(resolveCapability("easy_apply", { ...defaultPolicy(), easy_apply: "ask" }, "continuous")).toBe("ask");
+    expect(resolveCapability("easy_apply", { ...defaultPolicy(), easy_apply: "off" }, "continuous")).toBe("skip");
+  });
+  it("a policy saved before it existed, or a failed lookup, asks first (fails closed)", () => {
+    const { easy_apply: _removed, ...older } = defaultPolicy();
+    void _removed;
+    expect(resolveCapability("easy_apply", older as ReturnType<typeof defaultPolicy>, "guided")).toBe("ask");
+  });
+});

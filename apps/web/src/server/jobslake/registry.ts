@@ -90,7 +90,7 @@ export async function getSource(id: string): Promise<SourceRecord | undefined> {
 export async function isAvailable(s: SourceRecord): Promise<boolean> {
   switch (s.config.kind) {
     case "builtin":
-      return fixtureJobsOn() || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
+      return (fixtureJobsOn() && s.id !== "employers") || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
     case "ats_board":
     case "feed":
     case "structured":
@@ -134,7 +134,8 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
-      if (fixtureJobsOn()) return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
+      // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
+      if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
       if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby") {
         const r = await fetchAtsBoards(boardsOf(s.id), c, depth);
         return { jobs: r.jobs, warnings: r.failures.map((f) => `${f.slug}: ${f.message}`) };

@@ -98,7 +98,7 @@ export function FindModeMenu() {
         </span>
       </button>
       {open && (
-        <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-10 z-40 max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+        <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-10 z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
           {MODES.map((m) => {
             const on = m.mode === current;
             const I = m.icon;
@@ -133,8 +133,8 @@ export function FindModeMenu() {
               {upcoming.map((k) => {
                 const I = UPCOMING_ICON[k.id];
                 return (
-                  <button key={k.id} type="button" role="menuitem" aria-disabled="true" onClick={() => toast.info(`${k.label} is coming soon`)} className="flex w-full cursor-default items-center gap-3 rounded-[14px] px-2.5 py-2 text-left opacity-70">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-3">
+                  <button key={k.id} type="button" role="menuitem" aria-disabled="true" onClick={() => toast.info(`${k.label} is coming soon`)} className="flex w-full cursor-default items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left opacity-70">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-3">
                       <I className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">

@@ -1,3 +1,4 @@
+import type { ScreeningQuestion } from "./screening";
 /**
  * Employers and recruiters (owner, 2026-10-20). Everyone is a job seeker; a person may also belong to a company's
  * hiring workspace (an organization) in one role. What each role may do is `permissions.ts` — the one place that
@@ -55,6 +56,8 @@ export interface EmployerJob {
   skills: string[];
   /** Where a candidate applies: the employer's own page or an email address. */
   applyUrl: string;
+  /** Questions every applicant answers (Easy Apply and career sites); none when empty. */
+  screening: ScreeningQuestion[];
   status: EmployerJobStatus;
   createdBy: string;
   createdAt: string;

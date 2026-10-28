@@ -75,6 +75,8 @@ function HiringPage() {
   const tab: Tab = tabs.some((t) => t.value === asked) ? asked! : (tabs[0]?.value ?? "team");
   const openConversation = params.get("c");
   const openApplication = params.get("a");
+  const applicationsJob = params.get("job");
+  const toApplications = (job: string | null) => router.replace(`/app/hiring?${orgId ? `org=${encodeURIComponent(orgId)}&` : ""}tab=applications${job ? `&job=${encodeURIComponent(job)}` : ""}`);
   const go = (t: Tab, c?: string | null, org = orgId) => router.replace(`/app/hiring?${org ? `org=${encodeURIComponent(org)}&` : ""}tab=${t}${c ? `&c=${c}` : ""}`);
   const switchTo = (id: string) => {
     setOrgId(id);
@@ -198,8 +200,8 @@ function HiringPage() {
         />
       )}
       <Tabs value={tab} onChange={(t) => go(t)} items={tabs} label="Hiring" variant="underline" className="mb-4" />
-      {tab === "jobs" && <JobsTab orgId={ws.org.id} canEdit={can(r, "jobs.edit")} canManage={can(r, "org.manage")} />}
-      {tab === "applications" && <ApplicationsTab orgId={ws.org.id} canDecide={can(r, "applications.decide")} openId={openApplication} />}
+      {tab === "jobs" && <JobsTab orgId={ws.org.id} canEdit={can(r, "jobs.edit")} canManage={can(r, "org.manage")} onApplicants={can(r, "applications.view") ? toApplications : undefined} />}
+      {tab === "applications" && <ApplicationsTab orgId={ws.org.id} canDecide={can(r, "applications.decide")} openId={openApplication} jobId={applicationsJob} onJob={toApplications} />}
       {tab === "talent" && <TalentTab orgId={ws.org.id} onShortlisted={() => setRefresh((n) => n + 1)} onMessaged={(id) => go("messages", id)} />}
       {tab === "shortlist" && <ShortlistTab orgId={ws.org.id} canEdit={can(r, "shortlist.edit")} canDecide={can(r, "shortlist.decide")} refresh={refresh} />}
       {tab === "messages" && <MessagesTab orgId={ws.org.id} openId={openConversation} onOpen={(id) => go("messages", id)} refresh={refresh} />}
