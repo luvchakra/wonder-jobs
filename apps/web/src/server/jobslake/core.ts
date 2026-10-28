@@ -19,7 +19,8 @@ import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache
 import { DestinationBlockedError } from "./safeFetch";
 import { asksSince, isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
 import { creditsLeft, topUpBelow } from "./paid";
-import { jobsLakeStore, type CachedAnswer, type JobsLakeStore } from "./store";
+import { jobsLakeStore, sourceModule, type CachedAnswer, type JobsLakeStore } from "./store";
+import type { ModuleId } from "@/modules/registry";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { recordCompanies } from "./companies";
@@ -102,22 +103,28 @@ async function bookkeeping<T>(what: string, fn: () => Promise<T>): Promise<T | u
  * is merged in at once, so its own results never wait for the next read.
  */
 const POOL_TTL_MS = 2 * 60_000;
-const pools = new WeakMap<JobsLakeStore, { at: number; byId: Map<string, CanonicalOpportunity> }>();
-async function warmPool(store: JobsLakeStore, now = Date.now()): Promise<CanonicalOpportunity[]> {
-  const hit = pools.get(store);
+// One pool per module's dataset: a module's search never sees another module's postings.
+const pools = new WeakMap<JobsLakeStore, Map<ModuleId, { at: number; byId: Map<string, CanonicalOpportunity> }>>();
+const poolsOf = (store: JobsLakeStore) => {
+  let m = pools.get(store);
+  if (!m) pools.set(store, (m = new Map()));
+  return m;
+};
+async function warmPool(store: JobsLakeStore, module: ModuleId, now = Date.now()): Promise<CanonicalOpportunity[]> {
+  const hit = poolsOf(store).get(module);
   if (hit && now - hit.at < POOL_TTL_MS) return [...hit.byId.values()];
   const since = new Date(now - 7 * 86_400_000).toISOString();
-  const list = await store.listOpportunities({ sinceIso: since, limit: 3000 });
-  pools.set(store, { at: now, byId: new Map(list.map((o) => [o.id, o])) });
+  const list = await store.listOpportunities({ sinceIso: since, limit: 3000, module });
+  poolsOf(store).set(module, { at: now, byId: new Map(list.map((o) => [o.id, o])) });
   return list;
 }
-function rememberInPool(store: JobsLakeStore, opps: CanonicalOpportunity[]) {
-  const hit = pools.get(store);
+function rememberInPool(store: JobsLakeStore, module: ModuleId, opps: CanonicalOpportunity[]) {
+  const hit = poolsOf(store).get(module);
   if (hit) for (const o of opps) hit.byId.set(o.id, o);
 }
 
 async function warmCandidates(req: SearchRequest, allowed: Set<string> | null, strict = false): Promise<CanonicalOpportunity[]> {
-  const pool = await warmPool(jobsLakeStore());
+  const pool = await warmPool(jobsLakeStore(), req.module ?? "jobs");
   return pool.filter((o) => {
     if (allowed && !o.sourceRecords.some((r) => allowed.has(r.sourceId))) return false;
     // Strict (an API-key search): the posting's own fields must come from an allowed source, not just a sighting.
@@ -152,7 +159,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const requestId = newId("req");
   const emit = opts.emit ?? (() => undefined);
   const only = opts.onlySources ? new Set(opts.onlySources) : null;
-  const sources = (await listSources()).filter((s) => !only || only.has(s.id));
+  const dataset = req.module ?? "jobs";
+  const sources = (await listSources(dataset)).filter((s) => !only || only.has(s.id));
   const requested = allowedIds(sources, req);
   const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
   const health = await healthBySource();
@@ -344,14 +352,15 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache));
 
   // Company directory: each employer's reported domain, for logos and company details.
-  if (valid.length) await bookkeeping("record companies", () => recordCompanies(valid));
+  // Jobs' company directory is Jobs' data: another module's postings never enter it.
+  if (valid.length && dataset === "jobs") await bookkeeping("record companies", () => recordCompanies(valid));
 
   let results = valid;
   let warmCount = 0;
   if (flags.jobsLakeWarmPoolEnabled) {
     if (valid.length) await bookkeeping("update the warm pool", async () => {
-      await store.upsertOpportunities(valid);
-      rememberInPool(store, valid);
+      await store.upsertOpportunities(valid, dataset);
+      rememberInPool(store, dataset, valid);
     });
     if (plan.useWarmPool) {
       const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only));
@@ -437,7 +446,7 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
     const urlOk = canon.opportunities.filter((o) => o.quality.validApplyUrl).length;
     checks.push({ label: "Apply URLs", ok: urlOk > 0 && urlOk / canon.opportunities.length >= MIN_VALID_SHARE, detail: `${urlOk} of ${canon.opportunities.length} valid` });
     // Potential duplicates: postings the warm pool already holds from another source.
-    const pool = await store.listOpportunities({ limit: 5000 });
+    const pool = await store.listOpportunities({ limit: 5000, module: sourceModule(src) });
     const poolUrls = new Set(pool.filter((o) => !o.sourceRecords.some((x) => x.sourceId === src.id)).map((o) => normalizeUrl(o.canonicalApplyUrl)));
     const dupes = canon.opportunities.filter((o) => poolUrls.has(normalizeUrl(o.canonicalApplyUrl))).length + canon.duplicates;
     if (r.warnings.length) checks.push({ label: "Partial failures", ok: false, detail: r.warnings.slice(0, 3).join("; ") });
@@ -457,9 +466,9 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
 /* --------------------------------------------------------------- refresh */
 
 /** Re-read one opportunity from its canonical source (POST /opportunities/:id/refresh). */
-export async function refreshOpportunity(opp: CanonicalOpportunity): Promise<{ status: "updated" | "gone" | "unavailable"; opportunity: CanonicalOpportunity; message?: string }> {
+export async function refreshOpportunity(opp: CanonicalOpportunity, module: ModuleId = "jobs"): Promise<{ status: "updated" | "gone" | "unavailable"; opportunity: CanonicalOpportunity; message?: string }> {
   const canonical = opp.sourceRecords.find((r) => r.canonical) ?? opp.sourceRecords[0];
-  const src = (await listSources()).find((s) => s.id === canonical.sourceId);
+  const src = (await listSources(module)).find((s) => s.id === canonical.sourceId);
   if (!src) return { status: "unavailable", opportunity: opp, message: "Its source is no longer registered" };
   try {
     const r = await withTimeout(runConnector(src, { query: opp.title, locations: [] }, "shallow"), src.limits.timeoutMs);
@@ -467,7 +476,7 @@ export async function refreshOpportunity(opp: CanonicalOpportunity): Promise<{ s
     if (!again) return { status: "gone", opportunity: opp, message: `No longer listed on ${src.name}` };
     const fresh = canonicalize([{ source: src, job: again }]).opportunities[0];
     const merged: CanonicalOpportunity = { ...fresh, id: opp.id, sourceRecords: [...fresh.sourceRecords, ...opp.sourceRecords.filter((x) => x.sourceId !== src.id).map((x) => ({ ...x, canonical: false }))] };
-    await jobsLakeStore().upsertOpportunities([merged]);
+    await jobsLakeStore().upsertOpportunities([merged], module);
     return { status: "updated", opportunity: merged };
   } catch (e) {
     return { status: "unavailable", opportunity: opp, message: classify(e).message };

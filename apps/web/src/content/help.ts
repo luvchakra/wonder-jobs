@@ -449,6 +449,17 @@ export const HELP_SECTIONS: HelpSection[] = [
       "To reach the team, use Contact us at the end of the WonderJobs home page (the Still stuck? box below also links to it). Say which page you were on and what you expected; a screenshot helps. For a question or complaint about your data, use the contact shown under Your data.",
     ],
   },
+  {
+    id: "wonderstar-modules",
+    title: "WonderStar modules",
+    summary: "Jobs today; Teaching, Co-founders, Talent & Services, Therapists, Events & Social and Buy, Sell & Rent coming soon.",
+    keywords: ["wonderstar", "module", "modules", "coming soon", "soon", "teaching", "co-founders", "cofounders", "talent", "services", "therapists", "events", "social", "buy", "sell", "rent", "marketplace", "internships"],
+    updated: "2026-10-28",
+    body: [
+      "WonderJobs is the first part of WonderStar: one account for finding jobs, internships, teaching work, co-founders, services, therapists, events and things to buy, sell or rent. Jobs works as it always has — Find, Saved, Pipeline and You.",
+      "Every other kind has the same four tabs when it opens: Find, Saved, its own Pipeline (Connections for Co-founders, Bookings for Talent & Services, Sessions for Therapists, My events for Events & Social, Deals for Buy, Sell & Rent) and You. Until a kind is ready, its page says “… is coming soon” with Back to Jobs, and it's marked Soon under Coming soon in Find's menu. Nothing is listed under a kind until a company posts there or a real source brings listings in; until then its Find says No listings yet.",
+    ],
+  },
   releaseNotesSection,
   {
     id: "roadmap",

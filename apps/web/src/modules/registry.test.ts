@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest";
+import { isModuleId, MODULE_IDS, MODULES, moduleById } from "./registry";
+import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
+import { PRIMARY_NAV } from "@/components/navigation/nav";
+
+describe("WonderStar module registry", () => {
+  it("has one manifest per module, in the registry's order", () => {
+    expect(MODULES.map((m) => m.id)).toEqual([...MODULE_IDS]);
+    expect(MODULE_IDS).toEqual(["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace"]);
+    expect(isModuleId("jobs")).toBe(true);
+    expect(isModuleId("dating")).toBe(false);
+    expect(moduleById("nope")).toBeUndefined();
+  });
+
+  it("Jobs is live and only points at today's routes and tab names", () => {
+    const jobs = moduleById("jobs")!;
+    expect(jobs.status).toBe("live");
+    expect([jobs.routes.find, jobs.routes.saved, jobs.routes.pipeline, jobs.routes.you]).toEqual(PRIMARY_NAV.map((n) => n.href));
+    expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
+  });
+
+  it("every other module is coming soon and lives at /app/m/<id>", () => {
+    for (const m of MODULES.filter((x) => x.id !== "jobs")) {
+      expect(m.status, m.id).toBe("soon");
+      expect(m.routes.find).toBe(`/app/m/${m.id}`);
+      expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);
+      // Capabilities are namespaced per module (resolveCapability stays the one gate).
+      expect(m.response.capability.startsWith(`${m.id}.`), m.id).toBe(true);
+    }
+  });
+
+  it("the Find menu's coming-soon kinds are derived from it and unchanged", () => {
+    expect(UPCOMING_KINDS).toEqual([
+      { id: "teaching", label: "Teaching", hint: "School and college teachers" },
+      { id: "cofounders", label: "Co-founders", hint: "Find someone to build with" },
+      { id: "talent_services", label: "Talent & Services", hint: "Hire or offer a skill" },
+      { id: "therapists", label: "Therapists", hint: "Licensed counsellors near you" },
+      { id: "events_social", label: "Events & Social", hint: "Meetups and things to do" },
+      { id: "buy_sell_rent", label: "Buy, Sell & Rent", hint: "Pre-used items" },
+    ]);
+  });
+});

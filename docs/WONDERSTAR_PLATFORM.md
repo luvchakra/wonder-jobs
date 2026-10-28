@@ -251,12 +251,18 @@ so the design stays one system: same tokens, one primary action per screen, fold
    module entries from it (today's `UPCOMING_KINDS` become manifests with `status: "soon"`).
    The bottom bar reads the active module's `pipeline` label and icon (Jobs: Pipeline, unchanged); Find, Saved and
    You stay as they are.
+   **Done (WJ-415, 2026-10-28):** `modules/registry.ts` with all eight manifests (Jobs live, the rest soon);
+   `UPCOMING_KINDS` derives from it; the module shell `/app/m/[module]` (Find · Saved · Pipeline · You, from
+   `platform/shell` and module-scoped stores `platform/moduleStore.ts`) shows Coming soon until a module goes live.
+   Jobs' bottom bar is unchanged. Platform `listings`/`responses` tables wait for the module that needs them.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,
    profile snapshots and scorecards (WJ-412) are already shaped this way.
 3. **Workspace core** — Hiring workspaces become `workspaces` with `module = "jobs"`; the permission matrix gains a
    module key.
 4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities.
+   **Done (WJ-415, 2026-10-28):** migration 0033; every store read filters by module (default jobs), another
+   module's pool rows are keyed `module:id`, search and the v1 API take `module`; Jobs reads exactly what it did.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
    **Started (WJ-413, 2026-10-28):** a third Find mode (`findMode.ts`: words like Part Time, searched as internships,
