@@ -23,7 +23,7 @@ export default async function SharedJobImage({ params }: { params: Promise<{ id:
   const chips = job ? [job.location, WORK_MODE_LABEL[job.workMode], type ? JOB_TYPE_LABEL[type] : null].filter((x): x is string => !!x) : [];
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, background: "linear-gradient(140deg, #1b1740 0%, #14142b 55%, #241c4d 100%)", color: "#ffffff" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, background: "linear-gradient(140deg, #1E1B4B 0%, #312E81 55%, #5B21B6 100%)", color: "#ffffff" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             {/* next/og renders to a static image, not the DOM — a plain img is the only option here. */}
@@ -42,7 +42,7 @@ export default async function SharedJobImage({ params }: { params: Promise<{ id:
                   {clip(c, 40)}
                 </span>
               ))}
-              {salary && <span style={{ display: "flex", padding: "10px 22px", borderRadius: 999, background: "#6d4cf5", fontSize: 28, fontWeight: 700 }}>{salary}</span>}
+              {salary && <span style={{ display: "flex", padding: "10px 22px", borderRadius: 999, background: "#7C3AED", fontSize: 28, fontWeight: 700 }}>{salary}</span>}
             </div>
           </div>
         ) : (

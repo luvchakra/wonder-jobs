@@ -349,7 +349,7 @@ export function ProviderSection() {
         <svg className="h-full w-full" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
           <defs>
             <linearGradient id="ai-rib" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#6d4cf5" stopOpacity="0.9" />
+              <stop offset="0" stopColor="#7C3AED" stopOpacity="0.9" />
               <stop offset="1" stopColor="#3b7bff" stopOpacity="0.2" />
             </linearGradient>
           </defs>

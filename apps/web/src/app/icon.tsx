@@ -4,7 +4,7 @@ import { brandMarkDataUri } from "@/server/brandMark";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-/** Browser-tab favicon: the WonderJobs butterfly on its brand gradient. */
+/** Browser-tab favicon: the WonderStar mark on Deep Navy. */
 export default function Icon() {
   return new ImageResponse(
     (
@@ -15,12 +15,12 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(140deg, #1b1740 0%, #14142b 55%, #241c4d 100%)",
+          background: "#0F172A",
           borderRadius: 7,
         }}
       >
         { }
-        <img src={brandMarkDataUri()} alt="" width={23} height={23} />
+        <img src={brandMarkDataUri()} alt="" width={26} height={26} />
       </div>
     ),
     { ...size },

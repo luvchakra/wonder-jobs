@@ -43,13 +43,13 @@ export default async function SharedJobPage({ params }: Props) {
             <p className="mt-2 text-[14px] text-ink-3">It may have closed. WonderJobs can find others like it.</p>
           </div>
         )}
-        <section aria-labelledby="wonder" className="mx-auto mt-6 max-w-5xl rounded-[20px] bg-gradient-to-br from-[#1b1740] to-[#241c4d] p-5 text-white sm:p-6">
+        <section aria-labelledby="wonder" className="mx-auto mt-6 max-w-5xl rounded-[20px] bg-gradient-to-br from-[#1E1B4B] to-[#4C1D95] p-5 text-white sm:p-6">
           <p className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#c4b5fd]">
             <Sparkles className="size-3.5" aria-hidden /> Found with WonderJobs
           </p>
           <h2 id="wonder" className="mt-2 text-[20px] font-semibold leading-snug">Find jobs that fit you, not just jobs.</h2>
           <p className="mt-1 text-[14px] text-white/75">{SHARE_PITCH}</p>
-          <Link href="/sign-up" className="mt-4 inline-flex rounded-full bg-white px-5 py-2.5 text-[14px] font-semibold text-[#1b1740] hover:bg-white/90">
+          <Link href="/sign-up" className="mt-4 inline-flex rounded-full bg-white px-5 py-2.5 text-[14px] font-semibold text-[#1E1B4B] hover:bg-white/90">
             Start free
           </Link>
         </section>

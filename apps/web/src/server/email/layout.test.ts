@@ -7,10 +7,10 @@ const base = { origin: "https://jobs.wonderapps.biz", preheader: "3 strong match
 describe("renderEmailLayout — the one branded frame for every email", () => {
   it("puts the PNG logo, built from the site URL, in the header", () => {
     const { html } = renderEmailLayout(base);
-    expect(emailLogoUrl("https://jobs.wonderapps.biz")).toBe("https://jobs.wonderapps.biz/brand/wonderjobs-logo-light.png");
-    expect(html).toContain('<img src="https://jobs.wonderapps.biz/brand/wonderjobs-logo-light.png"');
+    expect(emailLogoUrl("https://jobs.wonderapps.biz")).toBe("https://jobs.wonderapps.biz/brand/wonderstar-logo.png");
+    expect(html).toContain('<img src="https://jobs.wonderapps.biz/brand/wonderstar-logo.png"');
     expect(html).toContain('alt="WonderJobs"');
-    expect(renderEmailLayout({ ...base, origin: "http://localhost:3000" }).html).toContain('src="http://localhost:3000/brand/wonderjobs-logo-light.png"');
+    expect(renderEmailLayout({ ...base, origin: "http://localhost:3000" }).html).toContain('src="http://localhost:3000/brand/wonderstar-logo.png"');
   });
 
   it("is table-based with inline styles only, max 600px, and a hidden preheader", () => {
@@ -65,7 +65,7 @@ describe("the contact notification goes through the layout", () => {
   it("produces branded HTML and a plain-text twin with the same content", () => {
     const mail = renderContactEmail(payload, "https://jobs.wonderapps.biz");
     expect(mail.subject).toBe("[WonderJobs contact] support — Sample <Visitor>");
-    expect(mail.html).toContain('src="https://jobs.wonderapps.biz/brand/wonderjobs-logo-light.png"');
+    expect(mail.html).toContain('src="https://jobs.wonderapps.biz/brand/wonderstar-logo.png"');
     expect(mail.html).toContain("set to receive WonderJobs contact-form messages");
     expect(mail.html).not.toContain("/app/settings/notifications");
     expect(mail.html).toContain("Sample &lt;Visitor&gt;");

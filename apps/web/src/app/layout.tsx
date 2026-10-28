@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Poppins } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { INSTALL_EARLY_CAPTURE } from "@/lib/installBanner";
 import { siteUrl } from "@/lib/siteUrl";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+// The WonderStar typeface (docs/WONDERSTAR_PLATFORM.md §9). Not a variable font, so the four weights the UI
+// uses are listed: normal, medium, semibold, bold.
+const poppins = Poppins({ variable: "--font-poppins", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 const TITLE = "WonderJobs — Your next opportunity is out there. Wonder finds it.";
@@ -43,7 +45,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
         {/* Holds Chromium's install prompt if it fires before the app's JavaScript loads (WJ-301). */}
         <script dangerouslySetInnerHTML={{ __html: INSTALL_EARLY_CAPTURE }} />

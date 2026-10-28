@@ -71,7 +71,7 @@ describe("AI suggestions and the email", () => {
     expect(mail.text).toContain("Reviewed: 60 · Strong matches: 0");
     expect(mail.text).toContain("Stop these emails: https://jobs.example/api/digest/unsubscribe?u=x&s=y");
     // The shared brand frame: logo, footer reason, settings, privacy and the existing unsubscribe link.
-    expect(mail.html).toContain('src="https://jobs.example/brand/wonderjobs-logo-light.png"');
+    expect(mail.html).toContain('src="https://jobs.example/brand/wonderstar-logo.png"');
     expect(mail.html).toContain("You get this activity digest when there&#39;s been activity");
     expect(mail.html).toContain('href="https://jobs.example/app/settings/notifications"');
     expect(mail.html).toContain('href="https://jobs.example/api/digest/unsubscribe?u=x&amp;s=y"');

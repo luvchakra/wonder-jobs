@@ -186,7 +186,7 @@ export function ControlSection() {
   return (
     <section ref={ref} id="control" className="relative overflow-hidden bg-[#0e1030] py-20 text-white md:py-28" aria-labelledby="control-title">
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div data-depth="1.2" className="absolute -right-32 -top-24 size-[420px] rounded-full bg-[radial-gradient(circle,#6d4cf5_0%,transparent_65%)] opacity-50 will-change-transform" />
+        <div data-depth="1.2" className="absolute -right-32 -top-24 size-[420px] rounded-full bg-[radial-gradient(circle,#7C3AED_0%,transparent_65%)] opacity-50 will-change-transform" />
         <div data-depth="-0.9" className="absolute -bottom-40 -left-24 size-[460px] rounded-full bg-[radial-gradient(circle,#3b7bff_0%,transparent_65%)] opacity-40 will-change-transform" />
         <svg data-depth="0.5" className="absolute inset-x-0 top-[14%] h-40 w-full opacity-20 will-change-transform" viewBox="0 0 1200 160" preserveAspectRatio="none">
           <path d="M0 110 C 260 30, 520 150, 760 70 S 1100 40, 1200 90" fill="none" stroke="url(#ctl-line)" strokeWidth="2" />
