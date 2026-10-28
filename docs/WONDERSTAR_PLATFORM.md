@@ -273,3 +273,30 @@ so the design stays one system: same tokens, one primary action per screen, fold
 11. **Therapists** — last: licence verification, health-data compliance and crisis resources need legal review first.
 
 Each step ships as its own PR with tests, help and tracker rows, like every Jobs change today.
+
+---
+
+## 9. Brand: WonderStar identity (owner, 2026-10-28)
+
+Reference: `docs/brand/wonderstar-identity.png` (the owner's identity sheet). It applies to **WonderStar's own surfaces** —
+the module shell (`/app/m/<module>`), the Explore hub that lists modules, module pages and the app icon/splash for the
+platform. The jobs portal keeps its current look (CLAUDE.md, "The jobs portal stays as it is") unless the owner says
+otherwise.
+
+- **Logo:** the WonderStar mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderStar" — "Wonder"
+  in Deep Navy (white on dark), "Star" in a violet→blue gradient. Variants: primary horizontal, stacked with the
+  tagline, app icon (mark on Deep Navy, rounded square). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
+  (letter-spaced caps). Recreate as SVG in `public/brand/` — never a raster screenshot of the sheet.
+- **Colours** (as design tokens beside today's, scoped to WonderStar surfaces): Star Purple `#7C3AED`, Sky Blue
+  `#3B82F6`, Magenta `#EC4899`, Indigo `#4F46E5`, Soft Lavender `#EDE9FE`, Light Blue `#EFF6FF`, Deep Navy `#0F172A`.
+  Primary action: Star Purple→Indigo gradient; splash/hero: deep indigo→violet with soft waves.
+- **Type:** Poppins (Google Fonts, via `next/font`), for WonderStar surfaces.
+- **Icons:** lucide line icons in a soft rounded-square tile tinted per module — Jobs (briefcase, lavender), Part-time
+  (clock, light blue), Internships (graduation cap, peach), Teaching (open book, mint), Co-founders (handshake, lavender),
+  Talent & Services (people, light blue), Therapists (heart-pulse, lavender), Events & Social (calendar, pink),
+  Buy, Sell & Rent (storefront, peach). Each manifest's `icon` + `accent` carries these.
+- **Explore (the hub):** "Find your next opportunity / Search across jobs, services, events and more", one search box
+  with a round gradient arrow button, then the modules as tiles (phone: 3-column grid; desktop: chips under the search),
+  "Popular searches" chips from real searches only. Desktop: left rail Explore · Saved · Messages · Profile. Phone:
+  top bar with avatar, the logo centred, search and bell. Footer line "More opportunities. A brighter you."
+- **Splash:** the stacked logo and tagline on the indigo→violet gradient.
