@@ -1,9 +1,9 @@
 /**
- * The WonderJobs side of Protocol v1: turning a candidate's search into a `SearchRequest`, and a
- * `CanonicalOpportunity` into the `CanonicalJob` the rest of WonderJobs (matching, quality, saved
+ * The WonderStar side of Protocol v1: turning a candidate's search into a `SearchRequest`, and a
+ * `CanonicalOpportunity` into the `CanonicalJob` the rest of WonderStar (matching, quality, saved
  * jobs, applications) already understands.
  *
- * Identity is preserved: a job's id is the id WonderJobs has always given the canonical posting
+ * Identity is preserved: a job's id is the id WonderStar has always given the canonical posting
  * (`careers_…`, `remotive_…`), so saved jobs, applications and the extension keep resolving.
  */
 import type { JobType } from "@/domain/jobs/jobType";

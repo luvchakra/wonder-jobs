@@ -3,14 +3,14 @@ import { JOB_TYPE_LABEL, jobTypeOf } from "./jobType";
 import { formatSalaryRange } from "@/lib/format";
 
 /**
- * Sharing a job with someone else (owner, 2026-10-19): a link to its public page on WonderJobs, whose
+ * Sharing a job with someone else (owner, 2026-10-19): a link to its public page on WonderStar, whose
  * preview card shows the job, and a message that reads well in WhatsApp and email. Every detail is the
  * posting's own — nothing the candidate's profile says about it (fit, score, notes) leaves the account.
- * The WonderJobs line is the marketing, kept to one sentence.
+ * The WonderStar line is the marketing, kept to one sentence.
  */
 export type ShareJob = Pick<CanonicalJob, "id" | "title" | "company" | "location" | "workMode" | "salaryMin" | "salaryMax" | "currency" | "jobType" | "jobTypeFrom">;
 
-export const SHARE_PITCH = "WonderJobs is an AI job-search agent that finds jobs that fit you, from real sources.";
+export const SHARE_PITCH = "WonderStar is an AI job-search agent that finds jobs that fit you, from real sources.";
 
 /** The job's public page. */
 export function shareUrl(origin: string, id: string): string {
@@ -39,9 +39,9 @@ export function shareMessage(job: ShareJob, url: string, home: string): ShareMes
   const facts = shareFacts(job);
   return {
     subject: `Job you might like: ${role}`,
-    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderJobs. ${SHARE_PITCH} ${home}`].join("\n"),
-    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderJobs, the AI job-search agent.", "", url].join("\n"),
-    text: `${role}\n${facts}\n\nFound with WonderJobs, the AI job-search agent.`,
+    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderStar. ${SHARE_PITCH} ${home}`].join("\n"),
+    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderStar, the AI job-search agent.", "", url].join("\n"),
+    text: `${role}\n${facts}\n\nFound with WonderStar, the AI job-search agent.`,
   };
 }
 

@@ -6,7 +6,7 @@ import { formatSalaryRange } from "@/lib/format";
 import { sharedJob } from "./data";
 
 export const runtime = "nodejs";
-export const alt = "A job shared from WonderJobs";
+export const alt = "A job shared from WonderStar";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -14,7 +14,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 
 /**
  * The big card WhatsApp (and Slack, iMessage, X) shows for a shared job: the role, the company, the facts
- * the posting gives, and the WonderJobs mark. Flat colours keep it far under WhatsApp's image-size limit.
+ * the posting gives, and the WonderStar mark. Flat colours keep it far under WhatsApp's image-size limit.
  */
 export default async function SharedJobImage({ params }: { params: Promise<{ id: string }> }) {
   const job = await sharedJob((await params).id);
@@ -28,7 +28,7 @@ export default async function SharedJobImage({ params }: { params: Promise<{ id:
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             {/* next/og renders to a static image, not the DOM — a plain img is the only option here. */}
             <img src={brandMarkDataUri()} alt="" width={64} height={64} />
-            <span style={{ fontSize: 38, fontWeight: 700, letterSpacing: -1 }}>WonderJobs</span>
+            <span style={{ fontSize: 38, fontWeight: 700, letterSpacing: -1 }}>WonderStar</span>
           </div>
           <span style={{ display: "flex", padding: "10px 22px", borderRadius: 999, background: "rgba(167,139,250,0.18)", color: "#c4b5fd", fontSize: 26, fontWeight: 600 }}>{job ? "Job opening" : "Find your next job"}</span>
         </div>
@@ -50,7 +50,7 @@ export default async function SharedJobImage({ params }: { params: Promise<{ id:
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 26, color: "rgba(255,255,255,0.6)" }}>
           <span style={{ display: "flex", width: 12, height: 12, borderRadius: 6, background: "#a78bfa" }} />
-          Found with WonderJobs, the AI job-search agent
+          Found with WonderStar, the AI job-search agent
         </div>
       </div>
     ),

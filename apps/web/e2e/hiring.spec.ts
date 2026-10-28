@@ -295,7 +295,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
   test("HIRE-009 the open job shows up in a job seeker's Find search under the company's name", async ({}, info) => {
     info.skip(!REAL, "Needs live job sources: a local build without Supabase searches sample data");
     const page = people.seeker!.page;
-    // The source itself: a search of WonderJobs employers alone returns the job with its company.
+    // The source itself: a search of WonderStar employers alone returns the job with its company.
     const res = await page.request.post("/api/jobs-lake/v1/search", { data: { query: { text: JOB_TITLE, locations: [] }, sourceIds: ["employers"], searchMode: "fast", limit: 20 } });
     expect(res.status()).toBe(200);
     const { results } = (await res.json()) as { results: { title: string; company: { name: string } | string }[] };

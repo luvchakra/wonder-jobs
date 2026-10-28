@@ -21,8 +21,8 @@ const Body = z.object({
 });
 
 /**
- * WonderJobs Easy Apply: the candidate's press sends their application to the company that posted the job on
- * WonderJobs. Submitted once per job and email (the database refuses a second); audited; the company's and the
+ * WonderStar Easy Apply: the candidate's press sends their application to the company that posted the job on
+ * WonderStar. Submitted once per job and email (the database refuses a second); audited; the company's and the
  * candidate's emails go out after the answer.
  */
 export async function POST(req: Request) {

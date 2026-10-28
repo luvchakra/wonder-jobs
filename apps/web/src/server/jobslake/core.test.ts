@@ -123,7 +123,7 @@ describe("JobsLake core search", () => {
     await search(req({ searchMode: "fast" }), { trigger: "search" });
     const fastCalls = connector.mock.calls.map((c) => c[2]);
     expect(fastCalls.every((d) => d === "shallow")).toBe(true);
-    // The strongest four, plus WonderJobs employers (companies' own postings), which every search asks.
+    // The strongest four, plus WonderStar employers (companies' own postings), which every search asks.
     expect(connector.mock.calls.length).toBeLessThanOrEqual(5);
     expect(connector.mock.calls.map((c) => c[0].id)).toContain("employers");
     connector.mockClear();

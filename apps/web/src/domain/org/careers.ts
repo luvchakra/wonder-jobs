@@ -1,7 +1,7 @@
 import type { ApplicantProfile } from "./review";
 /**
  * Career sites and applications (owner, 2026-10-21). A hiring workspace publishes jobs on outside career pages
- * (WonderID's landing page first, other apps later); applicants apply there, and WonderJobs runs the rest. This
+ * (WonderID's landing page first, other apps later); applicants apply there, and WonderStar runs the rest. This
  * file holds the rules both sides share and nothing that touches storage: what an application needs, which
  * status may follow which, what the applicant is told at each step, and when the hiring team is reminded.
  */
@@ -44,7 +44,7 @@ export interface CareerSite {
   notifyEmails: string[];
   /** Months its applications are kept after their last update, then deleted. Missing on older sites. */
   retentionMonths?: number;
-  /** Set when WonderJobs hosts the page: https://jobs.wonderapps.biz/careers/<slug>. */
+  /** Set when WonderStar hosts the page: https://jobs.wonderapps.biz/careers/<slug>. */
   slug?: string;
   /** The key's last four characters, so people can tell keys apart. The key itself is shown once. */
   keyHint: string;
@@ -63,7 +63,7 @@ export interface Application {
   location?: string;
   linkedinUrl?: string;
   resumeUrl?: string;
-  /** "wonderjobs": sent with Easy Apply from a WonderJobs listing, with the résumé file attached. */
+  /** "wonderjobs": sent with Easy Apply from a WonderStar listing, with the résumé file attached. */
   via?: "site" | "wonderjobs";
   coverNote: string;
   /** Answers to the job's screening questions, by question id. */
@@ -101,7 +101,7 @@ const httpsUrl = (v: string) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(v);
 export type ApplicationField = "name" | "email" | "phone" | "linkedinUrl" | "resumeUrl" | "consent";
 
 /** Trims and bounds an application; returns the first problem, in form order, with the field it belongs to, or the clean value. */
-/** `resumeFile`: the résumé comes as a file (WonderJobs Easy Apply), so no résumé link is needed. */
+/** `resumeFile`: the résumé comes as a file (WonderStar Easy Apply), so no résumé link is needed. */
 export function cleanApplication(i: ApplicationInput, opts: { resumeFile?: boolean } = {}): { problem: string; field: ApplicationField } | { value: Required<Omit<ApplicationInput, "consent">> } {
   const name = (i.name ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const email = (i.email ?? "").trim().toLowerCase().slice(0, 200);
@@ -252,7 +252,7 @@ export function parseNotifyEmails(raw: string): { emails: string[] } | { problem
 /** A hosted careers page's short company name: lower-case letters, digits and hyphens, 2 to 40 characters. */
 export const SLUG_PATTERN = /^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/;
 
-/** Addresses under /careers that WonderJobs' own careers page uses, so no hosted page may take them. */
+/** Addresses under /careers that WonderStar' own careers page uses, so no hosted page may take them. */
 export const RESERVED_SLUGS = new Set(["status", "apply", "jobs", "admin", "api"]);
 
 /** "Acme Corp!" → "acme-corp": what people type, made into a short name (or "" when nothing usable is left). */

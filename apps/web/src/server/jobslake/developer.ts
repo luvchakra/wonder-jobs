@@ -105,7 +105,7 @@ export function apiSourceIds(env: Record<string, string | undefined> = process.e
 /** Licensed sources whose terms forbid passing their data on as a dataset: never reachable by an API key, whatever an admin chooses. */
 export const NEVER_FOR_API = new Set(BUILTIN_SOURCES.filter((s) => s.paid || s.accessStrategy === "licensed").map((s) => s.id));
 
-/** The sources a developer search may use: the allowlist, narrowed to the ones they asked for (by id or WonderJobs source id). */
+/** The sources a developer search may use: the allowlist, narrowed to the ones they asked for (by id or WonderStar source id). */
 export function developerSources(requested: string[] | undefined, sources: Pick<SourceRecord, "id" | "legacySourceId">[], allow = apiSourceIds()): string[] {
   const allowed = new Set(allow);
   const wanted = requested?.length ? new Set(requested) : null;

@@ -70,7 +70,7 @@ export interface SourceRecord extends JobSourceDescriptor {
   config: SourceConfig;
   secretRef?: string;
   limits: SourceLimits;
-  /** The WonderJobs source id candidates toggle this under ("careers" for every ATS). */
+  /** The WonderStar source id candidates toggle this under ("careers" for every ATS). */
   legacySourceId?: string;
   builtin: boolean;
   createdAt: string;

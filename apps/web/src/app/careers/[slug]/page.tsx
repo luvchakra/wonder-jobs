@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** The company's open positions: the jobs it linked to this hosted page while they're open. */
 export default async function HostedCareersPage({ params }: Props) {
   const { slug } = await params;
-  // /careers/<job id>: one of WonderJobs' own open positions, read from the careers API.
+  // /careers/<job id>: one of WonderStar' own open positions, read from the careers API.
   if (!SLUG_PATTERN.test(slug)) return <CareerJobPage id={decodeURIComponent(slug)} />;
   const site = (await hostedSite(slug))!;
   const jobs = await siteJobsList(site);

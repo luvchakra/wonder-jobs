@@ -13,7 +13,7 @@ const Body = z.object({
 });
 
 /**
- * POST /api/jobs-lake/v1/telemetry — after WonderJobs scores a search, it reports how many results
+ * POST /api/jobs-lake/v1/telemetry — after WonderStar scores a search, it reports how many results
  * from each source were relevant / strong matches (spec §63). Counts only — never which jobs, never
  * anything about the candidate.
  */

@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { existsSync } from "node:fs";
 
 /**
- * WonderJobs Playwright E2E configuration.
+ * WonderStar Playwright E2E configuration.
  *
  * Base URL is environment-driven (`PLAYWRIGHT_BASE_URL`) — never hard-coded to production. When it's
  * unset, this config builds and starts a local server itself (`webServer` below) so `npx playwright test`

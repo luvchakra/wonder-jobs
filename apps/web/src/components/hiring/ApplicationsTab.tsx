@@ -43,10 +43,10 @@ function signals(a: ApplicationView) {
 }
 
 /**
- * Applications to the workspace's jobs — from career sites and WonderJobs Easy Apply — as a pipeline (owner,
+ * Applications to the workspace's jobs — from career sites and WonderStar Easy Apply — as a pipeline (owner,
  * 2026-10-28): stages as tabs with counts, one job or all, the most promising first in each stage (must-haves met,
  * then skills fit). Each one opens its details, answers and the team's scorecards; a hiring manager or owner moves it
- * on, and WonderJobs emails the applicant a message written for that step. The server checks the role again.
+ * on, and WonderStar emails the applicant a message written for that step. The server checks the role again.
  */
 export function ApplicationsTab({ orgId, canDecide, openId, jobId, onJob }: { orgId: string; canDecide: boolean; openId: string | null; jobId?: string | null; onJob?: (jobId: string | null) => void }) {
   const [list, setList] = useState<ApplicationView[] | null>(null);
@@ -199,7 +199,7 @@ function ApplicationDetail({ orgId, a, canDecide, onClose, onChanged }: { orgId:
       {step ? (
         <div className="flex flex-col gap-3">
           <p className="text-[13px] text-ink-2">
-            {a.name} gets an email for this step, written for you, from WonderJobs on behalf of your company. Replies come to you. Add a note to make it personal.
+            {a.name} gets an email for this step, written for you, from WonderStar on behalf of your company. Replies come to you. Add a note to make it personal.
           </p>
           <Field label="Note to the applicant (optional)" htmlFor="ap-note">
             <Textarea id="ap-note" rows={4} value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
@@ -214,7 +214,7 @@ function ApplicationDetail({ orgId, a, canDecide, onClose, onChanged }: { orgId:
         <div>
           <p className="mb-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-3">
             <Badge tone={TONE[a.status]}>{APPLICATION_STATUS_LABEL[a.status]}</Badge> {a.jobTitle} · applied {relativeTime(a.createdAt)}
-            {a.siteName ? ` via ${a.siteName}` : a.via === "wonderjobs" ? " via WonderJobs Easy Apply" : ""}
+            {a.siteName ? ` via ${a.siteName}` : a.via === "wonderjobs" ? " via WonderStar Easy Apply" : ""}
           </p>
           {row("Email", a.email, `mailto:${a.email}`)}
           {row("Phone", a.phone)}

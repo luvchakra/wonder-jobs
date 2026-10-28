@@ -5,7 +5,7 @@ import { SEED_DNA } from "../../src/testing/sample/seed";
 import { sampleDocs } from "./sampleDocs";
 
 /**
- * A signed-in candidate with history, for journeys that need one without a real account: the account WonderJobs'
+ * A signed-in candidate with history, for journeys that need one without a real account: the account WonderStar'
  * product demo used to show, now only here. Nothing in the product serves it. The web server these specs run
  * against has no Supabase (local mode), so the browser is "signed in" by the cookie the proxy would have set, and
  * its stores start from the documents below — written through the stores' own `partialize`, so they are exactly

@@ -5,7 +5,7 @@ import { TemplateAIService, type AIProvider } from "./service";
 
 /**
  * AI grounding tests (spec §34): deterministic fixtures with incomplete candidate data, verifying the
- * artifact WonderJobs actually hands a candidate never states as fact something Career DNA doesn't
+ * artifact WonderStar actually hands a candidate never states as fact something Career DNA doesn't
  * contain. This exercises `TemplateAIService` directly — the deterministic draft, not a live model —
  * because that draft is exactly what every candidate sees without a configured platform key or BYOK,
  * and it's the one path this suite can assert on deterministically.

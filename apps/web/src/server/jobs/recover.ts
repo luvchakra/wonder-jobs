@@ -1,5 +1,5 @@
 /**
- * Find jobs again by their WonderJobs id after they left the candidate's catalog — from JobsLake's durable
+ * Find jobs again by their WonderStar id after they left the candidate's catalog — from JobsLake's durable
  * record of every posting it has found (`jobslake_opportunities`). Postings are public job data, not
  * tenant data; what comes back is the posting as the source published it, never filled in.
  */

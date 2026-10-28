@@ -9,7 +9,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
     const { html } = renderEmailLayout(base);
     expect(emailLogoUrl("https://jobs.wonderapps.biz")).toBe("https://jobs.wonderapps.biz/brand/wonderstar-logo.png");
     expect(html).toContain('<img src="https://jobs.wonderapps.biz/brand/wonderstar-logo.png"');
-    expect(html).toContain('alt="WonderJobs"');
+    expect(html).toContain('alt="WonderStar"');
     expect(renderEmailLayout({ ...base, origin: "http://localhost:3000" }).html).toContain('src="http://localhost:3000/brand/wonderstar-logo.png"');
   });
 
@@ -22,7 +22,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
     expect(html).toContain("<p>Body</p>");
   });
 
-  it("footer: WonderJobs, the caller's reason, settings and privacy links, plus the email's own links", () => {
+  it("footer: WonderStar, the caller's reason, settings and privacy links, plus the email's own links", () => {
     const { html, text } = renderEmailLayout({ ...base, links: [{ label: "Stop these emails", href: "/api/digest/unsubscribe?u=a&s=b" }] });
     expect(html).toContain("You&#39;re getting this because you asked for it.");
     expect(html).toContain('href="https://jobs.wonderapps.biz/app/settings/notifications"');
@@ -33,7 +33,7 @@ describe("renderEmailLayout — the one branded frame for every email", () => {
         "Body",
         "",
         "—",
-        "WonderJobs",
+        "WonderStar",
         "You're getting this because you asked for it.",
         "Notification settings: https://jobs.wonderapps.biz/app/settings/notifications",
         "Privacy: https://jobs.wonderapps.biz/privacy",
@@ -64,9 +64,9 @@ describe("the contact notification goes through the layout", () => {
 
   it("produces branded HTML and a plain-text twin with the same content", () => {
     const mail = renderContactEmail(payload, "https://jobs.wonderapps.biz");
-    expect(mail.subject).toBe("[WonderJobs contact] support — Sample <Visitor>");
+    expect(mail.subject).toBe("[WonderStar contact] support — Sample <Visitor>");
     expect(mail.html).toContain('src="https://jobs.wonderapps.biz/brand/wonderstar-logo.png"');
-    expect(mail.html).toContain("set to receive WonderJobs contact-form messages");
+    expect(mail.html).toContain("set to receive WonderStar contact-form messages");
     expect(mail.html).not.toContain("/app/settings/notifications");
     expect(mail.html).toContain("Sample &lt;Visitor&gt;");
     expect(mail.html).toContain("Line one &amp; &lt;script&gt;alert(1)&lt;/script&gt;<br>Line two");

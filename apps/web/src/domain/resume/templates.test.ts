@@ -14,7 +14,7 @@ import { SEED_DNA } from "@/testing/sample/seed";
 /**
  * Résumé template tests (spec §50 TPL-001…030, §51 CROSS-001…015, §55 PDF-001…020, §56
  * DOCX-001…015). Every check runs the real renderers on synthetic fixtures and reads the output back
- * with the same extractor WonderJobs uses on candidates' uploaded résumés.
+ * with the same extractor WonderStar uses on candidates' uploaded résumés.
  */
 
 const loadFont = async (k: string) => readFileSync(`public/fonts/resume/${k}.ttf`);

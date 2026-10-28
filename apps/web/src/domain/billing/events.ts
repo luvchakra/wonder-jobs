@@ -85,7 +85,7 @@ function stripeInvoiceTenant(inv: Obj): string | undefined {
   return str(obj(obj(inv.subscription_details).metadata).tenant_id) ?? str(obj(obj(obj(inv.parent).subscription_details).metadata).tenant_id);
 }
 
-/** Metadata `purpose` WonderJobs puts on the JobsLake API's pay-as-you-go checkout and subscription. */
+/** Metadata `purpose` WonderStar puts on the JobsLake API's pay-as-you-go checkout and subscription. */
 export const JOBSLAKE_API_PURPOSE = "jobslake_api";
 
 /**

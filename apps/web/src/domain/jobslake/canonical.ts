@@ -4,7 +4,7 @@
  *
  * Two observations are the same posting when any of these match (union-find, so matches chain):
  *   1. the apply URL, normalized (scheme, host case, trailing slash, tracking params);
- *   2. employer + normalized title + normalized location — the key WonderJobs' own dedupe uses;
+ *   2. employer + normalized title + normalized location — the key WonderStar' own dedupe uses;
  *   3. employer + normalized title + a fingerprint of the description's opening text, which catches
  *      the same posting listed with different location strings ("Remote" vs "Remote (Worldwide)").
  * Semantic similarity is not used: it would be a guess, and a wrong merge hides a real job.

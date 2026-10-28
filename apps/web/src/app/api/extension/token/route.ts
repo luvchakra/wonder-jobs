@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 /**
  * GET /api/extension/token
  *
- * Called by the extension's content script *on WonderJobs' own origin*, where
+ * Called by the extension's content script *on WonderStar' own origin*, where
  * the normal session cookie applies. Hands back a short-lived bearer token the
  * extension can then use from an employer's site, where the cookie can't go.
  * Read-only and narrow by construction — see `server/extensionToken.ts`.

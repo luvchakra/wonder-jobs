@@ -66,7 +66,7 @@ export function locationScope(locations: string[]) {
 
 function geographyFit(src: PlannableSource, scope: ReturnType<typeof locationScope>) {
   if (scope.anywhere || src.geography.includes("global")) return true;
-  // Remote roles are reachable from anywhere — WonderJobs' own location matcher accepts them for any
+  // Remote roles are reachable from anywhere — WonderStar' own location matcher accepts them for any
   // search and lets scoring weigh region restrictions — so remote boards fit every search.
   if (src.geography.includes("remote")) return true;
   return src.geography.some((g) => scope.countries.includes(g)) || (scope.countries.length === 0 && !scope.remote);
@@ -80,7 +80,7 @@ function score(h: SourceHealth | undefined) {
 
 const pct = (x: number | null) => (x == null ? "no runs yet" : `${Math.round(x * 100)}% success`);
 
-/** WonderJobs employers: the source of jobs companies post in their hiring workspace. */
+/** WonderStar employers: the source of jobs companies post in their hiring workspace. */
 export const FIRST_PARTY_SOURCE = "employers";
 
 export function planSearch(
@@ -112,13 +112,13 @@ req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query" | "filters">, sour
   const niche = (s: PlannableSource) => (s.jobTypes?.length ? (s.jobTypes.some((t) => wanted.includes(t)) ? -1 : 1) : 0);
   const ranked = eligible.filter((s) => !s.paid).map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || niche(a.s) - niche(b.s) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
   const why = (x: (typeof ranked)[number]) => `${x.fit ? "Covers your locations" : "Outside your locations — discovery"} · ${pct(health[x.s.id]?.successRate ?? null)}`;
-  // Jobs companies posted on WonderJobs (the only ones open to Easy Apply) are its own listings, read from its own
+  // Jobs companies posted on WonderStar (the only ones open to Easy Apply) are its own listings, read from its own
   // database: always in the first wave, in every mode, beside the strongest sources, and never left for a wave that
   // "enough results" can skip (owner, 2026-10-28).
   const own = ranked.filter((x) => x.s.id === FIRST_PARTY_SOURCE);
   const fits = ranked.filter((x) => x.fit && x.s.id !== FIRST_PARTY_SOURCE);
   const misses = ranked.filter((x) => !x.fit && x.s.id !== FIRST_PARTY_SOURCE);
-  const ownPlanned = own.map((x) => ({ id: x.s.id, name: x.s.name, wave: 1 as const, reason: "Jobs companies posted on WonderJobs, always searched" }));
+  const ownPlanned = own.map((x) => ({ id: x.s.id, name: x.s.name, wave: 1 as const, reason: "Jobs companies posted on WonderStar, always searched" }));
 
   const waves: PlannedSource[][] = [];
   if (req.searchMode === "fast") {

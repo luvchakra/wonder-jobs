@@ -1,6 +1,6 @@
 /**
  * JobsLake Protocol v1 — the contract between JobsLake (job-market acquisition, normalization,
- * dedupe, provenance) and WonderJobs (candidate intelligence). WonderJobs receives
+ * dedupe, provenance) and WonderStar (candidate intelligence). WonderStar receives
  * `CanonicalOpportunity`, never a source-specific job shape (spec §2.3, §29).
  *
  * Pure types and validation only: nothing here fetches, stores or knows about a candidate.
@@ -85,11 +85,11 @@ export interface SourceRecord {
   url: string;
   observedAt: string;
   /**
-   * The id WonderJobs has always given this posting (`careers_…`, `remotive_…`). Carried so saved
+   * The id WonderStar has always given this posting (`careers_…`, `remotive_…`). Carried so saved
    * jobs, applications and the browser extension keep resolving after the move to JobsLake.
    */
   legacyJobId: string;
-  /** The WonderJobs source id that posting belongs to (`careers`, `remotive`, or a platform-managed JobsLake source id). */
+  /** The WonderStar source id that posting belongs to (`careers`, `remotive`, or a platform-managed JobsLake source id). */
   legacySourceId: string;
   /** True for the record the canonical fields were taken from. */
   canonical: boolean;
@@ -164,7 +164,7 @@ export const SEARCH_MODE_META: Record<SearchMode, { label: string; description: 
 };
 
 /**
- * What WonderJobs sends. Deliberately the minimum needed to search (spec §57): role terms,
+ * What WonderStar sends. Deliberately the minimum needed to search (spec §57): role terms,
  * locations, seniority and a few filters — never résumé text, notes or AI reasoning.
  */
 export interface SearchRequest {

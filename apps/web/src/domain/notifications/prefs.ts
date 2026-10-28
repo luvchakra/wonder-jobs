@@ -2,7 +2,7 @@ import type { Notification } from "@/domain/career/types";
 
 /**
  * What a person is told, and how (owner, 2026-10-22): Notifications & email (/app/settings/notifications) lists every
- * kind of notification WonderJobs sends, each with the channels it can actually use:
+ * kind of notification WonderStar sends, each with the channels it can actually use:
  * - In the bell: the in-app list (on, it's kept; off, that kind isn't added).
  * - Push: to every browser where they turned notifications on.
  * - Email: to their sign-in address, only when a push didn't reach them — so both on never means two of the same.

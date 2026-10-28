@@ -1,5 +1,5 @@
 /**
- * Menus a platform admin arranges for every user (owner, 2026-10-22), in WonderJobs Admin → Settings → Menus:
+ * Menus a platform admin arranges for every user (owner, 2026-10-22), in WonderStar Admin → Settings → Menus:
  * - the account menu (the avatar's menu, or the phone's ••• button) — Account and Sign out are always there,
  *   so nobody is locked out of their own account; Admin is shown only to platform admins, last, outside the list;
  * - the You page's rows (under the Career Profile card, which is always there).

@@ -69,7 +69,7 @@ export interface CanonicalJob extends Omit<Job, "sourceId" | "externalId"> {
 
 /** One place a job was seen, as JobsLake recorded it. Display-only; never a job's identity. */
 export interface JobSourceSighting {
-  /** JobsLake source id (e.g. `greenhouse`) — may be one WonderJobs has no entry for. */
+  /** JobsLake source id (e.g. `greenhouse`) — may be one WonderStar has no entry for. */
   sourceId: string;
   sourceName: string;
   provider: string;
@@ -182,7 +182,7 @@ export interface JobFilters {
   skipProfile?: boolean;
   /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
   hideInPipeline?: boolean;
-  /** Saved's own Easy Apply only: just the saved jobs posted on WonderJobs. Find's Refine uses `sourceIds` instead. */
+  /** Saved's own Easy Apply only: just the saved jobs posted on WonderStar. Find's Refine uses `sourceIds` instead. */
   savedEasyApply?: boolean;
   /** Show postings older than two weeks too (they're hidden as "too old" otherwise; saved ones always show). */
   includeOld?: boolean;

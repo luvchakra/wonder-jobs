@@ -170,8 +170,8 @@ function SiteForm({ orgId, site, onClose, onSaved }: { orgId: string; site?: Car
           <legend className="mb-1 text-[13px] font-medium text-ink">Where will your careers page be?</legend>
           {(
             [
-              ["hosted", "Hosted by WonderJobs", "No code. WonderJobs shows your jobs, the apply form and applicants' status pages at your own address."],
-              ["own", "On our own website", "Your developers show the jobs on your site using the WonderJobs careers API, with a key."],
+              ["hosted", "Hosted by WonderStar", "No code. WonderStar shows your jobs, the apply form and applicants' status pages at your own address."],
+              ["own", "On our own website", "Your developers show the jobs on your site using the WonderStar careers API, with a key."],
             ] as const
           ).map(([value, label, help]) => (
             <label key={value} className={`flex cursor-pointer gap-3 rounded-[12px] border px-3 py-2.5 ${mode === value ? "border-brand-500 bg-brand-50" : "border-line"}`}>

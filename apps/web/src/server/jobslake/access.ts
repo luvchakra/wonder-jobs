@@ -13,7 +13,7 @@ import { jobsLakeFlags } from "./flags";
  *   means nobody — it fails closed. In local development without Supabase Auth (the legacy cookie
  *   mode, where identity isn't authenticated at all), JOBSLAKE_LOCAL_ADMIN=1 opts a developer in;
  *   that switch is ignored whenever real auth is configured.
- * - Candidate search + opportunities: any signed-in WonderJobs session (the WonderJobs client).
+ * - Candidate search + opportunities: any signed-in WonderStar session (the WonderStar client).
  * - Service/MCP callers: a bearer JOBSLAKE_MCP_TOKEN, compared in constant time; unset = refused.
  * - Developers: a JobsLake API key (`Authorization: Bearer jl_live_…` or `x-api-key`) on search,
  *   opportunities and MCP only — never on admin/platform endpoints or telemetry.
@@ -99,8 +99,8 @@ export async function requireApiCaller(req: Request): Promise<Caller | NextRespo
 }
 
 /**
- * For v1 endpoints a candidate may call: a WonderJobs session or the service token. An admin using
- * WonderJobs is a candidate here too — admin searches go through the admin playground, so a
+ * For v1 endpoints a candidate may call: a WonderStar session or the service token. An admin using
+ * WonderStar is a candidate here too — admin searches go through the admin playground, so a
  * candidate search is never recorded or shaped as an admin one.
  */
 export async function requireCandidateOrService(req: Request): Promise<Caller | NextResponse> {

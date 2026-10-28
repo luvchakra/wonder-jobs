@@ -65,8 +65,8 @@ function providers(routes: { match: (c: Call) => boolean; json: unknown; status?
   );
 }
 const is = (method: string, path: string) => (c: Call) => c.method === method && c.url.split("?")[0].endsWith(path);
-const PRICE_PRO = { id: "price_pro", unit_amount: 49_900, currency: "inr", active: true, recurring: { interval: "month", interval_count: 1 }, product: { id: "prod_pro", name: "WonderJobs Pro" } };
-const PRICE_MAX = { id: "price_max", unit_amount: 129_900, currency: "inr", active: true, recurring: { interval: "month", interval_count: 1 }, product: { id: "prod_max", name: "WonderJobs Max" } };
+const PRICE_PRO = { id: "price_pro", unit_amount: 49_900, currency: "inr", active: true, recurring: { interval: "month", interval_count: 1 }, product: { id: "prod_pro", name: "WonderStar Pro" } };
+const PRICE_MAX = { id: "price_max", unit_amount: 129_900, currency: "inr", active: true, recurring: { interval: "month", interval_count: 1 }, product: { id: "prod_max", name: "WonderStar Max" } };
 const posts = (path: string) => calls.filter((c) => c.method === "POST" && c.url.split("?")[0].endsWith(path));
 
 beforeEach(async () => {

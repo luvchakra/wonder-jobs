@@ -24,7 +24,7 @@ const Body = z.object({
 });
 
 /**
- * An applicant applies on WonderJobs' own careers page (/careers/<job id>). Checked here, then forwarded to the
+ * An applicant applies on WonderStar' own careers page (/careers/<job id>). Checked here, then forwarded to the
  * careers API; this app keeps nothing and logs nothing from the body. Cross-site posts are refused by the proxy.
  */
 export async function POST(req: Request, ctx: Ctx) {

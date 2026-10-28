@@ -17,7 +17,7 @@ export interface Organization {
   id: string;
   name: string;
   website?: string;
-  /** Set by WonderJobs once the company is checked; until then its jobs say "Unverified employer". */
+  /** Set by WonderStar once the company is checked; until then its jobs say "Unverified employer". */
   verified: boolean;
   createdAt: string;
 }

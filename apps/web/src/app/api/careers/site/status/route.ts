@@ -8,7 +8,7 @@ import { clientAddress } from "@/server/activityWatch";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// The token travels in the body, here and on to WonderJobs, so it stays out of every address and log.
+// The token travels in the body, here and on to WonderStar, so it stays out of every address and log.
 const Body = z.object({ token: z.string().max(300), action: z.enum(["view", "withdraw"]).default("view") });
 
 /** An applicant's status page withdraws through here; the page itself reads the status on the server. */

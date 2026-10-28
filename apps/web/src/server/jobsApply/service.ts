@@ -174,7 +174,7 @@ export async function resolve(tenantId: string, id: string, itemId: string, r: z
   return ok(view(out, await decisionsFor(tenantId)));
 }
 
-/** A helper token for this session — called by the extension's bridge on WonderJobs' own page (cookie auth). */
+/** A helper token for this session — called by the extension's bridge on WonderStar' own page (cookie auth). */
 async function mintToken(tenantId: string, id: string): Promise<ApiResult> {
   const s = await getSession(tenantId, id);
   if (!s) return err(404, "NOT_FOUND", "Application session not found.");
@@ -197,12 +197,12 @@ export interface HelperCtx {
 
 /** Bearer token → the one session it was minted for. Rejects forged, expired and revoked (rotated-nonce) tokens, and ended sessions. */
 export async function helperAuth(token: string | null): Promise<HelperCtx | ApiResult> {
-  if (!token) return err(401, "UNAUTHORIZED", "Reconnect the helper from WonderJobs.");
+  if (!token) return err(401, "UNAUTHORIZED", "Reconnect the helper from WonderStar.");
   const claims = verifyHelperToken(token);
-  if (!claims) return err(401, "UNAUTHORIZED", "The helper's connection expired. Reopen the application from WonderJobs.");
+  if (!claims) return err(401, "UNAUTHORIZED", "The helper's connection expired. Reopen the application from WonderStar.");
   const session = await getSession(claims.tenantId, claims.sessionId);
   if (!session) return err(401, "UNAUTHORIZED", "Application session not found.");
-  if (session.tokenNonce !== claims.nonce) return err(401, "REVOKED", "This helper connection was stopped. Reopen the application from WonderJobs.");
+  if (session.tokenNonce !== claims.nonce) return err(401, "REVOKED", "This helper connection was stopped. Reopen the application from WonderStar.");
   if (TERMINAL.has(session.status)) return err(401, "REVOKED", "This application session has ended.");
   return { tenantId: claims.tenantId, session };
 }
@@ -235,7 +235,7 @@ function plan(s: JobsApplySession, host: string, decision: FillDecision, clicked
   // every required question is answered with the candidate's own value — the helper re-checks the page itself.
   const filling = new Set(g.mappings.map((m) => m.fieldId));
   // In the cloud browser (a server-hosted page) only a background fill may submit, and only after the candidate
-  // pressed "Submit this application" for this one application in WonderJobs (WJ-311) — never from an account
+  // pressed "Submit this application" for this one application in WonderStar (WJ-311) — never from an account
   // default. A cloud page someone watches is theirs to submit, as in their own browser.
   const inCloud = !!s.cloud && !s.cloud.endedAt;
   const cloudSubmit = inCloud && !!s.cloud?.headless && s.submitOverride === "on";

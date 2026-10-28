@@ -1,5 +1,5 @@
 /**
- * Notification use cases raised in the browser (docs: WonderJobs-notifications.xlsx, sheet "Test cases").
+ * Notification use cases raised in the browser (docs: WonderStar-notifications.xlsx, sheet "Test cases").
  * Each test is named by its use-case id so the sheet can point at it.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -68,8 +68,8 @@ describe("Find / searches", () => {
     expect(waitingNotice(run(), "Pick the résumé to use")).toEqual({ category: "workflow_requires_input", title: "Wonder needs your input", body: "Pick the résumé to use", href: "/app/runs/run_1" });
   });
 
-  it("N05 falling back to WonderJobs AI says why and points to AI settings", () => {
-    expect(fallbackNotice("Your Anthropic key was refused.")).toMatchObject({ category: "provider_issue", title: "Switched to WonderJobs AI for one request", href: "/app/settings/ai" });
+  it("N05 falling back to WonderStar AI says why and points to AI settings", () => {
+    expect(fallbackNotice("Your Anthropic key was refused.")).toMatchObject({ category: "provider_issue", title: "Switched to WonderStar AI for one request", href: "/app/settings/ai" });
   });
 });
 

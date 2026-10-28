@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 
 /**
- * Web app manifest — makes WonderJobs installable (Chrome/Edge "Install app", Android "Add to Home screen").
+ * Web app manifest — makes WonderStar installable (Chrome/Edge "Install app", Android "Add to Home screen").
  *
  * `related_applications` lists this web app itself so a normal browser tab can ask
  * `navigator.getInstalledRelatedApps()` whether it's already installed and keep the install banner away
@@ -17,9 +17,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || (local ? "http" : "https");
   return {
     id: "/app",
-    name: "WonderJobs — Your AI job-search agent",
-    short_name: "WonderJobs",
-    description: "WonderJobs scans the market, finds opportunities that actually fit you, and helps you take the next step.",
+    name: "WonderStar — Your AI job-search agent",
+    short_name: "WonderStar",
+    description: "WonderStar scans the market, finds opportunities that actually fit you, and helps you take the next step.",
     start_url: "/app",
     scope: "/",
     display: "standalone",

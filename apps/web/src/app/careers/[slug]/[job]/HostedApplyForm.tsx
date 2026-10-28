@@ -7,7 +7,7 @@ import { Field, Input, Textarea } from "@/components/common/Input";
 
 /**
  * The standard application form on a hosted careers page. It is checked here for quick feedback and again on
- * the server; "submitted" shows only once WonderJobs has stored the application.
+ * the server; "submitted" shows only once WonderStar has stored the application.
  */
 export function HostedApplyForm({ slug, jobId, company, retentionMonths }: { slug: string; jobId: string; company: string; retentionMonths?: number }) {
   const [v, setV] = useState({ name: "", email: "", phone: "", location: "", resumeUrl: "", linkedinUrl: "", coverNote: "", consent: false, website: "" });
@@ -77,7 +77,7 @@ export function HostedApplyForm({ slug, jobId, company, retentionMonths }: { slu
       <label className="flex items-start gap-2 text-[13px] text-ink-2 sm:col-span-2">
         <input type="checkbox" checked={v.consent} onChange={(e) => set({ consent: e.target.checked })} className="mt-1 size-4 accent-brand-600" />
         <span>
-          I agree that {company} and WonderJobs, which handles its applications, may store and use these details to consider me for this position and email me about it.
+          I agree that {company} and WonderStar, which handles its applications, may store and use these details to consider me for this position and email me about it.
           {retentionMonths ? ` My application is deleted ${retentionMonths} months after its last update.` : ""}
         </span>
       </label>

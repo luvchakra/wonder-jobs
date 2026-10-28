@@ -46,23 +46,23 @@ export async function POST(req: Request) {
   const system = systemPrompt(promptId);
   if (provider === "wonderjobs") {
     const platform = platformAI();
-    if (!platform) return NextResponse.json({ error: "WonderJobs AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
+    if (!platform) return NextResponse.json({ error: "WonderStar AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
     // Drafts on the platform's key count against the plan; a connected own-AI key never comes through here.
     const { plan, limits, config } = await tenantPlan(tenantId);
     const quota = draftQuota(limits.aiDraftsPerMonth, await draftUsage(tenantId));
-    if (!quota.allowed) return NextResponse.json({ error: `You've used this month's ${quota.limit} WonderJobs AI drafts on ${config.plans[plan].label}. Connect your own AI (no limit) or move up a plan.`, kind: "quota", plan, limit: quota.limit }, { status: 402 });
+    if (!quota.allowed) return NextResponse.json({ error: `You've used this month's ${quota.limit} WonderStar AI drafts on ${config.plans[plan].label}. Connect your own AI (no limit) or move up a plan.`, kind: "quota", plan, limit: quota.limit }, { status: 402 });
     try {
       const result = await getServerProvider(platform.provider)!.complete(platform.apiKey, { model: platform.model, system, prompt, maxTokens: maxTokens ?? 2048 });
       await countDraft(tenantId).catch(() => {});
-      if (repeatsInstructions(promptId, result.text, system)) return NextResponse.json({ error: "WonderJobs AI couldn't write this draft. Try again.", kind: "invalid_response" }, { status: 502 });
+      if (repeatsInstructions(promptId, result.text, system)) return NextResponse.json({ error: "WonderStar AI couldn't write this draft. Try again.", kind: "invalid_response" }, { status: 502 });
       return NextResponse.json(result);
     } catch (e) {
       if (e instanceof ServerProviderError) return NextResponse.json({ error: e.message.replace("your API key", "the platform key"), kind: e.kind }, { status: e.status });
-      return NextResponse.json({ error: "WonderJobs AI request failed.", kind: "unknown" }, { status: 502 });
+      return NextResponse.json({ error: "WonderStar AI request failed.", kind: "unknown" }, { status: 502 });
     }
   }
   const secret = await secretStore.get(tenantId, provider);
-  if (!secret) return NextResponse.json({ error: `No ${provider} API key is connected. Add one in AI settings or switch to WonderJobs AI.`, kind: "not_configured" }, { status: 409 });
+  if (!secret) return NextResponse.json({ error: `No ${provider} API key is connected. Add one in AI settings or switch to WonderStar AI.`, kind: "not_configured" }, { status: 409 });
   const adapter = getServerProvider(provider);
   if (!adapter) return NextResponse.json({ error: "Provider not supported.", kind: "not_configured" }, { status: 400 });
   try {

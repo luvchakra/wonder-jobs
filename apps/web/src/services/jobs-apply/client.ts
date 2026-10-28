@@ -206,11 +206,11 @@ export function exportPackZip(pack: ApplicationPackSnapshot, applyUrl: string): 
     ...profileLines,
     ``,
     `Checklist`,
-    `[ ] Sign in on the employer's site if asked (WonderJobs never needs your portal password)`,
+    `[ ] Sign in on the employer's site if asked (WonderStar never needs your portal password)`,
     `[ ] Attach your résumé${pack.coverLetter ? " and cover letter" : ""}`,
     `[ ] Answer work authorization, sponsorship, salary and any legal or demographic questions yourself`,
     `[ ] Review everything, then submit on the employer's site`,
-    `[ ] Mark the application as submitted in WonderJobs`,
+    `[ ] Mark the application as submitted in WonderStar`,
     ``,
     `Pack version ${pack.version}, prepared ${new Date(pack.capturedAt).toLocaleString()}.`,
   ].join("\n");

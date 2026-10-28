@@ -57,7 +57,7 @@ export function canonicalJobUrl(raw: string): string {
 const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
 const BOARDS = /(^|\.)(linkedin\.com|naukri\.com|indeed\.com|glassdoor\.[a-z.]+|monster\.com|foundit\.in|instahyre\.com|wellfound\.com|iimjobs\.com|hirist\.tech|shine\.com)$/;
 
-/** The page as a job WonderJobs can score and keep. ATS pages get the id a search would give the same posting, so they're never kept twice. */
+/** The page as a job WonderStar can score and keep. ATS pages get the id a search would give the same posting, so they're never kept twice. */
 export function jobFromPage(page: PageJob, now = Date.now()): CanonicalJob {
   const url = canonicalJobUrl(page.url);
   const host = hostOf(url);

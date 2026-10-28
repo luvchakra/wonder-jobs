@@ -1,10 +1,10 @@
 import { resolveCareersKey } from "./key";
 
 /**
- * WonderJobs' own careers page (owner, 2026-10-21): /careers lists the jobs the WonderJobs company links to its
+ * WonderStar' own careers page (owner, 2026-10-21): /careers lists the jobs the WonderStar company links to its
  * "On our own website" career site, takes applications and shows applicants their status. It is built exactly
  * like any other company's site would be: this server calls the public careers API with the site's key, and
- * WonderJobs (the same deployment, reached over HTTPS) stores the applications and sends every email. This app
+ * WonderStar (the same deployment, reached over HTTPS) stores the applications and sends every email. This app
  * keeps no applicant data.
  *
  * Server only (src/clientBoundary.test.ts keeps browser code from importing it). The key is sent as a Bearer
@@ -51,7 +51,7 @@ export type ApplicationBody = {
 };
 
 /**
- * What a call came to. `rejected` carries WonderJobs' own message for people (a 400 or a 409); `busy` is a 429
+ * What a call came to. `rejected` carries WonderStar' own message for people (a 400 or a 409); `busy` is a 429
  * with how long to wait; `unauthorized` is a wrong or revoked key; `unavailable` is anything else.
  */
 export type Result<T> =
@@ -67,7 +67,7 @@ export const CAREERS_BASE = "https://jobs.wonderapps.biz";
 export const TIMEOUT_MS = 8_000;
 const LIST_TTL_MS = 60_000;
 
-/** WonderJobs' address: fixed, or an override on an https *.wonderapps.biz host (for tests); anything else is refused. */
+/** WonderStar' address: fixed, or an override on an https *.wonderapps.biz host (for tests); anything else is refused. */
 export function careersBase(override = process.env.WONDERJOBS_CAREERS_URL): string | null {
   if (!override?.trim()) return CAREERS_BASE;
   try {

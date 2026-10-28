@@ -1,5 +1,5 @@
 /**
- * WonderJobs service worker — installability only, deliberately not a cache.
+ * WonderStar service worker — installability only, deliberately not a cache.
  *
  * This app is local-first with its own sync/dirty-tracking layer
  * (store/remoteStorage.ts) so every screen already reflects real,
@@ -8,18 +8,18 @@
  * what that layer exists to prevent — so this one caches nothing.
  * It exists only so the app can be installed as a PWA, and it shows a
  * small, honest page (no fabricated data) when a page can't be fetched even on
- * a second try, saying whether the device is offline or WonderJobs isn't answering.
+ * a second try, saying whether the device is offline or WonderStar isn't answering.
  */
 
 /**
  * Shown only when the page itself can't be fetched, after a second try. It says which it is — no connection
- * on this device, or WonderJobs not answering (a moment's blip, or the app updating) — and, while the page is
- * open, keeps trying by itself and reloads as soon as WonderJobs answers. Nothing here is cached or invented.
+ * on this device, or WonderStar not answering (a moment's blip, or the app updating) — and, while the page is
+ * open, keeps trying by itself and reloads as soon as WonderStar answers. Nothing here is cached or invented.
  */
 const UNREACHABLE_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Can't reach WonderJobs</title>
+<title>Can't reach WonderStar</title>
 <style>
   body { margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f6f6fb; color: #14142b; }
@@ -31,8 +31,8 @@ const UNREACHABLE_HTML = `<!doctype html>
     color: #fff; background: linear-gradient(135deg, #6d4cf5 0%, #7c5cff 55%, #a66bff 100%); cursor: pointer; }
 </style></head>
 <body><main>
-  <h1 id="t">Can't reach WonderJobs right now</h1>
-  <p id="m">WonderJobs may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.</p>
+  <h1 id="t">Can't reach WonderStar right now</h1>
+  <p id="m">WonderStar may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.</p>
   <button onclick="location.reload()">Try again now</button>
   <small id="s">Trying again in a few seconds…</small>
 </main>
@@ -40,10 +40,10 @@ const UNREACHABLE_HTML = `<!doctype html>
   var offline = navigator.onLine === false;
   function say() {
     offline = navigator.onLine === false;
-    document.getElementById("t").textContent = offline ? "You're offline" : "Can't reach WonderJobs right now";
+    document.getElementById("t").textContent = offline ? "You're offline" : "Can't reach WonderStar right now";
     document.getElementById("m").textContent = offline
-      ? "Your phone has no connection. Check Wi-Fi or mobile data — WonderJobs opens again as soon as you're back online."
-      : "WonderJobs may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.";
+      ? "Your phone has no connection. Check Wi-Fi or mobile data — WonderStar opens again as soon as you're back online."
+      : "WonderStar may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.";
   }
   say();
   addEventListener("online", function () { location.reload(); });
@@ -92,7 +92,7 @@ self.addEventListener("fetch", (event) => {
  * notification the browser already woke us for should never be silently swallowed.
  */
 self.addEventListener("push", (event) => {
-  let payload = { title: "WonderJobs", body: "Something new is waiting for you.", url: "/app" };
+  let payload = { title: "WonderStar", body: "Something new is waiting for you.", url: "/app" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {

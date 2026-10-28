@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Every arranged menu's order and hidden items, the same for everyone (set in WonderJobs Admin). Nothing in it is
+ * Every arranged menu's order and hidden items, the same for everyone (set in WonderStar Admin). Nothing in it is
  * anyone's data, so it's cached briefly at the edge: a change reaches every user within a minute.
  */
 export async function GET() {

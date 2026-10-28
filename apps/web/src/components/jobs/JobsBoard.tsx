@@ -101,7 +101,7 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
     const f = JSON.parse(filtersKey) as typeof filters;
     // Saved's words are its own plain look-up (savedTextMatches below), not Find's search. Saved keeps only
     // its own controls (job types, Hide Pipeline): Find's Refine — work mode, salary, level, places… — never
-    // hides a job the candidate saved. Its own Easy Apply only narrows to the jobs posted on WonderJobs.
+    // hides a job the candidate saved. Its own Easy Apply only narrows to the jobs posted on WonderStar.
     if (savedOnly) return { ...f, query: "", onlySaved: true, minFit: null, exactFit: false, workModes: [], sourceIds: f.savedEasyApply ? [EASY_APPLY_SOURCE] : [], freshnessDays: null, minSalary: undefined, salaryListed: false, levels: [], company: "", locations: undefined, strictProfile: false };
     // Full Time with no places picked: the Career Profile's places.
     // Remote is a work mode (Work mode filters it), never a place: "Remote" alone would hide every other job.

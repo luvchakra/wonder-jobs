@@ -9,7 +9,7 @@ import { toast } from "@/components/feedback/Toast";
 type Company = { id: string; name: string; website?: string; verified: boolean; createdAt: string; owners: string[]; openJobs: number };
 
 /**
- * Hiring workspaces (companies) and whether WonderJobs has verified them. Unverified ones come first. Before
+ * Hiring workspaces (companies) and whether WonderStar has verified them. Unverified ones come first. Before
  * verifying, check the website is the company's, that it is a registered business, and that an Owner works
  * there; verifying emails its Owners.
  */

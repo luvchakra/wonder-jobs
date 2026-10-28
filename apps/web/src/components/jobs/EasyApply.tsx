@@ -31,7 +31,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 }
 
 /**
- * Easy Apply on a job a company posted on WonderJobs (owner, 2026-10-28): one press sends the application — the name,
+ * Easy Apply on a job a company posted on WonderStar (owner, 2026-10-28): one press sends the application — the name,
  * contact details, skills and headline from the candidate's Career Profile, their résumé (one made for this job, else
  * their uploaded file, else one made from the Career Profile) and their saved answers to the job's screening
  * questions. When something the company needs is missing, only that is asked. Automation → "Send Easy Apply in one
@@ -54,14 +54,14 @@ export function EasyApply({ job }: { job: CanonicalJob }) {
   const markApplied = (applicationId?: string) => {
     const store = useApplicationsStore.getState();
     const a = app ?? store.create(job.id, "saved");
-    store.setStatus(a.id, "submitted", { type: "submitted", title: "Submitted with WonderJobs Easy Apply", detail: `Sent to ${job.company} on WonderJobs${applicationId ? ` (${applicationId})` : ""}` });
+    store.setStatus(a.id, "submitted", { type: "submitted", title: "Submitted with WonderStar Easy Apply", detail: `Sent to ${job.company} on WonderStar${applicationId ? ` (${applicationId})` : ""}` });
     return a.id;
   };
 
   const withdraw = async (applicationId: string, localId: string) => {
     try {
       await post("/api/easy-apply/withdraw", { applicationId });
-      useApplicationsStore.getState().setStatus(localId, "withdrawn", { type: "note", title: "Withdrawn", detail: `Withdrawn from ${job.company} on WonderJobs` });
+      useApplicationsStore.getState().setStatus(localId, "withdrawn", { type: "note", title: "Withdrawn", detail: `Withdrawn from ${job.company} on WonderStar` });
       toast.info("Application withdrawn", `${job.company} sees it as withdrawn.`);
     } catch (e) {
       toast.error("Couldn't withdraw it", (e as Error).message);

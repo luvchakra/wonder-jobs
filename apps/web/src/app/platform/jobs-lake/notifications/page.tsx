@@ -10,7 +10,7 @@ import { relativeTime } from "@/lib/format";
 type Limits = Record<"messageEmailEveryMin" | "interviewLeadHours" | "followUpLeadHours", readonly [number, number]>;
 type Data = { settings: NotifyAdmin; defaults: NotifyAdmin; limits: Limits; topics: readonly { id: NotifyTopic; label: string; hint: string; channels: readonly NotifyChannel[] }[]; peopleWithChoices: number };
 
-/** WonderJobs Admin → Settings → Notifications: what every person can be sent, and what they start with. */
+/** WonderStar Admin → Settings → Notifications: what every person can be sent, and what they start with. */
 export default function NotificationsAdminPage() {
   const { data, error, reload } = useAdmin<Data>("notifications");
   return (

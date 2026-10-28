@@ -1,7 +1,7 @@
 import type { Result } from "@/server/careerSite/client";
 import { currentAdmin } from "@/server/jobslake/access";
 
-/** What a visitor sees when WonderJobs' own careers page can't load, and the reason shown to admins only. */
+/** What a visitor sees when WonderStar' own careers page can't load, and the reason shown to admins only. */
 export async function unavailableState(r: Exclude<Result<unknown>, { state: "ok" }>, opts: { forAdmins?: boolean } = {}): Promise<{ title: string; body?: string; adminReason: string | null; retry: boolean }> {
   // Reading the session makes a page dynamic, so only /careers (already dynamic) looks for an admin.
   const admin = opts.forAdmins ? await currentAdmin().catch(() => null) : null;
@@ -10,7 +10,7 @@ export async function unavailableState(r: Exclude<Result<unknown>, { state: "ok"
       title: "Careers isn't set up yet",
       body: "Please check back soon.",
       retry: false,
-      adminReason: admin ? (r.state === "needs_setup" ? "No career-site key is saved. Paste it in WonderJobs Admin → Careers." : "WonderJobs refused the saved career-site key (401). It may be revoked; save a new one in WonderJobs Admin → Careers.") : null,
+      adminReason: admin ? (r.state === "needs_setup" ? "No career-site key is saved. Paste it in WonderStar Admin → Careers." : "WonderStar refused the saved career-site key (401). It may be revoked; save a new one in WonderStar Admin → Careers.") : null,
     };
   return {
     title: "Careers is unavailable right now",

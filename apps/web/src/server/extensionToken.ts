@@ -2,9 +2,9 @@ import crypto from "node:crypto";
 
 /**
  * Bearer token for the browser extension. The extension can't use the
- * session cookie: it reads WonderJobs data from a content script running on
+ * session cookie: it reads WonderStar data from a content script running on
  * *employers'* sites (greenhouse, lever, …), which is a different origin.
- * So a content script on WonderJobs' own origin — where the normal session
+ * So a content script on WonderStar' own origin — where the normal session
  * cookie works — mints one of these and hands it to the extension.
  *
  * Deliberately narrow: signed with the deployment's own secret, carries only

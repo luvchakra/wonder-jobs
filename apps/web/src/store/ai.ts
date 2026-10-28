@@ -10,7 +10,7 @@ interface AIState {
   config: AIProviderConfig;
   usage: AIUsageRecord[];
   keysLoaded: boolean;
-  /** Whether "WonderJobs AI" is backed by a real model on this deployment (null until known). */
+  /** Whether "WonderStar AI" is backed by a real model on this deployment (null until known). */
   platform: { configured: boolean; model?: string; provider?: AIProviderId } | null;
   selectProvider: (id: AIProviderId, model?: string) => void;
   setModel: (model: string) => void;

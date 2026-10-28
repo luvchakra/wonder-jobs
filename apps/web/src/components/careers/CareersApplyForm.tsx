@@ -7,9 +7,9 @@ import { Button } from "@/components/common/Button";
 import { Input, Textarea } from "@/components/common/Input";
 import { cn } from "@/lib/cn";
 
-/** The consent line on WonderJobs' own careers form; the period comes from the site and is left out when it has none. */
+/** The consent line on WonderStar' own careers form; the period comes from the site and is left out when it has none. */
 export function consentText(retentionMonths: number | null): string {
-  const base = "I agree that WonderJobs stores my application to consider me for this and similar roles";
+  const base = "I agree that WonderStar stores my application to consider me for this and similar roles";
   return retentionMonths ? `${base}, and deletes it ${retentionMonths} month${retentionMonths === 1 ? "" : "s"} after its last update.` : `${base}.`;
 }
 
@@ -17,7 +17,7 @@ type Values = { name: string; email: string; phone: string; location: string; li
 const EMPTY: Values = { name: "", email: "", phone: "", location: "", linkedinUrl: "", resumeUrl: "", coverNote: "", consent: false, website: "" };
 
 /**
- * The apply form on WonderJobs' own careers page. It is checked here for quick feedback, then sent to this app's
+ * The apply form on WonderStar' own careers page. It is checked here for quick feedback, then sent to this app's
  * own route, which checks it again and forwards it to the careers API. "Sent" shows only after a 200.
  */
 export function CareersApplyForm({ jobId, retentionMonths }: { jobId: string; retentionMonths: number | null }) {
@@ -45,7 +45,7 @@ export function CareersApplyForm({ jobId, retentionMonths }: { jobId: string; re
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (res.status === 200) return setSent(true);
       if (res.status === 404) return setClosed(true);
-      // A 400 or 409 is WonderJobs' (or this app's) own message for people; anything else is a plain retry.
+      // A 400 or 409 is WonderStar' (or this app's) own message for people; anything else is a plain retry.
       setProblem({ message: (res.status === 400 || res.status === 409) && body.error ? body.error : "Your application couldn't be sent. Please try again in a few minutes." });
     } catch {
       setProblem({ message: "Your application couldn't be sent. Check your connection and try again." });

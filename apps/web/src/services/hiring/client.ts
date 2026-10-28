@@ -41,7 +41,7 @@ export interface ApplicationView extends Application {
 }
 export interface SiteSettings {
   name: string;
-  /** Hosted by WonderJobs at /careers/<slug>; empty when the site is on the company's own page. */
+  /** Hosted by WonderStar at /careers/<slug>; empty when the site is on the company's own page. */
   slug?: string;
   publicUrl: string;
   notifyEmails: string;

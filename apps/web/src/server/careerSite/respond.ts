@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Result } from "./client";
 
-/** Messages for applicants when WonderJobs can't take a request: plain, never the reason behind it. */
+/** Messages for applicants when WonderStar can't take a request: plain, never the reason behind it. */
 export const RETRY_MESSAGE = "Your application couldn't be sent right now. Please try again in a few minutes.";
 export const BUSY_MESSAGE = "We're busy right now. Please try again shortly.";
 
@@ -18,7 +18,7 @@ export function respond<T>(r: Result<T>, ok: (data: T) => unknown, opts: { notFo
     case "busy":
       return json({ error: BUSY_MESSAGE }, 429, { "retry-after": String(r.retryAfterSec) });
     default:
-      // No key, a wrong key or WonderJobs unreachable: the applicant can only try again later.
+      // No key, a wrong key or WonderStar unreachable: the applicant can only try again later.
       return json({ error: opts.failed ?? RETRY_MESSAGE }, 503);
   }
 }

@@ -166,7 +166,7 @@ test.describe("JobsLake admin", () => {
 
   test("WJ-JL-020/022 health and source contribution come from recorded runs", async ({ page, request }) => {
     test.setTimeout(120_000);
-    // The WonderJobs client's own sequence: a search, then per-source relevant/strong counts.
+    // The WonderStar client's own sequence: a search, then per-source relevant/strong counts.
     const search = await (await request.post("/api/jobs-lake/v1/search", { data: { query: { text: "product designer", locations: [] }, searchMode: "fast", limit: 50 } })).json();
     const ok = search.sources.find((s: { outcome: string }) => s.outcome === "ok");
     test.skip(!ok, "no source answered this search today");

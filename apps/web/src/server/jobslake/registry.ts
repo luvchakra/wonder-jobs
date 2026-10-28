@@ -1,5 +1,5 @@
 /**
- * The JobsLake source registry (spec §48): built-in sources (today's WonderJobs fetchers, with the
+ * The JobsLake source registry (spec §48): built-in sources (today's WonderStar fetchers, with the
  * combined "careers" source split into its Greenhouse / Lever / Ashby platforms), the partnership
  * catalogue, and admin-added sources. Also resolves each source to the connector that fetches it.
  *
@@ -46,7 +46,7 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "himalayas", name: "Himalayas", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas", capabilities: FEED_CAPS, description: legacyNote("himalayas") }),
   builtin({ id: "himalayas_parttime", name: "Himalayas part-time", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas_parttime", jobTypes: ["part_time", "temporary"], capabilities: [...FEED_CAPS, "Salary", "Job type"], description: legacyNote("himalayas_parttime") }),
   builtin({ id: "freelancer", name: "Freelancer.com gigs", provider: "Freelancer.com", category: "aggregator", accessStrategy: "official_api", geography: ["global", "remote"], legacySourceId: "freelancer", jobTypes: ["gig"], capabilities: [...FEED_CAPS, "Job type"], description: legacyNote("freelancer") }),
-  builtin({ id: "employers", name: "WonderJobs employers", provider: "WonderJobs", category: "portal", accessStrategy: "official_api", geography: ["global"], legacySourceId: "employers", capabilities: [...FEED_CAPS, "Job type"], description: "Jobs companies post in their WonderJobs hiring workspace." }),
+  builtin({ id: "employers", name: "WonderStar employers", provider: "WonderStar", category: "portal", accessStrategy: "official_api", geography: ["global"], legacySourceId: "employers", capabilities: [...FEED_CAPS, "Job type"], description: "Jobs companies post in their WonderStar hiring workspace." }),
   builtin({ id: "arbeitnow", name: "Arbeitnow", provider: "Arbeitnow", category: "aggregator", accessStrategy: "official_api", geography: ["DE", "remote"], legacySourceId: "arbeitnow", capabilities: FEED_CAPS, description: legacyNote("arbeitnow") }),
   builtin({ id: "theirstack", name: "TheirStack", provider: "TheirStack", category: "aggregator", accessStrategy: "licensed", geography: ["global"], legacySourceId: "theirstack", capabilities: [...FEED_CAPS, "Salary", "Employer identity"], secretRef: "env:THEIRSTACK", paid: true, description: legacyNote("theirstack") }),
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),
@@ -126,7 +126,7 @@ export interface ConnectorResult {
 
 /**
  * Fetch one source. Throws NeedsSetupError for missing credentials; any other throw is the source
- * being unavailable. Every job carries the source's own id (or its legacy WonderJobs id for ATS and
+ * being unavailable. Every job carries the source's own id (or its legacy WonderStar id for ATS and
  * built-ins, so existing job ids never change).
  */
 /** The source can be asked for only what's new since its last answer (a built-in connector that filters by date). */
@@ -138,7 +138,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
-      // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
+      // WonderStar employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
       if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby") {
         const r = await fetchAtsBoards(boardsOf(s.id), c, depth);

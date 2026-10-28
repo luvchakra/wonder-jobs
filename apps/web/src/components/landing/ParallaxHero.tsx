@@ -179,7 +179,7 @@ function ParallaxBinder() {
 
 export function FloatingDashboardCard({ className }: { className?: string }) {
   return (
-    <div className={cn("wj-glass rounded-[22px] p-5 shadow-lg", className)} aria-label="Preview of the WonderJobs dashboard">
+    <div className={cn("wj-glass rounded-[22px] p-5 shadow-lg", className)} aria-label="Preview of the WonderStar dashboard">
       <p className="text-[12px] text-ink-2">Good morning, Alex 👋</p>
       <p className="mt-1 text-[22px] font-semibold leading-tight tracking-tight text-ink">
         Wonder found <span className="wj-gradient-text">7 things</span> worth your attention.

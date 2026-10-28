@@ -236,7 +236,7 @@ export function mapForm(form: Pick<ApplicationForm, "fields">, pack: Application
     // Something the candidate already typed on the page is theirs — never overwritten (§71 recovery too).
     if (field.hasValue && field.type !== "file") return push({ status: "skipped", reason: "Already filled on the page." });
 
-    // A value the candidate approved in WonderJobs (§23, §51).
+    // A value the candidate approved in WonderStar (§23, §51).
     const ok = approved[field.id];
     if (ok && c.target.kind !== "file") {
       const value = pickOption(field, ok.value);

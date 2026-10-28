@@ -5,7 +5,7 @@
  * Unlike the legacy "careers" fetcher, a board that can't be read is an error here, not an empty
  * list: an admin testing a new board must see "Lever returned 404", not "0 jobs".
  *
- * Every posting keeps the exact job id WonderJobs has always given it (`careers_…` from the
+ * Every posting keeps the exact job id WonderStar has always given it (`careers_…` from the
  * `gh:`/`lv:`/`ab:` external ids), so saved jobs, applications and the extension still resolve.
  */
 import type { Job } from "@/domain/jobs/types";
@@ -21,7 +21,7 @@ export interface AtsBoard {
   domain?: string;
 }
 
-/** The legacy WonderJobs source every ATS posting belongs to — keeps `careers_…` job ids stable. */
+/** The legacy WonderStar source every ATS posting belongs to — keeps `careers_…` job ids stable. */
 export const ATS_LEGACY_SOURCE = "careers";
 
 const DETAIL: Record<Depth, number> = { shallow: 6, normal: 12, deep: 25 };

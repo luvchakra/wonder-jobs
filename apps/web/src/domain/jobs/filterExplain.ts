@@ -2,7 +2,7 @@
  * "Why Was This Filtered" (spec §11 — the companion to "Why This Job": explaining not just why a shown
  * job scored the way it did, but why a job the candidate can't see right now isn't showing).
  *
- * WonderJobs never silently drops a discovered job from the catalog — the rank stage publishes every
+ * WonderStar never silently drops a discovered job from the catalog — the rank stage publishes every
  * deduplicated posting with its real score (`services/workflow/executors.ts`), and what actually hides a
  * job from the candidate's view is the Jobs page's own filter bar plus "not for me". So the honest,
  * buildable version of "why filtered" here is exactly that: which of the candidate's own active filters

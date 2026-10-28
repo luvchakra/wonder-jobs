@@ -29,7 +29,7 @@ export interface PlanLimits {
   dailySearches: boolean;
   /** Whether "Keep watch" (continuous) is allowed. */
   keepWatch: boolean;
-  /** Drafts written by WonderJobs AI per calendar month; a connected own-AI key never counts. */
+  /** Drafts written by WonderStar AI per calendar month; a connected own-AI key never counts. */
   aiDraftsPerMonth: number;
   /** Roles the candidate can search as. */
   roles: number;

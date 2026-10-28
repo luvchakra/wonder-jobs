@@ -21,7 +21,7 @@ const Body = z.object({
   website: z.string().max(200).optional(),
 });
 
-/** An applicant applies on a careers page WonderJobs hosts; the emails go out once the answer is sent. */
+/** An applicant applies on a careers page WonderStar hosts; the emails go out once the answer is sent. */
 export async function POST(req: Request, ctx: Ctx) {
   const { slug, id } = await ctx.params;
   return hostedCareersRoute(

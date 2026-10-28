@@ -1,5 +1,5 @@
 /**
- * WonderJobs' client for JobsLake Protocol v1 (spec §80). The browser talks to the same REST
+ * WonderStar' client for JobsLake Protocol v1 (spec §80). The browser talks to the same REST
  * endpoints any other JobsLake consumer would; nothing here knows how sources are fetched.
  */
 import type { CanonicalOpportunity, ErrorBody, SearchEvent, SearchRequest, SearchResponse } from "@/domain/jobslake/protocol";

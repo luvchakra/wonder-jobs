@@ -30,7 +30,7 @@ type Tab = "jobs" | "applications" | "talent" | "shortlist" | "messages" | "team
 type Data = Awaited<ReturnType<typeof hiringApi.workspaces>>;
 
 /**
- * Hiring (owner, 2026-10-20): a company's workspace on WonderJobs. Post jobs that job seekers find in their
+ * Hiring (owner, 2026-10-20): a company's workspace on WonderStar. Post jobs that job seekers find in their
  * searches, find candidates who are open to recruiters, shortlist and report them to hiring managers, and write to
  * them. The tabs shown follow the person's role; the server checks the role again on every action. One person can
  * belong to, and own, several workspaces. Hiring opens on a table of them (Open, and for Owners Edit and Delete);
@@ -128,7 +128,7 @@ function HiringPage() {
   if (listView)
     return (
       <div className="mx-auto max-w-4xl">
-        {/* Hiring's own colour (teal), so it reads as the employer side of WonderJobs. */}
+        {/* Hiring's own colour (teal), so it reads as the employer side of WonderStar. */}
         <div className="mb-4 rounded-[18px] bg-gradient-to-br from-teal-600 to-cyan-700 px-4 py-3.5 text-white shadow-sm">
           <p className="text-[11.5px] font-medium uppercase tracking-wide text-teal-100">Hiring</p>
           <h1 className="text-[20px] font-semibold leading-tight">Your companies</h1>
@@ -177,7 +177,7 @@ function HiringPage() {
       {!ws.org.verified && (
         <p className="mb-4 flex flex-wrap items-start gap-x-2 gap-y-1 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden />
-          <span className="min-w-0 flex-1">Not verified yet: your open jobs tell job seekers WonderJobs hasn&apos;t checked this company. {can(r, "org.manage") ? "Verifying takes a minute with a work email on your company's domain." : "An Owner can verify it."}</span>
+          <span className="min-w-0 flex-1">Not verified yet: your open jobs tell job seekers WonderStar hasn&apos;t checked this company. {can(r, "org.manage") ? "Verifying takes a minute with a work email on your company's domain." : "An Owner can verify it."}</span>
           {can(r, "org.manage") && (
             <button type="button" onClick={() => setVerifying(true)} className="font-semibold text-brand-600 hover:underline">
               Verify your company →

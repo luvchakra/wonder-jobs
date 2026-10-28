@@ -6,7 +6,7 @@ import { readUserCookie } from "./auth/browser";
  * How this browser is using the product right now.
  * - `user`: signed in; state is namespaced by user id and synced to the account.
  * - `local`: not signed in (public pages), or Supabase Auth isn't configured (local development; the legacy
- *   cookie tenant applies). There is no sample data in either: nothing is shown that WonderJobs didn't find.
+ *   cookie tenant applies). There is no sample data in either: nothing is shown that WonderStar didn't find.
  */
 export type ClientMode = { mode: "user"; userId: string } | { mode: "local" };
 

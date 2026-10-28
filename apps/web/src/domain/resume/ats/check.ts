@@ -1,9 +1,9 @@
 import type { HistoryDraft } from "@/domain/career/historyImport";
 
 /**
- * WonderJobs ATS readiness — how well an applicant-tracking system can read a résumé and find what
+ * WonderStar ATS readiness — how well an applicant-tracking system can read a résumé and find what
  * recruiters search for. There is no published standard (each ATS parses differently and none shares a
- * score), so this is WonderJobs' own check, and every point is explainable: a fixed list of rules, each
+ * score), so this is WonderStar' own check, and every point is explainable: a fixed list of rules, each
  * with its weight, the résumé text it's about and how to fix it. Deterministic: code decides the score,
  * never a model. `ATS_RULES_VERSION` changes whenever a rule or weight does, so scores stay comparable.
  */

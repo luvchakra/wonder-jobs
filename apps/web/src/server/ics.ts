@@ -30,7 +30,7 @@ function stamp(d: Date): string {
 }
 
 export function buildIcsCalendar(calendarName: string, events: IcsEvent[]): string {
-  const lines: string[] = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//WonderJobs//Calendar Feed//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${escapeText(calendarName)}`, "X-PUBLISHED-TTL:PT30M", "REFRESH-INTERVAL;VALUE=DURATION:PT30M"];
+  const lines: string[] = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//WonderStar//Calendar Feed//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${escapeText(calendarName)}`, "X-PUBLISHED-TTL:PT30M", "REFRESH-INTERVAL;VALUE=DURATION:PT30M"];
   const now = stamp(new Date());
   for (const e of events) {
     const end = new Date(e.start.getTime() + e.durationMinutes * 60_000);

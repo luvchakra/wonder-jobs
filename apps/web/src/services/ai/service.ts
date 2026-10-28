@@ -1,7 +1,7 @@
 /**
  * AI provider abstraction (spec §22). Application code talks to `AIService`;
  * providers implement a single `complete` primitive plus optional native
- * task overrides. WonderJobs AI runs locally (deterministic templates) so the
+ * task overrides. WonderStar AI runs locally (deterministic templates) so the
  * product works without any external key; BYOK providers call vendor APIs
  * from the server only.
  */
@@ -87,7 +87,7 @@ export interface AIService {
 const approxTokens = (s: string) => Math.max(1, Math.round(s.length / 4));
 
 /**
- * WonderJobs AI. When the deployment has a platform model (see
+ * WonderStar AI. When the deployment has a platform model (see
  * server/providers/platform.ts) requests go through `/api/ai/complete` with
  * provider "wonderjobs"; otherwise, and when signed out, the deterministic
  * template draft is returned so the product always works. Which one happened
@@ -115,7 +115,7 @@ export class WonderJobsAIProvider implements AIProvider {
           return { text: data.text, model: data.model ?? "wonderjobs", inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 };
         }
         if (res.status === 409 || res.status === 401) WonderJobsAIProvider.remote = false; // not configured / not signed in → templates
-        else throw new ProviderError("wonderjobs", data.kind ?? "unknown", data.error ?? `WonderJobs AI request failed (${res.status})`);
+        else throw new ProviderError("wonderjobs", data.kind ?? "unknown", data.error ?? `WonderStar AI request failed (${res.status})`);
       } catch (e) {
         if (e instanceof ProviderError) throw e;
         // Network problem reaching our own server: fall back to the template for this request.
@@ -332,7 +332,7 @@ export function providerErrorMessage(e: unknown): { message: string; kind: Provi
 
 /**
  * Wraps a BYOK provider so that, only when the user opted in, a failed request
- * is retried on WonderJobs AI (platform-billed). Never silent: the caller sees
+ * is retried on WonderStar AI (platform-billed). Never silent: the caller sees
  * `fellBack` on the result via usage records carrying provider "wonderjobs".
  */
 export class FallbackProvider implements AIProvider {

@@ -16,7 +16,7 @@ import type { Session } from "../auth";
  * (GDPR Art. 17; DPDP s.12). Everything is scoped to the session's tenant explicitly.
  */
 
-/** Everything WonderJobs holds about this account, as one machine-readable document. */
+/** Everything WonderStar holds about this account, as one machine-readable document. */
 export async function buildExport(session: Session) {
   const { tenantId } = session;
   const sb = getSupabaseAdmin();

@@ -161,7 +161,7 @@ export default function ApplyWithWonderPage({
     : (resumeOptions[0]?.key ?? "");
   const windowRef = useRef<Window | null>(null);
 
-  // Filling the form is a desktop browser's, with the WonderJobs extension (owner, 2026-10-23): a phone or
+  // Filling the form is a desktop browser's, with the WonderStar extension (owner, 2026-10-23): a phone or
   // tablet applies the traditional way — Guide me, or the Application Pack.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
   const fillPolicy = fillDecision(policy, level);

@@ -82,7 +82,7 @@ async function company(name = "Acme") {
   return { orgId: org.id as string, owner, manager, recruiter };
 }
 
-/** What the "WonderJobs employers" source returns to a job seeker's search. */
+/** What the "WonderStar employers" source returns to a job seeker's search. */
 async function employerSearch(query: string) {
   return SOURCE_FETCHERS.employers.fetch({ query, locations: [], workModes: [] } as never);
 }

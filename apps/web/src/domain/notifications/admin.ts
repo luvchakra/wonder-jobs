@@ -1,7 +1,7 @@
 import { DEFAULT_NOTIFY_PREFS, NOTIFY_TOPICS, hasChannel, type NotifyPrefs, type NotifyTopic, type NudgeChannel } from "./prefs";
 
 /**
- * The platform's notification settings (owner, 2026-10-22): WonderJobs Admin → Settings → Notifications.
+ * The platform's notification settings (owner, 2026-10-22): WonderStar Admin → Settings → Notifications.
  * They bound what every person can be sent and set what a new person starts with:
  * - a switch per channel for everyone (push, email) — off means nothing goes that way, whatever people chose;
  * - per kind of notification, which of those channels people may use at all, and the default they start with;

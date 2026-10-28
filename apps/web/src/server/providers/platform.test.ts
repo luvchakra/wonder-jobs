@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { platformAI } from "./platform";
 
 /**
- * "WonderJobs AI" (the platform-billed default) used to be hardcoded to Anthropic — the only way to
+ * "WonderStar AI" (the platform-billed default) used to be hardcoded to Anthropic — the only way to
  * change vendors was to edit code. `WONDERJOBS_AI_PROVIDER` makes it configurable across all three
  * supported vendors while preserving every existing deployment's behavior when unset.
  */

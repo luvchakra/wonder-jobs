@@ -9,7 +9,7 @@ export const PRIVACY_NOTICE_VERSION = "2026-10-03.2";
 /** The candidate types this exact phrase to delete their account; a stray click or a forged request can't. */
 export const ERASE_PHRASE = "DELETE MY ACCOUNT";
 
-/** Minimum age to use WonderJobs (DPDP Act s.9 treats under-18s as children needing verifiable parental consent). */
+/** Minimum age to use WonderStar (DPDP Act s.9 treats under-18s as children needing verifiable parental consent). */
 export const MINIMUM_AGE = 18;
 
 export interface RetentionRule {
@@ -38,11 +38,11 @@ export function grievanceContact(env: Record<string, string | undefined> = { nam
   return { name: env.name?.trim() || undefined, email: env.email?.trim() || undefined };
 }
 
-/** Everyone who processes personal data for WonderJobs, and what for. Shown on /privacy. */
+/** Everyone who processes personal data for WonderStar, and what for. Shown on /privacy. */
 export const SUB_PROCESSORS: { name: string; purpose: string; data: string }[] = [
   { name: "Supabase", purpose: "Authentication and database", data: "Account, everything you store in the app, including résumé files you upload (encrypted before they reach it)" },
   { name: "Vercel", purpose: "Hosting (Mumbai region, bom1)", data: "Requests in transit, short-lived server logs" },
-  { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderJobs AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature; the text of a résumé, only when you ask it to read one" },
+  { name: "Anthropic, OpenAI or Google", purpose: "AI drafting — only the provider you chose, or the one behind WonderStar AI", data: "The Career Profile details and job posting a draft needs, only when you run that feature; the text of a résumé, only when you ask it to read one" },
   { name: "Razorpay", purpose: "Payments in India (when you subscribe)", data: "Payment details you enter on Razorpay's page; your account id as a reference" },
   { name: "Stripe", purpose: "International payments (when you subscribe)", data: "Payment details you enter on Stripe's page; your email and account id as a reference" },
   { name: "GoDaddy", purpose: "Our email (wonderapps.biz): forwarding contact-form messages to our team", data: "Name, email and message you send us" },

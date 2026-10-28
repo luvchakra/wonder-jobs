@@ -16,7 +16,7 @@ export function fail(status: number, code: string, message: string): NextRespons
 }
 
 /**
- * CSRF (SEC-012): cookie-authenticated writes must come from WonderJobs' own pages. A browser always
+ * CSRF (SEC-012): cookie-authenticated writes must come from WonderStar' own pages. A browser always
  * sends `Origin` on a cross-site POST, and a cross-site form can't send `application/json` without a
  * CORS preflight this app never grants — so both checks together stop a forged request.
  */

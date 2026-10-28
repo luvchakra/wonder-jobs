@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { WonderLogo } from "@/components/brand/WonderLogo";
 
-/** The frame of WonderJobs' own careers pages (/careers, /careers/<job id>, /careers/status). */
+/** The frame of WonderStar' own careers pages (/careers, /careers/<job id>, /careers/status). */
 export function CareersShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh overflow-x-hidden bg-bg text-ink">

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const RETRY_MS = 200;
 
 /**
- * Whether the WonderJobs browser extension is installed in this browser.
+ * Whether the WonderStar browser extension is installed in this browser.
  *
  * The extension's content script on our own pages answers a ping with a pong
  * (see `extension/content/wonderjobs-bridge.js`) — that handshake is the only

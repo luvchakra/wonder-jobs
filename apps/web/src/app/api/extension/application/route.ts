@@ -24,15 +24,15 @@ function safeFilename(company: string, label: string): string {
  * GET /api/extension/application?url=<the employer page the candidate is on>
  *
  * The prepared materials for *that specific posting*, if the candidate has an
- * application for it in WonderJobs: the current resume as a real .docx (base64,
+ * application for it in WonderStar: the current resume as a real .docx (base64,
  * so the extension can attach it to a file input) and the cover letter as plain
- * text for a textarea. A page WonderJobs doesn't know, or knows but has no
+ * text for a textarea. A page WonderStar doesn't know, or knows but has no
  * prepared materials for, answers `matched: false` — the extension then fills
  * only the base profile rather than attaching someone else's resume.
  */
 export async function GET(req: Request) {
   const tenantId = tenantFromAuthHeader(req.headers.get("authorization"));
-  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderJobs again." }, { status: 401, headers: { "cache-control": "no-store" } });
+  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderStar again." }, { status: 401, headers: { "cache-control": "no-store" } });
   const rl = rateLimit(`ext-app:${tenantId}`, { capacity: 60, refillPerSec: 1 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
 

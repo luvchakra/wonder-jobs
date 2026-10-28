@@ -29,7 +29,7 @@ export interface SourceFetcher {
   delta?: boolean;
 }
 
-const UA = "WonderJobs/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
+const UA = "WonderStar/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
 const REVALIDATE = 900;
 const MAX_PER_SOURCE = 150;
 
@@ -528,10 +528,10 @@ const themuse: SourceFetcher = {
   },
 };
 
-/* ---------- WonderJobs employers ---------- */
+/* ---------- WonderStar employers ---------- */
 /**
- * Jobs companies post in their WonderJobs hiring workspace (owner, 2026-10-20). Only open listings, each with the
- * company that posted it; a company WonderJobs hasn't checked yet says so in the posting.
+ * Jobs companies post in their WonderStar hiring workspace (owner, 2026-10-20). Only open listings, each with the
+ * company that posted it; a company WonderStar hasn't checked yet says so in the posting.
  */
 const employers: SourceFetcher = {
   id: "employers",
@@ -546,7 +546,7 @@ const employers: SourceFetcher = {
       companyDomain: org.website ? new URL(org.website).hostname.replace(/^www\./, "") : undefined,
       location: job.location,
       remote: job.workMode === "remote",
-      description: `${org.verified ? "" : `Posted on WonderJobs by ${org.name} — an employer WonderJobs hasn't verified yet.\n\n`}${job.description}`,
+      description: `${org.verified ? "" : `Posted on WonderStar by ${org.name} — an employer WonderStar hasn't verified yet.\n\n`}${job.description}`,
       tags: job.skills,
       postedAt: job.updatedAt,
       applyUrl: job.applyUrl,

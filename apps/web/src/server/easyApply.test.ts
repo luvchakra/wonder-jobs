@@ -31,10 +31,10 @@ async function postedJob() {
   return { orgId: org.id, jobId: job.id, cvId: cv.id };
 }
 
-describe("WonderJobs Easy Apply", () => {
+describe("WonderStar Easy Apply", () => {
   it("sends the candidate's details and a copy of their résumé to the company that posted the job, once", async () => {
     const { orgId, jobId, cvId } = await postedJob();
-    // The listing the candidate has may be merged under another source's id; the WonderJobs one is among its ids.
+    // The listing the candidate has may be merged under another source's id; the WonderStar one is among its ids.
     const out = await C.easyApply(candidate, { listingIds: ["greenhouse_x1", listingId(jobId)], name: "Asha Rao", phone: "+91 98765 43210", resumeFileId: cvId, consent: true });
     expect(out).toMatchObject({ jobTitle: "Engineer", company: "Acme" });
     const [a] = await C.listApplications(owner, orgId);

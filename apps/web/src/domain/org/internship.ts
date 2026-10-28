@@ -1,7 +1,7 @@
 /**
  * An internship's own terms (WJ-413, WonderStar's Internships module): how long it runs and when it starts. The stipend
- * is the job's pay, kept per year like every salary on WonderJobs and shown per month for an internship. Pure, so the
- * hiring form, the server and the "WonderJobs employers" source share it.
+ * is the job's pay, kept per year like every salary on WonderStar and shown per month for an internship. Pure, so the
+ * hiring form, the server and the "WonderStar employers" source share it.
  */
 export interface InternshipTerms {
   /** 1–24 months. */

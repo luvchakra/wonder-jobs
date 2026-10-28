@@ -5,8 +5,8 @@ import path from "node:path";
 import { openApp } from "./fixtures/sample";
 
 /**
- * JobsApply end to end (spec §118–§141). The WonderJobs helper (the real MV3 extension) is loaded
- * into Chromium; employers' pages are WonderJobs' own mock portals (`e2e/fixtures/portals`), served
+ * JobsApply end to end (spec §118–§141). The WonderStar helper (the real MV3 extension) is loaded
+ * into Chromium; employers' pages are WonderStar' own mock portals (`e2e/fixtures/portals`), served
  * by request interception — no real employer site is ever contacted and nothing is submitted
  * anywhere (§150). The sample candidate (fixtures/sample.ts) and its "Razorpay" application, whose
  * Application Pack already has a résumé, cover letter and answers.
@@ -157,7 +157,7 @@ test.describe("JobsApply with the browser helper", () => {
     // APPLY-053 / EXT-010: nothing was submitted.
     expect(await employer.evaluate(() => (window as unknown as { __submits: number }).__submits)).toBe(0);
 
-    // WonderJobs shows the live state.
+    // WonderStar shows the live state.
     await expect(page.getByTestId("wj-apply-summary")).toContainText(/filled/, { timeout: 15_000 });
     const needs = page.getByRole("heading", { name: /^Needs you/ });
     await expect(needs).toBeVisible();
@@ -203,7 +203,7 @@ test.describe("JobsApply with the browser helper", () => {
     for (const v of ["Alex", "alex.morgan@example.com", "90000", "identity platform with the team"]) expect(audit).not.toContain(v);
   });
 
-  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderJobs", async ({ page, context, portal }) => {
+  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderStar", async ({ page, context, portal }) => {
     portal.set("mock-login.html");
     await openApply(page);
     const employer = await startWithHelper(page, context);
@@ -276,7 +276,7 @@ test.describe("JobsApply with the browser helper", () => {
     // The candidate follows a job board's link to another site, in a tab of their own.
     const other = await context.newPage();
     await other.goto("https://careers.redirected.test/apply");
-    await expect(panel(other).getByRole("button", { name: "Fill with WonderJobs" })).toBeVisible({ timeout: 15_000 });
+    await expect(panel(other).getByRole("button", { name: "Fill with WonderStar" })).toBeVisible({ timeout: 15_000 });
     // The popup's "Fill the form on this tab", run against that tab.
     const id = new URL(context.serviceWorkers()[0].url()).host;
     const popup = await context.newPage();
@@ -334,7 +334,7 @@ test.describe("JobsApply with the browser helper", () => {
     await expect(employer.locator("input[name=cc]")).toHaveValue("");
   });
 
-  test("EXT-009 / GJ6: Stop in the helper panel stops field actions; WonderJobs offers to continue after a reload", async ({ page, context }) => {
+  test("EXT-009 / GJ6: Stop in the helper panel stops field actions; WonderStar offers to continue after a reload", async ({ page, context }) => {
     await openApply(page);
     const employer = await startWithHelper(page, context);
     await expect(panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ })).toBeVisible({ timeout: 20_000 });
@@ -360,13 +360,13 @@ test.describe("JobsApply with the browser helper", () => {
 
 const web = base;
 
-web.describe("JobsApply in WonderJobs", () => {
+web.describe("JobsApply in WonderStar", () => {
   web.beforeEach(async ({}, info) => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
   });
 
   web("APPLY-001/002: Easy Apply on a computer where a résumé exists, explained where it doesn't; Apply opens the listing on a phone", async ({ page }, info) => {
-    // Neither job was posted on WonderJobs, so each applies on the employer's own site.
+    // Neither job was posted on WonderStar, so each applies on the employer's own site.
     await openApp(page, "/app/jobs/job_airbnb_pm");
     if (info.project.name === "Mobile Chrome") {
       // Phones and tablets don't fill the employer's form: Apply opens the listing itself, in a new tab.
@@ -384,9 +384,9 @@ web.describe("JobsApply in WonderJobs", () => {
     await page.goto("/app/jobs/job_microsoft_spm");
     await page.getByRole("button", { name: "Generate Customized Resume" }).click();
     await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Easy Apply needs the WonderJobs browser extension.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Easy Apply needs the WonderStar browser extension.")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
-    // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and it asks for the résumé file.
+    // A job a company posted on WonderStar is applied to on WonderStar itself: a button, and it asks for the résumé file.
     await page.goto(`/app/jobs/${JOB}`);
     await page.getByRole("button", { name: "Easy Apply", exact: true }).click();
     await expect(page.getByRole("dialog").getByText("Easy Apply sends your résumé file.")).toBeVisible({ timeout: 10_000 });

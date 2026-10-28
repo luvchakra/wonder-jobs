@@ -13,7 +13,7 @@ const FIELD_LABEL = { title: "title", canonicalApplyUrl: "apply link", postedAt:
 type Check = { state: "idle" } | { state: "checking" } | { state: "done"; tone: "success" | "warning" | "danger"; message: string; at: string };
 
 /**
- * Where JobsLake saw this job: the record WonderJobs shows (the most authoritative source), every
+ * Where JobsLake saw this job: the record WonderStar shows (the most authoritative source), every
  * other listing of the same role, and which source each key field came from.
  */
 export function JobSourcesCard({ lake }: { lake: JobLakeProvenance }) {
@@ -43,7 +43,7 @@ export function JobSourcesCard({ lake }: { lake: JobLakeProvenance }) {
         {lake.employerVerified && <Badge tone="success">On the employer&apos;s own site</Badge>}
       </div>
       <p className="mt-1 text-[13px] text-ink-3">
-        Found on {lake.sightings.length} source{lake.sightings.length === 1 ? "" : "s"}. WonderJobs shows the most authoritative listing — the employer&apos;s own careers site when there is one.
+        Found on {lake.sightings.length} source{lake.sightings.length === 1 ? "" : "s"}. WonderStar shows the most authoritative listing — the employer&apos;s own careers site when there is one.
       </p>
 
       <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">

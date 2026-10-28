@@ -414,7 +414,7 @@ const NEVER_LEARN = new Set(["CREDENTIAL", "EEO", "LEGAL", "SPONSORSHIP", "WORK_
 
 /**
  * The candidate typed an answer on the employer's form to a question Wonder flagged as needing them.
- * It joins their saved answers (this session's pack now; their Career Profile via the WonderJobs page),
+ * It joins their saved answers (this session's pack now; their Career Profile via the WonderStar page),
  * so the same question is filled next time. Only flagged, non-sensitive questions; the audit keeps the
  * question, never the answer (§88).
  */

@@ -2,7 +2,7 @@
  * Career sites and applications (owner, 2026-10-21). A hiring workspace links its jobs to outside career pages
  * (WonderID's landing page first, other apps later). The page's server calls `/api/careers/v1/*` with the site's
  * secret key: it lists the jobs linked to that site, submits applications and shows an applicant their status.
- * WonderJobs stores and runs everything else: the applicant's confirmation, the hiring team's email, reminders
+ * WonderStar stores and runs everything else: the applicant's confirmation, the hiring team's email, reminders
  * when nobody acts, and an email to the applicant on every decision.
  *
  * Workspace functions take the caller's session and check their role on the server (`domain/org/permissions.ts`)
@@ -145,7 +145,7 @@ export async function listSites(s: Session, orgId: string): Promise<{ sites: Car
 export interface SiteInput {
   name: string;
   /**
-   * Short company name: WonderJobs hosts the careers page at /careers/<slug> and `publicUrl` is ignored.
+   * Short company name: WonderStar hosts the careers page at /careers/<slug> and `publicUrl` is ignored.
    * Empty: the company shows the jobs on its own page (`publicUrl`), integrating with the careers API.
    */
   slug?: string;
@@ -156,7 +156,7 @@ export interface SiteInput {
   retentionMonths: number;
 }
 
-/** The address of a careers page WonderJobs hosts. */
+/** The address of a careers page WonderStar hosts. */
 export const hostedUrl = (slug: string) => new URL(`/careers/${slug}`, siteUrl().origin).toString();
 
 async function cleanSite(input: SiteInput, siteId?: string): Promise<Pick<SiteRow, "name" | "public_url" | "notify_emails" | "retention_months" | "slug">> {
@@ -172,7 +172,7 @@ async function cleanSite(input: SiteInput, siteId?: string): Promise<Pick<SiteRo
     publicUrl = hostedUrl(slug);
   } else {
     publicUrl = input.publicUrl.trim().replace(/\/+$/, "");
-    if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("Add a short company name for a page hosted by WonderJobs, or your own careers page address (https://…).");
+    if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("Add a short company name for a page hosted by WonderStar, or your own careers page address (https://…).");
   }
   const emails = parseNotifyEmails(input.notifyEmails ?? "");
   if ("problem" in emails) throw new HiringError(emails.problem);
@@ -232,7 +232,7 @@ export interface Site {
 
 const toPublicSite = (r: SiteRow): Site => ({ id: r.id, orgId: r.org_id, name: r.name, publicUrl: r.public_url, notifyEmails: siteEmails(r), retentionMonths: r.retention_months ?? undefined, slug: r.slug ?? undefined });
 
-/** A careers page WonderJobs hosts, by its short name; null when there is none (or it was revoked). */
+/** A careers page WonderStar hosts, by its short name; null when there is none (or it was revoked). */
 export async function hostedSite(slug: string): Promise<(Site & { company: string; verified: boolean }) | null> {
   const s = slug.trim().toLowerCase();
   if (!SLUG_PATTERN.test(s)) return null;
@@ -339,12 +339,12 @@ export async function submitApplication(site: Site, jobId: string, input: Applic
   return { id: row.id, notify: () => notifySubmitted(row, job, site) };
 }
 
-// ---- Easy Apply (WonderJobs listings) -----------------------------------------------------------------------
+// ---- Easy Apply (WonderStar listings) -----------------------------------------------------------------------
 /** The key a résumé copy is encrypted under: the company's, bound to the application (see resume/files.ts). */
 const fileOwner = (orgId: string) => `org:${orgId}`;
 
 export interface EasyApplyInput {
-  /** The listing as the candidate has it: its id and any it was merged with. One of them is the WonderJobs listing. */
+  /** The listing as the candidate has it: its id and any it was merged with. One of them is the WonderStar listing. */
   listingIds: string[];
   name: string;
   phone?: string;
@@ -360,7 +360,7 @@ export interface EasyApplyInput {
   profile?: unknown;
 }
 
-/** The WonderJobs listing behind one of the ids a candidate has for a job (it may have been merged with others). */
+/** The WonderStar listing behind one of the ids a candidate has for a job (it may have been merged with others). */
 async function easyApplyListing(listingIds: string[]) {
   const listing = new Set(listingIds.filter((x) => x.startsWith("employers_")));
   return (await openJobs()).find(({ job }) => listing.has(`employers_${hashKey(`employers:${job.id}`)}`)) ?? null;
@@ -388,12 +388,12 @@ export async function withdrawEasyApply(s: Session, applicationId: string): Prom
   const at = now();
   const n = await apps().update({ id: a.id, org_id: a.org_id, status: a.status }, { status: "withdrawn", updated_at: at, last_action_at: at });
   if (!n) throw new HiringError("The company just changed this application. Reload and try again.", 409);
-  await record(a, "status:withdrawn", "applicant", "Withdrawn on WonderJobs");
+  await record(a, "status:withdrawn", "applicant", "Withdrawn on WonderStar");
 }
 
 /**
- * WonderJobs Easy Apply (owner, 2026-10-23): a signed-in candidate applies to a job a company posted in its
- * WonderJobs workspace, from inside WonderJobs, on their own press. Their account email, the details they
+ * WonderStar Easy Apply (owner, 2026-10-23): a signed-in candidate applies to a job a company posted in its
+ * WonderStar workspace, from inside WonderStar, on their own press. Their account email, the details they
  * confirmed and a copy of the résumé file they chose go into that company's applications — the same table,
  * emails, reminders and decisions as a career site's. One application per job and email (a second is a 409).
  */
@@ -439,7 +439,7 @@ export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id
   };
   await apps().insert(row);
   await files().insert({ application_id: appId, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), appId, file.bytes), created_at: at });
-  await record(row, "submitted", "applicant", "WonderJobs Easy Apply");
+  await record(row, "submitted", "applicant", "WonderStar Easy Apply");
   const jobRow = await jobs().one({ id: job.id, org_id: org.id });
   return { id: appId, jobTitle: job.title, company: org.name, notify: () => (jobRow ? notifySubmitted(row, jobRow, undefined) : Promise.resolve()) };
 }
@@ -493,7 +493,7 @@ export interface ApplicationView extends Application {
   siteName?: string;
   /** The job's screening questions as they are now, to show each answer with its question. */
   questions: Pick<ScreeningQuestion, "id" | "prompt">[];
-  /** Must-have questions the answers don't meet (shown to the team; WonderJobs never acts on them). */
+  /** Must-have questions the answers don't meet (shown to the team; WonderStar never acts on them). */
   unmet: string[];
   /** The job's skills the applicant shared, and those they didn't; null when either side lists none. */
   fit: { matched: string[]; missing: string[] } | null;
@@ -690,7 +690,7 @@ export function renderTeamEmail(p: { heading: string; intro: string; rows: [stri
   const rows = p.rows.map(([a, b]) => `<tr><td style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:14px;font-weight:600;color:${C.ink}">${escapeHtml(a)}</div><div style="font-size:12px;color:${C.muted}">${escapeHtml(b)}</div></td></tr>`).join("");
   const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(p.heading)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(p.intro)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>${button(p.button)}`;
   const bodyText = [p.heading, "", p.intro, "", ...p.rows.map(([a, b]) => `- ${a} (${b})`), "", `${p.button.label}: ${p.button.href}`].join("\n");
-  return renderEmailLayout({ origin: siteUrl().origin, preheader: p.intro, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderJobs.", settingsLink: false });
+  return renderEmailLayout({ origin: siteUrl().origin, preheader: p.intro, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderStar.", settingsLink: false });
 }
 
 /** An email to an applicant, under the company's name. */
@@ -730,7 +730,7 @@ async function notifySubmitted(a: AppRow, job: JobRow, site: Site | undefined): 
     const team = await recipientsFor(a.org_id, site);
     const mail = renderTeamEmail({
       heading: `New application: ${a.name}`,
-      intro: `${a.name} applied for ${job.title} ${site ? `on ${site.name}` : "with WonderJobs Easy Apply"}.`,
+      intro: `${a.name} applied for ${job.title} ${site ? `on ${site.name}` : "with WonderStar Easy Apply"}.`,
       rows: [
         ["Email", a.email],
         ...(a.phone ? [["Phone", a.phone] as [string, string]] : []),

@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * The career-site key behind WonderJobs' own /careers page. Admins only. A read returns only the mask and where
+ * The career-site key behind WonderStar' own /careers page. Admins only. A read returns only the mask and where
  * the key comes from; the key itself is never sent back. Saves and clears are audited (last four characters).
  */
 export async function GET() {

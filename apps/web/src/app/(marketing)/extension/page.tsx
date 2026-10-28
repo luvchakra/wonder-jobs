@@ -6,7 +6,7 @@ import { EXTENSION_RELEASE, EXTENSION_STORE_URL } from "@/content/extensionRelea
 
 export const metadata: Metadata = {
   title: "Browser extension",
-  description: "Fill an employer's application form with the details, résumé and answers you approved in WonderJobs.",
+  description: "Fill an employer's application form with the details, résumé and answers you approved in WonderStar.",
 };
 
 const BUTTON = "inline-flex items-center gap-2 rounded-[12px] bg-brand-500 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-brand-600";
@@ -17,7 +17,7 @@ export default function ExtensionPage() {
     <MarketingPage
       eyebrow={`Browser extension · version ${version}`}
       title="Apply without retyping yourself"
-      intro="WonderJobs prepares your materials. The helper puts them into the employer's own form — your details, your résumé and cover letter for that role, and the answers you approved. You review; it submits only if you turn on Submit applications."
+      intro="WonderStar prepares your materials. The helper puts them into the employer's own form — your details, your résumé and cover letter for that role, and the answers you approved. You review; it submits only if you turn on Submit applications."
       sections={[
         {
           id: "what-it-fills",
@@ -55,7 +55,7 @@ export default function ExtensionPage() {
           body: (
             <>
               <p>
-                <strong>Apply with Wonder</strong> (from a job in WonderJobs): the helper opens the employer&apos;s form, fills each page, highlights what needs you, and presses the page&apos;s own Next to reach the next one. It stops for sign-in,
+                <strong>Apply with Wonder</strong> (from a job in WonderStar): the helper opens the employer&apos;s form, fills each page, highlights what needs you, and presses the page&apos;s own Next to reach the next one. It stops for sign-in,
                 verification challenges, an unexpected site, and on the page whose button submits — where you press Submit, unless you turned on Submit applications, when it presses Submit once every required answer is yours, and logs it.
               </p>
               <p>
@@ -75,7 +75,7 @@ export default function ExtensionPage() {
                   Add to Chrome
                 </a>
               </p>
-              <p>Works in Chrome, Edge, Brave and other Chromium browsers. Then open WonderJobs and sign in — the helper connects itself.</p>
+              <p>Works in Chrome, Edge, Brave and other Chromium browsers. Then open WonderStar and sign in — the helper connects itself.</p>
             </>
           ) : (
             <>
@@ -89,7 +89,7 @@ export default function ExtensionPage() {
                 <li>
                   Click <strong>Load unpacked</strong> and pick the folder you unzipped.
                 </li>
-                <li>Open WonderJobs and sign in — the helper connects itself.</li>
+                <li>Open WonderStar and sign in — the helper connects itself.</li>
               </ol>
               <p className="mt-2">
                 <a href="/wonderjobs-extension.zip" download className={BUTTON}>
@@ -125,10 +125,10 @@ export default function ExtensionPage() {
           title: "What it can see",
           body: (
             <ul>
-              <li>It reads your prepared materials from WonderJobs with a short-lived token that is refreshed while you have WonderJobs open. There is no password or key to paste anywhere.</li>
+              <li>It reads your prepared materials from WonderStar with a short-lived token that is refreshed while you have WonderStar open. There is no password or key to paste anywhere.</li>
               <li>The token never reaches the employer&apos;s page — only the helper&apos;s own background worker holds it.</li>
               <li>It reads a form&apos;s labels and choices to know what to fill. It never reads password, one-time-code or payment fields.</li>
-              <li>It sends the address of the application page you&apos;re on to WonderJobs, to find what you prepared for it. Nothing else about your browsing leaves your machine.</li>
+              <li>It sends the address of the application page you&apos;re on to WonderStar, to find what you prepared for it. Nothing else about your browsing leaves your machine.</li>
               <li>
                 It submits a form only when you turned on Submit applications. Read more in <Link href="/security">Security</Link>.
               </li>

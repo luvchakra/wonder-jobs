@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// N21 (docs: WonderJobs-notifications.xlsx): turning notifications on sends one push straight away.
+// N21 (docs: WonderStar-notifications.xlsx): turning notifications on sends one push straight away.
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => ({}) }));
 vi.mock("@/server/auth", () => ({ requireSession: async () => ({ tenantId: "t-push" }) }));
 const sent: { tenant: string; title: string; tag?: string }[] = [];

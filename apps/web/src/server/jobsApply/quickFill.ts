@@ -1,5 +1,5 @@
 /**
- * Fill on a page WonderJobs has no application for: the same field understanding as Apply with Wonder
+ * Fill on a page WonderStar has no application for: the same field understanding as Apply with Wonder
  * (classify → map → shape, plus the model's reading of unrecognised questions), run against the
  * candidate's Career Profile, CV history, saved answers and their latest uploaded résumé. Fills only
  * what the session path would fill without review; everything else is listed for the candidate.

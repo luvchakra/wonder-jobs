@@ -16,7 +16,7 @@ import { ProviderError, describeProviderError, stripeCheckout, stripePortal, str
 
 /**
  * Billing orchestration. Application code — never a model — decides every step:
- * - Checkout and payment happen on the provider's hosted page. WonderJobs never sees card or bank details.
+ * - Checkout and payment happen on the provider's hosted page. WonderStar never sees card or bank details.
  * - Access changes only on a signature-verified provider webhook (or the daily reconciliation that
  *   asks the provider directly). Returning from checkout proves nothing and changes nothing.
  * - Every verified event is appended to the hash-chained ledger before it is applied, and a
@@ -173,7 +173,7 @@ export async function cancelSubscription(tenantId: string): Promise<{ requested:
     throw new BillingError(`Razorpay couldn't cancel the subscription: ${describeProviderError(e, "Razorpay")}`, 502);
   }
   await recordServerAudit(tenantId, { actionId, actionType: "cancel_subscription", event: "succeeded" });
-  // Razorpay accepted it; reflect that now (ledgered as WonderJobs' own event) rather than waiting for a
+  // Razorpay accepted it; reflect that now (ledgered as WonderStar' own event) rather than waiting for a
   // notice Razorpay may not send for a scheduled cancellation. The daily reconciliation re-checks it.
   const at = new Date().toISOString();
   await ingest(

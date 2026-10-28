@@ -159,7 +159,7 @@ export function SortMenu({ className }: { className?: string }) {
   );
 }
 
-/** Easy Apply works only on jobs posted on WonderJobs: the "WonderJobs employers" source. */
+/** Easy Apply works only on jobs posted on WonderStar: the "WonderStar employers" source. */
 export const EASY_APPLY_SOURCE = "employers";
 export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && sourceIds[0] === EASY_APPLY_SOURCE;
 
@@ -339,7 +339,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             <button type="button" onClick={() => setMore(false)} className="inline-flex min-h-8 items-center gap-1.5 text-[13px] font-medium text-ink-2 hover:text-ink">
               <ArrowLeft className="size-4" aria-hidden /> Back to jobs
             </button>
-            {/* Easy Apply is for jobs companies posted on WonderJobs, so this narrows the list to that one source. */}
+            {/* Easy Apply is for jobs companies posted on WonderStar, so this narrows the list to that one source. */}
             <label title="Only jobs you can send with Easy Apply" className="flex min-h-8 shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
               <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={easyApplyOnly(filters.sourceIds)} onChange={(e) => onChange({ sourceIds: e.target.checked ? [EASY_APPLY_SOURCE] : [] })} />
               <span>Easy Apply only</span>

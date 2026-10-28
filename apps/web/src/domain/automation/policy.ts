@@ -51,7 +51,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "ask" },
   generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "ask" },
   // Interview practice (owner, 2026-10-23): an AI call made only when the candidate presses Start on a job's
-  // interview prep — that press is the "ask". Off hides the AI practice; nothing leaves WonderJobs.
+  // interview prep — that press is the "ask". Off hides the AI practice; nothing leaves WonderStar.
   interview_practice: { key: "interview_practice", label: "Interview practice", description: "Write a practice test, flashcards and a mock interview for a job you're interviewing for, when you press Start.", risk: "low", external: false, default: "ask" },
   // Translating a job description (owner, 2026-10-25): an AI call made only when the candidate picks a language on a
   // job's page — that pick is the "ask". Off hides the language menu; the posting itself is never changed or stored
@@ -78,7 +78,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   fill_declarations: { key: "fill_declarations", label: "Answer legal declarations", description: "Criminal-record questions with your saved answer, and tick the form's consent and agree boxes. Never a signature. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   fill_government_ids: { key: "fill_government_ids", label: "Enter ID numbers", description: "PAN, Aadhaar, passport and similar numbers you saved — stored encrypted, shown only masked. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   final_submit: { key: "final_submit", label: "Submit applications", description: "Press the employer's final Submit button for you, once every required field holds your own confirmed answer. Off unless you turn it on — here or for one job.", risk: "high", external: true, default: "off" },
-  // The candidate's own press of Easy Apply (a job a company posted on WonderJobs) is what sends; this only decides whether
+  // The candidate's own press of Easy Apply (a job a company posted on WonderStar) is what sends; this only decides whether
   // that press sends at once from their Career Profile, résumé and saved answers, or shows them first (owner, 2026-10-28).
   easy_apply: { key: "easy_apply", label: "Send Easy Apply in one tap", description: "When you press Easy Apply, send your Career Profile details, résumé and saved answers to the company at once. Ask me shows them first; Off turns Easy Apply off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },

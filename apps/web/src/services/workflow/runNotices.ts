@@ -39,5 +39,5 @@ export function failedRunNotice(run: WorkflowRun, message: string, away: boolean
   return { category: run.error?.source && run.error.source !== "wonderjobs" ? "provider_issue" : "scheduled_run_failed", title: "Run needs attention", body: message, href: `/app/runs/${run.id}` };
 }
 
-/** Their own AI provider failed and they allowed falling back to WonderJobs AI (N05). */
-export const fallbackNotice = (reason: string): RunNotice => ({ category: "provider_issue", title: "Switched to WonderJobs AI for one request", body: `${reason} You allowed automatic fallback in AI settings.`, href: "/app/settings/ai" });
+/** Their own AI provider failed and they allowed falling back to WonderStar AI (N05). */
+export const fallbackNotice = (reason: string): RunNotice => ({ category: "provider_issue", title: "Switched to WonderStar AI for one request", body: `${reason} You allowed automatic fallback in AI settings.`, href: "/app/settings/ai" });

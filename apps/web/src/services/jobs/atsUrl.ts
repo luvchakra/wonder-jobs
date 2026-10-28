@@ -1,7 +1,7 @@
 import { hashKey } from "@/lib/ids";
 
 /**
- * Maps a real application page's URL back to the job id WonderJobs gave that
+ * Maps a real application page's URL back to the job id WonderStar gave that
  * posting, so the extension can ask "do I have prepared materials for the
  * page I'm looking at?" by sending nothing but the URL.
  *
@@ -58,7 +58,7 @@ export function parseAtsUrl(rawUrl: string): AtsPosting | null {
   return null;
 }
 
-/** The `careers_…` job id WonderJobs would have given the posting at this URL, or null if it isn't an ATS page we read. */
+/** The `careers_…` job id WonderStar would have given the posting at this URL, or null if it isn't an ATS page we read. */
 export function jobIdFromAtsUrl(rawUrl: string): string | null {
   const posting = parseAtsUrl(rawUrl);
   return posting ? `careers_${hashKey(`careers:${posting.externalId}`)}` : null;

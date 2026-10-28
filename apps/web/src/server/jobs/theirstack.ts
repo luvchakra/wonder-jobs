@@ -1,6 +1,6 @@
 /**
  * TheirStack (theirstack.com): a paid, licensed job-postings API — LinkedIn, Indeed, ATS and career-site
- * postings worldwide, deduplicated. It costs one API credit per job returned, so WonderJobs uses it only
+ * postings worldwide, deduplicated. It costs one API credit per job returned, so WonderStar uses it only
  * to top up a search the free sources left thin (planner: last wave, paid), at most PER_SEARCH jobs a
  * call and THEIRSTACK_MONTHLY_CREDITS a month. Its postings are never served to JobsLake API keys
  * (its terms don't permit redistribution as a dataset) and each one is labelled as coming from TheirStack.
@@ -51,7 +51,7 @@ export function __resetKeys() {
   turn = 0;
 }
 
-/** Credits WonderJobs may spend a calendar month (UTC); 0 turns the source off. */
+/** Credits WonderStar may spend a calendar month (UTC); 0 turns the source off. */
 export function monthlyCredits(env: Record<string, string | undefined> = process.env): number {
   const n = Number(env.THEIRSTACK_MONTHLY_CREDITS ?? 1500);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 1500;
@@ -103,7 +103,7 @@ export function theirStackFacts(c: TheirStackJob["company_object"]): CompanyFact
   return Object.keys(f).length > 1 ? f : undefined;
 }
 
-/** One TheirStack posting as a WonderJobs raw posting. The apply link is the employer's own page when TheirStack knows it. */
+/** One TheirStack posting as a WonderStar raw posting. The apply link is the employer's own page when TheirStack knows it. */
 export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
   const apply = [j.final_url, j.url, j.source_url].find((u) => u && /^https?:\/\//i.test(u));
   if (!apply || !j.job_title) return null;

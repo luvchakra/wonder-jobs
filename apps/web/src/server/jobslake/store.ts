@@ -181,7 +181,7 @@ class SupabaseStore implements JobsLakeStore {
 
   async status(): Promise<StoreStatus> {
     const fb = await this.ready();
-    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderJobs database." };
+    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderStar database." };
   }
   async listSources(module: ModuleId = "jobs") {
     const fb = await this.ready();
@@ -277,7 +277,7 @@ class SupabaseStore implements JobsLakeStore {
     const { data, error } = await this.sb().from("jobslake_opportunities").select("data").eq("id", opportunityRowId(module, id)).eq("module", module).maybeSingle();
     if (error) this.fail("load the opportunity", error);
     if (data) return data.data as CanonicalOpportunity;
-    // A legacy WonderJobs job id: look for the opportunity whose source records carry it.
+    // A legacy WonderStar job id: look for the opportunity whose source records carry it.
     const { data: byLegacy, error: e2 } = await this.sb().from("jobslake_opportunities").select("data").eq("module", module).contains("data", { sourceRecords: [{ legacyJobId: id }] }).limit(1);
     if (e2) this.fail("load the opportunity", e2);
     return (byLegacy?.[0]?.data as CanonicalOpportunity | undefined) ?? undefined;

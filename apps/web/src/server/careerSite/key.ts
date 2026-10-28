@@ -2,8 +2,8 @@ import { decrypt, encrypt } from "@/server/secrets";
 import { jobsLakeStore } from "@/server/jobslake/store";
 
 /**
- * The career-site key for WonderJobs' own careers page (wjcs_…, shown once in Hiring → Jobs → Career sites →
- * "On our own website"). An admin sets it in WonderJobs Admin → Careers, without a redeploy. It is kept with the
+ * The career-site key for WonderStar' own careers page (wjcs_…, shown once in Hiring → Jobs → Career sites →
+ * "On our own website"). An admin sets it in WonderStar Admin → Careers, without a redeploy. It is kept with the
  * other admin-managed credentials: AES-256-GCM encrypted (`server/secrets.ts`), masked on read, decrypted only for
  * a call to the careers API. `WONDERJOBS_CAREERS_KEY` is the fallback while nothing is saved. Every save and clear
  * is written to the admin audit log with who, when and the key's last four characters, nothing more.

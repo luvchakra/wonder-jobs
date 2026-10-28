@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ org: string }> };
 
-/** How an Owner can verify the company: by their work email, or by asking WonderJobs to review it. */
+/** How an Owner can verify the company: by their work email, or by asking WonderStar to review it. */
 export async function GET(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
   return hiringRoute(req, (s) => verificationOptions(s, org));

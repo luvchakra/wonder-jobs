@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 /**
- * A stand-in for the model behind WonderJobs AI, for journeys that need one. The web server these specs run on has no
+ * A stand-in for the model behind WonderStar AI, for journeys that need one. The web server these specs run on has no
  * platform model, so without this the AI-written parts (practice tests, flashcards, a mock interview, a translation)
  * say they need one — which is also right, and what the app does for anyone without a model. The reply is whatever
  * `reply` returns for that prompt id; the page then handles it exactly as it would a model's.

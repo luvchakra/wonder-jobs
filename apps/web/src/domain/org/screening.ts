@@ -1,7 +1,7 @@
 import type { MemoryKey } from "@/domain/jobs-apply/types";
 
 /**
- * Screening questions on a job a company posts on WonderJobs (owner, 2026-10-28), the way Greenhouse, Lever, Ashby
+ * Screening questions on a job a company posts on WonderStar (owner, 2026-10-28), the way Greenhouse, Lever, Ashby
  * and LinkedIn do them: a few short questions every applicant answers, some of them "must-haves" (knock-outs). A
  * must-have never rejects anyone on its own: the hiring team sees "Doesn't meet: …" on the application and decides.
  * Shared by the job form, the server (which enforces it) and Easy Apply (which fills answers the candidate saved).

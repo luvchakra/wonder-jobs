@@ -1,6 +1,6 @@
 /**
  * JobsLake core: the one implementation of search, source testing and refresh. The REST API, the
- * streaming endpoint, the MCP adapter, the admin playground and WonderJobs' scheduled searches all
+ * streaming endpoint, the MCP adapter, the admin playground and WonderStar' scheduled searches all
  * call these functions — no adapter has its own search logic (spec §37).
  *
  * Every event and count reflects work that actually happened: a source is "completed" when its

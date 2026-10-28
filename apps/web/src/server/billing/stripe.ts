@@ -6,7 +6,7 @@ import type { StripeConfig } from "./config";
 /**
  * Stripe over its REST API (no SDK: one fewer dependency in the supply chain).
  * Card details are entered on Stripe's hosted Checkout page and never reach
- * WonderJobs servers, which keeps the deployment in PCI DSS SAQ A scope.
+ * WonderStar servers, which keeps the deployment in PCI DSS SAQ A scope.
  */
 const API = "https://api.stripe.com/v1";
 const TIMEOUT_MS = 15_000;

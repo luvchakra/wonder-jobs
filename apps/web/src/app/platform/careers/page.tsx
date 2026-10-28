@@ -10,7 +10,7 @@ import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, useAdmin } from
 
 const CHECK_TEXT: Record<ConnectionCheck["state"], string> = { connected: "Connected", wrong_key: "Wrong key (401)", unavailable: "Unavailable", needs_setup: "No key saved" };
 
-/** WonderJobs' own careers page (/careers): the career-site key it calls the careers API with. */
+/** WonderStar' own careers page (/careers): the career-site key it calls the careers API with. */
 export default function CareersAdminPage() {
   const { data, error, reload } = useAdmin<{ key: CareersKeyStatus }>("careers");
   const [key, setKey] = useState("");

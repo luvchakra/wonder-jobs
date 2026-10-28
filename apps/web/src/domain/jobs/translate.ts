@@ -3,7 +3,7 @@
  * nice-to-haves — in one call, so they all change language together. The candidate picks a language; one call to their AI
  * (`translate_job`, through `resolveCapability` — the pick is the "ask") returns the translation, which is shown as
  * AI-translated beside a way back to the original. It is never stored on the job or sent anywhere, and when no model
- * is connected nothing is shown in its place. WonderJobs' own labels, skill names, places and the company's name stay as they are.
+ * is connected nothing is shown in its place. WonderStar' own labels, skill names, places and the company's name stay as they are.
  */
 export const TRANSLATE_LANGUAGES = [
   { id: "en", name: "English", native: "English" },

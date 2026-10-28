@@ -1,6 +1,6 @@
 /**
  * Whether this deployment's JobsLake is on, as `/api/jobs/sources` reports it at boot. Until the
- * answer arrives WonderJobs assumes it is and lets the server say otherwise (a disabled JobsLake
+ * answer arrives WonderStar assumes it is and lets the server say otherwise (a disabled JobsLake
  * answers FEATURE_DISABLED, and the search falls back to the direct source path).
  */
 export interface JobsLakeCapability {

@@ -18,7 +18,7 @@ interface AutofillProfile {
   phone: string;
   linkedinUrl: string;
   location: string;
-  /** Fields an employer's form commonly asks for that WonderJobs genuinely doesn't hold yet — the extension tells the candidate to fill these by hand rather than guessing. */
+  /** Fields an employer's form commonly asks for that WonderStar genuinely doesn't hold yet — the extension tells the candidate to fill these by hand rather than guessing. */
   missing: string[];
 }
 
@@ -40,7 +40,7 @@ async function accountEmail(tenantId: string): Promise<string> {
  */
 export async function GET(req: Request) {
   const tenantId = tenantFromAuthHeader(req.headers.get("authorization"));
-  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderJobs again." }, { status: 401, headers: { "cache-control": "no-store" } });
+  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderStar again." }, { status: 401, headers: { "cache-control": "no-store" } });
   const rl = rateLimit(`ext-profile:${tenantId}`, { capacity: 60, refillPerSec: 1 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
 

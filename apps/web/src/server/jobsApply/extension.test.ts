@@ -44,11 +44,11 @@ describe("browser helper — structural no-submit guarantee", () => {
   });
   it("submits only from plan.submit (in the cloud also plan.cloudSubmit), on a complete page, once, reporting before the press", () => {
     const src = readFileSync(path.join(ROOT, "content/autofill.js"), "utf8");
-    // state.submit is only ever set from WonderJobs' plan.
+    // state.submit is only ever set from WonderStar' plan.
     const sets = [...src.matchAll(/state\.submit = ([^;]+);/g)].map((m) => m[1]);
     expect(sets.length).toBeGreaterThan(0);
     for (const v of sets) expect(v).toMatch(/^(false|\(!IN_CLOUD \|\| !!r\.data\.(plan\.)?cloudSubmit\) && !!r\.data\.(plan\.)?submit)$/);
-    // In the cloud browser (a server-hosted page) only when WonderJobs' plan says cloudSubmit: a background fill
+    // In the cloud browser (a server-hosted page) only when WonderStar' plan says cloudSubmit: a background fill
     // whose candidate pressed "Submit this application" for that application (WJ-311). The server test holds that.
     expect(src).toMatch(/const IN_CLOUD = !!\(window\.chrome && window\.chrome\.runtime && window\.chrome\.runtime\.__wonder\);/);
     expect(src).toMatch(/if \(state\.submit && !waiting\.length && final\.length === 1 && pageComplete\(final\[0\]\)\) return submitFinal\(/);
@@ -63,7 +63,7 @@ describe("browser helper — structural no-submit guarantee", () => {
     for (const label of ["Next", "Continue", "Save and continue", "Save & Continue", "Next step", "Continue to review", "Proceed", "Next ›"]) expect(stepKind(label), label).toBe("next");
     for (const label of ["Submit", "Submit application", "Apply", "Apply now", "Send", "Send application", "Finish", "Complete", "Confirm", "Done", "Continue to submit", "Continue to apply", "Save and submit", "Pay now", "Sign and submit"]) expect(stepKind(label), label).toBe("final");
     for (const label of ["Back", "Cancel", "Upload", "Choose file", "Review application", "Save", "Clear", ""]) expect(stepKind(label), label).toBeNull();
-    // A portal's account buttons are never a step the helper presses (WJ-316): only WonderJobs' sign-in does.
+    // A portal's account buttons are never a step the helper presses (WJ-316): only WonderStar' sign-in does.
     for (const label of ["Sign In", "Log in", "Create Account", "Register", "Sign up"]) expect(stepKind(label), label).toBeNull();
   });
   it("the content script never reads a password, one-time-code or payment field's value", () => {

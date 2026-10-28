@@ -6,7 +6,7 @@ import { rateLimit } from "./rateLimit";
 import { clientAddress } from "./activityWatch";
 
 /**
- * The wrapper for careers pages WonderJobs hosts (/careers/<slug>). The visitor is a job seeker in a browser, so
+ * The wrapper for careers pages WonderStar hosts (/careers/<slug>). The visitor is a job seeker in a browser, so
  * there is no key: these routes reach only a hosted site found by its short name, and through it only its own
  * company's open, linked jobs (the same functions the keyed API uses). Writes are rate-limited per visitor
  * address and per site; cross-site posts are refused by the proxy (CSRF).

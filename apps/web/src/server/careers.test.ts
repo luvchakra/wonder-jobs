@@ -285,14 +285,14 @@ describe("career site settings", () => {
   });
 });
 
-describe("careers pages hosted by WonderJobs", () => {
-  it("gives a site with a short name its own address on WonderJobs, unique among active sites", async () => {
+describe("careers pages hosted by WonderStar", () => {
+  it("gives a site with a short name its own address on WonderStar, unique among active sites", async () => {
     const { orgId } = await setup();
     const { site } = await C.createSite(owner, orgId, { ...SITE, name: "Acme careers", slug: "acme", publicUrl: "" });
     expect(site).toMatchObject({ slug: "acme", publicUrl: "http://localhost:3000/careers/acme" });
     await expect(C.createSite(owner, orgId, { ...SITE, slug: "acme", publicUrl: "" })).rejects.toMatchObject({ status: 409 });
     await expect(C.createSite(owner, orgId, { ...SITE, slug: "Not OK!", publicUrl: "" })).rejects.toThrow(/lower-case letters/);
-    // WonderJobs' own careers page uses /careers/status, so no hosted page may take it.
+    // WonderStar' own careers page uses /careers/status, so no hosted page may take it.
     await expect(C.createSite(owner, orgId, { ...SITE, slug: "status", publicUrl: "" })).rejects.toMatchObject({ status: 409 });
     await C.revokeSite(owner, orgId, site.id);
     expect(await C.hostedSite("acme")).toBeNull();

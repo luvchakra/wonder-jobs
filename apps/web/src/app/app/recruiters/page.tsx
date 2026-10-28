@@ -16,7 +16,7 @@ import { toast } from "@/components/feedback/Toast";
 import { Thread } from "@/components/hiring/Thread";
 
 /**
- * Recruiters (owner, 2026-10-20): whether companies on WonderJobs can find the job seeker and write to them —
+ * Recruiters (owner, 2026-10-20): whether companies on WonderStar can find the job seeker and write to them —
  * off until they turn it on, showing exactly what recruiters see — and their conversations with companies.
  */
 function RecruitersPage() {
@@ -52,7 +52,7 @@ function RecruitersPage() {
     try {
       const { profile: p } = await hiringApi.saveProfile(preview);
       setProfile(p);
-      toast.success(profile ? "Recruiters see your update" : "You're open to recruiters", "Companies on WonderJobs can now find you and write to you here.");
+      toast.success(profile ? "Recruiters see your update" : "You're open to recruiters", "Companies on WonderStar can now find you and write to you here.");
     } catch (e) {
       toast.error("Couldn't save", (e as Error).message);
     } finally {
@@ -76,7 +76,7 @@ function RecruitersPage() {
   const on = !!profile;
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Recruiters" description="Let companies on WonderJobs find you and write to you about roles." />
+      <PageHeader title="Recruiters" description="Let companies on WonderStar find you and write to you about roles." />
 
       <Card className="mb-5">
         <div className="flex items-center gap-3">

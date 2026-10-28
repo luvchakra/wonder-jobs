@@ -35,7 +35,7 @@ export async function savePlansConfig(input: unknown, actor: string): Promise<Pl
 }
 
 interface PlanUsageDoc {
-  /** Drafts written by WonderJobs AI, by calendar month. */
+  /** Drafts written by WonderStar AI, by calendar month. */
   drafts?: Record<string, number>;
   /** A plan switched on for testing, with no payment (see `testPlanAllowed`). */
   testPlan?: { plan: PlanId; at: string; byAdmin: boolean };
@@ -56,7 +56,7 @@ export async function writeTestPlan(tenantId: string, plan: PlanId | null, byAdm
   await stateStore.put(tenantId, "wj.plan", state);
 }
 
-/** WonderJobs AI drafts this tenant has used this month. A connected own-AI key never goes through here. */
+/** WonderStar AI drafts this tenant has used this month. A connected own-AI key never goes through here. */
 export async function draftUsage(tenantId: string, now = new Date()): Promise<number> {
   const doc = await stateStore.get(tenantId, "wj.plan").catch(() => undefined);
   const state = (doc?.state ?? {}) as PlanUsageDoc;

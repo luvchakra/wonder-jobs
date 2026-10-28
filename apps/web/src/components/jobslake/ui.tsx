@@ -1,6 +1,6 @@
 "use client";
 /**
- * JobsLake admin primitives, built on the WonderJobs design system (spec §4.3: denser, but the same
+ * JobsLake admin primitives, built on the WonderStar design system (spec §4.3: denser, but the same
  * primitives). Every number these render comes from the admin API; when there's nothing to show they
  * say "No data yet" rather than drawing a zero that looks like a measurement.
  */

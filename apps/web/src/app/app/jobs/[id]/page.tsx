@@ -84,10 +84,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     const pick = [...sights].sort((a, b) => Number(b.canonical) - Number(a.canonical)).find((x) => readableJobId(x.sourceJobId));
     return pick ? { id: readableJobId(pick.sourceJobId)!, source: pick.sourceName } : null;
   }, [job?.lake?.sightings]);
-  // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderJobs extension. Phones and tablets
+  // Easy Apply is a desktop browser's (owner, 2026-10-22): it needs the WonderStar extension. Phones and tablets
   // get Apply, which opens the employer's listing.
   const desktop = useMediaQuery("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
-  // Posted on WonderJobs by the employer: Easy Apply, on every device, sends the application to them inside WonderJobs.
+  // Posted on WonderStar by the employer: Easy Apply, on every device, sends the application to them inside WonderStar.
   const wonderJob = !!job?.sourceIds.includes("employers");
   const helperInstalled = useExtensionInstalled(1500);
   // `?tab=why` deep-links straight to "Why it fits" (Ask Wonder's "explain this job").
@@ -101,7 +101,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // A posting saved before its HTML was cleaned (Arbeitnow escapes its markup) still reads as plain text.
   const description = !job ? "" : looksLikeHtml(job.description) ? htmlToText(job.description) : job.description;
   // The posting's own words (title, description, requirements, nice-to-haves) in another language, on the candidate's pick
-  // (`translate_job`); the original is never changed. Skills, places, the company and WonderJobs' own labels stay as they are.
+  // (`translate_job`); the original is never changed. Skills, places, the company and WonderStar' own labels stay as they are.
   const translation = useJobTranslation({ id, title: job?.title ?? "", description, requirements: job?.requirements ?? [], niceToHave: job?.niceToHave ?? [] });
   useEffect(() => {
     if (mode === "user" && hasJob) void checkOneJobLink(id);
@@ -121,7 +121,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     );
   }
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
-  // JobsLake's sightings when present (they include sources WonderJobs has no entry for); otherwise the known sources.
+  // JobsLake's sightings when present (they include sources WonderStar has no entry for); otherwise the known sources.
   const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
 
   const decision = describeDecision(job, match, quality, application);
@@ -378,7 +378,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <CustomResumeButton job={job} primary={!canApply} />
                 {canApply && helperInstalled === false ? (
                   <p className="text-center text-[12px] leading-snug text-ink-3">
-                    Easy Apply needs the WonderJobs browser extension.{" "}
+                    Easy Apply needs the WonderStar browser extension.{" "}
                     <Link href="/extension" className="font-medium text-brand-600 hover:underline">
                       Install it
                     </Link>

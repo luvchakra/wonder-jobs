@@ -1,5 +1,5 @@
 /**
- * WonderJobs AI matching + job-quality heuristics. Deterministic, explainable,
+ * WonderStar AI matching + job-quality heuristics. Deterministic, explainable,
  * and honest about uncertainty: scores are presented with fit labels, quality
  * with confidence language and evidence (spec §13–15).
  */

@@ -1,6 +1,6 @@
 import type { AIProviderId } from "@/domain/ai/types";
 
-/** The vendors "WonderJobs AI" (the platform-billed default) can run on. */
+/** The vendors "WonderStar AI" (the platform-billed default) can run on. */
 export type PlatformVendor = "anthropic" | "openai" | "gemini";
 
 /** Cost-conscious defaults — the mid/small tier per vendor, not the flagship, matching the existing choice of Sonnet over Opus. */
@@ -25,7 +25,7 @@ function vendorApiKey(vendor: PlatformVendor): string | undefined {
 }
 
 /**
- * Platform-billed model behind "WonderJobs AI". Configured with a server-side key for any of the three
+ * Platform-billed model behind "WonderStar AI". Configured with a server-side key for any of the three
  * supported vendors — `WONDERJOBS_AI_PROVIDER` picks which one (default `anthropic`, preserving every
  * existing deployment's behavior when the variable is unset). Without a key for the chosen vendor, the
  * client falls back to deterministic template drafts and says so.
