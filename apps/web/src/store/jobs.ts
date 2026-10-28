@@ -250,8 +250,9 @@ export const useJobsStore = create<JobsState>()(
         if (!kept || kept.runId !== runId) return false;
         const { runId: _id, ...was } = kept;
         void _id;
-        // Saved jobs found by the stopped search stay saved.
-        set((s) => ({ ...was, jobs: { ...savedJobs(s), ...was.jobs }, beforeRun: undefined }));
+        // Saved jobs found by the stopped search stay saved; a posting found closed while it ran stays off the list.
+        const recent = Date.now() - 7 * 86_400_000;
+        set((s) => ({ ...was, jobs: { ...savedJobs(s), ...was.jobs }, order: was.order.filter((id) => !(s.closed[id] && Date.parse(s.closed[id].at) > recent && !s.saved[id])), beforeRun: undefined }));
         return true;
       },
       restoreWordsCatalog: () => {
