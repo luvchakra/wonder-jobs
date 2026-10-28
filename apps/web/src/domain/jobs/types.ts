@@ -180,8 +180,6 @@ export interface JobFilters {
   strictProfile?: boolean;
   /** Search the typed words only — the Career Profile neither fills in an empty search nor narrows what's shown ("Skip Career Profile"). */
   skipProfile?: boolean;
-  /** Find's Internships mode (WJ-413): a typed search, like Part Time, that lists internships only. */
-  internships?: boolean;
   /** Hide jobs that already have an application past Saved (Preparing, Submitted, Interview…) — they live in the Pipeline. */
   hideInPipeline?: boolean;
   /** Saved's own Easy Apply only: just the saved jobs posted on WonderJobs. Find's Refine uses `sourceIds` instead. */

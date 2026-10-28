@@ -256,14 +256,15 @@ so the design stays one system: same tokens, one primary action per screen, fold
    profile snapshots and scorecards (WJ-412) are already shaped this way.
 3. **Workspace core** — Hiring workspaces become `workspaces` with `module = "jobs"`; the permission matrix gains a
    module key.
-4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities.
+4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities: **a separate dataset per
+   module** (owner, 2026-10-28). Jobs' sources and listings are `module = 'jobs'` and nothing else ever reads them as
+   another module's; each module registers its own sources.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
-   **Started (WJ-413, 2026-10-28):** a third Find mode (`findMode.ts`: words like Part Time, searched as internships,
-   lists only postings that say they're one); companies post internships with a monthly stipend, duration and start
-   date (`domain/org/internship.ts`, `employer_jobs.internship`, migration 0032); Easy Apply shares education. Built on
-   Jobs' machinery first — moved behind the registry/manifest when step 1 lands. Next: Internshala-style persona fields
-   (graduation year, availability) and internship sources.
+   **Rule (owner, 2026-10-28): the jobs portal stays exactly as it is** (CLAUDE.md). Internships is built as its own
+   module at `/app/m/internships` with its own JobsLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
+   taken back out in WJ-414). Kept for it: `domain/org/internship.ts` (stipend a month, duration, start date) and
+   `employer_jobs.internship` (migration 0032).
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
 7. **Talent & Services** — adds quotes, payments and reviews.
 8. **Events & Social** — adds capacity, RSVP and waitlist.
@@ -272,3 +273,30 @@ so the design stays one system: same tokens, one primary action per screen, fold
 11. **Therapists** — last: licence verification, health-data compliance and crisis resources need legal review first.
 
 Each step ships as its own PR with tests, help and tracker rows, like every Jobs change today.
+
+---
+
+## 9. Brand: WonderStar identity (owner, 2026-10-28)
+
+Reference: `docs/brand/wonderstar-identity.png` (the owner's identity sheet). It applies to **WonderStar's own surfaces** —
+the module shell (`/app/m/<module>`), the Explore hub that lists modules, module pages and the app icon/splash for the
+platform. The jobs portal keeps its current look (CLAUDE.md, "The jobs portal stays as it is") unless the owner says
+otherwise.
+
+- **Logo:** the WonderStar mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderStar" — "Wonder"
+  in Deep Navy (white on dark), "Star" in a violet→blue gradient. Variants: primary horizontal, stacked with the
+  tagline, app icon (mark on Deep Navy, rounded square). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
+  (letter-spaced caps). Recreate as SVG in `public/brand/` — never a raster screenshot of the sheet.
+- **Colours** (as design tokens beside today's, scoped to WonderStar surfaces): Star Purple `#7C3AED`, Sky Blue
+  `#3B82F6`, Magenta `#EC4899`, Indigo `#4F46E5`, Soft Lavender `#EDE9FE`, Light Blue `#EFF6FF`, Deep Navy `#0F172A`.
+  Primary action: Star Purple→Indigo gradient; splash/hero: deep indigo→violet with soft waves.
+- **Type:** Poppins (Google Fonts, via `next/font`), for WonderStar surfaces.
+- **Icons:** lucide line icons in a soft rounded-square tile tinted per module — Jobs (briefcase, lavender), Part-time
+  (clock, light blue), Internships (graduation cap, peach), Teaching (open book, mint), Co-founders (handshake, lavender),
+  Talent & Services (people, light blue), Therapists (heart-pulse, lavender), Events & Social (calendar, pink),
+  Buy, Sell & Rent (storefront, peach). Each manifest's `icon` + `accent` carries these.
+- **Explore (the hub):** "Find your next opportunity / Search across jobs, services, events and more", one search box
+  with a round gradient arrow button, then the modules as tiles (phone: 3-column grid; desktop: chips under the search),
+  "Popular searches" chips from real searches only. Desktop: left rail Explore · Saved · Messages · Profile. Phone:
+  top bar with avatar, the logo centred, search and bell. Footer line "More opportunities. A brighter you."
+- **Splash:** the stacked logo and tagline on the indigo→violet gradient.

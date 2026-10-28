@@ -47,7 +47,7 @@ export interface SiteSettings {
   notifyEmails: string;
   retentionMonths: number;
 }
-export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl" | "screening" | "internship">;
+export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl" | "screening">;
 
 const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
 

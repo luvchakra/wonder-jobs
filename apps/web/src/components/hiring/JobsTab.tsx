@@ -6,7 +6,6 @@ import type { CareerSite } from "@/domain/org/careers";
 import { CareerSites } from "./CareerSites";
 import { hiringApi, type JobInput } from "@/services/hiring/client";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
-import { DURATIONS, monthlyStipend } from "@/domain/org/internship";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
@@ -98,7 +97,7 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
             <li key={j.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-b-0">
               <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                 <p className="truncate text-[15px] font-semibold text-ink">{j.title}</p>
-                <p className="truncate text-[12px] text-ink-3">{[j.location, j.workMode, j.jobType === "internship" ? (monthlyStipend(j.salaryMin, j.salaryMax, j.currency) ?? "internship") : formatSalaryRange(j.salaryMin, j.salaryMax, j.currency), `updated ${relativeTime(j.updatedAt)}`].filter(Boolean).join(" · ")}</p>
+                <p className="truncate text-[12px] text-ink-3">{[j.location, j.workMode, formatSalaryRange(j.salaryMin, j.salaryMax, j.currency), `updated ${relativeTime(j.updatedAt)}`].filter(Boolean).join(" · ")}</p>
                 {onApplicants && counts[j.id] && (
                   <button type="button" onClick={() => onApplicants(j.id)} className="mt-0.5 min-h-8 text-[12.5px] font-medium text-brand-600 hover:underline">
                     {counts[j.id].all} {counts[j.id].all === 1 ? "applicant" : "applicants"}
@@ -119,7 +118,7 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
               <Badge tone={STATUS_TONE[j.status]}>{STATUS_LABEL[j.status]}</Badge>
               {canEdit && (
                 <div className="flex gap-3 text-[13px] font-medium">
-                  <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setEditing({ id: j.id, job: { title: j.title, location: j.location, workMode: j.workMode, jobType: j.jobType, salaryMin: j.salaryMin, salaryMax: j.salaryMax, currency: j.currency, description: j.description, skills: j.skills, applyUrl: j.applyUrl, screening: j.screening ?? [], ...(j.internship ? { internship: j.internship } : {}) } })}>
+                  <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setEditing({ id: j.id, job: { title: j.title, location: j.location, workMode: j.workMode, jobType: j.jobType, salaryMin: j.salaryMin, salaryMax: j.salaryMax, currency: j.currency, description: j.description, skills: j.skills, applyUrl: j.applyUrl, screening: j.screening ?? [] } })}>
                     Edit
                   </button>
                   {j.status !== "open" ? (
@@ -153,8 +152,6 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
     setError(null);
   };
   const num = (v: string) => (v.trim() ? Math.max(0, Math.round(Number(v.replace(/[^0-9.]/g, "")))) : undefined);
-  const yearly = (v: string) => { const n = num(v); return n == null ? undefined : n * 12; };
-  const intern = j.jobType === "internship";
   const save = async () => {
     const problem = jobProblem(j);
     if (problem) return setError(problem);
@@ -218,37 +215,12 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
             <option value="gig">Gig</option>
           </Select>
         </Field>
-        {intern ? (
-          <>
-            {/* Internships (WJ-413): the stipend is entered a month and kept a year, like every salary. */}
-            <Field label="Stipend per month (optional)" htmlFor="js" hint={j.currency}>
-              <div className="flex gap-2">
-                <Input id="js" inputMode="numeric" value={j.salaryMin != null ? Math.round(j.salaryMin / 12) : ""} onChange={(e) => set({ salaryMin: yearly(e.target.value) })} placeholder="From" aria-label="Stipend from" />
-                <Input inputMode="numeric" value={j.salaryMax != null ? Math.round(j.salaryMax / 12) : ""} onChange={(e) => set({ salaryMax: yearly(e.target.value) })} placeholder="To" aria-label="Stipend to" />
-              </div>
-            </Field>
-            <Field label="Duration" htmlFor="jdur">
-              <Select id="jdur" value={j.internship?.durationMonths ?? ""} onChange={(e) => set({ internship: { ...j.internship, durationMonths: e.target.value ? Number(e.target.value) : undefined } })}>
-                <option value="">Not stated</option>
-                {DURATIONS.map((m) => (
-                  <option key={m} value={m}>
-                    {m} {m === 1 ? "month" : "months"}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Starts on (optional)" htmlFor="jst">
-              <Input id="jst" type="date" value={j.internship?.startsOn ?? ""} onChange={(e) => set({ internship: { ...j.internship, startsOn: e.target.value || undefined } })} />
-            </Field>
-          </>
-        ) : (
-          <Field label="Salary per year (optional)" htmlFor="js" hint={j.currency}>
-            <div className="flex gap-2">
-              <Input id="js" inputMode="numeric" value={j.salaryMin ?? ""} onChange={(e) => set({ salaryMin: num(e.target.value) })} placeholder="From" aria-label="Salary from" />
-              <Input inputMode="numeric" value={j.salaryMax ?? ""} onChange={(e) => set({ salaryMax: num(e.target.value) })} placeholder="To" aria-label="Salary to" />
-            </div>
-          </Field>
-        )}
+        <Field label="Salary per year (optional)" htmlFor="js" hint={j.currency}>
+          <div className="flex gap-2">
+            <Input id="js" inputMode="numeric" value={j.salaryMin ?? ""} onChange={(e) => set({ salaryMin: num(e.target.value) })} placeholder="From" aria-label="Salary from" />
+            <Input inputMode="numeric" value={j.salaryMax ?? ""} onChange={(e) => set({ salaryMax: num(e.target.value) })} placeholder="To" aria-label="Salary to" />
+          </div>
+        </Field>
         <Field label="Description" htmlFor="jd" required className="sm:col-span-2" hint={j.description.trim().length < MIN_DESCRIPTION ? `What the role is, the team, and who you're looking for (at least ${MIN_DESCRIPTION} characters).` : "What the role is, the team, and who you're looking for."}>
           <Textarea id="jd" rows={6} value={j.description} onChange={(e) => set({ description: e.target.value })} maxLength={8000} />
         </Field>
