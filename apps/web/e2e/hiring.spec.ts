@@ -341,18 +341,19 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     const me = (await (await page.request.get(`/api/hiring/${orgId}/team`)).json()).members.find((m: { email?: string }) => m.email === account.email);
     expect((await page.request.patch(`/api/hiring/${orgId}/team`, { data: { tenantId: me.tenantId, role: "recruiter" } })).status()).toBe(409);
 
-    // The Owner renames the company and sets its website from the workspaces table (the pencil in its row).
+    // The Owner renames the company and sets its website from the workspaces table (⋯ in its row, then Edit).
     await page.goto("/app/hiring");
-    await page.getByRole("button", { name: `Edit ${COMPANY}` }).click();
+    await page.getByLabel(`More for ${COMPANY}`).click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByLabel("Company name").fill(`${COMPANY} Homes`);
     await page.getByLabel("Website").fill("wonderhome.example");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Company details saved")).toBeVisible();
-    await expect(page.getByRole("button", { name: `${COMPANY} Homes`, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Open ${COMPANY} Homes`, exact: true })).toBeVisible();
     const renamed = (await (await page.request.get("/api/hiring")).json()).workspaces[0].org;
     expect(renamed).toMatchObject({ name: `${COMPANY} Homes`, website: "https://wonderhome.example" });
     // Other roles don't get the settings.
     await people.recruiter!.page.goto("/app/hiring");
-    await expect(people.recruiter!.page.getByRole("button", { name: `Edit ${COMPANY} Homes` })).toHaveCount(0);
+    await expect(people.recruiter!.page.getByLabel(`More for ${COMPANY} Homes`)).toHaveCount(0);
   });
 });

@@ -256,7 +256,7 @@ test.describe("JobsLake protocol", () => {
 
 /* ============================================================= candidate */
 
-const RUN_URL = /\/app\/runs\/(?!new$)[^/?]+$/;
+const RUN_URL = /\/app\/runs\/(?!new$)[^/?]+(\?.*)?$/;
 
 test.describe("Candidate searches through JobsLake", () => {
   let account: TestAccount | null = null;
@@ -320,7 +320,7 @@ test.describe("Candidate searches through JobsLake", () => {
 
   test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to JobsLake — terms and places only", async ({ page }) => {
     await page.goto("/app/jobs");
-    await expect(page.getByRole("radio", { name: "Full Time" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Kind of jobs: Full Time Jobs" })).toBeVisible();
     const { lake } = await find(page, "Product designer roles, remote");
     const body = JSON.parse(lake.postData() ?? "{}");
     expect(Object.keys(body).sort()).toEqual(["limit", "query", "searchMode", "sourceIds"]);
