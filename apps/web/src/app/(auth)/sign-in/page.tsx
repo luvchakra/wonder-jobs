@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   // og:title/og:description on their own, and the root's opengraph-image stays attached.
   return {
     title: `${job.title} · ${job.company}`,
-    description: `${job.location} · ${WORK_MODE_LABEL[job.workMode]}${job.salary ? ` · ${job.salary}` : ""}. Shared from WonderJobs — sign in to see the full listing and your match.`,
+    description: `${job.location} · ${WORK_MODE_LABEL[job.workMode]}${job.salary ? ` · ${job.salary}` : ""}. Shared from WonderStar — sign in to see the full listing and your match.`,
   };
 }
 

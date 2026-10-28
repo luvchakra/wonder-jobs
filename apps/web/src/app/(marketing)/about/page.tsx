@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingPage } from "@/components/landing/MarketingPage";
 
-export const metadata: Metadata = { title: "About WonderJobs", description: "Why WonderJobs exists, what it will and won't do for you, and who builds it." };
+export const metadata: Metadata = { title: "About WonderStar", description: "Why WonderStar exists, what it will and won't do for you, and who builds it." };
 
 export default function AboutPage() {
   return (
     <MarketingPage
       eyebrow="About"
       title="Job searching is a full-time job. It shouldn't be."
-      intro="WonderJobs is an AI career agent that does the repetitive part of a job search and leaves the decisions to you."
+      intro="WonderStar is an AI career agent that does the repetitive part of a job search and leaves the decisions to you."
       sections={[
         {
           id: "mission",
@@ -28,7 +28,7 @@ export default function AboutPage() {
             <ul>
               <li>Real data, honestly labelled. Every job links back to its source and every score explains itself.</li>
               <li>You stay in control. Automation levels, approval gates and a full audit trail of every external action.</li>
-              <li>Your AI, your keys. Bring your own provider key or use WonderJobs AI. Keys are encrypted and never leave the server.</li>
+              <li>Your AI, your keys. Bring your own provider key or use WonderStar AI. Keys are encrypted and never leave the server.</li>
               <li>Quiet by default. A scheduled run that finds nothing says nothing.</li>
             </ul>
           ),
@@ -38,7 +38,7 @@ export default function AboutPage() {
           title: "Careers",
           body: (
             <>
-              <p>WonderJobs is a small team. We&apos;re not hiring right now, but we read every message. If you&apos;d like to work on job search, matching, or the agent runtime, tell us what you&apos;d build first.</p>
+              <p>WonderStar is a small team. We&apos;re not hiring right now, but we read every message. If you&apos;d like to work on job search, matching, or the agent runtime, tell us what you&apos;d build first.</p>
               <p>
                 <Link href="/#contact" className="font-semibold text-brand-600 hover:underline">
                   Introduce yourself

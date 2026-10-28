@@ -294,7 +294,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 function ReadOnlyConfig() {
-  return <p className="text-[13px] text-ink-2">Built-in connector — its endpoint and parsing are defined in code (the same fetcher WonderJobs has always used). Status and limits can be changed here; the connection itself can&apos;t.</p>;
+  return <p className="text-[13px] text-ink-2">Built-in connector — its endpoint and parsing are defined in code (the same fetcher WonderStar has always used). Status and limits can be changed here; the connection itself can&apos;t.</p>;
 }
 
 type EditableKind = Exclude<SourceConfig["kind"], "builtin" | "partnership" | "scraper">;

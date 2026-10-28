@@ -14,7 +14,7 @@ type NumberKey = "scheduledSearches" | "aiDraftsPerMonth" | "roles" | "resumeTem
 type FlagKey = "dailySearches" | "keepWatch" | "atsReport" | "applyWithWonder";
 const NUMBERS: { key: NumberKey; label: string }[] = [
   { key: "scheduledSearches", label: "Scheduled searches on at once" },
-  { key: "aiDraftsPerMonth", label: "WonderJobs AI drafts a month" },
+  { key: "aiDraftsPerMonth", label: "WonderStar AI drafts a month" },
   { key: "roles", label: "Roles (Search as)" },
   { key: "resumeTemplates", label: "Résumé designs (8 = all)" },
 ];

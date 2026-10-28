@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingPage } from "@/components/landing/MarketingPage";
 
-export const metadata: Metadata = { title: "Security", description: "How WonderJobs protects accounts, data, payments and provider keys, and how to report a vulnerability." };
+export const metadata: Metadata = { title: "Security", description: "How WonderStar protects accounts, data, payments and provider keys, and how to report a vulnerability." };
 
 export default function SecurityPage() {
   return (
@@ -63,7 +63,7 @@ export default function SecurityPage() {
           title: "Payments",
           body: (
             <ul>
-              <li>Payments are taken by Razorpay (India) or Stripe (international) on their own hosted pages. Card, UPI and bank details never reach WonderJobs servers; both providers are PCI DSS Level 1 certified.</li>
+              <li>Payments are taken by Razorpay (India) or Stripe (international) on their own hosted pages. Card, UPI and bank details never reach WonderStar servers; both providers are PCI DSS Level 1 certified.</li>
               <li>Payment notifications are accepted only with a valid HMAC signature from the provider, compared in constant time; Stripe signatures older than five minutes are refused to stop replays.</li>
               <li>Your plan is decided on the server from those verified notifications. Returning from checkout, or anything the browser sends, can&apos;t change it.</li>
             </ul>
@@ -80,7 +80,7 @@ export default function SecurityPage() {
               <li>A daily reconciliation asks Razorpay and Stripe for the live status of every open subscription and records any correction in the ledger.</li>
               <li>Segregation of duties: a separate, read-only auditor credential can verify the hash chain and export the full ledger as CSV; it can&apos;t change data, deploy or migrate.</li>
               <li>Payment records are kept for at least eight years to meet tax and accounting law, including after an account is deleted; there is no automatic deletion after that yet.</li>
-              <li>WonderJobs is not a public company and has not been audited under the Sarbanes-Oxley Act; these are the kinds of controls such audits test.</li>
+              <li>WonderStar is not a public company and has not been audited under the Sarbanes-Oxley Act; these are the kinds of controls such audits test.</li>
             </ul>
           ),
         },

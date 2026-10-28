@@ -24,7 +24,7 @@ interface Tool {
 }
 
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
-const idArg = { type: "object", properties: { id: { type: "string", description: "Opportunity id (opp_…) or WonderJobs job id" } }, required: ["id"] };
+const idArg = { type: "object", properties: { id: { type: "string", description: "Opportunity id (opp_…) or WonderStar job id" } }, required: ["id"] };
 
 export const MCP_TOOLS: Tool[] = [
   {

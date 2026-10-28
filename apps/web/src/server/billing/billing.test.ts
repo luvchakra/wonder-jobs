@@ -165,9 +165,9 @@ describe("checkout, availability and cancellation (provider APIs mocked)", () =>
   });
 
   it("reads the price from Stripe rather than any hardcoded value", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("stripe") ? new Response(JSON.stringify({ id: "price_pro", unit_amount: 1999, currency: "usd", active: true, recurring: { interval: "month", interval_count: 1 }, product: { name: "WonderJobs Pro", description: "From the dashboard" } })) : new Response(JSON.stringify({ id: "plan_pro", period: "monthly", interval: 1, item: { name: "Pro", amount: 49900, currency: "INR" } })))));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("stripe") ? new Response(JSON.stringify({ id: "price_pro", unit_amount: 1999, currency: "usd", active: true, recurring: { interval: "month", interval_count: 1 }, product: { name: "WonderStar Pro", description: "From the dashboard" } })) : new Response(JSON.stringify({ id: "plan_pro", period: "monthly", interval: 1, item: { name: "Pro", amount: 49900, currency: "INR" } })))));
     const avail = await providerAvailability();
-    expect(avail).toContainEqual({ provider: "stripe", state: "ready", price: { provider: "stripe", ref: "price_pro", name: "WonderJobs Pro", description: "From the dashboard", amount: 1999, currency: "USD", interval: "month", intervalCount: 1 } });
+    expect(avail).toContainEqual({ provider: "stripe", state: "ready", price: { provider: "stripe", ref: "price_pro", name: "WonderStar Pro", description: "From the dashboard", amount: 1999, currency: "USD", interval: "month", intervalCount: 1 } });
   });
 
   it("creates a Stripe checkout bound to the tenant, with an idempotency key", async () => {
@@ -249,7 +249,7 @@ describe("review findings (regressions)", () => {
     resetPrivacyMemory();
   });
 
-  it("a Razorpay cancellation shows at once (ledgered as WonderJobs' own event)", async () => {
+  it("a Razorpay cancellation shows at once (ledgered as WonderStar' own event)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "sub_C", status: "active" }))));
     await store.saveSubscription({ tenantId: "t-c", provider: "razorpay", subscriptionId: "sub_C", status: "active", cancelAtPeriodEnd: false, currentPeriodEnd: "2026-11-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" });
     await cancelSubscription("t-c");

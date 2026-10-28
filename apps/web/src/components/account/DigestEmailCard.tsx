@@ -44,7 +44,7 @@ export function DigestEmailCard() {
     setBusy("send");
     const r = await fetch("/api/digest/send", { method: "POST" }).catch(() => null);
     const d = (await r?.json().catch(() => null)) as { sent?: boolean; reason?: string } | null;
-    if (d?.sent) toast.success("Sent", "Check your inbox for your WonderJobs update.");
+    if (d?.sent) toast.success("Sent", "Check your inbox for your WonderStar update.");
     else toast.error("Not sent", d?.reason ?? "Try again in a moment.");
     setBusy(null);
   };

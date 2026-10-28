@@ -249,7 +249,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
 
       <p className="mt-4 flex items-start gap-1.5 text-[12px] text-ink-3">
         <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
-        You pay on Razorpay&apos;s or Stripe&apos;s own page. WonderJobs never sees your card, UPI or bank details.
+        You pay on Razorpay&apos;s or Stripe&apos;s own page. WonderStar never sees your card, UPI or bank details.
       </p>
 
       <Modal

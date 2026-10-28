@@ -62,12 +62,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ tenantId
       start: new Date(s.nextRunAt),
       durationMinutes: 15,
       summary: `Wonder run: ${s.name}`,
-      description: s.description || "Scheduled WonderJobs run.",
+      description: s.description || "Scheduled WonderStar run.",
       url: `${origin}/app/automation/scheduled/${s.id}`,
     });
   }
 
-  const ics = buildIcsCalendar("WonderJobs", events);
+  const ics = buildIcsCalendar("WonderStar", events);
   return new NextResponse(ics, {
     status: 200,
     headers: {

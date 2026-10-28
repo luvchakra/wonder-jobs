@@ -10,7 +10,7 @@ describe("web app manifest", () => {
     headerValues.clear();
     headerValues.set("host", "wonderjobs.example");
     const m = await manifest();
-    expect(m).toMatchObject({ id: "/app", name: expect.any(String), short_name: "WonderJobs", start_url: "/app", scope: "/", display: "standalone" });
+    expect(m).toMatchObject({ id: "/app", name: expect.any(String), short_name: "WonderStar", start_url: "/app", scope: "/", display: "standalone" });
     expect(m.description).toBeTruthy();
     expect(m.theme_color).toBeTruthy();
     expect(m.background_color).toBeTruthy();

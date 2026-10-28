@@ -145,7 +145,7 @@ export function TopBar() {
           onClick={async () => {
             setProfileOpen(false);
             const outcome = await promptInstall();
-            if (outcome === "accepted") toast.success("Installing WonderJobs", "Find it on your home screen or app launcher.");
+            if (outcome === "accepted") toast.success("Installing WonderStar", "Find it on your home screen or app launcher.");
           }}
           className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
         >
