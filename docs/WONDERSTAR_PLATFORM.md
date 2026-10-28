@@ -95,7 +95,7 @@ its own flavour of each.
 | **Lake** | JobsLake: sources, connectors, planner, de-duplication, provenance, warm cache, admin portal | One Lake with a `module` dimension: each module registers its sources and normaliser; de-duplication and provenance are shared. |
 | **Search & match** | Find, Refine, `computeMatch`, "Why it fits", AI fit within a band | Query + place + facets from the module schema; a module supplies match signals and weights; "why" is always shown; AI only nudges within a band. |
 | **Response** | Applications (candidate side), `job_applications` (company side), Easy Apply, screening questions, withdraw | `Response` with a module-defined verb and state machine, answers to the listing's questions, the profile snapshot shared, consent and audit — one table, one API. |
-| **Pipeline** | Pipeline (seeker), Hiring Applications tab (owner): stages, fit, scorecards | Stage tabs for both sides, driven by the module's state machine; reviews/scorecards where the module allows them. |
+| **Pipeline** | Pipeline (seeker), Hiring Applications tab (owner): stages, fit, scorecards | The one tab each module shapes (§4.1): its own name, stages, card and sections, driven by the module's state machine; reviews/scorecards where the module allows them. |
 | **Workspace** | Hiring workspaces, roles Owner/Hiring manager/Recruiter, `domain/org/permissions.ts::can` | `Workspace` with module-scoped roles; the permission matrix stays the single gate, one matrix per module. |
 | **Messages** | Company ↔ candidate threads, decline/block/reopen | Same threads for every module; who may write first is module policy (e.g. co-founders only after mutual interest). |
 | **Scheduling** | Calendar, reminders, ICS feed | Slots and bookings (interviews, demo classes, sessions, visits, events). |
@@ -105,7 +105,7 @@ its own flavour of each.
 | **AI** | `services/ai/service.ts` boundary, server-held prompts, `SYSTEM_GUARD`, drafts labelled AI-generated | Same boundary; modules add prompt ids, never instructions in the browser. |
 | **Automation** | `resolveCapability`: risk tier × level × per-capability policy | Capabilities are namespaced per module (`jobs.easy_apply`, `events.rsvp`…); the resolver is unchanged. |
 | **Notifications** | Bell, push, email, digest | Same channels; modules register their notice kinds and default channels. |
-| **Navigation & admin** | Find dropdown kinds, platform-admin menus, Coming soon | The dropdown lists modules from the registry; admins switch a module on/off (already modelled by `MENUS.find_kinds`). |
+| **Navigation & admin** | Bottom bar Find · Saved · Pipeline · You (`navigation/nav.ts`), Find dropdown kinds, platform-admin menus, Coming soon | The same four tabs in every module (owner, 2026-10-28; §4.1). Find, Saved and You are the platform's; Pipeline is the module's. The Find dropdown switches module and lists modules from the registry; admins switch a module on/off (already modelled by `MENUS.find_kinds`). |
 | **Real data & provenance** | Rules in CLAUDE.md, run provenance | Platform rule for every module: nothing shown that wasn't found, computed or received. |
 
 ---
@@ -135,6 +135,13 @@ export interface ModuleManifest {
     states: StateMachine;               // e.g. requested → quoted → booked → done → reviewed
     capability: CapabilityKey;          // gated through resolveCapability
   };
+  pipeline: {                 // the one tab a module shapes (§4.1); Find, Saved and You are fixed
+    label: string;            // bottom-bar name: "Pipeline", "Bookings", "Connections", "My events", "Deals"
+    icon: IconName;
+    stages: Stage[];          // the seeker's columns, from response.states (e.g. Requested · Confirmed · Held)
+    card: CardField[];        // what each item shows (next step, date, price, counterpart)
+    sections?: SectionRef[];  // extra views inside the tab (Jobs: Calendar, Insights, Interview prep)
+  };
   ownerSide: { workspace: "company" | "person" | "none"; roles: RoleMatrix; pipelineStages: Stage[] };
   trust: { verification: VerificationTier[]; reviews: "off" | "after_done" | "both_sides"; safety: SafetyRule[] };
   money?: { kind: "none" | "fee_display" | "booking_payment" | "escrow"; currency: "INR" | string };
@@ -155,6 +162,34 @@ export interface ModuleManifest {
 | **Therapists** | Concerns, preferences (language, gender, mode), budget | Licence (number, body, expiry), specialties, modalities, fee, languages, online/in-person | Book · requested → confirmed → held / cancelled | Individual practitioner or clinic workspace | Licence verification + re-check on expiry; `health_data`; crisis resources on every page; no public outcome ratings |
 | **Events & Social** | Interests, city | Time, place/online, capacity, price (free/paid), group | RSVP · going / waitlist → attended / no-show | Organiser or group workspace | Report/block, venue safety, age limits |
 | **Buy, Sell & Rent** | Area, phone verified | Category, price, condition, photos, rent terms (deposit, availability) | Message → offer → visit (booking) → sold / rented | Individual seller; brokers flagged | Anti-scam rules (no off-platform payment), phone verification, `housing` for rentals |
+
+### 4.1 Navigation: four tabs everywhere, one of them the module's
+
+Every module has the same bottom bar (owner, 2026-10-28), so moving between modules never relearns the app:
+
+| Tab | Owned by | Same in every module | What the module changes |
+| --- | --- | --- | --- |
+| **Find** | Platform | Search box, place, Refine, result list, the dropdown that switches module | Facets and card fields from `listing`, match signals from `match` |
+| **Saved** | Platform | Saved listings and saved searches, one list across modules, filterable by module | Nothing (card fields come from the listing schema) |
+| **Pipeline** | **Module** | Stage tabs with counts, one primary action per item, history, withdraw/cancel | Name, icon, stages, card, extra sections — from `pipeline` in the manifest |
+| **You** | Platform | Account, Profile core, settings, Automation, notifications, workspaces (Hiring etc.), billing | One persona section per module the person uses (Career DNA for Jobs) |
+
+The Pipeline tab per module:
+
+| Module | Tab label | Stages (seeker side) | Extra sections |
+| --- | --- | --- | --- |
+| **Jobs** | Pipeline | Saved to apply · Applied · Interview · Offer · Hired / Closed | Calendar, Insights, Interview prep (today's) |
+| **Internships** | Pipeline | Applied · Shortlisted · Offer · Accepted / Closed | Deadlines |
+| **Teaching** | Pipeline | Applied · Demo class · Appointed / Closed | Demo-class bookings |
+| **Co-founders** | Connections | Interested · Mutual · Talking · Building / Passed | — (mutual-only messaging lives on each item) |
+| **Talent & Services** | Bookings | Requested · Quoted · Booked · Done · Reviewed | Payments and receipts |
+| **Therapists** | Sessions | Requested · Confirmed · Upcoming · Held / Cancelled | Crisis resources (always shown); no ratings |
+| **Events & Social** | My events | Going · Waitlist · Attended | Calendar |
+| **Buy, Sell & Rent** | Deals | Messaged · Offer · Visit · Done | My listings (selling side) |
+
+Rules: the tab keeps one place in the bar and the label is the module's; it opens on the stage with something to do;
+the owner side (company, practitioner, organiser) stays in a workspace under You, as Hiring is today. The bar shows
+the active module's Pipeline; Saved shows every module's saves so nothing is lost on switching.
 
 ---
 
@@ -189,6 +224,7 @@ apps/web/src/
     jobs/              # manifest + Jobs-only components (Apply with Wonder, the helper, résumé studio)
     internships/  teaching/  cofounders/  services/  therapists/  events/  marketplace/
   app/app/[module]/    # find · listing/[id] · respond · pipeline — one set of pages, flavoured by the manifest
+                       # /app/saved and /app/you stay module-agnostic (§4.1)
                        # (Jobs keeps /app/jobs and today's routes; they become aliases of /app/jobs/...)
 ```
 
@@ -213,6 +249,8 @@ so the design stays one system: same tokens, one primary action per screen, fold
 
 1. **Registry** — `modules/registry.ts` with the Jobs manifest describing today's Jobs; the Find dropdown reads
    module entries from it (today's `UPCOMING_KINDS` become manifests with `status: "soon"`).
+   The bottom bar reads the active module's `pipeline` label and icon (Jobs: Pipeline, unchanged); Find, Saved and
+   You stay as they are.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,
    profile snapshots and scorecards (WJ-412) are already shaped this way.
