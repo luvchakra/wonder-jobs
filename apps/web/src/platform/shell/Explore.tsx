@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search } from "lucide-react";
 import { MODULES, isLive } from "@/modules/registry";
-import { ModuleIconTile, TINTS } from "@/platform/brand/tiles";
+import { ModuleIcon, TINTS } from "@/platform/brand/tiles";
 import { WonderStarLogo, WonderStarMark, WS_PRIMARY } from "@/platform/brand/Logo";
 import { cn } from "@/lib/cn";
 
@@ -23,7 +23,7 @@ export function Explore() {
   };
   return (
     <div className="relative mx-auto max-w-3xl pb-6">
-      <div className="mb-5 flex justify-center md:hidden">
+      <div className="mb-5 flex justify-center md:justify-start">
         <WonderStarLogo className="text-[22px]" />
       </div>
       <h1 className="text-[22px] font-semibold tracking-tight md:text-[28px]">Find your next opportunity</h1>
@@ -42,8 +42,8 @@ export function Explore() {
       <ul className="grid grid-cols-3 gap-2.5 md:hidden">
         {MODULES.map((m) => (
           <li key={m.id}>
-            <Link href={m.routes.find} className={cn("flex h-full flex-col items-center gap-2 rounded-2xl px-1.5 pb-3 pt-3.5 text-center wj-press", TINTS[m.accent].tile, "bg-opacity-60")}>
-              <ModuleIconTile m={m} />
+            <Link href={m.routes.find} className={cn("flex h-full flex-col items-center gap-2 rounded-2xl px-1.5 pb-3 pt-4 text-center shadow-[0_4px_14px_-8px_rgba(79,70,229,0.35)] wj-press", TINTS[m.accent].tile)}>
+              <ModuleIcon m={m} />
               <span className="text-[11.5px] font-medium leading-tight">{m.label}</span>
               {!isLive(m) && <span className="text-[10px] font-medium uppercase tracking-wide text-ws-navy/50">Soon</span>}
             </Link>

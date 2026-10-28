@@ -7,11 +7,17 @@ const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOp
 /** Tile tints from the identity sheet: a soft background with the icon in its stronger shade. */
 export const TINTS: Record<ModuleTint, { tile: string; icon: string; chip: string }> = {
   lavender: { tile: "bg-ws-lavender", icon: "text-ws-purple", chip: "bg-ws-lavender text-ws-purple" },
-  lightblue: { tile: "bg-ws-light-blue", icon: "text-ws-sky", chip: "bg-ws-light-blue text-ws-sky" },
+  lightblue: { tile: "bg-[#dbeafe]", icon: "text-[#2563eb]", chip: "bg-[#dbeafe] text-[#1d4ed8]" },
   peach: { tile: "bg-[#ffedd5]", icon: "text-[#c2410c]", chip: "bg-[#ffedd5] text-[#c2410c]" },
   mint: { tile: "bg-[#d1fae5]", icon: "text-[#047857]", chip: "bg-[#d1fae5] text-[#047857]" },
   pink: { tile: "bg-[#fce7f3]", icon: "text-[#be185d]", chip: "bg-[#fce7f3] text-[#be185d]" },
 };
+
+/** A module's lucide line icon in its tint's stronger shade (for a card that already carries the tint). */
+export function ModuleIcon({ m }: { m: ModuleManifest }) {
+  const I = ICONS[m.icon];
+  return <I className={cn("size-7", TINTS[m.accent].icon)} strokeWidth={1.6} aria-hidden />;
+}
 
 /** A module's lucide line icon in its tinted rounded-square tile. */
 export function ModuleIconTile({ m, size = "md" }: { m: ModuleManifest; size?: "sm" | "md" }) {
