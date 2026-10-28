@@ -533,6 +533,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Jobs portal kept as it was (rule in CLAUDE.md; Internships moves to its own module); interview invitations reach the app's notifications (WJ-414)
 - ✅ WonderStar core (WJ-415): module registry, /app/m/[module] shell with Coming soon, JobsLake per-module datasets (migration 0034)
 - ✅ WonderStar brand across the whole app: logo, app icons, colours, Poppins, Find menu icon tiles (WJ-416)
+- ✅ Stop no longer brings back a posting found closed during the search; E2E sample postings use reserved hosts, so GJ-022 is deterministic (WJ-417)
 - ✅ Renamed WonderStar everywhere users see it, browser helper included (WJ-418)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
