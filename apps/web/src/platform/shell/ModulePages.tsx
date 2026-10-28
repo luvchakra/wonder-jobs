@@ -1,6 +1,8 @@
 "use client";
 import { useSyncExternalStore } from "react";
-import { Bookmark, Clock, Inbox, UserRound } from "lucide-react";
+import Link from "next/link";
+import { Bookmark, Inbox, UserRound } from "lucide-react";
+import { WonderStarSplash } from "@/platform/brand/Logo";
 import { EmptyState } from "@/components/common/States";
 import { moduleById, type ModuleId } from "@/modules/registry";
 import { moduleStore } from "@/platform/moduleStore";
@@ -10,10 +12,18 @@ type ShellModule = Exclude<ModuleId, "jobs">;
 const noop = () => () => undefined;
 const useMounted = () => useSyncExternalStore(noop, () => true, () => false);
 
-/** A module that hasn't shipped: a label and a line, never a listing (CLAUDE.md, real data only). */
+/** A module that hasn't shipped: the splash, a label and a line, never a listing (CLAUDE.md, real data only). */
 export function ModuleComingSoon({ id }: { id: ModuleId }) {
   const m = moduleById(id)!;
-  return <EmptyState icon={<Clock className="size-5" aria-hidden />} title={`${m.label} is coming soon`} body={m.hint} action={{ label: "Back to Jobs", href: "/app/jobs" }} className="mt-6" />;
+  return (
+    <WonderStarSplash>
+      <h2 className="mt-8 font-ws text-lg font-semibold">{m.label} is coming soon</h2>
+      <p className="mt-1 text-sm text-white/80">{m.hint}</p>
+      <Link href="/app/m" className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-semibold text-ws-purple wj-press">
+        Back to Explore
+      </Link>
+    </WonderStarSplash>
+  );
 }
 
 /** Find, until the module has a source or a posting: says so instead of filling the gap. */

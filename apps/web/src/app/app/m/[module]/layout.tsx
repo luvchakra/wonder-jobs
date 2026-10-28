@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { isLive, moduleById } from "@/modules/registry";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { ModuleIconTile } from "@/platform/brand/tiles";
 import { ModuleTabs } from "@/platform/shell/ModuleTabs";
 import { ModuleComingSoon } from "@/platform/shell/ModulePages";
 import { shellModule, type ShellParams } from "./shell";
@@ -14,8 +16,15 @@ export default async function ModuleLayout({ children, params }: ShellParams & {
   const m = await shellModule({ params });
   if (m.id === "jobs") return children;
   return (
-    <div>
-      <PageHeader title={m.label} />
+    <div className="mx-auto max-w-3xl">
+      <Link href="/app/m" className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-ws-navy/60 hover:text-ws-purple">
+        <ChevronLeft className="size-4" aria-hidden />
+        Explore
+      </Link>
+      <div className="mb-4 flex items-center gap-3">
+        <ModuleIconTile m={m} />
+        <h1 className="text-[22px] font-semibold tracking-tight">{m.label}</h1>
+      </div>
       {isLive(m) ? (
         <>
           <ModuleTabs id={m.id} />

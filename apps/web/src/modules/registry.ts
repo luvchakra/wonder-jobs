@@ -14,6 +14,8 @@ export type ModuleId = (typeof MODULE_IDS)[number];
 export type UpcomingKindId = "internships" | "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent";
 
 export type ModuleStatus = "live" | "soon";
+export type ModuleTint = "lavender" | "lightblue" | "peach" | "mint" | "pink";
+export type ModuleIcon = "Briefcase" | "GraduationCap" | "BookOpen" | "Handshake" | "Users" | "HeartPulse" | "CalendarDays" | "Store";
 export type ResponseVerb = "apply" | "request_quote" | "book" | "rsvp" | "offer" | "connect";
 
 /** One field a module adds to a profile (persona) or a listing (attrs). `facet`: offered as a Find filter. */
@@ -35,10 +37,10 @@ export interface ModuleManifest {
   label: string;
   /** The Find dropdown's subtitle. */
   hint: string;
-  /** A lucide icon name. */
-  icon: string;
-  /** A colour token, so each module is recognisable while the design system stays one. */
-  accent: string;
+  /** A lucide icon name (platform/brand/tiles.ts draws it). */
+  icon: ModuleIcon;
+  /** The tint of its icon tile (docs/WONDERSTAR_PLATFORM.md section 9), so each module is recognisable while the design system stays one. */
+  accent: ModuleTint;
   status: ModuleStatus;
   /** Its id in the Find dropdown's "Coming soon" group (MENUS.find_kinds). */
   menuId?: UpcomingKindId;
@@ -73,7 +75,7 @@ export const MODULES: readonly ModuleManifest[] = [
     label: "Jobs",
     hint: "Full-time and part-time roles",
     icon: "Briefcase",
-    accent: "brand",
+    accent: "lavender",
     status: "live",
     routes: { find: "/app/jobs", saved: "/app/saved", pipeline: "/app/applications", you: "/app/you" },
     persona: [
@@ -96,7 +98,7 @@ export const MODULES: readonly ModuleManifest[] = [
     label: "Internships",
     hint: "Student roles and co-ops",
     icon: "GraduationCap",
-    accent: "sky",
+    accent: "peach",
     status: "soon",
     menuId: "internships",
     routes: shell("internships"),
@@ -122,8 +124,8 @@ export const MODULES: readonly ModuleManifest[] = [
     id: "teaching",
     label: "Teaching",
     hint: "School and college teachers",
-    icon: "School",
-    accent: "emerald",
+    icon: "BookOpen",
+    accent: "mint",
     status: "soon",
     menuId: "teaching",
     routes: shell("teaching"),
@@ -150,7 +152,7 @@ export const MODULES: readonly ModuleManifest[] = [
     label: "Co-founders",
     hint: "Find someone to build with",
     icon: "Handshake",
-    accent: "amber",
+    accent: "lavender",
     status: "soon",
     menuId: "cofounders",
     routes: shell("cofounders"),
@@ -170,7 +172,7 @@ export const MODULES: readonly ModuleManifest[] = [
     label: "Talent & Services",
     hint: "Hire or offer a skill",
     icon: "Users",
-    accent: "violet",
+    accent: "lightblue",
     status: "soon",
     menuId: "talent_services",
     routes: shell("services"),
@@ -196,7 +198,7 @@ export const MODULES: readonly ModuleManifest[] = [
     label: "Therapists",
     hint: "Licensed counsellors near you",
     icon: "HeartPulse",
-    accent: "rose",
+    accent: "lavender",
     status: "soon",
     menuId: "therapists",
     routes: shell("therapists"),
@@ -220,8 +222,8 @@ export const MODULES: readonly ModuleManifest[] = [
     id: "events",
     label: "Events & Social",
     hint: "Meetups and things to do",
-    icon: "CalendarHeart",
-    accent: "orange",
+    icon: "CalendarDays",
+    accent: "pink",
     status: "soon",
     menuId: "events_social",
     routes: shell("events"),
@@ -245,8 +247,8 @@ export const MODULES: readonly ModuleManifest[] = [
     id: "marketplace",
     label: "Buy, Sell & Rent",
     hint: "Pre-used items",
-    icon: "ShoppingBag",
-    accent: "teal",
+    icon: "Store",
+    accent: "peach",
     status: "soon",
     menuId: "buy_sell_rent",
     routes: shell("marketplace"),
