@@ -52,3 +52,23 @@ export function searchTalent(profiles: TalentProfile[], query: string, place = "
   }
   return out.sort((a, b) => b.score - a.score || b.profile.updatedAt.localeCompare(a.profile.updatedAt));
 }
+
+/**
+ * Suggested for a job (the way recruiting tools suggest candidates for an opening): opted-in profiles that have at
+ * least one of the job's skills, most skills first. An on-site or hybrid job suggests only people who listed its
+ * city; a remote job, anyone. Only what each candidate chose to show is compared.
+ */
+export function suggestTalent(profiles: TalentProfile[], job: { skills: string[]; location: string; workMode: "remote" | "hybrid" | "onsite" }): TalentMatch[] {
+  const wanted = [...new Set(job.skills.map((s) => s.trim()).filter(Boolean))];
+  if (!wanted.length) return [];
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9+#.]+/g, " ").trim();
+  const city = norm(job.location.split(",")[0] ?? "");
+  const out: TalentMatch[] = [];
+  for (const p of profiles) {
+    if (job.workMode !== "remote" && city && !p.locations.some((l) => norm(l).includes(city))) continue;
+    const have = p.skills.map(norm);
+    const matchedSkills = wanted.filter((w) => have.includes(norm(w)));
+    if (matchedSkills.length) out.push({ profile: p, score: matchedSkills.length, matchedSkills });
+  }
+  return out.sort((a, b) => b.score - a.score || b.profile.updatedAt.localeCompare(a.profile.updatedAt));
+}

@@ -31,7 +31,7 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   no_salary: "pay not listed",
   level: "a different level",
   job_type: "a different job type",
-  other_mode: "for the other mode (Full Time or Part Time)",
+  other_mode: "for another mode (Full Time, Part Time or Internships)",
   company: "a different company",
   location: "outside the places you picked",
   profile: "outside your Career Profile",

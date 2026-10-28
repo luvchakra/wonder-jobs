@@ -242,6 +242,18 @@ function ApplicationDetail({ orgId, a, canDecide, onClose, onChanged }: { orgId:
               </dl>
             </section>
           )}
+          {!!a.profile?.education?.length && (
+            <section aria-label="Education" className="mt-3">
+              <h3 className="text-[13px] font-semibold text-ink">Education</h3>
+              <ul className="mt-1 flex flex-col gap-0.5 text-[13px] text-ink-2">
+                {a.profile.education.map((e, i) => (
+                  <li key={i}>
+                    {[e.institution, [e.degree, e.field].filter(Boolean).join(", "), e.endDate ?? null].filter(Boolean).join(" · ")}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {a.fit && (
             <section aria-label="Skills" className="mt-3">
               <h3 className="text-[13px] font-semibold text-ink">

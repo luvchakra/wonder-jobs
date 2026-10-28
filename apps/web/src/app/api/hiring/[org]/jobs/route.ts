@@ -19,6 +19,8 @@ const Job = z.object({
   applyUrl: z.string().max(500),
   // Checked in full by domain/org/screening.ts::cleanQuestions (at most 5, each well formed).
   screening: z.array(z.record(z.string(), z.unknown())).max(10).optional(),
+  // An internship's duration and start date; checked in full by domain/org/internship.ts::cleanInternship.
+  internship: z.object({ durationMonths: z.number().optional(), startsOn: z.string().max(10).optional() }).optional(),
 });
 
 export async function GET(req: Request, ctx: Ctx) {

@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, ChevronDown, GitCompareArrows, History, Search, 
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
-import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/findMode";
+import { MODE_JOB_TYPES, findModeOf, isWordsMode, modeJobTypeLabel } from "@/domain/jobs/findMode";
 import { Chip, Input, Select } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
@@ -85,6 +85,8 @@ const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[430px]:px-2 max-[380px]:px-1.5 
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const picked = filters.jobTypes ?? [];
+  // Internships lists one kind only: no row.
+  if (!MODE_JOB_TYPES[findModeOf(filters)].length) return null;
   return (
     <div className={cn("flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5", className)}>
       {MODE_JOB_TYPES[findModeOf(filters)].map((t) => (
@@ -181,15 +183,17 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   useEffect(() => () => setMore(false), [setMore]);
   useBottomBar(more);
   // Typing only changes the box; Search (or Enter) applies the words. Kept in step when something else
-  // changes them (a link with ?q=, "clear" in the list).
-  const [draft, setDraft] = useState(filters.query);
+  // changes them (a link with ?q=, "clear" in the list, switching modes) — from the store itself, not the list's
+  // debounced copy, which can lag a mode switch and then wipe words typed since.
+  const storeQuery = useJobsStore((s) => s.filters.query);
+  const [draft, setDraft] = useState(storeQuery);
   // Part Time with nothing searchable typed: say what's needed instead of searching the profile. Kept with
   // the words it was said for, so it goes the moment the box changes (typed, picked or dictated).
   const [needWordsFor, setNeedWordsFor] = useState<string | null>(null);
-  const [seenQuery, setSeenQuery] = useState(filters.query);
-  if (seenQuery !== filters.query) {
-    setSeenQuery(filters.query);
-    setDraft(filters.query);
+  const [seenQuery, setSeenQuery] = useState(storeQuery);
+  if (seenQuery !== storeQuery) {
+    setSeenQuery(storeQuery);
+    setDraft(storeQuery);
   }
   // Say it instead of typing it: the words land in the box, to fix before pressing Search.
   const dictation = useDictation({ textAtStart: () => draft, onText: setDraft });
@@ -226,7 +230,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   }, [more, section]);
   const sectionClass = (at: RefineSection) => cn("-m-1.5 flex flex-col gap-1 rounded-[12px] p-1.5 text-[13px] font-medium text-ink-2 outline-none transition-shadow", section === at && "ring-2 ring-brand-400 bg-brand-50/60");
   const view = viewOf(filters);
-  const partTime = findModeOf(filters) === "part_time";
+  // Part Time and Internships search the words typed (Internships asks for them as internships).
+  const partTime = isWordsMode(findModeOf(filters));
+  const internships = !!filters.internships;
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
   const recentSearches = useJobsStore((s) => s.recentSearches);
   const forgetSearch = useJobsStore((s) => s.forgetSearch);
@@ -284,8 +290,8 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             onKeyDown={(e) => {
               if (e.key === "Escape") setBoxFocused(false);
             }}
-            placeholder="Search jobs, skills or companies"
-            aria-label="Search jobs"
+            placeholder={internships ? "Search internships, e.g. product design" : "Search jobs, skills or companies"}
+            aria-label={internships ? "Search internships" : "Search jobs"}
             enterKeyHint="search"
             className={cn("h-10 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
           />
@@ -329,7 +335,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </button>
         </div>
       </form>
-      {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
+      {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{internships ? "Type the field you want to intern in — Internships searches only your words." : <>Type the work you&apos;re looking for — Part Time searches only your words.</>}</p>}
       {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
       {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
       {more && (
@@ -370,10 +376,12 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               </Select>
             </label>
           </div>
-          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-            Job type
-            <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
-          </div>
+          {MODE_JOB_TYPES[findModeOf(filters)].length > 0 && (
+            <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
+              Job type
+              <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
+            </div>
+          )}
           {/* Work mode, with Hide Pipeline beside it (jobs you're already preparing, have applied to or are interviewing for). */}
           <div className="flex items-end gap-3">
             <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={cn(sectionClass("work_mode"), "min-w-0 flex-1")}>

@@ -259,6 +259,11 @@ so the design stays one system: same tokens, one primary action per screen, fold
 4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
+   **Started (WJ-413, 2026-10-28):** a third Find mode (`findMode.ts`: words like Part Time, searched as internships,
+   lists only postings that say they're one); companies post internships with a monthly stipend, duration and start
+   date (`domain/org/internship.ts`, `employer_jobs.internship`, migration 0032); Easy Apply shares education. Built on
+   Jobs' machinery first — moved behind the registry/manifest when step 1 lands. Next: Internshala-style persona fields
+   (graduation year, availability) and internship sources.
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
 7. **Talent & Services** — adds quotes, payments and reviews.
 8. **Events & Social** — adds capacity, RSVP and waitlist.

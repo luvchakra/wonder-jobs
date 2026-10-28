@@ -20,6 +20,20 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState<EmployerJob[]>([]);
   const [acting, setActing] = useState<{ kind: "shortlist" | "message"; who: TalentProfile } | null>(null);
+  // Suggested for one of the workspace's jobs (its skills, and its city unless it's remote), picked instead of typing.
+  const [forJob, setForJob] = useState("");
+  const suggest = async (jobId: string) => {
+    setForJob(jobId);
+    if (!jobId) return setMatches(null);
+    setBusy(true);
+    try {
+      setMatches((await hiringApi.suggestTalent(orgId, jobId)).matches);
+    } catch (e) {
+      toast.error("Couldn't suggest anyone", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   useEffect(() => {
     hiringApi
       .jobs(orgId)
@@ -28,6 +42,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
   }, [orgId]);
 
   const search = async () => {
+    setForJob("");
     setBusy(true);
     try {
       setMatches((await hiringApi.talent(orgId, q, place)).matches);
@@ -53,9 +68,22 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
           Find candidates
         </Button>
       </form>
+      {jobs.length > 0 && (
+        <label className="mb-2 flex items-center gap-2 text-[13px] text-ink-2">
+          Or suggest for
+          <Select value={forJob} onChange={(e) => void suggest(e.target.value)} aria-label="Suggest candidates for a job" className="h-9 w-auto min-w-0 max-w-[16rem]">
+            <option value="">Pick a job</option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </Select>
+        </label>
+      )}
       <p className="mb-3 text-[12px] text-ink-3">Only job seekers who chose to be open to recruiters appear, with what they chose to show.</p>
       {matches === null ? null : matches.length === 0 ? (
-        <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">No one open to recruiters matches every word. Try fewer or broader words.</p>
+        <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">{forJob ? "No one open to recruiters has this job's skills in its city yet. Add skills to the job, or search by words." : "No one open to recruiters matches every word. Try fewer or broader words."}</p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {matches.map(({ profile: p, matchedSkills }) => (
@@ -66,7 +94,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
               {p.skills.length > 0 && (
                 <ul className="mt-2 flex flex-wrap gap-1">
                   {p.skills.slice(0, 12).map((s) => (
-                    <li key={s} className={cn("rounded-full px-2 py-0.5 text-[11px]", matchedSkills.includes(s) ? "bg-brand-50 font-medium text-brand-700" : "bg-surface-2 text-ink-2")}>
+                    <li key={s} className={cn("rounded-full px-2 py-0.5 text-[11px]", matchedSkills.some((m) => m.toLowerCase() === s.toLowerCase()) ? "bg-brand-50 font-medium text-brand-700" : "bg-surface-2 text-ink-2")}>
                       {s}
                     </li>
                   ))}
@@ -90,6 +118,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
           kind={acting.kind}
           who={acting.who}
           jobs={jobs}
+          jobId={forJob}
           onClose={() => setActing(null)}
           onDone={async (jobId, text) => {
             if (acting.kind === "shortlist") {
@@ -108,8 +137,8 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
   );
 }
 
-function ActDialog({ kind, who, jobs, onClose, onDone }: { kind: "shortlist" | "message"; who: TalentProfile; jobs: EmployerJob[]; onClose: () => void; onDone: (jobId: string | undefined, text: string) => Promise<void> }) {
-  const [jobId, setJobId] = useState("");
+function ActDialog({ kind, who, jobs, jobId: forJob = "", onClose, onDone }: { kind: "shortlist" | "message"; who: TalentProfile; jobs: EmployerJob[]; jobId?: string; onClose: () => void; onDone: (jobId: string | undefined, text: string) => Promise<void> }) {
+  const [jobId, setJobId] = useState(forJob);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   // In the dialog itself: a toast would sit behind it.

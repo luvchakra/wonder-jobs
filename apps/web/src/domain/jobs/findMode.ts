@@ -8,23 +8,38 @@ import { JOB_TYPES, type JobType } from "./jobType";
  * - Part Time: only what the candidate types, with the job types it narrows by (Contract, Consultant,
  *   Internship, Short-term, Gig). The profile's role, places, work modes and minimum salary are left out
  *   (the filters' `skipProfile`).
+ * - Internships (WonderStar's first module beyond Jobs, WJ-413): typed words like Part Time, searched as internships,
+ *   and only internships listed — a posting that says it's an internship (its type, or Intern/Trainee/Apprentice in
+ *   the title), never one that states no type.
  * Both: a row of job types (each mode its own, `MODE_JOB_TYPES`); the views All, Strong and For you; Hide Pipeline and Refine.
  */
-export type FindMode = "full_time" | "part_time";
+export type FindMode = "full_time" | "part_time" | "internships";
 
 export const FIND_MODES = [
   { value: "full_time", label: "Full Time" },
   { value: "part_time", label: "Part Time" },
-] as const satisfies readonly [{ value: FindMode; label: string }, { value: FindMode; label: string }];
+  { value: "internships", label: "Internships" },
+] as const satisfies readonly { value: FindMode; label: string }[];
 
-export const findModeOf = (f: Pick<JobFilters, "skipProfile">): FindMode => (f.skipProfile ? "part_time" : "full_time");
+export const findModeOf = (f: Pick<JobFilters, "skipProfile" | "internships">): FindMode => (f.internships ? "internships" : f.skipProfile ? "part_time" : "full_time");
+
+/** Part Time and Internships search what's typed; Full Time the Career Profile. */
+export const isWordsMode = (m: FindMode): boolean => m !== "full_time";
+
+/** Was this catalog searched in Internships (its words carry the internship ask — `internshipWords`)? */
+export const isInternshipSearch = (searchedFor: string): boolean => /\b(intern|internships?|trainee(ship)?|apprentice(ship)?)\b/i.test(searchedFor);
+
+/** What Internships searches for the words typed: the words, asked as internships ("product design" → "product design internship"). */
+export const internshipWords = (text: string): string => (isInternshipSearch(text) ? text.trim() : `${text.trim()} internship`);
 
 /** What switching to a mode changes; the list starts from All in either. */
 export const FIND_MODE_PATCH: Record<FindMode, Partial<JobFilters>> = {
   // Back to the profile: its places again, nothing typed, no job-type narrowing.
-  full_time: { skipProfile: false, locations: undefined, query: "", jobTypes: [], minFit: null, exactFit: false },
+  full_time: { skipProfile: false, internships: false, locations: undefined, query: "", jobTypes: [], minFit: null, exactFit: false },
   // Only the words: anywhere unless typed, every job type until one is picked.
-  part_time: { skipProfile: true, strictProfile: false, locations: [], jobTypes: [], minFit: null, exactFit: false },
+  part_time: { skipProfile: true, internships: false, strictProfile: false, locations: [], jobTypes: [], minFit: null, exactFit: false },
+  // Words too, its own box (it starts empty); internships only, so no job-type row.
+  internships: { skipProfile: true, internships: true, strictProfile: false, locations: [], query: "", jobTypes: [], minFit: null, exactFit: false },
 };
 
 /** The job types Part Time narrows by (owner, 2026-10-22: not Full-time or Part-time itself). */
@@ -37,7 +52,7 @@ export const PART_TIME_JOB_TYPES: JobType[] = ["contract", "consultant", "intern
  */
 export const FULL_TIME_JOB_TYPES: JobType[] = ["full_time", "contract", "consultant", "temporary"];
 
-export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: PART_TIME_JOB_TYPES };
+export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: PART_TIME_JOB_TYPES, internships: [] };
 
 /**
  * What each mode's All covers (owner, 2026-10-22: freelance gigs were showing in Full Time). Full Time: its own job
@@ -45,8 +60,9 @@ export const MODE_JOB_TYPES: Record<FindMode, JobType[]> = { full_time: FULL_TIM
  * full-time jobs were showing in Part Time). A job that states no type at all (most employer career pages don't)
  * shows in both.
  */
-export const MODE_COVERS: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: JOB_TYPES.filter((t) => t !== "full_time") };
-export const inMode = (t: JobType | undefined, mode: FindMode): boolean => !t || MODE_COVERS[mode].includes(t);
+export const MODE_COVERS: Record<FindMode, JobType[]> = { full_time: FULL_TIME_JOB_TYPES, part_time: JOB_TYPES.filter((t) => t !== "full_time"), internships: ["internship"] };
+/** Internships lists only postings that say they are one; the other modes also show a posting that states no type. */
+export const inMode = (t: JobType | undefined, mode: FindMode): boolean => (t ? MODE_COVERS[mode].includes(t) : mode !== "internships");
 
 /** A chip's own word: in Full Time, "Full-time" would only repeat the mode, so it reads "Permanent". */
 export const modeJobTypeLabel = (t: JobType, label: string): string => (t === "full_time" ? "Permanent" : label);
@@ -63,8 +79,8 @@ export type RefineSettings = Required<Pick<JobFilters, "workModes" | "levels" | 
 /** A mode nothing was set in yet: Refine as it starts. */
 export const DEFAULT_REFINE: RefineSettings = { workModes: [], levels: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, sort: "best_match", locations: undefined, jobTypes: [], minFit: null, exactFit: false };
 
-/** Each mode's start: Full Time the profile's places, Part Time anywhere. */
-export const refineDefaults = (mode: FindMode): RefineSettings => ({ ...DEFAULT_REFINE, locations: mode === "part_time" ? [] : undefined });
+/** Each mode's start: Full Time the profile's places, Part Time and Internships anywhere. */
+export const refineDefaults = (mode: FindMode): RefineSettings => ({ ...DEFAULT_REFINE, locations: isWordsMode(mode) ? [] : undefined });
 
 export const refineOf = (f: JobFilters, sort: JobSort): RefineSettings => ({
   locations: f.locations,

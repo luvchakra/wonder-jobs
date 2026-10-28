@@ -1,7 +1,8 @@
 "use client";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { GitCompareArrows, Search, X } from "lucide-react";
+import { GitCompareArrows, GraduationCap, Search, X } from "lucide-react";
+import { isInternshipSearch } from "@/domain/jobs/findMode";
 import { EmptyState } from "@/components/common/States";
 import type { CanonicalJob, FitLabel, JobMatch } from "@/domain/jobs/types";
 import { useJobsStore } from "@/store/jobs";
@@ -144,21 +145,24 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
   const searchedFor = useJobsStore((s) => s.searchedFor);
   const partTime = !savedOnly && !!effective.skipProfile;
   // Part Time before its first search: the profile's results aren't Part Time's, so it asks for words instead.
-  const partTimeIdle = partTime && !searchedFor && !searching;
+  // Internships before an internships search (Part Time's own words don't count): it asks for words too.
+  const internships = !savedOnly && !!effective.internships;
+  const partTimeIdle = partTime && (!searchedFor || (internships && !isInternshipSearch(searchedFor))) && !searching;
   const summary = useMemo(() => {
     // While a search runs its banner says what's being searched; the jobs arriving under it aren't the last search's.
     if (savedOnly || header || !searched || !results.length || isSearching) return null;
     // Part Time's list is its own words' search: say those words (their places are in them).
     if (partTime && searchedFor) {
       const count = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
-      return `Showing ${results.length.toLocaleString("en-IN")} ${results.length === 1 ? "job" : "jobs"} for “${effective.query.trim() || searchedFor}” from ${count} ${count === 1 ? "source" : "sources"}`;
+      const noun = internships ? (results.length === 1 ? "internship" : "internships") : results.length === 1 ? "job" : "jobs";
+      return `Showing ${results.length.toLocaleString("en-IN")} ${noun} for “${effective.query.trim() || searchedFor}” from ${count} ${count === 1 ? "source" : "sources"}`;
     }
     // Full Time: what is Looking for and where is the Location pill, both just above — the line counts.
     const what = effective.query.trim();
     const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
     const n = results.length.toLocaleString("en-IN");
     return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  }, [savedOnly, header, searched, results, effective.query, jobs, isSearching, partTime, searchedFor]);
+  }, [savedOnly, header, searched, results, effective.query, jobs, isSearching, partTime, internships, searchedFor]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
@@ -195,10 +199,15 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
         className="mb-3"
       />
       {partTimeIdle ? (
-        partTimeMiss ? (
+        // A miss is shown in the mode it was searched in (an Internships search asks for interns by name).
+        partTimeMiss && (!internships || isInternshipSearch(partTimeMiss)) ? (
           <EmptyState icon={<Search className="size-5" aria-hidden />} title={`Nothing found for “${partTimeMiss}”`} body="No source lists that right now. Try other words, or fewer of them." />
         ) : (
-          <EmptyState icon={<Search className="size-5" aria-hidden />} title="Search for part-time work" body="Type the work you want — for example “weekend barista in Pune” or “freelance designer” — and press Search." />
+          internships ? (
+            <EmptyState icon={<GraduationCap className="size-5" aria-hidden />} title="Search for internships" body="Type the field you want to intern in — for example “product design” or “marketing in Bengaluru” — and press Search." />
+          ) : (
+            <EmptyState icon={<Search className="size-5" aria-hidden />} title="Search for part-time work" body="Type the work you want — for example “weekend barista in Pune” or “freelance designer” — and press Search." />
+          )
         )
       ) : results.length === 0 ? (
         searching && !savedOnly ? (

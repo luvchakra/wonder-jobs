@@ -1,5 +1,5 @@
 "use client";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/cn";
 
 export interface TabItem<T extends string> {
@@ -11,6 +11,16 @@ export interface TabItem<T extends string> {
 /** Accessible tab list (roving tabindex). Panels are rendered by the parent. */
 export function Tabs<T extends string>({ value, onChange, items, label, className, variant = "pill" }: { value: T; onChange: (v: T) => void; items: TabItem<T>[]; label: string; className?: string; variant?: "pill" | "underline" }) {
   const id = useId();
+  // The chosen tab is always fully in view: on a phone the row scrolls, and a tab half off the edge ("ications") reads as broken.
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = list.current;
+    const tab = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !tab) return;
+    const left = tab.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+    if (left < row.scrollLeft) row.scrollLeft = Math.max(0, left - 8);
+    else if (left + tab.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + tab.offsetWidth - row.clientWidth + 8;
+  }, [value]);
   const onKey = (e: React.KeyboardEvent, idx: number) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
@@ -19,7 +29,7 @@ export function Tabs<T extends string>({ value, onChange, items, label, classNam
     (document.getElementById(`${id}-${next.value}`) as HTMLButtonElement | null)?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className={cn("flex items-center gap-1 overflow-x-auto wj-scrollbar-none", variant === "underline" && "border-b border-line", className)}>
+    <div ref={list} role="tablist" aria-label={label} className={cn("flex items-center gap-1 overflow-x-auto wj-scrollbar-none", variant === "underline" && "border-b border-line", className)}>
       {items.map((t, i) => {
         const active = t.value === value;
         return (
