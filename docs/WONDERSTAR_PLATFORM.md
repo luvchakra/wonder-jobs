@@ -251,6 +251,10 @@ so the design stays one system: same tokens, one primary action per screen, fold
    module entries from it (today's `UPCOMING_KINDS` become manifests with `status: "soon"`).
    The bottom bar reads the active module's `pipeline` label and icon (Jobs: Pipeline, unchanged); Find, Saved and
    You stay as they are.
+   **Done (WJ-415, 2026-10-28):** `modules/registry.ts` with all eight manifests (Jobs live, the rest soon);
+   `UPCOMING_KINDS` derives from it; the module shell `/app/m/[module]` (Find · Saved · Pipeline · You, from
+   `platform/shell` and module-scoped stores `platform/moduleStore.ts`) shows Coming soon until a module goes live.
+   Jobs' bottom bar is unchanged. Platform `listings`/`responses` tables wait for the module that needs them.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,
    profile snapshots and scorecards (WJ-412) are already shaped this way.
@@ -259,6 +263,8 @@ so the design stays one system: same tokens, one primary action per screen, fold
 4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities: **a separate dataset per
    module** (owner, 2026-10-28). Jobs' sources and listings are `module = 'jobs'` and nothing else ever reads them as
    another module's; each module registers its own sources.
+   **Done (WJ-415, 2026-10-28):** migration 0034; every store read filters by module (default jobs), another
+   module's pool rows are keyed `module:id`, search and the v1 API take `module`; Jobs reads exactly what it did.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
    **Rule (owner, 2026-10-28): the jobs portal stays exactly as it is** (CLAUDE.md). Internships is built as its own
@@ -300,3 +306,7 @@ otherwise.
   "Popular searches" chips from real searches only. Desktop: left rail Explore · Saved · Messages · Profile. Phone:
   top bar with avatar, the logo centred, search and bell. Footer line "More opportunities. A brighter you."
 - **Splash:** the stacked logo and tagline on the indigo→violet gradient.
+- **Done (WJ-415, 2026-10-28):** the section's colour tokens in `globals.css` (`star-purple`, `sky-blue`, `magenta`,
+  `indigo`, `soft-lavender`, `light-blue`, `deep-navy`), the mark drawn inline (`platform/brand/Logo.tsx`), Explore at
+  `/app/m`, tinted tiles from each manifest's `icon` + `accent`, splash on Coming soon. Logo files and Poppins come with
+  the app-wide rebrand. Not yet: Explore's own left rail / top bar (it sits inside the app shell, which is the jobs portal's).

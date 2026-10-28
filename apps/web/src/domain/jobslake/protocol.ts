@@ -5,6 +5,7 @@
  *
  * Pure types and validation only: nothing here fetches, stores or knows about a candidate.
  */
+import type { ModuleId } from "@/modules/registry";
 import type { JobType, JobTypeFrom } from "@/domain/jobs/jobType";
 import type { WorkMode } from "@/domain/jobs/types";
 
@@ -188,6 +189,8 @@ export interface SearchRequest {
   correlationId?: string;
   /** "refresh" asks every source again instead of reusing a recent answer to the same search. Default "use". */
   cache?: "use" | "refresh";
+  /** The WonderStar module's dataset to search (sources and warm pool). Default "jobs". */
+  module?: ModuleId;
 }
 
 export type SourceOutcome = "ok" | "empty" | "needs_setup" | "timeout" | "unavailable" | "skipped";
