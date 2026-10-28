@@ -455,7 +455,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     keywords: ["wonderstar", "module", "modules", "coming soon", "soon", "teaching", "co-founders", "cofounders", "talent", "services", "therapists", "events", "social", "buy", "sell", "rent", "marketplace", "internships", "explore"],
     updated: "2026-10-28",
     body: [
-      "WonderJobs is the first part of WonderStar: one account for finding jobs, internships, teaching work, co-founders, services, therapists, events and things to buy, sell or rent. Jobs works as it always has — Find, Saved, Pipeline and You.",
+      "WonderStar is one account for finding jobs, internships, teaching work, co-founders, services, therapists, events and things to buy, sell or rent. Jobs is open now — Find, Saved, Pipeline and You.",
       "Internships and every other kind will have the same four tabs when it opens: Find, Saved, its own Pipeline (Connections for Co-founders, Bookings for Talent & Services, Sessions for Therapists, My events for Events & Social, Deals for Buy, Sell & Rent) and You. Explore (/app/m) lists every kind as a tile, and its search box searches jobs. Until a kind is ready, its page says “… is coming soon” with Back to Explore, and it's marked Soon on Explore and under Coming soon in Find's menu. Nothing is listed under a kind until a company posts there or a real source brings listings in; until then its Find says No listings yet.",
     ],
   },
