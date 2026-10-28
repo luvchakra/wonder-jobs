@@ -17,7 +17,7 @@ export default async function ModuleLayout({ children, params }: ShellParams & {
   if (m.id === "jobs") return children;
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/app/m" className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-ws-navy/60 hover:text-ws-purple">
+      <Link href="/app/m" className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-deep-navy/60 hover:text-star-purple">
         <ChevronLeft className="size-4" aria-hidden />
         Explore
       </Link>

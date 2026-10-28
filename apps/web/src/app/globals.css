@@ -116,15 +116,14 @@
   --color-info-600: var(--wj-info-600);
   --color-pink-500: var(--wj-pink-500);
 
-  /* WonderStar brand (docs/WONDERSTAR_PLATFORM.md section 9): used only on WonderStar surfaces (/app/m), never on the jobs portal. */
-  --color-ws-purple: #7c3aed;
-  --color-ws-sky: #3b82f6;
-  --color-ws-magenta: #ec4899;
-  --color-ws-indigo: #4f46e5;
-  --color-ws-lavender: #ede9fe;
-  --color-ws-light-blue: #eff6ff;
-  --color-ws-navy: #0f172a;
-  --font-ws: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  /* WonderStar brand colours (docs/WONDERSTAR_PLATFORM.md section 9), named as there. */
+  --color-star-purple: #7c3aed;
+  --color-sky-blue: #3b82f6;
+  --color-magenta: #ec4899;
+  --color-indigo: #4f46e5;
+  --color-soft-lavender: #ede9fe;
+  --color-light-blue: #eff6ff;
+  --color-deep-navy: #0f172a;
 
   --radius-sm: var(--wj-radius-sm);
   --radius-md: var(--wj-radius-md);

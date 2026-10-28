@@ -29,9 +29,9 @@ export function WonderStarMark({ className }: { className?: string }) {
 /** "Wonder" in Deep Navy (white on dark) and "Star" in the violet→blue gradient. */
 export function WonderStarWord({ dark, className }: { dark?: boolean; className?: string }) {
   return (
-    <span className={cn("font-ws font-bold tracking-tight", className)}>
-      <span className={dark ? "text-white" : "text-ws-navy"}>Wonder</span>
-      <span className={cn("bg-clip-text text-transparent", dark ? "bg-linear-to-r from-[#c4b5fd] to-[#93c5fd]" : "bg-linear-to-r from-ws-purple to-ws-sky")}>Star</span>
+    <span className={cn("font-bold tracking-tight", className)}>
+      <span className={dark ? "text-white" : "text-deep-navy"}>Wonder</span>
+      <span className={cn("bg-clip-text text-transparent", dark ? "bg-linear-to-r from-[#c4b5fd] to-[#93c5fd]" : "bg-linear-to-r from-star-purple to-sky-blue")}>Star</span>
     </span>
   );
 }
@@ -51,7 +51,7 @@ export const TAGLINE = ["Discover opportunities.", "Unlock possibilities."] as c
 /** The splash: the stacked logo and tagline on the deep indigo→violet gradient with soft waves. */
 export function WonderStarSplash({ className, children }: { className?: string; children?: React.ReactNode }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-[24px] bg-linear-to-b from-[#1e1b4b] via-ws-indigo to-ws-purple px-6 pb-8 pt-10 text-center text-white", className)}>
+    <div className={cn("relative overflow-hidden rounded-[24px] bg-linear-to-b from-[#1e1b4b] via-indigo to-star-purple px-6 pb-8 pt-10 text-center text-white", className)}>
       <svg aria-hidden viewBox="0 0 400 120" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-0 h-24 w-full opacity-40">
         <path fill="#a855f7" d="M0 70C80 40 160 110 250 80S360 40 400 55V120H0z" />
         <path fill="#c084fc" fillOpacity=".5" d="M0 95C90 70 170 120 260 98S350 75 400 85V120H0z" />
@@ -59,7 +59,7 @@ export function WonderStarSplash({ className, children }: { className?: string; 
       <div className="relative">
         <WonderStarMark className="mx-auto h-14 w-auto" />
         <WonderStarWord dark className="mt-2 block text-3xl" />
-        <p className="mt-2 font-ws text-[10px] uppercase tracking-[0.3em] text-white/85">
+        <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-white/85">
           {TAGLINE[0]}
           <br />
           {TAGLINE[1]}
@@ -71,4 +71,4 @@ export function WonderStarSplash({ className, children }: { className?: string; 
 }
 
 /** The primary action's gradient (Star Purple → Indigo). */
-export const WS_PRIMARY = "bg-linear-to-r from-ws-purple to-ws-indigo text-white shadow-[0_6px_20px_-6px_rgba(124,58,237,0.6)] hover:brightness-110 wj-press";
+export const WS_PRIMARY = "bg-linear-to-r from-star-purple to-indigo text-white shadow-[0_6px_20px_-6px_rgba(124,58,237,0.6)] hover:brightness-110 wj-press";

@@ -6,7 +6,7 @@ const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOp
 
 /** Tile tints from the identity sheet: a soft background with the icon in its stronger shade. */
 export const TINTS: Record<ModuleTint, { tile: string; icon: string; chip: string }> = {
-  lavender: { tile: "bg-ws-lavender", icon: "text-ws-purple", chip: "bg-ws-lavender text-ws-purple" },
+  lavender: { tile: "bg-soft-lavender", icon: "text-star-purple", chip: "bg-soft-lavender text-star-purple" },
   lightblue: { tile: "bg-[#dbeafe]", icon: "text-[#2563eb]", chip: "bg-[#dbeafe] text-[#1d4ed8]" },
   peach: { tile: "bg-[#ffedd5]", icon: "text-[#c2410c]", chip: "bg-[#ffedd5] text-[#c2410c]" },
   mint: { tile: "bg-[#d1fae5]", icon: "text-[#047857]", chip: "bg-[#d1fae5] text-[#047857]" },

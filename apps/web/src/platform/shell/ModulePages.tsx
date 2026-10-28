@@ -17,9 +17,9 @@ export function ModuleComingSoon({ id }: { id: ModuleId }) {
   const m = moduleById(id)!;
   return (
     <WonderStarSplash>
-      <h2 className="mt-8 font-ws text-lg font-semibold">{m.label} is coming soon</h2>
+      <h2 className="mt-8 text-lg font-semibold">{m.label} is coming soon</h2>
       <p className="mt-1 text-sm text-white/80">{m.hint}</p>
-      <Link href="/app/m" className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-semibold text-ws-purple wj-press">
+      <Link href="/app/m" className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-semibold text-star-purple wj-press">
         Back to Explore
       </Link>
     </WonderStarSplash>

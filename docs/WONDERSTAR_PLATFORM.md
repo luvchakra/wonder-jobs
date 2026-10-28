@@ -306,6 +306,7 @@ otherwise.
   "Popular searches" chips from real searches only. Desktop: left rail Explore · Saved · Messages · Profile. Phone:
   top bar with avatar, the logo centred, search and bell. Footer line "More opportunities. A brighter you."
 - **Splash:** the stacked logo and tagline on the indigo→violet gradient.
-- **Done (WJ-415, 2026-10-28):** logo SVGs (`public/brand/wonderstar-*.svg`), `ws-*` tokens and `font-ws` (Poppins) in
-  `globals.css`/`platform/brand/`, Explore at `/app/m`, tinted tiles from each manifest's `icon` + `accent`, splash on
-  Coming soon. Not yet: Explore's own left rail / top bar (it sits inside the app shell, which is the jobs portal's).
+- **Done (WJ-415, 2026-10-28):** the section's colour tokens in `globals.css` (`star-purple`, `sky-blue`, `magenta`,
+  `indigo`, `soft-lavender`, `light-blue`, `deep-navy`), the mark drawn inline (`platform/brand/Logo.tsx`), Explore at
+  `/app/m`, tinted tiles from each manifest's `icon` + `accent`, splash on Coming soon. Logo files and Poppins come with
+  the app-wide rebrand. Not yet: Explore's own left rail / top bar (it sits inside the app shell, which is the jobs portal's).
