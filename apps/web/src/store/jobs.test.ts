@@ -64,6 +64,18 @@ describe("clearing typed words", () => {
     expect(st.restoreBeforeRun("run_1")).toBe(false); // once
   });
 
+  it("Stop doesn't bring back a posting found closed while the search ran, unless it's saved", () => {
+    const s = useJobsStore.getState();
+    s.replaceCatalog([job("a"), job("b"), job("c")]);
+    useJobsStore.setState({ saved: { c: "2026-10-22T00:00:00Z" } });
+    s.keepBeforeRun("run_1");
+    s.replaceCatalog([job("x")], "designer");
+    // The link check finds b and c closed on their own sites before Stop is pressed.
+    useJobsStore.setState({ closed: { b: { at: new Date().toISOString(), reason: "Closed on acme.com" }, c: { at: new Date().toISOString(), reason: "Closed on acme.com" } } });
+    expect(useJobsStore.getState().restoreBeforeRun("run_1")).toBe(true);
+    expect(useJobsStore.getState().order).toEqual(["a", "c"]);
+  });
+
   it("has no Part Time results to bring back before Part Time has searched", () => {
     useJobsStore.getState().replaceCatalog([job("a")]);
     expect(useJobsStore.getState().restoreWordsCatalog()).toBe(false);
