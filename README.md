@@ -1,6 +1,6 @@
 # WonderJobs
 
-<img src="apps/web/public/brand/wonderjobs-lockup-light.png" alt="WonderJobs — Find. Grow. Belong." width="420">
+<img src="apps/web/public/brand/wonderstar-stacked.svg" alt="WonderJobs" width="420">
 
 Your next opportunity is out there. Wonder finds it.
 
@@ -84,15 +84,17 @@ line in the app.
 
 ## Brand assets
 
-`apps/web/public/brand/` holds the logo in the forms the app uses: the full lockup with the tagline, the
-logo without it (navigation), and the butterfly mark on its own. Each comes in a **light** and a **dark**
-variant — the wordmark's neutral grey is invisible on the product's dark surfaces, so `tone="dark"` swaps
-in light ink while keeping the brand purples. `components/brand/WonderLogo.tsx` exposes `WonderMark`,
-`WonderLogo` and `WonderLockup`; the favicon and PWA icons are generated from the mark at request time.
-If the source artwork changes, drop it in and re-run:
+The app wears the WonderStar identity (`docs/brand/wonderstar-identity.png`, `docs/WONDERSTAR_PLATFORM.md` §9).
+`apps/web/public/brand/` holds it as SVG: the mark, the horizontal logo, the stacked logo with the tagline,
+the app icon, and white-on-dark versions of both logos (`tone="dark"`). `components/brand/WonderLogo.tsx`
+exposes `WonderMark`, `WonderLogo` and `WonderLockup`; the favicon and PWA icons are generated from the mark at
+request time. Colours are the tokens at the top of `apps/web/src/app/globals.css`; the type is Poppins
+(`next/font/google`, in `app/layout.tsx`). To change the mark or colours, edit and re-run:
 
 ```bash
-node apps/web/scripts/brand-assets.mjs apps/web/scripts/brand-source.png
+pip install fonttools
+python3 apps/web/scripts/brand-svg.py <dir with Poppins p400.woff and p600.woff>   # the SVGs
+node apps/web/scripts/brand-assets.mjs                                              # the PNGs (email logo, icon mark)
 ```
 
 ## Installing as an app

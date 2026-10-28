@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" width="120" height="100" role="img" aria-label="WonderStar">
+  <defs>
+    <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#4F46E5"/></linearGradient>
+    <linearGradient id="ws-right" x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#EC4899"/></linearGradient>
+    <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C084FC"/><stop offset="1" stop-color="#7C3AED"/></linearGradient>
+    <linearGradient id="ws-word" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#3B82F6"/></linearGradient>
+  </defs>
+  <g stroke-linejoin="round">
+    <path d="M5 22 L24 22 L37 58 L48 36 L63 36 L42 86 L32 86 Z" fill="url(#ws-left)" stroke="url(#ws-left)" stroke-width="5"/>
+    <path d="M48 36 L63 36 L73 58 L90 18 L115 18 L80 86 L69 86 Z" fill="url(#ws-right)" stroke="url(#ws-right)" stroke-width="5" opacity="0.94"/>
+    <path d="M42 2 Q44.2 10.8 53 13 Q44.2 15.2 42 24 Q39.8 15.2 31 13 Q39.8 10.8 42 2 Z" fill="url(#ws-spark)"/>
+  </g>
+</svg>

@@ -13,6 +13,7 @@ WonderJobs today — Find, Saved, Pipeline, You, Hiring, Easy Apply, JobsLake's 
 - **Every other module is separate:** its own routes (`/app/m/<module>`), stores, components, help, tests and data. It may reuse shared platform code (design system, auth, notifications, the AI boundary, `resolveCapability`), but never adds a mode, filter, menu item or field to a jobs screen.
 - **JobsLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
 - The only shared surface is the module switcher (the Find dropdown's module list), which lists modules and links out of Jobs.
+- Exception (owner, 2026-10-28): the WonderStar brand identity (logo, colours, type, icon tiles) applies across the whole app, the jobs portal included.
 
 ## Real data only
 

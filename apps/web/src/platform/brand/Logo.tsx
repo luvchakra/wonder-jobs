@@ -1,27 +1,32 @@
 import { cn } from "@/lib/cn";
 
-/** The WonderStar mark: two violet-to-pink wings forming a W, with a four-point star (same paths as public/brand/). */
+/**
+ * The WonderStar mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
+ * Inline so it needs no request; the paths and gradients are `public/brand/wonderstar-mark.svg`'s
+ * (`scripts/brand-svg.py`) — change them there and copy them here.
+ */
 export function WonderStarMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 64 52" className={className} aria-hidden>
+    <svg viewBox="0 0 120 100" className={className} aria-hidden>
       <defs>
-        <linearGradient id="wsmL" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#6366F1" />
-          <stop offset="1" stopColor="#8B5CF6" />
+        <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stopColor="#8B5CF6" />
+          <stop offset="1" stopColor="#4F46E5" />
         </linearGradient>
-        <linearGradient id="wsmR" x1="1" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#EC4899" />
-          <stop offset="0.55" stopColor="#A855F7" />
-          <stop offset="1" stopColor="#7C3AED" />
-        </linearGradient>
-        <linearGradient id="wsmS" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#A855F7" />
+        <linearGradient id="ws-right" x1="0.2" y1="1" x2="0.8" y2="0">
+          <stop offset="0" stopColor="#7C3AED" />
           <stop offset="1" stopColor="#EC4899" />
         </linearGradient>
+        <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#C084FC" />
+          <stop offset="1" stopColor="#7C3AED" />
+        </linearGradient>
       </defs>
-      <path fill="none" stroke="url(#wsmL)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" d="M7 17 18.5 45 30 17" />
-      <path fill="none" stroke="url(#wsmR)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" strokeOpacity=".94" d="M28 17 39.5 45 57 9" />
-      <path fill="url(#wsmS)" transform="translate(-5 -1)" d="M24 0c.6 4.2 2.4 6 6.6 6.6-4.2.6-6 2.4-6.6 6.6-.6-4.2-2.4-6-6.6-6.6C21.6 6 23.4 4.2 24 0z" />
+      <g strokeLinejoin="round">
+        <path d="M5 22 L24 22 L37 58 L48 36 L63 36 L42 86 L32 86 Z" fill="url(#ws-left)" stroke="url(#ws-left)" strokeWidth="5" />
+        <path d="M48 36 L63 36 L73 58 L90 18 L115 18 L80 86 L69 86 Z" fill="url(#ws-right)" stroke="url(#ws-right)" strokeWidth="5" opacity="0.94" />
+        <path d="M42 2 Q44.2 10.8 53 13 Q44.2 15.2 42 24 Q39.8 15.2 31 13 Q39.8 10.8 42 2 Z" fill="url(#ws-spark)" />
+      </g>
     </svg>
   );
 }
@@ -29,7 +34,7 @@ export function WonderStarMark({ className }: { className?: string }) {
 /** "Wonder" in Deep Navy (white on dark) and "Star" in the violet→blue gradient. */
 export function WonderStarWord({ dark, className }: { dark?: boolean; className?: string }) {
   return (
-    <span className={cn("font-bold tracking-tight", className)}>
+    <span className={cn("font-semibold tracking-tight", className)}>
       <span className={dark ? "text-white" : "text-deep-navy"}>Wonder</span>
       <span className={cn("bg-clip-text text-transparent", dark ? "bg-linear-to-r from-[#c4b5fd] to-[#93c5fd]" : "bg-linear-to-r from-star-purple to-sky-blue")}>Star</span>
     </span>

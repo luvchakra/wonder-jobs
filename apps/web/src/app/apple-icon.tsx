@@ -15,11 +15,11 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(140deg, #1b1740 0%, #14142b 55%, #241c4d 100%)",
+          background: "#0F172A",
         }}
       >
         { }
-        <img src={brandMarkDataUri()} alt="" width={150} height={150} />
+        <img src={brandMarkDataUri()} alt="" width={128} height={128} />
       </div>
     ),
     { ...size },

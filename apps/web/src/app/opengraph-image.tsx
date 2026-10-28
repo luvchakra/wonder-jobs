@@ -21,7 +21,7 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 84,
-          background: "linear-gradient(140deg, #1b1740 0%, #14142b 55%, #241c4d 100%)",
+          background: "linear-gradient(140deg, #1E1B4B 0%, #312E81 55%, #5B21B6 100%)",
           color: "#ffffff",
         }}
       >
@@ -36,7 +36,7 @@ export default function OpengraphImage() {
           <span style={{ marginTop: 26, fontSize: 30, color: "rgba(255,255,255,0.72)" }}>An AI job-search agent that searches real sources and explains every match.</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 26, color: "rgba(255,255,255,0.55)" }}>
-          <span style={{ display: "flex", width: 12, height: 12, borderRadius: 6, background: "#6d4cf5" }} />
+          <span style={{ display: "flex", width: 12, height: 12, borderRadius: 6, background: "#7C3AED" }} />
           jobs.wonderapps.biz
         </div>
       </div>

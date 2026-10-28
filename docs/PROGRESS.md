@@ -532,6 +532,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Internships (WJ-413): a Find mode of its own, internship postings with stipend/duration/start, education in Easy Apply; Talent suggests candidates for a job; Team and tab-row fixes; hydration fix (WJ-412)
 - ✅ Jobs portal kept as it was (rule in CLAUDE.md; Internships moves to its own module); interview invitations reach the app's notifications (WJ-414)
 - ✅ WonderStar core (WJ-415): module registry, /app/m/[module] shell with Coming soon, JobsLake per-module datasets (migration 0034)
+- ✅ WonderStar brand across the whole app: logo, app icons, colours, Poppins, Find menu icon tiles (WJ-416)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

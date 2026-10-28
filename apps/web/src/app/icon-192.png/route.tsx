@@ -14,11 +14,11 @@ export function GET() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(140deg, #1b1740 0%, #14142b 55%, #241c4d 100%)",
+          background: "#0F172A",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={brandMarkDataUri()} alt="" width={158} height={158} />
+        <img src={brandMarkDataUri()} alt="" width={136} height={136} />
       </div>
     ),
     { width: 192, height: 192 },

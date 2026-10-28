@@ -284,19 +284,21 @@ Each step ships as its own PR with tests, help and tracker rows, like every Jobs
 
 ## 9. Brand: WonderStar identity (owner, 2026-10-28)
 
-Reference: `docs/brand/wonderstar-identity.png` (the owner's identity sheet). It applies to **WonderStar's own surfaces** —
-the module shell (`/app/m/<module>`), the Explore hub that lists modules, module pages and the app icon/splash for the
-platform. The jobs portal keeps its current look (CLAUDE.md, "The jobs portal stays as it is") unless the owner says
-otherwise.
+Reference: `docs/brand/wonderstar-identity.png` (the owner's identity sheet). It applies to **the whole app, the jobs
+portal included** (owner, 2026-10-28: "apply the brand to the jobs portal too"; WJ-416) — the module shell, Explore,
+module pages, the app icon/splash, and every jobs screen. Product copy still says "WonderJobs" until the owner decides.
+One set of brand files: the logo SVGs in `public/brand/` (`scripts/brand-svg.py`), the tokens at the top of
+`globals.css` (`--wj-*`, with the sheet's names as `--color-star-purple` etc. pointing at them), Poppins in
+`app/layout.tsx`, and the tile tints in `platform/brand/tiles.tsx`.
 
 - **Logo:** the WonderStar mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderStar" — "Wonder"
   in Deep Navy (white on dark), "Star" in a violet→blue gradient. Variants: primary horizontal, stacked with the
   tagline, app icon (mark on Deep Navy, rounded square). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
   (letter-spaced caps). Recreate as SVG in `public/brand/` — never a raster screenshot of the sheet.
-- **Colours** (as design tokens beside today's, scoped to WonderStar surfaces): Star Purple `#7C3AED`, Sky Blue
+- **Colours** (the app's design tokens): Star Purple `#7C3AED`, Sky Blue
   `#3B82F6`, Magenta `#EC4899`, Indigo `#4F46E5`, Soft Lavender `#EDE9FE`, Light Blue `#EFF6FF`, Deep Navy `#0F172A`.
   Primary action: Star Purple→Indigo gradient; splash/hero: deep indigo→violet with soft waves.
-- **Type:** Poppins (Google Fonts, via `next/font`), for WonderStar surfaces.
+- **Type:** Poppins (Google Fonts, via `next/font`), app-wide.
 - **Icons:** lucide line icons in a soft rounded-square tile tinted per module — Jobs (briefcase, lavender), Part-time
   (clock, light blue), Internships (graduation cap, peach), Teaching (open book, mint), Co-founders (handshake, lavender),
   Talent & Services (people, light blue), Therapists (heart-pulse, lavender), Events & Social (calendar, pink),

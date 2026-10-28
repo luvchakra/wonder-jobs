@@ -1,29 +1,25 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Briefcase, CalendarHeart, Check, ChevronDown, Clock, GraduationCap, Handshake, HeartPulse, School, ShoppingBag, Users } from "lucide-react";
+import { Briefcase, Check, ChevronDown, Clock } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { switchFindMode } from "@/lib/switchFindMode";
-import { UPCOMING_KINDS, type UpcomingKindId } from "@/domain/jobs/upcomingKinds";
+import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 import { toast } from "@/components/feedback/Toast";
+import { ICONS, TINTS } from "@/platform/brand/tiles";
+import { MODULES, type ModuleTint, type UpcomingKindId } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 
-const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefcase }[] = [
-  { mode: "full_time", label: "Full Time Jobs", hint: "Searches your Career Profile", icon: Briefcase },
-  { mode: "part_time", label: "Part Time Jobs", hint: "Searches the words you type", icon: Clock },
+// Each kind's icon sits in its WonderStar tile: a rounded square in the kind's tint (platform/brand/tiles.tsx,
+// docs/WONDERSTAR_PLATFORM.md §9 "Icons").
+const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefcase; tint: ModuleTint }[] = [
+  { mode: "full_time", label: "Full Time Jobs", hint: "Searches your Career Profile", icon: Briefcase, tint: "lavender" },
+  { mode: "part_time", label: "Part Time Jobs", hint: "Searches the words you type", icon: Clock, tint: "lightblue" },
 ];
-// An icon for each coming-soon kind (the labels and lines are in domain/jobs/upcomingKinds.ts).
-const UPCOMING_ICON: Record<UpcomingKindId, typeof Briefcase> = {
-  internships: GraduationCap,
-  teaching: School,
-  cofounders: Handshake,
-  talent_services: Users,
-  therapists: HeartPulse,
-  events_social: CalendarHeart,
-  buy_sell_rent: ShoppingBag,
-};
+// Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
+const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
 const SEEN = "wj.findModeMenuSeen";
 const seen = () => {
   try {
@@ -114,7 +110,7 @@ export function FindModeMenu() {
                 }}
                 className={cn("flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors", on ? "bg-brand-50" : "hover:bg-bg-soft")}
               >
-                <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", on ? "wj-gradient-bg text-white" : "bg-surface-2 text-ink-2")}>
+                <span className={cn("grid size-10 shrink-0 place-items-center rounded-[12px]", on ? "wj-gradient-bg text-white" : `${TINTS[m.tint].tile} ${TINTS[m.tint].icon}`)}>
                   <I className="size-[18px]" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -131,10 +127,10 @@ export function FindModeMenu() {
               <div className="mx-2 mb-1 mt-1.5 border-t border-line" />
               <p className="px-2.5 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-4">Coming soon</p>
               {upcoming.map((k) => {
-                const I = UPCOMING_ICON[k.id];
+                const { icon: I, tint } = UPCOMING_ICON[k.id];
                 return (
                   <button key={k.id} type="button" role="menuitem" aria-disabled="true" onClick={() => toast.info(`${k.label} is coming soon`)} className="flex w-full cursor-default items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left opacity-70">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-3">
+                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", TINTS[tint].tile, TINTS[tint].icon)}>
                       <I className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">

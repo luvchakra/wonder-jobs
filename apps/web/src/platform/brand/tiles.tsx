@@ -2,7 +2,7 @@ import { BookOpen, Briefcase, CalendarDays, GraduationCap, Handshake, HeartPulse
 import type { ModuleIcon, ModuleManifest, ModuleTint } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 
-const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOpen, Handshake, Users, HeartPulse, CalendarDays, Store };
+export const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOpen, Handshake, Users, HeartPulse, CalendarDays, Store };
 
 /** Tile tints from the identity sheet: a soft background with the icon in its stronger shade. */
 export const TINTS: Record<ModuleTint, { tile: string; icon: string; chip: string }> = {

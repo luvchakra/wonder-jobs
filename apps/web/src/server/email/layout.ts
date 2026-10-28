@@ -23,9 +23,9 @@ export const EMAIL_GRADIENT = "linear-gradient(135deg,#6d4cf5 0%,#7c5cff 55%,#a6
 export const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 /** The wordmark PNG the app header uses (`components/brand/WonderLogo.tsx`), 527×96 — shown at 32px tall. */
-export const EMAIL_LOGO_PATH = "/brand/wonderjobs-logo-light.png";
+export const EMAIL_LOGO_PATH = "/brand/wonderstar-logo.png";
 const LOGO_HEIGHT = 32;
-const LOGO_WIDTH = Math.round((527 / 96) * LOGO_HEIGHT);
+const LOGO_WIDTH = Math.round((638 / 100) * LOGO_HEIGHT);
 
 export const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 

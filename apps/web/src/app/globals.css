@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   WonderJobs design tokens
-   Refined purple/indigo identity, near-white surfaces, thin borders, soft
-   shadows. Every screen (product + marketing) consumes these tokens only.
+   WonderJobs design tokens — the WonderStar identity (docs/WONDERSTAR_PLATFORM.md §9,
+   docs/brand/wonderstar-identity.png): Star Purple brand scale, Indigo/Sky Blue/Magenta
+   accents, Deep Navy ink, near-white surfaces, thin borders, soft shadows. Every screen
+   (product + marketing) consumes these tokens only.
    ------------------------------------------------------------------------ */
 :root {
   /* surfaces */
@@ -16,29 +17,31 @@
   --wj-line-strong: #d6d8ea;
 
   /* ink */
-  --wj-ink: #14142b;
+  --wj-ink: #0f172a; /* Deep Navy */
   --wj-ink-2: #3f4160;
   --wj-ink-3: #6b6d8a;
   --wj-ink-4: #6c6e94; /* darkened from #9a9bb5 (2.72:1 on white) to clear WCAG AA 4.5:1 on both white and --wj-surface-2 */
 
   /* brand */
-  --wj-brand-50: #f1efff;
-  --wj-brand-100: #e4e0ff;
-  --wj-brand-200: #cbc3ff;
-  --wj-brand-300: #aa9dff;
-  --wj-brand-400: #8c78ff;
-  --wj-brand-500: #6d4cf5;
-  --wj-brand-600: #5b3ae0;
-  --wj-brand-700: #4b2ec2;
-  --wj-brand-800: #3c259b;
-  --wj-brand-900: #2e1d78;
+  --wj-brand-50: #f5f3ff;
+  --wj-brand-100: #ede9fe; /* Soft Lavender */
+  --wj-brand-200: #d6ccfe;
+  --wj-brand-300: #b9a5fc;
+  --wj-brand-400: #9b6ff7;
+  --wj-brand-500: #7c3aed; /* Star Purple — primary */
+  --wj-brand-600: #6d28d9;
+  --wj-brand-700: #5b21b6;
+  --wj-brand-800: #4c1d95;
+  --wj-brand-900: #2e1065;
+  --wj-indigo-500: #4f46e5; /* Indigo */
+  --wj-light-blue: #eff6ff; /* Light Blue */
 
   /* accents. The -600 shade of each is darkened just enough to clear WCAG AA
      (4.5:1) against its own -100 background — axe-core caught these
      (scripts/a11y-audit.mjs); the -100/-500 tones are unchanged. */
-  --wj-blue-100: #e3ecff;
-  --wj-blue-500: #3b7bff;
-  --wj-blue-600: #2b63d8;
+  --wj-blue-100: #dbeafe;
+  --wj-blue-500: #3b82f6; /* Sky Blue */
+  --wj-blue-600: #1d4ed8;
   --wj-success-100: #e2f7ec;
   --wj-success-600: #187c4e;
   --wj-warning-100: #fff3d6;
@@ -47,18 +50,19 @@
   --wj-danger-600: #c52c45;
   --wj-info-100: #e8f3ff;
   --wj-info-600: #286ace;
-  --wj-pink-500: #c26ef5;
+  --wj-pink-500: #ec4899; /* Magenta */
 
   /* gradients */
-  --wj-gradient-brand: linear-gradient(135deg, #6d4cf5 0%, #7c5cff 55%, #a66bff 100%);
-  --wj-gradient-text: linear-gradient(90deg, #4f7cff 0%, #6d4cf5 55%, #c26ef5 100%);
+  /* primary: Star Purple → Indigo; text: Star Purple → Sky Blue, as in the wordmark's "Star" */
+  --wj-gradient-brand: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  --wj-gradient-text: linear-gradient(90deg, #7c3aed 0%, #4f46e5 50%, #3b82f6 100%);
 
   /* elevation */
-  --wj-shadow-xs: 0 1px 2px rgba(20, 20, 43, 0.04);
-  --wj-shadow-sm: 0 2px 8px rgba(20, 20, 43, 0.06);
-  --wj-shadow-md: 0 8px 24px rgba(20, 20, 43, 0.08);
-  --wj-shadow-lg: 0 20px 48px rgba(20, 20, 43, 0.12);
-  --wj-shadow-brand: 0 10px 30px rgba(109, 76, 245, 0.28);
+  --wj-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --wj-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --wj-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --wj-shadow-lg: 0 20px 48px rgba(15, 23, 42, 0.12);
+  --wj-shadow-brand: 0 10px 30px rgba(124, 58, 237, 0.28);
 
   /* radius */
   --wj-radius-sm: 10px;
@@ -117,13 +121,13 @@
   --color-pink-500: var(--wj-pink-500);
 
   /* WonderStar brand colours (docs/WONDERSTAR_PLATFORM.md section 9), named as there. */
-  --color-star-purple: #7c3aed;
-  --color-sky-blue: #3b82f6;
-  --color-magenta: #ec4899;
-  --color-indigo: #4f46e5;
-  --color-soft-lavender: #ede9fe;
-  --color-light-blue: #eff6ff;
-  --color-deep-navy: #0f172a;
+  --color-star-purple: var(--wj-brand-500);
+  --color-sky-blue: var(--wj-blue-500);
+  --color-magenta: var(--wj-pink-500);
+  --color-indigo: var(--wj-indigo-500);
+  --color-soft-lavender: var(--wj-brand-100);
+  --color-light-blue: var(--wj-light-blue);
+  --color-deep-navy: var(--wj-ink);
 
   --radius-sm: var(--wj-radius-sm);
   --radius-md: var(--wj-radius-md);
@@ -138,7 +142,7 @@
   --shadow-lg: var(--wj-shadow-lg);
   --shadow-brand: var(--wj-shadow-brand);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --ease-out-soft: var(--wj-ease);
