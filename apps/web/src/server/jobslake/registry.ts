@@ -17,7 +17,8 @@ import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
 import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured, type CustomFetchResult } from "./custom";
 import { readCredential } from "./credentials";
 import { fixtureJobs, fixtureJobsOn } from "./e2eFixture";
-import { jobsLakeStore } from "./store";
+import { jobsLakeStore, sourceModule } from "./store";
+import type { ModuleId } from "@/modules/registry";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
@@ -25,7 +26,7 @@ const ATS_CAPS = ["Search", "Job details", "Freshness", "Employer identity", "Ap
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
 
 function builtin(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | "accessStrategy" | "geography" | "description" | "capabilities"> & Partial<SourceRecord>): SourceRecord {
-  return { protocolVersion: PROTOCOL_VERSION, status: "active", roleFamilies: [], config: { kind: "builtin" }, limits: DEFAULT_LIMITS, builtin: true, createdAt: EPOCH, updatedAt: EPOCH, ...p };
+  return { protocolVersion: PROTOCOL_VERSION, status: "active", roleFamilies: [], config: { kind: "builtin" }, limits: DEFAULT_LIMITS, builtin: true, createdAt: EPOCH, updatedAt: EPOCH, module: "jobs", ...p };
 }
 
 const boardsOf = (ats: "greenhouse" | "lever" | "ashby"): AtsBoard[] => CAREER_BOARDS.filter((b) => b.ats === ats).map((b) => ({ platform: b.ats, slug: b.slug, company: b.company, domain: b.domain }));
@@ -61,11 +62,14 @@ export const PARTNERSHIP_SOURCES: SourceRecord[] = PARTNER_PRESETS.map((p) =>
   builtin({ id: `partner_${p.id}`, name: p.name, provider: p.name, category: "portal", accessStrategy: "partner_api", geography: p.geography, capabilities: ["Search", "Apply URL"], status: "do_not_use", statusReason: PARTNER_STATUS_REASON, config: { kind: "partnership", partner: p.id }, description: `${p.name} jobs through a ${p.name} partnership or data-licensing agreement.` }),
 );
 
-/** Every source JobsLake knows: built-ins (with any admin status override), admin-added, partnership. */
-export async function listSources(): Promise<SourceRecord[]> {
-  const stored = await jobsLakeStore().listSources();
+/**
+ * Every source JobsLake knows for one module's dataset (default Jobs): built-ins (with any admin status override),
+ * admin-added, partnership. A module's search only ever asks its own sources.
+ */
+export async function listSources(module: ModuleId = "jobs"): Promise<SourceRecord[]> {
+  const stored = await jobsLakeStore().listSources(module);
   const byId = new Map(stored.map((s) => [s.id, s]));
-  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].map((b) => {
+  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
     const o = byId.get(b.id);
     if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.

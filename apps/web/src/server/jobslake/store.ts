@@ -4,12 +4,26 @@
  * If Supabase is configured but migration 0007 hasn't been applied, the store falls back to memory
  * and `status()` says so — the admin portal shows it, so nobody mistakes an in-memory history that
  * resets on restart for durable storage.
+ *
+ * Each module has its own dataset (WonderStar, migration 0033): sources and warm-pool postings carry a `module`, and
+ * every read filters by it — defaulting to "jobs" — so Jobs never sees another module's rows and no module sees Jobs'.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { SourceRun } from "@/domain/jobslake/health";
 import { getSupabaseAdmin } from "@/server/supabase";
 import type { Job } from "@/domain/jobs/types";
 import type { AuditEvent, SourceRecord, StoredCredential } from "./types";
+import type { ModuleId } from "@/modules/registry";
+
+/** The dataset a source or a posting belongs to (migration 0033). Every read and write names one; Jobs is the default. */
+export const sourceModule = (s: Pick<SourceRecord, "module">): ModuleId => s.module ?? "jobs";
+
+/**
+ * A warm-pool row's key. Jobs' rows keep the posting's own id (unchanged); another module's are prefixed with the
+ * module, so the same posting seen by two modules is two rows and one module's write can never move or overwrite
+ * a Jobs row (the table's primary key is still the id alone).
+ */
+export const opportunityRowId = (module: ModuleId, id: string) => (module === "jobs" ? id : `${module}:${id}`);
 
 /** One source's answer to one search, as the search cache keeps it (domain/jobslake/cache.ts). */
 export interface CachedAnswer {
@@ -31,7 +45,7 @@ export interface StoreStatus {
 
 export interface JobsLakeStore {
   status(): Promise<StoreStatus>;
-  listSources(): Promise<SourceRecord[]>;
+  listSources(module?: ModuleId): Promise<SourceRecord[]>;
   putSource(rec: SourceRecord): Promise<void>;
   deleteSource(id: string): Promise<void>;
   recordRuns(runs: SourceRun[]): Promise<void>;
@@ -42,9 +56,9 @@ export interface JobsLakeStore {
   putCredential(c: StoredCredential): Promise<void>;
   getCredential(ref: string): Promise<StoredCredential | undefined>;
   deleteCredential(ref: string): Promise<void>;
-  upsertOpportunities(opps: CanonicalOpportunity[]): Promise<void>;
-  getOpportunity(id: string): Promise<CanonicalOpportunity | undefined>;
-  listOpportunities(opts?: { limit?: number; sinceIso?: string }): Promise<CanonicalOpportunity[]>;
+  upsertOpportunities(opps: CanonicalOpportunity[], module?: ModuleId): Promise<void>;
+  getOpportunity(id: string, module?: ModuleId): Promise<CanonicalOpportunity | undefined>;
+  listOpportunities(opts?: { limit?: number; sinceIso?: string; module?: ModuleId }): Promise<CanonicalOpportunity[]>;
   getCachedAnswers(keys: string[]): Promise<CachedAnswer[]>;
   putCachedAnswers(entries: CachedAnswer[]): Promise<void>;
   /** Drops answers fetched before `beforeIso`; returns how many. */
@@ -58,14 +72,20 @@ class MemoryStore implements JobsLakeStore {
   runs: RunRow[] = [];
   audit: AuditEvent[] = [];
   creds = new Map<string, StoredCredential>();
-  opps = new Map<string, CanonicalOpportunity>();
+  /** module → id → posting. */
+  pools = new Map<ModuleId, Map<string, CanonicalOpportunity>>();
+  private pool(module: ModuleId) {
+    let p = this.pools.get(module);
+    if (!p) this.pools.set(module, (p = new Map()));
+    return p;
+  }
   answers = new Map<string, CachedAnswer>();
   constructor(private reason = "No database configured — JobsLake history is kept in memory and resets when the server restarts.") {}
   async status(): Promise<StoreStatus> {
     return { backend: "memory", durable: false, message: this.reason };
   }
-  async listSources() {
-    return [...this.sources.values()];
+  async listSources(module: ModuleId = "jobs") {
+    return [...this.sources.values()].filter((s) => sourceModule(s) === module);
   }
   async putSource(rec: SourceRecord) {
     this.sources.set(rec.id, structuredClone(rec));
@@ -99,18 +119,20 @@ class MemoryStore implements JobsLakeStore {
   async deleteCredential(ref: string) {
     this.creds.delete(ref);
   }
-  async upsertOpportunities(opps: CanonicalOpportunity[]) {
-    for (const o of opps) this.opps.set(o.id, o);
-    if (this.opps.size > 20_000) {
-      const oldest = [...this.opps.values()].sort((a, b) => a.freshness.lastObservedAt.localeCompare(b.freshness.lastObservedAt)).slice(0, this.opps.size - 20_000);
-      for (const o of oldest) this.opps.delete(o.id);
+  async upsertOpportunities(opps: CanonicalOpportunity[], module: ModuleId = "jobs") {
+    const pool = this.pool(module);
+    for (const o of opps) pool.set(o.id, o);
+    if (pool.size > 20_000) {
+      const oldest = [...pool.values()].sort((a, b) => a.freshness.lastObservedAt.localeCompare(b.freshness.lastObservedAt)).slice(0, pool.size - 20_000);
+      for (const o of oldest) pool.delete(o.id);
     }
   }
-  async getOpportunity(id: string) {
-    return this.opps.get(id) ?? [...this.opps.values()].find((o) => o.sourceRecords.some((r) => r.legacyJobId === id));
+  async getOpportunity(id: string, module: ModuleId = "jobs") {
+    const pool = this.pool(module);
+    return pool.get(id) ?? [...pool.values()].find((o) => o.sourceRecords.some((r) => r.legacyJobId === id));
   }
-  async listOpportunities(opts: { limit?: number; sinceIso?: string } = {}) {
-    return [...this.opps.values()]
+  async listOpportunities(opts: { limit?: number; sinceIso?: string; module?: ModuleId } = {}) {
+    return [...this.pool(opts.module ?? "jobs").values()]
       .filter((o) => !opts.sinceIso || o.freshness.lastObservedAt >= opts.sinceIso)
       .sort((a, b) => b.freshness.lastObservedAt.localeCompare(a.freshness.lastObservedAt))
       .slice(0, opts.limit ?? 500);
@@ -161,17 +183,17 @@ class SupabaseStore implements JobsLakeStore {
     const fb = await this.ready();
     return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderJobs database." };
   }
-  async listSources() {
+  async listSources(module: ModuleId = "jobs") {
     const fb = await this.ready();
-    if (fb) return fb.listSources();
-    const { data, error } = await this.sb().from("jobslake_sources").select("record");
+    if (fb) return fb.listSources(module);
+    const { data, error } = await this.sb().from("jobslake_sources").select("record").eq("module", module);
     if (error) this.fail("load sources", error);
     return (data ?? []).map((r) => r.record as SourceRecord);
   }
   async putSource(rec: SourceRecord) {
     const fb = await this.ready();
     if (fb) return fb.putSource(rec);
-    const { error } = await this.sb().from("jobslake_sources").upsert({ id: rec.id, record: rec, status: rec.status, updated_at: new Date().toISOString() });
+    const { error } = await this.sb().from("jobslake_sources").upsert({ id: rec.id, record: rec, status: rec.status, module: sourceModule(rec), updated_at: new Date().toISOString() });
     if (error) this.fail("save the source", error);
   }
   async deleteSource(id: string) {
@@ -240,30 +262,30 @@ class SupabaseStore implements JobsLakeStore {
     const { error } = await this.sb().from("jobslake_credentials").delete().eq("ref", ref);
     if (error) this.fail("delete the credential", error);
   }
-  async upsertOpportunities(opps: CanonicalOpportunity[]) {
+  async upsertOpportunities(opps: CanonicalOpportunity[], module: ModuleId = "jobs") {
     const fb = await this.ready();
-    if (fb) return fb.upsertOpportunities(opps);
+    if (fb) return fb.upsertOpportunities(opps, module);
     for (let i = 0; i < opps.length; i += 200) {
-      const rows = opps.slice(i, i + 200).map((o) => ({ id: o.id, data: o, employer: o.employer.name, title: o.title, posted_at: o.postedAt, last_observed_at: o.freshness.lastObservedAt }));
+      const rows = opps.slice(i, i + 200).map((o) => ({ id: opportunityRowId(module, o.id), data: o, employer: o.employer.name, title: o.title, posted_at: o.postedAt, last_observed_at: o.freshness.lastObservedAt, module }));
       const { error } = await this.sb().from("jobslake_opportunities").upsert(rows);
       if (error) this.fail("update the warm pool", error);
     }
   }
-  async getOpportunity(id: string) {
+  async getOpportunity(id: string, module: ModuleId = "jobs") {
     const fb = await this.ready();
-    if (fb) return fb.getOpportunity(id);
-    const { data, error } = await this.sb().from("jobslake_opportunities").select("data").eq("id", id).maybeSingle();
+    if (fb) return fb.getOpportunity(id, module);
+    const { data, error } = await this.sb().from("jobslake_opportunities").select("data").eq("id", opportunityRowId(module, id)).eq("module", module).maybeSingle();
     if (error) this.fail("load the opportunity", error);
     if (data) return data.data as CanonicalOpportunity;
     // A legacy WonderJobs job id: look for the opportunity whose source records carry it.
-    const { data: byLegacy, error: e2 } = await this.sb().from("jobslake_opportunities").select("data").contains("data", { sourceRecords: [{ legacyJobId: id }] }).limit(1);
+    const { data: byLegacy, error: e2 } = await this.sb().from("jobslake_opportunities").select("data").eq("module", module).contains("data", { sourceRecords: [{ legacyJobId: id }] }).limit(1);
     if (e2) this.fail("load the opportunity", e2);
     return (byLegacy?.[0]?.data as CanonicalOpportunity | undefined) ?? undefined;
   }
-  async listOpportunities(opts: { limit?: number; sinceIso?: string } = {}) {
+  async listOpportunities(opts: { limit?: number; sinceIso?: string; module?: ModuleId } = {}) {
     const fb = await this.ready();
     if (fb) return fb.listOpportunities(opts);
-    let q = this.sb().from("jobslake_opportunities").select("data").order("last_observed_at", { ascending: false }).limit(opts.limit ?? 500);
+    let q = this.sb().from("jobslake_opportunities").select("data").eq("module", opts.module ?? "jobs").order("last_observed_at", { ascending: false }).limit(opts.limit ?? 500);
     if (opts.sinceIso) q = q.gte("last_observed_at", opts.sinceIso);
     const { data, error } = await q;
     if (error) this.fail("load the warm pool", error);

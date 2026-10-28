@@ -3,6 +3,7 @@
  * separate search logic"). Each takes an already-authorized caller and returns either a value or a
  * protocol error body; the adapters only translate transport.
  */
+import { MODULE_IDS, type ModuleId } from "@/modules/registry";
 import { JOB_TYPES, type JobType } from "@/domain/jobs/jobType";
 import { z } from "zod";
 import type { CanonicalOpportunity, ErrorBody, SearchEvent, SearchRequest, SearchResponse } from "@/domain/jobslake/protocol";
@@ -45,6 +46,7 @@ export const SearchRequestSchema = z.object({
   limit: z.number().int().min(1).max(500).default(100),
   correlationId: z.string().max(80).optional(),
   cache: z.enum(["use", "refresh"]).optional(),
+  module: z.enum(MODULE_IDS).optional(),
 });
 
 /**
@@ -119,7 +121,7 @@ export async function admitSearch(caller: Caller, req: SearchRequest): Promise<R
   if (!gate.ok) return gate;
   if (caller.kind !== "developer") return { ok: true, value: {} };
   await loadApiPlan();
-  const onlySources = developerSources(req.sourceIds, await listSources());
+  const onlySources = developerSources(req.sourceIds, await listSources(req.module));
   if (!onlySources.length) return err(400, "INVALID_REQUEST", `None of the requested sources are available to API keys. API keys can search: ${apiSourceIds().join(", ")}.`);
   const charge = await chargeUnits(caller.ownerId, 1);
   if (!charge.ok) return err(charge.status, charge.code, charge.message);
@@ -147,12 +149,12 @@ export async function runSearch(caller: Caller, req: SearchRequest, opts: Omit<S
 /* --------------------------------------------------------- opportunities */
 
 /** One opportunity. Free for an API key (still rate-limited), and only from sources a key may reach. */
-export async function getOpportunity(id: string, caller?: Caller): Promise<Result<CanonicalOpportunity>> {
+export async function getOpportunity(id: string, caller?: Caller, module: ModuleId = "jobs"): Promise<Result<CanonicalOpportunity>> {
   if (!jobsLakeFlags().jobsLakeEnabled) return err(404, "FEATURE_DISABLED", "JobsLake is turned off.");
   if (!/^[\w.:-]{1,200}$/.test(id)) return err(400, "INVALID_REQUEST", "Invalid opportunity id.");
   if (caller?.kind === "developer" && !keyLimit(caller.keyId).ok) return err(429, "RATE_LIMITED", "Too many requests for this API key. Try again shortly.");
   const notFound = err(404, "NOT_FOUND", "No such opportunity in JobsLake. It may not have been seen in a recent search.");
-  const o = await jobsLakeStore().getOpportunity(id);
+  const o = await jobsLakeStore().getOpportunity(id, module);
   if (!o) return notFound;
   if (caller?.kind !== "developer") return { ok: true, value: o };
   await loadApiPlan();

@@ -42,7 +42,7 @@ def text_path(font, text, x, baseline, size, tracking=0.0):
 
 def defs(white):
     # "Star" runs violet→blue; on dark surfaces both stops lift so the word keeps its contrast.
-    star_a, star_b = ("#A78BFA", "#60A5FA") if white else (STAR_PURPLE, SKY_BLUE)
+    star_a, star_b = ("#C4B5FD", "#93C5FD") if white else (STAR_PURPLE, SKY_BLUE)
     return f"""<defs>
     <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="{INDIGO}"/></linearGradient>
     <linearGradient id="ws-right" x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0" stop-color="{STAR_PURPLE}"/><stop offset="1" stop-color="{MAGENTA}"/></linearGradient>

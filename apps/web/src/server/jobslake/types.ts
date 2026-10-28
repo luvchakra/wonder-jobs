@@ -1,3 +1,4 @@
+import type { ModuleId } from "@/modules/registry";
 import type { AccessStrategy, JobSourceDescriptor, SourceCategory, SourceStatus } from "@/domain/jobslake/protocol";
 import type { JobType } from "@/domain/jobs/jobType";
 import type { AtsPlatform } from "@/domain/jobslake/detect";
@@ -82,6 +83,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   paid?: boolean;
   /** Lists only these job types (a part-time or gig board): planned after the general sources unless the search asks for one of them. */
   jobTypes?: JobType[];
+  /** The WonderStar module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */
+  module?: ModuleId;
 }
 
 export interface AuditEvent {

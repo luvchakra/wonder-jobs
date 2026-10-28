@@ -119,8 +119,15 @@
   --color-info-100: var(--wj-info-100);
   --color-info-600: var(--wj-info-600);
   --color-pink-500: var(--wj-pink-500);
-  --color-indigo-500: var(--wj-indigo-500);
+
+  /* WonderStar brand colours (docs/WONDERSTAR_PLATFORM.md section 9), named as there. */
+  --color-star-purple: var(--wj-brand-500);
+  --color-sky-blue: var(--wj-blue-500);
+  --color-magenta: var(--wj-pink-500);
+  --color-indigo: var(--wj-indigo-500);
+  --color-soft-lavender: var(--wj-brand-100);
   --color-light-blue: var(--wj-light-blue);
+  --color-deep-navy: var(--wj-ink);
 
   --radius-sm: var(--wj-radius-sm);
   --radius-md: var(--wj-radius-md);
@@ -214,13 +221,6 @@
     background-clip: text;
     color: transparent;
   }
-  /* Icon tiles: a lucide line icon in a rounded square tinted per kind/module (WonderStar sheet, "Icon Style").
-     Each icon colour clears 3:1 (non-text, WCAG 1.4.11) on its tint. */
-  .wj-tile-lavender { background: var(--wj-brand-100); color: var(--wj-brand-600); }
-  .wj-tile-blue { background: var(--wj-light-blue); color: var(--wj-blue-600); }
-  .wj-tile-peach { background: #ffedd5; color: #c2410c; }
-  .wj-tile-mint { background: #dcfce7; color: #15803d; }
-  .wj-tile-pink { background: #fce7f3; color: #be185d; }
   .wj-gradient-bg {
     background: var(--wj-gradient-brand);
   }
