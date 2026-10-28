@@ -1,3 +1,4 @@
+import type { ApplicantProfile } from "./review";
 /**
  * Career sites and applications (owner, 2026-10-21). A hiring workspace publishes jobs on outside career pages
  * (WonderID's landing page first, other apps later); applicants apply there, and WonderJobs runs the rest. This
@@ -65,6 +66,10 @@ export interface Application {
   /** "wonderjobs": sent with Easy Apply from a WonderJobs listing, with the résumé file attached. */
   via?: "site" | "wonderjobs";
   coverNote: string;
+  /** Answers to the job's screening questions, by question id. */
+  answers?: Record<string, string>;
+  /** What an Easy Apply applicant shared from their Career Profile. */
+  profile?: ApplicantProfile;
   status: ApplicationStatus;
   createdAt: string;
   updatedAt: string;

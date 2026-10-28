@@ -12,14 +12,21 @@ import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { jobProblem, MIN_DESCRIPTION } from "@/domain/org/jobs";
+import { Fold } from "@/components/common/Fold";
+import { ScreeningEditor } from "./ScreeningEditor";
 
 const STATUS_TONE = { draft: "neutral", open: "success", closed: "warning" } as const;
 const STATUS_LABEL = { draft: "Draft", open: "Open", closed: "Closed" } as const;
-const EMPTY: JobInput = { title: "", location: "", workMode: "hybrid", jobType: "full_time", currency: "INR", description: "", skills: [], applyUrl: "" };
+const EMPTY: JobInput = { title: "", location: "", workMode: "hybrid", jobType: "full_time", currency: "INR", description: "", skills: [], applyUrl: "", screening: [] };
 
-/** The workspace's job listings: post one, edit it, open it to job seekers or close it, and show it on career sites. */
-export function JobsTab({ orgId, canEdit, canManage }: { orgId: string; canEdit: boolean; canManage: boolean }) {
+/**
+ * The workspace's job listings: post one, edit it, open it to job seekers or close it, and show it on career sites.
+ * Each job says how many have applied and how many are new; tapping that opens its applicants (`onApplicants`).
+ */
+export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: string; canEdit: boolean; canManage: boolean; onApplicants?: (jobId: string) => void }) {
   const [jobs, setJobs] = useState<EmployerJob[] | null>(null);
+  const [counts, setCounts] = useState<Record<string, { all: number; fresh: number }>>({});
+  const wantCounts = !!onApplicants;
   const [sites, setSites] = useState<{ sites: CareerSite[]; links: { siteId: string; jobId: string }[] }>({ sites: [], links: [] });
   const [editing, setEditing] = useState<{ id?: string; job: JobInput } | null>(null);
   const load = useCallback(() => {
@@ -32,7 +39,22 @@ export function JobsTab({ orgId, canEdit, canManage }: { orgId: string; canEdit:
       .sites(orgId)
       .then(setSites)
       .catch(() => setSites({ sites: [], links: [] }));
-  }, [orgId]);
+    // Applicant counts, where the role may see applications; without them the jobs still show.
+    if (wantCounts)
+      hiringApi
+        .applications(orgId)
+        .then((d) => {
+          const c: Record<string, { all: number; fresh: number }> = {};
+          for (const a of d.applications) {
+            if (a.status === "withdrawn") continue;
+            const x = (c[a.jobId] ??= { all: 0, fresh: 0 });
+            x.all++;
+            if (a.status === "new") x.fresh++;
+          }
+          setCounts(c);
+        })
+        .catch(() => setCounts({}));
+  }, [orgId, wantCounts]);
   useEffect(load, [load]);
 
   const linked = (siteId: string, jobId: string) => sites.links.some((l) => l.siteId === siteId && l.jobId === jobId);
@@ -76,6 +98,12 @@ export function JobsTab({ orgId, canEdit, canManage }: { orgId: string; canEdit:
               <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                 <p className="truncate text-[15px] font-semibold text-ink">{j.title}</p>
                 <p className="truncate text-[12px] text-ink-3">{[j.location, j.workMode, formatSalaryRange(j.salaryMin, j.salaryMax, j.currency), `updated ${relativeTime(j.updatedAt)}`].filter(Boolean).join(" · ")}</p>
+                {onApplicants && counts[j.id] && (
+                  <button type="button" onClick={() => onApplicants(j.id)} className="mt-0.5 min-h-8 text-[12.5px] font-medium text-brand-600 hover:underline">
+                    {counts[j.id].all} {counts[j.id].all === 1 ? "applicant" : "applicants"}
+                    {counts[j.id].fresh ? ` · ${counts[j.id].fresh} new` : ""}
+                  </button>
+                )}
                 {sites.sites.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                     {sites.sites.map((site) => (
@@ -90,7 +118,7 @@ export function JobsTab({ orgId, canEdit, canManage }: { orgId: string; canEdit:
               <Badge tone={STATUS_TONE[j.status]}>{STATUS_LABEL[j.status]}</Badge>
               {canEdit && (
                 <div className="flex gap-3 text-[13px] font-medium">
-                  <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setEditing({ id: j.id, job: { title: j.title, location: j.location, workMode: j.workMode, jobType: j.jobType, salaryMin: j.salaryMin, salaryMax: j.salaryMax, currency: j.currency, description: j.description, skills: j.skills, applyUrl: j.applyUrl } })}>
+                  <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setEditing({ id: j.id, job: { title: j.title, location: j.location, workMode: j.workMode, jobType: j.jobType, salaryMin: j.salaryMin, salaryMax: j.salaryMax, currency: j.currency, description: j.description, skills: j.skills, applyUrl: j.applyUrl, screening: j.screening ?? [] } })}>
                     Edit
                   </button>
                   {j.status !== "open" ? (
@@ -203,6 +231,10 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
           <Input id="ja" value={j.applyUrl} onChange={(e) => set({ applyUrl: e.target.value })} maxLength={500} placeholder="https://company.com/careers/platform-engineer" />
         </Field>
       </div>
+      <Fold title="Screening questions" hint={j.screening.length ? `${j.screening.length} asked of every applicant` : "Optional: up to 5, answered with Easy Apply"} open={j.screening.length > 0} className="mt-3 border border-line shadow-none">
+        <ScreeningEditor value={j.screening} onChange={(screening) => set({ screening })} />
+      </Fold>
+
     </Modal>
   );
 }

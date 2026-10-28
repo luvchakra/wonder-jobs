@@ -23,6 +23,7 @@ export const CAPABILITIES = [
   "fill_declarations",
   "fill_government_ids",
   "final_submit",
+  "easy_apply",
   "send_email",
   "change_career_dna",
   "change_search_preferences",
@@ -77,6 +78,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   fill_declarations: { key: "fill_declarations", label: "Answer legal declarations", description: "Criminal-record questions with your saved answer, and tick the form's consent and agree boxes. Never a signature. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   fill_government_ids: { key: "fill_government_ids", label: "Enter ID numbers", description: "PAN, Aadhaar, passport and similar numbers you saved — stored encrypted, shown only masked. Off unless you turn it on.", risk: "medium", external: false, default: "off" },
   final_submit: { key: "final_submit", label: "Submit applications", description: "Press the employer's final Submit button for you, once every required field holds your own confirmed answer. Off unless you turn it on — here or for one job.", risk: "high", external: true, default: "off" },
+  // The candidate's own press of Easy Apply (a job a company posted on WonderJobs) is what sends; this only decides whether
+  // that press sends at once from their Career Profile, résumé and saved answers, or shows them first (owner, 2026-10-28).
+  easy_apply: { key: "easy_apply", label: "Send Easy Apply in one tap", description: "When you press Easy Apply, send your Career Profile details, résumé and saved answers to the company at once. Ask me shows them first; Off turns Easy Apply off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },

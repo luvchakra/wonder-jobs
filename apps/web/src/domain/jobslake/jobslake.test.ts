@@ -287,6 +287,18 @@ describe("source planner", () => {
     expect(planSearch(req("balanced", ["Bengaluru"]), sources, {}).waves.flat().map((x) => x.id)).toContain("rok");
     expect(planSearch({ ...req("balanced"), sourceIds: ["gh"] }, sources, {}).waves.flat().map((x) => x.id)).toEqual(["gh"]);
   });
+
+  it("always asks WonderJobs employers in the first wave, beside the strongest four, so the jobs open to Easy Apply are never skipped", () => {
+    const withOwn = [...sources, S("employers", ["global"])];
+    for (const mode of ["fast", "balanced", "maximum_coverage"] as const) {
+      const p = planSearch(req(mode), withOwn, {});
+      expect(p.waves[0][0].id).toBe("employers");
+      expect(p.waves[0].filter((x) => x.id !== "employers")).toHaveLength(4);
+    }
+    // A search limited to other sources is still limited.
+    expect(planSearch({ ...req("balanced"), sourceIds: ["gh"] }, withOwn, {}).waves.flat().map((x) => x.id)).toEqual(["gh"]);
+  });
+
 });
 
 describe("warm pool + live results (WJ-JL-038)", () => {

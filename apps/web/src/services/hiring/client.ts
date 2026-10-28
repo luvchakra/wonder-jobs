@@ -1,4 +1,5 @@
 import type { Application, ApplicationEvent, ApplicationStatus, CareerSite } from "@/domain/org/careers";
+import type { ApplicationReview, Recommendation } from "@/domain/org/review";
 import type { Conversation, EmployerJob, Membership, Message, OrgInvite, OrgRole, Organization, ShortlistEntry, ShortlistStatus, TalentProfile } from "@/domain/org/types";
 
 /** Browser calls to the hiring routes. The server decides every permission; these only carry the request. */
@@ -33,6 +34,10 @@ export interface ConversationView extends Conversation {
 export interface ApplicationView extends Application {
   jobTitle: string;
   siteName?: string;
+  questions: { id: string; prompt: string }[];
+  unmet: string[];
+  fit: { matched: string[]; missing: string[] } | null;
+  reviews: { counts: Record<Recommendation, number>; total: number; leaning: "yes" | "no" | "split" | null };
 }
 export interface SiteSettings {
   name: string;
@@ -42,7 +47,7 @@ export interface SiteSettings {
   notifyEmails: string;
   retentionMonths: number;
 }
-export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl">;
+export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl" | "screening">;
 
 const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
 
@@ -72,6 +77,8 @@ export const hiringApi = {
   applications: (org: string) => call<{ applications: ApplicationView[] }>(`${o(org)}/applications`),
   applicationHistory: (org: string, id: string) => call<{ events: ApplicationEvent[] }>(`${o(org)}/applications?history=${encodeURIComponent(id)}`),
   decide: (org: string, id: string, status: Exclude<ApplicationStatus, "new" | "withdrawn">, note?: string, link?: string) => call<{ status: ApplicationStatus; emailed: boolean }>(`${o(org)}/applications`, { method: "PATCH", json: { id, status, note: note || undefined, link: link || undefined } }),
+  reviews: (org: string, id: string) => call<{ reviews: ApplicationReview[] }>(`${o(org)}/applications?reviews=${encodeURIComponent(id)}`),
+  addReview: (org: string, id: string, recommendation: Recommendation | undefined, note: string) => call<{ review: ApplicationReview }>(`${o(org)}/applications`, { method: "POST", json: { id, recommendation, note: note || undefined } }),
   talent: (org: string, q: string, place: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?q=${encodeURIComponent(q)}&place=${encodeURIComponent(place)}`),
   shortlist: (org: string) => call<{ entries: ShortlistView[] }>(`${o(org)}/shortlist`),
   addToShortlist: (org: string, candidate: string, note: string, jobId?: string) => call(`${o(org)}/shortlist`, { method: "POST", json: { candidate, note, jobId } }),

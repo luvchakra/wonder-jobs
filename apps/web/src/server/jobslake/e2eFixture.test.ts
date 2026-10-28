@@ -25,6 +25,12 @@ describe("the end-to-end fixture source", () => {
     expect(r.jobs.every((j) => j.sourceId === "remotive")).toBe(true);
   });
 
+  it("leaves WonderJobs employers real: its listings are jobs the test itself posted in a hiring workspace", async () => {
+    vi.stubEnv("WJ_E2E_FIXTURE_JOBS", "1");
+    const r = await runConnector(source("employers"), criteria(""), "standard" as never);
+    expect(r.jobs.every((j) => !j.id.startsWith("job_"))).toBe(true);
+  });
+
   it("sources that share one legacy id split it: only the first answers, so a posting isn't counted three times", async () => {
     const all = BUILTIN_SOURCES;
     const [gh, lever, ashby] = await Promise.all(["greenhouse", "lever", "ashby"].map((id) => fixtureJobs(source(id), criteria(""), all)));

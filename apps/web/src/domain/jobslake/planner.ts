@@ -80,7 +80,11 @@ function score(h: SourceHealth | undefined) {
 
 const pct = (x: number | null) => (x == null ? "no runs yet" : `${Math.round(x * 100)}% success`);
 
-export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query" | "filters">, sources: PlannableSource[], health: Record<string, SourceHealth>): SearchPlan {
+/** WonderJobs employers: the source of jobs companies post in their hiring workspace. */
+export const FIRST_PARTY_SOURCE = "employers";
+
+export function planSearch(
+req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query" | "filters">, sources: PlannableSource[], health: Record<string, SourceHealth>): SearchPlan {
   const scope = locationScope(req.query.locations);
   const skipped: SkippedSource[] = [];
   const eligible: PlannableSource[] = [];
@@ -108,8 +112,13 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
   const niche = (s: PlannableSource) => (s.jobTypes?.length ? (s.jobTypes.some((t) => wanted.includes(t)) ? -1 : 1) : 0);
   const ranked = eligible.filter((s) => !s.paid).map((s) => ({ s, fit: geographyFit(s, scope), sc: score(health[s.id]) })).sort((a, b) => Number(b.fit) - Number(a.fit) || niche(a.s) - niche(b.s) || b.sc - a.sc || a.s.name.localeCompare(b.s.name));
   const why = (x: (typeof ranked)[number]) => `${x.fit ? "Covers your locations" : "Outside your locations — discovery"} · ${pct(health[x.s.id]?.successRate ?? null)}`;
-  const fits = ranked.filter((x) => x.fit);
-  const misses = ranked.filter((x) => !x.fit);
+  // Jobs companies posted on WonderJobs (the only ones open to Easy Apply) are its own listings, read from its own
+  // database: always in the first wave, in every mode, beside the strongest sources, and never left for a wave that
+  // "enough results" can skip (owner, 2026-10-28).
+  const own = ranked.filter((x) => x.s.id === FIRST_PARTY_SOURCE);
+  const fits = ranked.filter((x) => x.fit && x.s.id !== FIRST_PARTY_SOURCE);
+  const misses = ranked.filter((x) => !x.fit && x.s.id !== FIRST_PARTY_SOURCE);
+  const ownPlanned = own.map((x) => ({ id: x.s.id, name: x.s.name, wave: 1 as const, reason: "Jobs companies posted on WonderJobs, always searched" }));
 
   const waves: PlannedSource[][] = [];
   if (req.searchMode === "fast") {
@@ -126,6 +135,10 @@ export function planSearch(req: Pick<SearchRequest, "searchMode" | "sourceIds" |
   }
   if (req.searchMode === "fast") for (const s of paid) skipped.push({ id: s.id, name: s.name, reason: "Fast mode doesn't use paid sources" });
   else if (paid.length) waves.push(paid.map((s) => ({ id: s.id, name: s.name, wave: 4, paid: true, reason: "Paid — asked only when the free sources find too few" })));
+  if (ownPlanned.length) {
+    if (waves[0]) waves[0] = [...ownPlanned, ...waves[0]];
+    else waves.unshift(ownPlanned);
+  }
   return {
     mode: req.searchMode,
     depth: req.searchMode === "fast" ? "shallow" : req.searchMode === "balanced" ? "normal" : "deep",

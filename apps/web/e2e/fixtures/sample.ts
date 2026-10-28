@@ -35,6 +35,8 @@ export async function openApp(page: Page, next = "/app", opts: SampleOptions = {
   await page.addInitScript(
     ({ userId: id, seed: s }) => {
       document.cookie = `wj_user=${id}; Path=/; SameSite=Lax`;
+      // The account's email, as sign-in would give it (read only under WJ_E2E_LEGACY_EMAIL=1, wj-e2e-*@example.com only).
+      document.cookie = `wj_e2e_email=${encodeURIComponent(`wj-e2e-${id}@example.com`)}; Path=/; SameSite=Lax`;
       // Only the first page of the context: later navigations keep whatever the app has saved since.
       if (sessionStorage.getItem("wj-e2e-seeded")) return;
       sessionStorage.setItem("wj-e2e-seeded", "1");

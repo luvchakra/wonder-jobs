@@ -43,8 +43,8 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
   - Only through the helper, on the employer's own page, in the candidate's desktop browser.
   - **The cloud browser is retired** (WJ-347). Nothing fills or submits on WonderJobs' servers, and `apps/browser-worker` is no longer called. Phones and tablets apply the traditional way, with Guide me values to copy.
   - **Easy Apply** is the one other path, for jobs a company posted on WonderJobs.
-    - It runs on Send application, after the candidate confirms the details and ticks consent.
-    - `/api/easy-apply` → `server/careers.ts::easyApply` writes the application (account email, the shown details, an encrypted résumé copy) into that company's `job_applications`.
+    - It runs only on the candidate's own press of Easy Apply (owner, 2026-10-28). That press sends at once, filled from their Career Profile, résumé and saved answers (`domain/jobs/easyApply.ts::planEasyApply`), when `resolveCapability("easy_apply")` is "run" (default Automatic); "ask" shows everything first, "off" turns it off. Anything missing (name, résumé, a required screening answer) is asked, never invented. Saved work-authorization/sponsorship answers are used only when `fill_work_authorization` runs.
+    - `/api/easy-apply` → `server/careers.ts::easyApply` writes the application (account email, the details, answers to the job's screening questions, the shared skills/headline, an encrypted résumé copy) into that company's `job_applications`. The applicant can withdraw it while it's new or in review (`withdrawEasyApply`, audited).
     - Once per job and email; the database refuses a second.
     - Audited as `easy_apply` / `APPLICATION_SUBMITTED`.
   - Don't widen any of these conditions.
@@ -82,6 +82,7 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
   - Org queries filter by `org_id` after that check.
   - Invitations can be accepted only by the invited email.
   - Companies read Easy Apply applications only through `applications.view`, and the résumé only via `applicationResume`.
+  - Screening questions' must-haves only mark an application ("Doesn't meet"); nothing is declined automatically. Scorecards and notes (`job_application_reviews`, `applications.review`) are the team's own and never reach the applicant.
 - **Only two reads cross tenants:**
   - Open job listings, shown as the "WonderJobs employers" source.
   - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history.
