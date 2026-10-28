@@ -12,7 +12,7 @@ import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/components/jobs/JobsBoard";
-import { findModeOf, internshipWords, isWordsMode, type FindMode } from "@/domain/jobs/findMode";
+import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
 
 /**
@@ -78,7 +78,7 @@ function JobsHome() {
   // words in the box (to search with Search), and it stays picked only while the box holds them.
   const roleWords = (id: string | null) => (id === null ? search.readiness.query : (roles.find((r) => r.id === id)?.title ?? ""));
   const searchAs: string | null | false =
-    isWordsMode(mode)
+    mode === "part_time"
       ? typeof pickedRole === "string" || pickedRole === null
         ? roleWords(pickedRole).trim().toLowerCase() === typed && !!typed
           ? pickedRole
@@ -89,7 +89,7 @@ function JobsHome() {
         : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null);
   const pickSearchAs = (id: string | null | false) => {
     setPickedRole(id);
-    if (isWordsMode(mode)) useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
+    if (mode === "part_time") useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
   };
   // Opening Find in Part Time shows Part Time's last results (kept, even after the app was closed), never a
   // new search: with the profile's list on screen, the words' list set aside comes back.
@@ -97,7 +97,7 @@ function JobsHome() {
   useEffect(() => {
     if (!hydrated) return;
     const s = useJobsStore.getState();
-    if (isWordsMode(findModeOf(s.filters)) && !s.searchedFor) s.restoreWordsCatalog();
+    if (findModeOf(s.filters) === "part_time" && !s.searchedFor) s.restoreWordsCatalog();
   }, [hydrated]);
   if (search.readiness.blocker) {
     return (
@@ -119,9 +119,9 @@ function JobsHome() {
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
-        refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={isWordsMode(mode)} /> : undefined}
+        refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} /> : undefined}
         // A role picked under "Search as" counts as one Refine setting; Clear goes back to My profile (Part Time: none).
-        searchAs={{ set: typeof searchAs === "string", clear: () => pickSearchAs(isWordsMode(mode) ? false : null) }}
+        searchAs={{ set: typeof searchAs === "string", clear: () => pickSearchAs(mode === "part_time" ? false : null) }}
         footer={
           <div className="mt-6">
             <h1 className="wj-sr-only">Find jobs</h1>
@@ -146,10 +146,8 @@ function JobsHome() {
               if (run) window.scrollTo({ top: 0, behavior: "smooth" });
             });
           },
-          describe: (typed, places) => {
-            const f = useJobsStore.getState().filters;
-            const skip = !!f.skipProfile;
-            const text = f.internships ? internshipWords(typed) : typed;
+          describe: (text, places) => {
+            const skip = !!useJobsStore.getState().filters.skipProfile;
             const d = describeWords(text, skip ? [] : search.readiness.locations, skip ? undefined : places);
             // Only places or pay typed: the profile's own roles, there — unless Skip Career Profile is on.
             const what = d.query || (!skip && (d.fromWords || d.highPay || d.jobTypes.length) ? search.readiness.query : "");

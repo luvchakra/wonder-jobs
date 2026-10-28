@@ -18,6 +18,7 @@ import { sendMail } from "./notify";
 import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "./email/layout";
 import { siteUrl } from "@/lib/siteUrl";
 import { hashKey } from "@/lib/ids";
+import { deliver, type Notice } from "@/server/notifications/deliver";
 import { decryptFile, encryptFile, resumeFileStore } from "./resume/files";
 import { can } from "@/domain/org/permissions";
 import { cleanAnswers, unmetMustHaves, type ScreeningQuestion } from "@/domain/org/screening";
@@ -68,6 +69,8 @@ type AppRow = {
   reminders_sent: number;
   last_reminded_at: string | null;
   via?: "site" | "wonderjobs";
+  /** The applicant's own account, for an Easy Apply application: where its in-app notifications go. */
+  applicant_tenant?: string | null;
   answers?: Record<string, string> | null;
   profile?: ApplicantProfile | null;
 };
@@ -430,6 +433,7 @@ export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id
     reminders_sent: 0,
     last_reminded_at: null,
     via: "wonderjobs",
+    applicant_tenant: s.tenantId,
     answers: job.screening.length ? answered.answers : null,
     profile: cleanApplicantProfile(input.profile) ?? null,
   };
@@ -567,7 +571,35 @@ export async function decide(s: Session, orgId: string, applicationId: string, i
   await record(a, `status:${input.status}`, s.tenantId, note || undefined);
   const [job, site] = await Promise.all([jobs().one({ id: a.job_id, org_id: orgId }), a.site_id ? sites().one({ id: a.site_id, org_id: orgId }) : Promise.resolve(undefined)]);
   const emailed = await emailCandidate({ ...a, status: input.status }, job?.title ?? "the position", site, { note, link, replyTo: me.email ?? s.email });
+  // An Easy Apply applicant hears it in the app too — the bell, then a push (deliver.ts, as their settings allow).
+  if (a.applicant_tenant) await notifyApplicant(a.applicant_tenant, input.status, job?.title ?? "the position", (await orgs().one({ id: orgId }))?.name ?? "The company", a.job_id, !!note);
   return { status: input.status, emailed };
+}
+
+/** What an Easy Apply applicant's bell says when a company moves their application on (owner, 2026-10-28: an interview invitation reaches the app, not only email). */
+export function applicantNotice(status: ApplicationStatus, jobTitle: string, company: string, jobId: string, withNote: boolean): Notice {
+  const href = `/app/jobs/employers_${hashKey(`employers:${jobId}`)}`;
+  const note = withNote ? " Their note is in your email." : "";
+  switch (status) {
+    case "interview":
+      return { category: "interview_upcoming", title: `Interview invitation from ${company}`, body: `${company} invited you to interview for ${jobTitle}. The details and next step are in your email.`, href, action: "Open the job" };
+    case "offer":
+      return { category: "application_status", title: `Offer from ${company}`, body: `${company} made you an offer for ${jobTitle}.${note}`, href };
+    case "hired":
+      return { category: "application_status", title: `Hired at ${company}`, body: `${company} marked you hired for ${jobTitle}.${note}`, href };
+    case "rejected":
+      return { category: "application_status", title: `Update from ${company}`, body: `${company} isn't moving forward with your application for ${jobTitle}.${note}`, href };
+    default:
+      return { category: "application_status", title: `${company} is reviewing your application`, body: `${company} started reviewing your application for ${jobTitle}.${note}`, href };
+  }
+}
+
+async function notifyApplicant(tenantId: string, status: ApplicationStatus, jobTitle: string, company: string, jobId: string, withNote: boolean): Promise<void> {
+  try {
+    await deliver(tenantId, applicantNotice(status, jobTitle, company, jobId, withNote));
+  } catch {
+    // The email already went; a bell or push that couldn't is not worth failing the decision for.
+  }
 }
 
 // ---- reminders -----------------------------------------------------------------------------------------------

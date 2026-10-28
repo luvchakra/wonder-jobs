@@ -13,21 +13,9 @@ const owner: Session = { userId: "u-owner", tenantId: "u-owner", email: "owner@a
 const other: Session = { userId: "u-other", tenantId: "u-other", email: "other@beta.test", name: "Oscar Other" };
 const seeker = (n: string): Session => ({ userId: `u-${n}`, tenantId: `u-${n}`, email: `${n}@example.com` });
 const DESC = "Design payments flows with engineering and product, end to end, for real customers.";
-const base = { title: "Product Design Intern", location: "Bengaluru", workMode: "hybrid" as const, currency: "INR", description: DESC, skills: ["Figma", "Prototyping"], applyUrl: "https://acme.test/jobs" };
+const base = { title: "Product Designer", location: "Bengaluru", workMode: "hybrid" as const, currency: "INR", description: DESC, skills: ["Figma", "Prototyping"], applyUrl: "https://acme.test/jobs" };
 
 beforeEach(() => resetTablesForTests());
-
-describe("an internship's terms (WJ-413)", () => {
-  it("are kept with an internship, checked, and dropped for any other job type", async () => {
-    const { org } = await H.createWorkspace(owner, { name: "Acme" });
-    const intern = await H.saveJob(owner, org.id, { ...base, jobType: "internship", salaryMin: 180_000, internship: { durationMonths: 6, startsOn: "2027-01-05" } });
-    expect(intern.internship).toEqual({ durationMonths: 6, startsOn: "2027-01-05" });
-    const bad = await H.saveJob(owner, org.id, { ...base, jobType: "internship", internship: { durationMonths: 99, startsOn: "whenever" } });
-    expect(bad.internship).toBeUndefined();
-    const full = await H.saveJob(owner, org.id, { ...base, jobType: "full_time", internship: { durationMonths: 6 } });
-    expect(full.internship).toBeUndefined();
-  });
-});
 
 describe("talent suggested for a job", () => {
   const profile = { headline: "Designer", seniority: "junior", yearsExperience: 1, workModes: ["hybrid"], summary: "" };
@@ -46,8 +34,8 @@ describe("talent suggested for a job", () => {
   it("only for the caller's own workspace's job, and only people open to recruiters", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     const { org: theirs } = await H.createWorkspace(other, { name: "Beta" });
-    const job = await H.saveJob(owner, org.id, { ...base, jobType: "internship" });
-    const theirJob = await H.saveJob(other, theirs.id, { ...base, jobType: "internship" });
+    const job = await H.saveJob(owner, org.id, { ...base, jobType: "full_time" });
+    const theirJob = await H.saveJob(other, theirs.id, { ...base, jobType: "full_time" });
     await H.saveMyTalentProfile(seeker("riya"), { displayName: "Riya S.", headline: "Designer", seniority: "junior", yearsExperience: 1, skills: ["Figma"], locations: ["Bengaluru"], workModes: ["hybrid"], summary: "" });
     expect((await H.suggestTalentForJob(owner, org.id, job.id)).map((m) => m.profile.displayName)).toEqual(["Riya S."]);
     // Another company's job, even by id, is refused; so is another company's workspace.

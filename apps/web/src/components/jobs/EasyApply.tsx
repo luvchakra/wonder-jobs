@@ -298,7 +298,6 @@ function EasyApplySheet({ sheet, email, company, onClose, onSend }: { sheet: She
               {details.name || "Your name"} · {email}
               {plan.resume && !fileId ? ` · ${plan.resume.label}` : ""}
               {plan.profile.skills.length ? ` · ${plan.profile.skills.length} skills and your headline from your Career Profile` : ""}
-              {plan.profile.education?.length ? ` · where you studied (${plan.profile.education[0].institution}${plan.profile.education.length > 1 ? ` and ${plan.profile.education.length - 1} more` : ""})` : ""}
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Phone" htmlFor="ea-phone">

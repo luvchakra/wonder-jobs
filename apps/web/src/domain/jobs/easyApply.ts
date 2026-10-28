@@ -23,7 +23,7 @@ export interface EasyApplyPlan {
   /** What has to be asked before it can send: "name", "resume", or a required question's id. */
   missing: string[];
   /** What the company receives from the Career Profile, beyond the contact details. */
-  profile: { headline?: string; skills: string[]; yearsExperience?: number; education?: { institution: string; degree?: string; field?: string; endDate?: string }[] };
+  profile: { headline?: string; skills: string[]; yearsExperience?: number };
 }
 
 /** Saved answers to work authorization and sponsorship are used only where the candidate allowed it (Automation → sensitive questions). */
@@ -61,11 +61,6 @@ export function planEasyApply(input: {
           ? { kind: "generate", label: "A résumé made from your Career Profile" }
           : null;
   const missing = [...(details.name.length < 2 ? ["name"] : []), ...(resume ? [] : ["resume"]), ...input.questions.filter((q) => q.required && !answers[q.id]).map((q) => q.id)];
-  // Where they studied, newest first — an internship's team reads it first (WJ-413). Only what the profile holds.
-  const education = [...historyOf(dna).education]
-    .sort((a, b) => (b.endDate ?? "9999").localeCompare(a.endDate ?? "9999"))
-    .slice(0, 3)
-    .map((e) => ({ institution: e.institution, ...(e.degree ? { degree: e.degree } : {}), ...(e.field ? { field: e.field } : {}), ...(e.endDate ? { endDate: e.endDate } : {}) }));
-  const profile = { ...(dna.headline ? { headline: dna.headline } : {}), skills: dna.skills.map((s) => s.name).slice(0, 40), ...(dna.yearsExperience > 0 ? { yearsExperience: dna.yearsExperience } : {}), ...(education.length ? { education } : {}) };
+  const profile = { ...(dna.headline ? { headline: dna.headline } : {}), skills: dna.skills.map((s) => s.name).slice(0, 40), ...(dna.yearsExperience > 0 ? { yearsExperience: dna.yearsExperience } : {}) };
   return { details, answers, resume, missing, profile };
 }

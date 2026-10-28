@@ -31,6 +31,7 @@ describe("WonderStar module registry", () => {
 
   it("the Find menu's coming-soon kinds are derived from it and unchanged", () => {
     expect(UPCOMING_KINDS).toEqual([
+      { id: "internships", label: "Internships", hint: "Student roles and co-ops" },
       { id: "teaching", label: "Teaching", hint: "School and college teachers" },
       { id: "cofounders", label: "Co-founders", hint: "Find someone to build with" },
       { id: "talent_services", label: "Talent & Services", hint: "Hire or offer a skill" },

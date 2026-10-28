@@ -11,7 +11,7 @@ export const MODULE_IDS = ["jobs", "internships", "teaching", "cofounders", "ser
 export type ModuleId = (typeof MODULE_IDS)[number];
 
 /** The kind ids the Find dropdown and Admin → Settings → Menus → Find menu already use (kept, so saved menu settings still apply). */
-export type UpcomingKindId = "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent";
+export type UpcomingKindId = "internships" | "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent";
 
 export type ModuleStatus = "live" | "soon";
 export type ResponseVerb = "apply" | "request_quote" | "book" | "rsvp" | "offer" | "connect";
@@ -42,8 +42,6 @@ export interface ModuleManifest {
   status: ModuleStatus;
   /** Its id in the Find dropdown's "Coming soon" group (MENUS.find_kinds). */
   menuId?: UpcomingKindId;
-  /** Served today as one of Jobs' own Find modes (domain/jobs/findMode.ts), so the dropdown doesn't list it as coming. */
-  jobsFindMode?: "internships";
   /** Where its four tabs live. Jobs: today's routes. Every other module: the shell at /app/m/[id]. */
   routes: { find: string; saved: string; pipeline: string; you: string };
   persona: FieldSchema[];
@@ -100,7 +98,7 @@ export const MODULES: readonly ModuleManifest[] = [
     icon: "GraduationCap",
     accent: "sky",
     status: "soon",
-    jobsFindMode: "internships",
+    menuId: "internships",
     routes: shell("internships"),
     persona: [
       { key: "college", label: "College", type: "text" },

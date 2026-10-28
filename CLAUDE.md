@@ -5,6 +5,15 @@
 - **End every message with the IST time** on its own last line, read fresh from `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` (e.g. `2026-10-20 20:00 IST`). This applies to every reply. Never reuse an old time.
 - **Start from the latest `main`.** Run `git fetch origin main && git merge origin/main` (or rebase, if the branch is yours alone) before any other work and again before every push. Resolve conflicts first.
 
+## The jobs portal stays as it is (owner, 2026-10-28)
+
+WonderJobs today — Find, Saved, Pipeline, You, Hiring, Easy Apply, JobsLake's job sources — is the **Jobs module** of WonderStar (`docs/WONDERSTAR_PLATFORM.md`).
+
+- **No change to the jobs portal** while building other modules: its screens, behaviour, copy, stores, routes and job data stay exactly as they are. Only a fix or a feature the owner asks for *for jobs* touches it.
+- **Every other module is separate:** its own routes (`/app/m/<module>`), stores, components, help, tests and data. It may reuse shared platform code (design system, auth, notifications, the AI boundary, `resolveCapability`), but never adds a mode, filter, menu item or field to a jobs screen.
+- **JobsLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
+- The only shared surface is the module switcher (the Find dropdown's module list), which lists modules and links out of Jobs.
+
 ## Real data only
 
 Never show a candidate anything WonderJobs didn't actually find, compute or receive.

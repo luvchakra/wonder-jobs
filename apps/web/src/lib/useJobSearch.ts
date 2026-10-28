@@ -8,7 +8,6 @@ import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
-import { internshipWords } from "@/domain/jobs/findMode";
 import { searchScope } from "@/domain/jobs/searchScope";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
@@ -173,23 +172,17 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
   );
 
   const searchWords = useCallback(
-    async (typed: string, places?: string[]) => {
-      // Internships: the words, asked as internships ("product design" → "product design internship"); the sources are
-      // asked for interns by name, and Find lists only the postings that are internships (findMode.ts).
-      const internships = !!useJobsStore.getState().filters.internships;
-      const text = internships ? internshipWords(typed) : typed;
+    async (text: string, places?: string[]) => {
       const intent = deriveSearchIntent(text);
       // Skip Career Profile: only the typed words — no role, places, work modes or salary from the profile.
       const skip = !!useJobsStore.getState().filters.skipProfile;
       // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there — unless skipped.
-      const words = intent.query || (!skip && (intent.locations.length || intent.highPay || intent.jobTypes.length) ? readiness.query : "");
-      const query = words && internships ? `${words} intern` : words;
+      const query = intent.query || (!skip && (intent.locations.length || intent.highPay || intent.jobTypes.length) ? readiness.query : "");
       if (!query) return null;
       // "High paying": the best-paid first (jobs without a stated salary go last).
       if (intent.highPay) useJobsStore.getState().setSort("salary");
       // "Part time", "freelance": only those job types (Refine shows and clears it).
-      // (Internships already lists internships only.)
-      if (intent.jobTypes.length && !internships) useJobsStore.getState().setFilters({ jobTypes: intent.jobTypes });
+      if (intent.jobTypes.length) useJobsStore.getState().setFilters({ jobTypes: intent.jobTypes });
       await stopRunningSearch();
       track("find_started", { derivedFromWords: true, locations: intent.locations.length, sources: sources.filter((s) => s.enabled).length });
       // Places typed into a search are learned (domain/career/learning.ts); the profile's own are skipped there.

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async () => undefined }));
 vi.mock("@/server/push/subscriptions", () => ({ notifyTenant: vi.fn(async () => ({ sent: 0 })) }));
 vi.mock("@/server/notify", () => ({ sendMail: vi.fn(async () => ({ sent: true })), parseEmailList: () => [] }));
+const delivered = vi.hoisted(() => [] as { tenantId: string; notice: { category: string; title: string; href: string } }[]);
+vi.mock("@/server/notifications/deliver", () => ({ deliver: vi.fn(async (tenantId: string, notice: { category: string; title: string; href: string }) => { delivered.push({ tenantId, notice }); return { pushed: 0, emailed: false }; }) }));
 
 import type { Session } from "@/server/auth";
 import { resetTablesForTests } from "@/server/db/table";
@@ -111,6 +113,16 @@ describe("withdrawing an Easy Apply application", () => {
     await C.withdrawEasyApply(candidate, id);
     expect((await C.listApplications(owner, orgId))[0].status).toBe("withdrawn");
     await expect(C.withdrawEasyApply(candidate, id)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("an interview invitation reaches the applicant's own bell and push, not only their email", async () => {
+    delivered.length = 0;
+    const { orgId, jobId, cvId } = await postedJob([]);
+    const { id } = await apply(jobId, cvId);
+    await C.decide(owner, orgId, id, { status: "interview" });
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0].tenantId).toBe(candidate.tenantId);
+    expect(delivered[0].notice).toMatchObject({ category: "interview_upcoming", title: "Interview invitation from Acme", href: listingId(jobId) ? `/app/jobs/${listingId(jobId)}` : "" });
   });
 
   it("can't be withdrawn here once the company invited them to interview", async () => {
