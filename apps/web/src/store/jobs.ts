@@ -124,14 +124,14 @@ function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<Jobs
   return { filters, sort, refine: sameRefine(s.refine[mode], now) ? s.refine : { ...s.refine, [mode]: now } };
 }
 
-function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean; sort?: JobSort; partTimeQuery?: unknown }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort" | "partTimeQuery"> {
+function restoredRefine(p: { refine?: unknown; hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean; internships?: boolean; sort?: JobSort; partTimeQuery?: unknown }, filters: JobFilters): Pick<JobsState, "refine" | "filters" | "sort" | "partTimeQuery"> {
   const raw = (p.refine && typeof p.refine === "object" ? p.refine : {}) as Record<string, unknown>;
   const refine: JobsState["refine"] = {};
-  for (const m of ["full_time", "part_time"] as const) {
+  for (const m of ["full_time", "part_time", "internships"] as const) {
     const r = readRefine(raw[m]);
     if (r) refine[m] = r;
   }
-  const mode: FindMode = p.skipProfile ? "part_time" : "full_time";
+  const mode: FindMode = findModeOf(p);
   const { sort, ...narrowing } = refine[mode] ?? { ...refineDefaults(mode), hideInPipeline: !!p.hideInPipeline, sort: p.sort ?? "best_match" };
   // The mode's start, then everything kept for it (places, job types and view included); Part Time's words too.
   const partTimeQuery = typeof p.partTimeQuery === "string" ? p.partTimeQuery.slice(0, 200) : "";
@@ -371,7 +371,7 @@ export const useJobsStore = create<JobsState>()(
         const applyOpenedAt = Object.fromEntries(Object.entries(s.applyOpenedAt ?? {}).slice(-300));
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
-        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, internships: !!s.filters.internships, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         return { ...base, ...persistedCatalog(s) };
       },
     },

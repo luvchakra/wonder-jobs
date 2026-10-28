@@ -1,4 +1,5 @@
 "use client";
+import { useHydration } from "@/store/hydration";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { Avatar } from "@/components/common/Avatar";
@@ -31,7 +32,8 @@ export function ProfilePhoto({ name, size = 64 }: { name: string; size?: number 
   const [busy, setBusy] = useState(false);
   const [menu, setMenu] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const signedIn = getClientMode().mode === "user";
+  // Known only in the browser: decided after hydration, so the server's HTML matches the first render.
+  const signedIn = useHydration((h) => h.hydrated) && getClientMode().mode === "user";
 
   useEffect(() => {
     if (!signedIn) return;

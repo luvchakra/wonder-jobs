@@ -47,7 +47,7 @@ export interface SiteSettings {
   notifyEmails: string;
   retentionMonths: number;
 }
-export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl" | "screening">;
+export type JobInput = Pick<EmployerJob, "title" | "location" | "workMode" | "jobType" | "salaryMin" | "salaryMax" | "currency" | "description" | "skills" | "applyUrl" | "screening" | "internship">;
 
 const o = (org: string) => `/api/hiring/${encodeURIComponent(org)}`;
 
@@ -79,6 +79,7 @@ export const hiringApi = {
   decide: (org: string, id: string, status: Exclude<ApplicationStatus, "new" | "withdrawn">, note?: string, link?: string) => call<{ status: ApplicationStatus; emailed: boolean }>(`${o(org)}/applications`, { method: "PATCH", json: { id, status, note: note || undefined, link: link || undefined } }),
   reviews: (org: string, id: string) => call<{ reviews: ApplicationReview[] }>(`${o(org)}/applications?reviews=${encodeURIComponent(id)}`),
   addReview: (org: string, id: string, recommendation: Recommendation | undefined, note: string) => call<{ review: ApplicationReview }>(`${o(org)}/applications`, { method: "POST", json: { id, recommendation, note: note || undefined } }),
+  suggestTalent: (org: string, jobId: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?job=${encodeURIComponent(jobId)}`),
   talent: (org: string, q: string, place: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?q=${encodeURIComponent(q)}&place=${encodeURIComponent(place)}`),
   shortlist: (org: string) => call<{ entries: ShortlistView[] }>(`${o(org)}/shortlist`),
   addToShortlist: (org: string, candidate: string, note: string, jobId?: string) => call(`${o(org)}/shortlist`, { method: "POST", json: { candidate, note, jobId } }),

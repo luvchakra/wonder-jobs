@@ -63,7 +63,10 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
       {canManage && <p className="-mt-2 text-[12px] text-ink-3">They join by signing in to WonderJobs with that email and opening Hiring, where the invitation waits.</p>}
 
       <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
-        {team.members.map((m) => (
+        {team.members.map((m) => {
+          // The only owner can't step down or leave (the server refuses it too): neither is offered.
+          const soleOwner = m.role === "owner" && team.members.filter((x) => x.role === "owner").length === 1;
+          return (
           <li key={m.tenantId} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 last:border-b-0">
             {/* On a phone the name takes the whole first line; the role and Leave/Remove share the next. */}
             <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
@@ -71,9 +74,10 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
                 {m.name || m.email || "Member"}
                 {m.tenantId === me && <span className="font-normal text-ink-3"> (you)</span>}
               </p>
-              <p className="truncate text-[12px] text-ink-3">{m.email}</p>
+              {/* The email under the name — not again when it already is the name. */}
+              {m.name && m.email && m.name !== m.email && <p className="truncate text-[12px] text-ink-3">{m.email}</p>}
             </div>
-            {canManage ? (
+            {canManage && !soleOwner ? (
               <Select value={m.role} onChange={(e) => act(() => hiringApi.setRole(orgId, m.tenantId, e.target.value as OrgRole), "Role changed")} aria-label={`Role of ${m.name || m.email}`} className="w-40 sm:w-44">
                 {ORG_ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -84,7 +88,7 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
             ) : (
               <span className="text-[13px] text-ink-2">{ORG_ROLE_LABEL[m.role]}</span>
             )}
-            {(canManage || m.tenantId === me) && (
+            {(canManage || m.tenantId === me) && !soleOwner && (
               <button
                 type="button"
                 onClick={() =>
@@ -99,7 +103,8 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
               </button>
             )}
           </li>
-        ))}
+          );
+        })}
         {team.invites.map((i) => (
           <li key={i.id} className="flex items-center gap-3 border-b border-line bg-surface-2/50 px-4 py-3 last:border-b-0">
             <div className="min-w-0 flex-1">

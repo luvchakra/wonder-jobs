@@ -4,12 +4,15 @@ import { getClientMode } from "@/lib/mode";
 import { cn } from "@/lib/cn";
 import { useUIStore } from "@/store/ui";
 import { initials } from "@/lib/format";
+import { useHydration } from "@/store/hydration";
 
 /** A person's initials; with `self`, the signed-in candidate's own photo over them when they've added one. */
 export function Avatar({ name, size = 36, className, self = false }: { name: string; size?: number; className?: string; self?: boolean }) {
   const version = useUIStore((s) => s.photoVersion);
   const [failedAt, setFailedAt] = useState<number | null>(null);
-  const src = self && failedAt !== version && getClientMode().mode === "user" ? `/api/avatar?v=${version}` : null;
+  // Signed in is known only in the browser: the photo waits for hydration, so the server's HTML matches the first render.
+  const ready = useHydration((h) => h.hydrated);
+  const src = self && ready && failedAt !== version && getClientMode().mode === "user" ? `/api/avatar?v=${version}` : null;
   return (
     <span
       className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand-400 to-pink-500 font-semibold text-white", className)}
@@ -36,7 +39,8 @@ export function CompanyLogo({ name, color, size = 40, className, logo, domain }:
   const [failed, setFailed] = useState(false);
   const known = name.trim() && name !== "?" && name !== "Unknown company";
   // `v` changes when how logos are found changes, so a browser's cached "no logo" answer from before is not reused.
-  const src = logo && known && !failed && getClientMode().mode === "user" ? `/api/company-logo?n=${encodeURIComponent(name.trim())}${domain ? `&d=${encodeURIComponent(domain)}` : ""}&v=${LOGO_VERSION}` : null;
+  const ready = useHydration((h) => h.hydrated);
+  const src = logo && known && ready && !failed && getClientMode().mode === "user" ? `/api/company-logo?n=${encodeURIComponent(name.trim())}${domain ? `&d=${encodeURIComponent(domain)}` : ""}&v=${LOGO_VERSION}` : null;
   return (
     <span
       className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-line bg-surface font-bold", className)}

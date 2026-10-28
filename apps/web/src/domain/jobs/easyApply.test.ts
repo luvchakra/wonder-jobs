@@ -15,6 +15,8 @@ describe("Easy Apply, filled from the candidate's own data", () => {
     expect(p.resume).toMatchObject({ kind: "generate" });
     expect(p.profile.skills).toContain("SQL");
     expect(p.profile.yearsExperience).toBe(5);
+    // Where they studied goes too — what an internship's team reads first (WJ-413).
+    expect(p.profile.education).toEqual([{ institution: "Sample Institute of Technology", degree: "B.Tech.", field: "Computer Science", endDate: "2019" }]);
   });
 
   it("prefers a résumé made for this job, then an uploaded file, then the newest saved one", () => {

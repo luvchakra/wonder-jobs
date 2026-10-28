@@ -4,6 +4,7 @@
  * locally when the source can't filter itself. Upstream responses are cached
  * by Next's data cache so a burst of runs doesn't hammer the sources.
  */
+import { internshipLine } from "@/domain/org/internship";
 import type { Job } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { theirstack } from "./theirstack";
@@ -546,7 +547,8 @@ const employers: SourceFetcher = {
       companyDomain: org.website ? new URL(org.website).hostname.replace(/^www\./, "") : undefined,
       location: job.location,
       remote: job.workMode === "remote",
-      description: `${org.verified ? "" : `Posted on WonderJobs by ${org.name} — an employer WonderJobs hasn't verified yet.\n\n`}${job.description}`,
+      // An internship opens with its terms (duration, start, stipend a month), as the company entered them.
+      description: `${org.verified ? "" : `Posted on WonderJobs by ${org.name} — an employer WonderJobs hasn't verified yet.\n\n`}${job.jobType === "internship" ? `${internshipLine(job.internship, job)}\n\n` : ""}${job.description}`,
       tags: job.skills,
       postedAt: job.updatedAt,
       applyUrl: job.applyUrl,

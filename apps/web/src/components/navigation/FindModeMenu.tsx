@@ -13,10 +13,10 @@ import { cn } from "@/lib/cn";
 const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefcase }[] = [
   { mode: "full_time", label: "Full Time Jobs", hint: "Searches your Career Profile", icon: Briefcase },
   { mode: "part_time", label: "Part Time Jobs", hint: "Searches the words you type", icon: Clock },
+  { mode: "internships", label: "Internships", hint: "Student roles and co-ops", icon: GraduationCap },
 ];
 // An icon for each coming-soon kind (the labels and lines are in domain/jobs/upcomingKinds.ts).
 const UPCOMING_ICON: Record<UpcomingKindId, typeof Briefcase> = {
-  internships: GraduationCap,
   teaching: School,
   cofounders: Handshake,
   talent_services: Users,
