@@ -190,7 +190,8 @@ test.describe("DECIDE", () => {
 
   test("DECIDE-006 not-for-me only becomes a learned preference once the evidence is real, and it persists", async ({ page }) => {
     await openApp(page, "/app/jobs");
-    const links = page.getByRole("list", { name: "Job results" }).locator('a[href^="/app/jobs/"]');
+    // One link per job: its title (a job posted on WonderJobs also links its page from the card's Easy Apply).
+    const links = page.getByRole("list", { name: "Job results" }).locator('article h3 a[href^="/app/jobs/"]');
     await expect(links.nth(2)).toBeVisible();
     const hrefs = await links.evaluateAll((as) => as.slice(0, 3).map((a) => a.getAttribute("href")!));
     expect(hrefs).toHaveLength(3);

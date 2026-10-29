@@ -2,7 +2,7 @@
 import type { JobType } from "@/domain/jobs/jobType";
 import { useCallback, useEffect, useMemo } from "react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
-import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, profileVocabulary, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
+import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, mayWidenAfter, profileVocabulary, SEARCH_ONLY_STAGES, widenSearch, type Readiness } from "@/domain/jobs/readiness";
 import { historyOf } from "@/domain/career/history";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import { getWorkflowService } from "@/services/workflow/service";
@@ -227,7 +227,13 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     const { query, locations } = last.config.searchCriteria;
     const where = locations.length ? ` in ${locations.join(", ")}` : "";
     const base = { careerGoal: last.config.careerGoal, origin: last.config.origin, role: last.config.role };
+    // The AI's answer comes back later: by then the candidate may have searched again, and theirs wins.
+    const stillWanted = () => {
+      const w = useWorkflowStore.getState();
+      return mayWidenAfter(Object.values(w.runs), last.id, !!selectActiveRun(w));
+    };
     const byRules = () => {
+      if (!stillWanted()) return;
       const w = widenSearch(query, locations);
       if (!w) return;
       const run = search({ ...base, query: w.query, locations: w.locations });
@@ -242,6 +248,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null)
       .then((d: { query?: string | null } | null) => {
+        if (!stillWanted()) return;
         const wider = checkedWiderQuery(d?.query, query, profileVocabulary(dna, query));
         if (!wider) return byRules();
         const run = search({ ...base, query: wider, locations });
