@@ -68,7 +68,7 @@ export function WorkspaceSettings({ org, onClose, onSaved }: { org: Organization
             maxLength={120}
           />
         </Field>
-        <Field label="Website" htmlFor="ws-website" hint={org.verified ? "Changing the name or website asks WonderStar to verify the company again." : undefined}>
+        <Field label="Website" htmlFor="ws-website" hint={org.verified ? "Changing the name or website asks WonderWorks to verify the company again." : undefined}>
           <Input
             id="ws-website"
             value={website}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { liveModule, useUIStore } from "./ui";
 
-describe("the active WonderStar module", () => {
+describe("the active WonderWorks module", () => {
   it("only a live module comes back from storage", () => {
     expect(liveModule("internships")).toBe("internships");
     expect(liveModule("jobs")).toBe("jobs");

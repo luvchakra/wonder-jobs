@@ -60,7 +60,7 @@ export function TeamTab({ orgId, me, canManage, onLeft }: { orgId: string; me: s
           </Button>
         </form>
       )}
-      {canManage && <p className="-mt-2 text-[12px] text-ink-3">They join by signing in to WonderStar with that email and opening Hiring, where the invitation waits.</p>}
+      {canManage && <p className="-mt-2 text-[12px] text-ink-3">They join by signing in to WonderWorks with that email and opening Hiring, where the invitation waits.</p>}
 
       <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
         {team.members.map((m) => {

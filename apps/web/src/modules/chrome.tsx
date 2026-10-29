@@ -14,7 +14,7 @@ import { moduleFromPath, moduleNav } from "./nav";
 import { MODULES, type ModuleId, type UpcomingKindId } from "./registry";
 
 // Each other module's icon and tint in the menu are its manifest's; a live one (WJ-418: Internships) is picked like
-// Full Time and Part Time — the four tabs become its own (docs/WONDERSTAR_PLATFORM.md §4.1). The rest are "Coming soon".
+// Full Time and Part Time — the four tabs become its own (docs/WONDERWORKS_PLATFORM.md §4.1). The rest are "Coming soon".
 const LOOK = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: (typeof ICONS)[keyof typeof ICONS]; tint: (typeof MODULES)[number]["accent"] }>;
 const LIVE = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, { id: m.id, href: m.routes.find }]] : []))) as Partial<Record<UpcomingKindId, { id: ModuleId; href: string }>>;
 
@@ -61,7 +61,7 @@ function FindMenu() {
 
 const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus: useJobsStatus };
 
-/** The composition root for the app chrome: WonderStar's top bar, tabs and section tabs, filled from the modules. */
+/** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {
   return <ChromeSlotsProvider value={SLOTS}>{children}</ChromeSlotsProvider>;
 }

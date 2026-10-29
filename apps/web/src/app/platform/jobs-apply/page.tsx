@@ -59,7 +59,7 @@ export default function JobsApplyAdminPage() {
 
           <Panel title="Adapters">
             <Note>
-              Status comes from the adapter contract tests against WonderStar&apos; mock portals (<code>e2e/fixtures/portals</code>) — never from URL detection alone, and never from live employer portals. Every adapter runs in the candidate&apos;s browser; no authorized
+              Status comes from the adapter contract tests against WonderWorks&apos; mock portals (<code>e2e/fixtures/portals</code>) — never from URL detection alone, and never from live employer portals. Every adapter runs in the candidate&apos;s browser; no authorized
               application API is configured for any provider.
             </Note>
             <div className="mt-3 overflow-x-auto">

@@ -11,7 +11,7 @@ import { switchFindMode } from "@/lib/switchFindMode";
 import { useNow } from "@/lib/motion";
 import type { MenuItem } from "@/wonderstar/chrome/ModuleMenu";
 
-/** Jobs' choices in WonderStar's module menu: Full Time Jobs and Part Time Jobs, each in its tint (§9 "Icons"). */
+/** Jobs' choices in WonderWorks' module menu: Full Time Jobs and Part Time Jobs, each in its tint (§9 "Icons"). */
 export const JOBS_MENU_CHOICES: Omit<MenuItem, "on">[] = [
   { id: "full_time", label: "Full Time Jobs", hint: "Searches your Career Profile", icon: Briefcase, tint: "lavender" },
   { id: "part_time", label: "Part Time Jobs", hint: "Searches the words you type", icon: Clock, tint: "lightblue" },

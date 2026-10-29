@@ -22,7 +22,7 @@ interface UIState {
   /** The Pipeline stage last opened (Preparing, Applied, Interview, Outcome) — the one tab kept between visits (owner, 2026-10-25). */
   pipelineStage?: PipelineStage;
   setPipelineStage: (g: PipelineStage) => void;
-  /** The WonderStar module the four tabs belong to now (picked in Find's menu; Jobs until another is). Kept per account. */
+  /** The WonderWorks module the four tabs belong to now (picked in Find's menu; Jobs until another is). Kept per account. */
   activeModule?: ModuleId;
   setActiveModule: (m: ModuleId) => void;
 }

@@ -13,8 +13,8 @@ const PILLARS: { icon: typeof CreditCard; eyebrow: string; title: string; points
     eyebrow: "Payments",
     title: "Razorpay and Stripe",
     points: [
-      "WonderStar is free today. When paid plans open, you pay with UPI AutoPay, cards or net banking through Razorpay, or international cards through Stripe",
-      "You pay on the provider's own page; your card, UPI and bank details never reach WonderStar",
+      "WonderWorks is free today. When paid plans open, you pay with UPI AutoPay, cards or net banking through Razorpay, or international cards through Stripe",
+      "You pay on the provider's own page; your card, UPI and bank details never reach WonderWorks",
       "Your plan changes only when the provider's signed confirmation arrives, never just because a page redirected",
       "Cancel any time and keep what you've paid for until the period ends",
     ],
@@ -100,7 +100,7 @@ export function TrustSection() {
           ))}
         </ul>
         <p className="mt-6 text-[12.5px] text-ink-3">
-          WonderStar is not a public company and has not been audited under the Sarbanes-Oxley Act; the controls above are the ones such audits look for. Payment card security is handled by Razorpay and Stripe, which are PCI DSS Level 1 certified.
+          WonderWorks is not a public company and has not been audited under the Sarbanes-Oxley Act; the controls above are the ones such audits look for. Payment card security is handled by Razorpay and Stripe, which are PCI DSS Level 1 certified.
         </p>
       </div>
     </section>

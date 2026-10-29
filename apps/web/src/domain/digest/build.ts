@@ -188,7 +188,7 @@ export function buildDigest(input: DigestInput): Digest {
         ? { label: "Review your applications", href: "/app/applications" }
         : strongWaiting
           ? { label: `Review ${plural(strongWaiting, "strong match", "strong matches")}`, href: STRONG_HREF }
-          : { label: "Open WonderStar", href: "/app" };
+          : { label: "Open WonderWorks", href: "/app" };
 
   // ---- waiting on you
   const dependencies = actionsRequired(input);
@@ -217,7 +217,7 @@ export function buildDigest(input: DigestInput): Digest {
 
   const hasActivity = !!(searches.length || failed.length || saved || rejected || newApps || submitted || interviews || offers || profileUpdated || learned || answers);
   const subjectBits = [interviewsSoon.length && `interview ${day(interviewsSoon[0].f.dueAt)}`, strongFound && strongNow && plural(strongNow, "strong match", "strong matches"), submitted && plural(submitted, "application") + " sent", overdue.length && plural(overdue.length, "follow-up") + " overdue"].filter(Boolean) as string[];
-  const subject = subjectBits.length ? `Your WonderStar digest: ${subjectBits.slice(0, 2).join(", ")}` : "Your WonderStar digest";
+  const subject = subjectBits.length ? `Your WonderWorks digest: ${subjectBits.slice(0, 2).join(", ")}` : "Your WonderWorks digest";
 
   const stats = { strongMatches: strongNow, searches: searches.length, reviewed, strongFound, saved, applied: submitted, interviews, offers };
   return { since, until: now.toISOString(), hasActivity, keyDetails, headsUp, cta, dependencies, goingWell, needsImprovement, suggestions, facts, stats, topMatches, subject };

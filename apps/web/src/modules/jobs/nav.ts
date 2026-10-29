@@ -4,7 +4,7 @@ import { jobsManifest } from "./manifest";
 
 /**
  * WonderJobs' four places, one each for the stages of a search: Find (jobs), Saved (the shortlist), Pipeline
- * (applications and follow-ups), You (what Wonder works from, and Skill Up) — WonderStar's tabs, from Jobs' manifest.
+ * (applications and follow-ups), You (what Wonder works from, and Skill Up) — WonderWorks' tabs, from Jobs' manifest.
  * Account, plan and data live in the avatar menu. The same array drives the desktop sidebar, the mobile bottom bar
  * and the drawer, so they can't drift apart. Each place's own pages are tabs at the top of it (SECTION_TABS). Ask
  * Wonder lives in the top bar.

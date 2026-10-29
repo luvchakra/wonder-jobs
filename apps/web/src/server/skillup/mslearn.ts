@@ -60,7 +60,7 @@ export function parseCatalog(certs: { certifications?: RawCert[] }, paths: { lea
 }
 
 async function get<T>(type: string): Promise<T> {
-  const res = await fetch(`${BASE}&type=${type}`, { headers: { accept: "application/json", "user-agent": "WonderStar/1.0 (job search agent)" }, cache: "no-store", signal: AbortSignal.timeout(15_000) });
+  const res = await fetch(`${BASE}&type=${type}`, { headers: { accept: "application/json", "user-agent": "WonderWorks/1.0 (job search agent)" }, cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`learn.microsoft.com responded ${res.status}`);
   return (await res.json()) as T;
 }

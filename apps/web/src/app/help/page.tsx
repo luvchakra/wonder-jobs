@@ -11,7 +11,7 @@ import { helpAccess } from "@/server/helpAccess";
 
 export const metadata: Metadata = {
   title: "Help & user guide",
-  description: "How WonderStar finds, scores and prepares opportunities, what it never does without you, what to do when something goes wrong, and answers to common questions.",
+  description: "How WonderWorks finds, scores and prepares opportunities, what it never does without you, what to do when something goes wrong, and answers to common questions.",
   // Signed-in only (WJ-309): never indexed.
   ...PRIVATE_PAGE,
 };

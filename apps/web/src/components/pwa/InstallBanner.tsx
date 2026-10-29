@@ -184,13 +184,13 @@ export function InstallBanner() {
 
   const ios = variant === "ios";
   return (
-    <div ref={ref} role="region" aria-label="Install the WonderStar app" className="wj-install-banner relative z-[60] border-b border-line bg-surface shadow-xs">
+    <div ref={ref} role="region" aria-label="Install the WonderWorks app" className="wj-install-banner relative z-[60] border-b border-line bg-surface shadow-xs">
       <div className="min-h-0 overflow-hidden">
         <div className="mx-auto max-w-3xl px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:px-4">
           <div className="flex items-center gap-3">
             <Image src="/icon-192.png" alt="" width={192} height={192} className="size-11 shrink-0 rounded-[11px] shadow-sm" unoptimized />
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold leading-5 text-ink">WonderStar app</p>
+              <p className="text-[14px] font-semibold leading-5 text-ink">WonderWorks app</p>
               <p className="text-[12.5px] leading-[1.15rem] text-ink-3">Your jobs one tap from your home screen, full screen.</p>
             </div>
             {ios ? (

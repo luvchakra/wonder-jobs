@@ -24,7 +24,7 @@ export function isActivePath(pathname: string, item: NavItem) {
   return item.match ? item.match(pathname) : pathname === item.href || pathname.startsWith(item.href + "/");
 }
 
-/* ------------------------------------------------------------------ WonderStar modules (docs/WONDERSTAR_PLATFORM.md §4.1) */
+/* ------------------------------------------------------------------ WonderWorks modules (docs/WONDERWORKS_PLATFORM.md §4.1) */
 
 const PIPELINE_ICONS: Record<string, LucideIcon> = { LayoutList, Handshake, CalendarCheck, CalendarClock, CalendarHeart };
 // The pages under You that belong to every module (account, settings, workspaces), so opening one keeps the module's tabs.
@@ -33,7 +33,7 @@ const SHARED_YOU = ["/app/ask", "/app/career-dna", "/app/skill-up", "/app/recrui
 type Tab = keyof ModuleManifest["routes"];
 
 /**
- * A module's four places: WonderStar's Find, Saved and You, and the module's own Pipeline tab (its label and icon from
+ * A module's four places: WonderWorks' Find, Saved and You, and the module's own Pipeline tab (its label and icon from
  * the manifest). By default each tab is its own page, and You also holds the module's company pages and the pages every
  * module shares (account, settings, workspaces). A module may set its own match for any tab (`undefined`: the tab's
  * route and anything under it).

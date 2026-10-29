@@ -1,5 +1,5 @@
 /**
- * WonderStar Internships (WJ-418, docs/WONDERSTAR_PLATFORM.md §4): what an internship is, what a student tells us, what
+ * WonderWorks Internships (WJ-418, docs/WONDERWORKS_PLATFORM.md §4): what an internship is, what a student tells us, what
  * "fits" means and how an application moves. Pure, so the server, the Internships screens and the tests share it.
  *
  * Real data only: a term a posting doesn't state stays unstated ("Stipend not stated"), never guessed; a match signal
@@ -45,16 +45,16 @@ export interface InternshipPosting {
   updatedAt: string;
 }
 
-/** One internship as Find shows it, from a WonderStar company or an outside source. */
+/** One internship as Find shows it, from a WonderWorks company or an outside source. */
 export interface InternshipListing {
-  /** `ws_<postingId>` for a WonderStar posting; the JobsLake opportunity id otherwise. */
+  /** `ws_<postingId>` for a WonderWorks posting; the JobsLake opportunity id otherwise. */
   id: string;
   origin: "wonderstar" | "outside";
-  /** A WonderStar posting's own id: what Apply sends to. */
+  /** A WonderWorks posting's own id: what Apply sends to. */
   postingId?: string;
   title: string;
   company: string;
-  /** A WonderStar company WonderStar hasn't verified yet says so. */
+  /** A WonderWorks company WonderWorks hasn't verified yet says so. */
   companyVerified?: boolean;
   location: string;
   workMode?: WorkMode;
@@ -94,7 +94,7 @@ export type CleanPosting = Pick<InternshipPosting, "title" | "description" | "lo
 
 /**
  * A company's internship form, checked. Every term the brief asks for is required — stipend a month, duration, start
- * date, apply-by date, part or full time, and remote/hybrid/on-site — so a student never meets a WonderStar internship
+ * date, apply-by date, part or full time, and remote/hybrid/on-site — so a student never meets a WonderWorks internship
  * that leaves them out. A stipend of 0 is an unpaid internship and says so.
  */
 export function cleanPosting(i: PostingInput, today = new Date().toISOString().slice(0, 10)): { value: CleanPosting } | { problem: string } {

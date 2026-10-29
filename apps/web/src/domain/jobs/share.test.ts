@@ -13,11 +13,11 @@ describe("job sharing", () => {
     expect(shareFacts({ ...job, salaryMin: undefined, salaryMax: undefined, jobType: undefined })).toBe("Mumbai, Maharashtra · On-site");
   });
 
-  it("composes an email with a subject, the job, its link and one line about WonderStar", () => {
+  it("composes an email with a subject, the job, its link and one line about WonderWorks", () => {
     const m = shareMessage(job, "https://x/j/1", "https://x");
     expect(m.subject).toBe("Job you might like: Database Administrator at HR India Solutions");
     expect(m.body).toContain("See the job and apply: https://x/j/1");
-    expect(m.body).toContain("Found with WonderStar");
+    expect(m.body).toContain("Found with WonderWorks");
     const href = emailHref(m);
     expect(href.startsWith("mailto:?subject=Job%20you%20might%20like")).toBe(true);
     expect(decodeURIComponent(href.split("&body=")[1])).toBe(m.body);

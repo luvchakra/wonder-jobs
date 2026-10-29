@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Rasterises the WonderStar SVGs in `public/brand/` (built by `scripts/brand-svg.py`) into the PNGs that
+ * Rasterises the WonderWorks SVGs in `public/brand/` (built by `scripts/brand-svg.py`) into the PNGs that
  * can't be vectors:
  *
  *   - `wonderstar-logo.png` — the horizontal logo for emails (most mail clients don't render SVG).

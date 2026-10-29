@@ -3,11 +3,11 @@ import { createContext, useContext, type ComponentType } from "react";
 import type { NavItem } from "./nav";
 
 /**
- * What the app chrome shows from the modules, without importing any (docs/WONDERSTAR_PLATFORM.md §6): the
+ * What the app chrome shows from the modules, without importing any (docs/WONDERWORKS_PLATFORM.md §6): the
  * composition root (`modules/chrome.tsx`) provides it. Each slot falls back to an empty, honest default.
  */
 export interface ChromeSlots {
-  /** A module's four places (WonderStar's Find, Saved and You, and its own Pipeline tab). */
+  /** A module's four places (WonderWorks' Find, Saved and You, and its own Pipeline tab). */
   tabsFor: (module: string) => NavItem[];
   /** The module a page belongs to, or null for pages every module shares. */
   moduleFromPath: (pathname: string) => string | null;

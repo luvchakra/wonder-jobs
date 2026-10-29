@@ -11,7 +11,7 @@ import { YouOverview } from "@/wonderstar/you/YouOverview";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** WonderJobs' You: WonderStar's You with Jobs' rows — what Wonder works with, in the order a search uses it. */
+/** WonderJobs' You: WonderWorks' You with Jobs' rows — what Wonder works with, in the order a search uses it. */
 export function JobsYou() {
   const resumes = useCareerStore((s) => s.savedResumes.length);
   const files = useResumeFilesStore((s) => s.files.length);

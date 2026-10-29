@@ -19,7 +19,7 @@
 const UNREACHABLE_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Can't reach WonderStar</title>
+<title>Can't reach WonderWorks</title>
 <style>
   body { margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f6f6fb; color: #14142b; }
@@ -31,8 +31,8 @@ const UNREACHABLE_HTML = `<!doctype html>
     color: #fff; background: linear-gradient(135deg, #6d4cf5 0%, #7c5cff 55%, #a66bff 100%); cursor: pointer; }
 </style></head>
 <body><main>
-  <h1 id="t">Can't reach WonderStar right now</h1>
-  <p id="m">WonderStar may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.</p>
+  <h1 id="t">Can't reach WonderWorks right now</h1>
+  <p id="m">WonderWorks may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.</p>
   <button onclick="location.reload()">Try again now</button>
   <small id="s">Trying again in a few seconds…</small>
 </main>
@@ -40,10 +40,10 @@ const UNREACHABLE_HTML = `<!doctype html>
   var offline = navigator.onLine === false;
   function say() {
     offline = navigator.onLine === false;
-    document.getElementById("t").textContent = offline ? "You're offline" : "Can't reach WonderStar right now";
+    document.getElementById("t").textContent = offline ? "You're offline" : "Can't reach WonderWorks right now";
     document.getElementById("m").textContent = offline
-      ? "Your phone has no connection. Check Wi-Fi or mobile data — WonderStar opens again as soon as you're back online."
-      : "WonderStar may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.";
+      ? "Your phone has no connection. Check Wi-Fi or mobile data — WonderWorks opens again as soon as you're back online."
+      : "WonderWorks may be updating — that takes a minute or two. Your saved jobs and searches are safe. We'll keep trying and open it as soon as it's back.";
   }
   say();
   addEventListener("online", function () { location.reload(); });
@@ -92,7 +92,7 @@ self.addEventListener("fetch", (event) => {
  * notification the browser already woke us for should never be silently swallowed.
  */
 self.addEventListener("push", (event) => {
-  let payload = { title: "WonderStar", body: "Something new is waiting for you.", url: "/app" };
+  let payload = { title: "WonderWorks", body: "Something new is waiting for you.", url: "/app" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {

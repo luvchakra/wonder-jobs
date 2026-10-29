@@ -52,7 +52,7 @@ function RecruitersPage() {
     try {
       const { profile: p } = await hiringApi.saveProfile(preview);
       setProfile(p);
-      toast.success(profile ? "Recruiters see your update" : "You're open to recruiters", "Companies on WonderStar can now find you and write to you here.");
+      toast.success(profile ? "Recruiters see your update" : "You're open to recruiters", "Companies on WonderWorks can now find you and write to you here.");
     } catch (e) {
       toast.error("Couldn't save", (e as Error).message);
     } finally {
@@ -76,7 +76,7 @@ function RecruitersPage() {
   const on = !!profile;
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Recruiters" description="Let companies on WonderStar find you and write to you about roles." />
+      <PageHeader title="Recruiters" description="Let companies on WonderWorks find you and write to you about roles." />
 
       <Card className="mb-5">
         <div className="flex items-center gap-3">

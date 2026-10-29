@@ -9,7 +9,7 @@ test.describe("AUTH — landing and sign-up UI (no account needed)", () => {
       if (m.type() === "error") errors.push(m.text());
     });
     await page.goto("/");
-    await expect(page).toHaveTitle(/WonderStar/i);
+    await expect(page).toHaveTitle(/WonderWorks/i);
     await expect(page.getByRole("link", { name: /sign up|get started/i }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /sign in/i }).first()).toBeVisible();
     // No public demo link any more (WJ-188): the landing page leads to sign-up.

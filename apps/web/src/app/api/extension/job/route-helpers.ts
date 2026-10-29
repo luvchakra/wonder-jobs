@@ -9,7 +9,7 @@ const MAX_BODY = 200_000;
 /** Bearer token, rate limit and a validated page job — or the response that says why not. */
 export async function pageJobRequest(req: Request, bucket: string): Promise<{ tenantId: string; page: PageJob } | NextResponse> {
   const tenantId = tenantFromAuthHeader(req.headers.get("authorization"));
-  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderStar again." }, { status: 401, headers: NO_STORE });
+  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderWorks again." }, { status: 401, headers: NO_STORE });
   const rl = rateLimit(`${bucket}:${tenantId}`, { capacity: 30, refillPerSec: 0.5 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const text = await req.text();

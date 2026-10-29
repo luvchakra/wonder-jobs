@@ -3,7 +3,7 @@ import { isActivePath } from "@/wonderstar/chrome/nav";
 import { moduleFromPath, moduleNav } from "./nav";
 import { PRIMARY_NAV } from "./jobs/nav";
 
-describe("one set of four tabs for every module (docs/WONDERSTAR_PLATFORM.md §4.1)", () => {
+describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §4.1)", () => {
   it("Jobs keeps exactly today's four places", () => {
     expect(moduleNav("jobs")).toBe(PRIMARY_NAV);
     expect(PRIMARY_NAV.map((n) => [n.label, n.href])).toEqual([

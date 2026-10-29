@@ -203,7 +203,7 @@ test.describe("JobsApply with the browser helper", () => {
     for (const v of ["Alex", "alex.morgan@example.com", "90000", "identity platform with the team"]) expect(audit).not.toContain(v);
   });
 
-  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderStar", async ({ page, context, portal }) => {
+  test("GJ2 / APPLY-045…047: sign in on the employer's site, fill around a verification widget, password never reaches WonderWorks", async ({ page, context, portal }) => {
     portal.set("mock-login.html");
     await openApply(page);
     const employer = await startWithHelper(page, context);
@@ -277,7 +277,7 @@ test.describe("JobsApply with the browser helper", () => {
     const other = await context.newPage();
     await other.goto("https://careers.redirected.test/apply");
     // The helper's own words (extension/content/autofill.js): the extension is released on its own and keeps its name until then.
-    await expect(panel(other).getByRole("button", { name: "Fill with WonderJobs" })).toBeVisible({ timeout: 15_000 });
+    await expect(panel(other).getByRole("button", { name: "Fill with WonderWorks" })).toBeVisible({ timeout: 15_000 });
     // The popup's "Fill the form on this tab", run against that tab.
     const id = new URL(context.serviceWorkers()[0].url()).host;
     const popup = await context.newPage();
@@ -335,7 +335,7 @@ test.describe("JobsApply with the browser helper", () => {
     await expect(employer.locator("input[name=cc]")).toHaveValue("");
   });
 
-  test("EXT-009 / GJ6: Stop in the helper panel stops field actions; WonderStar offers to continue after a reload", async ({ page, context }) => {
+  test("EXT-009 / GJ6: Stop in the helper panel stops field actions; WonderWorks offers to continue after a reload", async ({ page, context }) => {
     await openApply(page);
     const employer = await startWithHelper(page, context);
     await expect(panel(employer).getByRole("button", { name: /^Fill \d+ fields?$/ })).toBeVisible({ timeout: 20_000 });
@@ -361,7 +361,7 @@ test.describe("JobsApply with the browser helper", () => {
 
 const web = base;
 
-web.describe("JobsApply in WonderStar", () => {
+web.describe("JobsApply in WonderWorks", () => {
   web.beforeEach(async ({}, info) => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
   });
@@ -385,7 +385,7 @@ web.describe("JobsApply in WonderStar", () => {
     await page.goto("/app/jobs/job_microsoft_spm");
     await page.getByRole("button", { name: "Generate Customized Resume" }).click();
     await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Easy Apply needs the WonderStar browser extension.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Easy Apply needs the WonderWorks browser extension.")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
     // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and one tap sends
     // (owner, 2026-10-28). The sample posting isn't a company's open job on this server, so the press is refused

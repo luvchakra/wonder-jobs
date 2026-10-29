@@ -18,7 +18,7 @@ export interface MenuItem {
 }
 
 /**
- * WonderStar's module menu, in the centre of the top bar on every page (owner, 2026-10-29): the current value as text
+ * WonderWorks' module menu, in the centre of the top bar on every page (owner, 2026-10-29): the current value as text
  * with a chevron ("Full Time Jobs ▾", "Internships ▾"), opening a menu of the active module's own choices, then the
  * live modules and "Coming soon". A soft pulse invites the first tap, then stops for good. What a pick does is the
  * composition root's (`modules/chrome.tsx`): each tile is in its module's tint (§9 "Icons").
@@ -86,9 +86,9 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
               </button>
             );
           })}
-          {/* The other WonderStar modules that are open, picked the same way: the four tabs become the module's. */}
+          {/* The other WonderWorks modules that are open, picked the same way: the four tabs become the module's. */}
           {live.length > 0 && (
-            <div role="group" aria-label="More on WonderStar">
+            <div role="group" aria-label="More on WonderWorks">
               <div className="mx-2 mb-1 mt-1.5 border-t border-line" />
               {live.map((k) => {
                 const { icon: I, tint, on } = k;

@@ -63,7 +63,7 @@ function DesktopHome() {
   return (
     <div className="grid grid-cols-[150px_1fr] text-[10px]">
       <aside className="border-r border-line bg-surface-2 p-3">
-        <p className="text-[11px] font-semibold text-ink">WonderStar</p>
+        <p className="text-[11px] font-semibold text-ink">WonderWorks</p>
         <ul className="mt-3 space-y-1.5 text-ink-3">
           {NAV.map((i, n) => (
             <li key={i} className={cn("rounded-[6px] px-2 py-1", n === 0 && "bg-brand-50 font-semibold text-brand-700")}>
@@ -449,7 +449,7 @@ export function ContactSection() {
           <p className="mt-4 text-[16px] text-ink-2">Questions, feedback, a job source we should add, or something that isn&apos;t working. Messages land with the team and we reply by email.</p>
           <ul className="mt-8 space-y-4 text-[14.5px] text-ink-2">
             {[
-              { icon: Sparkles, t: "Already using WonderStar?", s: "Sign in and open Get Help in your avatar menu — the guide answers most questions instantly.", href: "/sign-in?next=%2Fhelp", cta: "Sign in for help" },
+              { icon: Sparkles, t: "Already using WonderWorks?", s: "Sign in and open Get Help in your avatar menu — the guide answers most questions instantly.", href: "/sign-in?next=%2Fhelp", cta: "Sign in for help" },
               { icon: Target, t: "Something not working?", s: "Say which page and what you expected; a screenshot helps.", href: null, cta: null },
               { icon: Mail, t: "Typical reply time", s: "Within two working days.", href: null, cta: null },
             ].map((r) => (

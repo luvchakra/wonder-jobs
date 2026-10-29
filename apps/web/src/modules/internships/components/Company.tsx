@@ -61,7 +61,7 @@ export function InternshipsCompany() {
   if (!spaces.length)
     return (
       <div className="mx-auto max-w-4xl">
-        <PageHeader title="Internships" description="For companies: post internships students find on WonderStar, and review their applications." back={{ href: "/app/hiring", label: "Hiring" }} />
+        <PageHeader title="Internships" description="For companies: post internships students find on WonderWorks, and review their applications." back={{ href: "/app/hiring", label: "Hiring" }} />
         <EmptyState icon={<Building2 className="size-5" aria-hidden />} title="No hiring workspace yet" body="Create one for your company in Hiring, then post internships here." action={{ label: "Open Hiring", href: "/app/hiring" }} />
       </div>
     );
@@ -114,7 +114,7 @@ export function InternshipsCompany() {
               Post an internship
             </Button>
           )}
-          <p className="mb-3 text-[12px] text-ink-3">Open internships show up in students&apos; searches on WonderStar, with your company&apos;s name.</p>
+          <p className="mb-3 text-[12px] text-ink-3">Open internships show up in students&apos; searches on WonderWorks, with your company&apos;s name.</p>
           {data.internships.length === 0 ? (
             <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">No internships yet.{may("jobs.edit") ? " Post one: students see it once you open it." : ""}</p>
           ) : (

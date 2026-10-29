@@ -42,7 +42,7 @@ export function ModuleFind({ m }: { m: ShellManifest }) {
 
 /**
  * Saved (§4.1), with Jobs' Saved layout: the box that narrows the saves as you type, the modules as chips (one list
- * across WonderStar's live modules, filterable by module), Hide Pipeline, and the same cards Find shows. Jobs keeps its
+ * across WonderWorks' live modules, filterable by module), Hide Pipeline, and the same cards Find shows. Jobs keeps its
  * own Saved (the jobs portal is unchanged), a tap away.
  */
 export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /** Every live module but Jobs, in the registry's order. */ live: ShellManifest[]; /** A module's own card for a saved listing. */ card: (module: ShellModule, item: unknown) => ReactNode; /** The words Saved's box matches in a saved listing. */ cardText: (module: ShellModule, item: unknown) => string }) {

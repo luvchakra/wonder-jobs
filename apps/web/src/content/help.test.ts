@@ -94,7 +94,7 @@ describe("help guide", () => {
 
 describe("help assistant retrieval", () => {
   it.each([
-    ["can I install the app on my iphone", "calendar", "Can I install WonderStar on my phone?"],
+    ["can I install the app on my iphone", "calendar", "Can I install WonderWorks on my phone?"],
     ["why are some jobs hidden", "jobs", "Why are some jobs hidden?"],
     ["how do I add my interviews to google calendar", "calendar", "Can I add my interviews and follow-ups to Google Calendar or Outlook?"],
     ["what can I ask wonder", "ask-wonder", "What can I ask Wonder?"],

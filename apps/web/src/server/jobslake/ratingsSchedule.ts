@@ -24,7 +24,7 @@ export function renderNeedsKeyEmail(p: { left: number; origin: string }) {
 <div style="margin:14px 0 0"><a href="${escapeHtml(link)}" style="color:${C.brand600};font-weight:600">Open Company ratings</a></div>`;
   const bodyText = `Every API key on the list has run out of credits, and ${what}. Add a new key and the next scheduled run (or the Run button) carries on.\n\n${link}`;
   const mail = renderEmailLayout({ origin: p.origin, preheader: what, bodyHtml, bodyText, reason: "You're getting this because this address is set to be told when the company-ratings job has no API key left.", settingsLink: false });
-  return { subject: "WonderStar: company ratings need a new Explorium API key", ...mail };
+  return { subject: "WonderWorks: company ratings need a new Explorium API key", ...mail };
 }
 
 /** A test message, so the owner can see the platform mailbox reaches the address the "no key left" email goes to. */
@@ -34,7 +34,7 @@ export function renderTestEmail(origin: string) {
 <div style="font-size:14px;line-height:1.55;color:${C.ink}">If you can read this, the platform mailbox reaches this address. When the ratings job runs out of API keys with companies still waiting, you'll get an email like this one asking for a new key.</div>`;
   const bodyText = "If you can read this, the platform mailbox reaches this address. When the ratings job runs out of API keys with companies still waiting, you'll get an email like this one asking for a new key.";
   const mail = renderEmailLayout({ origin, preheader: "The platform mailbox reaches this address", bodyHtml, bodyText, reason: "You're getting this because someone pressed Send test email in Company ratings for this address.", settingsLink: false });
-  return { subject: "WonderStar: test email from Company ratings", ...mail };
+  return { subject: "WonderWorks: test email from Company ratings", ...mail };
 }
 
 /** Sends the test message to the address in the schedule settings; says plainly when the mailbox isn't set up. */

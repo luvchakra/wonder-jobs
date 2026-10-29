@@ -70,9 +70,9 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} size={13} compact className="-mt-0.5" />}
           {match && <FitPill tone={MATCH_TONE[match.fit]} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`} top={<>{match.score}%</>} bottom="Match" srText={FIT_META[match.fit].label} />}
           {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
-              (a job posted on WonderStar; opens its page), the arrow opens the employer's listing in a new tab. */}
+              (a job posted on WonderWorks; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
-            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderStar" className={APPLY_BTN}>
+            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderWorks" className={APPLY_BTN}>
               <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
               Apply
             </Link>

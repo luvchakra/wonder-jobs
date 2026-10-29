@@ -99,7 +99,7 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
           {helperConnected === false ? (
             <>
               <p className="font-medium text-ink">The browser helper isn&apos;t connected to this application.</p>
-              <p className="mt-1">Open the employer&apos;s page; if you use the WonderStar helper, reconnect it. Otherwise switch to guided mode — every value is ready to copy.</p>
+              <p className="mt-1">Open the employer&apos;s page; if you use the WonderWorks helper, reconnect it. Otherwise switch to guided mode — every value is ready to copy.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={onPair}>
                   Reconnect helper
@@ -127,7 +127,7 @@ export function SessionProgress({ session, progress, helperConnected, fillDecisi
             {progress.fillable > 0 && <> · <strong className="font-medium text-brand-700">{progress.fillable} ready to fill</strong></>}
             {progress.needsYou > 0 && <> · <strong className="font-medium text-warning-600">{progress.needsYou} need{progress.needsYou === 1 ? "s" : ""} you</strong></>}
           </p>
-          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{`Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderStar panel on the employer's page.`}</p>}
+          {progress.fillable > 0 && fillDecision !== "skip" && <p className="mt-1 text-[12px] text-ink-3">{`Choose “Fill ${progress.fillable} field${progress.fillable === 1 ? "" : "s"}” in the WonderWorks panel on the employer's page.`}</p>}
           {/* The extension's page is in another tab — the way back to it. */}
           <button type="button" className="mt-1 text-[12px] font-medium text-brand-600 hover:underline" onClick={onOpen}>
             Open the employer&apos;s page

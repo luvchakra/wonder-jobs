@@ -189,7 +189,7 @@ export interface SearchRequest {
   correlationId?: string;
   /** "refresh" asks every source again instead of reusing a recent answer to the same search. Default "use". */
   cache?: "use" | "refresh";
-  /** The WonderStar module's dataset to search (sources and warm pool). Default "jobs". */
+  /** The WonderWorks module's dataset to search (sources and warm pool). Default "jobs". */
   module?: ModuleId;
 }
 

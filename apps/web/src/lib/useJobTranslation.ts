@@ -6,7 +6,7 @@ import { useAutomationStore } from "@/store/automation";
 import { useAIService } from "@/lib/useAIService";
 
 /** What a person is told when no model is connected: nothing is shown in place of a translation. */
-export const TRANSLATE_NEEDS_AI = "Translating needs an AI model: WonderStar AI where it's connected, or your own key in You → AI provider.";
+export const TRANSLATE_NEEDS_AI = "Translating needs an AI model: WonderWorks AI where it's connected, or your own key in You → AI provider.";
 
 /** This visit's translations, so picking a language again costs nothing; never stored, and small. */
 const CACHE_MAX = 24;

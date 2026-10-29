@@ -31,7 +31,7 @@ async function postedJob() {
   return { orgId: org.id, jobId: job.id, cvId: cv.id };
 }
 
-describe("WonderStar Easy Apply", () => {
+describe("WonderWorks Easy Apply", () => {
   it("sends the candidate's details and a copy of their résumé to the company that posted the job, once", async () => {
     const { orgId, jobId, cvId } = await postedJob();
     // The listing the candidate has may be merged under another source's id; the WonderJobs one is among its ids.

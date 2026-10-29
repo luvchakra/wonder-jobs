@@ -93,7 +93,7 @@ describe("contact notifications over the operator's own mailbox (SMTP)", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("reads SMTP settings, defaulting to implicit TLS on 465 and sending as the mailbox itself", () => {
-    expect(smtpConfig({ SMTP_HOST: "smtpout.secureserver.net", SMTP_USER: "connect@wonderapps.biz", SMTP_PASS: "x" })).toEqual({ host: "smtpout.secureserver.net", port: 465, user: "connect@wonderapps.biz", pass: "x", from: "WonderStar <connect@wonderapps.biz>" });
+    expect(smtpConfig({ SMTP_HOST: "smtpout.secureserver.net", SMTP_USER: "connect@wonderapps.biz", SMTP_PASS: "x" })).toEqual({ host: "smtpout.secureserver.net", port: 465, user: "connect@wonderapps.biz", pass: "x", from: "WonderWorks <connect@wonderapps.biz>" });
     expect(smtpConfig({ SMTP_HOST: "h", SMTP_USER: "u@x.co", SMTP_PASS: "x", SMTP_PORT: "587", CONTACT_FROM_EMAIL: "Team <u@x.co>" })).toMatchObject({ port: 587, from: "Team <u@x.co>" });
     expect(smtpConfig({ SMTP_HOST: "h", SMTP_USER: "u@x.co" })).toBeNull();
     expect(smtpConfig({ SMTP_HOST: "h", SMTP_USER: "u@x.co", SMTP_PASS: "x", SMTP_PORT: "nope" })).toBeNull();
@@ -105,7 +105,7 @@ describe("contact notifications over the operator's own mailbox (SMTP)", () => {
     expect(await notifyContactRecipients(payload, { SMTP_HOST: "h", SMTP_USER: "u", SMTP_PASS: "p" })).toEqual({ attempted: false, sent: false, recipients: [] });
   });
 
-  it("signs in as the mailbox and sends the message to every recipient, From WonderStar, Reply-To the visitor", async () => {
+  it("signs in as the mailbox and sends the message to every recipient, From WonderWorks, Reply-To the visitor", async () => {
     const sink = await smtpSink();
     try {
       const r = await notifyContactRecipients(payload, { CONTACT_NOTIFY_EMAILS: "ops@example.com, founder@example.com", SMTP_HOST: "127.0.0.1", SMTP_PORT: String(sink.port), SMTP_USER: "connect@wonderapps.biz", SMTP_PASS: "mailbox-pass" });
@@ -114,7 +114,7 @@ describe("contact notifications over the operator's own mailbox (SMTP)", () => {
       expect(sink.seen.mailFrom).toContain("<connect@wonderapps.biz>");
       expect(sink.seen.rcpt.join(" ")).toContain("<ops@example.com>");
       expect(sink.seen.rcpt.join(" ")).toContain("<founder@example.com>");
-      expect(sink.seen.data).toMatch(/^From: WonderStar <connect@wonderapps\.biz>$/m);
+      expect(sink.seen.data).toMatch(/^From: WonderWorks <connect@wonderapps\.biz>$/m);
       expect(sink.seen.data).toMatch(/^Reply-To: visitor@example\.com$/m);
       expect(sink.seen.data).toContain("test message from the landing page");
       // Plain text plus the branded HTML (server/email/layout.ts).

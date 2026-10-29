@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MarketingPage } from "@/components/landing/MarketingPage";
 import { MINIMUM_AGE, PRIVACY_NOTICE_VERSION, RETENTION, SUB_PROCESSORS, grievanceContact } from "@/content/privacy";
 
-export const metadata: Metadata = { title: "Privacy notice", description: "What WonderStar stores, why, who processes it, how long it's kept, and your rights under the GDPR and India's DPDP Act." };
+export const metadata: Metadata = { title: "Privacy notice", description: "What WonderWorks stores, why, who processes it, how long it's kept, and your rights under the GDPR and India's DPDP Act." };
 
 function Table({ head, rows }: { head: string[]; rows: string[][] }) {
   return (
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
     <MarketingPage
       eyebrow="Legal"
       title="Privacy notice"
-      intro="What WonderStar collects, why, who else processes it, how long it is kept, and how to exercise your rights under the EU/UK GDPR and India's Digital Personal Data Protection Act, 2023. It describes how the product actually works today."
+      intro="What WonderWorks collects, why, who else processes it, how long it is kept, and how to exercise your rights under the EU/UK GDPR and India's Digital Personal Data Protection Act, 2023. It describes how the product actually works today."
       updated={`8 October 2026 · version ${PRIVACY_NOTICE_VERSION}`}
       sections={[
         {
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           title: "Who is responsible",
           body: (
             <p>
-              WonderStar decides why and how your personal data is processed, so it is the <em>controller</em> under the GDPR and the <em>Data Fiduciary</em> under the DPDP Act. The services listed under &ldquo;Who else processes it&rdquo; act on our instructions as processors.
+              WonderWorks decides why and how your personal data is processed, so it is the <em>controller</em> under the GDPR and the <em>Data Fiduciary</em> under the DPDP Act. The services listed under &ldquo;Who else processes it&rdquo; act on our instructions as processors.
             </p>
           ),
         },
@@ -153,7 +153,7 @@ export default function PrivacyPage() {
         {
           id: "children",
           title: "Children",
-          body: <p>WonderStar is for people aged {MINIMUM_AGE} and over. Signed-in users confirm their age when they accept this notice. If you believe a child has an account, contact us and we will delete it.</p>,
+          body: <p>WonderWorks is for people aged {MINIMUM_AGE} and over. Signed-in users confirm their age when they accept this notice. If you believe a child has an account, contact us and we will delete it.</p>,
         },
         {
           id: "security",

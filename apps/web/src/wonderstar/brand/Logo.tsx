@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The WonderStar mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
+ * The WonderWorks mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
  * Inline so it needs no request; the paths and gradients are `public/brand/wonderstar-mark.svg`'s
  * (`scripts/brand-svg.py`) — change them there and copy them here.
  */
@@ -31,12 +31,12 @@ export function WonderStarMark({ className }: { className?: string }) {
   );
 }
 
-/** "Wonder" in Deep Navy (white on dark) and "Star" in the violet→blue gradient. */
+/** "Wonder" in Deep Navy (white on dark) and "Works" in the violet→blue gradient. */
 export function WonderStarWord({ dark, className }: { dark?: boolean; className?: string }) {
   return (
     <span className={cn("font-semibold tracking-tight", className)}>
       <span className={dark ? "text-white" : "text-deep-navy"}>Wonder</span>
-      <span className={cn("bg-clip-text text-transparent", dark ? "bg-linear-to-r from-[#c4b5fd] to-[#93c5fd]" : "bg-linear-to-r from-star-purple to-sky-blue")}>Star</span>
+      <span className={cn("bg-clip-text text-transparent", dark ? "bg-linear-to-r from-[#c4b5fd] to-[#93c5fd]" : "bg-linear-to-r from-star-purple to-sky-blue")}>Works</span>
     </span>
   );
 }
@@ -44,7 +44,7 @@ export function WonderStarWord({ dark, className }: { dark?: boolean; className?
 /** The primary horizontal logo. */
 export function WonderStarLogo({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)} aria-label="WonderStar" role="img">
+    <span className={cn("inline-flex items-center gap-2", className)} aria-label="WonderWorks" role="img">
       <WonderStarMark className="h-[1.3em] w-auto" />
       <WonderStarWord />
     </span>

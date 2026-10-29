@@ -85,7 +85,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
     const p = aiConfig.activeProvider;
     const cost = { anthropic: { input: 5, output: 25 }, openai: { input: 2.5, output: 10 }, gemini: { input: 1.25, output: 10 } } as const;
     if (p === "wonderjobs") return new TemplateAIService(new WonderJobsAIProvider(), recordUsage, null);
-    const provider = new FallbackProvider(new RemoteBYOKProvider(p, aiConfig.activeModel), new WonderJobsAIProvider(), () => aiConfig.allowPlatformFallback, (reason) => toast.info("Used WonderStar AI for this request", reason));
+    const provider = new FallbackProvider(new RemoteBYOKProvider(p, aiConfig.activeModel), new WonderJobsAIProvider(), () => aiConfig.allowPlatformFallback, (reason) => toast.info("Used WonderWorks AI for this request", reason));
     return new TemplateAIService(provider, recordUsage, cost[p]);
   };
   const artifact = (t: ArtifactType) => app.artifacts.find((a) => a.type === t);
@@ -108,7 +108,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
       if (type === "resume") content = await svc.generateResume(input);
       else if (type === "cover_letter") content = await svc.generateCoverLetter(input);
       else content = await svc.generateScreeningAnswers(input);
-      addVersion(app.id, type, { provenance: "AI_GENERATED", content, note: `Generated with ${aiConfig.activeProvider === "wonderjobs" ? "WonderStar AI" : aiConfig.activeModel}` });
+      addVersion(app.id, type, { provenance: "AI_GENERATED", content, note: `Generated with ${aiConfig.activeProvider === "wonderjobs" ? "WonderWorks AI" : aiConfig.activeModel}` });
       track("application_preparation_completed", { applicationId: app.id, artifact: type });
       const latest = useApplicationsStore.getState().applications[app.id];
       if (latest && describeApplicationPack(latest).ready) track("application_pack_completed", { applicationId: app.id });
@@ -129,7 +129,7 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
   // What the employer's form will ask for that the Career Profile doesn't hold (email falls back to the sign-in address).
   const missingInfo = missingProfileFields(buildApplicationProfile(dna)).filter((m) => m !== "Email");
   const generating = (Object.keys(busy) as ArtifactType[]).find((t) => busy[t]);
-  const providerName = aiConfig.activeProvider === "wonderjobs" ? "WonderStar AI" : aiConfig.activeModel;
+  const providerName = aiConfig.activeProvider === "wonderjobs" ? "WonderWorks AI" : aiConfig.activeModel;
   const finish = () => {
     track("external_handoff_started", { applicationId: app.id });
     setStatus(app.id, "ready_for_review", { type: "prepared", title: "Application prepared", detail: "Reviewed and approved by you" });
@@ -186,12 +186,12 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
           {error && (
             <ErrorState
               className="mb-4"
-              title={`${error.provider === "wonderjobs" ? "WonderStar AI" : error.provider} couldn't complete your ${error.type === "resume" ? "resume" : error.type === "cover_letter" ? "cover letter" : "screening answers"}`}
+              title={`${error.provider === "wonderjobs" ? "WonderWorks AI" : error.provider} couldn't complete your ${error.type === "resume" ? "resume" : error.type === "cover_letter" ? "cover letter" : "screening answers"}`}
               body={error.message}
               actions={[
                 { label: "Retry", variant: "primary", onClick: () => generate(error.type) },
                 { label: "Change provider", href: "/app/settings/ai" },
-                ...(error.provider !== "wonderjobs" ? [{ label: "Use WonderStar AI (included in plan)", href: "/app/settings/ai?switch=wonderjobs" }] : []),
+                ...(error.provider !== "wonderjobs" ? [{ label: "Use WonderWorks AI (included in plan)", href: "/app/settings/ai?switch=wonderjobs" }] : []),
               ]}
             />
           )}

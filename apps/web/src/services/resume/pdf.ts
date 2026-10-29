@@ -55,8 +55,8 @@ export async function renderResumePdf(layout: ResumeLayout, opts: { loadFont: Fo
   pdf.registerFontkit(fontkit);
   pdf.setTitle(opts.title);
   pdf.setAuthor(opts.author);
-  pdf.setCreator("WonderStar");
-  pdf.setProducer("WonderStar résumé renderer");
+  pdf.setCreator("WonderWorks");
+  pdf.setProducer("WonderWorks résumé renderer");
   pdf.setLanguage("en");
   const fonts = new Map<FontKey, PDFFont>();
   for (const key of fontsUsed(layout)) fonts.set(key, await pdf.embedFont(await opts.loadFont(key), { subset: true }));

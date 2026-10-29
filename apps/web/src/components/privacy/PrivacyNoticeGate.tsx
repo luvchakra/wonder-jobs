@@ -60,7 +60,7 @@ export function PrivacyNoticeGate() {
       dismissible={false}
       onClose={() => {}}
       title="Before you continue"
-      description={`Our privacy notice (version ${PRIVACY_NOTICE_VERSION}) explains what WonderStar stores, why, who processes it, how long it's kept, and your rights to access, correct, export and erase it.`}
+      description={`Our privacy notice (version ${PRIVACY_NOTICE_VERSION}) explains what WonderWorks stores, why, who processes it, how long it's kept, and your rights to access, correct, export and erase it.`}
       footer={
         <>
           <Button
@@ -93,7 +93,7 @@ export function PrivacyNoticeGate() {
             <Link href="/privacy" target="_blank" className="font-medium text-brand-700 underline">
               privacy notice
             </Link>{" "}
-            and agree to WonderStar processing my data as it describes.
+            and agree to WonderWorks processing my data as it describes.
           </span>
         </label>
         <label className="flex items-start gap-2.5">
