@@ -19,7 +19,6 @@ import dynamic from "next/dynamic";
 // Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
-import { RunningIndicator } from "./RunningIndicator";
 import { useChromeSlots } from "./slots";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -173,7 +172,6 @@ export function TopBar() {
       </Link>
       <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
-      <RunningIndicator />
       {/* Tasks: what needs you (Needs attention). Ask Wonder is under You, and ⌘K on a computer. */}
       <Link href="/app/tasks" aria-label={`Tasks${tasks ? `, ${tasks} need attention` : ""}`} title="Tasks" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
         <ListChecks className="size-5" aria-hidden />
