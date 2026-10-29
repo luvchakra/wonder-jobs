@@ -538,6 +538,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ E2E nightly 25 fixed: recruiter messages answer before their notifications go out; hiring, real-account and apply specs and the résumé gallery baseline follow the current app (WJ-419)
 - ✅ E2E nightly 27 fixed: hiring invitations answer before their email goes out; the onboarding skip and DECIDE-006 follow the current app (WJ-420)
 - ✅ WonderStar shared layer (`src/wonderstar/`): WonderJobs (`src/modules/jobs/`) and Internships on it, one structure and four tabs for every module, module boundaries enforced by a test (WJ-421)
+- ✅ E2E nightly 32 fixed: the signed-in specs run one at a time, so JobsLake's searches no longer stall hiring; the bell test waits for the app's first reminders (WJ-423)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
