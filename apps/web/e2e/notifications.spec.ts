@@ -16,6 +16,10 @@ test.describe("Notification center", () => {
 
     const list = page.getByRole("list", { name: "Notifications" });
     await expect(list.getByRole("listitem").first()).toBeVisible();
+    // The sample candidate's due reminders are raised by the app's first reminder pass, a moment after it
+    // loads (later on a slow machine): wait for them, so Mark all read below covers them.
+    await expect(list.getByText("Interview coming up — Amazon")).toBeVisible({ timeout: 20_000 });
+    await expect(list.getByText("Follow-up due soon — Google")).toBeVisible();
     const show = page.getByRole("group", { name: "Show" });
     await show.getByRole("button", { name: /^Unread · \d+$/ }).click();
     // Reminders can arrive while the page is open: the list always matches the chip's live count.
