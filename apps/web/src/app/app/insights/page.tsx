@@ -16,7 +16,7 @@ import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { CareerInsightCard, Sparkbars } from "@/components/career/CareerInsightCard";
 import { formatDate, formatNumber } from "@/lib/format";

@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, type LucideIcon } from "lucide-react";
 import { toast } from "@/components/feedback/Toast";
-import { TINTS } from "@/wonderstar/brand/tiles";
-import type { ModuleTint } from "@/wonderstar/manifest";
+import { TINTS } from "@/wonderworks/brand/tiles";
+import type { ModuleTint } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 
 /** One entry in the menu: the active module's own choices (WonderJobs: Full Time Jobs, Part Time Jobs), or a module. */
@@ -18,7 +18,7 @@ export interface MenuItem {
 }
 
 /**
- * WonderStar's module menu, in the centre of the top bar on every page (owner, 2026-10-29): the current value as text
+ * WonderWorks' module menu, in the centre of the top bar on every page (owner, 2026-10-29): the current value as text
  * with a chevron ("Full Time Jobs ▾", "Internships ▾"), opening a menu of the active module's own choices, then the
  * live modules and "Coming soon". A soft pulse invites the first tap, then stops for good. What a pick does is the
  * composition root's (`modules/chrome.tsx`): each tile is in its module's tint (§9 "Icons").
@@ -86,7 +86,7 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
               </button>
             );
           })}
-          {/* The other WonderStar modules that are open, picked the same way: the four tabs become the module's. */}
+          {/* The other WonderWorks modules that are open, picked the same way: the four tabs become the module's. */}
           {live.length > 0 && (
             <div role="group" aria-label="More on WonderStar">
               <div className="mx-2 mb-1 mt-1.5 border-t border-line" />

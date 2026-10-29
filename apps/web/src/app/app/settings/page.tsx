@@ -1,7 +1,7 @@
 "use client";
 import { useJobsStore } from "@/store/jobs";
 import { useAuthStore } from "@/store/auth";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Badge } from "@/components/common/Badge";
 import { cn } from "@/lib/cn";
 

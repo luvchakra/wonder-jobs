@@ -9,7 +9,7 @@ import { skillGaps, type GapJob } from "@/domain/skills/gap";
 import { certificationsAsked, type CertJob } from "@/domain/skills/certifications";
 import { searchTerm } from "@/domain/skills/learn";
 import { GENERIC_SKILLS, mentions } from "@/services/jobs/matching";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { EmptyState } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Resources, type LearnItem } from "@/components/skillup/Resources";

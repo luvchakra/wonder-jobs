@@ -3,16 +3,16 @@ import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { RefreshCw, Search } from "lucide-react";
 import { EmptyState, ErrorState } from "@/components/common/States";
 import { WonderSearching } from "@/components/brand/WonderSearching";
-import { useBottomBar } from "@/wonderstar/chrome/MobileNav";
+import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { useDictation } from "@/lib/dictation";
 import { useUIStore } from "@/store/ui";
-import { moduleStore } from "@/wonderstar/store";
-import type { ModuleId } from "@/wonderstar/manifest";
+import { moduleStore } from "@/wonderworks/store";
+import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 import { ChoiceChips, DictationNotes, PillButton, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
- * A WonderStar module's Find (docs/WONDERSTAR_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
+ * A WonderWorks module's Find (docs/WONDERSTAR_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
  * search box (microphone, clear, recent searches), one row of Refine, the module's pill facets and the round Search
  * button, the Refine panel, the line that says how many and from where, the cards, and the same empty states. A module
  * plugs in only its own fields (`facets`), its search, its card and its sheet. Opening the page searches nothing.

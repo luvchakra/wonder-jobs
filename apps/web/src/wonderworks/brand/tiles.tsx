@@ -1,5 +1,5 @@
 import { BookOpen, Briefcase, CalendarDays, GraduationCap, Handshake, HeartPulse, Store, Users, type LucideIcon } from "lucide-react";
-import type { ModuleIcon, ModuleManifest, ModuleTint } from "@/wonderstar/manifest";
+import type { ModuleIcon, ModuleManifest, ModuleTint } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 
 export const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOpen, Handshake, Users, HeartPulse, CalendarDays, Store };

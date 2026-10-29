@@ -7,7 +7,7 @@ import { useJobsStore } from "@/store/jobs";
 import { actionsRequired } from "@/domain/digest/build";
 import { computeApplicationAttention } from "@/domain/career/attention";
 import { useNow } from "@/lib/motion";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { EmptyState } from "@/components/common/States";
 import { AttentionList, type AttentionRow } from "@/components/career/AttentionList";
 import { attentionRows } from "@/modules/jobs/pipeline/ApplicationAttentionList";

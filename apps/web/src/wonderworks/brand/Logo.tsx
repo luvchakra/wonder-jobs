@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The WonderStar mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
+ * The WonderWorks mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
  * Inline so it needs no request; the paths and gradients are `public/brand/wonderstar-mark.svg`'s
  * (`scripts/brand-svg.py`) — change them there and copy them here.
  */

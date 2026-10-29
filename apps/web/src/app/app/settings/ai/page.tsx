@@ -5,7 +5,7 @@ import { CheckCircle2, Info } from "lucide-react";
 import { AI_PROVIDERS, type AIProviderId } from "@/domain/ai/types";
 import { useAIStore } from "@/store/ai";
 import { formatDate, formatTime } from "@/lib/format";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";

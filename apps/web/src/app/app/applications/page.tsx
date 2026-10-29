@@ -14,9 +14,9 @@ import { APPLICATION_STATUS_META, applicationJobOf, FUNNEL_STAGES, type Applicat
 import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
 import { removeFromPipeline } from "@/lib/pipeline";
 import { toast } from "@/components/feedback/Toast";
-import { PageHeader, SectionHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader, SectionHeader } from "@/wonderworks/chrome/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
-import { StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderstar/pipeline/parts";
+import { StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { Modal } from "@/components/common/Modal";

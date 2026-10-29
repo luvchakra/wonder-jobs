@@ -1,4 +1,4 @@
-import { shellRoutes, stagesOf, type ModuleManifest } from "@/wonderstar/manifest";
+import { shellRoutes, stagesOf, type ModuleManifest } from "@/wonderworks/manifest";
 
 /** Internships' manifest. Its Pipeline tab is called Applications (owner, 2026-10-29). */
 export const internshipsManifest: ModuleManifest = {

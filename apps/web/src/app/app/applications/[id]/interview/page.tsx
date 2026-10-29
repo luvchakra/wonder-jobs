@@ -8,7 +8,7 @@ import { useCareerStore } from "@/store/career";
 import { interviewPrep, learnLinks } from "@/domain/applications/interviewPrep";
 import { QUIZ_LENGTH, QUIZ_PASS } from "@/domain/applications/practice";
 import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState } from "@/components/common/States";

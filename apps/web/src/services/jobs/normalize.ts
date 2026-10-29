@@ -4,7 +4,7 @@
  * posting's own text with deterministic rules, so it is explainable and never
  * invented. Runs on the server (fetchers) and is pure, so it is unit-tested.
  */
-import { stripHeadlineLabel, stripSelfReference } from "@/wonderstar/you/headline";
+import { stripHeadlineLabel, stripSelfReference } from "@/wonderworks/you/headline";
 import { resolveJobType } from "@/domain/jobs/jobType";
 import type { Job, WorkMode } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
