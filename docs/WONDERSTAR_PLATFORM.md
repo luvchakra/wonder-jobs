@@ -271,6 +271,13 @@ so the design stays one system: same tokens, one primary action per screen, fold
    module at `/app/m/internships` with its own JobsLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
    taken back out in WJ-414). Kept for it: `domain/org/internship.ts` (stipend a month, duration, start date) and
    `employer_jobs.internship` (migration 0032).
+   **Done (WJ-418, 2026-10-29):** Internships is live at `/app/m/internships` — its own JobsLake sources (WonderStar
+   companies, Adzuna India, Greenhouse/Lever/Ashby, SmartRecruiters, Remotive, Remote OK; Internshala and LinkedIn have
+   no open API), company postings in Internships → Company (same workspace and roles), the platform `listings` /
+   `responses` tables (migration 0035, module-keyed), the student profile (prefilled from Career Profile education,
+   read only), Find with stipend/duration/start/remote facets and match reasons, one-tap Apply gated by
+   `internships.apply`, Pipeline (Applied · Shortlisted · Offer · Accepted / Closed + Deadlines), Saved across
+   modules, bell + push on a company's decision. Not used: `employer_jobs.internship` (Jobs' table stays Jobs').
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
 7. **Talent & Services** — adds quotes, payments and reviews.
 8. **Events & Social** — adds capacity, RSVP and waitlist.

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { conversationMessages, sendMessage, setConversationStatus } from "@/server/hiring";
@@ -16,7 +17,7 @@ export async function GET(req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const as = new URL(req.url).searchParams.get("as") === "org" ? "org" : "candidate";
-  return hiringRoute(req, (s, b) => sendMessage(s, id, b.body, as), { schema: z.object({ body: z.string().min(1).max(4000) }), write: true });
+  return hiringRoute(req, (s, b) => sendMessage(s, id, b.body, as, after), { schema: z.object({ body: z.string().min(1).max(4000) }), write: true });
 }
 
 /** The candidate declines, blocks or reopens. */

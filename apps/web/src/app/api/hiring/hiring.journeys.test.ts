@@ -12,6 +12,11 @@ vi.mock("@/server/auth", () => ({
   requireSession: async () => current ?? NextResponse.json({ error: "Sign in required" }, { status: 401 }),
 }));
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async () => undefined }));
+// A route sends its notifications after the answer (next/server `after`); here they start straight away, and
+// `afterAnswer()` waits for them.
+const later = vi.hoisted(() => [] as Promise<unknown>[]);
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: (fn: () => unknown) => void later.push(Promise.resolve().then(fn)) }));
+const afterAnswer = () => Promise.all(later.splice(0));
 const pushes: { tenant: string; title: string }[] = [];
 vi.mock("@/server/push/subscriptions", () => ({ notifyTenant: vi.fn(async (tenant: string, n: { title: string }) => (pushes.push({ tenant, title: n.title }), { sent: 1 })) }));
 
@@ -90,6 +95,7 @@ async function employerSearch(query: string) {
 beforeEach(() => {
   resetTablesForTests();
   pushes.length = 0;
+  later.length = 0;
   current = null;
 });
 
@@ -148,6 +154,7 @@ describe("job seeker", () => {
     const seeker = person("seeker");
     await ok(optIn(seeker));
     const { id } = await ok(startConv(recruiter, orgId, seeker.tenantId, "Hi Sam, would you talk about a platform role?"));
+    await afterAnswer();
     expect(pushes.some((p) => p.tenant === seeker.tenantId)).toBe(true);
 
     const inbox = (await ok(call(seeker, myConvs.GET))).conversations;
@@ -158,6 +165,7 @@ describe("job seeker", () => {
     const t = await ok(readThread(seeker, id));
     expect(t).toMatchObject({ side: "candidate", canSend: true });
     await ok(write(seeker, id, "Happy to talk."));
+    await afterAnswer();
     expect(pushes.some((p) => p.tenant === recruiter.tenantId)).toBe(true);
 
     // Not interested: the company can no longer write.

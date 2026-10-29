@@ -566,7 +566,7 @@ export async function conversationMessages(s: Session, conversationId: string, p
 }
 
 /** A recruiter's first message: only to someone open to recruiters, never after they declined or blocked this company. */
-export async function startConversation(s: Session, orgId: string, candidateTenant: string, text: string, jobId?: string): Promise<string> {
+export async function startConversation(s: Session, orgId: string, candidateTenant: string, text: string, jobId?: string, later?: Later): Promise<string> {
   await requirePermission(s, orgId, "messages.send");
   const b = body(text);
   if (!(await talent().one({ tenant_id: candidateTenant }))) throw new HiringError("That candidate isn't open to recruiters.", 404);
@@ -577,11 +577,11 @@ export async function startConversation(s: Session, orgId: string, candidateTena
     c = { id: id("conv"), org_id: orgId, candidate_tenant: candidateTenant, job_id: jobId ?? null, status: "open", started_by: s.tenantId, created_at: now(), updated_at: now() };
     await conversations().insert(c);
   }
-  await post(c, s.tenantId, "org", b);
+  await post(c, s.tenantId, "org", b, later);
   return c.id;
 }
 
-export async function sendMessage(s: Session, conversationId: string, text: string, prefer?: "org" | "candidate"): Promise<Message> {
+export async function sendMessage(s: Session, conversationId: string, text: string, prefer?: "org" | "candidate", later?: Later): Promise<Message> {
   const { c, side, member } = await access(s, conversationId, prefer);
   const b = body(text);
   if (side === "org") {
@@ -594,19 +594,27 @@ export async function sendMessage(s: Session, conversationId: string, text: stri
   }
   // A candidate writing back reopens a conversation they had declined.
   if (side === "candidate" && c.status === "declined") await conversations().update({ id: c.id, candidate_tenant: s.tenantId }, { status: "open" });
-  return post(c, s.tenantId, side, b);
+  return post(c, s.tenantId, side, b, later);
 }
 
-async function post(c: ConversationRow, sender: string, side: "org" | "candidate", text: string): Promise<Message> {
+/** Runs work after the response has gone (a route passes next/server's `after`); without one, it runs before returning. */
+export type Later = (task: () => Promise<unknown>) => void;
+
+async function post(c: ConversationRow, sender: string, side: "org" | "candidate", text: string, later?: Later): Promise<Message> {
   const row: MessageRow = { id: id("msg"), conversation_id: c.id, sender_tenant: sender, side, body: text, created_at: now() };
   await messages().insert(row);
   await conversations().update({ id: c.id }, { updated_at: row.created_at });
-  // Tell the other side; a push failure never blocks the message.
-  const org = await orgs().one({ id: c.org_id });
-  const to = side === "org" ? c.candidate_tenant : c.started_by;
-  const url = side === "org" ? `/app/recruiters?c=${c.id}` : `/app/hiring?tab=messages&c=${c.id}`;
-  // In their bell, as a push, and by email when no push reached them (at most one email per conversation per half hour).
-  await deliver(to, { category: "recruiter_message", title: side === "org" ? `Message from ${org?.name ?? "a company"}` : "A candidate replied", body: text.slice(0, 300), href: url }, { email: { key: `conv:${c.id}`, everyMs: 30 * 60_000 } }).catch(() => undefined);
+  // Tell the other side; a push failure never blocks the message. The message is stored, so the sender's answer
+  // doesn't wait on the bell, push and email (an email to a first-time thread can take seconds).
+  const notify = async () => {
+    const org = await orgs().one({ id: c.org_id });
+    const to = side === "org" ? c.candidate_tenant : c.started_by;
+    const url = side === "org" ? `/app/recruiters?c=${c.id}` : `/app/hiring?tab=messages&c=${c.id}`;
+    // In their bell, as a push, and by email when no push reached them (at most one email per conversation per half hour).
+    await deliver(to, { category: "recruiter_message", title: side === "org" ? `Message from ${org?.name ?? "a company"}` : "A candidate replied", body: text.slice(0, 300), href: url }, { email: { key: `conv:${c.id}`, everyMs: 30 * 60_000 } }).catch(() => undefined);
+  };
+  if (later) later(notify);
+  else await notify();
   return toMessage(row);
 }
 

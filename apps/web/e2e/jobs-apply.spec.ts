@@ -386,10 +386,15 @@ web.describe("JobsApply in WonderStar", () => {
     await expect(page.getByRole("link", { name: "Easy Apply" })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Easy Apply needs the WonderStar browser extension.")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("link", { name: /go to the job listing/ })).toHaveAttribute("target", "_blank");
-    // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and it asks for the résumé file.
+    // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and one tap sends
+    // (owner, 2026-10-28). The sample posting isn't a company's open job on this server, so the press is refused
+    // and says why; nothing is marked applied.
     await page.goto(`/app/jobs/${JOB}`);
+    await expect(page.getByText("One tap sends your Career Profile, résumé and saved answers to Razorpay.")).toBeVisible({ timeout: 20_000 });
     await page.getByRole("button", { name: "Easy Apply", exact: true }).click();
-    await expect(page.getByRole("dialog").getByText("Easy Apply sends your résumé file.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("This position is no longer open.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Easy Apply", exact: true })).toBeEnabled();
+    await expect(page.getByText("Applied with Easy Apply")).toHaveCount(0);
   });
 
   web("GJ5 / APPLY-006: an application already submitted is flagged before anything starts", async ({ page }) => {
