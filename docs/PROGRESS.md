@@ -549,6 +549,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ The product is called WonderWorks: copy, logo wordmark, browser helper 0.3.8, docs (WJ-426)
 - ✅ WonderWorks caching and persistence, taken from WonderJobs: every module keeps its last search, closed listings and link checks, synced to the account (WJ-428)
 - ✅ Internships searches six more sources: The Muse, Himalayas, Arbeitnow, Jobicy, USAJOBS student internships and Jooble (the last two need their API keys) (WJ-429)
+- ✅ Internships: each application opens its own page, laid out like a job application's (timeline, status, what you sent); Find's results line stays on one line (WJ-430)
 - ✅ New WonderWorks logo mark (rounded wings under a star) across the app, icons, emails and the browser helper; the bell opens a full Notifications page with Notifications and Needs attention tabs, replacing the Tasks icon
 - ✅ JobsLake is called WorksLake everywhere people read it (internal `jobslake` names unchanged); the top bar drops its logo, and the avatar turns over to the mark for 2 s every 10 s
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)

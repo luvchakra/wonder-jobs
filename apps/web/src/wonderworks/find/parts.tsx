@@ -303,11 +303,16 @@ export function SortSelect<T extends string>({ value, labels, onChange, classNam
   );
 }
 
-/** How many, from where — and the order they're in: the line above the results. */
+/**
+ * How many, from where — and the order they're in: the line above the results. One line always: smaller type on a
+ * phone, and a summary too long even then ends in "…" with the whole of it on hover.
+ */
 export function ResultsLine({ summary, sort }: { summary: React.ReactNode; sort?: React.ReactNode }) {
   return (
-    <div className="mb-3 flex items-center gap-3">
-      <p className="min-w-0 flex-1 text-[13px] text-ink-3">{summary}</p>
+    <div className="mb-3 flex items-center gap-2 whitespace-nowrap sm:gap-3 [&_label]:text-[11.5px] sm:[&_label]:text-[13px]">
+      <p className="min-w-0 flex-1 truncate text-[11.5px] text-ink-3 sm:text-[13px]" title={typeof summary === "string" ? summary : undefined}>
+        {summary}
+      </p>
       {sort}
     </div>
   );

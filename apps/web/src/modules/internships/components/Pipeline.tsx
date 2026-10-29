@@ -14,6 +14,8 @@ import { canWithdraw, deadlines, durationLabel, shortDate, stageOf, STATUS_LABEL
 import { savedItems, useInternshipsStore } from "../store";
 
 const noop = () => () => undefined;
+/** An application's own page (components/Application.tsx). */
+const itemHref = (id: string) => `/app/m/internships/pipeline/${encodeURIComponent(id)}`;
 
 type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; line: string; at: string; app?: MyInternshipApplication; outside?: InternshipListing };
 
@@ -22,7 +24,7 @@ const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "br
 /**
  * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Applied · Shortlisted ·
  * Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
- * chips; the same compact cards, with the one action each needs; then Deadlines. WonderWorks applications come from the
+ * chips; the same compact cards, with the one action each needs, each opening its application's page; then Deadlines. WonderWorks applications come from the
  * server (what the company actually did); outside ones are those the student marked applied after applying on the
  * employer's page.
  */
@@ -112,7 +114,7 @@ export function InternshipsPipeline() {
                     const withdraw = !!i.app && !offer && canWithdraw(i.app.status);
                     return (
                       <li key={i.id} className="relative">
-                        <StageCard logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} when={relativeTime(i.at)} actionSpace={offer || withdraw} className={i.outside ? "pr-11" : undefined} />
+                        <StageCard href={itemHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} when={relativeTime(i.at)} actionSpace={offer || withdraw} className={i.outside ? "pr-11" : undefined} />
                         {offer && (
                           <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
                             <Button size="sm" variant="ghost" loading={busy === i.id} onClick={() => void act(i.id, "withdraw")} aria-label={`Decline the offer from ${i.company}`}>
@@ -146,7 +148,7 @@ export function InternshipsPipeline() {
               <StageList label="Deadlines">
                 {due.slice(0, 9).map((d) => (
                   <li key={d.id}>
-                    <StageCard logo={{ name: d.company }} company={d.company} title={d.title} badge={{ label: `${d.label} ${shortDate(d.date)}`, tone: d.label === "Starts" ? "success" : "warning" }} when="" />
+                    <StageCard href={d.id.startsWith("apply:") ? undefined : itemHref(d.id.slice(d.id.indexOf(":") + 1))} logo={{ name: d.company }} company={d.company} title={d.title} badge={{ label: `${d.label} ${shortDate(d.date)}`, tone: d.label === "Starts" ? "success" : "warning" }} when="" />
                   </li>
                 ))}
               </StageList>

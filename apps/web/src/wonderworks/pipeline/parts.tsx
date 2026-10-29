@@ -3,11 +3,14 @@ import Link from "next/link";
 import { Chip } from "@/components/common/Input";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge, type Tone } from "@/components/common/Badge";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatDate, formatTime } from "@/lib/format";
+import { useNow } from "@/lib/motion";
 
 /**
  * Pipeline's building blocks, shared by every WonderWorks module (docs/WONDERWORKS_PLATFORM.md §4.1): the row of stage
- * tiles with counts, a stage's filter chips, its list and its compact cards. Extracted from the jobs portal's Pipeline
+ * tiles with counts, a stage's filter chips, its list, its compact cards and an item's timeline. Extracted from the jobs portal's Pipeline
  * (app/app/applications/page.tsx, components/applications/ApplicationCard.tsx), which renders through them unchanged;
  * a module brings only its stages and what each card says.
  */
@@ -112,4 +115,36 @@ export function StageCard({ href, onOpen, logo, company, title, line, step, tags
       </button>
     );
   return <div className={cls}>{body}</div>;
+}
+
+/** An item's history, oldest first, as Jobs' application page has it: an icon per event, a future one dashed and "upcoming". */
+export function StageTimeline({ events, label = "Application timeline", className }: { events: { id: string; at: string; title: string; detail?: string; icon: LucideIcon }[]; label?: string; className?: string }) {
+  const now = useNow();
+  const sorted = [...events].sort((a, b) => a.at.localeCompare(b.at));
+  if (!sorted.length) return <p className="text-sm text-ink-3">No events yet.</p>;
+  return (
+    <ol className={cn("relative", className)} aria-label={label}>
+      {sorted.map((e, i) => {
+        const Icon = e.icon;
+        const future = new Date(e.at).getTime() > now;
+        return (
+          <li key={e.id} className="relative flex gap-3 pb-5 last:pb-0">
+            {i < sorted.length - 1 && <span className="absolute left-[15px] top-8 h-[calc(100%-16px)] w-0.5 bg-line" aria-hidden />}
+            <span className={cn("relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border", future ? "border-dashed border-brand-300 bg-surface text-brand-500" : "border-line bg-brand-50 text-brand-600")}>
+              <Icon className="size-3.5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1 pt-1">
+              <p className="text-[14px] font-medium text-ink">
+                {e.title} {future && <span className="ml-1 text-[11px] font-normal text-brand-600">upcoming</span>}
+              </p>
+              {e.detail && <p className="text-[13px] text-ink-3">{e.detail}</p>}
+              <p className="mt-0.5 text-[11px] text-ink-4">
+                {formatDate(e.at)} · {formatTime(e.at)}
+              </p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
