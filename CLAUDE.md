@@ -122,8 +122,8 @@ Never show a candidate anything WonderJobs didn't actually find, compute or rece
 
 - **Every change is a PR from a `claude/<topic>` branch; merge it yourself** (owner, 2026-10-16/20). Never push to `main`.
   - Turn on auto-merge (squash), or squash-merge the moment CI is green on the latest commit.
-  - Before merging, check: no conflict, no open blocking review, and the latest E2E nightly isn't red.
-  - Never wait for a go-ahead.
+  - Before merging, check: no conflict and no open blocking review. A red E2E nightly never holds a merge (owner, 2026-10-29); it is still fixed first, in its own PR.
+  - Never wait for a go-ahead: always merge once CI is green.
   - Then confirm the production deploy and send one `PushNotification` per finished task (or one when blocked on the owner).
 - **Before pushing, run only:**
   - `npx tsc --noEmit -p apps/web`
