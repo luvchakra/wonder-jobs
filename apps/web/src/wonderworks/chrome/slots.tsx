@@ -15,8 +15,8 @@ export interface ChromeSlots {
   sections: { title: string; items: NavItem[] }[];
   /** The menu in the middle of the top bar. */
   FindMenu?: ComponentType;
-  /** How many things need the person (Needs attention, the bell's badge), and their status line in the account menu. */
-  useStatus: (hydrated: boolean) => { tasks: number; careerStatus: string };
+  /** How many things need the person in the module selected (Needs attention, the bell's badge), and their status line in the account menu. */
+  useStatus: (hydrated: boolean, module: string) => { tasks: number; careerStatus: string };
 }
 
 const NONE: ChromeSlots = { tabsFor: () => [], moduleFromPath: () => null, sections: [], useStatus: () => ({ tasks: 0, careerStatus: "Career Explorer" }) };

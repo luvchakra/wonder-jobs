@@ -86,5 +86,7 @@ export interface Notification {
   href: string;
   /** The button's words, when this notification's action is more specific than its category's. */
   action?: string;
+  /** The WonderWorks module it belongs to, when it isn't plain from its link (see `notificationModule`). */
+  module?: string;
   read: boolean;
 }

@@ -256,11 +256,11 @@ export function studentNotice(status: InternshipStatus, title: string, company: 
   const href = "/app/m/internships/pipeline";
   switch (status) {
     case "shortlisted":
-      return { category: "application_status", title: `Shortlisted by ${company}`, body: `${company} shortlisted you for ${title}.`, href, action: "Open Pipeline" };
+      return { category: "application_status", module: INTERNSHIPS, title: `Shortlisted by ${company}`, body: `${company} shortlisted you for ${title}.`, href, action: "Open Pipeline" };
     case "offer":
-      return { category: "application_status", title: `Internship offer from ${company}`, body: `${company} offered you ${title}. Accept or decline it in Pipeline.`, href, action: "Open Pipeline" };
+      return { category: "application_status", module: INTERNSHIPS, title: `Internship offer from ${company}`, body: `${company} offered you ${title}. Accept or decline it in Pipeline.`, href, action: "Open Pipeline" };
     default:
-      return { category: "application_status", title: `Update from ${company}`, body: `${company} isn't moving forward with your application for ${title}.`, href };
+      return { category: "application_status", module: INTERNSHIPS, title: `Update from ${company}`, body: `${company} isn't moving forward with your application for ${title}.`, href };
   }
 }
 

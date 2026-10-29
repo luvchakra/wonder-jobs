@@ -59,7 +59,13 @@ function FindMenu() {
   );
 }
 
-const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus: useJobsStatus };
+/** Jobs' Needs attention (its applications) counts only while Jobs is the module selected; the status line is the account's. */
+function useStatus(hydrated: boolean, module: string) {
+  const status = useJobsStatus(hydrated);
+  return module === "jobs" ? status : { ...status, tasks: 0 };
+}
+
+const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus };
 
 /** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {

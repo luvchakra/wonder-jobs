@@ -4,7 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useCareerStore } from "@/store/career";
-import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
+import { NOTIFICATION_ACTION, notificationsFor, visibleNotifications } from "@/domain/career/notifications";
+import { useChromeSlots } from "@/wonderworks/chrome/slots";
+import { useSelectedModule } from "@/wonderworks/chrome/useModuleNav";
+import { moduleById } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
@@ -19,16 +22,27 @@ type Tab = "notifications" | "attention";
 
 /**
  * Notifications (owner, 2026-10-29): the bell opens this page. Two tabs — Notifications (everything that happened) and
- * Needs attention (what needs you, `?tab=attention`). Notifications & email (/app/settings/notifications) is where you
- * choose what you're told, and how.
+ * Needs attention (what needs you, `?tab=attention`). Both follow the module selected (Jobs, Internships…): its own
+ * notifications and its own Needs attention, plus the account-wide ones. Notifications & email
+ * (/app/settings/notifications) is where you choose what you're told, and how.
  */
 function NotificationsPage() {
   const router = useRouter();
   const tab: Tab = useSearchParams().get("tab") === "attention" ? "attention" : "notifications";
   const setTab = (t: Tab) => router.replace(t === "attention" ? "/app/notifications?tab=attention" : "/app/notifications", { scroll: false });
-  const rows = useAttentionRows();
-  const notifications = useCareerStore((s) => s.notifications);
+  const selected = useSelectedModule();
+  const moduleLabel = moduleById(selected)?.label ?? "Jobs";
+  const { tabsFor } = useChromeSlots();
+  // The module's Pipeline tab (Pipeline, Applications…): where Needs attention leads when it's empty.
+  const pipeline = tabsFor(selected)[2];
+  // Needs attention is worked out from Jobs' applications, so it is Jobs' alone; another module has none of its own yet.
+  const jobsRows = useAttentionRows();
+  const rows = selected === "jobs" ? jobsRows : [];
+  const allNotifications = useCareerStore((s) => s.notifications);
+  const notifications = notificationsFor(allNotifications, selected);
   const markRead = useCareerStore((s) => s.markRead);
+  // Marks only what's on this page read, never another module's.
+  const markAllRead = () => notifications.filter((n) => !n.read).forEach((n) => markRead(n.id));
   // All, Unread, or one kind (Messages, Interviews…) — the kinds Notifications & email lists, those present here.
   const [show, setShow] = useState<"all" | "unread" | NotifyTopic>("all");
   const all = visibleNotifications(notifications);
@@ -40,9 +54,11 @@ function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold text-ink">Notifications</h1>
+        <h1 className="text-[20px] font-semibold text-ink">
+          Notifications <span className="text-[14px] font-medium text-ink-3">· {moduleLabel}</span>
+        </h1>
         {tab === "notifications" && unread > 0 && (
-          <button type="button" onClick={() => markRead()} className="text-[13px] font-medium text-brand-600 hover:underline">
+          <button type="button" onClick={markAllRead} className="text-[13px] font-medium text-brand-600 hover:underline">
             Mark all read
           </button>
         )}
@@ -61,7 +77,7 @@ function NotificationsPage() {
         ))}
       </div>
       {tab === "attention" ? (
-        <NeedsAttention rows={rows} />
+        <NeedsAttention rows={rows} empty={selected === "jobs" ? undefined : { label: pipeline ? `Open ${pipeline.label}` : "Open", href: pipeline?.href ?? "/app" }} />
       ) : (
         <>
       <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Show">
@@ -78,7 +94,7 @@ function NotificationsPage() {
         ))}
       </div>
       {list.length === 0 ? (
-        <EmptyState title={unreadOnly ? "Nothing unread" : "You're all caught up"} body="Messages, reminders and how your searches went appear here." />
+        <EmptyState title={unreadOnly ? "Nothing unread" : "You're all caught up"} body={selected === "jobs" ? "Messages, reminders and how your searches went appear here." : `Updates on your ${pipeline?.label.toLowerCase() ?? moduleLabel.toLowerCase()} and reminders appear here.`} />
       ) : (
         <ul aria-label="Notifications" className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-surface">
           {list.map((n) => (
