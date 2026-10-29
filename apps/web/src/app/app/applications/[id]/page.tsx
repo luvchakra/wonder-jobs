@@ -13,6 +13,7 @@ import { downloadBytes } from "@/lib/download";
 import { track } from "@/lib/analytics";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection } from "@/wonderworks/pipeline/item";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
@@ -21,7 +22,6 @@ import { Field, Input, Segmented, Select, Textarea } from "@/components/common/I
 import { cn } from "@/lib/cn";
 import { useAutomationStore } from "@/store/automation";
 import { submitDecision } from "@/domain/jobs-apply/policy";
-import { CompanyLogo } from "@/components/common/Avatar";
 import { ApplicationTimeline } from "@/modules/jobs/pipeline/ApplicationTimeline";
 import { FollowUpAction } from "@/modules/jobs/pipeline/FollowUpAction";
 import { Fold } from "@/components/common/Fold";
@@ -125,32 +125,32 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
   };
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeader back={{ href: "/app/applications", label: "Applications" }} title={job ? `${job.title} · ${job.company}` : "Application"} actions={<Badge tone={meta.tone}>{meta.label}</Badge>} />
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-4">
+    <>
+      <ItemPage back={{ href: "/app/applications", label: "Applications" }} title={job ? `${job.title} · ${job.company}` : "Application"} badge={<Badge tone={meta.tone}>{meta.label}</Badge>}>
+        <ItemMain>
           <Card>
-            <div className="flex items-start gap-4">
-              <CompanyLogo name={job?.company ?? "?"} domain={job?.companyDomain} logo size={52} />
-              <div className="min-w-0 flex-1">
-                <p className="text-[16px] font-semibold text-ink">{job?.company}</p>
-                <p className="text-[13px] text-ink-3">
+            <ItemHead
+              company={job?.company ?? "?"}
+              domain={job?.companyDomain}
+              lines={[
+                <>
                   {job?.location} · {job ? WORK_MODE_LABEL[job.workMode] : ""}
                   {salary ? ` · ${salary}` : ""}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2 text-[13px]">
-                  {/* The job's page holds its materials now — the customized résumé to edit and download, Apply and the marks (owner, 2026-10-25). */}
-                  <Link href={`/app/jobs/${app.jobId}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
-                    <FileText className="size-3.5" aria-hidden /> Job &amp; materials
-                  </Link>
-                  {job && (
-                    <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
-                      Original posting <ExternalLink className="size-3.5" aria-hidden />
-                    </a>
-                  )}
-                </div>
+                </>,
+              ]}
+            >
+              <div className="mt-2 flex flex-wrap gap-2 text-[13px]">
+                {/* The job's page holds its materials now — the customized résumé to edit and download, Apply and the marks (owner, 2026-10-25). */}
+                <Link href={`/app/jobs/${app.jobId}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+                  <FileText className="size-3.5" aria-hidden /> Job &amp; materials
+                </Link>
+                {job && (
+                  <a href={job.applyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+                    Original posting <ExternalLink className="size-3.5" aria-hidden />
+                  </a>
+                )}
               </div>
-            </div>
+            </ItemHead>
             {downloadableArtifacts.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {downloadableArtifacts.map((a) => (
@@ -191,8 +191,7 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
             </p>
           </Card>
 
-          <Card>
-            <h2 className="mb-3 text-[15px] font-semibold text-ink">Timeline</h2>
+          <ItemSection title="Timeline">
             <ApplicationTimeline events={app.events} />
             <div className="mt-5 border-t border-line pt-4">
               <Field label="Add a note" htmlFor="note">
@@ -210,10 +209,10 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
                 Add note
               </Button>
             </div>
-          </Card>
-        </div>
+          </ItemSection>
+        </ItemMain>
 
-        <aside className="flex flex-col gap-4">
+        <ItemAside>
           <Card>
             {/* Status as Pipeline has it: six chips, the current one lit in its colour, one tap to change. */}
             <div role="radiogroup" aria-label="Status" className="flex flex-col gap-2">
@@ -314,8 +313,8 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
           <Button variant="ghost" size="sm" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => setConfirmDelete(true)} className="text-danger-600">
             Remove application
           </Button>
-        </aside>
-      </div>
+        </ItemAside>
+      </ItemPage>
       <Modal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
@@ -340,6 +339,6 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
       >
         <p className="text-sm text-ink-2">This can&apos;t be undone.</p>
       </Modal>
-    </div>
+    </>
   );
 }
