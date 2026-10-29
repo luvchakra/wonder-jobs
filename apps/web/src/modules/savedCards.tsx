@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import type { ModuleId } from "./registry";
+import { isLive, moduleById, MODULES, type ModuleId, type ModuleManifest } from "./registry";
+import { ModuleSaved } from "@/wonderstar/shell/ModulePages";
 import { InternshipCard, InternshipSheet } from "./internships/components/Listing";
 import type { InternshipListing } from "./internships/domain";
 
@@ -26,4 +27,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
     return [l.title, l.company, l.location, ...l.skills].join(" ");
   }
   return "";
+}
+
+/** Saved at the module shell: WonderStar's Saved with every live module's own card (the registry is the composition root). */
+export function ShellSaved({ id }: { id: Exclude<ModuleId, "jobs"> }) {
+  const live = MODULES.filter((m): m is ModuleManifest & { id: Exclude<ModuleId, "jobs"> } => m.id !== "jobs" && isLive(m));
+  return <ModuleSaved m={moduleById(id) as ModuleManifest & { id: Exclude<ModuleId, "jobs"> }} live={live} card={(module, item) => <SavedCard module={module} item={item} />} cardText={savedText} />;
 }

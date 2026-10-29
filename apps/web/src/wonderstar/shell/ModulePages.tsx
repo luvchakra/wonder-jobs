@@ -4,8 +4,8 @@ import Link from "next/link";
 import { Inbox, UserRound } from "lucide-react";
 import { WonderStarSplash } from "@/wonderstar/brand/Logo";
 import { EmptyState } from "@/components/common/States";
-import { isLive, moduleById, MODULES, type ModuleId } from "@/modules/registry";
-import { SavedCard, savedText } from "@/modules/savedCards";
+import type { ReactNode } from "react";
+import type { ModuleId, ModuleManifest } from "@/wonderstar/manifest";
 import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { StageTiles } from "@/wonderstar/pipeline/parts";
 import { YouOverview } from "@/wonderstar/you/YouOverview";
@@ -16,13 +16,14 @@ import { Chip } from "@/components/common/Input";
 import { moduleStore } from "@/wonderstar/store";
 
 type ShellModule = Exclude<ModuleId, "jobs">;
+/** A module the shell renders: any but Jobs, whose tabs are the jobs portal's own routes. */
+type ShellManifest = ModuleManifest & { id: ShellModule };
 /** False on the server and the first client render, so persisted counts never cause a hydration mismatch. */
 const noop = () => () => undefined;
 const useMounted = () => useSyncExternalStore(noop, () => true, () => false);
 
 /** A module that hasn't shipped: the splash, a label and a line, never a listing (CLAUDE.md, real data only). */
-export function ModuleComingSoon({ id }: { id: ModuleId }) {
-  const m = moduleById(id)!;
+export function ModuleComingSoon({ m }: { m: ModuleManifest }) {
   return (
     <WonderStarSplash>
       <h2 className="mt-8 text-lg font-semibold">{m.label} is coming soon</h2>
@@ -35,8 +36,7 @@ export function ModuleComingSoon({ id }: { id: ModuleId }) {
 }
 
 /** Find, until the module has a source or a posting: says so instead of filling the gap. */
-export function ModuleFind({ id }: { id: ShellModule }) {
-  const m = moduleById(id)!;
+export function ModuleFind({ m }: { m: ShellManifest }) {
   return <EmptyState title="No listings yet" body={`${m.label} listings show here once a company posts one or a source brings them in.`} />;
 }
 
@@ -45,9 +45,9 @@ export function ModuleFind({ id }: { id: ShellModule }) {
  * across WonderStar's live modules, filterable by module), Hide Pipeline, and the same cards Find shows. Jobs keeps its
  * own Saved (the jobs portal is unchanged), a tap away.
  */
-export function ModuleSaved({ id }: { id: ShellModule }) {
+export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /** Every live module but Jobs, in the registry's order. */ live: ShellManifest[]; /** A module's own card for a saved listing. */ card: (module: ShellModule, item: unknown) => ReactNode; /** The words Saved's box matches in a saved listing. */ cardText: (module: ShellModule, item: unknown) => string }) {
+  const id = m.id;
   const ready = useMounted();
-  const live = MODULES.filter((m): m is typeof m & { id: ShellModule } => m.id !== "jobs" && isLive(m));
   // One subscription per live module, in the registry's fixed order.
   const per = live.map((m) => ({ m, saved: moduleStore(m.id)((s) => s.saved), items: moduleStore(m.id)((s) => s.items), responses: moduleStore(m.id)((s) => s.responses) }));
   const history = moduleStore(id)((s) => s.recentSavedSearches);
@@ -58,9 +58,8 @@ export function ModuleSaved({ id }: { id: ShellModule }) {
   const words = text.trim().toLowerCase();
   const all = per.flatMap((p) => Object.entries(p.saved).flatMap(([lid, at]) => (p.items[lid] ? [{ module: p.m.id, id: lid, at, item: p.items[lid], inPipeline: !!p.responses[lid] }] : [])));
   const list = all
-    .filter((x) => (only === "all" || x.module === only) && (!hidePipeline || !x.inPipeline) && (!words || savedText(x.module, x.item).toLowerCase().includes(words)))
+    .filter((x) => (only === "all" || x.module === only) && (!hidePipeline || !x.inPipeline) && (!words || cardText(x.module, x.item).toLowerCase().includes(words)))
     .sort((a, b) => b.at.localeCompare(a.at));
-  const m = moduleById(id)!;
   return (
     <div>
       <h1 className="wj-sr-only">Saved</h1>
@@ -84,7 +83,7 @@ export function ModuleSaved({ id }: { id: ShellModule }) {
         <ResultsGrid label="Saved">
           {list.map((x) => (
             <li key={`${x.module}:${x.id}`}>
-              <SavedCard module={x.module} item={x.item} />
+              {card(x.module, x.item)}
             </li>
           ))}
         </ResultsGrid>
@@ -111,8 +110,8 @@ export function ModuleSaved({ id }: { id: ShellModule }) {
 }
 
 /** The module's own tab, in Jobs' Pipeline layout: its stages as tiles with real counts from the person's responses. */
-export function ModulePipeline({ id }: { id: ShellModule }) {
-  const m = moduleById(id)!;
+export function ModulePipeline({ m }: { m: ShellManifest }) {
+  const id = m.id;
   const responses = moduleStore(id)((s) => s.responses);
   const ready = useMounted();
   const [stage, setStage] = useState(m.pipeline.stages[0].id);
@@ -127,7 +126,6 @@ export function ModulePipeline({ id }: { id: ShellModule }) {
 }
 
 /** You, in Jobs' layout: the Career Profile and its rows, with the module's own details as rows in the same style. */
-export function ModuleYou({ id }: { id: ShellModule }) {
-  const m = moduleById(id)!;
+export function ModuleYou({ m }: { m: ShellManifest }) {
   return <YouOverview module={{ label: m.label, rows: m.persona.length ? [{ href: m.routes.you, label: "Your details", value: m.persona.map((f) => f.label).join(", "), icon: UserRound }] : [] }} />;
 }

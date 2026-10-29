@@ -165,6 +165,11 @@ export interface ModuleManifest {
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
+Find, Saved and You are WonderStar's (`src/wonderstar/`) and identical across modules, with Jobs' look as the
+reference; a module supplies only its own fields, filters, card details and data. Only the Pipeline tab varies: its
+name, stages and views come from the module's manifest (`moduleTabs`). WonderJobs keeps "Pipeline"; Internships' is
+"Applications" (owner, 2026-10-29).
+
 Every module uses **the jobs portal's own four tabs and page structure** (owner, 2026-10-28 and 2026-10-29: "reuse the
 4 tabs … keep the structure and the look and feel the same, so when I change from jobs to internship the look and feel
 of the page does not change. Only the requirement-related aspects change."):
@@ -193,7 +198,7 @@ The Pipeline tab per module:
 | Module | Tab label | Stages (seeker side) | Extra sections |
 | --- | --- | --- | --- |
 | **Jobs** | Pipeline | Saved to apply · Applied · Interview · Offer · Hired / Closed | Calendar, Insights, Interview prep (today's) |
-| **Internships** | Pipeline | Applied · Shortlisted · Offer · Accepted / Closed | Deadlines |
+| **Internships** | Applications | Applied · Shortlisted · Offer · Accepted / Closed | Deadlines |
 | **Teaching** | Pipeline | Applied · Demo class · Appointed / Closed | Demo-class bookings |
 | **Co-founders** | Connections | Interested · Mutual · Talking · Building / Passed | — (mutual-only messaging lives on each item) |
 | **Talent & Services** | Bookings | Requested · Quoted · Booked · Done · Reviewed | Payments and receipts |
@@ -229,35 +234,59 @@ Rules carried over unchanged: RLS on and service-role only; every query filters 
 
 ## 6. Code layout
 
+WonderStar is the shared layer. WonderJobs, Internships and every other module inherit from it and extend it.
+Anything shared lives in WonderStar. No module contains another module's code. A change in one module never breaks
+another (owner, 2026-10-29).
+
 ```
 apps/web/src/
-  platform/            # the core, module-agnostic, extracted from the Jobs code step by step
+  wonderstar/            # the shared layer; imports no module (boundaries.test.ts)
+    manifest.ts          # ModuleManifest and its parts, shellRoutes, stagesOf, isLive
+    store.ts             # one capped store per module (saves, responses, Find's and Saved's history, persona)
     find/parts.tsx       # Find's parts: SearchBox, RefineToggle, PillButton, SearchSubmit, RefinePanel, RefineField,
                          #   ChoiceChips, RefineSelect, RefineCheck, RefinePlaces, SortSelect, ResultsLine, ResultsGrid,
                          #   ShowMore, SearchingBanner, ResultCard, FitPill, SaveButton, FilterBox, TogglePill
     find/ModuleFind.tsx  # a module's whole Find from those parts: give it facets, a search, a card and a sheet
+    find/place.ts        # shortPlace, WorkMode
     pipeline/parts.tsx   # StageTiles, StageFilter, StageList, StageEmpty, StageCard
+    you/                 # YouOverview (the Career Profile card, then the module's rows), YouRows, headline helpers
+    chrome/              # TopBar + ModuleMenu, MobileNav, Sidebar, SectionTabs, PageHeader, nav.ts (moduleTabs), slots.tsx
     shell/ModulePages.tsx  # Saved (every module), and Pipeline / You for a module without its own yet
-    moduleStore.ts       # one capped store per module (saves, responses, Find's and Saved's history, persona)
-  components/you/YouOverview.tsx  # Jobs' You page; modules add their persona rows
-  components/jobs/…    # Jobs renders its Find, Saved and Pipeline through the same parts (unchanged output)
+    brand/               # the mark, the splash, tinted module tiles
   modules/
-    registry.ts        # every module's manifest; the Find menu, the bottom bar and admin menus read it
-    internships/  teaching/  cofounders/  services/  therapists/  events/  marketplace/
-  app/app/m/[module]/  # find · saved · pipeline · you (+ you/profile, company) — no header or tabs of their own
-                       # (Jobs keeps /app/jobs, /app/saved, /app/applications, /app/you)
+    registry.ts          # composition root: every module's manifest, read by the Find menu, the tabs and JobsLake
+    nav.ts               # composition root: each module's tabs (moduleNav) and a page's module (moduleFromPath)
+    chrome.tsx           # composition root: fills WonderStar's chrome slots (tabs, sections, Find menu, Tasks/status)
+    savedCards.tsx       # composition root: each module's card in the shared Saved
+    jobs/                # WonderJobs: manifest, nav (PRIMARY_NAV, SECTION_TABS), chrome, components/ (Find, Saved,
+                         #   cards), pipeline/ (Applications), you/ (JobsYou and its rows)
+    internships/         # Internships: manifest (Pipeline tab "Applications"), components, store, domain
+  app/app/               # routes and AppShell (composition); app/app/m/[module]/ find · saved · pipeline · you
+                         # (Jobs keeps /app/jobs, /app/saved, /app/applications, /app/you)
 ```
+
+- A module imports only WonderStar, the app's foundation (`lib`, `components/common`, `store/*` and `domain/*` that
+  aren't a module's, `services`) and itself. WonderStar imports no module.
+- Jobs' stores and domain code (`store/jobs`, `store/applications`, `domain/jobs`, `domain/applications`,
+  `services/jobs`) haven't moved into `modules/jobs/` yet; they count as Jobs' code, so nothing else imports them.
+- Not yet: the app foundation still reaches Jobs' code indirectly (store hydration and the workflow scheduler in
+  `app/app/AppShell.tsx`, Ask Wonder in the command palette, `store/ui` reading the registry). Moving those behind
+  module hooks is the next shared-layer step.
+- Each module has its own Claude session. All work for a module happens in that one session, never in another
+  module's session, and never across several sessions for the same module. WonderStar shared-layer work has its own
+  session too.
 
 How a module plugs in (Internships is the example):
 
-1. **Find** — `modules/<id>/components/Find.tsx` returns `<ModuleFind>` with `facets` (chips, selects, a corner check
+1. **Manifest** — `modules/<id>/manifest.ts`, listed in `modules/registry.ts`. Its `pipeline.label` names the third tab.
+2. **Find** — `modules/<id>/components/Find.tsx` returns `<ModuleFind>` with `facets` (chips, selects, a corner check
    box; the first two chips facets with `pill` show in the row), `search`, `refine` (apply the facets and sort), `Card`
    (a `ResultCard` with the module's facts in the facts line) and `Sheet`.
-2. **Saved** — register the card in `modules/savedCards.tsx` (`SavedCard`, `savedText`).
-3. **Pipeline** — the stages come from the manifest; build the page from `StageTiles` / `StageFilter` / `StageList` /
+3. **Saved** — register the card in `modules/savedCards.tsx` (`SavedCard`, `savedText`).
+4. **Pipeline** — the stages come from the manifest; build the page from `StageTiles` / `StageFilter` / `StageList` /
    `StageCard` under `PageHeader` + `SectionHeader`, as `modules/internships/components/Pipeline.tsx` does.
-4. **You** — `<YouOverview module={{ label, rows }} />` with the persona rows; their detail pages under `you/…`.
-5. **Owner side** — Hiring's layout (`PageHeader` with back to Hiring, workspace `Select`, underline `Tabs`, Hiring rows).
+5. **You** — `<YouOverview rows={…} module={{ label, rows }} />` with the module's rows; their detail pages under `you/…`.
+6. **Owner side** — Hiring's layout (`PageHeader` with back to Hiring, workspace `Select`, underline `Tabs`, Hiring rows).
 
 A module overrides a part only when its fields can't be expressed (e.g. Jobs' résumé studio, Events' map,
 Marketplace's photo gallery), so the design stays one system: same tokens, one primary action per screen, folds for
@@ -284,7 +313,7 @@ the rare.
    You stay as they are.
    **Done (WJ-415, 2026-10-28):** `modules/registry.ts` with all eight manifests (Jobs live, the rest soon);
    `UPCOMING_KINDS` derives from it; the module shell `/app/m/[module]` (Find · Saved · Pipeline · You, from
-   `platform/shell` and module-scoped stores `platform/moduleStore.ts`) shows Coming soon until a module goes live.
+   `platform/shell` and module-scoped stores `wonderstar/store.ts`) shows Coming soon until a module goes live.
    Jobs' bottom bar is unchanged. Platform `listings`/`responses` tables wait for the module that needs them.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,

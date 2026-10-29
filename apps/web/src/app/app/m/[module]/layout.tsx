@@ -17,7 +17,7 @@ export default async function ModuleLayout({ children, params }: ShellParams & {
   if (m.id === "jobs" || isLive(m)) return children;
   return (
     <div className="mx-auto max-w-3xl">
-      <ModuleComingSoon id={m.id} />
+      <ModuleComingSoon m={m} />
     </div>
   );
 }

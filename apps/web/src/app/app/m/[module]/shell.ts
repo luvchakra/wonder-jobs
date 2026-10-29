@@ -20,3 +20,6 @@ export async function shellTab(p: ShellParams, tab: Tab): Promise<Exclude<Module
   if (m.id === "jobs") redirect(m.routes[tab]);
   return isLive(m) ? m.id : null;
 }
+
+/** The manifest of a module the shell renders (any but Jobs). */
+export const shellManifest = <I extends Exclude<ModuleId, "jobs">>(id: I) => moduleById(id) as ModuleManifest & { id: I };
