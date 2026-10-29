@@ -21,7 +21,7 @@ const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefca
   { mode: "full_time", label: "Full Time Jobs", hint: "Searches your Career Profile", icon: Briefcase, tint: "lavender" },
   { mode: "part_time", label: "Part Time Jobs", hint: "Searches the words you type", icon: Clock, tint: "lightblue" },
 ];
-// Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
+// Each coming-soon kind's icon and tint are its module's (modules/registry.ts).
 const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
 // A module that's live (WJ-418: Internships) is picked here like Full Time and Part Time: the four tabs become its own
 // (docs/WONDERSTAR_PLATFORM.md §4.1). The rest stay "Coming soon".

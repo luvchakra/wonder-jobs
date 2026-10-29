@@ -474,7 +474,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     body: [
       "WonderStar is one account for finding jobs, internships, teaching work, co-founders, services, therapists, events and things to buy, sell or rent. Jobs and Internships are open now.",
       "Every kind uses the same four tabs at the bottom and the same screens: Find, Saved, Pipeline (named for the kind: Connections for Co-founders, Bookings for Talent & Services, Sessions for Therapists, My events for Events & Social, Deals for Buy, Sell & Rent) and You. Only what the kind needs changes — its Refine filters, what its cards show and its Pipeline's stages. Switch kinds in Find's menu, the round button in the top bar: Full Time Jobs, Part Time Jobs, then Internships; the tabs follow what you pick, and the app opens on it next time.",
-      "Kinds not open yet are listed under Coming soon in Find's menu and on Explore (/app/m); their page says “… is coming soon”. Nothing is listed under a kind until a company posts there or a real source brings listings in.",
+      "Kinds not open yet are listed under Coming soon in Find's menu. There is no separate search page for WonderStar: every kind searches from its own Find, which works like Jobs' Find. Nothing is listed under a kind until a company posts there or a real source brings listings in.",
     ],
   },
   releaseNotesSection,

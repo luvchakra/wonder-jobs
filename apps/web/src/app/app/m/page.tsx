@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
-import { Explore } from "@/platform/shell/Explore";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Explore" };
-
-export default function ExplorePage() {
-  return <Explore />;
+/**
+ * No separate WonderStar search page (owner, 2026-10-29): every module searches from its own Find, which has Jobs'
+ * structure. /app/m opens Find for the module in use, as /app does.
+ */
+export default function ModulesPage() {
+  redirect("/app");
 }
