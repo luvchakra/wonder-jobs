@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { MarketingPage } from "@/components/landing/MarketingPage";
 
-export const metadata: Metadata = { title: "Terms of service", description: "The terms for using WonderJobs." };
+export const metadata: Metadata = { title: "Terms of service", description: "The terms for using WonderStar." };
 
 export default function TermsPage() {
   return (
@@ -11,13 +11,13 @@ export default function TermsPage() {
       intro="Short and readable. By creating an account you agree to these terms."
       updated="October 2026"
       sections={[
-        { id: "service", title: "The service", body: <p>WonderJobs finds job postings from public sources, scores them against the profile you provide, and drafts application material for you to review. Job data comes from third parties and may be incomplete, out of date or withdrawn; always confirm on the employer&apos;s site before relying on it.</p> },
+        { id: "service", title: "The service", body: <p>WonderStar finds job postings from public sources, scores them against the profile you provide, and drafts application material for you to review. Job data comes from third parties and may be incomplete, out of date or withdrawn; always confirm on the employer&apos;s site before relying on it.</p> },
         {
           id: "your-part",
           title: "Your responsibilities",
           body: (
             <ul>
-              <li>You must be 18 or older to use WonderJobs.</li>
+              <li>You must be 18 or older to use WonderStar.</li>
               <li>Keep your sign-in details private and tell us if you think your account has been used without permission.</li>
               <li>Review anything Wonder drafts before you send it. You are the author of every application you submit.</li>
               <li>Use your own AI provider keys only in line with that provider&apos;s terms.</li>
@@ -31,12 +31,12 @@ export default function TermsPage() {
           title: "Pricing and payments",
           body: (
             <>
-              <p>WonderJobs is free to use. Where a Pro subscription is offered, its price, currency and billing period are shown before you pay, exactly as set in our payment provider. Payments are taken by Razorpay or Stripe on their own pages; WonderJobs never sees your card, UPI or bank details.</p>
+              <p>WonderStar is free to use. Where a Pro subscription is offered, its price, currency and billing period are shown before you pay, exactly as set in our payment provider. Payments are taken by Razorpay or Stripe on their own pages; WonderStar never sees your card, UPI or bank details.</p>
               <p>A subscription renews each period until you cancel. You can cancel any time — from Plan &amp; billing (Razorpay) or Stripe&apos;s billing portal — and it ends at the close of the period you&apos;ve paid for, with no further charge. Anything you&apos;ve stored stays yours to export or delete.</p>
             </>
           ),
         },
-        { id: "liability", title: "Liability", body: <p>The service is provided as is. To the extent the law allows, WonderJobs is not liable for missed opportunities, lost data, or decisions made on the basis of its output. Nothing here limits rights you have under applicable consumer law.</p> },
+        { id: "liability", title: "Liability", body: <p>The service is provided as is. To the extent the law allows, WonderStar is not liable for missed opportunities, lost data, or decisions made on the basis of its output. Nothing here limits rights you have under applicable consumer law.</p> },
         { id: "changes", title: "Changes and contact", body: <p>We may update these terms; the date above shows the current version. Questions go to the contact form on the home page.</p> },
       ]}
     />

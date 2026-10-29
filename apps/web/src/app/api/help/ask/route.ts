@@ -20,7 +20,7 @@ const Body = z.object({ question: z.string().trim().min(2).max(500) });
  * model only ever sees guide text plus the question.
  */
 const NO_STORE = { "cache-control": "private, no-store" };
-const HELP_SYSTEM = `You are the WonderJobs help assistant. Answer only from the guide excerpts provided, about what the person can do in WonderJobs. Be concrete and brief (2–4 sentences). If the guide does not cover it, say so and suggest the closest section. Reply as JSON: {"answer": string, "sectionId": one of the provided ids}.\n\n${SYSTEM_GUARD}`;
+const HELP_SYSTEM = `You are the WonderStar help assistant. Answer only from the guide excerpts provided, about what the person can do in WonderStar. Be concrete and brief (2–4 sentences). If the guide does not cover it, say so and suggest the closest section. Reply as JSON: {"answer": string, "sectionId": one of the provided ids}.\n\n${SYSTEM_GUARD}`;
 
 export async function POST(req: Request) {
   const session = await requireSession();

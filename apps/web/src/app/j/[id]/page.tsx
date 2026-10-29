@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const job = await sharedJob((await params).id);
   if (!job) return { title: "Job no longer listed", robots: { index: false } };
   const title = `${job.title} at ${job.company}`;
-  const description = `${shareFacts(job)} — found with WonderJobs, the AI job-search agent.`;
-  return { title, description, robots: { index: false }, openGraph: { title, description, type: "website", siteName: "WonderJobs" }, twitter: { card: "summary_large_image", title, description } };
+  const description = `${shareFacts(job)} — found with WonderStar, the AI job-search agent.`;
+  return { title, description, robots: { index: false }, openGraph: { title, description, type: "website", siteName: "WonderStar" }, twitter: { card: "summary_large_image", title, description } };
 }
 
 /** A job someone shared (owner, 2026-10-20): the posting laid out as it is in the app, with an account asked for only when an action needs one. */
@@ -40,12 +40,12 @@ export default async function SharedJobPage({ params }: Props) {
         ) : (
           <div className="mx-auto max-w-2xl rounded-[20px] border border-line bg-surface p-6 text-center">
             <h1 className="text-[22px] font-semibold">This job is no longer listed</h1>
-            <p className="mt-2 text-[14px] text-ink-3">It may have closed. WonderJobs can find others like it.</p>
+            <p className="mt-2 text-[14px] text-ink-3">It may have closed. WonderStar can find others like it.</p>
           </div>
         )}
         <section aria-labelledby="wonder" className="mx-auto mt-6 max-w-5xl rounded-[20px] bg-gradient-to-br from-[#1E1B4B] to-[#4C1D95] p-5 text-white sm:p-6">
           <p className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#c4b5fd]">
-            <Sparkles className="size-3.5" aria-hidden /> Found with WonderJobs
+            <Sparkles className="size-3.5" aria-hidden /> Found with WonderStar
           </p>
           <h2 id="wonder" className="mt-2 text-[20px] font-semibold leading-snug">Find jobs that fit you, not just jobs.</h2>
           <p className="mt-1 text-[14px] text-white/75">{SHARE_PITCH}</p>

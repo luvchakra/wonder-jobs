@@ -14,7 +14,7 @@ export class RemoteBYOKProvider implements AIProvider {
         body: JSON.stringify({ provider: this.id, model: this.model, task: req.task, promptId: req.promptId, prompt: composePrompt(req), maxTokens: req.maxTokens }),
       });
     } catch {
-      throw new ProviderError(this.id, "network", "Could not reach WonderJobs to contact your AI provider. Check your connection and retry.");
+      throw new ProviderError(this.id, "network", "Could not reach WonderStar to contact your AI provider. Check your connection and retry.");
     }
     const data = (await res.json().catch(() => ({}))) as Partial<CompletionResult> & { error?: string; kind?: ProviderError["kind"] };
     if (!res.ok || typeof data.text !== "string") throw new ProviderError(this.id, data.kind ?? "unknown", data.error ?? `Provider request failed (${res.status})`);

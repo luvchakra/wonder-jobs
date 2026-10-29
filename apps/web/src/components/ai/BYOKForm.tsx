@@ -44,7 +44,7 @@ export function BYOKForm({ provider, status, active, onUse }: { provider: Exclud
       if (!res.ok) setError(data.error ?? "Verification failed");
       else toast.success("Connection works", `${meta.name} answered with ${data.status?.model ?? model}.`);
     } catch {
-      setError("Could not reach WonderJobs to verify the key.");
+      setError("Could not reach WonderStar to verify the key.");
     } finally {
       setBusy(null);
     }
@@ -71,7 +71,7 @@ export function BYOKForm({ provider, status, active, onUse }: { provider: Exclud
             {status?.connected ? <Badge tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>Connected</Badge> : <Badge>Not connected</Badge>}
             {active && <Badge tone="brand">Active</Badge>}
           </div>
-          <p className="text-[12px] text-ink-3">Use your own {meta.name} API key. Billed by {meta.name}, not WonderJobs.</p>
+          <p className="text-[12px] text-ink-3">Use your own {meta.name} API key. Billed by {meta.name}, not WonderStar.</p>
         </div>
       </div>
 

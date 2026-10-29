@@ -138,5 +138,5 @@ export const FAILURE_COPY: Record<FailureCode, { title: string; body: string }> 
   SUBMISSION_UNKNOWN: { title: "We aren't sure whether the application was submitted", body: "Please check the employer page. Wonder never retries a submission." },
   NETWORK_ERROR: { title: "Wonder couldn't reach the server", body: "Your progress is saved. Try again in a moment. Nothing was submitted." },
   USER_CANCELLED: { title: "You stopped this application", body: "Fields already entered stay on the employer's page. Nothing was submitted." },
-  SESSION_EXPIRED: { title: "The helper's connection expired", body: "Reopen the application from WonderJobs to reconnect. Your progress is saved." },
+  SESSION_EXPIRED: { title: "The helper's connection expired", body: "Reopen the application from WonderStar to reconnect. Your progress is saved." },
 };

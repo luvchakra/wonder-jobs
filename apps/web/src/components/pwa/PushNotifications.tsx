@@ -26,7 +26,7 @@ const clientSupport = (): Support =>
       : {
           ok: false,
           // Most often iOS Safari outside an installed PWA: a real limitation, worth saying plainly.
-          why: /iphone|ipad/i.test(navigator.userAgent) ? "On iPhone and iPad, notifications work once you add WonderJobs to your Home Screen." : "This browser doesn't support web notifications.",
+          why: /iphone|ipad/i.test(navigator.userAgent) ? "On iPhone and iPad, notifications work once you add WonderStar to your Home Screen." : "This browser doesn't support web notifications.",
         });
 /** The server can't know what the browser supports, and rendering nothing is the safe answer. */
 const serverSupport = (): Support | null => null;
@@ -142,7 +142,7 @@ export function PushNotifications() {
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold text-ink">Notifications on this device</p>
         {!support.ok && <p className="text-[13px] text-ink-2">{support.why}</p>}
-        {support.ok && blocked && !subscribed && <p className="text-[13px] text-ink-2">This browser is blocking notifications for WonderJobs. Allow them in your browser&apos;s site settings, then come back.</p>}
+        {support.ok && blocked && !subscribed && <p className="text-[13px] text-ink-2">This browser is blocking notifications for WonderStar. Allow them in your browser&apos;s site settings, then come back.</p>}
         {support.ok && !blocked && !subscribed && <p className="text-[13px] text-ink-2">Get a nudge when a scheduled search finds strong matches. Everything still appears in the app either way — this is only the nudge.</p>}
         {subscribed && <p className="text-[13px] text-ink-2">On for this browser. Turn it on separately on each device you use.</p>}
         {support.ok && !blocked && !subscribed && (

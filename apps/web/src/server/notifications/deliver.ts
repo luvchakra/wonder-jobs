@@ -68,7 +68,7 @@ export async function nudgeChosen(tenantId: string, notice: Notice, channels: re
   return { pushed, emailed };
 }
 
-const CHOSEN_REASON = "You're getting this because you asked for an email reminder for this on your WonderJobs Calendar.";
+const CHOSEN_REASON = "You're getting this because you asked for an email reminder for this on your WonderStar Calendar.";
 
 /** Bell, then push, then email. */
 export async function deliver(tenantId: string, notice: Notice, opts: NudgeOptions = {}, now = new Date()): Promise<DeliveryOutcome> {
@@ -99,13 +99,13 @@ async function emailOnce(tenantId: string, notice: Notice, key: string, everyMs:
 export function noticeEmail(notice: Notice, firstName?: string, reason?: string): { html: string; text: string } {
   const origin = siteUrl().origin;
   const link = new URL(notice.href, origin).toString();
-  const action = notice.action ?? "Open WonderJobs";
+  const action = notice.action ?? "Open WonderStar";
   const hi = firstName ? `Hi ${firstName},` : "Hi,";
   return renderEmailLayout({
     origin,
     preheader: notice.body.slice(0, 120),
     bodyHtml: `<p style="margin:0 0 10px">${escapeHtml(hi)}</p><div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(notice.title)}</div><p style="margin:0 0 16px;white-space:pre-wrap">${escapeHtml(notice.body)}</p><p style="margin:0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${EMAIL_COLORS.brand600};color:#ffffff;text-decoration:none;font-weight:600">${escapeHtml(action)}</a></p>`,
     bodyText: [hi, notice.title, notice.body, `${action}: ${link}`].join("\n\n"),
-    reason: reason ?? "You're getting this because notifications aren't turned on in any of your browsers. Turn them on, or change what WonderJobs emails you, in Notification settings.",
+    reason: reason ?? "You're getting this because notifications aren't turned on in any of your browsers. Turn them on, or change what WonderStar emails you, in Notification settings.",
   });
 }

@@ -57,7 +57,7 @@ export function smtpConfig(env: Env = process.env): SmtpConfig | null {
   const port = Number(env.SMTP_PORT?.trim() || 465);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) return null;
   // Mailbox providers such as GoDaddy only send as the signed-in mailbox, so that is the default sender.
-  return { host, port, user, pass, from: env.CONTACT_FROM_EMAIL?.trim() || `WonderJobs <${user}>` };
+  return { host, port, user, pass, from: env.CONTACT_FROM_EMAIL?.trim() || `WonderStar <${user}>` };
 }
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -77,11 +77,11 @@ export function renderContactEmail(payload: ContactNotifyPayload, origin: string
     preheader: `${payload.topic} — ${payload.name}`,
     bodyHtml,
     bodyText,
-    reason: "You're getting this because this address is set to receive WonderJobs contact-form messages.",
+    reason: "You're getting this because this address is set to receive WonderStar contact-form messages.",
     // These recipients come from the server's settings, not an account's notification settings.
     settingsLink: false,
   });
-  return { subject: `[WonderJobs contact] ${payload.topic} — ${payload.name}`, ...mail };
+  return { subject: `[WonderStar contact] ${payload.topic} — ${payload.name}`, ...mail };
 }
 
 /**

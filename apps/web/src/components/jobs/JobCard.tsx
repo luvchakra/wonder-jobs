@@ -81,9 +81,9 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             </span>
           )}
           {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
-              (a job posted on WonderJobs; opens its page), the arrow opens the employer's listing in a new tab. */}
+              (a job posted on WonderStar; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
-            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderJobs" className={APPLY_BTN}>
+            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderStar" className={APPLY_BTN}>
               <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
               Apply
             </Link>

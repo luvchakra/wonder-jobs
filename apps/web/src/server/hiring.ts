@@ -195,7 +195,7 @@ export async function verifyByWorkEmail(s: Session, orgId: string): Promise<Orga
   const org = await orgs().one({ id: orgId });
   if (!org) throw new HiringError("That workspace no longer exists.", 404);
   if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first: Hiring → the pencil next to the company.");
-  if (!workEmailMatches(s.email, org.website)) throw new HiringError(`Your sign-in email isn't on ${websiteDomain(org.website)}. Sign in with your work email, or ask WonderJobs to review the company.`, 409);
+  if (!workEmailMatches(s.email, org.website)) throw new HiringError(`Your sign-in email isn't on ${websiteDomain(org.website)}. Sign in with your work email, or ask WonderStar to review the company.`, 409);
   await orgs().update({ id: orgId }, { verified: true });
   return toOrg({ ...org, verified: true });
 }
@@ -215,11 +215,11 @@ export async function requestVerificationReview(s: Session, orgId: string, note:
     preheader: `${org.name} asks to be verified`,
     bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">Company verification request</div><p style="margin:0 0 6px"><b>${escapeHtml(org.name)}</b> · ${escapeHtml(org.website ?? "")}</p><p style="margin:0 0 6px">Requested by ${escapeHtml(s.email ?? "an Owner without an email")}</p>${text ? `<p style="margin:0 0 6px;white-space:pre-wrap">${escapeHtml(text)}</p>` : ""}<p style="margin:12px 0 0"><a href="${escapeHtml(new URL("/platform/companies", siteUrl().origin).toString())}">Review it in Platform → Companies</a></p>`,
     bodyText: [`Company verification request`, `${org.name} · ${org.website ?? ""}`, `Requested by ${s.email ?? "an Owner without an email"}`, text, `Review it: ${new URL("/platform/companies", siteUrl().origin)}`].filter(Boolean).join("\n\n"),
-    reason: "You're getting this because this address receives WonderJobs operator messages.",
+    reason: "You're getting this because this address receives WonderStar operator messages.",
     settingsLink: false,
   });
   let sent = false;
-  for (const to of team) if ((await sendMail({ to, subject: `[WonderJobs] Verify ${org.name}`, replyTo: s.email ?? undefined, ...mail })).sent) sent = true;
+  for (const to of team) if ((await sendMail({ to, subject: `[WonderStar] Verify ${org.name}`, replyTo: s.email ?? undefined, ...mail })).sent) sent = true;
   return { sent };
 }
 
@@ -242,14 +242,14 @@ export async function setCompanyVerified(orgId: string, verified: boolean): Prom
   const owners = (await members().find({ org_id: orgId, role: "owner" })).flatMap((m) => (m.email ? [m.email] : []));
   const mail = renderEmailLayout({
     origin: siteUrl().origin,
-    preheader: `${org.name} is verified on WonderJobs`,
+    preheader: `${org.name} is verified on WonderStar`,
     bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">${escapeHtml(org.name)} is verified</div><p style="margin:0">Your open jobs no longer carry the unverified-employer note, so job seekers can apply with confidence.</p>`,
     bodyText: `${org.name} is verified\n\nYour open jobs no longer carry the unverified-employer note, so job seekers can apply with confidence.`,
-    reason: "You're getting this because you're an Owner of this hiring workspace on WonderJobs.",
+    reason: "You're getting this because you're an Owner of this hiring workspace on WonderStar.",
     settingsLink: false,
   });
   let emailed = false;
-  for (const to of owners) if ((await sendMail({ to, subject: `${org.name} is verified on WonderJobs`, ...mail })).sent) emailed = true;
+  for (const to of owners) if ((await sendMail({ to, subject: `${org.name} is verified on WonderStar`, ...mail })).sent) emailed = true;
   return { emailed };
 }
 
@@ -275,7 +275,7 @@ export async function inviteMember(s: Session, orgId: string, to: string, role: 
   // The invited person hears about it by email (N30), after the answer: the invite still waits in Hiring if the email can't go.
   const mail = async () => {
     const org = await orgs().one({ id: orgId });
-    if (org) await sendMail({ to: e, subject: `Join ${org.name} on WonderJobs`, ...inviteEmail(org.name, role, s.name ?? s.email ?? undefined) }).catch(() => undefined);
+    if (org) await sendMail({ to: e, subject: `Join ${org.name} on WonderStar`, ...inviteEmail(org.name, role, s.name ?? s.email ?? undefined) }).catch(() => undefined);
   };
   if (later) later(mail);
   else await mail();
@@ -287,13 +287,13 @@ export function inviteEmail(orgName: string, role: OrgRole, inviter?: string): {
   const origin = siteUrl().origin;
   const link = new URL("/app/hiring", origin).toString();
   const who = inviter ? `${inviter} invited you` : "You're invited";
-  const line = `${who} to join ${orgName}'s hiring workspace on WonderJobs as ${ORG_ROLE_LABEL[role]}. Sign in with this email address to accept.`;
+  const line = `${who} to join ${orgName}'s hiring workspace on WonderStar as ${ORG_ROLE_LABEL[role]}. Sign in with this email address to accept.`;
   return renderEmailLayout({
     origin,
-    preheader: `Join ${orgName} on WonderJobs`,
-    bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">Join ${escapeHtml(orgName)} on WonderJobs</div><p style="margin:0 0 16px">${escapeHtml(line)}</p><p style="margin:0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${EMAIL_COLORS.brand600};color:#ffffff;text-decoration:none;font-weight:600">Open invitation</a></p>`,
-    bodyText: [`Join ${orgName} on WonderJobs`, line, `Open invitation: ${link}`].join("\n\n"),
-    reason: "You're getting this because someone invited this address to a hiring workspace on WonderJobs. Ignore it if you don't want to join.",
+    preheader: `Join ${orgName} on WonderStar`,
+    bodyHtml: `<div style="font-size:18px;font-weight:700;margin:0 0 10px">Join ${escapeHtml(orgName)} on WonderStar</div><p style="margin:0 0 16px">${escapeHtml(line)}</p><p style="margin:0"><a href="${escapeHtml(link)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${EMAIL_COLORS.brand600};color:#ffffff;text-decoration:none;font-weight:600">Open invitation</a></p>`,
+    bodyText: [`Join ${orgName} on WonderStar`, line, `Open invitation: ${link}`].join("\n\n"),
+    reason: "You're getting this because someone invited this address to a hiring workspace on WonderStar. Ignore it if you don't want to join.",
     settingsLink: false,
   });
 }

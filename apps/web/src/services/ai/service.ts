@@ -115,7 +115,7 @@ export class WonderJobsAIProvider implements AIProvider {
           return { text: data.text, model: data.model ?? "wonderjobs", inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 };
         }
         if (res.status === 409 || res.status === 401) WonderJobsAIProvider.remote = false; // not configured / not signed in → templates
-        else throw new ProviderError("wonderjobs", data.kind ?? "unknown", data.error ?? `WonderJobs AI request failed (${res.status})`);
+        else throw new ProviderError("wonderjobs", data.kind ?? "unknown", data.error ?? `WonderStar AI request failed (${res.status})`);
       } catch (e) {
         if (e instanceof ProviderError) throw e;
         // Network problem reaching our own server: fall back to the template for this request.

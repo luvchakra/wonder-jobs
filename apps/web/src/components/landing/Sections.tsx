@@ -102,7 +102,7 @@ const JOURNEY: JourneyStep[] = [
   { key: "search", t: "It searches real job sources", s: "Employers' own career sites, job boards and feeds", body: "Every listing shows the designation, the pay and where it was found — duplicates merged, closed postings dropped.", shot: { src: "/landing/step-2-listing.webp", w: 716, h: 446, alt: "A job listing with designation, salary and source" } },
   { key: "why", t: "Every match explains itself", s: "Why it fits, and what to weigh", body: "Wonder compares each posting with your profile and says why it ranked it there — and what might make you hesitate.", shot: { src: "/landing/step-3-why.webp", w: 716, h: 500, alt: "Wonder's take: why this job fits and why you might hesitate" } },
   { key: "apply", t: "Tap Apply with Wonder", s: "Résumé, details and answers, checked first", body: "Wonder checks what the form will need, picks your résumé, and lists what stays yours to answer. Then one button: Start application.", shot: { src: "/landing/step-4-ready.webp", w: 716, h: 958, alt: "Ready to apply: résumé, contact details and answers checked, with a Start application button" }, plan: "Pro" },
-  { key: "fill", t: "Wonder fills the employer's form", s: "On your computer, or right in the app on your phone", body: "The browser helper fills the form on the employer's own site — on a phone, the page opens inside WonderJobs. You review and press Submit, or turn on Submit for me.", plan: "Pro" },
+  { key: "fill", t: "Wonder fills the employer's form", s: "On your computer, or right in the app on your phone", body: "The browser helper fills the form on the employer's own site — on a phone, the page opens inside WonderStar. You review and press Submit, or turn on Submit for me.", plan: "Pro" },
   { key: "track", t: "Track it in Pipeline", s: "Follow-ups, interviews and outcomes", body: "Preparing, applied, interview, outcome — with the next step on every card, and a nudge when something needs you.", shot: { src: "/landing/step-6-pipeline.webp", w: 780, h: 606, alt: "Pipeline: counts by stage and an application with its next step" } },
 ];
 
@@ -138,7 +138,7 @@ export function JourneySection() {
         </ScrollReveal>
 
         <div className="mt-14 grid grid-cols-1 gap-10 lg:grid-cols-[0.9fr_1.1fr]">
-          <ol className="relative space-y-12 lg:space-y-24" aria-label="How WonderJobs works">
+          <ol className="relative space-y-12 lg:space-y-24" aria-label="How WonderStar works">
             <span className="absolute left-5 top-6 hidden h-[calc(100%-3rem)] w-px bg-white/15 lg:block" aria-hidden>
               <span className="block w-full wj-gradient-bg transition-[height] duration-500" style={{ height: `${(active / (JOURNEY.length - 1)) * 100}%` }} />
             </span>
@@ -232,7 +232,7 @@ function FormFillDrawing() {
 const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?: string; id?: string; plan?: string }[] = [
   { icon: Search, t: "Jobs on the first screen", s: "Signed in, your jobs are already there — searched, ranked by fit, with each company's logo. Type or say anything else to search for it.", href: "/sign-up" },
   { icon: MousePointerClick, t: "Apply with Wonder", s: "Fills the employer's form with your details, résumé and saved answers, and leaves what's yours to answer. You submit — or turn on Submit for me.", href: "/sign-up", plan: "Pro" },
-  { icon: Smartphone, t: "Apply from your phone", s: "No extension on a phone? The employer's page opens inside WonderJobs, Wonder fills it there, and you press submit.", href: "/sign-up", plan: "Pro" },
+  { icon: Smartphone, t: "Apply from your phone", s: "No extension on a phone? The employer's page opens inside WonderStar, Wonder fills it there, and you press submit.", href: "/sign-up", plan: "Pro" },
   { icon: Target, t: "Why it fits", s: "Every match explains itself: why it surfaced, what to weigh, what to do next.", href: "/sign-up" },
   { icon: Radar, t: "Scheduled searches", s: "Ready-made schedules — a weekday shortlist, a weekly roundup, remote only — that run while you're away and tell you only when it's worth it.", href: "/sign-up" },
   { icon: Bell, t: "Notifications with a next step", s: "A search finished, a draft is ready, a saved job closed — each notice says what happened and takes you straight to what to do.", href: "/sign-up" },
@@ -242,8 +242,8 @@ const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?:
   { icon: LayoutList, t: "Pipeline", s: "Preparing, applied, interview, outcome — the next step on every card, follow-ups and interviews first.", href: "/sign-up" },
   { icon: GitCompareArrows, t: "Compare opportunities", s: "Put two to four roles side by side. Real differences, no fake winner.", href: "/sign-up" },
   { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
-  { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderJobs AI, included.", href: "/sign-up" },
-  { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderJobs like an app for nudges.", href: "/sign-up" },
+  { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderStar AI, included.", href: "/sign-up" },
+  { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderStar like an app for nudges.", href: "/sign-up" },
   { icon: KeyRound, t: "JobsLake API", s: "Search the same live job sources from your own code with an API key. A free monthly allowance, then pay as you go.", href: "/api-reference", cta: "API reference" },
 ];
 
@@ -308,7 +308,7 @@ export function PersonaSection() {
               Different goals. <span className="wj-gradient-text">Same support.</span>
             </h2>
           </div>
-          <div role="tablist" aria-label="Who WonderJobs is for" className="flex flex-wrap gap-2">
+          <div role="tablist" aria-label="Who WonderStar is for" className="flex flex-wrap gap-2">
             {PERSONAS.map((x) => (
               <button key={x.key} role="tab" type="button" aria-selected={active === x.key} onClick={() => setActive(x.key)} className={cn("h-9 rounded-full border px-4 text-[13px] font-medium transition-colors", active === x.key ? "border-brand-500 bg-brand-500 text-white" : "border-line bg-white text-ink-2 hover:border-line-strong")}>
                 {x.label}
@@ -366,7 +366,7 @@ export function ProviderSection() {
             <br />
             <span className="wj-gradient-text">Or let us handle it.</span>
           </h2>
-          <p className="mt-5 max-w-md text-[16px] text-white/75">Use WonderJobs AI, included in every plan, or paste a key from ChatGPT, Claude or Gemini — Wonder recognises it, checks it works, and your drafts use it from then on. Keys are encrypted, never shown again, and billed only by your provider.</p>
+          <p className="mt-5 max-w-md text-[16px] text-white/75">Use WonderStar AI, included in every plan, or paste a key from ChatGPT, Claude or Gemini — Wonder recognises it, checks it works, and your drafts use it from then on. Keys are encrypted, never shown again, and billed only by your provider.</p>
           <Button href="/app/settings/ai" variant="glass" size="lg" className="mt-8 rounded-full text-ink" iconRight={<ArrowRight className="size-4" aria-hidden />}>
             Learn more
           </Button>
@@ -409,7 +409,7 @@ export function ExtensionSection() {
             Wonder fills the employer&apos;s own form on Greenhouse, Lever, Ashby and Workday — and helps on SmartRecruiters and Workable — with your details, résumé and the answers you approved. Work authorization, sponsorship and demographic questions are left for you; sign-in, verification and payment pages pause it. You press submit — or turn on Submit for me, and the helper presses it once every required field holds your own answer.
           </p>
           <ul className="mt-5 space-y-2 text-[14px] text-ink-2">
-            {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderJobs", "No helper? Guided mode puts every value one tap from your clipboard, and remembers your answers"].map((t) => (
+            {["No portal passwords — you sign in on the employer's site", "Stop any time, from the page or from WonderStar", "No helper? Guided mode puts every value one tap from your clipboard, and remembers your answers"].map((t) => (
               <li key={t} className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-500" aria-hidden /> {t}
               </li>
@@ -574,7 +574,7 @@ export function MarketingFooter() {
         ))}
       </div>
       <div className="mx-auto mt-12 flex max-w-7xl flex-col gap-3 border-t border-line px-4 py-6 text-[12px] text-ink-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p>© {new Date().getFullYear()} WonderJobs. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} WonderStar. All rights reserved.</p>
         <ul className="flex flex-wrap gap-x-5 gap-y-1" aria-label="Legal">
           {LEGAL.map((l) => (
             <li key={l.label}>

@@ -79,8 +79,8 @@ export function ConnectOwnAI() {
               {s.lastError && <p className="mt-1 text-[12px] text-danger-600">{s.lastError}</p>}
             </div>
             {active ? (
-              <Button size="sm" variant="outline" onClick={() => { selectProvider("wonderjobs"); toast.success("Back on WonderJobs AI", `Your ${AI_PROVIDERS[s.provider].name} key stays connected.`); }}>
-                Use WonderJobs AI instead
+              <Button size="sm" variant="outline" onClick={() => { selectProvider("wonderjobs"); toast.success("Back on WonderStar AI", `Your ${AI_PROVIDERS[s.provider].name} key stays connected.`); }}>
+                Use WonderStar AI instead
               </Button>
             ) : (
               <Button size="sm" onClick={() => { selectProvider(s.provider); toast.success(`Now using ${AI_PROVIDERS[s.provider].name}`); }}>
@@ -116,7 +116,7 @@ export function ConnectOwnAI() {
             {error}
           </p>
         )}
-        <p className="text-[12px] text-ink-4">Tried once before it&apos;s kept. Encrypted, never shown again, removable any time. Billed by the provider for what you use — not by WonderJobs.</p>
+        <p className="text-[12px] text-ink-4">Tried once before it&apos;s kept. Encrypted, never shown again, removable any time. Billed by the provider for what you use — not by WonderStar.</p>
       </form>
 
       <div>

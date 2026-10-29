@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { MarketingPage } from "@/components/landing/MarketingPage";
 
-export const metadata: Metadata = { title: "Cookies", description: "The cookies WonderJobs sets and what each one is for." };
+export const metadata: Metadata = { title: "Cookies", description: "The cookies WonderStar sets and what each one is for." };
 
 export default function CookiesPage() {
   return (
     <MarketingPage
       eyebrow="Legal"
       title="Cookies"
-      intro="WonderJobs uses a handful of first-party cookies to keep you signed in. They are all strictly necessary, so there is no consent banner: there are no analytics, advertising or cross-site tracking cookies."
+      intro="WonderStar uses a handful of first-party cookies to keep you signed in. They are all strictly necessary, so there is no consent banner: there are no analytics, advertising or cross-site tracking cookies."
       updated="October 2026"
       sections={[
         {

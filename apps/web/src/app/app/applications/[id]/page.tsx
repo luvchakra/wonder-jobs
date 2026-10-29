@@ -51,7 +51,7 @@ function ExtensionHint({ hasMaterials }: { hasMaterials: boolean }) {
       <Puzzle className="mt-0.5 size-3.5 shrink-0 text-brand-600" aria-hidden />
       {installed ? (
         <span>
-          Your browser extension will fill that form{hasMaterials ? " with these materials" : ""} — look for the WonderJobs button on the page.
+          Your browser extension will fill that form{hasMaterials ? " with these materials" : ""} — look for the WonderStar button on the page.
         </span>
       ) : (
         <span>

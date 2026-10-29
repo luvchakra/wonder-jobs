@@ -10,7 +10,7 @@ import { jobFacts, jobPostingJsonLd } from "./meta";
 
 export async function careerJobMetadata(id: string): Promise<Metadata> {
   const r = await getCareerJob(id);
-  if (r.state !== "ok") return { title: "Careers at WonderJobs", robots: { index: false } };
+  if (r.state !== "ok") return { title: "Careers at WonderStar", robots: { index: false } };
   const title = `${r.data.job.title} at ${r.data.job.company}`;
   const description = r.data.job.description.replace(/\s+/g, " ").slice(0, 160);
   return { title, description, openGraph: { title, description, type: "website" } };
