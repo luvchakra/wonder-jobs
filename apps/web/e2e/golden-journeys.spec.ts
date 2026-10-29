@@ -428,7 +428,7 @@ test.describe("Golden journey — search", () => {
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
     await openApp(page, "/app/jobs");
     const main = page.locator("#main");
-    // Full Time / Part Time: the round menu in the top bar, beside the avatar.
+    // Full Time / Part Time: the menu in the middle of the top bar.
     const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
     const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
       await kindBtn.click();
@@ -457,14 +457,14 @@ test.describe("Golden journey — search", () => {
   test("GJ-020 Full Time searches the Career Profile; Part Time searches typed words, by job type; the top bar menu switches", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page, "/app/jobs");
-    // Full Time / Part Time: the round menu in the top bar, beside the avatar.
+    // Full Time / Part Time: the menu in the middle of the top bar.
     const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
     const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
       await kindBtn.click();
       await page.getByRole("menuitemradio", { name: label }).click();
     };
     await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
-    // The menu's button sits in the top bar, beside the avatar.
+    // The menu sits in the top bar.
     await expect(page.locator("header[data-top-bar]").getByRole("button", { name: /^Kind of jobs/ })).toBeVisible();
 
     // Full Time: Looking for with Change, then Refine · Work mode · Salary and the round search; no search box.

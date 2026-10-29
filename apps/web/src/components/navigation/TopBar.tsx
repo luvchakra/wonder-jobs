@@ -2,12 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Bot, ChartNoAxesColumn, ChevronDown, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogOut, Sparkles, User } from "lucide-react";
+import { Bell, Bot, ChartNoAxesColumn, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
-import { WonderLogo } from "@/components/brand/WonderLogo";
+import { WonderStarMark } from "@/platform/brand/Logo";
 import { useCareerStore } from "@/store/career";
 import { useApplicationsStore } from "@/store/applications";
 import { computeApplicationAttention } from "@/domain/career/attention";
@@ -54,7 +53,6 @@ export function TopBar() {
     [applications, hour, dna, learnedSignals],
   );
   // Full Time / Part Time is a choice on Find only: its menu sits beside the avatar there.
-  const onFind = usePathname() === "/app/jobs";
   const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
@@ -106,8 +104,13 @@ export function TopBar() {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
-      {mode === "user" && email && <p className="truncate px-3 pb-2 pt-1.5 text-[11px] text-ink-3">{email}</p>}
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12")}>
+      {/* Who's signed in, and their career status (from their applications). */}
+      <div className="px-3 pb-2 pt-1.5">
+        <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
+        <p className="truncate text-[11px] leading-tight text-ink-3">{careerStatus}</p>
+        {mode === "user" && email && <p className="mt-0.5 truncate text-[11px] text-ink-3">{email}</p>}
+      </div>
       {[
         ...arrangeMenu(
           [
@@ -175,14 +178,13 @@ export function TopBar() {
   );
 
   return (
-    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Phones: avatar left, brand centred, Tasks and bell right. */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center md:hidden">
-        <span className="pointer-events-auto">
-          <WonderLogo href="/app" size={26} />
-        </span>
-      </div>
-      <div className="flex-1" />
+    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
+      {/* Every screen (owner, 2026-10-29): the avatar and the WonderStar mark on the left, the kind menu in the centre,
+          Tasks and the bell on the right. */}
+      <Link href="/app" aria-label="WonderStar home" title="WonderStar" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
+        <WonderStarMark className="h-[17px] w-auto" />
+      </Link>
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && <FindModeMenu />}</div>
 
       <RunningIndicator />
       {/* Tasks: what needs you (Needs attention). Ask Wonder is under You, and ⌘K on a computer. */}
@@ -240,24 +242,12 @@ export function TopBar() {
         )}
       </div>
 
-      <div className="relative order-first md:order-none" ref={profileRef}>
-        <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-bg-soft">
+      <div className="relative order-[-3]" ref={profileRef}>
+        <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
           <Avatar name={displayName} size={34} self />
-          <span className="hidden text-left lg:block">
-            <span className="block text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
-            <span className="block text-[11px] leading-tight text-ink-3">{careerStatus}</span>
-          </span>
-          <ChevronDown className="hidden size-4 text-ink-4 lg:block" aria-hidden />
         </button>
         {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>
-      {/* Phones: centred exactly between the avatar's right edge (16px gutter + the 46px avatar button) and the logo's
-          left edge (half of the centred logo, 26px high × 527/96 wide). From md up it sits at the start of the bar. */}
-      {onFind && hydrated && (
-        <div className="absolute inset-y-0 left-[62px] right-[calc(50%+71.35px)] flex items-center justify-center md:static md:order-first md:block">
-          <FindModeMenu />
-        </div>
-      )}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );
