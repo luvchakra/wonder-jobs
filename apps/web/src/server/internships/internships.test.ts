@@ -119,6 +119,24 @@ describe("Applying (student side): internships.apply through resolveCapability, 
     expect((await I.myInternshipApplications(student))[0]).toMatchObject({ id, status: "accepted", title: "Marketing Intern", company: "Acme" });
     await expect(I.withdrawInternship(student, id)).rejects.toMatchObject({ status: 409 });
   });
+
+  it("an application's page: only the student's own, with what they sent and its moves, never the team's own events", async () => {
+    const { orgId, postingId, cvId } = await openPosting();
+    await policy(student.tenantId, "automatic");
+    const { id } = await apply(postingId, cvId);
+    await expect(I.myInternshipApplication(other, id)).rejects.toMatchObject({ status: 404 });
+    await I.decideInternship(owner, orgId, id, "shortlisted");
+    await table("response_events").insert({ response_id: id, org_id: orgId, event: "email:team", actor: "system", detail: "1 of 1 sent", at: new Date().toISOString() });
+    await I.decideInternship(owner, orgId, id, "offer");
+    await I.withdrawInternship(student, id);
+    const a = await I.myInternshipApplication(student, id);
+    expect(a).toMatchObject({ id, status: "withdrawn", title: "Marketing Intern", company: "Acme", sent: { name: "Asha Rao", email: student.email, profile: { college: PROFILE.college, course: PROFILE.course } } });
+    expect(a.sent.resume).toBeTruthy();
+    expect(a.events.map((e) => e.status)).toEqual(["applied", "shortlisted", "offer", "withdrawn"]);
+    // The student's own words on their own move; the company's moves carry no team detail.
+    expect(a.events.map((e) => !!e.detail)).toEqual([false, false, false, true]);
+    expect(JSON.stringify(a)).not.toContain(owner.tenantId);
+  });
 });
 
 describe("The company moves an application on", () => {

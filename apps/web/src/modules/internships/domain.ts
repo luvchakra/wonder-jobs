@@ -343,6 +343,15 @@ export interface MyInternshipApplication {
   updatedAt: string;
 }
 
+/** One of the student's applications as its page shows it: what they sent, and its history (Applied, each move). */
+export interface MyInternshipApplicationDetail extends MyInternshipApplication {
+  location: string;
+  workMode: WorkMode;
+  description: string;
+  sent: { name: string; email: string; profile: StudentProfile; coverNote: string; resume?: string };
+  events: { id: string; status: InternshipStatus; detail?: string; at: string }[];
+}
+
 /** Deadlines: apply-by dates of saved internships not yet applied to, and start dates of accepted ones, soonest first, from today. */
 export function deadlines(saved: Pick<InternshipListing, "id" | "title" | "company" | "terms">[], mine: MyInternshipApplication[], today = new Date().toISOString().slice(0, 10)) {
   const applied = new Set(mine.map((a) => `ws_${a.postingId}`));

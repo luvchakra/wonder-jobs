@@ -37,6 +37,7 @@ import {
   type InternshipApplicationView,
   type InternshipStatus,
   type MyInternshipApplication,
+  type MyInternshipApplicationDetail,
   type PostingInput,
   type StudentProfile,
 } from "@/modules/internships/domain";
@@ -208,6 +209,35 @@ export async function myInternshipApplications(s: Session): Promise<MyInternship
     const p = posts.get(r.listing_id);
     return { id: r.id, postingId: r.listing_id, title: p?.title ?? "Internship", company: names.get(r.org_id) ?? "The company", status: r.status, terms: readTerms(p?.attrs), appliedAt: r.created_at, updatedAt: r.updated_at };
   });
+}
+
+/**
+ * One of the student's own applications, with what they sent and its history. Filtered by their tenant; the history
+ * holds only Applied and status moves, never the team's own events (emails to the team) or who on the team acted.
+ */
+export async function myInternshipApplication(s: Session, responseId: string): Promise<MyInternshipApplicationDetail> {
+  const r = await mine(s, responseId);
+  const [p, org, history, file] = await Promise.all([listings().one({ id: r.listing_id, module: INTERNSHIPS }), orgs().one({ id: r.org_id }), events().find({ response_id: r.id, org_id: r.org_id }, { order: "at" }), files().one({ response_id: r.id, org_id: r.org_id })]);
+  const evs = history.flatMap((e, i) => {
+    const status = e.event === "submitted" ? "applied" : e.event.startsWith("status:") ? (e.event.slice(7) as InternshipStatus) : null;
+    return status && status in STATUS_LABEL ? [{ id: String(i), status, ...(e.actor === "applicant" && e.event !== "submitted" && e.detail ? { detail: e.detail } : {}), at: e.at }] : [];
+  });
+  const sentProfile = r.profile ?? { college: "", course: "" };
+  return {
+    id: r.id,
+    postingId: r.listing_id,
+    title: p?.title ?? "Internship",
+    company: org?.name ?? "The company",
+    status: r.status,
+    terms: readTerms(p?.attrs),
+    appliedAt: r.created_at,
+    updatedAt: r.updated_at,
+    location: p?.location ?? "",
+    workMode: p?.work_mode ?? "onsite",
+    description: p?.description ?? "",
+    sent: { name: r.name, email: r.email, profile: { college: sentProfile.college, course: sentProfile.course, ...(sentProfile.graduationYear ? { graduationYear: sentProfile.graduationYear } : {}) }, coverNote: r.cover_note, ...(file ? { resume: file.filename } : {}) },
+    events: evs.length ? evs : [{ id: "0", status: "applied", at: r.created_at }],
+  };
 }
 
 // ---- company side: applications ------------------------------------------------------------------------------

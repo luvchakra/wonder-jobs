@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
-import { acceptOffer, withdrawInternship } from "@/server/internships/applications";
+import { acceptOffer, myInternshipApplication, withdrawInternship } from "@/server/internships/applications";
 import { recordServerAudit } from "@/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
+
+/** One of the student's own applications, for its page. */
+export async function GET(req: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+  return hiringRoute(req, async (s) => ({ application: await myInternshipApplication(s, id) }));
+}
 
 const Body = z.object({ action: z.enum(["withdraw", "accept"]) });
 
