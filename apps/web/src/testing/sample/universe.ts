@@ -117,7 +117,8 @@ export function getUniverse(): Universe {
       skills,
       seniority: t.seniority,
       industry: company.industry,
-      applyUrl: onEmployerSite ? `https://careers.${company.domain}/jobs/${1000 + idx}` : `https://jobs.example/${idx}`,
+      // Reserved hosts only: the link check really fetches apply links, and a real employer's 404 would close sample jobs mid-test.
+      applyUrl: onEmployerSite ? `https://careers.${company.domain.split(".")[0]}.example/jobs/${1000 + idx}` : `https://jobs.example/${idx}`,
       applyPath,
       onEmployerSite,
       repostCount: base.repostCount ?? (rand.chance(0.15) ? rand.int(1, 3) : 0),
