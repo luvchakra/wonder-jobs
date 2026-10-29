@@ -244,7 +244,7 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-medium text-ink">Pause or disable</p>
-                  <p className="text-ink-3">Stops JobsLake from asking this source. Resuming needs a passing test.</p>
+                  <p className="text-ink-3">Stops WorksLake from asking this source. Resuming needs a passing test.</p>
                 </div>
                 <div className="flex gap-2">
                   {s.status !== "paused" && (

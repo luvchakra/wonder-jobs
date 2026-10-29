@@ -1,6 +1,6 @@
 /**
- * WonderJobs' client for JobsLake Protocol v1 (spec §80). The browser talks to the same REST
- * endpoints any other JobsLake consumer would; nothing here knows how sources are fetched.
+ * WonderJobs' client for WorksLake Protocol v1 (spec §80). The browser talks to the same REST
+ * endpoints any other WorksLake consumer would; nothing here knows how sources are fetched.
  */
 import type { CanonicalOpportunity, ErrorBody, SearchEvent, SearchRequest, SearchResponse } from "@/domain/jobslake/protocol";
 
@@ -11,7 +11,7 @@ export class JobsLakeError extends Error {
     public readonly status: number,
     public readonly body: ErrorBody | null,
   ) {
-    super(body?.message ?? `JobsLake responded ${status}`);
+    super(body?.message ?? `WorksLake responded ${status}`);
     this.name = "JobsLakeError";
   }
 }

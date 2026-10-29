@@ -7,7 +7,7 @@ import { authenticateKey, presentedKey } from "./developer";
 import { jobsLakeFlags } from "./flags";
 
 /**
- * Who may use which part of JobsLake.
+ * Who may use which part of WorksLake.
  *
  * - Admin portal + admin API: a signed-in account whose email is in JOBSLAKE_ADMIN_EMAILS. Unset
  *   means nobody — it fails closed. In local development without Supabase Auth (the legacy cookie
@@ -15,7 +15,7 @@ import { jobsLakeFlags } from "./flags";
  *   that switch is ignored whenever real auth is configured.
  * - Candidate search + opportunities: any signed-in WonderJobs session (the WonderJobs client).
  * - Service/MCP callers: a bearer JOBSLAKE_MCP_TOKEN, compared in constant time; unset = refused.
- * - Developers: a JobsLake API key (`Authorization: Bearer jl_live_…` or `x-api-key`) on search,
+ * - Developers: a WorksLake API key (`Authorization: Bearer jl_live_…` or `x-api-key`) on search,
  *   opportunities and MCP only — never on admin/platform endpoints or telemetry.
  */
 export function jlError(code: ErrorCode, message: string, status: number, extra: Partial<ErrorBody> = {}) {
@@ -55,7 +55,7 @@ export async function currentAdmin(): Promise<AdminActor | null> {
 }
 
 export async function requireAdmin(): Promise<AdminActor | NextResponse> {
-  if (!jobsLakeFlags().jobsLakeAdminEnabled) return jlError("FEATURE_DISABLED", "The JobsLake admin portal is turned off.", 404);
+  if (!jobsLakeFlags().jobsLakeAdminEnabled) return jlError("FEATURE_DISABLED", "The WorksLake admin portal is turned off.", 404);
   let s: Session;
   try {
     s = await getSession();
@@ -63,7 +63,7 @@ export async function requireAdmin(): Promise<AdminActor | NextResponse> {
     if (e instanceof AuthRequiredError) return jlError("UNAUTHORIZED", "Sign in required.", 401);
     throw e;
   }
-  if (!isAdminSession(s)) return jlError("FORBIDDEN", "JobsLake administration is limited to platform admins.", 403);
+  if (!isAdminSession(s)) return jlError("FORBIDDEN", "WorksLake administration is limited to platform admins.", 403);
   return { actor: s.email ?? `local:${s.userId.slice(0, 10)}`, session: s };
 }
 
@@ -85,7 +85,7 @@ export async function developerCaller(req: Request): Promise<Caller | NextRespon
   if (!key) return null;
   try {
     const who = await authenticateKey(key);
-    return who ? { kind: "developer", ...who } : jlError("UNAUTHORIZED", "Invalid or revoked JobsLake API key.", 401);
+    return who ? { kind: "developer", ...who } : jlError("UNAUTHORIZED", "Invalid or revoked WorksLake API key.", 401);
   } catch (e) {
     console.error(`[jobslake-api] key check failed: ${e instanceof Error ? e.message : "unknown"}`);
     return jlError("INTERNAL", "API keys can't be checked just now. Try again shortly.", 503);

@@ -1,9 +1,9 @@
 /**
- * Internships Find (WJ-418): one search of JobsLake's Internships dataset (module = 'internships'), turned into
+ * Internships Find (WJ-418): one search of WorksLake's Internships dataset (module = 'internships'), turned into
  * internship listings with their terms, and the per-source provenance the student sees ("searched X in Y across Z").
  *
  * A WonderWorks posting carries the terms its company gave (stipend a month, duration, start date, apply-by date, part
- * or full time). An outside posting carries only what it states: its pay (kept per year by JobsLake, shown a month)
+ * or full time). An outside posting carries only what it states: its pay (kept per year by WorksLake, shown a month)
  * and a duration its own title or opening says; its start date stays "not stated".
  */
 import { search } from "@/server/jobslake/core";

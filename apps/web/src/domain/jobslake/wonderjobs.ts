@@ -13,7 +13,7 @@ import { ageLabel } from "./cache";
 import { ACCESS_LABEL, type CanonicalOpportunity, type SearchMetadata, type SearchMode, type SearchRequest, type SourceSearchStatus } from "./protocol";
 
 export function searchRequestFor(criteria: { query: string; locations: string[]; variants?: string[]; jobTypes?: JobType[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
-  // Only what JobsLake needs to search (spec §57): terms, broader phrasings of them, job types asked for, places and which sources — nothing about the candidate.
+  // Only what WorksLake needs to search (spec §57): terms, broader phrasings of them, job types asked for, places and which sources — nothing about the candidate.
   return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}), ...(criteria.jobTypes?.length ? { jobTypes: criteria.jobTypes } : {}) }, sourceIds, searchMode, limit };
 }
 
@@ -78,7 +78,7 @@ export function toCanonicalJob(o: CanonicalOpportunity): CanonicalJob {
 }
 
 /**
- * The search stage's evidence for one source, as JobsLake reported it. Skipped sources (not asked,
+ * The search stage's evidence for one source, as WorksLake reported it. Skipped sources (not asked,
  * by plan) aren't evidence of anything and return null — except a paid source, which always says why
  * it wasn't asked, so the candidate can see it was considered.
  */
@@ -103,14 +103,14 @@ export function sourceEvidence(s: SourceSearchStatus): Evidence | null {
   }
 }
 
-/** "Searched N sources" — how broad the search actually was, and how much JobsLake merged. */
+/** "Searched N sources" — how broad the search actually was, and how much WorksLake merged. */
 export function breadthEvidence(m: SearchMetadata): Evidence[] {
   const out: Evidence[] = [{ label: "Sources searched", value: `${m.sourcesSucceeded} of ${m.sourcesPlanned} answered`, tone: m.sourcesFailed ? "warning" : "info" }];
   if (m.warm) out.push({ label: "From recent searches", value: `${m.warm.toLocaleString("en-IN")} jobs seen in the last 7 days`, tone: "info" });
   return out;
 }
 
-/** Per-source contribution for JobsLake telemetry: how many of each source's jobs were relevant / strong. Counts only. */
+/** Per-source contribution for WorksLake telemetry: how many of each source's jobs were relevant / strong. Counts only. */
 export function contributionBySource(jobs: CanonicalJob[], fitById: Record<string, "strong" | "worth_considering" | "stretch" | "low_fit" | undefined>) {
   const out: Record<string, { relevant: number; strong: number }> = {};
   for (const j of jobs) {

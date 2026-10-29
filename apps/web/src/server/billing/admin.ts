@@ -1,6 +1,6 @@
 /**
  * Billing administration (Platform → Billing): plans and features, the prices the payment providers
- * charge, promotion codes and automatic discounts, and JobsLake API pricing.
+ * charge, promotion codes and automatic discounts, and WorksLake API pricing.
  *
  * Rules every function here keeps:
  * - What candidates are charged is read from Stripe / Razorpay, never from a stored display number. A
@@ -515,7 +515,7 @@ export async function clearAutomaticDiscount(raw: unknown, actor: string): Promi
   return { plan };
 }
 
-/* ------------------------------------------------------------ JobsLake API */
+/* ------------------------------------------------------------ WorksLake API */
 
 export interface ApiPlanAdmin {
   effective: { freeMonthly: number; maxMonthly: number; sourceIds: string[] };

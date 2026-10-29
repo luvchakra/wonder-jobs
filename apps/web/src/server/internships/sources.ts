@@ -1,12 +1,12 @@
 /**
- * The Internships module's own JobsLake sources (WJ-418): a separate dataset (module = 'internships'), so none of these
+ * The Internships module's own WorksLake sources (WJ-418): a separate dataset (module = 'internships'), so none of these
  * ever answers a Jobs search and no Jobs source ever answers an Internships one (server/jobslake/registry.ts::listSources).
  *
  * Real sources only, each through its official API, keeping only postings that are internships — as the source itself
  * reports the type, or as the posting's title says it (`domain/jobs/jobType.ts`); an untyped posting never counts:
  * - WonderWorks companies: internships posted in a hiring workspace (Internships → Company).
  * - Adzuna India: its search API asked for the student's words plus "intern" (needs the Adzuna credentials: "Needs setup" without).
- * - Company career sites: the Greenhouse, Lever and Ashby boards JobsLake already reads, and SmartRecruiters' public Posting API.
+ * - Company career sites: the Greenhouse, Lever and Ashby boards WorksLake already reads, and SmartRecruiters' public Posting API.
  * - Remotive and Remote OK: their public APIs (Remotive reports "internship" as a job type; Remote OK as a tag).
  * - Arbeitnow and Jobicy: their public APIs, which report each posting's job types.
  * - The Muse and Himalayas: their public APIs asked for internships only (level=Internship, employment_type=Intern).
@@ -14,7 +14,7 @@
  * - Jooble: its REST API asked for internships — needs JOOBLE_API_KEY.
  * Connectors for the internship-only APIs are in ./providers.ts.
  * Not here, on purpose: Internshala and LinkedIn publish no open job-search API (LinkedIn's Job Posting API is partner-only,
- * Internshala has none), and JobsLake never scrapes a site against its terms. AICTE's internship portal and India's NATS publish
+ * Internshala has none), and WorksLake never scrapes a site against its terms. AICTE's internship portal and India's NATS publish
  * no open API or feed either. Community-curated lists on GitHub (e.g. SimplifyJobs' internship lists) carry no licence, so their
  * data isn't reused.
  */
@@ -41,7 +41,7 @@ export const WONDERSTAR_INTERNSHIPS = "intern_wonderstar";
 export const INTERNSHIP_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_INTERNSHIPS, name: "WonderWorks companies", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Internships companies post in their WonderWorks hiring workspace." }),
   source({ id: "intern_adzuna_in", name: "Adzuna India internships", provider: "Adzuna", category: "aggregator", geography: ["IN"], secretRef: "env:ADZUNA", capabilities: [...FEED_CAPS, "Salary"], description: "Adzuna India's search API, asked for internships." }),
-  source({ id: "intern_careers", name: "Company career sites", provider: "Greenhouse, Lever, Ashby", category: "ats", geography: ["global"], description: "Internships on the Greenhouse, Lever and Ashby career sites JobsLake reads." }),
+  source({ id: "intern_careers", name: "Company career sites", provider: "Greenhouse, Lever, Ashby", category: "ats", geography: ["global"], description: "Internships on the Greenhouse, Lever and Ashby career sites WorksLake reads." }),
   source({ id: "intern_smartrecruiters", name: "SmartRecruiters career sites", provider: "SmartRecruiters", category: "ats", geography: ["IN", "global"], description: "Internships on SmartRecruiters career sites (public Posting API)." }),
   source({ id: "intern_remotive", name: "Remotive internships", provider: "Remotive", category: "aggregator", geography: ["remote"], description: "Remote internships from Remotive's public API." }),
   source({ id: "intern_remoteok", name: "Remote OK internships", provider: "Remote OK", category: "aggregator", geography: ["remote"], description: "Remote internships from Remote OK's public API." }),

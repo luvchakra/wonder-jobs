@@ -5,8 +5,8 @@ import { companyLogo } from "@/server/jobslake/companies";
 export const runtime = "nodejs";
 
 /**
- * GET ?d=domain&n=name — a company's logo from JobsLake's cache (fetched the first time it's asked for).
- * Only for companies JobsLake recorded from a real posting; 404 when it has none, so the page shows the
+ * GET ?d=domain&n=name — a company's logo from WorksLake's cache (fetched the first time it's asked for).
+ * Only for companies WorksLake recorded from a real posting; 404 when it has none, so the page shows the
  * company's initial instead.
  */
 export async function GET(req: Request) {

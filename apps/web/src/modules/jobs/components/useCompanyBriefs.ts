@@ -4,7 +4,7 @@ import type { CanonicalJob } from "@/domain/jobs/types";
 import { briefKey, type CompanyBrief } from "@/domain/jobslake/companies";
 import { getClientMode } from "@/lib/mode";
 
-/** Briefs already asked for in this tab (null: JobsLake knows nothing), so paging and re-renders don't ask again. */
+/** Briefs already asked for in this tab (null: WorksLake knows nothing), so paging and re-renders don't ask again. */
 const cache = new Map<string, CompanyBrief | null>();
 
 export const jobBriefKey = (job: Pick<CanonicalJob, "company" | "companyDomain">) => briefKey({ d: job.companyDomain, n: job.company });

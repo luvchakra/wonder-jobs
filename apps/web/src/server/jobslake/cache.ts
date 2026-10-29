@@ -1,5 +1,5 @@
 /**
- * The JobsLake search cache, server side: hashed keys, one batched read per search, writes after it,
+ * The WorksLake search cache, server side: hashed keys, one batched read per search, writes after it,
  * and pruning. The rules (what counts as the same search, how long an answer is good for) are in
  * `domain/jobslake/cache.ts`; `core.search` decides when to use an answer.
  *

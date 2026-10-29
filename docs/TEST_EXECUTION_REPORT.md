@@ -1,6 +1,6 @@
 # Test Execution Report
 
-## JobsLake (2026-09-25) — `e2e/jobslake.spec.ts`
+## WorksLake (2026-09-25) — `e2e/jobslake.spec.ts`
 
 Run against a production build in local-admin mode (Supabase unset, `JOBSLAKE_LOCAL_ADMIN=1`, `JOBSLAKE_MCP_ENABLED=1` with a token), `next start -p 3211`, `PLAYWRIGHT_BASE_URL=http://localhost:3211 npx playwright test e2e/jobslake.spec.ts --project=chromium --project="Mobile Chrome"`. Every source is real: the built-in boards and feeds, Spotify's Lever board, and Remotive's public JSON API.
 
@@ -22,10 +22,10 @@ Run against a production build in local-admin mode (Supabase unset, `JOBSLAKE_LO
 | WJ-JL-028/035/036/037 | REST results are valid canonical opportunities with provenance; needs-setup source doesn't fail others; ATS record canonical over aggregators | PASS | n/a (API, once) |
 | WJ-JL-004 | Stream: search_started … one source_completed per planned source … search_completed | PASS | n/a |
 | WJ-JL-029 | MCP `search_jobs` has the REST response's schema | PASS | n/a |
-| WJ-JL-001…012, 031, 033, 034 | Signed-in candidate journeys (request to JobsLake, stream, merge, sources on job detail, why/filtered, failure, stop/rerun, mobile, reduced motion, live status) | BLOCKED | BLOCKED |
-| WJ-JL-038/039/040 | Warm + live coexist; mode depth; scheduled search uses JobsLake | unit tests (`core.test.ts`, `scheduledRun.test.ts`) | |
+| WJ-JL-001…012, 031, 033, 034 | Signed-in candidate journeys (request to WorksLake, stream, merge, sources on job detail, why/filtered, failure, stop/rerun, mobile, reduced motion, live status) | BLOCKED | BLOCKED |
+| WJ-JL-038/039/040 | Warm + live coexist; mode depth; scheduled search uses WorksLake | unit tests (`core.test.ts`, `scheduledRun.test.ts`) | |
 
-BLOCKED means not run, not failed: only signed-in accounts search through JobsLake (demo/local mode uses sample data by design), so those journeys need a disposable, pre-confirmed Supabase account on the production project, created and deleted by `e2e/fixtures/auth.ts`.
+BLOCKED means not run, not failed: only signed-in accounts search through WorksLake (demo/local mode uses sample data by design), so those journeys need a disposable, pre-confirmed Supabase account on the production project, created and deleted by `e2e/fixtures/auth.ts`.
 
 Defects the run found and fixed before this result: the Overview showed "No active sources." while its data was loading; the Add Source step list made the mobile page scroll sideways; mobile run cards omitted the relevant/strong counts.
 

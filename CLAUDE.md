@@ -9,7 +9,7 @@
 
 WonderWorks is the shared layer (`src/wonderworks/`). WonderJobs, Internships and every other module inherit from it and extend it. Anything shared lives in WonderWorks. No module contains another module's code. A change in one module never breaks another.
 
-The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then WonderStar). Users see WonderWorks everywhere, the browser helper included ("WonderWorks helper"). Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
+The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then WonderStar). Users see WonderWorks everywhere, the browser helper included ("WonderWorks helper"). The job data layer is **WorksLake** (owner, 2026-10-29; formerly JobsLake); its `jobslake` folders, `jobsLake*` identifiers, `JOBSLAKE_*` env vars and `/platform/jobs-lake` routes keep the old name. Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
 
 - **Filtering, search runs, caching/persistence, navigation and other cross-cutting features live in the WonderWorks layer, taken from WonderJobs.** Modules inherit them; a module never re-implements them (owner, 2026-10-29). Persistence: `wonderworks/catalog.ts` (capped, trimmed, memoised catalogs) and `store.ts` (a module's synced store: saves, responses, history, last search, closed listings, link checks).
 - **Find, Saved and You are the same in every module,** with Jobs' look as the reference and almost the same behaviour. A module supplies only its own fields, filters, card details and data.
@@ -25,7 +25,7 @@ The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then Won
   - The composition root wires modules into WonderWorks, which never imports a module: `src/modules/registry.ts`, `nav.ts`, `chrome.tsx`, `savedCards.tsx`, and the routes under `src/app`. WonderWorks takes module data through props and the chrome's slots.
 - **Enforced by `src/wonderworks/boundaries.test.ts`:** a module imports only WonderWorks, the app's foundation and itself; WonderWorks imports no module and none of Jobs' code. Never add to its `KNOWN` list without a plan to remove the entry.
 - **A change in one module never breaks another:** every module's tests keep passing. A change to WonderWorks is checked against every module, WonderJobs first (unit tests, the golden/outcome/jobslake specs, before/after screenshots).
-- **JobsLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
+- **WorksLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
 - **Brand:** the brand identity (logo with the WonderWorks wordmark, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
 - **Sessions:** Each module has its own Claude session. All work for a module happens in that one session, never in another module's session, and never across several sessions for the same module. WonderWorks shared-layer work has its own session too.
 

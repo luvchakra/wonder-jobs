@@ -1,6 +1,6 @@
 /**
  * Add Source → Detect (spec §24–26): identify what a careers or job-listing URL is, how it can be
- * legitimately accessed, and whether JobsLake has a connector for it. Detection only reads the URL;
+ * legitimately accessed, and whether WorksLake has a connector for it. Detection only reads the URL;
  * the Test step is what proves a source actually works.
  */
 import type { AccessStrategy, SourceCategory } from "./protocol";
@@ -44,7 +44,7 @@ const PARTNERSHIP: { test: RegExp; provider: string }[] = [
   { test: /(^|\.)glassdoor\.[a-z.]+$/, provider: "Glassdoor" },
 ];
 
-/** ATS platforms JobsLake recognizes but has no connector for yet. */
+/** ATS platforms WorksLake recognizes but has no connector for yet. */
 const KNOWN_UNSUPPORTED: { test: RegExp; provider: string }[] = [
   { test: /\.teamtailor\.com$/, provider: "Teamtailor" },
   { test: /\.recruitee\.com$/, provider: "Recruitee" },
@@ -90,9 +90,9 @@ export function detectSource(raw: string): Detection {
   const partner = PARTNERSHIP.find((p) => p.test.test(host));
   if (partner) {
     const page = PARTNER_PRESETS.some((p) => p.name === partner.provider) ? ` Once you have one, enter the endpoint and credential it gives you on ${partner.provider}'s page under Sources.` : "";
-    return { kind: "partnership", provider: partner.provider, message: `${partner.provider} doesn't offer a public jobs API. It can only be connected through a partnership agreement — JobsLake won't scrape it or mark it active without one.${page}` };
+    return { kind: "partnership", provider: partner.provider, message: `${partner.provider} doesn't offer a public jobs API. It can only be connected through a partnership agreement — WorksLake won't scrape it or mark it active without one.${page}` };
   }
   const known = KNOWN_UNSUPPORTED.find((p) => p.test.test(host));
-  if (known) return { kind: "unsupported_ats", provider: known.provider, message: `This is a ${known.provider} career site. JobsLake doesn't have a ${known.provider} connector yet — you can connect it as a custom API or feed if ${known.provider} gives you one.` };
+  if (known) return { kind: "unsupported_ats", provider: known.provider, message: `This is a ${known.provider} career site. WorksLake doesn't have a ${known.provider} connector yet — you can connect it as a custom API or feed if ${known.provider} gives you one.` };
   return { kind: "custom", host, message: "No known platform recognized. Connect it as a JSON API, an RSS/Atom feed, or a page with structured (schema.org JobPosting) data." };
 }

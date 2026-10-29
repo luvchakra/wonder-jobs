@@ -8,7 +8,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { RatingStars } from "./RatingStars";
 
 /**
- * A job's Company section: what JobsLake knows about the employer (size, industry, HQ, founding, listing and
+ * A job's Company section: what WorksLake knows about the employer (size, industry, HQ, founding, listing and
  * revenue as TheirStack or Wikidata report them, its open roles, H-1B filings from the Department of Labor), each
  * with its source. Shows only what was found.
  */

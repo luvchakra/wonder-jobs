@@ -74,7 +74,7 @@ export const usaJobsAvailable = () => !!(process.env.USAJOBS_API_KEY && process.
 export function rawFromUsaJobs(item: UsaJobsItem): RawPosting {
   const d = item.MatchedObjectDescriptor;
   const offering = (d.PositionOfferingType ?? []).map((o) => o.Name);
-  // Pay only when USAJOBS states it per year ("PA"): JobsLake keeps pay per year, and an hourly rate isn't one.
+  // Pay only when USAJOBS states it per year ("PA"): WorksLake keeps pay per year, and an hourly rate isn't one.
   const pay = (d.PositionRemuneration ?? []).find((r) => r.RateIntervalCode === "PA");
   const location = d.PositionLocationDisplay ?? "";
   return {

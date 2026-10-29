@@ -1,6 +1,6 @@
 /**
  * Company facts from Wikidata (CC0, wikidata.org): employees (with the year they're from), founded, headquarters,
- * industry, stock listing and revenue, for companies whose official website (P856) is the domain JobsLake recorded
+ * industry, stock listing and revenue, for companies whose official website (P856) is the domain WorksLake recorded
  * from their postings. A company is matched only by that website; one with no item gets nothing. `wikidataWebsites`
  * goes the other way for postings that name no domain: an exact-name organization with one official website.
  */

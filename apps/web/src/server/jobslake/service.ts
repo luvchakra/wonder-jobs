@@ -1,5 +1,5 @@
 /**
- * The adapter-neutral JobsLake operations behind REST v1 and MCP (spec §37: "MCP must not implement
+ * The adapter-neutral WorksLake operations behind REST v1 and MCP (spec §37: "MCP must not implement
  * separate search logic"). Each takes an already-authorized caller and returns either a value or a
  * protocol error body; the adapters only translate transport.
  */
@@ -51,14 +51,14 @@ export const SearchRequestSchema = z.object({
 
 /**
  * Validates a search body. The search text is what the caller asked for — the query text, or else
- * its first title. With neither there's nothing to search for, and JobsLake says so rather than
+ * its first title. With neither there's nothing to search for, and WorksLake says so rather than
  * inventing a query.
  */
 export function parseSearchRequest(body: unknown): Result<SearchRequest> {
   const p = SearchRequestSchema.safeParse(body);
   if (!p.success) return err(400, "INVALID_REQUEST", p.error.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).slice(0, 3).join("; "));
   const text = p.data.query.text || p.data.query.titles?.[0] || "";
-  if (!text) return err(400, "INVALID_REQUEST", "query.text or query.titles is required — JobsLake doesn't guess what to search for.");
+  if (!text) return err(400, "INVALID_REQUEST", "query.text or query.titles is required — WorksLake doesn't guess what to search for.");
   return { ok: true, value: { ...p.data, query: { ...p.data.query, text } } };
 }
 
@@ -100,7 +100,7 @@ export function shapeEvent(caller: Caller, e: SearchEvent): SearchEvent {
 }
 
 export function searchGate(caller: Caller): Result<null> {
-  if (!jobsLakeFlags().jobsLakeSearchEnabled) return err(404, "FEATURE_DISABLED", "JobsLake search is turned off.");
+  if (!jobsLakeFlags().jobsLakeSearchEnabled) return err(404, "FEATURE_DISABLED", "WorksLake search is turned off.");
   const rl = limitFor(caller);
   if (!rl.ok) return err(429, "RATE_LIMITED", `Too many searches. Try again in ${rl.retryAfterSec}s.`);
   return { ok: true, value: null };
@@ -150,10 +150,10 @@ export async function runSearch(caller: Caller, req: SearchRequest, opts: Omit<S
 
 /** One opportunity. Free for an API key (still rate-limited), and only from sources a key may reach. */
 export async function getOpportunity(id: string, caller?: Caller, module: ModuleId = "jobs"): Promise<Result<CanonicalOpportunity>> {
-  if (!jobsLakeFlags().jobsLakeEnabled) return err(404, "FEATURE_DISABLED", "JobsLake is turned off.");
+  if (!jobsLakeFlags().jobsLakeEnabled) return err(404, "FEATURE_DISABLED", "WorksLake is turned off.");
   if (!/^[\w.:-]{1,200}$/.test(id)) return err(400, "INVALID_REQUEST", "Invalid opportunity id.");
   if (caller?.kind === "developer" && !keyLimit(caller.keyId).ok) return err(429, "RATE_LIMITED", "Too many requests for this API key. Try again shortly.");
-  const notFound = err(404, "NOT_FOUND", "No such opportunity in JobsLake. It may not have been seen in a recent search.");
+  const notFound = err(404, "NOT_FOUND", "No such opportunity in WorksLake. It may not have been seen in a recent search.");
   const o = await jobsLakeStore().getOpportunity(id, module);
   if (!o) return notFound;
   if (caller?.kind !== "developer") return { ok: true, value: o };

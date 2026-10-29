@@ -383,7 +383,7 @@ function parseRpc(contentType: string, text: string): { result?: unknown; error?
  */
 export async function fetchMcp(cfg: McpConfig, c: SearchCriteria, secret?: string, timeoutMs = 12_000): Promise<CustomFetchResult> {
   const base = { ...authHeaders(cfg.credentialHeader, cfg.credentialPrefix, secret), accept: "application/json, text/event-stream" };
-  const init = await safeFetch(cfg.endpoint, { method: "POST", timeoutMs, headers: base, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "JobsLake", version: "1.0" } } }) });
+  const init = await safeFetch(cfg.endpoint, { method: "POST", timeoutMs, headers: base, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "WorksLake", version: "1.0" } } }) });
   if (init.status === 401 || init.status === 403) throw Object.assign(new Error(`The MCP server rejected the credentials (${init.status})`), { code: "SOURCE_NEEDS_SETUP" });
   const initMsg = parseRpc(init.contentType, init.text);
   if (init.status >= 400 || initMsg.error) throw new Error(`MCP initialize failed: ${initMsg.error?.message ?? init.status}`);

@@ -9,7 +9,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * in progress elsewhere keeps its own):
  * - auth users whose address is `wj-e2e-…@example.com` (e2e/utils/testUser.ts), with the product rows
  *   keyed by their id — the same tables e2e/fixtures/auth.ts `deleteTestAccount` clears;
- * - JobsLake sources the admin journeys add, named "Remotive API <ms>", "Credentialed <ms>",
+ * - WorksLake sources the admin journeys add, named "Remotive API <ms>", "Credentialed <ms>",
  *   "Audited <ms>" (e2e/jobslake.spec.ts).
  * Nothing else. It does nothing without Supabase admin credentials, and leaves the production project
  * alone unless E2E_ALLOW_PRODUCTION=true (pre-launch only: see docs/testing/README.md).
@@ -63,7 +63,7 @@ async function deleteUser(admin: SupabaseClient, id: string): Promise<void> {
 
 async function staleTestSources(admin: SupabaseClient): Promise<string[]> {
   const { data, error } = await admin.schema("wonderjobs").from("jobslake_sources").select("id, record, updated_at");
-  if (error) return []; // JobsLake tables not migrated in this project: nothing of ours there.
+  if (error) return []; // WorksLake tables not migrated in this project: nothing of ours there.
   return (data ?? [])
     .filter((row: { record?: { name?: string; createdAt?: string }; updated_at?: string }) => TEST_SOURCE_NAME.test(row.record?.name ?? "") && isStale(row.record?.createdAt ?? row.updated_at))
     .map((row: { id: string }) => row.id);

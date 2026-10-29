@@ -34,7 +34,7 @@ export default function PlaygroundPage() {
 
   return (
     <>
-      <PageTitle title="Search playground" subtitle="Runs a real search through JobsLake core. Runs are recorded with the “playground” trigger and the search is audited." />
+      <PageTitle title="Search playground" subtitle="Runs a real search through WorksLake core. Runs are recorded with the “playground” trigger and the search is audited." />
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <Panel title="Search">
           <form

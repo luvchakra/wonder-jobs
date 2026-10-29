@@ -18,7 +18,7 @@ const ACTION: Record<string, string> = {
   "billing.discount.set": "Automatic discount started",
   "billing.discount.set_failed": "Automatic discount failed",
   "billing.discount.cleared": "Automatic discount stopped",
-  "billing.api_plan.saved": "JobsLake API pricing saved",
+  "billing.api_plan.saved": "WorksLake API pricing saved",
 };
 
 const show = (v: unknown) => (v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));

@@ -1,5 +1,5 @@
 /**
- * JobsLake persistence: Supabase (migration 0007) when configured, memory otherwise.
+ * WorksLake persistence: Supabase (migration 0007) when configured, memory otherwise.
  *
  * If Supabase is configured but migration 0007 hasn't been applied, the store falls back to memory
  * and `status()` says so — the admin portal shows it, so nobody mistakes an in-memory history that
@@ -80,7 +80,7 @@ class MemoryStore implements JobsLakeStore {
     return p;
   }
   answers = new Map<string, CachedAnswer>();
-  constructor(private reason = "No database configured — JobsLake history is kept in memory and resets when the server restarts.") {}
+  constructor(private reason = "No database configured — WorksLake history is kept in memory and resets when the server restarts.") {}
   async status(): Promise<StoreStatus> {
     return { backend: "memory", durable: false, message: this.reason };
   }
@@ -156,7 +156,7 @@ class MemoryStore implements JobsLakeStore {
 
 const MISSING = /42P01|PGRST205|does not exist|schema cache/i;
 
-/** Supabase-backed store that degrades to memory, visibly, when the JobsLake tables are missing. */
+/** Supabase-backed store that degrades to memory, visibly, when the WorksLake tables are missing. */
 class SupabaseStore implements JobsLakeStore {
   private fallback: MemoryStore | null = null;
   private probed: Promise<void> | null = null;
@@ -169,14 +169,14 @@ class SupabaseStore implements JobsLakeStore {
     if (!this.probed) {
       this.probed = (async () => {
         const { error } = await this.sb().from("jobslake_sources").select("id").limit(1);
-        if (error && MISSING.test(`${error.code} ${error.message}`)) this.fallback = new MemoryStore("Database is connected, but the JobsLake tables don't exist yet — apply migration 0007_jobslake.sql. Until then JobsLake history is kept in memory and resets when the server restarts.");
+        if (error && MISSING.test(`${error.code} ${error.message}`)) this.fallback = new MemoryStore("Database is connected, but the WorksLake tables don't exist yet — apply migration 0007_jobslake.sql. Until then WorksLake history is kept in memory and resets when the server restarts.");
       })();
     }
     await this.probed;
     return this.fallback;
   }
   private fail(what: string, error: { message: string }): never {
-    throw new Error(`JobsLake could not ${what}: ${error.message}`);
+    throw new Error(`WorksLake could not ${what}: ${error.message}`);
   }
 
   async status(): Promise<StoreStatus> {

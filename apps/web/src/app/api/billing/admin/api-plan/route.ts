@@ -4,7 +4,7 @@ import { adminApiPlan, saveApiPlanAdmin } from "@/server/billing/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET → JobsLake API pricing in force, the registered sources, and the live metered price from Stripe. */
+/** GET → WorksLake API pricing in force, the registered sources, and the live metered price from Stripe. */
 export async function GET(req: Request) {
   return billingAdminRoute(req, () => adminApiPlan());
 }

@@ -3,7 +3,7 @@ import type { CanonicalJob } from "@/domain/jobs/types";
 import { lookupJobs } from "@/server/jobs/recover";
 
 /**
- * A shared job, from JobsLake's record of public postings — the posting as its source published it, and
+ * A shared job, from WorksLake's record of public postings — the posting as its source published it, and
  * nothing from any candidate's account. Read once per request for the page, its metadata and its card.
  */
 export const sharedJob = cache(async (id: string): Promise<CanonicalJob | null> => {

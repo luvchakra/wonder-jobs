@@ -13,7 +13,7 @@ const FIELD_LABEL = { title: "title", canonicalApplyUrl: "apply link", postedAt:
 type Check = { state: "idle" } | { state: "checking" } | { state: "done"; tone: "success" | "warning" | "danger"; message: string; at: string };
 
 /**
- * Where JobsLake saw this job: the record WonderJobs shows (the most authoritative source), every
+ * Where WorksLake saw this job: the record WonderJobs shows (the most authoritative source), every
  * other listing of the same role, and which source each key field came from.
  */
 export function JobSourcesCard({ lake }: { lake: JobLakeProvenance }) {

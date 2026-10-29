@@ -8,7 +8,7 @@ import { jobsLakeStore } from "@/server/jobslake/store";
 export const runtime = "nodejs";
 
 /**
- * What this deployment's JobsLake is configured to do. Read-only: every switch is an environment
+ * What this deployment's WorksLake is configured to do. Read-only: every switch is an environment
  * variable, so changing one is a deploy-time decision that leaves a trail in the hosting platform.
  * Never returns a secret — only whether one is set.
  */

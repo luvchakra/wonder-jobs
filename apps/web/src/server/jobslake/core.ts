@@ -1,5 +1,5 @@
 /**
- * JobsLake core: the one implementation of search, source testing and refresh. The REST API, the
+ * WorksLake core: the one implementation of search, source testing and refresh. The REST API, the
  * streaming endpoint, the MCP adapter, the admin playground and WonderJobs' scheduled searches all
  * call these functions — no adapter has its own search logic (spec §37).
  *
@@ -79,7 +79,7 @@ export function publicStatus(s: SourceSearchStatus): SourceSearchStatus {
   return { sourceId: s.sourceId, sourceName: s.sourceName, outcome: s.outcome, retrieved: s.retrieved, durationMs: s.durationMs, message: msg[s.outcome], ...(s.paid ? { paid: true } : {}), ...(s.cachedAt ? { cachedAt: s.cachedAt, cacheUse: s.cacheUse } : {}) };
 }
 
-/** Which JobsLake sources a request may use: the candidate's own legacy choices, plus platform-managed sources. */
+/** Which WorksLake sources a request may use: the candidate's own legacy choices, plus platform-managed sources. */
 function allowedIds(sources: SourceRecord[], req: SearchRequest): string[] | undefined {
   if (!req.sourceIds?.length) return undefined;
   const wanted = new Set(req.sourceIds);

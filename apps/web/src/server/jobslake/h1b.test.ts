@@ -11,7 +11,7 @@ const FILE = { fiscalYear: 2026, through: "FY2026 Q3", employers: [{ name: "Stri
 const opp = (name: string, domain: string, postedAt: string) =>
   ({ employer: { name, domain }, postedAt, canonicalApplyUrl: "https://x.example/1", applyPath: "platform", quality: { employerVerified: false }, sourceRecords: [{ sourceId: "theirstack" }] }) as unknown as CanonicalOpportunity;
 
-describe("JobsLake company facts", () => {
+describe("WorksLake company facts", () => {
   it("totals a Department of Labor file per company name, merging names that normalise the same", () => {
     const rows = h1bRows(FILE);
     expect(rows.find((r) => r.nameKey === "stripe")).toEqual({ nameKey: "stripe", name: "Stripe, LLC", filings: 242, medianWage: 160368, fiscalYear: 2026, through: "FY2026 Q3" });
@@ -41,10 +41,10 @@ describe("JobsLake company facts", () => {
     expect(companyLines(p!)).toEqual([
       { label: "Size", value: "1001–5000 employees", source: "TheirStack" },
       { label: "Industry", value: "Internet", source: "TheirStack" },
-      { label: "Hiring", value: "2 open roles · 1 new this week", source: "JobsLake, last two weeks" },
+      { label: "Hiring", value: "2 open roles · 1 new this week", source: "WorksLake, last two weeks" },
       { label: "H-1B visas", value: "61 certified applications · median $202,959", source: "US Dept. of Labor, FY2026 Q3" },
     ]);
-    // A company JobsLake has no domain for still gets its H-1B totals by name; one it knows nothing about, nothing.
+    // A company WorksLake has no domain for still gets its H-1B totals by name; one it knows nothing about, nothing.
     expect((await companyProfile({ name: "Stripe Inc" }, store))?.h1b?.filings).toBe(242);
     expect(await companyProfile({ name: "Nobody Ltd" }, store)).toBeUndefined();
   });

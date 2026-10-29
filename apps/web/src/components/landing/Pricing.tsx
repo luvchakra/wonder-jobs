@@ -61,7 +61,7 @@ export function PricingSection({ plans }: { plans: PlansConfig["plans"] }) {
           })}
         </ul>
         <p className="mt-6 text-[12.5px] text-ink-3">
-          Prices per month, billed by Stripe or Razorpay; cancel any time from Account. The JobsLake API is billed separately — a free monthly allowance, then pay as you go. <Link href="/terms" className="text-brand-600 hover:underline">Terms</Link>
+          Prices per month, billed by Stripe or Razorpay; cancel any time from Account. The WorksLake API is billed separately — a free monthly allowance, then pay as you go. <Link href="/terms" className="text-brand-600 hover:underline">Terms</Link>
         </p>
       </div>
     </section>

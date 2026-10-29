@@ -29,10 +29,10 @@ export function Avatar({ name, size = 36, className, self = false }: { name: str
 }
 
 /**
- * Company tile: the company's logo from JobsLake's cache when it has one (`logo`: signed-in pages only), else
+ * Company tile: the company's logo from WorksLake's cache when it has one (`logo`: signed-in pages only), else
  * its initial on the company's color. A logo that isn't there just leaves the initial — never a guess.
  */
-/** Bumped when JobsLake finds logos for more companies (2: names resolved through Wikidata, 2026-10-24). */
+/** Bumped when WorksLake finds logos for more companies (2: names resolved through Wikidata, 2026-10-24). */
 const LOGO_VERSION = 2;
 
 export function CompanyLogo({ name, color, size = 40, className, logo, domain }: { name: string; color?: string; size?: number; className?: string; logo?: boolean; domain?: string }) {

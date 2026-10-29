@@ -10,7 +10,7 @@ export const EXTENSION_RELEASE = {
   changes: [
     { version: "0.3.8", note: "Now called WonderWorks helper; its button reads Fill with WonderWorks. Nothing it fills or presses changed." },
     { version: "0.3.7", note: "Now called WonderWorks helper, with the WonderWorks icon; its button reads Fill with WonderWorks. Nothing it fills or presses changed." },
-    { version: "0.3.6", note: "The side panel shows the company's logo from JobsLake, and its wording matches the app (Career Profile, Automation, Guide me)." },
+    { version: "0.3.6", note: "The side panel shows the company's logo from WorksLake, and its wording matches the app (Career Profile, Automation, Guide me)." },
     { version: "0.3.5", note: "Ignores third-party frames inside application forms, finds Submit links styled as buttons, and reads Lever's required marks." },
     { version: "0.3.4", note: "Never treats a portal's Sign In or Create Account button as a step, and skips hidden fields meant for bots." },
     { version: "0.3.3", note: "In a background fill, answers searchable dropdowns (Greenhouse's newer forms) with the employer's own options." },

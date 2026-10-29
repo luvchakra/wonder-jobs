@@ -1,5 +1,5 @@
 /**
- * JobsLake API pay-as-you-go: Stripe metered billing, separate from the candidate's Pro/Max plan.
+ * WorksLake API pay-as-you-go: Stripe metered billing, separate from the candidate's Pro/Max plan.
  *
  * - Configured only with STRIPE_SECRET_KEY + STRIPE_API_PRICE_ID (a metered recurring price on a
  *   Stripe Billing Meter) and STRIPE_API_METER_EVENT (the meter's event name). Without them the free
@@ -70,10 +70,10 @@ export async function apiPrice(cfg: ApiBillingConfig): Promise<ApiPrice> {
   const recurring = obj(p.recurring);
   if (recurring.usage_type !== "metered") throw new ProviderError("STRIPE_API_PRICE_ID must be a metered recurring price", 400);
   if (p.billing_scheme && p.billing_scheme !== "per_unit") throw new ProviderError("STRIPE_API_PRICE_ID must be a per-unit price", 400);
-  if (p.active === false) throw new ProviderError("The configured JobsLake API price is archived", 400);
+  if (p.active === false) throw new ProviderError("The configured WorksLake API price is archived", 400);
   const amount = str(p.unit_amount_decimal) ?? (typeof p.unit_amount === "number" ? String(p.unit_amount) : undefined);
   const currency = str(p.currency);
-  if (!amount || !currency) throw new ProviderError("The configured JobsLake API price has no per-unit amount", 400);
+  if (!amount || !currency) throw new ProviderError("The configured WorksLake API price has no per-unit amount", 400);
   const divideBy = Number(obj(p.transform_quantity).divide_by);
   const price: ApiPrice = { unitAmountDecimal: amount, currency: currency.toUpperCase(), perUnits: Number.isInteger(divideBy) && divideBy > 1 ? divideBy : 1, productName: str(obj(p.product).name) };
   priceCache = { key, at: Date.now(), price };
@@ -173,7 +173,7 @@ async function subscriptionActive(cfg: ApiBillingConfig, subscriptionId: string)
 
 /**
  * Back from Checkout: the redirect proves nothing on its own, so the session is read from Stripe and
- * must be this account's, for the JobsLake API, and complete. Only then is the subscription stored —
+ * must be this account's, for the WorksLake API, and complete. Only then is the subscription stored —
  * and its status is Stripe's, read now.
  */
 export async function confirmApiCheckout(ownerId: string, sessionId: string): Promise<ApiBillingRecord> {
@@ -182,7 +182,7 @@ export async function confirmApiCheckout(ownerId: string, sessionId: string): Pr
   if (!/^cs_[A-Za-z0-9_]{6,200}$/.test(sessionId)) throw new ApiBillingError("That checkout link isn't valid", 400);
   const s = await stripeCall<Obj>(cfg, "GET", `/checkout/sessions/${encodeURIComponent(sessionId)}`);
   if (str(s.client_reference_id) !== ownerId) throw new ApiBillingError("That checkout belongs to another account", 403);
-  if (obj(s.metadata).purpose !== JOBSLAKE_API_PURPOSE || s.mode !== "subscription") throw new ApiBillingError("That checkout isn't for the JobsLake API", 400);
+  if (obj(s.metadata).purpose !== JOBSLAKE_API_PURPOSE || s.mode !== "subscription") throw new ApiBillingError("That checkout isn't for the WorksLake API", 400);
   if (s.status !== "complete" || (s.payment_status !== "paid" && s.payment_status !== "no_payment_required")) throw new ApiBillingError("Checkout isn't complete yet", 409);
   const customer = ref(s.customer);
   const subscription = ref(s.subscription);

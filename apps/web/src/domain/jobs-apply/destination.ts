@@ -82,7 +82,7 @@ export function detectProvider(url: string): AtsProvider | undefined {
   return (Object.keys(PROVIDER_HOSTS) as AtsProvider[]).find((p) => PROVIDER_HOSTS[p].some((d) => hostMatches(host, d)));
 }
 
-/** The destination for a job: the canonical apply URL JobsLake chose, its provider, and the hosts it may use. */
+/** The destination for a job: the canonical apply URL WorksLake chose, its provider, and the hosts it may use. */
 /**
  * Workday's job page holds only an Apply button; the application itself lives at the job's own
  * "/apply/applyManually" address (its sign-in or Create Account, then the form). Opening that address is
@@ -111,7 +111,7 @@ export function destinationFor(job: Pick<CanonicalJob, "applyUrl" | "companyDoma
   const related = new Set<string>([registrableDomain(host)]);
   if (provider) PROVIDER_HOSTS[provider].forEach((d) => related.add(d));
   if (job.companyDomain) related.add(registrableDomain(job.companyDomain.replace(/^https?:\/\//, "").split("/")[0]));
-  // Other places JobsLake saw this same job on the employer's own systems.
+  // Other places WorksLake saw this same job on the employer's own systems.
   for (const s of job.lake?.sightings ?? []) {
     const h = s.employerSource ? hostOf(s.url) : null;
     if (h) related.add(registrableDomain(h));

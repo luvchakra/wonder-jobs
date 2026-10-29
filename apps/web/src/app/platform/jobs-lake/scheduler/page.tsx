@@ -129,7 +129,7 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
 
       <Panel title="Company refresh">
         <ul className="divide-y divide-line">
-          {row("Run", "JobsLake's company directory and logos, daily.", <Switch label="Company refresh" checked={draft.companyRefresh.enabled} onChange={(v) => cr({ enabled: v })} />)}
+          {row("Run", "WorksLake's company directory and logos, daily.", <Switch label="Company refresh" checked={draft.companyRefresh.enabled} onChange={(v) => cr({ enabled: v })} />)}
           {row("Logos per run", "Companies whose logo is looked for in one run.", num(draft.companyRefresh.logoLimit, (n) => cr({ logoLimit: n }), data.limits.logoLimit, "logos"))}
           {row("Time limit", "When the logo look-ups stop.", num(draft.companyRefresh.budgetSec, (n) => cr({ budgetSec: n }), data.limits.budgetSec, "seconds"))}
         </ul>

@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 afterEach(() => __setJobsLakeStore(undefined));
 
-describe("Supabase JobsLake store: every source and posting query names its module", () => {
+describe("Supabase WorksLake store: every source and posting query names its module", () => {
   it("reads default to Jobs and filter by module, both ways", async () => {
     const s = jobsLakeStore();
     await s.status(); // the probe

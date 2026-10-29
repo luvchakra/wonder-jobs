@@ -8,7 +8,7 @@ import { toast } from "@/components/feedback/Toast";
 import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
 import { label } from "@/components/billing/admin/shared";
 
-/** JobsLake API pricing: the free allowance, the monthly safety cap, and which sources API keys may reach. */
+/** WorksLake API pricing: the free allowance, the monthly safety cap, and which sources API keys may reach. */
 export default function BillingApiPage() {
   const { data, error, reload } = useAdmin<ApiPlanAdmin>("/api/billing/admin/api-plan");
   return (
@@ -30,14 +30,14 @@ function Editor({ data }: { data: ApiPlanAdmin }) {
     const r = await adminFetch<ApiPlanAdmin>("/api/billing/admin/api-plan", { method: "PUT", body: JSON.stringify({ freeMonthly: Number(free), maxMonthly: Number(cap), sourceIds: sources }) });
     setBusy(false);
     if (!r.ok) return toast.error("Couldn't save", r.error.message);
-    toast.success("JobsLake API pricing saved", "In effect within a minute on every server.");
+    toast.success("WorksLake API pricing saved", "In effect within a minute on every server.");
   };
   const toggle = (id: string) => setSources((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const updated = data.stored?.updatedAt ? `Last changed ${new Date(data.stored.updatedAt).toLocaleString("en-IN")}${data.stored.updatedBy ? ` by ${data.stored.updatedBy}` : ""}.` : "From the environment / defaults until saved here.";
   return (
     <>
       <PageTitle
-        title="JobsLake API"
+        title="WorksLake API"
         subtitle={`Developer API keys: free searches, the monthly safety cap and reachable sources. ${updated}`}
         actions={
           <Button onClick={save} loading={busy} disabled={!sources.length}>

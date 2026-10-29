@@ -95,7 +95,7 @@ test.describe("Real account — production walk-through", () => {
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download PDF" }).click()]);
     expect(Buffer.concat(await (await pdf.createReadStream()).toArray()).subarray(0, 5).toString()).toBe("%PDF-");
 
-    // Find: a real search through JobsLake, with per-source evidence.
+    // Find: a real search through WorksLake, with per-source evidence.
     const lake = page.waitForResponse((r) => r.url().includes("/api/jobs-lake/v1/search") && r.request().method() === "POST", { timeout: 60_000 });
     await page.goto(`/app/jobs?search=${encodeURIComponent("Product manager roles, remote")}`);
     const lakeRes = await lake;

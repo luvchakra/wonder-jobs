@@ -1,5 +1,5 @@
 /**
- * JobsLake admin operations (spec §21–28, §49, §94): add, configure, test, activate, pause and
+ * WorksLake admin operations (spec §21–28, §49, §94): add, configure, test, activate, pause and
  * remove sources; manage their credentials; run playground searches. Every change is audited.
  *
  * Rules enforced here, not just in the UI:
@@ -273,7 +273,7 @@ export async function removeSource(id: string, actor: string): Promise<Result<{ 
 export async function testSourceById(id: string, actor: string): Promise<Result<TestReport>> {
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
-  if (src.config.kind === "partnership" && !src.config.connection) return err(409, "SOURCE_NEEDS_SETUP", "Save the partner's endpoint and credential first — until then there's nothing JobsLake is allowed to test.", { sourceId: id });
+  if (src.config.kind === "partnership" && !src.config.connection) return err(409, "SOURCE_NEEDS_SETUP", "Save the partner's endpoint and credential first — until then there's nothing WorksLake is allowed to test.", { sourceId: id });
   const report = await testSource(src, actor);
   // A draft that has been tested is "Testing" until an admin activates it; nothing else changes status here.
   await jobsLakeStore().putSource({ ...src, lastTest: report, status: src.status === "draft" ? "testing" : src.status, updatedAt: new Date().toISOString() });
@@ -319,7 +319,7 @@ export async function setSourceCredential(id: string, secret: unknown, actor: st
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
   if (typeof secret !== "string" || secret.trim().length < 4 || secret.length > 4096) return err(400, "INVALID_REQUEST", "Enter the credential (4–4,096 characters).");
-  if (src.secretRef?.startsWith("env:")) return err(409, "INVALID_REQUEST", "This credential is managed in the deployment's environment variables, not in JobsLake.");
+  if (src.secretRef?.startsWith("env:")) return err(409, "INVALID_REQUEST", "This credential is managed in the deployment's environment variables, not in WorksLake.");
   if (src.config.kind !== "json_api" && src.config.kind !== "mcp" && src.config.kind !== "partnership") return err(400, "INVALID_REQUEST", "This kind of source doesn't take a credential.");
   const replacing = !!src.secretRef;
   const ref = await saveCredential(secret, src.secretRef);
@@ -331,7 +331,7 @@ export async function setSourceCredential(id: string, secret: unknown, actor: st
 export async function removeSourceCredential(id: string, actor: string) {
   const src = await getSource(id);
   if (!src) return err(404, "NOT_FOUND", "No such source.");
-  if (!src.secretRef || src.secretRef.startsWith("env:")) return err(409, "INVALID_REQUEST", "There's no JobsLake-managed credential to remove.");
+  if (!src.secretRef || src.secretRef.startsWith("env:")) return err(409, "INVALID_REQUEST", "There's no WorksLake-managed credential to remove.");
   await deleteCredential(src.secretRef);
   await jobsLakeStore().putSource({ ...src, secretRef: undefined, updatedAt: new Date().toISOString() });
   await audit(actor, "credential.deleted", id);

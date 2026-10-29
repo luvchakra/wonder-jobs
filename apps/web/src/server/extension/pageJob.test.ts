@@ -135,7 +135,7 @@ describe("routes: token, validation and tenant isolation", () => {
 });
 
 describe("the side panel's company logo", () => {
-  it("comes from JobsLake's directory for a company it recorded, and is absent otherwise", async () => {
+  it("comes from WorksLake's directory for a company it recorded, and is absent otherwise", async () => {
     const { __MemoryCompanies, __setCompanyStore } = await import("@/server/jobslake/companies");
     const store = new __MemoryCompanies();
     __setCompanyStore(store);

@@ -19,7 +19,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
  */
 // wj.plan: a tenant's own usage counters; wj.plans: the operator's plan configuration, held under the platform tenant.
 // wj.digest: the activity digest's on/off choice and its send log (server-written; the client reads it through /api/digest).
-// wj.billingadmin / wj.apiplan: billing-admin state (automatic discounts, the money-call ledger) and JobsLake API pricing, platform tenant only.
+// wj.billingadmin / wj.apiplan: billing-admin state (automatic discounts, the money-call ledger) and WorksLake API pricing, platform tenant only.
 // wj.scheduler / wj.cronruns: the platform scheduler's settings and its recent cron runs (counts only), platform tenant only.
 // wj.companynames: names whose Wikidata website lookup found nothing, with the date (nameDomains.ts), platform tenant only.
 // wj.ratingruns: the company-ratings job's run history (counts and masked key names only), platform tenant only.

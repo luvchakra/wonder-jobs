@@ -12,7 +12,7 @@ import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
  */
 const live = process.env.JOBSLAKE_LIVE === "1";
 
-describe.skipIf(!live)("JobsLake against live sources", () => {
+describe.skipIf(!live)("WorksLake against live sources", () => {
   beforeAll(() => __setJobsLakeStore(new __MemoryStore()));
 
   it("searches built-in sources end to end and returns valid canonical opportunities", async () => {

@@ -1,4 +1,4 @@
-# JobsLake's H-1B sponsorship data (owner, 2026-10-24). Once a month, finds the newest LCA disclosure file on the
+# WorksLake's H-1B sponsorship data (owner, 2026-10-24). Once a month, finds the newest LCA disclosure file on the
 # US Department of Labor's OFLC performance page (published quarterly), totals its certified H-1B applications per
 # employer (apps/web/scripts/h1b/aggregate.py) and posts them to /api/cron/h1b, which replaces the last file's.
 # The daily company refresh then copies each company's totals onto it. Needs the repository secret CRON_SECRET.

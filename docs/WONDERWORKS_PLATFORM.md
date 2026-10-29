@@ -91,8 +91,8 @@ its own flavour of each.
 | --- | --- | --- |
 | **Identity & tenancy** | Supabase Auth, tenant = user id, `server/auth.ts`, tenant filter on every query | Same, for every module. One account across all modules. |
 | **Profile** | Career Profile (Career DNA), résumé import, Application answers | `Profile` core (name, photo, contact, places, languages, verification) + one **persona** per module (Career DNA is the Jobs persona; a Tutor persona, a Founder persona…). Saved answers become a platform-wide answer bank keyed by question. |
-| **Listing** | `employer_jobs`, JobsLake opportunities | `Listing` core (title, description, owner, place/geo, price or pay, status, media, provenance) + `attrs` validated by the module's schema. |
-| **Lake** | JobsLake: sources, connectors, planner, de-duplication, provenance, warm cache, admin portal | One Lake with a `module` dimension: each module registers its sources and normaliser; de-duplication and provenance are shared. |
+| **Listing** | `employer_jobs`, WorksLake opportunities | `Listing` core (title, description, owner, place/geo, price or pay, status, media, provenance) + `attrs` validated by the module's schema. |
+| **Lake** | WorksLake: sources, connectors, planner, de-duplication, provenance, warm cache, admin portal | One Lake with a `module` dimension: each module registers its sources and normaliser; de-duplication and provenance are shared. |
 | **Search & match** | Find, Refine, `computeMatch`, "Why it fits", AI fit within a band | Query + place + facets from the module schema; a module supplies match signals and weights; "why" is always shown; AI only nudges within a band. |
 | **Response** | Applications (candidate side), `job_applications` (company side), Easy Apply, screening questions, withdraw | `Response` with a module-defined verb and state machine, answers to the listing's questions, the profile snapshot shared, consent and audit — one table, one API. |
 | **Pipeline** | Pipeline (seeker), Hiring Applications tab (owner): stages, fit, scorecards | The one tab each module shapes (§4.1): its own name, stages, card and sections, driven by the module's state machine; reviews/scorecards where the module allows them. |
@@ -255,7 +255,7 @@ apps/web/src/
     shell/ModulePages.tsx  # Saved (every module), and Pipeline / You for a module without its own yet
     brand/               # the mark, the splash, tinted module tiles
   modules/
-    registry.ts          # composition root: every module's manifest, read by the Find menu, the tabs and JobsLake
+    registry.ts          # composition root: every module's manifest, read by the Find menu, the tabs and WorksLake
     nav.ts               # composition root: each module's tabs (moduleNav) and a page's module (moduleFromPath)
     chrome.tsx           # composition root: fills WonderWorks' chrome slots (tabs, sections, Find menu, Tasks/status)
     savedCards.tsx       # composition root: each module's card in the shared Saved
@@ -321,7 +321,7 @@ the rare.
    profile snapshots and scorecards (WJ-412) are already shaped this way.
 3. **Workspace core** — Hiring workspaces become `workspaces` with `module = "jobs"`; the permission matrix gains a
    module key.
-4. **Lake with modules** — JobsLake gets a `module` column on sources and opportunities: **a separate dataset per
+4. **Lake with modules** — WorksLake gets a `module` column on sources and opportunities: **a separate dataset per
    module** (owner, 2026-10-28). Jobs' sources and listings are `module = 'jobs'` and nothing else ever reads them as
    another module's; each module registers its own sources.
    **Done (WJ-415, 2026-10-28):** migration 0034; every store read filters by module (default jobs), another
@@ -329,10 +329,10 @@ the rare.
 5. **First new module: Internships** — about nine-tenths reuse (listing attrs: stipend, duration, start date; persona:
    college, graduation). Proves the manifest.
    **Rule (owner, 2026-10-28): the jobs portal stays exactly as it is** (CLAUDE.md). Internships is built as its own
-   module at `/app/m/internships` with its own JobsLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
+   module at `/app/m/internships` with its own WorksLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
    taken back out in WJ-414). Kept for it: `domain/org/internship.ts` (stipend a month, duration, start date) and
    `employer_jobs.internship` (migration 0032).
-   **Done (WJ-418, 2026-10-29):** Internships is live at `/app/m/internships` — its own JobsLake sources (WonderWorks
+   **Done (WJ-418, 2026-10-29):** Internships is live at `/app/m/internships` — its own WorksLake sources (WonderWorks
    companies, Adzuna India, Greenhouse/Lever/Ashby, SmartRecruiters, Remotive, Remote OK; Internshala and LinkedIn have
    no open API), company postings in Internships → Company (same workspace and roles), the platform `listings` /
    `responses` tables (migration 0035, module-keyed), the student profile (prefilled from Career Profile education,

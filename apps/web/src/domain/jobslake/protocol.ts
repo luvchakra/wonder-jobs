@@ -1,5 +1,5 @@
 /**
- * JobsLake Protocol v1 — the contract between JobsLake (job-market acquisition, normalization,
+ * WorksLake Protocol v1 — the contract between WorksLake (job-market acquisition, normalization,
  * dedupe, provenance) and WonderJobs (candidate intelligence). WonderJobs receives
  * `CanonicalOpportunity`, never a source-specific job shape (spec §2.3, §29).
  *
@@ -86,10 +86,10 @@ export interface SourceRecord {
   observedAt: string;
   /**
    * The id WonderJobs has always given this posting (`careers_…`, `remotive_…`). Carried so saved
-   * jobs, applications and the browser extension keep resolving after the move to JobsLake.
+   * jobs, applications and the browser extension keep resolving after the move to WorksLake.
    */
   legacyJobId: string;
-  /** The WonderJobs source id that posting belongs to (`careers`, `remotive`, or a platform-managed JobsLake source id). */
+  /** The WonderJobs source id that posting belongs to (`careers`, `remotive`, or a platform-managed WorksLake source id). */
   legacySourceId: string;
   /** True for the record the canonical fields were taken from. */
   canonical: boolean;
@@ -142,7 +142,7 @@ export interface CanonicalOpportunity {
   requirements: string[];
   niceToHave: string[];
   skills: string[];
-  /** Enrichment JobsLake derives from the posting text — labelled derived, never presented as fact. */
+  /** Enrichment WorksLake derives from the posting text — labelled derived, never presented as fact. */
   enrichment: { seniority: "junior" | "mid" | "senior" | "lead" | "director"; industry: string; tags: string[] };
   postedAt: string;
   canonicalApplyUrl: string;
@@ -185,7 +185,7 @@ export interface SearchRequest {
   sourceIds?: string[];
   searchMode: SearchMode;
   limit: number;
-  /** End-to-end correlation (spec §83). Opaque to JobsLake. */
+  /** End-to-end correlation (spec §83). Opaque to WorksLake. */
   correlationId?: string;
   /** "refresh" asks every source again instead of reusing a recent answer to the same search. Default "use". */
   cache?: "use" | "refresh";
