@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Briefcase, Check, ChevronDown, Clock } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
@@ -33,12 +34,17 @@ const seen = () => {
 };
 
 /**
- * Find's Full Time / Part Time switch, in the top bar (owner, 2026-10-25; centred between the avatar and the logo on a phone, see TopBar): a round icon button — the
- * current kind's icon with a chevron — that opens a menu of "Full Time Jobs" and "Part Time Jobs". A soft pulse
- * invites the first tap, then stops for good. Choosing one switches Find's mode in place.
+ * The kind menu, in the centre of the top bar on every page (owner, 2026-10-29): the current choice as text with a
+ * chevron ("Full Time Jobs ▾", or the module whose pages are open, "Internships ▾"), opening a menu of Full Time Jobs
+ * and Part Time Jobs, then the other modules. A soft pulse invites the first tap, then stops for good. Choosing a kind
+ * of jobs switches Find's mode — in place on Find, or opening Find from anywhere else.
  */
 export function FindModeMenu() {
   const current = useJobsStore((s) => findModeOf(s.filters));
+  const pathname = usePathname();
+  const router = useRouter();
+  // On a live module's own pages the menu shows that module; everywhere else, Jobs' current kind.
+  const here = MODULES.find((m) => m.id !== "jobs" && m.status === "live" && (pathname === m.routes.find || pathname.startsWith(`${m.routes.find}/`)));
   const [open, setOpen] = useState(false);
   // The coming-soon kinds the platform shows, in its order (Admin → Settings → Menus → Find menu).
   const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
@@ -66,8 +72,7 @@ export function FindModeMenu() {
     };
   }, [open]);
 
-  const now = MODES.find((m) => m.mode === current)!;
-  const Icon = now.icon;
+  const now = here ? { label: here.label } : MODES.find((m) => m.mode === current)!;
   const toggle = () => {
     setOpen((v) => !v);
     if (hint) {
@@ -81,7 +86,7 @@ export function FindModeMenu() {
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0 max-w-full">
       <button
         type="button"
         aria-haspopup="menu"
@@ -89,19 +94,17 @@ export function FindModeMenu() {
         aria-label={`Kind of jobs: ${now.label}`}
         title={now.label}
         onClick={toggle}
-        className="relative grid size-8 place-items-center rounded-full wj-gradient-bg text-white shadow-brand wj-press"
+        className="relative flex h-9 max-w-full min-w-0 items-center gap-0.5 rounded-full px-1.5 text-[14px] font-semibold text-ink hover:bg-bg-soft wj-press md:gap-1 md:px-3 md:text-[15px]"
       >
-        {hint && <span aria-hidden className="absolute inset-0 -z-10 rounded-full bg-brand-400 motion-safe:animate-ping" />}
-        <Icon className="size-[14.4px]" aria-hidden />
+        {hint && <span aria-hidden className="absolute inset-0 -z-10 rounded-full bg-brand-100 motion-safe:animate-ping" />}
+        <span className="min-w-0 truncate">{now.label}</span>
         {/* The chevron says it opens. */}
-        <span aria-hidden className="absolute -bottom-0.5 -right-0.5 grid size-[14.4px] place-items-center rounded-full bg-surface text-brand-700 shadow-sm ring-1 ring-brand-200">
-          <ChevronDown className={cn("size-[9.6px] transition-transform", open && "rotate-180")} strokeWidth={3} />
-        </span>
+        <ChevronDown className={cn("size-3.5 shrink-0 text-brand-600 transition-transform md:size-4", open && "rotate-180")} strokeWidth={2.5} aria-hidden />
       </button>
       {open && (
-        <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-10 z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+        <div role="menu" aria-label="Kind of jobs" className="absolute left-1/2 top-11 z-40 -translate-x-1/2 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
           {MODES.map((m) => {
-            const on = m.mode === current;
+            const on = !here && m.mode === current;
             const I = m.icon;
             return (
               <button
@@ -112,6 +115,7 @@ export function FindModeMenu() {
                 onClick={() => {
                   setOpen(false);
                   if (!on) switchFindMode(m.mode);
+                  if (pathname !== "/app/jobs") router.push("/app/jobs");
                 }}
                 className={cn("flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors", on ? "bg-brand-50" : "hover:bg-bg-soft")}
               >
@@ -133,7 +137,7 @@ export function FindModeMenu() {
               {live.map((k) => {
                 const { icon: I, tint } = UPCOMING_ICON[k.id];
                 return (
-                  <Link key={k.id} href={LIVE_HREF[k.id]!} role="menuitem" onClick={() => setOpen(false)} className="flex w-full items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left transition-colors hover:bg-bg-soft">
+                  <Link key={k.id} href={LIVE_HREF[k.id]!} role="menuitem" aria-current={here?.menuId === k.id ? "page" : undefined} onClick={() => setOpen(false)} className={cn("flex w-full items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left transition-colors", here?.menuId === k.id ? "bg-brand-50" : "hover:bg-bg-soft")}>
                     <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", TINTS[tint].tile, TINTS[tint].icon)}>
                       <I className="size-4" aria-hidden />
                     </span>
@@ -141,6 +145,7 @@ export function FindModeMenu() {
                       <span className="block truncate text-[14px] font-medium text-ink">{k.label}</span>
                       <span className="block text-[12px] text-ink-3">{k.hint}</span>
                     </span>
+                    {here?.menuId === k.id && <Check className="size-4 shrink-0 text-brand-600" aria-hidden />}
                   </Link>
                 );
               })}
