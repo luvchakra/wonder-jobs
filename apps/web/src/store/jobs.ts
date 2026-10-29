@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
+import { bestIds, lastEntries, memoOnInputs, pick, readHistory as readHistoryOf, recentEntries, remembered, shortened, trimAside as trimAsideOf } from "@/wonderworks/catalog";
 import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource } from "@/domain/jobs/types";
 import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { computeMatch } from "@/services/jobs/matching";
@@ -144,7 +145,7 @@ export const RECENT_SEARCHES = 5;
 /** Which box a search history belongs to: Find's Part Time search, or Saved's filter. */
 export type SearchHistoryOf = "find" | "saved";
 const HISTORY_KEY = { find: "recentSearches", saved: "recentSavedSearches" } as const satisfies Record<SearchHistoryOf, keyof JobsState>;
-const readHistory = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, RECENT_SEARCHES) : []);
+const readHistory = (v: unknown): string[] => readHistoryOf(v, RECENT_SEARCHES);
 
 export const useJobsStore = create<JobsState>()(
   persist(
@@ -182,10 +183,9 @@ export const useJobsStore = create<JobsState>()(
       recentSavedSearches: [],
       rememberSearch: (text, where = "find") =>
         set((s) => {
-          const t = text.replace(/\s+/g, " ").trim().slice(0, 80);
-          if (!t) return {};
           const key = HISTORY_KEY[where];
-          return { [key]: [t, ...s[key].filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, RECENT_SEARCHES) };
+          const next = remembered(s[key], text, RECENT_SEARCHES);
+          return next === s[key] ? {} : { [key]: next };
         }),
       forgetSearch: (text, where = "find") => set((s) => ({ [HISTORY_KEY[where]]: s[HISTORY_KEY[where]].filter((x) => x !== text) })),
       loadInitial: () => {
@@ -365,13 +365,12 @@ export const useJobsStore = create<JobsState>()(
       },
       // The best of the last discovery persists too, so the product remembers real jobs between sessions.
       partialize: (s) => {
-        const recent = Date.now() - 7 * 86_400_000;
-        const closed = Object.fromEntries(Object.entries(s.closed ?? {}).filter(([, c]) => Date.parse(c.at) > recent).slice(-500));
-        const linkOpenAt = Object.fromEntries(Object.entries(s.linkOpenAt ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
-        const origins = Object.fromEntries(Object.entries(s.origins ?? {}).filter(([id]) => s.jobs[id]).slice(-500));
-        const applyOpenedAt = Object.fromEntries(Object.entries(s.applyOpenedAt ?? {}).slice(-300));
+        const closed = recentEntries(s.closed, (c) => c.at, 7, 500);
+        const linkOpenAt = lastEntries(s.linkOpenAt, 500, (id) => !!s.jobs[id]);
+        const origins = lastEntries(s.origins, 500, (id) => !!s.jobs[id]);
+        const applyOpenedAt = lastEntries(s.applyOpenedAt, 300);
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
-        const removedFromPipeline = Object.fromEntries(Object.entries(s.removedFromPipeline ?? {}).slice(-300));
+        const removedFromPipeline = lastEntries(s.removedFromPipeline, 300);
         const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         return { ...base, ...persistedCatalog(s) };
       },
@@ -380,38 +379,27 @@ export const useJobsStore = create<JobsState>()(
 );
 
 /**
- * The part of the catalog a signed-in account keeps between sessions. Persisting runs on every change to the
- * store — a filter keystroke, a link check — so this, the expensive part (sorting and copying up to 300 jobs),
- * is recomputed only when what it's made from changed.
+ * The part of the catalog a signed-in account keeps between sessions (WonderWorks' catalog helpers). Persisting
+ * runs on every change to the store, so this, the expensive part (sorting and copying up to 300 jobs), is
+ * recomputed only when what it's made from changed.
  */
-let catalogMemo: { from: unknown[]; out: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "beforeWords" | "wordsCatalog"> } | null = null;
-function persistedCatalog(s: JobsState) {
-  const from = [s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords, s.wordsCatalog];
-  if (catalogMemo && catalogMemo.from.every((x, i) => x === from[i])) return catalogMemo.out;
-  const out = buildPersistedCatalog(s);
-  catalogMemo = { from, out };
-  return out;
-}
+const memoCatalog = memoOnInputs(
+  (jobs: JobsState["jobs"], order: string[], matches: JobsState["matches"], quality: JobsState["quality"], aiFits: JobsState["aiFits"], saved: JobsState["saved"], beforeWords: JobsState["beforeWords"], wordsCatalog: JobsState["wordsCatalog"]) =>
+    buildPersistedCatalog({ jobs, order, matches, quality, aiFits, saved, beforeWords, wordsCatalog }),
+);
+const persistedCatalog = (s: JobsState) => memoCatalog(s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords, s.wordsCatalog);
 
-function buildPersistedCatalog(s: JobsState) {
-  const keep = new Set<string>(Object.keys(s.saved));
-  for (const id of [...s.order].sort((a, b) => (s.matches[b]?.score ?? 0) - (s.matches[a]?.score ?? 0))) {
-    if (keep.size >= PERSISTED_CATALOG) break;
-    keep.add(id);
-  }
-  const order = s.order.filter((id) => keep.has(id));
-  const jobs: Record<string, CanonicalJob> = {};
-  const matches: Record<string, JobMatch> = {};
-  const quality: Record<string, JobQuality> = {};
+/** A job kept short in storage; the trailing "…" tells the job page it has only the start. */
+const storedJob = (j: CanonicalJob) => ((j.description?.length ?? 0) > PERSISTED_DESCRIPTION ? { ...j, description: shortened(j.description, PERSISTED_DESCRIPTION) } : j);
+
+function buildPersistedCatalog(s: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "saved" | "beforeWords" | "wordsCatalog">) {
   // Every saved job is kept, in the results or not — saving it is how the candidate said to keep it.
-  for (const id of keep) {
-    const j = s.jobs[id];
-    if (!j) continue;
-    // Kept short in storage; the trailing "…" tells the job page it has only the start.
-    jobs[id] = j.description.length > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j;
-    if (s.matches[id]) matches[id] = s.matches[id];
-    if (s.quality[id]) quality[id] = s.quality[id];
-  }
+  const keep = bestIds(s.order, (id) => s.matches[id]?.score ?? 0, PERSISTED_CATALOG, Object.keys(s.saved));
+  const order = s.order.filter((id) => keep.has(id));
+  const jobs = pick(s.jobs, keep, storedJob);
+  const kept = Object.keys(jobs);
+  const matches = pick(s.matches, kept);
+  const quality = pick(s.quality, kept);
   const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
   // The profile's results set aside while typed words are searched: kept too, so clearing the words after
   // the phone reloads the tab brings them back instead of searching again.
@@ -425,12 +413,6 @@ function buildPersistedCatalog(s: JobsState) {
 
 /** A set-aside list kept in storage: its best PERSISTED_ASIDE jobs, descriptions shortened. */
 function trimAside(aside: Pick<JobsState, "jobs" | "order" | "matches"> | undefined) {
-  const asideOrder = aside ? [...aside.order].sort((a, b) => (aside.matches[b]?.score ?? 0) - (aside.matches[a]?.score ?? 0)).slice(0, PERSISTED_ASIDE).filter((id) => aside.jobs[id]) : [];
-  return aside && asideOrder.length
-    ? {
-        order: aside.order.filter((id) => asideOrder.includes(id)),
-        jobs: Object.fromEntries(asideOrder.map((id) => { const j = aside.jobs[id]; return [id, (j.description?.length ?? 0) > PERSISTED_DESCRIPTION ? { ...j, description: `${j.description.slice(0, PERSISTED_DESCRIPTION).trimEnd()}…` } : j]; })),
-        matches: Object.fromEntries(asideOrder.flatMap((id) => (aside.matches[id] ? [[id, aside.matches[id]] as const] : []))),
-      }
-    : undefined;
+  const t = aside && trimAsideOf({ order: aside.order, items: aside.jobs }, (id) => aside.matches[id]?.score ?? 0, PERSISTED_ASIDE, storedJob);
+  return aside && t ? { order: t.order, jobs: t.items, matches: pick(aside.matches, t.ids) } : undefined;
 }

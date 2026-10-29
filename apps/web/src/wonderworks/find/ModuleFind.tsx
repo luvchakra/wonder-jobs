@@ -1,5 +1,6 @@
 "use client";
 import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useStore } from "zustand";
 import { RefreshCw, Search } from "lucide-react";
 import { EmptyState, ErrorState } from "@/components/common/States";
 import { WonderSearching } from "@/components/brand/WonderSearching";
@@ -76,7 +77,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const [values, setValues] = useState<FacetValues>({});
   const [editing, setEditing] = useState<FacetValues>({});
   const [sort, setSort] = useState(Object.keys(sorts)[0]);
-  const [run, setRun] = useState<FindRun<L> | null>(null);
+  // The last search, as stored: opening Find shows it again and searches nothing.
+  const stored = useStore(store, (s) => s.lastRun);
+  const run = mounted ? (stored as FindRun<L> | null) : null;
   const [busy, setBusy] = useState<{ query: string; places: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needWordsFor, setNeedWordsFor] = useState<string | null>(null);
@@ -116,7 +119,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
     try {
       const r = await search(q, places);
       store.getState().rememberSearch(q);
-      setRun(r);
+      store.getState().setLastRun(r);
       setLimit(PAGE);
       setShowSources(false);
     } catch (e) {

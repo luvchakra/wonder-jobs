@@ -11,13 +11,14 @@ WonderWorks is the shared layer (`src/wonderworks/`). WonderJobs, Internships an
 
 Users see WonderStar everywhere, the browser helper included ("WonderStar helper", owner 2026-10-29). Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
 
+- **Filtering, search runs, caching/persistence, navigation and other cross-cutting features live in the WonderWorks layer, taken from WonderJobs.** Modules inherit them; a module never re-implements them (owner, 2026-10-29). Persistence: `wonderworks/catalog.ts` (capped, trimmed, memoised catalogs) and `store.ts` (a module's synced store: saves, responses, history, last search, closed listings, link checks).
 - **Find, Saved and You are the same in every module,** with Jobs' look as the reference and almost the same behaviour. A module supplies only its own fields, filters, card details and data.
 - **Only the Pipeline tab varies.** Its name, stages and views come from the module's manifest (`moduleTabs` in `wonderworks/chrome/nav.ts`). WonderJobs keeps "Pipeline"; Internships' is "Applications".
 - **What WonderWorks holds:**
   - `find/`: the search box (mic, clear, Search), Refine and its fields and chips, view chips, results line, grid, cards, Save, status line, empty states (`parts.tsx`), a module's Find page (`ModuleFind.tsx`), and `place.ts` (`shortPlace`, `WorkMode`).
   - `pipeline/parts.tsx` (stage tiles, filter chips, compact card) and `you/` (You's layout; the module supplies its rows).
   - `chrome/`: the top bar and its module menu (`ModuleMenu`), the tab bar, sidebar, section tabs, page header, `nav.ts`, and `slots.tsx`.
-  - `shell/` (a module's pages at `/app/m/<module>`), `brand/`, `store.ts` (the module store base) and `manifest.ts` (the manifest types).
+  - `shell/` (a module's pages at `/app/m/<module>`), `brand/`, `store.ts` (the module store base, synced through `remoteStorage.ts`), `catalog.ts` (persisted-catalog helpers) and `manifest.ts` (the manifest types).
 - **Where the rest lives:**
   - WonderJobs: `src/modules/jobs/` (manifest, nav, chrome, components, pipeline, you). Its stores and domain code (`store/jobs`, `store/applications`, `domain/jobs`, `domain/applications`, `services/jobs`) still sit at their old paths and count as Jobs' code.
   - Internships: `src/modules/internships/`.
