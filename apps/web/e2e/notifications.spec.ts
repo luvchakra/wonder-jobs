@@ -2,15 +2,14 @@ import { test, expect } from "@playwright/test";
 import { openApp } from "./fixtures/sample";
 
 /**
- * Notification center (WJ-364): the bell's "Notification center" opens every notification, linking to Notifications;
+ * Notifications (WJ-364): the bell opens the Notifications page — every notification, and Needs attention in its second tab;
  * Unread filters, Mark all read clears the count, and an item's action opens where it points.
  */
 test.describe("Notification center", () => {
   test("opens from the bell, filters unread, marks all read and links to Notifications", async ({ page }) => {
     await openApp(page, "/app");
     await page.waitForURL(/\/app$/, { timeout: 20_000 });
-    await page.getByRole("button", { name: /^Notifications, \d+ unread/ }).click();
-    await page.getByRole("dialog", { name: "Notifications" }).getByRole("link", { name: "Notification center" }).click();
+    await page.getByRole("link", { name: /^Notifications, \d+ unread/ }).click();
     await page.waitForURL(/\/app\/notifications$/);
     await expect(page.getByRole("heading", { level: 1, name: "Notifications" })).toBeVisible();
 
@@ -33,7 +32,7 @@ test.describe("Notification center", () => {
       await expect(page.getByText("Nothing unread")).toBeVisible({ timeout: 1_500 });
     }).toPass({ timeout: 15_000 });
     await expect(show.getByRole("button", { name: "Unread", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Notifications, \d+ unread/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^Notifications, \d+ unread/ })).toHaveCount(0);
     await show.getByRole("button", { name: "All" }).click();
     await expect(list.getByRole("listitem").first()).toBeVisible();
 

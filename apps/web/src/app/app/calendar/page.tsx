@@ -193,7 +193,7 @@ export default function CalendarPage() {
             </span>
           </div>
           {overdueCount > 0 && (
-            <Link href="/app/tasks" className="mb-3 flex items-center gap-2 rounded-[12px] bg-danger-100 px-3 py-2 text-[12.5px] font-medium text-danger-600 hover:opacity-90">
+            <Link href="/app/notifications?tab=attention" className="mb-3 flex items-center gap-2 rounded-[12px] bg-danger-100 px-3 py-2 text-[12.5px] font-medium text-danger-600 hover:opacity-90">
               <AlertCircle className="size-4 shrink-0" aria-hidden />
               <span className="flex-1">{overdueCount} past due — catch up in Tasks</span>
               <ChevronRight className="size-4" aria-hidden />

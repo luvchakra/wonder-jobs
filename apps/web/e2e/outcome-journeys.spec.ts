@@ -269,12 +269,13 @@ test.describe("PROGRESS", () => {
     await expect(page.getByText("Submitted").first()).toBeVisible();
   });
 
-  test("PROGRESS-002 what needs the candidate is the top bar's Tasks, counted from real applications", async ({ page }) => {
+  test("PROGRESS-002 what needs the candidate is Notifications' Needs attention tab, counted from real applications", async ({ page }) => {
     await openApp(page, "/app/applications");
     await expect(page.getByRole("heading", { name: "Pipeline" })).toBeVisible();
-    await page.getByRole("link", { name: /^Tasks/ }).click();
-    await expect(page).toHaveURL(/\/app\/tasks$/);
-    await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
+    await page.getByRole("link", { name: /^Notifications/ }).click();
+    await expect(page).toHaveURL(/\/app\/notifications$/);
+    await page.getByRole("tab", { name: /^Needs attention/ }).click();
+    await expect(page).toHaveURL(/\/app\/notifications\?tab=attention$/);
     const line = page.locator("#main").getByRole("link", { name: /coming up|due|ready for your review|repl/i }).first();
     await expect(line).toBeVisible();
     await line.click();
@@ -283,7 +284,7 @@ test.describe("PROGRESS", () => {
 });
 
 test.describe("WONDER", () => {
-  test("WONDER-000 Ask Wonder is a page under You (the top bar's icon is Tasks)", async ({ page }) => {
+  test("WONDER-000 Ask Wonder is a page under You (the top bar's icon is the bell)", async ({ page }) => {
     await openApp(page, "/app/you");
     await page.locator("#main").getByRole("link", { name: /^Ask Wonder/ }).click();
     await expect(page).toHaveURL(/\/app\/ask$/);

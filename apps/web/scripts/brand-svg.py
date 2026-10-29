@@ -44,20 +44,24 @@ def defs(white):
     # "Works" runs violet→blue; on dark surfaces both stops lift so the word keeps its contrast.
     star_a, star_b = ("#C4B5FD", "#93C5FD") if white else (STAR_PURPLE, SKY_BLUE)
     return f"""<defs>
-    <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="{INDIGO}"/></linearGradient>
-    <linearGradient id="ws-right" x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0" stop-color="{STAR_PURPLE}"/><stop offset="1" stop-color="{MAGENTA}"/></linearGradient>
-    <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C084FC"/><stop offset="1" stop-color="{STAR_PURPLE}"/></linearGradient>
+    <linearGradient id="ws-left" x1="0.1" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#3730FF"/><stop offset="0.45" stop-color="#5B78FF"/><stop offset="1" stop-color="#C9A2F9"/></linearGradient>
+    <linearGradient id="ws-left-fold" x1="0" y1="0" x2="1" y2="0.6"><stop offset="0" stop-color="#8F7BFF" stop-opacity="0.5"/><stop offset="1" stop-color="#4C0FF5"/></linearGradient>
+    <linearGradient id="ws-right" x1="0.1" y1="1" x2="0.8" y2="0"><stop offset="0" stop-color="#5312FF"/><stop offset="0.5" stop-color="#A43FF7"/><stop offset="1" stop-color="#F563E0"/></linearGradient>
+    <linearGradient id="ws-right-fold" x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0" stop-color="#8A3FFF"/><stop offset="0.6" stop-color="#E24DF2"/><stop offset="1" stop-color="#FF7EBF"/></linearGradient>
+    <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="0"><stop offset="0.2" stop-color="#3D33FF"/><stop offset="0.55" stop-color="#B444FF"/><stop offset="0.85" stop-color="#FF5CCF"/></linearGradient>
     <linearGradient id="ws-word" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{star_a}"/><stop offset="1" stop-color="{star_b}"/></linearGradient>
   </defs>"""
 
 
-# The mark, on a 120×100 grid: a "W" of two V-shaped wings — the left one indigo-violet, the right one
-# violet-magenta, overlapping at the middle peak — with a four-point star above the left valley. Corners are softened by a
-# same-colour round-joined stroke.
-MARK = """<g stroke-linejoin="round">
-    <path d="M5 22 L24 22 L37 58 L48 36 L63 36 L42 86 L32 86 Z" fill="url(#ws-left)" stroke="url(#ws-left)" stroke-width="5"/>
-    <path d="M48 36 L63 36 L73 58 L90 18 L115 18 L80 86 L69 86 Z" fill="url(#ws-right)" stroke="url(#ws-right)" stroke-width="5" opacity="0.94"/>
-    <path d="M42 2 Q44.2 10.8 53 13 Q44.2 15.2 42 24 Q39.8 15.2 31 13 Q39.8 10.8 42 2 Z" fill="url(#ws-spark)"/>
+# The mark, on a 120×100 grid: a "W" of two rounded wings meeting at a point — the left one blue to lavender, the
+# right one violet to pink, each with a darker fold toward the middle — under a four-point star. Drawn on the
+# reference artwork's pixel grid and scaled onto 120×100.
+MARK = """<g transform="translate(1.4 9.8) scale(0.11) translate(-233 -137)">
+    <path d="M240 374A66 66 0 0 1 326 284L588 400Q630 418 652 456L763 645L640 815A97 97 0 0 1 458 832Z" fill="url(#ws-left)"/>
+    <path d="M588 400Q630 418 652 456L763 645L640 815Q652 780 622 715Q562 590 562 500Q562 430 588 400Z" fill="url(#ws-left-fold)"/>
+    <path d="M763 645L880 460Q905 422 948 403L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right)"/>
+    <path d="M878 815Q868 785 892 735Q990 510 1112 342L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right-fold)" opacity="0.85"/>
+    <path d="M766 138C772 236 790 288 920 298C790 310 772 362 766 462C760 362 742 310 612 298C742 288 760 236 766 138Z" fill="url(#ws-spark)"/>
   </g>"""
 MARK_W, MARK_H = 120, 100
 

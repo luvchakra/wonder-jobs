@@ -1,31 +1,45 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The WonderWorks mark: a "W" of two V-shaped wings (indigo-violet and violet-magenta) with a four-point star.
- * Inline so it needs no request; the paths and gradients are `public/brand/wonderstar-mark.svg`'s
+ * The WonderWorks mark: a "W" of two rounded wings (blue to lavender, violet to pink) meeting at a point, under a
+ * four-point star. Inline so it needs no request; the paths and gradients are `public/brand/wonderstar-mark.svg`'s
  * (`scripts/brand-svg.py`) — change them there and copy them here.
  */
 export function WonderStarMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 100" className={className} aria-hidden>
       <defs>
-        <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1">
-          <stop offset="0" stopColor="#8B5CF6" />
-          <stop offset="1" stopColor="#4F46E5" />
+        <linearGradient id="ws-left" x1="0.1" y1="0" x2="0.7" y2="1">
+          <stop offset="0" stopColor="#3730FF" />
+          <stop offset="0.45" stopColor="#5B78FF" />
+          <stop offset="1" stopColor="#C9A2F9" />
         </linearGradient>
-        <linearGradient id="ws-right" x1="0.2" y1="1" x2="0.8" y2="0">
-          <stop offset="0" stopColor="#7C3AED" />
-          <stop offset="1" stopColor="#EC4899" />
+        <linearGradient id="ws-left-fold" x1="0" y1="0" x2="1" y2="0.6">
+          <stop offset="0" stopColor="#8F7BFF" stopOpacity="0.5" />
+          <stop offset="1" stopColor="#4C0FF5" />
         </linearGradient>
-        <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#C084FC" />
-          <stop offset="1" stopColor="#7C3AED" />
+        <linearGradient id="ws-right" x1="0.1" y1="1" x2="0.8" y2="0">
+          <stop offset="0" stopColor="#5312FF" />
+          <stop offset="0.5" stopColor="#A43FF7" />
+          <stop offset="1" stopColor="#F563E0" />
+        </linearGradient>
+        <linearGradient id="ws-right-fold" x1="0.2" y1="1" x2="0.8" y2="0">
+          <stop offset="0" stopColor="#8A3FFF" />
+          <stop offset="0.6" stopColor="#E24DF2" />
+          <stop offset="1" stopColor="#FF7EBF" />
+        </linearGradient>
+        <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0.2" stopColor="#3D33FF" />
+          <stop offset="0.55" stopColor="#B444FF" />
+          <stop offset="0.85" stopColor="#FF5CCF" />
         </linearGradient>
       </defs>
-      <g strokeLinejoin="round">
-        <path d="M5 22 L24 22 L37 58 L48 36 L63 36 L42 86 L32 86 Z" fill="url(#ws-left)" stroke="url(#ws-left)" strokeWidth="5" />
-        <path d="M48 36 L63 36 L73 58 L90 18 L115 18 L80 86 L69 86 Z" fill="url(#ws-right)" stroke="url(#ws-right)" strokeWidth="5" opacity="0.94" />
-        <path d="M42 2 Q44.2 10.8 53 13 Q44.2 15.2 42 24 Q39.8 15.2 31 13 Q39.8 10.8 42 2 Z" fill="url(#ws-spark)" />
+      <g transform="translate(1.4 9.8) scale(0.11) translate(-233 -137)">
+        <path d="M240 374A66 66 0 0 1 326 284L588 400Q630 418 652 456L763 645L640 815A97 97 0 0 1 458 832Z" fill="url(#ws-left)" />
+        <path d="M588 400Q630 418 652 456L763 645L640 815Q652 780 622 715Q562 590 562 500Q562 430 588 400Z" fill="url(#ws-left-fold)" />
+        <path d="M763 645L880 460Q905 422 948 403L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right)" />
+        <path d="M878 815Q868 785 892 735Q990 510 1112 342L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right-fold)" opacity="0.85" />
+        <path d="M766 138C772 236 790 288 920 298C790 310 772 362 766 462C760 362 742 310 612 298C742 288 760 236 766 138Z" fill="url(#ws-spark)" />
       </g>
     </svg>
   );

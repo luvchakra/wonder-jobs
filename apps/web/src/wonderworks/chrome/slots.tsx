@@ -15,7 +15,7 @@ export interface ChromeSlots {
   sections: { title: string; items: NavItem[] }[];
   /** The menu in the middle of the top bar. */
   FindMenu?: ComponentType;
-  /** How many things need the person (Tasks' badge), and their status line in the account menu. */
+  /** How many things need the person (Needs attention, the bell's badge), and their status line in the account menu. */
   useStatus: (hydrated: boolean) => { tasks: number; careerStatus: string };
 }
 
