@@ -71,7 +71,7 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
   const status = async (j: EmployerJob, s: EmployerJob["status"]) => {
     try {
       await hiringApi.setJobStatus(orgId, j.id, s);
-      toast.success(s === "open" ? `${j.title} is open` : s === "closed" ? `${j.title} is closed` : "Back to draft", s === "open" ? "Job seekers on WonderJobs can now find it in their searches." : undefined);
+      toast.success(s === "open" ? `${j.title} is open` : s === "closed" ? `${j.title} is closed` : "Back to draft", s === "open" ? "Job seekers on WonderStar can now find it in their searches." : undefined);
       load();
     } catch (e) {
       toast.error("Couldn't change it", (e as Error).message);
@@ -86,7 +86,7 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
         </Button>
       )}
       <CareerSites orgId={orgId} sites={sites.sites} canManage={canManage} onChange={load} />
-      <p className="mb-3 text-[12px] text-ink-3">Open jobs show up in job seekers&apos; searches on WonderJobs, with your company&apos;s name.</p>
+      <p className="mb-3 text-[12px] text-ink-3">Open jobs show up in job seekers&apos; searches on WonderStar, with your company&apos;s name.</p>
       {jobs === null ? (
         <p className="text-[13px] text-ink-3">Loading…</p>
       ) : jobs.length === 0 ? (

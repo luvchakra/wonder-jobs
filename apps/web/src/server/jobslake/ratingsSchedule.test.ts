@@ -65,7 +65,7 @@ describe("the scheduled ratings run", () => {
     const r = await runScheduledRatings({ now: day(0), run: needs, send });
     expect(r.email).toEqual({ to: "kunalc.iit@gmail.com", sent: true });
     expect(sent.length).toBe(1);
-    expect(sent[0].subject).toBe("WonderJobs: company ratings need a new Explorium API key");
+    expect(sent[0].subject).toBe("WonderStar: company ratings need a new Explorium API key");
     expect(sent[0].text).toContain("37 companies are still waiting for a rating");
     // A daily schedule with no key added doesn't email again the next day.
     await saveScheduler({ ...SCHEDULER_DEFAULTS, ratings: { ...SCHEDULER_DEFAULTS.ratings, frequency: "daily" } }, "test");
@@ -87,7 +87,7 @@ describe("the scheduled ratings run", () => {
   it("sends a test email to the address set, and reports a mailbox that isn't set up", async () => {
     const got: string[] = [];
     expect(await sendRatingsTestEmail("kunalc.iit@gmail.com", async (m) => (got.push(m.to + "|" + m.subject), { sent: true }))).toEqual({ to: "kunalc.iit@gmail.com", sent: true });
-    expect(got).toEqual(["kunalc.iit@gmail.com|WonderJobs: test email from Company ratings"]);
+    expect(got).toEqual(["kunalc.iit@gmail.com|WonderStar: test email from Company ratings"]);
     expect(await sendRatingsTestEmail("kunalc.iit@gmail.com", async () => ({ sent: false, reason: "no email provider configured" }))).toEqual({ to: "kunalc.iit@gmail.com", sent: false, reason: "no email provider configured" });
     expect(renderTestEmail("https://jobs.example").text).toContain("platform mailbox reaches this address");
   });

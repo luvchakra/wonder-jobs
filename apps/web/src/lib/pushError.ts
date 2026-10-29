@@ -5,7 +5,7 @@
 export function pushErrorMessage(e: unknown, isBrave = false): string {
   const name = e instanceof Error ? e.name : "";
   const message = e instanceof Error ? e.message : String(e ?? "");
-  if (name === "NotAllowedError") return "This browser is blocking notifications for WonderJobs. Allow them in the site settings, then try again.";
+  if (name === "NotAllowedError") return "This browser is blocking notifications for WonderStar. Allow them in the site settings, then try again.";
   // Chrome's AbortError: its push service (Google's) wouldn't register this browser.
   if (name === "AbortError" || /push service/i.test(message)) {
     return isBrave

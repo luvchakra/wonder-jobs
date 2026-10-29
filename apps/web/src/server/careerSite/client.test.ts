@@ -6,7 +6,7 @@ vi.mock("./key", () => ({ resolveCareersKey: async () => key }));
 
 import * as C from "./client";
 
-const job = { id: "job_abc123", title: "Engineer", location: "Remote", workMode: "remote", currency: "INR", description: "Build", skills: ["TypeScript"], company: "WonderJobs", updatedAt: "2026-10-21T00:00:00Z" };
+const job = { id: "job_abc123", title: "Engineer", location: "Remote", workMode: "remote", currency: "INR", description: "Build", skills: ["TypeScript"], company: "WonderStar", updatedAt: "2026-10-21T00:00:00Z" };
 const reply = (status: number, body: unknown, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -28,9 +28,9 @@ afterEach(() => {
 
 describe("the careers API client", () => {
   it("sends the key as a Bearer header to the fixed host, with no caching", async () => {
-    fetchMock.mockResolvedValue(reply(200, { site: { name: "WonderJobs careers", retentionMonths: 12 }, jobs: [job] }));
+    fetchMock.mockResolvedValue(reply(200, { site: { name: "WonderStar careers", retentionMonths: 12 }, jobs: [job] }));
     const r = await C.listCareerJobs();
-    expect(r).toEqual({ state: "ok", data: { site: { name: "WonderJobs careers", retentionMonths: 12 }, jobs: [job] } });
+    expect(r).toEqual({ state: "ok", data: { site: { name: "WonderStar careers", retentionMonths: 12 }, jobs: [job] } });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://jobs.wonderapps.biz/api/careers/v1/jobs");
     expect(init.headers.authorization).toBe(`Bearer ${KEY}`);
@@ -135,7 +135,7 @@ describe("the careers API client", () => {
 
   it("sends the status token in the body, never in the address, and logs no body", async () => {
     const token = "wjst_" + "s".repeat(40);
-    fetchMock.mockResolvedValue(reply(200, { application: { status: "reviewing", statusLabel: "In review", jobTitle: "Engineer", company: "WonderJobs", appliedAt: "x", updatedAt: "x", canWithdraw: true } }));
+    fetchMock.mockResolvedValue(reply(200, { application: { status: "reviewing", statusLabel: "In review", jobTitle: "Engineer", company: "WonderStar", appliedAt: "x", updatedAt: "x", canWithdraw: true } }));
     await C.careerApplicationStatus(token, "withdraw");
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("https://jobs.wonderapps.biz/api/careers/v1/applications/status");
@@ -154,8 +154,8 @@ describe("the careers API client", () => {
   });
 
   it("tests the connection: connected with the count, wrong key, unavailable", async () => {
-    fetchMock.mockResolvedValueOnce(reply(200, { site: { name: "WonderJobs careers" }, jobs: [job, job] }));
-    expect(await C.testCareersConnection()).toEqual({ state: "connected", jobs: 2, site: "WonderJobs careers" });
+    fetchMock.mockResolvedValueOnce(reply(200, { site: { name: "WonderStar careers" }, jobs: [job, job] }));
+    expect(await C.testCareersConnection()).toEqual({ state: "connected", jobs: 2, site: "WonderStar careers" });
     fetchMock.mockResolvedValueOnce(reply(401, {}));
     expect(await C.testCareersConnection()).toEqual({ state: "wrong_key" });
     fetchMock.mockResolvedValue(reply(500, {}));

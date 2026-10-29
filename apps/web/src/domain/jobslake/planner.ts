@@ -118,7 +118,7 @@ req: Pick<SearchRequest, "searchMode" | "sourceIds" | "query" | "filters">, sour
   const own = ranked.filter((x) => x.s.id === FIRST_PARTY_SOURCE);
   const fits = ranked.filter((x) => x.fit && x.s.id !== FIRST_PARTY_SOURCE);
   const misses = ranked.filter((x) => !x.fit && x.s.id !== FIRST_PARTY_SOURCE);
-  const ownPlanned = own.map((x) => ({ id: x.s.id, name: x.s.name, wave: 1 as const, reason: "Jobs companies posted on WonderJobs, always searched" }));
+  const ownPlanned = own.map((x) => ({ id: x.s.id, name: x.s.name, wave: 1 as const, reason: "Jobs companies posted on WonderStar, always searched" }));
 
   const waves: PlannedSource[][] = [];
   if (req.searchMode === "fast") {

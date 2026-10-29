@@ -82,6 +82,6 @@ describe("saving the career document from a tab that was open all night", () => 
     expect(await nudgeChosen(T, reminder, ["push", "email"], "reminder-f1")).toEqual({ pushed: 1, emailed: false });
     expect(await nudgeChosen(T, reminder, ["app"], "reminder-f2")).toEqual({ pushed: 0, emailed: false });
     expect(mails).toHaveLength(1);
-    expect(mails[0].text).toContain("email reminder for this on your WonderJobs Calendar");
+    expect(mails[0].text).toContain("email reminder for this on your WonderStar Calendar");
   });
 });

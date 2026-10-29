@@ -251,7 +251,7 @@ export function PartnerActivate({ name, label, disabled, title, onActivate }: { 
           <p>From now on, candidate searches will include {name} jobs, each linking to its own apply page.</p>
           <label className="flex items-start gap-2 text-[13px]">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 size-4" />
-            <span>A signed agreement with {name} permits WonderJobs to show these jobs to candidates and link to apply. Your name and the time are recorded.</span>
+            <span>A signed agreement with {name} permits WonderStar to show these jobs to candidates and link to apply. Your name and the time are recorded.</span>
           </label>
           <Field label="Agreement reference (optional)" htmlFor="agr-ref">
             <Input id="agr-ref" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={200} />

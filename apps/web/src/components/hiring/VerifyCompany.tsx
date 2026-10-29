@@ -80,13 +80,13 @@ export function VerifyCompany({ org, onClose, onVerified, onEditWorkspace }: { o
               </>
             ) : (
               <p className="mt-1 text-[13px] text-ink-2">
-                Needs a sign-in email on <b>{opts.websiteDomain}</b>. You&apos;re signed in as <b>{opts.email ?? "an account without an email"}</b>. Sign in to WonderJobs with your work email (an Owner can invite it under Team), then come back here. Personal addresses like Gmail don&apos;t count.
+                Needs a sign-in email on <b>{opts.websiteDomain}</b>. You&apos;re signed in as <b>{opts.email ?? "an account without an email"}</b>. Sign in to WonderStar with your work email (an Owner can invite it under Team), then come back here. Personal addresses like Gmail don&apos;t count.
               </p>
             )}
           </section>
           <section className="rounded-[14px] border border-line p-4">
             <h3 className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-              <Search className="size-4 text-brand-600" aria-hidden /> Ask WonderJobs to review · about 2 business days
+              <Search className="size-4 text-brand-600" aria-hidden /> Ask WonderStar to review · about 2 business days
             </h3>
             {requested === true ? (
               <p role="status" className="mt-1 text-[13px] text-success-600">

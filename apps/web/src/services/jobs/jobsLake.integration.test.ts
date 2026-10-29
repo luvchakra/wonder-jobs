@@ -67,8 +67,8 @@ function events(r: SearchResponse): SearchEvent[] {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("CanonicalOpportunity → WonderJobs job", () => {
-  it("keeps the WonderJobs id of the canonical posting and every sighting", () => {
+describe("CanonicalOpportunity → WonderStar job", () => {
+  it("keeps the WonderStar id of the canonical posting and every sighting", () => {
     const j = toCanonicalJob(crossPosted()[0]);
     expect(j.id).toBe("careers_1");
     expect(j.sourceIds).toEqual(["careers", "remoteok"]);

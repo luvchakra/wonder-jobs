@@ -181,7 +181,7 @@ class SupabaseStore implements JobsLakeStore {
 
   async status(): Promise<StoreStatus> {
     const fb = await this.ready();
-    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderJobs database." };
+    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderStar database." };
   }
   async listSources(module: ModuleId = "jobs") {
     const fb = await this.ready();

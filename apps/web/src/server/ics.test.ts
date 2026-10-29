@@ -3,7 +3,7 @@ import { buildIcsCalendar } from "./ics";
 
 describe("buildIcsCalendar", () => {
   it("wraps events in a valid VCALENDAR with the right structure", () => {
-    const ics = buildIcsCalendar("WonderJobs", [{ uid: "a1", start: new Date("2026-10-01T09:00:00.000Z"), durationMinutes: 60, summary: "Interview — Acme", description: "Senior Engineer at Acme", url: "https://example.com/app/applications/a1" }]);
+    const ics = buildIcsCalendar("WonderStar", [{ uid: "a1", start: new Date("2026-10-01T09:00:00.000Z"), durationMinutes: 60, summary: "Interview — Acme", description: "Senior Engineer at Acme", url: "https://example.com/app/applications/a1" }]);
     expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
     expect(ics.trim().endsWith("END:VCALENDAR")).toBe(true);
     expect(ics).toContain("BEGIN:VEVENT\r\n");
