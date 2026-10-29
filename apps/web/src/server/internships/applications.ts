@@ -1,5 +1,5 @@
 /**
- * WonderStar Internships (WJ-418): companies' internship postings and students' applications to them, in the
+ * WonderWorks Internships (WJ-418): companies' internship postings and students' applications to them, in the
  * platform's module-keyed `listings` / `responses` tables (module = 'internships'), apart from Jobs' employer_jobs and
  * job_applications.
  *
@@ -139,7 +139,7 @@ export interface ApplyInput {
 }
 
 /**
- * The student's application to an internship posted on WonderStar: their account email, the profile they confirmed
+ * The student's application to an internship posted on WonderWorks: their account email, the profile they confirmed
  * (college, course, graduation year, availability), their skills, and a copy of the résumé they chose, into that
  * company's applications. Once per posting and email (the database refuses a second).
  */
@@ -171,7 +171,7 @@ export async function applyToInternship(s: Session, input: ApplyInput): Promise<
     throw e;
   }
   await files().insert({ response_id: row.id, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), row.id, file.bytes), created_at: at });
-  await record(row, "submitted", "applicant", "Applied on WonderStar Internships");
+  await record(row, "submitted", "applicant", "Applied on WonderWorks Internships");
   return { id: row.id, title: posting.title, company: org.name, notify: () => notifyTeam(row, posting.title) };
 }
 
@@ -275,9 +275,9 @@ async function notifyTeam(r: ResponseRow, title: string): Promise<void> {
       ["Available", `${p.availableFrom ?? "?"} to ${p.availableTo ?? "?"}`],
       ["Email", r.email],
     ];
-    const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(`New internship application: ${r.name}`)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(`${r.name} applied for ${title} on WonderStar Internships.`)}</div>${rows.map(([a, b]) => `<div style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:12px;color:${C.muted}">${escapeHtml(a)}</div><div style="font-size:14px;color:${C.ink}">${escapeHtml(b)}</div></div>`).join("")}<p style="margin:16px 0 0"><a href="${escapeHtml(href)}">Review the application</a></p>`;
+    const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(`New internship application: ${r.name}`)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(`${r.name} applied for ${title} on WonderWorks Internships.`)}</div>${rows.map(([a, b]) => `<div style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:12px;color:${C.muted}">${escapeHtml(a)}</div><div style="font-size:14px;color:${C.ink}">${escapeHtml(b)}</div></div>`).join("")}<p style="margin:16px 0 0"><a href="${escapeHtml(href)}">Review the application</a></p>`;
     const bodyText = [`New internship application: ${r.name}`, "", ...rows.map(([a, b]) => `${a}: ${b}`), "", `Review the application: ${href}`].join("\n");
-    const mail = renderEmailLayout({ origin: siteUrl().origin, preheader: `${r.name} applied for ${title}`, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderStar.", settingsLink: false });
+    const mail = renderEmailLayout({ origin: siteUrl().origin, preheader: `${r.name} applied for ${title}`, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderWorks.", settingsLink: false });
     let sent = 0;
     for (const to of team) if ((await sendMail({ to, subject: `New internship application for ${title}: ${r.name}`, replyTo: r.email, ...mail })).sent) sent++;
     await record(r, "email:team", "system", team.length ? `${sent} of ${team.length} sent` : "no one with an email can decide");

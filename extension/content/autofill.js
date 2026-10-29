@@ -1,33 +1,33 @@
 /**
- * WonderStar helper on an employer's application page.
+ * WonderWorks helper on an employer's application page.
  *
- * With an Apply with Wonder session for this site (paired from WonderStar), it:
+ * With an Apply with Wonder session for this site (paired from WonderWorks), it:
  *   1. reads the form's STRUCTURE — labels, types, options, whether a field has something in it —
  *      never a value the candidate typed, and never anything from a password, one-time-code or
  *      payment field (it only notices that one exists);
- *   2. sends that structure to WonderStar, which decides what may be filled (the candidate's own
+ *   2. sends that structure to WonderWorks, which decides what may be filled (the candidate's own
  *      profile, résumé and approved answers) and what needs the candidate;
- *   3. fills only what WonderStar returns, when the candidate chooses Fill (or automatically when
+ *   3. fills only what WonderWorks returns, when the candidate chooses Fill (or automatically when
  *      their own policy allows), highlights what needs them, and reports what happened;
  *   4. notices — passively — when the candidate presses the employer's submit button and when a
- *      confirmation page appears, and tells WonderStar as evidence.
+ *      confirmation page appears, and tells WonderWorks as evidence.
  *
- * It presses two kinds of button, each under its own gate from WonderStar:
+ * It presses two kinds of button, each under its own gate from WonderWorks:
  *   - a page's own next-page button ("Next", "Continue", "Save and continue") after filling that page,
  *     when `plan.advance` allows it (WJ-239);
  *   - the employer's final button ("Submit", "Apply", …) only when `plan.submit` is true — the candidate
  *     turned on "Submit applications" for this application or their account (WJ-249) — and only once
  *     every required field on the page has something in it and the form says it's valid. Once per page
- *     session; reported to WonderStar (APPLICATION_SUBMITTED) before the press.
- * In WonderStar' cloud browser only for a background fill, after the candidate pressed "Submit this application"
- * in WonderStar for that application (`plan.cloudSubmit`, WJ-311). Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
+ *     session; reported to WonderWorks (APPLICATION_SUBMITTED) before the press.
+ * In WonderWorks' cloud browser only for a background fill, after the candidate pressed "Submit this application"
+ * in WonderWorks for that application (`plan.cloudSubmit`, WJ-311). Without `plan.submit`, on a page whose way on is a final button it stops and the candidate submits. A
  * unit test in the web app holds the helper to exactly these two guarded presses.
  *
- * It reads what the candidate types only into questions WonderStar flagged as needing them (never a
+ * It reads what the candidate types only into questions WonderWorks flagged as needing them (never a
  * password, code, payment, ID, demographic, legal or right-to-work question), so the answer can be
  * remembered for the next form.
  *
- * Without a session, the original "Fill with WonderStar" button remains: name, email, phone,
+ * Without a session, the original "Fill with WonderWorks" button remains: name, email, phone,
  * LinkedIn, résumé and cover letter from the prepared materials, and nothing else.
  */
 (() => {
@@ -385,7 +385,7 @@
   }
 
   /* Searchable dropdowns (React Select and the like) keep their choices out of the page until opened and
-   * ignore scripted events. In WonderStar' cloud browser the helper marks the one it needs and asks the worker
+   * ignore scripted events. In WonderWorks' cloud browser the helper marks the one it needs and asks the worker
    * (picker.ts) to read its options or choose the candidate's answer (owner decision 2026-10-17, WJ-312).
    * In the candidate's own browser they stay theirs. */
   const comboChoices = new WeakMap();
@@ -409,7 +409,7 @@
     return el.matches("input[data-qa='location-input']") && el.parentElement?.querySelector("input[type=hidden][name=selectedLocation]")?.value ? clean(el.value) : "";
   }
 
-  /** Each dropdown's choices, read once, so WonderStar can match answers and ask with the employer's own options. */
+  /** Each dropdown's choices, read once, so WonderWorks can match answers and ask with the employer's own options. */
   async function probeCombos() {
     if (!IN_CLOUD) return;
     const combos = [...document.querySelectorAll("input[role=combobox], input[data-qa='location-input']")].filter((el) => visible(el) && !el.closest(".iti") && !comboChoices.has(el));
@@ -463,7 +463,7 @@
         if (!IN_CLOUD) return { fieldId: item.fieldId, ok: false, error: "rejected" };
         const r = await ask("comboPick", { mark: comboMark(el), value: item.value });
         await new Promise((res) => setTimeout(res, 200));
-        // More than one choice fits (or none): the dropdown's own choices go to WonderStar, to ask with.
+        // More than one choice fits (or none): the dropdown's own choices go to WonderWorks, to ask with.
         if (!r?.ok && Array.isArray(r?.options) && r.options.length) {
           comboChoices.set(el, r.options.slice(0, 290));
           state.lastSig = "";
@@ -499,7 +499,7 @@
       el.setAttribute(MARK, m.status);
       el.style.outline = `2px solid ${color}`;
       el.style.outlineOffset = "2px";
-      el.title = m.status === "needs_you" ? (m.classification === "human-only" ? "WonderStar: only you can answer this" : "WonderStar: needs you") : m.status === "filled" ? "Filled by WonderStar from your profile" : "WonderStar couldn't fill this";
+      el.title = m.status === "needs_you" ? (m.classification === "human-only" ? "WonderWorks: only you can answer this" : "WonderWorks: needs you") : m.status === "filled" ? "Filled by WonderWorks from your profile" : "WonderWorks couldn't fill this";
     }
   }
 
@@ -540,7 +540,7 @@
 
   /* ------------------------------------------------------ JobsApply session */
 
-  // Inside WonderStar' cloud browser (a server-hosted page behind the message shim) the helper never
+  // Inside WonderWorks' cloud browser (a server-hosted page behind the message shim) the helper never
   // submits: final submission happens only in the candidate's own browser (CLAUDE.md, WJ-249).
   const IN_CLOUD = !!(window.chrome && window.chrome.runtime && window.chrome.runtime.__wonder);
   const state = { offDestination: false, sessionId: null, view: null, busy: false, minimized: false, submitted: false, detected: false, lastSig: "", lastUrl: location.href, stopped: false, advance: false, submit: false, keepGoing: false, advances: 0, notice: null, challenge: false };
@@ -588,7 +588,7 @@
   // A page's way on, by its button's words. "final" is never pressed; "next" may be, after filling.
   const STEP_FINAL = /\b(submit|apply|send|finish|complete|confirm|done|pay|purchase|place order|sign)\b/i;
   const STEP_NEXT = /^(next|continue|proceed|save (and|&) (continue|next|proceed)|next (step|page)|go to (the )?next (step|page)|continue to [a-z ]{1,30})$/i;
-  // A portal's own account buttons are never a step: signing in happens only through WonderStar (WJ-316).
+  // A portal's own account buttons are never a step: signing in happens only through WonderWorks (WJ-316).
   const STEP_ACCOUNT = /^(sign in|sign on|log ?in|create (an |my )?account|register|sign up)$/i;
   function stepKind(label) {
     const t = String(label || "").replace(/[›»→>]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
@@ -624,7 +624,7 @@
   }
 
   /**
-   * On the form's last page — its way on is a final Submit — tell WonderStar, with how many required questions
+   * On the form's last page — its way on is a final Submit — tell WonderWorks, with how many required questions
    * still wait for the candidate (WJ-311). Facts only, once per change; it presses nothing.
    */
   let lastFinal = "";
@@ -713,7 +713,7 @@
 
   // Learning: an answer the candidate types into a question Wonder flagged as needing them is remembered
   // for the next form. Only those questions, and never a sensitive one.
-  // Right-to-work questions are "human-only" too; WonderStar refuses them again on its side.
+  // Right-to-work questions are "human-only" too; WonderWorks refuses them again on its side.
   const NEVER_LEARN = new Set(["CREDENTIAL", "EEO", "LEGAL", "SPONSORSHIP"]);
   document.addEventListener(
     "change",
@@ -813,13 +813,13 @@
 
   function statusBlock(v) {
     const f = v.failure;
-    if (v.stopped) return `<div class="box"><strong>You stopped Wonder.</strong><div class="muted">Fields already entered stay on the page. Nothing was submitted. Continue from WonderStar when you're ready.</div></div>`;
-    if (f === "DOMAIN_CHANGED") return `<div class="box bad"><strong>${v.jobTitle ? `Is this your application for ${esc(v.jobTitle)}${v.company ? ` at ${esc(v.company)}` : ""}?` : "Wonder paused this application."}</strong><div>WonderStar didn't open <strong>${esc(location.hostname)}</strong> for it. Continue here only if this is that job's form.</div><div class="row"><button class="pill ghost" id="approve">Continue here</button><button class="pill ghost" id="stop2">Stop</button></div></div>`;
+    if (v.stopped) return `<div class="box"><strong>You stopped Wonder.</strong><div class="muted">Fields already entered stay on the page. Nothing was submitted. Continue from WonderWorks when you're ready.</div></div>`;
+    if (f === "DOMAIN_CHANGED") return `<div class="box bad"><strong>${v.jobTitle ? `Is this your application for ${esc(v.jobTitle)}${v.company ? ` at ${esc(v.company)}` : ""}?` : "Wonder paused this application."}</strong><div>WonderWorks didn't open <strong>${esc(location.hostname)}</strong> for it. Continue here only if this is that job's form.</div><div class="row"><button class="pill ghost" id="approve">Continue here</button><button class="pill ghost" id="stop2">Stop</button></div></div>`;
     if (f === "PAYMENT_REQUESTED") return `<div class="box bad"><strong>Wonder found a payment request.</strong><div>Wonder will not enter payment information. Legitimate employers don't charge to apply — please verify the employer independently.</div></div>`;
     if (f === "CAPTCHA_REQUIRED") return `<div class="box"><strong>Verification required</strong><div>The portal is asking you to complete a verification challenge. Complete it, then continue.</div><div class="row"><button class="pill" id="resume">I've completed it</button></div></div>`;
     if (f === "MFA_REQUIRED") return `<div class="box"><strong>Sign-in verification required</strong><div>Complete the verification here. Wonder continues after you're signed in.</div><div class="row"><button class="pill" id="resume">I've completed it</button></div></div>`;
     if (v.status === "AUTHENTICATION_REQUIRED") return `<div class="box"><strong>You're not signed in to this portal.</strong><div>Sign in directly on this page. Wonder does not need your portal password and never reads it.</div></div>`;
-    if (f === "FORM_NOT_FOUND") return `<div class="box"><strong>Wonder couldn't identify this application form yet.</strong><div class="muted">Your Application Pack in WonderStar has every value ready to copy.</div></div>`;
+    if (f === "FORM_NOT_FOUND") return `<div class="box"><strong>Wonder couldn't identify this application form yet.</strong><div class="muted">Your Application Pack in WonderWorks has every value ready to copy.</div></div>`;
     return "";
   }
 
@@ -828,7 +828,7 @@
     if (err?.error) {
       const revoked = err.error === "revoked" || err.error === "not_connected";
       s.__wjHtml = "";
-      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>WonderStar</h2><button class="close" id="x" aria-label="Close">&times;</button></div><p class="muted">${revoked ? "This application isn't connected any more. Reopen it from WonderStar to continue." : "WonderStar didn't answer. Your progress is saved — try again."}</p>${revoked ? "" : `<div class="row"><span></span><button class="pill" id="retry">Try again</button></div>`}</div>`;
+      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>WonderWorks</h2><button class="close" id="x" aria-label="Close">&times;</button></div><p class="muted">${revoked ? "This application isn't connected any more. Reopen it from WonderWorks to continue." : "WonderWorks didn't answer. Your progress is saved — try again."}</p>${revoked ? "" : `<div class="row"><span></span><button class="pill" id="retry">Try again</button></div>`}</div>`;
       shadow().getElementById("x")?.addEventListener("click", () => (s.innerHTML = ""));
       shadow().getElementById("retry")?.addEventListener("click", () => inspect(true));
       return;
@@ -837,7 +837,7 @@
     if (!v) return;
     if (state.minimized) {
       s.__wjHtml = "";
-      s.innerHTML = `<button class="pill" id="open">WonderStar · ${v.progress.needsYou ? `${v.progress.needsYou} need you` : `${v.progress.filled} filled`}</button>`;
+      s.innerHTML = `<button class="pill" id="open">WonderWorks · ${v.progress.needsYou ? `${v.progress.needsYou} need you` : `${v.progress.filled} filled`}</button>`;
       shadow().getElementById("open").addEventListener("click", () => {
         state.minimized = false;
         render();
@@ -849,7 +849,7 @@
     const fillable = p.fillable;
     const detected = v.status === "VERIFICATION";
     const html = `
-      <div class="card" role="dialog" aria-label="WonderStar application helper">
+      <div class="card" role="dialog" aria-label="WonderWorks application helper">
         <div class="row" style="margin:0"><h2>Apply with Wonder</h2><button class="close" id="min" aria-label="Minimise">&minus;</button></div>
         <div class="muted">${esc(v.jobTitle)} · ${esc(v.company)}</div>
         ${statusBlock(v)}
@@ -861,10 +861,10 @@
         }
         ${state.notice ? `<p class="muted">${esc(state.notice)}</p>` : ""}
         ${fillable && !v.stopped && v.fill !== "skip" && !v.failure ? `<div class="row"><button class="pill" id="fill" ${state.busy ? "disabled" : ""}>${state.busy ? "Filling…" : `Fill ${fillable} field${fillable === 1 ? "" : "s"}`}</button></div>` : ""}
-        ${v.fill === "skip" ? `<p class="muted">Filling forms is off in Automation — use Guide me in WonderStar.</p>` : ""}
-        ${needs.length ? `<h3>Needs you</h3><ul>${needs.map((m) => `<li><button data-field="${esc(m.fieldId)}">${esc(m.label || "Unlabelled field")}</button>${m.classification === "human-only" ? ' <span class="muted">— only you can answer</span>' : ""}</li>`).join("")}</ul><p class="muted">Answer here on the form, or in WonderStar.</p>` : ""}
+        ${v.fill === "skip" ? `<p class="muted">Filling forms is off in Automation — use Guide me in WonderWorks.</p>` : ""}
+        ${needs.length ? `<h3>Needs you</h3><ul>${needs.map((m) => `<li><button data-field="${esc(m.fieldId)}">${esc(m.label || "Unlabelled field")}</button>${m.classification === "human-only" ? ' <span class="muted">— only you can answer</span>' : ""}</li>`).join("")}</ul><p class="muted">Answer here on the form, or in WonderWorks.</p>` : ""}
         ${v.resume ? `<h3>Résumé</h3><div>${esc(v.resume.filename)}</div>` : ""}
-        ${detected ? `<div class="box" style="background:#dcfce7"><strong>Looks like it went through.</strong><div>Confirm in WonderStar that you submitted it.</div></div>` : ""}
+        ${detected ? `<div class="box" style="background:#dcfce7"><strong>Looks like it went through.</strong><div>Confirm in WonderWorks that you submitted it.</div></div>` : ""}
         <div class="row">
           <span class="muted">${state.challenge ? "Complete the page's verification, then press the employer's button yourself." : state.submit ? "Submit for me is on: Wonder submits once every required field is answered." : "Review, then press the employer's submit button yourself."}</span>
           ${v.stopped ? "" : `<button class="pill ghost" id="stop">Stop</button>`}
@@ -923,7 +923,7 @@
       return render();
     }
     if (state.offDestination) {
-      // Not the application's destination: WonderStar has paused it; nothing on this page is read.
+      // Not the application's destination: WonderWorks has paused it; nothing on this page is read.
       return render();
     }
     watchSubmission();
@@ -954,13 +954,13 @@
       }, 700);
     };
     new MutationObserver(later).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "style", "hidden", "aria-hidden"] });
-    // Answers approved in WonderStar, a Stop pressed there, or a policy change: pick them up while the page is open.
+    // Answers approved in WonderWorks, a Stop pressed there, or a policy change: pick them up while the page is open.
     setInterval(async () => {
       if (document.visibilityState !== "visible" || state.busy || !state.sessionId || state.stopped) return;
       const r = await api(state.sessionId, "/api/jobs-apply/extension/session");
       if (!r || r.error) {
         if (r?.error === "revoked") {
-          // Stopped or ended from WonderStar: no more field actions until WonderStar pairs again.
+          // Stopped or ended from WonderWorks: no more field actions until WonderWorks pairs again.
           state.stopped = true;
           render(r);
         }
@@ -990,7 +990,7 @@
   }
 
   /**
-   * Fill on a page WonderStar has no application for: the form's structure goes to WonderStar, which
+   * Fill on a page WonderWorks has no application for: the form's structure goes to WonderWorks, which
    * reads every field the way Apply with Wonder does and answers with what the candidate's own Career
    * Profile, CV history, saved answers and latest résumé fill. Filled by the same routine as a session:
    * values set on fields, nothing pressed, nothing submitted.
@@ -1002,7 +1002,7 @@
     const plan = planReply?.data;
     if (!plan) return { error: "request_failed" };
     if (!plan.allowed) return { filled: [], missing: [], blocked: plan.reason };
-    // A posting with prepared materials in WonderStar uses its tailored résumé and cover letter.
+    // A posting with prepared materials in WonderWorks uses its tailored résumé and cover letter.
     const application = applicationReply?.data?.matched ? applicationReply.data : null;
     const tailored = application?.resume ? { filename: application.resume.filename, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", base64: application.resume.base64 } : null;
     const filled = [];
@@ -1062,7 +1062,7 @@
           const r = await ask("remember", { items: chosen.map((a) => ({ label: a.label, type: a.type, value: a.value })) });
           const saved = r?.data?.saved?.length ?? 0;
           const skipped = r?.data?.skipped ?? [];
-          box.innerHTML = r?.data ? `<p class="muted">${saved ? `Saved ${saved} answer${saved === 1 ? "" : "s"} — Wonder fills ${saved === 1 ? "it" : "them"} next time.` : "Nothing new to save."}${skipped.length ? ` Not saved: ${skipped.map((s) => esc(s.label)).join(", ")}.` : ""}</p>` : `<p class="muted">Couldn't save — check you're signed in to WonderStar.</p>`;
+          box.innerHTML = r?.data ? `<p class="muted">${saved ? `Saved ${saved} answer${saved === 1 ? "" : "s"} — Wonder fills ${saved === 1 ? "it" : "them"} next time.` : "Nothing new to save."}${skipped.length ? ` Not saved: ${skipped.map((s) => esc(s.label)).join(", ")}.` : ""}</p>` : `<p class="muted">Couldn't save — check you're signed in to WonderWorks.</p>`;
           answers.clear();
         });
     };
@@ -1076,7 +1076,7 @@
   }
 
   function legacyButton() {
-    slot().innerHTML = `<button class="pill" id="fill">Fill with WonderStar</button>`;
+    slot().innerHTML = `<button class="pill" id="fill">Fill with WonderWorks</button>`;
     shadow().getElementById("fill").addEventListener("click", legacyRun);
   }
   async function legacyRun() {
@@ -1093,9 +1093,9 @@
     }
     const s = slot();
     if (r.error) {
-      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.error === "not_connected" ? "Not connected" : "Couldn't fill this page"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.error === "not_connected" ? "Open WonderStar and sign in — the extension picks it up from there automatically." : "WonderStar didn't answer. Check you're signed in, then try again."}</p></div>`;
+      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.error === "not_connected" ? "Not connected" : "Couldn't fill this page"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.error === "not_connected" ? "Open WonderWorks and sign in — the extension picks it up from there automatically." : "WonderWorks didn't answer. Check you're signed in, then try again."}</p></div>`;
     } else {
-      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.blocked ? esc(r.blocked) : r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "From your Career Profile, CV and saved answers."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Left for you: ${r.missing.slice(0, 6).map(esc).join(", ")}${r.missing.length > 6 ? ` and ${r.missing.length - 6} more` : ""}.</p>` : ""}<div id="learn"></div><p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderStar.</p></div>`;
+      s.innerHTML = `<div class="card"><div class="row" style="margin:0"><h2>${r.filled.length ? `Filled ${r.filled.length} field${r.filled.length === 1 ? "" : "s"}` : "Nothing to fill"}</h2><button class="close" id="x">&times;</button></div><p class="muted">${r.blocked ? esc(r.blocked) : r.application ? `Using your prepared materials for <strong>${esc(r.application.jobTitle || "this role")}</strong>.` : "From your Career Profile, CV and saved answers."}</p>${r.filled.length ? `<ul class="ok">${r.filled.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}${r.missing.length ? `<p class="muted">Left for you: ${r.missing.slice(0, 6).map(esc).join(", ")}${r.missing.length > 6 ? ` and ${r.missing.length - 6} more` : ""}.</p>` : ""}<div id="learn"></div><p class="muted">Nothing is submitted for you. For step-by-step help, use Apply with Wonder from the job in WonderWorks.</p></div>`;
       offerToRemember(r.learnable);
     }
     shadow().getElementById("x")?.addEventListener("click", legacyButton);
@@ -1145,7 +1145,7 @@
       if (!state.sessionId && window.top !== window) void boot();
       else if (!state.sessionId) void startSession(message.sessionId);
       else if (state.sessionId === message.sessionId) {
-        // Continued from WonderStar after a stop: re-read the page with the fresh connection.
+        // Continued from WonderWorks after a stop: re-read the page with the fresh connection.
         state.stopped = false;
         state.lastSig = "";
         void inspect(true);

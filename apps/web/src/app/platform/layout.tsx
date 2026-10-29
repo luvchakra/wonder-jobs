@@ -4,7 +4,7 @@ import { PRIVATE_PAGE } from "@/lib/robots";
 import { currentAdmin } from "@/server/jobslake/access";
 import { AdminShell } from "@/components/admin/AdminShell";
 
-export const metadata: Metadata = { title: { default: "WonderStar Admin", template: "%s · WonderStar Admin" }, ...PRIVATE_PAGE };
+export const metadata: Metadata = { title: { default: "WonderWorks Admin", template: "%s · WonderWorks Admin" }, ...PRIVATE_PAGE };
 export const dynamic = "force-dynamic";
 
 /**

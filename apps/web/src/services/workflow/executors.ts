@@ -413,7 +413,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
 }
 
 function providerName(id: string) {
-  return { wonderjobs: "WonderStar AI", anthropic: "Anthropic", openai: "OpenAI", gemini: "Gemini" }[id] ?? id;
+  return { wonderjobs: "WonderWorks AI", anthropic: "Anthropic", openai: "OpenAI", gemini: "Gemini" }[id] ?? id;
 }
 
 // Per-run working memory for large intermediate results (not persisted).

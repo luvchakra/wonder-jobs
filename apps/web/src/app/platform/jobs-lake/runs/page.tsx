@@ -15,7 +15,7 @@ export default function RunsPage() {
     <>
       <PageTitle
         title="Runs"
-        subtitle="Every time JobsLake asked a source: candidate searches, scheduled searches, tests and playground searches. “Relevant / strong” is reported back by WonderStar after matching."
+        subtitle="Every time JobsLake asked a source: candidate searches, scheduled searches, tests and playground searches. “Relevant / strong” is reported back by WonderWorks after matching."
         actions={<Segmented value={trigger} onChange={setTrigger} label="Trigger" size="sm" options={[{ value: "all", label: "All" }, { value: "search", label: "Search" }, { value: "test", label: "Test" }, { value: "playground", label: "Playground" }, { value: "refresh", label: "Refresh" }, { value: "api", label: "API" }]} />}
       />
       {error && <LoadError error={error} onRetry={reload} />}

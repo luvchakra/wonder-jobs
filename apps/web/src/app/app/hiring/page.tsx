@@ -177,7 +177,7 @@ function HiringPage() {
       {!ws.org.verified && (
         <p className="mb-4 flex flex-wrap items-start gap-x-2 gap-y-1 rounded-[14px] border border-warning-600/30 bg-warning-100/40 px-3 py-2 text-[12px] text-ink-2">
           <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warning-600" aria-hidden />
-          <span className="min-w-0 flex-1">Not verified yet: your open jobs tell job seekers WonderStar hasn&apos;t checked this company. {can(r, "org.manage") ? "Verifying takes a minute with a work email on your company's domain." : "An Owner can verify it."}</span>
+          <span className="min-w-0 flex-1">Not verified yet: your open jobs tell job seekers WonderWorks hasn&apos;t checked this company. {can(r, "org.manage") ? "Verifying takes a minute with a work email on your company's domain." : "An Owner can verify it."}</span>
           {can(r, "org.manage") && (
             <button type="button" onClick={() => setVerifying(true)} className="font-semibold text-brand-600 hover:underline">
               Verify your company →

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * The WonderStar mark as a data URI, for the generated icon routes (`next/og` can't read from
+ * The WonderWorks mark as a data URI, for the generated icon routes (`next/og` can't read from
  * `public/` by path). Read once per server instance — the file never changes at runtime.
  */
 let cached: string | null = null;

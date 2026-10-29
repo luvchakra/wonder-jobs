@@ -215,7 +215,7 @@ export function ResumeFiles() {
           )
         }
       >
-        <p className="text-[14px] text-ink-2">It&apos;s deleted from WonderStar straight away. Applications you already sent are unaffected; any application you&apos;re still preparing with it will ask you to choose another résumé.</p>
+        <p className="text-[14px] text-ink-2">It&apos;s deleted from WonderWorks straight away. Applications you already sent are unaffected; any application you&apos;re still preparing with it will ask you to choose another résumé.</p>
       </Modal>
     </section>
   );

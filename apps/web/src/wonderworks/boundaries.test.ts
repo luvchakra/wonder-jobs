@@ -45,15 +45,15 @@ const jobsOwned = (t: string) => JOBS_OWNED.some((p) => t === p.replace(/\/$/, "
 const moduleOf = (t: string) => /^modules\/([^/]+)\//.exec(t)?.[1];
 const MODULES = readdirSync(join(SRC, "modules")).filter((n) => statSync(join(SRC, "modules", n)).isDirectory());
 
-describe("WonderStar and its modules", () => {
-  it("WonderStar imports no module and none of Jobs' code", () => {
+describe("WonderWorks and its modules", () => {
+  it("WonderWorks imports no module and none of Jobs' code", () => {
     const offenders = files(join(SRC, "wonderworks"))
       .filter((f) => f !== __filename)
       .flatMap((f) => imports(f).filter(({ target }) => target.startsWith("modules/") || target === "modules" || target.startsWith("app/") || jobsOwned(target)).map(({ spec }) => `${relative(SRC, f)} → ${spec}`));
     expect(offenders).toEqual([]);
   });
 
-  it.each(MODULES)("the %s module imports only WonderStar, the app's foundation and itself", (id) => {
+  it.each(MODULES)("the %s module imports only WonderWorks, the app's foundation and itself", (id) => {
     const offenders = files(join(SRC, "modules", id)).flatMap((f) => {
       const rel = relative(SRC, f);
       return imports(f)

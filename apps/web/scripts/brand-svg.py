@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Builds the WonderStar logo SVGs in public/brand/ (docs/WONDERSTAR_PLATFORM.md §9, docs/brand/wonderstar-identity.png).
+Builds the WonderWorks logo SVGs (file names keep their wonderstar- prefix) in public/brand/ (docs/WONDERWORKS_PLATFORM.md §9, docs/brand/wonderstar-identity.png).
 
 The wordmark and tagline are Poppins glyph outlines, so every SVG renders identically wherever it's used
 (an <img>, an email client, an icon route) without the font being installed. Re-run it after changing the
@@ -41,7 +41,7 @@ def text_path(font, text, x, baseline, size, tracking=0.0):
 
 
 def defs(white):
-    # "Star" runs violet→blue; on dark surfaces both stops lift so the word keeps its contrast.
+    # "Works" runs violet→blue; on dark surfaces both stops lift so the word keeps its contrast.
     star_a, star_b = ("#C4B5FD", "#93C5FD") if white else (STAR_PURPLE, SKY_BLUE)
     return f"""<defs>
     <linearGradient id="ws-left" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="{INDIGO}"/></linearGradient>
@@ -71,7 +71,7 @@ def svg(w, h, body, white, label):
 
 def wordmark(bold, x, baseline, size, white):
     wonder, w1 = text_path(bold, "Wonder", x, baseline, size, -0.01)
-    star, w2 = text_path(bold, "Star", x + w1 + 0.01 * size * -1, baseline, size, -0.01)
+    star, w2 = text_path(bold, "Works", x + w1 + 0.01 * size * -1, baseline, size, -0.01)
     ink = "#FFFFFF" if white else DEEP_NAVY
     return f'<path d="{wonder}" fill="{ink}"/>\n  <path d="{star}" fill="url(#ws-word)"/>', w1 + w2
 
@@ -96,18 +96,18 @@ def main():
             f.write(content)
 
     # Mark alone (also the source of the favicon, apple-touch and PWA icons).
-    write("wonderstar-mark.svg", svg(MARK_W, MARK_H, MARK, False, "WonderStar"))
+    write("wonderstar-mark.svg", svg(MARK_W, MARK_H, MARK, False, "WonderWorks"))
 
     # App icon: the mark on Deep Navy, rounded square.
     icon = f'<rect width="512" height="512" rx="112" fill="{DEEP_NAVY}"/>\n  <g transform="translate(76 96) scale(3)">{MARK}</g>'
-    write("wonderstar-app-icon.svg", svg(512, 512, icon, False, "WonderStar"))
+    write("wonderstar-app-icon.svg", svg(512, 512, icon, False, "WonderWorks"))
 
     # Primary (horizontal): mark + wordmark, the wordmark's cap height ~ 60% of the mark.
     for white in (False, True):
         size, gap = 84, 10
         words, wwidth = wordmark(bold, MARK_W + gap, 82, size, white)
         body = f"{MARK}\n  {words}"
-        write(f"wonderstar-logo{'-white' if white else ''}.svg", svg(MARK_W + gap + wwidth + 2, MARK_H, body, white, "WonderStar"))
+        write(f"wonderstar-logo{'-white' if white else ''}.svg", svg(MARK_W + gap + wwidth + 2, MARK_H, body, white, "WonderWorks"))
 
     # Stacked with the tagline.
     for white in (False, True):
@@ -119,7 +119,7 @@ def main():
         mark = f'<g transform="translate({cx - MARK_W * 0.6:.2f} 0) scale(1.2)">{MARK}</g>'
         words, _ = wordmark(bold, cx - wwidth / 2, 200, size, white)
         tag = tagline(regular, cx, 248, 22, white, 34)
-        write(f"wonderstar-stacked{'-white' if white else ''}.svg", svg(width, 290, f"{mark}\n  {words}\n  {tag}", white, "WonderStar — Discover opportunities. Unlock possibilities."))
+        write(f"wonderstar-stacked{'-white' if white else ''}.svg", svg(width, 290, f"{mark}\n  {words}\n  {tag}", white, "WonderWorks — Discover opportunities. Unlock possibilities."))
 
 
 if __name__ == "__main__":

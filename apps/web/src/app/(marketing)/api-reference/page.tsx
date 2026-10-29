@@ -53,7 +53,7 @@ export default async function ApiReferencePage() {
     <MarketingPage
       eyebrow="Developers"
       title="JobsLake API reference"
-      intro={`Search the same live job sources WonderStar uses, from your own code. Protocol version ${doc.version}.`}
+      intro={`Search the same live job sources WonderWorks uses, from your own code. Protocol version ${doc.version}.`}
       sections={[
         {
           id: "start",
@@ -115,7 +115,7 @@ export default async function ApiReferencePage() {
                 Base URL: <code>{base}</code>
               </p>
               <Table head={["Method", "Path", "What it does"]} rows={keyEndpoints.map((e) => [<code key="m">{e.method}</code>, <code key="p">{e.path}</code>, e.description])} />
-              {otherEndpoints.length > 0 && <p className="mt-4 text-[13px] text-ink-3">Also on the protocol, for WonderStar itself and platform admins (not reachable with an API key): {otherEndpoints.map((e) => `${e.method} ${e.path}`).join(" · ")}.</p>}
+              {otherEndpoints.length > 0 && <p className="mt-4 text-[13px] text-ink-3">Also on the protocol, for WonderWorks itself and platform admins (not reachable with an API key): {otherEndpoints.map((e) => `${e.method} ${e.path}`).join(" · ")}.</p>}
             </>
           ),
         },

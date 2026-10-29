@@ -3,7 +3,7 @@ import { MODULES, type UpcomingKindId } from "@/modules/registry";
 export type { UpcomingKindId };
 
 /**
- * The other WonderStar modules Find's menu lists (owner, 2026-10-25) below Full Time Jobs and Part Time Jobs: a live
+ * The other WonderWorks modules Find's menu lists (owner, 2026-10-25) below Full Time Jobs and Part Time Jobs: a live
  * one links out of Jobs to its own module (`/app/m/<id>`, WJ-418), a "soon" one shows disabled under "Coming soon".
  * Derived from the module registry (`modules/registry.ts`): every module beyond Jobs with a menu id, in the registry's order. They are not Find modes:
  * `FindMode`, `FIND_MODE_PATCH`, search, filters and the stores don't know them, and nothing here ever lists a job

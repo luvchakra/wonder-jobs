@@ -54,14 +54,14 @@ export function EasyApply({ job }: { job: CanonicalJob }) {
   const markApplied = (applicationId?: string) => {
     const store = useApplicationsStore.getState();
     const a = app ?? store.create(job.id, "saved");
-    store.setStatus(a.id, "submitted", { type: "submitted", title: "Submitted with WonderStar Easy Apply", detail: `Sent to ${job.company} on WonderStar${applicationId ? ` (${applicationId})` : ""}` });
+    store.setStatus(a.id, "submitted", { type: "submitted", title: "Submitted with WonderWorks Easy Apply", detail: `Sent to ${job.company} on WonderWorks${applicationId ? ` (${applicationId})` : ""}` });
     return a.id;
   };
 
   const withdraw = async (applicationId: string, localId: string) => {
     try {
       await post("/api/easy-apply/withdraw", { applicationId });
-      useApplicationsStore.getState().setStatus(localId, "withdrawn", { type: "note", title: "Withdrawn", detail: `Withdrawn from ${job.company} on WonderStar` });
+      useApplicationsStore.getState().setStatus(localId, "withdrawn", { type: "note", title: "Withdrawn", detail: `Withdrawn from ${job.company} on WonderWorks` });
       toast.info("Application withdrawn", `${job.company} sees it as withdrawn.`);
     } catch (e) {
       toast.error("Couldn't withdraw it", (e as Error).message);

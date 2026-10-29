@@ -37,7 +37,7 @@ describe("buildDigest — only what happened, from the account's own data", () =
     expect(d.cta).toEqual({ label: "Prepare for your interview", href: "/app/applications/a1" });
     expect(d.dependencies.map((x) => x.text)).toEqual(expect.arrayContaining(["Add the role you want — searches need it."]));
     expect(d.goingWell[0].text).toBe("You have 1 strong match to choose from.");
-    expect(d.subject).toMatch(/^Your WonderStar digest: interview /);
+    expect(d.subject).toMatch(/^Your WonderWorks digest: interview /);
     expect(d.facts.find((f) => f.key === "activity.strongFound")?.value).toBe("4");
     expect(d.stats).toMatchObject({ strongMatches: 1, searches: 1, reviewed: 60, strongFound: 4, saved: 1 });
     // Same count as the Jobs list's "Strong" view: saved ones still count, turned-down ones don't.

@@ -378,7 +378,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                 <CustomResumeButton job={job} primary={!canApply} />
                 {canApply && helperInstalled === false ? (
                   <p className="text-center text-[12px] leading-snug text-ink-3">
-                    Easy Apply needs the WonderStar browser extension.{" "}
+                    Easy Apply needs the WonderWorks browser extension.{" "}
                     <Link href="/extension" className="font-medium text-brand-600 hover:underline">
                       Install it
                     </Link>

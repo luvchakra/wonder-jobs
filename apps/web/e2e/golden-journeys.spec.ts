@@ -674,7 +674,7 @@ test.describe("Golden journey — manual intervention", () => {
 test.describe("Golden journey — advanced mode", () => {
   test("GJ-017 AI provider settings expose BYOK for every real provider plus usage transparency", async ({ page }) => {
     await openApp(page, "/app/settings/ai");
-    await expect(page.getByText("WonderStar AI").first()).toBeVisible();
+    await expect(page.getByText("WonderWorks AI").first()).toBeVisible();
     // Several providers and usage are folded until opened.
     await page.getByText("Advanced: models and several providers").click();
     await page.getByText("Usage", { exact: true }).click();

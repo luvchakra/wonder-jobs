@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { brandMarkDataUri } from "@/server/brandMark";
 
-export const alt = "WonderStar — your AI job-search agent";
+export const alt = "WonderWorks — your AI job-search agent";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -28,7 +28,7 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
           {/* next/og renders to a static image, not the DOM — a plain img is the only option here. */}
           <img src={brandMarkDataUri()} alt="" width={86} height={86} />
-          <span style={{ fontSize: 50, fontWeight: 700, letterSpacing: -1 }}>WonderStar</span>
+          <span style={{ fontSize: 50, fontWeight: 700, letterSpacing: -1 }}>WonderWorks</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, letterSpacing: -2 }}>Your next opportunity</span>

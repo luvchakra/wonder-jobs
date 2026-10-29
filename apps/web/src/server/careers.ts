@@ -172,7 +172,7 @@ async function cleanSite(input: SiteInput, siteId?: string): Promise<Pick<SiteRo
     publicUrl = hostedUrl(slug);
   } else {
     publicUrl = input.publicUrl.trim().replace(/\/+$/, "");
-    if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("Add a short company name for a page hosted by WonderStar, or your own careers page address (https://…).");
+    if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(publicUrl) || publicUrl.length > 300) throw new HiringError("Add a short company name for a page hosted by WonderWorks, or your own careers page address (https://…).");
   }
   const emails = parseNotifyEmails(input.notifyEmails ?? "");
   if ("problem" in emails) throw new HiringError(emails.problem);
@@ -388,7 +388,7 @@ export async function withdrawEasyApply(s: Session, applicationId: string): Prom
   const at = now();
   const n = await apps().update({ id: a.id, org_id: a.org_id, status: a.status }, { status: "withdrawn", updated_at: at, last_action_at: at });
   if (!n) throw new HiringError("The company just changed this application. Reload and try again.", 409);
-  await record(a, "status:withdrawn", "applicant", "Withdrawn on WonderStar");
+  await record(a, "status:withdrawn", "applicant", "Withdrawn on WonderWorks");
 }
 
 /**
@@ -439,7 +439,7 @@ export async function easyApply(s: Session, input: EasyApplyInput): Promise<{ id
   };
   await apps().insert(row);
   await files().insert({ application_id: appId, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), appId, file.bytes), created_at: at });
-  await record(row, "submitted", "applicant", "WonderStar Easy Apply");
+  await record(row, "submitted", "applicant", "WonderWorks Easy Apply");
   const jobRow = await jobs().one({ id: job.id, org_id: org.id });
   return { id: appId, jobTitle: job.title, company: org.name, notify: () => (jobRow ? notifySubmitted(row, jobRow, undefined) : Promise.resolve()) };
 }
@@ -690,7 +690,7 @@ export function renderTeamEmail(p: { heading: string; intro: string; rows: [stri
   const rows = p.rows.map(([a, b]) => `<tr><td style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:14px;font-weight:600;color:${C.ink}">${escapeHtml(a)}</div><div style="font-size:12px;color:${C.muted}">${escapeHtml(b)}</div></td></tr>`).join("");
   const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(p.heading)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(p.intro)}</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>${button(p.button)}`;
   const bodyText = [p.heading, "", p.intro, "", ...p.rows.map(([a, b]) => `- ${a} (${b})`), "", `${p.button.label}: ${p.button.href}`].join("\n");
-  return renderEmailLayout({ origin: siteUrl().origin, preheader: p.intro, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderStar.", settingsLink: false });
+  return renderEmailLayout({ origin: siteUrl().origin, preheader: p.intro, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderWorks.", settingsLink: false });
 }
 
 /** An email to an applicant, under the company's name. */
@@ -730,7 +730,7 @@ async function notifySubmitted(a: AppRow, job: JobRow, site: Site | undefined): 
     const team = await recipientsFor(a.org_id, site);
     const mail = renderTeamEmail({
       heading: `New application: ${a.name}`,
-      intro: `${a.name} applied for ${job.title} ${site ? `on ${site.name}` : "with WonderStar Easy Apply"}.`,
+      intro: `${a.name} applied for ${job.title} ${site ? `on ${site.name}` : "with WonderWorks Easy Apply"}.`,
       rows: [
         ["Email", a.email],
         ...(a.phone ? [["Phone", a.phone] as [string, string]] : []),

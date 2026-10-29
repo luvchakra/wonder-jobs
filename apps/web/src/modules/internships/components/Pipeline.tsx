@@ -22,7 +22,7 @@ const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "br
 /**
  * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Applied · Shortlisted ·
  * Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
- * chips; the same compact cards, with the one action each needs; then Deadlines. WonderStar applications come from the
+ * chips; the same compact cards, with the one action each needs; then Deadlines. WonderWorks applications come from the
  * server (what the company actually did); outside ones are those the student marked applied after applying on the
  * employer's page.
  */

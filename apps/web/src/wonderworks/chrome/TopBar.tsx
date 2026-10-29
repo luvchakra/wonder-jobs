@@ -134,7 +134,7 @@ export function TopBar() {
           onClick={async () => {
             setProfileOpen(false);
             const outcome = await promptInstall();
-            if (outcome === "accepted") toast.success("Installing WonderStar", "Find it on your home screen or app launcher.");
+            if (outcome === "accepted") toast.success("Installing WonderWorks", "Find it on your home screen or app launcher.");
           }}
           className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm text-ink-2 hover:bg-bg-soft hover:text-ink"
         >
@@ -167,7 +167,7 @@ export function TopBar() {
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
       {/* Every screen (owner, 2026-10-29): the avatar and the WonderWorks mark on the left, the kind menu in the centre,
           Tasks and the bell on the right. */}
-      <Link href="/app" aria-label="WonderStar home" title="WonderStar" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
+      <Link href="/app" aria-label="WonderWorks home" title="WonderWorks" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
         <WonderStarMark className="h-[17px] w-auto" />
       </Link>
       <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>

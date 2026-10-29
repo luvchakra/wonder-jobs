@@ -1,7 +1,7 @@
-# WonderStar — one platform, many modules
+# WonderWorks — one platform, many modules
 
 Owner request (2026-10-28): research every module and design a common platform, where each module inherits shared
-features and keeps its own flavour. Jobs (WonderJobs) is the first module. The platform is called **WonderStar**.
+features and keeps its own flavour. Jobs (WonderJobs) is the first module. The platform is called **WonderWorks**.
 
 Status: design. Nothing here changes the product until a module is built; Jobs keeps working as it is while the core
 is extracted from it step by step (§8).
@@ -87,7 +87,7 @@ its own flavour of each.
 
 ## 3. What the platform provides (inherited by every module)
 
-| Core capability | Today in WonderJobs (reused) | Generalised in WonderStar |
+| Core capability | Today in WonderJobs (reused) | Generalised in WonderWorks |
 | --- | --- | --- |
 | **Identity & tenancy** | Supabase Auth, tenant = user id, `server/auth.ts`, tenant filter on every query | Same, for every module. One account across all modules. |
 | **Profile** | Career Profile (Career DNA), résumé import, Application answers | `Profile` core (name, photo, contact, places, languages, verification) + one **persona** per module (Career DNA is the Jobs persona; a Tutor persona, a Founder persona…). Saved answers become a platform-wide answer bank keyed by question. |
@@ -165,7 +165,7 @@ export interface ModuleManifest {
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
-Find, Saved and You are WonderStar's (`src/wonderworks/`) and identical across modules, with Jobs' look as the
+Find, Saved and You are WonderWorks' (`src/wonderworks/`) and identical across modules, with Jobs' look as the
 reference; a module supplies only its own fields, filters, card details and data. Only the Pipeline tab varies: its
 name, stages and views come from the module's manifest (`moduleTabs`). WonderJobs keeps "Pipeline"; Internships' is
 "Applications" (owner, 2026-10-29).
@@ -256,7 +256,7 @@ apps/web/src/
   modules/
     registry.ts          # composition root: every module's manifest, read by the Find menu, the tabs and JobsLake
     nav.ts               # composition root: each module's tabs (moduleNav) and a page's module (moduleFromPath)
-    chrome.tsx           # composition root: fills WonderStar's chrome slots (tabs, sections, Find menu, Tasks/status)
+    chrome.tsx           # composition root: fills WonderWorks' chrome slots (tabs, sections, Find menu, Tasks/status)
     savedCards.tsx       # composition root: each module's card in the shared Saved
     jobs/                # WonderJobs: manifest, nav (PRIMARY_NAV, SECTION_TABS), chrome, components/ (Find, Saved,
                          #   cards), pipeline/ (Applications), you/ (JobsYou and its rows)
@@ -331,7 +331,7 @@ the rare.
    module at `/app/m/internships` with its own JobsLake dataset — not as a mode of Jobs' Find (WJ-413's Find mode was
    taken back out in WJ-414). Kept for it: `domain/org/internship.ts` (stipend a month, duration, start date) and
    `employer_jobs.internship` (migration 0032).
-   **Done (WJ-418, 2026-10-29):** Internships is live at `/app/m/internships` — its own JobsLake sources (WonderStar
+   **Done (WJ-418, 2026-10-29):** Internships is live at `/app/m/internships` — its own JobsLake sources (WonderWorks
    companies, Adzuna India, Greenhouse/Lever/Ashby, SmartRecruiters, Remotive, Remote OK; Internshala and LinkedIn have
    no open API), company postings in Internships → Company (same workspace and roles), the platform `listings` /
    `responses` tables (migration 0035, module-keyed), the student profile (prefilled from Career Profile education,
@@ -349,17 +349,17 @@ Each step ships as its own PR with tests, help and tracker rows, like every Jobs
 
 ---
 
-## 9. Brand: WonderStar identity (owner, 2026-10-28)
+## 9. Brand: WonderWorks identity (owner, 2026-10-28)
 
 Reference: `docs/brand/wonderstar-identity.png` (the owner's identity sheet). It applies to **the whole app, the jobs
 portal included** (owner, 2026-10-28: "apply the brand to the jobs portal too"; WJ-416) — the module shell, Explore,
-module pages, the app icon/splash, and every jobs screen. Product copy still says "WonderJobs" until the owner decides.
+module pages, the app icon/splash, and every jobs screen. **Name:** the product is **WonderWorks** (owner, 2026-10-29), after WonderJobs and then WonderStar; the sheet still shows "WonderStar" and stays the visual reference — only the wordmark's second word changed ("Works", same style).
 One set of brand files: the logo SVGs in `public/brand/` (`scripts/brand-svg.py`), the tokens at the top of
 `globals.css` (`--wj-*`, with the sheet's names as `--color-star-purple` etc. pointing at them), Poppins in
 `app/layout.tsx`, and the tile tints in `platform/brand/tiles.tsx`.
 
-- **Logo:** the WonderStar mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderStar" — "Wonder"
-  in Deep Navy (white on dark), "Star" in a violet→blue gradient. Variants: primary horizontal, stacked with the
+- **Logo:** the WonderWorks mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderWorks" — "Wonder"
+  in Deep Navy (white on dark), "Works" in a violet→blue gradient. Variants: primary horizontal, stacked with the
   tagline, app icon (mark on Deep Navy, rounded square). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
   (letter-spaced caps). Recreate as SVG in `public/brand/` — never a raster screenshot of the sheet.
 - **Colours** (the app's design tokens): Star Purple `#7C3AED`, Sky Blue

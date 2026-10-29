@@ -23,7 +23,7 @@ export default async function HostedCareersLayout({ children, params }: { childr
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <Link href={`/careers/${site.slug}`} className="inline-flex items-center gap-2 text-[18px] font-semibold text-ink">
             {site.company}
-            {site.verified && <BadgeCheck className="size-5 text-brand-600" aria-label="Verified by WonderStar" />}
+            {site.verified && <BadgeCheck className="size-5 text-brand-600" aria-label="Verified by WonderWorks" />}
           </Link>
           <span className="text-[13px] text-ink-3">Careers</span>
         </div>
@@ -33,7 +33,7 @@ export default async function HostedCareersLayout({ children, params }: { childr
       </main>
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[12px] text-ink-3 sm:px-6">
-          <span>Careers page and applications handled by WonderStar for {site.company}.</span>
+          <span>Careers page and applications handled by WonderWorks for {site.company}.</span>
           <WonderLogo size={20} href="/" />
         </div>
       </footer>

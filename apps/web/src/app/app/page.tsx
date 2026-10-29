@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { isLive, moduleById } from "@/modules/registry";
 
 /**
- * The app opens on Find: Jobs', or the WonderStar module picked last in Find's menu (its cookie, set by store/ui.ts).
+ * The app opens on Find: Jobs', or the WonderWorks module picked last in Find's menu (its cookie, set by store/ui.ts).
  * Old links (/app?search=…, ?role=, ?refresh=, ?fit=, ?q=) keep working and always open Jobs.
  */
 export default async function AppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

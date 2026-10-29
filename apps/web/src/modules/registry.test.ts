@@ -3,7 +3,7 @@ import { isModuleId, MODULE_IDS, MODULES, moduleById } from "./registry";
 import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
 import { PRIMARY_NAV } from "@/modules/jobs/nav";
 
-describe("WonderStar module registry", () => {
+describe("WonderWorks module registry", () => {
   it("has one manifest per module, in the registry's order", () => {
     expect(MODULES.map((m) => m.id)).toEqual([...MODULE_IDS]);
     expect(MODULE_IDS).toEqual(["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace"]);

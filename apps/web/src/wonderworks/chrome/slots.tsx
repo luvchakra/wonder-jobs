@@ -3,7 +3,7 @@ import { createContext, useContext, type ComponentType } from "react";
 import type { NavItem } from "./nav";
 
 /**
- * What the app chrome shows from the modules, without importing any (docs/WONDERSTAR_PLATFORM.md §6): the
+ * What the app chrome shows from the modules, without importing any (docs/WONDERWORKS_PLATFORM.md §6): the
  * composition root (`modules/chrome.tsx`) provides it. Each slot falls back to an empty, honest default.
  */
 export interface ChromeSlots {

@@ -19,7 +19,7 @@ const Body = z.object({
 });
 
 /**
- * Apply on an internship a company posted on WonderStar: the student's own press sends their Internships profile and
+ * Apply on an internship a company posted on WonderWorks: the student's own press sends their Internships profile and
  * résumé to that company (gated by internships.apply on the server; once per internship and email), audited.
  */
 export async function POST(req: Request) {

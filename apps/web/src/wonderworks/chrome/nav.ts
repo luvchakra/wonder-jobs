@@ -24,7 +24,7 @@ export function isActivePath(pathname: string, item: NavItem) {
   return item.match ? item.match(pathname) : pathname === item.href || pathname.startsWith(item.href + "/");
 }
 
-/* ------------------------------------------------------------------ WonderWorks modules (docs/WONDERSTAR_PLATFORM.md §4.1) */
+/* ------------------------------------------------------------------ WonderWorks modules (docs/WONDERWORKS_PLATFORM.md §4.1) */
 
 const PIPELINE_ICONS: Record<string, LucideIcon> = { LayoutList, Handshake, CalendarCheck, CalendarClock, CalendarHeart };
 // The pages under You that belong to every module (account, settings, workspaces), so opening one keeps the module's tabs.

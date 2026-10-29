@@ -194,8 +194,8 @@ describe("Recruiters, hiring workspaces", () => {
   it("N30 an invitation emails the invited person: who, which company, which role, and where to accept", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     await H.inviteMember(owner, org.id, "Rec@Acme.com", "recruiter");
-    expect(mails).toEqual([expect.objectContaining({ to: "rec@acme.com", subject: "Join Acme on WonderStar" })]);
-    expect(mails[0].text).toContain("Olive Owner invited you to join Acme's hiring workspace on WonderStar as Recruiter");
+    expect(mails).toEqual([expect.objectContaining({ to: "rec@acme.com", subject: "Join Acme on WonderWorks" })]);
+    expect(mails[0].text).toContain("Olive Owner invited you to join Acme's hiring workspace on WonderWorks as Recruiter");
     expect(mails[0].text).toContain("/app/hiring");
   });
 
@@ -206,7 +206,7 @@ describe("Recruiters, hiring workspaces", () => {
     expect(mails).toEqual([]);
     expect((await H.listTeam(owner, org.id)).invites.map((i) => i.id)).toEqual([inv.id]);
     await queued[0]();
-    expect(mails).toEqual([expect.objectContaining({ to: "rec@acme.com", subject: "Join Acme on WonderStar" })]);
+    expect(mails).toEqual([expect.objectContaining({ to: "rec@acme.com", subject: "Join Acme on WonderWorks" })]);
   });
 
   it("N18 / N19 a company's message reaches the candidate; their reply reaches who started the thread", async () => {
@@ -238,18 +238,18 @@ describe("Recruiters, hiring workspaces", () => {
     expect(pushes).toEqual([{ tenant: "u-seek", title: "Message from Acme" }]);
   });
 
-  it("N28 a verification request emails WonderStar operators, with the Owner as Reply-To", async () => {
+  it("N28 a verification request emails WonderWorks operators, with the Owner as Reply-To", async () => {
     process.env.CONTACT_NOTIFY_EMAILS = "ops@wonderapps.biz";
     const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
     expect(await H.requestVerificationReview(owner, org.id, "CIN U12345")).toEqual({ sent: true });
-    expect(mails.at(-1)).toMatchObject({ to: "ops@wonderapps.biz", subject: "[WonderStar] Verify Acme", replyTo: "owner@acme.com" });
+    expect(mails.at(-1)).toMatchObject({ to: "ops@wonderapps.biz", subject: "[WonderWorks] Verify Acme", replyTo: "owner@acme.com" });
     delete process.env.CONTACT_NOTIFY_EMAILS;
   });
 
   it("N29 verifying a company emails its Owners; unverifying doesn't", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
     expect(await H.setCompanyVerified(org.id, true)).toEqual({ emailed: true });
-    expect(mails.at(-1)).toMatchObject({ to: "owner@acme.com", subject: "Acme is verified on WonderStar" });
+    expect(mails.at(-1)).toMatchObject({ to: "owner@acme.com", subject: "Acme is verified on WonderWorks" });
     const before = mails.length;
     expect(await H.setCompanyVerified(org.id, false)).toEqual({ emailed: false });
     expect(mails).toHaveLength(before);

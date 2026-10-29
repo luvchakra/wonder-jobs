@@ -68,8 +68,8 @@ describe("Find / searches", () => {
     expect(waitingNotice(run(), "Pick the résumé to use")).toEqual({ category: "workflow_requires_input", title: "Wonder needs your input", body: "Pick the résumé to use", href: "/app/runs/run_1" });
   });
 
-  it("N05 falling back to WonderStar AI says why and points to AI settings", () => {
-    expect(fallbackNotice("Your Anthropic key was refused.")).toMatchObject({ category: "provider_issue", title: "Switched to WonderStar AI for one request", href: "/app/settings/ai" });
+  it("N05 falling back to WonderWorks AI says why and points to AI settings", () => {
+    expect(fallbackNotice("Your Anthropic key was refused.")).toMatchObject({ category: "provider_issue", title: "Switched to WonderWorks AI for one request", href: "/app/settings/ai" });
   });
 });
 

@@ -15,7 +15,7 @@ export interface AIProviderMeta {
 export const AI_PROVIDERS: Record<AIProviderId, AIProviderMeta> = {
   wonderjobs: {
     id: "wonderjobs",
-    name: "WonderStar AI",
+    name: "WonderWorks AI",
     tagline: "Included in your plan",
     billing: "platform",
     models: [{ id: "wonder-1", label: "Wonder 1", default: true }],

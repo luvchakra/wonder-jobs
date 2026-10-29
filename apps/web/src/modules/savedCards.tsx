@@ -5,7 +5,7 @@ import { ModuleSaved } from "@/wonderworks/shell/ModulePages";
 import { InternshipCard, InternshipSheet } from "./internships/components/Listing";
 import type { InternshipListing } from "./internships/domain";
 
-/** How each live module shows a saved listing in the platform's Saved (docs/WONDERSTAR_PLATFORM.md §4.1): its own Find card. */
+/** How each live module shows a saved listing in the platform's Saved (docs/WONDERWORKS_PLATFORM.md §4.1): its own Find card. */
 export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">; item: unknown }) {
   const [open, setOpen] = useState(false);
   if (module === "internships") {

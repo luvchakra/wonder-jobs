@@ -197,12 +197,12 @@ export interface HelperCtx {
 
 /** Bearer token → the one session it was minted for. Rejects forged, expired and revoked (rotated-nonce) tokens, and ended sessions. */
 export async function helperAuth(token: string | null): Promise<HelperCtx | ApiResult> {
-  if (!token) return err(401, "UNAUTHORIZED", "Reconnect the helper from WonderStar.");
+  if (!token) return err(401, "UNAUTHORIZED", "Reconnect the helper from WonderWorks.");
   const claims = verifyHelperToken(token);
-  if (!claims) return err(401, "UNAUTHORIZED", "The helper's connection expired. Reopen the application from WonderStar.");
+  if (!claims) return err(401, "UNAUTHORIZED", "The helper's connection expired. Reopen the application from WonderWorks.");
   const session = await getSession(claims.tenantId, claims.sessionId);
   if (!session) return err(401, "UNAUTHORIZED", "Application session not found.");
-  if (session.tokenNonce !== claims.nonce) return err(401, "REVOKED", "This helper connection was stopped. Reopen the application from WonderStar.");
+  if (session.tokenNonce !== claims.nonce) return err(401, "REVOKED", "This helper connection was stopped. Reopen the application from WonderWorks.");
   if (TERMINAL.has(session.status)) return err(401, "REVOKED", "This application session has ended.");
   return { tenantId: claims.tenantId, session };
 }

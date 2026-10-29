@@ -8,7 +8,7 @@ export async function generateMetadata({ params }: ShellParams): Promise<Metadat
 }
 
 /**
- * A WonderStar module's pages (docs/WONDERSTAR_PLATFORM.md §4.1). No header and no tabs of its own: the app's own four
+ * A WonderWorks module's pages (docs/WONDERWORKS_PLATFORM.md §4.1). No header and no tabs of its own: the app's own four
  * tabs (Find, Saved, Pipeline, You) are the module's while it's the active one, and each page has Jobs' structure.
  * A module that hasn't shipped shows "Coming soon".
  */

@@ -61,7 +61,7 @@ describe("screening questions on a job", () => {
     await expect(C.easyApplyForm({ userId: "x", tenantId: "x" }, [listingId(jobId)])).rejects.toMatchObject({ status: 403 });
   });
 
-  it("a required answer must be there; a must-have not met is sent, and the team sees it (WonderStar never rejects on it)", async () => {
+  it("a required answer must be there; a must-have not met is sent, and the team sees it (WonderWorks never rejects on it)", async () => {
     const { orgId, jobId, cvId } = await postedJob();
     await expect(apply(jobId, cvId, { answers: { q_years: 6 } })).rejects.toThrow(/legally allowed/);
     await expect(apply(jobId, cvId, { answers: { q_work_auth: "maybe", q_years: 6 } })).rejects.toThrow(/Yes or No/);

@@ -77,7 +77,7 @@ export function HostedApplyForm({ slug, jobId, company, retentionMonths }: { slu
       <label className="flex items-start gap-2 text-[13px] text-ink-2 sm:col-span-2">
         <input type="checkbox" checked={v.consent} onChange={(e) => set({ consent: e.target.checked })} className="mt-1 size-4 accent-brand-600" />
         <span>
-          I agree that {company} and WonderStar, which handles its applications, may store and use these details to consider me for this position and email me about it.
+          I agree that {company} and WonderWorks, which handles its applications, may store and use these details to consider me for this position and email me about it.
           {retentionMonths ? ` My application is deleted ${retentionMonths} months after its last update.` : ""}
         </span>
       </label>

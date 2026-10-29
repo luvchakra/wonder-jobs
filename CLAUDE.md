@@ -1,4 +1,4 @@
-# WonderStar — working rules for Claude
+# WonderWorks — working rules for Claude
 
 ## Every session
 
@@ -9,7 +9,7 @@
 
 WonderWorks is the shared layer (`src/wonderworks/`). WonderJobs, Internships and every other module inherit from it and extend it. Anything shared lives in WonderWorks. No module contains another module's code. A change in one module never breaks another.
 
-Users see WonderStar everywhere, the browser helper included ("WonderStar helper", owner 2026-10-29). Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
+The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then WonderStar). Users see WonderWorks everywhere, the browser helper included ("WonderWorks helper"). Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
 
 - **Find, Saved and You are the same in every module,** with Jobs' look as the reference and almost the same behaviour. A module supplies only its own fields, filters, card details and data.
 - **Only the Pipeline tab varies.** Its name, stages and views come from the module's manifest (`moduleTabs` in `wonderworks/chrome/nav.ts`). WonderJobs keeps "Pipeline"; Internships' is "Applications".
@@ -25,12 +25,12 @@ Users see WonderStar everywhere, the browser helper included ("WonderStar helper
 - **Enforced by `src/wonderworks/boundaries.test.ts`:** a module imports only WonderWorks, the app's foundation and itself; WonderWorks imports no module and none of Jobs' code. Never add to its `KNOWN` list without a plan to remove the entry.
 - **A change in one module never breaks another:** every module's tests keep passing. A change to WonderWorks is checked against every module, WonderJobs first (unit tests, the golden/outcome/jobslake specs, before/after screenshots).
 - **JobsLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
-- **Brand:** the WonderStar identity (logo, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
+- **Brand:** the brand identity (logo with the WonderWorks wordmark, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
 - **Sessions:** Each module has its own Claude session. All work for a module happens in that one session, never in another module's session, and never across several sessions for the same module. WonderWorks shared-layer work has its own session too.
 
 ## Real data only
 
-Never show a candidate anything WonderStar didn't actually find, compute or receive.
+Never show a candidate anything WonderWorks didn't actually find, compute or receive.
 
 - **Signed-in accounts see only real data.**
   - Jobs come from live sources (`server/jobs/providers.ts`).
@@ -50,7 +50,7 @@ Never show a candidate anything WonderStar didn't actually find, compute or rece
 ## AI and agent governance
 
 - **AI proposes; application code decides.**
-  - `services/ai/service.ts` / `domain/ai/types.ts` is the only model boundary: the WonderStar template provider, or Anthropic/OpenAI/Gemini BYOK.
+  - `services/ai/service.ts` / `domain/ai/types.ts` is the only model boundary: the WonderWorks template provider, or Anthropic/OpenAI/Gemini BYOK.
   - Model output is only ever a draft. It never authorizes an action, assigns ownership, or triggers a side effect.
 - **`domain/automation/policy.ts::resolveCapability` is the single gate** for every AI-touching or external-effect capability.
   - It combines the capability's risk tier, the automation level (Assist/Guided/Autonomous/Continuous) and the per-capability policy (automatic/ask/off).
@@ -64,8 +64,8 @@ Never show a candidate anything WonderStar didn't actually find, compute or rece
   - A per-job or per-application "Never" always wins.
 - **Where submission can happen:**
   - Only through the helper, on the employer's own page, in the candidate's desktop browser.
-  - **The cloud browser is retired** (WJ-347). Nothing fills or submits on WonderStar's servers, and `apps/browser-worker` is no longer called. Phones and tablets apply the traditional way, with Guide me values to copy.
-  - **Easy Apply** is the one other path, for jobs a company posted on WonderStar.
+  - **The cloud browser is retired** (WJ-347). Nothing fills or submits on WonderWorks's servers, and `apps/browser-worker` is no longer called. Phones and tablets apply the traditional way, with Guide me values to copy.
+  - **Easy Apply** is the one other path, for jobs a company posted on WonderWorks.
     - It runs only on the candidate's own press of Easy Apply (owner, 2026-10-28). That press sends at once, filled from their Career Profile, résumé and saved answers (`domain/jobs/easyApply.ts::planEasyApply`), when `resolveCapability("easy_apply")` is "run" (default Automatic); "ask" shows everything first, "off" turns it off. Anything missing (name, résumé, a required screening answer) is asked, never invented. Saved work-authorization/sponsorship answers are used only when `fill_work_authorization` runs.
     - `/api/easy-apply` → `server/careers.ts::easyApply` writes the application (account email, the details, answers to the job's screening questions, the shared skills/headline, an encrypted résumé copy) into that company's `job_applications`. The applicant can withdraw it while it's new or in review (`withdrawEasyApply`, audited).
     - Once per job and email; the database refuses a second.
@@ -107,7 +107,7 @@ Never show a candidate anything WonderStar didn't actually find, compute or rece
   - Companies read Easy Apply applications only through `applications.view`, and the résumé only via `applicationResume`.
   - Screening questions' must-haves only mark an application ("Doesn't meet"); nothing is declined automatically. Scorecards and notes (`job_application_reviews`, `applications.review`) are the team's own and never reach the applicant.
 - **Only two reads cross tenants:**
-  - Open job listings, shown as the "WonderStar employers" source.
+  - Open job listings, shown as the "WonderWorks employers" source.
   - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history.
   - A company may message a job seeker only while they're open to recruiters and haven't declined or blocked it.
 - **Sign-in connections are retired** (WJ-347). `portal_connections` is unused and kept until a migration drops it. Wonder never signs in to a portal, and the helper never reads a password field.

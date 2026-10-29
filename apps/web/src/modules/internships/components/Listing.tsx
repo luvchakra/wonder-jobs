@@ -112,7 +112,7 @@ export function InternshipSheet({ item: l, onClose }: { item: InternshipListing 
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-[12px] text-ink-4">{l.termsFrom === "company" ? `Terms as ${l.company} posted them on WonderStar.` : `Only what the posting itself states, from ${l.sourceName}.`}</p>
+      <p className="mt-2 text-[12px] text-ink-4">{l.termsFrom === "company" ? `Terms as ${l.company} posted them on WonderWorks.` : `Only what the posting itself states, from ${l.sourceName}.`}</p>
       {m.signals.length > 0 && (
         <ul aria-label="How it fits" className="mt-3 space-y-1 text-[13px]">
           {m.signals.map((s) => (
@@ -132,7 +132,7 @@ const EMPTY: InternshipListing = { id: "", origin: "outside", title: "", company
 type Sheet = { profile: StudentProfile; name: string; fileId: string | null; decision: "run" | "ask" };
 
 /**
- * Apply. On a WonderStar internship: the student's press sends their Internships profile and résumé to the company —
+ * Apply. On a WonderWorks internship: the student's press sends their Internships profile and résumé to the company —
  * at once when "Send internship applications in one tap" is Automatic, after showing them when it's Ask me, never when
  * it's Off (resolveCapability; the server checks it again and fails closed). Anything missing is asked, never invented.
  * On an outside internship: the employer's own page opens; the student can then mark it applied.
@@ -230,7 +230,7 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
   return (
     <>
       {card ? (
-        <button type="button" disabled={working} onClick={() => void start()} aria-label={`Apply to ${l.title} at ${l.company} on WonderStar`} title="Apply here on WonderStar" className={cn(APPLY_BTN, "disabled:opacity-70")}>
+        <button type="button" disabled={working} onClick={() => void start()} aria-label={`Apply to ${l.title} at ${l.company} on WonderWorks`} title="Apply here on WonderWorks" className={cn(APPLY_BTN, "disabled:opacity-70")}>
           <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
           Apply
         </button>
