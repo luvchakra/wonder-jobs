@@ -5,15 +5,18 @@
 - **End every message with the IST time** on its own last line, read fresh from `TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M IST'` (e.g. `2026-10-20 20:00 IST`). This applies to every reply. Never reuse an old time.
 - **Start from the latest `main`.** Run `git fetch origin main && git merge origin/main` (or rebase, if the branch is yours alone) before any other work and again before every push. Resolve conflicts first.
 
-## The jobs portal stays as it is (owner, 2026-10-28)
+## One structure for every module (owner, 2026-10-29)
 
-WonderJobs today — Find, Saved, Pipeline, You, Hiring, Easy Apply, JobsLake's job sources — is the **Jobs module** of WonderStar (`docs/WONDERSTAR_PLATFORM.md`).
+WonderJobs today — Find, Saved, Pipeline, You, Hiring, Easy Apply, JobsLake's job sources — is the **Jobs module** of WonderStar (`docs/WONDERSTAR_PLATFORM.md`). Every other module reuses its structure, so switching from Jobs to Internships changes only what the requirement needs.
 
-- **No change to the jobs portal** while building other modules: its screens, behaviour, copy, stores, routes and job data stay exactly as they are. Only a fix or a feature the owner asks for *for jobs* touches it.
-- **Every other module is separate:** its own routes (`/app/m/<module>`), stores, components, help, tests and data. It may reuse shared platform code (design system, auth, notifications, the AI boundary, `resolveCapability`), but never adds a mode, filter, menu item or field to a jobs screen.
+- **The same four tabs.** The app's bottom bar (`components/navigation/nav.ts`: Find, Saved, Pipeline, You) is every module's tabs. The active module is picked in Find's menu in the top bar (`FindModeMenu`: Full Time Jobs, Part Time Jobs, then the live modules) and kept per account (`store/ui.ts::activeModule`, cookie `wj_module` for `/app`). While a module is active the tabs go to `/app/m/<module>`, `/saved`, `/pipeline`, `/you`; for Jobs they are today's routes. The Pipeline label comes from the manifest.
+- **The same page structure and components.** Modules build their pages from the parts extracted from the jobs portal — `platform/find/parts.tsx` (search box, Refine button, pills, round Search, Refine panel and fields, results line, grid, card, Save), `platform/find/ModuleFind.tsx`, `platform/pipeline/parts.tsx` (stage tiles, filter chips, compact card), `components/you/YouOverview.tsx` — and Hiring's workspace layout for the owner side.
+- **Only requirement-specific things differ:** a module's fields, Refine facets, card facts, stages, persona rows and data.
+- **Never** a module-specific tab row, hero header, "Explore" link or bespoke layout inside a module's pages.
+- **Jobs stays behaviour- and pixel-identical.** A shared part extracted from jobs code must render jobs exactly as before (prove it with the jobs tests, the golden/outcome/jobslake specs and before/after screenshots). No mode, filter, menu item or field from another module is added to a jobs screen; only a fix or a feature the owner asks for *for jobs* changes the jobs portal.
+- **Separate code and data per module:** its own routes (`/app/m/<module>`), stores (`platform/moduleStore.ts`), components, help, tests and data. It may reuse shared platform code (design system, auth, notifications, the AI boundary, `resolveCapability`).
 - **JobsLake keeps a separate dataset per module.** Another module's sources and listings never appear in Jobs' searches, and Jobs' never in theirs.
-- The only shared surface is the module switcher (the Find dropdown's module list), which lists modules and links out of Jobs.
-- Exception (owner, 2026-10-28): the WonderStar brand identity (logo, colours, type, icon tiles) applies across the whole app, the jobs portal included.
+- The WonderStar brand identity (logo, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
 
 ## Real data only
 

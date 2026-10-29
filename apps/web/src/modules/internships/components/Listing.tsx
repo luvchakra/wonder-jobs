@@ -1,8 +1,13 @@
 "use client";
 import { memo, useState } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, ExternalLink, Upload } from "lucide-react";
-import { Button, IconButton } from "@/components/common/Button";
+import { ArrowUpRight, ExternalLink, Upload, Zap } from "lucide-react";
+import { Button } from "@/components/common/Button";
+import { CompanyLogo } from "@/components/common/Avatar";
+import { Badge } from "@/components/common/Badge";
+import { shortPlace } from "@/components/jobs/JobCard";
+import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/platform/find/parts";
+import { relativeTime } from "@/lib/format";
 import { Modal } from "@/components/common/Modal";
 import { Field, Input, Select } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
@@ -29,40 +34,67 @@ export function useMatch(l: InternshipListing): InternshipMatch {
   return matchInternship(l, profile ?? undefined, skills);
 }
 
-/** One internship in a list: what it pays a month, how long, when it starts, and the first reason it fits. Apply and Save. */
-export const InternshipCard = memo(function InternshipCard({ listing: l, onOpen }: { listing: InternshipListing; onOpen: (id: string) => void }) {
+/** "Strong" / "Partial" fit, in the pill Jobs uses for its match. */
+const FIT: Record<Exclude<InternshipMatch["fit"], "unknown">, { word: string; tone: string; title: string }> = {
+  strong: { word: "Strong", tone: "bg-success-100 text-success-600", title: "Strong fit — your skills, field and dates line up with it" },
+  some: { word: "Partial", tone: "bg-brand-50 text-brand-700", title: "Partial fit — some of your skills, field or dates line up with it" },
+};
+
+/**
+ * One internship in the results, on the card Jobs' Find uses (platform/find/parts.tsx): the company's logo with the fit
+ * and Apply under it; the title; company · place · duration · start · stipend a month (where a job shows work mode and
+ * salary); skills; why it fits; where it was found, and Save.
+ */
+export const InternshipCard = memo(function InternshipCard({ item: l, onOpen }: { item: InternshipListing; onOpen: (id: string) => void }) {
   const saved = useInternshipsStore((s) => !!s.saved[l.id]);
+  const applied = useInternshipsStore((s) => !!s.responses[l.id]);
   const toggle = useInternshipsStore((s) => s.toggleSaved);
   const m = useMatch(l);
-  const why = m.signals[0];
+  const fit = m.fit === "unknown" ? null : FIT[m.fit];
+  const stipend = l.terms.stipendMin || l.terms.stipendMax ? stipendLabel(l.terms) : null;
   return (
-    <li className="wj-card p-4">
-      <button type="button" onClick={() => onOpen(l.id)} className="block w-full text-left">
-        <span className="block text-[15px] font-semibold text-ink">{l.title}</span>
-        <span className="block text-[13px] text-ink-2">
+    <ResultCard
+      aside={
+        <>
+          <CompanyLogo name={l.company} logo size={44} />
+          {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.word} bottom="fit" srText={fit.title} />}
+          <ApplyButton listing={l} card />
+        </>
+      }
+      title={
+        <button type="button" onClick={() => onOpen(l.id)} className={cn(CARD_TARGET, "text-left")}>
+          {l.title}
+        </button>
+      }
+      facts={[
+        <span key="c" className="font-medium text-ink-2">
           {l.company}
-          {l.origin === "wonderstar" && !l.companyVerified ? <span className="text-ink-4"> · not verified yet</span> : null}
-        </span>
-        <span className="mt-0.5 block text-[12.5px] text-ink-3">{placeLine(l)}</span>
-        <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px] font-medium text-deep-navy">
-          <span>{stipendLabel(l.terms)}</span>
-          <span>{durationLabel(l.terms)}</span>
-          <span>{startLabel(l.terms)}</span>
-        </span>
-        {why && <span className={cn("mt-1.5 block text-[12.5px]", why.tone === "good" ? "text-success-600" : "text-warning-600")}>{why.text}</span>}
-      </button>
-      <div className="mt-3 flex items-center gap-2">
-        <ApplyButton listing={l} size="sm" />
-        <IconButton label={saved ? "Unsave" : "Save"} size="sm" onClick={() => toggle(l.id, l)} aria-pressed={saved}>
-          {saved ? <BookmarkCheck className="size-4 text-star-purple" aria-hidden /> : <Bookmark className="size-4" aria-hidden />}
-        </IconButton>
-      </div>
-    </li>
+        </span>,
+        l.origin === "wonderstar" && !l.companyVerified && <span key="v">not verified yet</span>,
+        <span key="p" title={l.location}>
+          {l.workMode === "remote" ? WORK_MODE_LABEL.remote : shortPlace(l.location)}
+        </span>,
+        l.terms.durationMonths && <span key="d">{durationLabel(l.terms)}</span>,
+        l.terms.startsOn && <span key="s">{startLabel(l.terms)}</span>,
+        stipend && (
+          <span key="$" className="font-medium text-ink-2">
+            {stipend}
+          </span>
+        ),
+      ]}
+      tags={l.skills.filter((t) => t.length <= 24).slice(0, 3)}
+      reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
+      summary={l.description.slice(0, 240)}
+      summaryTitle="From the posting"
+      status={applied && <Badge tone="success">Applied</Badge>}
+      footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}${l.terms.applyBy ? ` · apply by ${shortDate(l.terms.applyBy)}` : ""}`}
+      actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="internship" />}
+    />
   );
 });
 
 /** The whole posting: its terms (and where each came from), every match signal with its reason, and Apply. */
-export function InternshipSheet({ listing: l, onClose }: { listing: InternshipListing | null; onClose: () => void }) {
+export function InternshipSheet({ item: l, onClose }: { item: InternshipListing | null; onClose: () => void }) {
   const m = useMatch(l ?? EMPTY);
   if (!l) return null;
   return (
@@ -105,7 +137,7 @@ type Sheet = { profile: StudentProfile; name: string; fileId: string | null; dec
  * it's Off (resolveCapability; the server checks it again and fails closed). Anything missing is asked, never invented.
  * On an outside internship: the employer's own page opens; the student can then mark it applied.
  */
-export function ApplyButton({ listing: l, size = "md", full }: { listing: InternshipListing; size?: "sm" | "md"; full?: boolean }) {
+export function ApplyButton({ listing: l, size = "md", full, card }: { listing: InternshipListing; size?: "sm" | "md"; full?: boolean; /** The small Apply under a card's logo, as on Jobs' cards. */ card?: boolean }) {
   const applied = useInternshipsStore((s) => s.responses[l.id]);
   const setResponse = useInternshipsStore((s) => s.setResponse);
   const profile = useInternshipsStore(selectProfile);
@@ -122,6 +154,22 @@ export function ApplyButton({ listing: l, size = "md", full }: { listing: Intern
     useInternshipsStore.setState((s) => ({ items: { ...s.items, [l.id]: l } }));
   };
 
+  if (l.origin === "outside" && card)
+    return applied ? null : (
+      <button
+        type="button"
+        aria-label={`Apply to ${l.title} at ${l.company} on their site (opens in a new tab)`}
+        title="Apply on their site"
+        className={APPLY_BTN}
+        onClick={() => {
+          window.open(l.applyUrl, "_blank", "noopener,noreferrer");
+          toast.info(`Opened ${l.company}'s page`, "Apply there. Then mark it applied to track it in Pipeline.", { label: "I applied", onClick: () => remember("applied") });
+        }}
+      >
+        Apply
+        <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+      </button>
+    );
   if (l.origin === "outside")
     return (
       <Button
@@ -138,7 +186,7 @@ export function ApplyButton({ listing: l, size = "md", full }: { listing: Intern
       </Button>
     );
 
-  if (applied) return <Button size={size} full={full} variant="outline" href="/app/m/internships/pipeline">Applied</Button>;
+  if (applied) return card ? null : <Button size={size} full={full} variant="outline" href="/app/m/internships/pipeline">Applied</Button>;
 
   const send = async (s: Sheet) => {
     if (!s.fileId) throw new Error("Choose your résumé.");
@@ -181,9 +229,16 @@ export function ApplyButton({ listing: l, size = "md", full }: { listing: Intern
 
   return (
     <>
-      <Button size={size} full={full} loading={working} onClick={() => void start()}>
-        Apply
-      </Button>
+      {card ? (
+        <button type="button" disabled={working} onClick={() => void start()} aria-label={`Apply to ${l.title} at ${l.company} on WonderStar`} title="Apply here on WonderStar" className={cn(APPLY_BTN, "disabled:opacity-70")}>
+          <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
+          Apply
+        </button>
+      ) : (
+        <Button size={size} full={full} loading={working} onClick={() => void start()}>
+          Apply
+        </Button>
+      )}
       {sheet && <ApplySheet listing={l} sheet={sheet} onClose={() => setSheet(null)} onSend={send} onSaveProfile={(p) => useInternshipsStore.getState().setPersona({ ...p, from: "student" })} />}
     </>
   );

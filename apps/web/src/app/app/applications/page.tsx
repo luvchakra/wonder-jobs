@@ -16,11 +16,11 @@ import { removeFromPipeline } from "@/lib/pipeline";
 import { toast } from "@/components/feedback/Toast";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
+import { StageEmpty, StageFilter, StageList, StageTiles } from "@/platform/pipeline/parts";
 import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
-import { cn } from "@/lib/cn";
 import { Modal } from "@/components/common/Modal";
-import { Chip, Field, Select } from "@/components/common/Input";
+import { Field, Select } from "@/components/common/Input";
 import { ApplicationCard } from "@/components/applications/ApplicationCard";
 
 type Tab = "all" | "in_progress" | "submitted" | "interview" | "outcome";
@@ -117,18 +117,7 @@ function ApplicationsInner() {
           {/* The stages as one row of counts; tapping one shows its applications (one stage at a time). */}
           <section aria-labelledby="apps-pipeline">
             <SectionHeader title="Pipeline" />
-            <div role="tablist" aria-label="Applications by stage" className="mb-4 grid grid-cols-4 gap-2">
-              {STAGES.map((st) => {
-                const n = list.filter((a) => groupOf(a) === st.group).length;
-                const on = st.group === shownStage;
-                return (
-                  <button key={st.group} type="button" role="tab" aria-selected={on} onClick={() => setPickedStage(st.group)} className={cn("flex min-h-[64px] flex-col items-center justify-center rounded-[14px] border px-1 py-2 text-center transition-colors", on ? "border-brand-400 bg-brand-50" : "border-line bg-surface hover:border-line-strong")}>
-                    <span className={cn("text-[20px] font-semibold leading-none", n ? "text-brand-700" : "text-ink-4")}>{n}</span>
-                    <span className="mt-1 text-[11.5px] font-medium text-ink-2">{st.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <StageTiles label="Applications by stage" stages={STAGES.map((st) => ({ id: st.group, label: st.label, count: list.filter((a) => groupOf(a) === st.group).length }))} current={shownStage} onPick={setPickedStage} />
             {(() => {
               const inStage = list.filter((a) => groupOf(a) === shownStage);
               const label = STAGES.find((st) => st.group === shownStage)!.label;
@@ -151,61 +140,25 @@ function ApplicationsInner() {
               const items = pickedPrep ? inStage.filter((a) => facetsOf.get(a.id)?.includes(pickedPrep)) : pickedMoment ? inStage.filter((a) => standing.get(a.id)?.momentum === pickedMoment) : pickedRounds !== null ? inStage.filter((a) => roundsOf(a) === pickedRounds) : picked ? inStage.filter((a) => a.status === picked) : inStage;
               const filters = preparing ? (
                 prepChips.length ? (
-                  <div role="group" aria-label="Filter Preparing" className="-mt-1 mb-3 flex flex-wrap gap-1.5">
-                    <Chip active={!pickedPrep} isDefault onClick={() => setPrepFilter(null)} className="h-8 px-3 text-[12px]">
-                      All {inStage.length}
-                    </Chip>
-                    {PREP_FACETS.filter((f) => prepChips.includes(f.facet)).map((f) => (
-                      <Chip key={f.facet} active={pickedPrep === f.facet} onClick={() => setPrepFilter(pickedPrep === f.facet ? null : f.facet)} className="h-8 px-3 text-[12px]">
-                        {f.label} {inStage.filter((a) => facetsOf.get(a.id)?.includes(f.facet)).length}
-                      </Chip>
-                    ))}
-                  </div>
+                  <StageFilter label="Filter Preparing" all={inStage.length} options={PREP_FACETS.filter((f) => prepChips.includes(f.facet)).map((f) => ({ value: f.facet, label: f.label, count: inStage.filter((a) => facetsOf.get(a.id)?.includes(f.facet)).length }))} value={pickedPrep} onPick={setPrepFilter} />
                 ) : null
               ) : interviewing ? (
                 roundGroups.length > 1 ? (
-                  <div role="group" aria-label="Filter Interview by rounds done" className="-mt-1 mb-3 flex flex-wrap gap-1.5">
-                    <Chip active={pickedRounds === null} isDefault onClick={() => setRoundsFilter(null)} className="h-8 px-3 text-[12px]">
-                      All {inStage.length}
-                    </Chip>
-                    {roundGroups.map((r) => (
-                      <Chip key={r} active={pickedRounds === r} onClick={() => setRoundsFilter(pickedRounds === r ? null : r)} className="h-8 px-3 text-[12px]">
-                        {ROUND_LABEL[r]} {inStage.filter((a) => roundsOf(a) === r).length}
-                      </Chip>
-                    ))}
-                  </div>
+                  <StageFilter label="Filter Interview by rounds done" all={inStage.length} options={roundGroups.map((r) => ({ value: r, label: ROUND_LABEL[r], count: inStage.filter((a) => roundsOf(a) === r).length }))} value={pickedRounds} onPick={setRoundsFilter} />
                 ) : null
               ) : applied ? (
                 moments.length > 1 ? (
-                  <div role="group" aria-label="Filter Applied by where each stands" className="-mt-1 mb-3 flex flex-wrap gap-1.5">
-                    <Chip active={!pickedMoment} isDefault onClick={() => setMomentumFilter(null)} className="h-8 px-3 text-[12px]">
-                      All {inStage.length}
-                    </Chip>
-                    {moments.map((m) => (
-                      <Chip key={m} active={pickedMoment === m} onClick={() => setMomentumFilter(pickedMoment === m ? null : m)} className="h-8 px-3 text-[12px]">
-                        {MOMENTUM_META[m].label} {inStage.filter((a) => standing.get(a.id)?.momentum === m).length}
-                      </Chip>
-                    ))}
-                  </div>
+                  <StageFilter label="Filter Applied by where each stands" all={inStage.length} options={moments.map((m) => ({ value: m, label: MOMENTUM_META[m].label, count: inStage.filter((a) => standing.get(a.id)?.momentum === m).length }))} value={pickedMoment} onPick={setMomentumFilter} />
                 ) : null
               ) : statuses.length > 1 ? (
-                  <div role="group" aria-label={`Filter ${label} by status`} className="-mt-1 mb-3 flex flex-wrap gap-1.5">
-                    <Chip active={!picked} isDefault onClick={() => setStatusFilter(null)} className="h-8 px-3 text-[12px]">
-                      All {inStage.length}
-                    </Chip>
-                    {statuses.map((st) => (
-                      <Chip key={st} active={picked === st} onClick={() => setStatusFilter(picked === st ? null : { stage: shownStage, status: st })} className="h-8 px-3 text-[12px]">
-                        {cardStatus({ status: st }).label} {inStage.filter((a) => a.status === st).length}
-                      </Chip>
-                    ))}
-                  </div>
+                  <StageFilter label={`Filter ${label} by status`} all={inStage.length} options={statuses.map((st) => ({ value: st, label: cardStatus({ status: st }).label, count: inStage.filter((a) => a.status === st).length }))} value={picked} onPick={(st) => setStatusFilter(st === null ? null : { stage: shownStage, status: st })} />
                 ) : null;
               return items.length === 0 ? (
-                <p className="rounded-[12px] border border-dashed border-line px-3 py-4 text-center text-[13px] text-ink-3">Nothing in {label} yet.</p>
+                <StageEmpty label={label} />
               ) : (
                 <>
                 {filters}
-                <ul className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3" aria-label={label}>
+                <StageList label={label}>
                   {items.map((a) => (
                     <li key={a.id} className="relative">
                       <ApplicationCard
@@ -247,7 +200,7 @@ function ApplicationsInner() {
                       </button>
                     </li>
                   ))}
-                </ul>
+                </StageList>
                 </>
               );
             })()}

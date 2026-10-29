@@ -1,8 +1,9 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
-import { Building2 } from "lucide-react";
+import { Building2, GraduationCap, Zap } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { YouOverview } from "@/components/you/YouOverview";
 import { Button } from "@/components/common/Button";
-import { Fold } from "@/components/common/Fold";
 import { Field, Input, Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { CAPABILITY_META, type PolicyMode } from "@/domain/automation/policy";
@@ -13,18 +14,46 @@ import { selectProfile, useInternshipsStore } from "../store";
 
 const noop = () => () => undefined;
 
+const MODE_LABEL: Record<PolicyMode, string> = { automatic: "Automatic", ask: "Ask me", off: "Off" };
+
 /**
- * Internships → You (WJ-418): the student's profile — college, course, graduation year and when they can intern —
- * prefilled from their Career Profile's education when it has one (read only; nothing is written back to it), and
- * asked otherwise. Below it, the one setting this module adds (internships.apply) and, folded, posting internships
- * as a company.
+ * Internships → You (WJ-418, WJ-421): Jobs' You page — the Career Profile and its rows — with Internships' own rows in
+ * the same style: the student's details, the one setting this module adds (internships.apply) and posting internships.
  */
 export function InternshipsYou() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useInternshipsStore(selectProfile);
+  const mode = useAutomationStore((s) => s.policy["internships.apply"]) ?? "ask";
+  const details = mounted && saved ? [saved.college, saved.course].filter(Boolean).join(" · ") : "";
+  return (
+    <YouOverview
+      module={{
+        label: "Internships",
+        rows: [
+          { href: "/app/m/internships/you/profile", label: "Your details", value: details || "Add them", icon: GraduationCap },
+          { href: "/app/m/internships/you/profile#apply", label: CAPABILITY_META["internships.apply"].label, value: mounted ? MODE_LABEL[mode] : "", icon: Zap },
+          { href: "/app/m/internships/company", label: "Post internships", value: "For companies", icon: Building2 },
+        ],
+      }}
+    />
+  );
+}
+
+/**
+ * The student's Internships details — college, course, graduation year and when they can intern — prefilled from their
+ * Career Profile's education when it has one (read only; nothing is written back to it), and asked otherwise; and the
+ * one setting this module adds.
+ */
+export function InternshipsProfile() {
+  const mounted = useSyncExternalStore(noop, () => true, () => false);
+  const saved = useInternshipsStore(selectProfile);
   const dna = useCareerStore((s) => s.dna);
-  if (!mounted) return null;
-  return <ProfileForm key={saved ? "saved" : "new"} initial={saved ?? profileFromCareer(dna)} />;
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageHeader title="Your Internships details" back={{ href: "/app/m/internships/you", label: "You" }} />
+      {mounted && <ProfileForm key={saved ? "saved" : "new"} initial={saved ?? profileFromCareer(dna)} />}
+    </div>
+  );
 }
 
 function ProfileForm({ initial }: { initial: StudentProfile }) {
@@ -50,7 +79,6 @@ function ProfileForm({ initial }: { initial: StudentProfile }) {
           save();
         }}
       >
-        <h2 className="text-[15px] font-semibold text-ink">Your Internships profile</h2>
         {initial.from === "career_profile" && <p className="text-[12.5px] text-ink-3">Filled from your Career Profile&apos;s education. Check it and add when you&apos;re available.</p>}
         <div className="grid grid-cols-2 gap-3">
           <Field label="College" htmlFor="ip-college" required>
@@ -75,16 +103,11 @@ function ProfileForm({ initial }: { initial: StudentProfile }) {
           Save
         </Button>
       </form>
-      <Fold title={CAPABILITY_META["internships.apply"].label} hint={mode === "automatic" ? "Automatic" : mode === "ask" ? "Ask me" : "Off"}>
-        <p className="mb-3 text-[13px] text-ink-3">{CAPABILITY_META["internships.apply"].description}</p>
+      <section id="apply" aria-label={CAPABILITY_META["internships.apply"].label} className="wj-card scroll-mt-24 space-y-3 p-4">
+        <h2 className="text-[15px] font-semibold text-ink">{CAPABILITY_META["internships.apply"].label}</h2>
+        <p className="text-[13px] text-ink-3">{CAPABILITY_META["internships.apply"].description}</p>
         <Segmented<PolicyMode> label={CAPABILITY_META["internships.apply"].label} value={mode} onChange={(v) => setCapability("internships.apply", v)} options={[{ value: "automatic", label: "Automatic" }, { value: "ask", label: "Ask me" }, { value: "off", label: "Off" }]} />
-      </Fold>
-      <Fold title="Post internships" hint="For companies with a hiring workspace">
-        <p className="mb-3 text-[13px] text-ink-3">Companies post internships from their hiring workspace. Students apply on WonderStar.</p>
-        <Button variant="outline" href="/app/m/internships/company" icon={<Building2 className="size-4" aria-hidden />}>
-          Open Company
-        </Button>
-      </Fold>
+      </section>
     </div>
   );
 }

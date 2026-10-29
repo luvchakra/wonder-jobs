@@ -8,6 +8,7 @@ import { formatDate, formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { cn } from "@/lib/cn";
+import { StageCard } from "@/platform/pipeline/parts";
 
 const STILL_PREPARING = new Set(["preparing", "ready_for_review", "saved"]);
 
@@ -66,26 +67,7 @@ export function ApplicationCard({ application, job, compact = false, actionSpace
   if (compact) {
     // A narrow pipeline column has no room for the full horizontal row (badge/chevron/next-action
     // wrap awkwardly at ~280px) — stack company, role and status instead.
-    return (
-      <Link href={href} className={cn("wj-card wj-elevate flex flex-col gap-2 p-3", className)}>
-        <div className="flex items-start gap-2.5">
-          <CompanyLogo name={info?.company ?? "?"} domain={info?.companyDomain} logo size={32} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-semibold text-ink">{company}</span>
-            <span className="line-clamp-2 text-[12px] text-ink-2">{title}</span>
-            {line && <span className="block truncate text-[11.5px] text-ink-3">{line}</span>}
-          </span>
-        </div>
-        {step && <span className="block truncate text-[11.5px] font-medium text-brand-700">{step}</span>}
-        {tags.length > 0 && <Tags tags={tags} />}
-        <div className={cn("flex items-center justify-between gap-2", actionSpace && "min-h-9")}>
-          <Badge tone={meta.tone} className="shrink-0">
-            {meta.label}
-          </Badge>
-          <span className={cn("truncate text-[11px] text-ink-4", actionSpace && "hidden")}>{application.appliedAt ? relativeTime(application.appliedAt) : relativeTime(application.createdAt)}</span>
-        </div>
-      </Link>
-    );
+    return <StageCard href={href} logo={{ name: info?.company ?? "?", domain: info?.companyDomain }} company={company} title={title} line={line} step={step} tags={tags} badge={meta} when={application.appliedAt ? relativeTime(application.appliedAt) : relativeTime(application.createdAt)} actionSpace={actionSpace} className={className} />;
   }
 
   return (

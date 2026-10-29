@@ -1,23 +1,30 @@
 "use client";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { CalendarClock, Inbox } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/common/Button";
+import type { Tone } from "@/components/common/Badge";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
+import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { toast } from "@/components/feedback/Toast";
 import { moduleById } from "@/modules/registry";
-import { cn } from "@/lib/cn";
+import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/platform/pipeline/parts";
+import { relativeTime } from "@/lib/format";
 import { call } from "../api";
-import { canWithdraw, deadlines, shortDate, stageOf, STATUS_LABEL, stipendLabel, durationLabel, type InternshipListing, type MyInternshipApplication } from "../domain";
+import { canWithdraw, deadlines, durationLabel, shortDate, stageOf, STATUS_LABEL, stipendLabel, type InternshipListing, type InternshipStatus, type MyInternshipApplication } from "../domain";
 import { savedItems, useInternshipsStore } from "../store";
 
 const noop = () => () => undefined;
 
-type Item = { id: string; title: string; company: string; stage: string; status: string; at: string; app?: MyInternshipApplication; outside?: InternshipListing };
+type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; line: string; at: string; app?: MyInternshipApplication; outside?: InternshipListing };
+
+const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "brand", offer: "success", accepted: "success", closed: "neutral", withdrawn: "neutral" };
 
 /**
- * Internships' Pipeline (WJ-418): Applied · Shortlisted · Offer · Accepted / Closed with real counts, opening on the stage
- * with something to do, and Deadlines. WonderStar applications come from the server (what the company actually did);
- * outside ones are those the student marked applied after applying on the employer's page.
+ * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Applied · Shortlisted ·
+ * Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
+ * chips; the same compact cards, with the one action each needs; then Deadlines. WonderStar applications come from the
+ * server (what the company actually did); outside ones are those the student marked applied after applying on the
+ * employer's page.
  */
 export function InternshipsPipeline() {
   const stages = moduleById("internships")!.pipeline.stages;
@@ -28,6 +35,7 @@ export function InternshipsPipeline() {
   const [apps, setApps] = useState<MyInternshipApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = () =>
@@ -39,11 +47,11 @@ export function InternshipsPipeline() {
   }, []);
 
   const list: Item[] = useMemo(() => {
-    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status), status: STATUS_LABEL[a.status], at: a.updatedAt, app: a }));
+    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status), status: STATUS_LABEL[a.status], tone: TONE[a.status], line: `${stipendLabel(a.terms)} · ${durationLabel(a.terms)}`, at: a.updatedAt, app: a }));
     if (mounted)
       for (const [id, r] of Object.entries(responses)) {
         const l = items[id] as InternshipListing | undefined;
-        if (l?.origin === "outside") out.push({ id, title: l.title, company: l.company, stage: r.stage, status: "Applied on their site", at: r.at, outside: l });
+        if (l?.origin === "outside") out.push({ id, title: l.title, company: l.company, stage: r.stage, status: "Applied on their site", tone: "info", line: l.location, at: r.at, outside: l });
       }
     return out.sort((a, b) => b.at.localeCompare(a.at));
   }, [apps, responses, items, mounted]);
@@ -56,7 +64,11 @@ export function InternshipsPipeline() {
   const count = (stage: string) => list.filter((i) => i.stage === stage).length;
   // Opens on the stage with something to do: an offer to answer first, then the earliest stage with anything in it.
   const current = tab ?? (count("offer") ? "offer" : (stages.find((s) => count(s.id))?.id ?? stages[0].id));
-  const shown = list.filter((i) => i.stage === current);
+  const label = stages.find((s) => s.id === current)!.label;
+  const inStage = list.filter((i) => i.stage === current);
+  const statuses = [...new Set(inStage.map((i) => i.status))];
+  const picked = status && statuses.includes(status) ? status : null;
+  const shown = picked ? inStage.filter((i) => i.status === picked) : inStage;
 
   const act = async (id: string, action: "withdraw" | "accept") => {
     setBusy(id);
@@ -73,67 +85,74 @@ export function InternshipsPipeline() {
 
   return (
     <div>
-      {due.length > 0 && (
-        <section aria-label="Deadlines" className="wj-card mb-4 p-4">
-          <h2 className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-            <CalendarClock className="size-4 text-star-purple" aria-hidden /> Deadlines
-          </h2>
-          <ul className="mt-2 space-y-1.5 text-[13px]">
-            {due.slice(0, 8).map((d) => (
-              <li key={d.id} className="flex justify-between gap-3">
-                <span className="min-w-0 truncate text-ink-2">
-                  {d.title} · {d.company}
-                </span>
-                <span className="shrink-0 text-ink-3">
-                  {d.label} {shortDate(d.date)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <div role="tablist" aria-label="Stages" className="mb-4 flex flex-wrap gap-2">
-        {stages.map((s) => (
-          <button key={s.id} type="button" role="tab" aria-selected={current === s.id} onClick={() => setTab(s.id)} className={cn("rounded-full px-3 py-1 text-[13px]", current === s.id ? "wj-gradient-bg text-white" : "bg-surface-2 text-ink-2")}>
-            {s.label} <span className={current === s.id ? "text-white/80" : "text-ink-4"}>{count(s.id)}</span>
-          </button>
-        ))}
-      </div>
-      {shown.length === 0 ? (
-        <EmptyState icon={<Inbox className="size-5" aria-hidden />} title={list.length ? "Nothing in this stage" : "Nothing in Pipeline yet"} body={list.length ? undefined : "Internships you apply to show here, with where each stands."} action={list.length ? undefined : { label: "Find internships", href: "/app/m/internships" }} />
+      <PageHeader title="Applications" />
+      {list.length === 0 && due.length === 0 ? (
+        <EmptyState title="No applications yet" body="Internships you apply to show here, with where each stands." action={{ label: "Find internships", href: "/app/m/internships" }} />
       ) : (
-        <ul className="space-y-3">
-          {shown.map((i) => (
-            <li key={i.id} className="wj-card flex items-center gap-3 p-4">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-semibold text-ink">{i.title}</p>
-                <p className="truncate text-[13px] text-ink-2">{i.company}</p>
-                <p className="text-[12.5px] text-ink-3">
-                  {i.status}
-                  {i.app ? ` · ${stipendLabel(i.app.terms)} · ${durationLabel(i.app.terms)}` : ""}
-                </p>
-              </div>
-              {i.app?.status === "offer" ? (
-                <div className="flex shrink-0 flex-col gap-1">
-                  <Button size="sm" loading={busy === i.id} onClick={() => void act(i.id, "accept")}>
-                    Accept
-                  </Button>
-                  <button type="button" className="text-[12px] text-ink-3 underline" onClick={() => void act(i.id, "withdraw")}>
-                    Decline
-                  </button>
-                </div>
-              ) : i.app && canWithdraw(i.app.status) ? (
-                <Button size="sm" variant="ghost" loading={busy === i.id} onClick={() => void act(i.id, "withdraw")}>
-                  Withdraw
-                </Button>
-              ) : i.outside ? (
-                <Button size="sm" variant="ghost" onClick={() => useInternshipsStore.setState((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== i.id)) }))}>
-                  Remove
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-6">
+          <section aria-label="Pipeline">
+            <SectionHeader title="Pipeline" />
+            <StageTiles
+              label="Applications by stage"
+              stages={stages.map((s) => ({ id: s.id, label: s.label, count: count(s.id) }))}
+              current={current}
+              onPick={(id) => {
+                setTab(id);
+                setStatus(null);
+              }}
+            />
+            {shown.length === 0 ? (
+              <StageEmpty label={label} />
+            ) : (
+              <>
+                {statuses.length > 1 && <StageFilter label={`Filter ${label} by status`} all={inStage.length} options={statuses.map((st) => ({ value: st, label: st, count: inStage.filter((i) => i.status === st).length }))} value={picked} onPick={setStatus} />}
+                <StageList label={label}>
+                  {shown.map((i) => {
+                    const offer = i.app?.status === "offer";
+                    const withdraw = !!i.app && !offer && canWithdraw(i.app.status);
+                    return (
+                      <li key={i.id} className="relative">
+                        <StageCard logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} when={relativeTime(i.at)} actionSpace={offer || withdraw} className={i.outside ? "pr-11" : undefined} />
+                        {offer && (
+                          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+                            <Button size="sm" variant="ghost" loading={busy === i.id} onClick={() => void act(i.id, "withdraw")} aria-label={`Decline the offer from ${i.company}`}>
+                              Decline
+                            </Button>
+                            <Button size="sm" loading={busy === i.id} onClick={() => void act(i.id, "accept")} aria-label={`Accept the offer from ${i.company}`}>
+                              Accept
+                            </Button>
+                          </div>
+                        )}
+                        {withdraw && (
+                          <Button size="sm" variant="ghost" className="absolute bottom-3 right-3" loading={busy === i.id} onClick={() => void act(i.id, "withdraw")} aria-label={`Withdraw your application to ${i.company}`}>
+                            Withdraw
+                          </Button>
+                        )}
+                        {i.outside && (
+                          <button type="button" onClick={() => useInternshipsStore.setState((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== i.id)) }))} aria-label={`Remove ${i.company} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
+                            <X className="size-4" aria-hidden />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </StageList>
+              </>
+            )}
+          </section>
+          {due.length > 0 && (
+            <section aria-label="Deadlines">
+              <SectionHeader title="Deadlines" />
+              <StageList label="Deadlines">
+                {due.slice(0, 9).map((d) => (
+                  <li key={d.id}>
+                    <StageCard logo={{ name: d.company }} company={d.company} title={d.title} badge={{ label: `${d.label} ${shortDate(d.date)}`, tone: d.label === "Starts" ? "success" : "warning" }} when="" />
+                  </li>
+                ))}
+              </StageList>
+            </section>
+          )}
+        </div>
       )}
     </div>
   );

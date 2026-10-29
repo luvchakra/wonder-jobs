@@ -9,6 +9,7 @@ import { useApplicationsStore } from "@/store/applications";
 import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
+import { ResultsGrid, ResultsLine, ShowMore } from "@/platform/find/parts";
 import { JobCard } from "@/components/jobs/JobCard";
 import { EASY_APPLY_SOURCE, JobFiltersBar, SortMenu, type SourceSearch } from "@/components/jobs/JobFilters";
 import { savedTextMatches } from "@/domain/jobs/savedText";
@@ -240,13 +241,8 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
         <>
           <h2 className="wj-sr-only">Job results</h2>
           {/* How many, from where — and the order they're in. */}
-          {(summary || !savedOnly) && (
-            <div className="mb-3 flex items-center gap-3">
-              <p className="min-w-0 flex-1 text-[13px] text-ink-3">{summary}</p>
-              {!savedOnly && <SortMenu />}
-            </div>
-          )}
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Job results">
+          {(summary || !savedOnly) && <ResultsLine summary={summary} sort={!savedOnly && <SortMenu />} />}
+          <ResultsGrid label="Job results">
             {visible.map((id) => (
               <li key={id}>
                 <JobResult
@@ -263,7 +259,7 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
                 />
               </li>
             ))}
-          </ul>
+          </ResultsGrid>
           {compare.length > 0 && (
             <div className="fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-30 mx-auto flex max-w-md items-center gap-3 rounded-[16px] border border-line bg-surface p-3 shadow-lg md:bottom-6" role="region" aria-label="Compare opportunities">
               <GitCompareArrows className="size-5 shrink-0 text-brand-600" aria-hidden />
@@ -281,13 +277,7 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
               </Button>
             </div>
           )}
-          {visible.length < results.length && (
-            <div className="mt-5 flex justify-center">
-              <Button variant="outline" onClick={() => setLimit((l) => l + PAGE)}>
-                Show more ({results.length - visible.length} left)
-              </Button>
-            </div>
-          )}
+          {visible.length < results.length && <ShowMore left={results.length - visible.length} onClick={() => setLimit((l) => l + PAGE)} />}
         </>
       )}
       {footer}

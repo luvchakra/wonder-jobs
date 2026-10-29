@@ -26,6 +26,7 @@ const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.Co
 import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
 import { RunningIndicator } from "./RunningIndicator";
 import { FindModeMenu } from "./FindModeMenu";
+import { isLive, MODULES } from "@/modules/registry";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 
@@ -54,7 +55,9 @@ export function TopBar() {
     [applications, hour, dna, learnedSignals],
   );
   // Full Time / Part Time is a choice on Find only: its menu sits beside the avatar there.
-  const onFind = usePathname() === "/app/jobs";
+  // Find's menu (Full Time, Part Time and the live WonderStar modules) shows on Jobs' Find and on each live module's.
+  const path = usePathname();
+  const onFind = path === "/app/jobs" || MODULES.some((m) => m.id !== "jobs" && isLive(m) && m.routes.find === path);
   const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);

@@ -19,6 +19,7 @@ import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
+import { SearchingBanner } from "@/platform/find/parts";
 
 /* ------------------------------------------------------------------ blocker */
 
@@ -305,15 +306,17 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
     // the moving mark, what's happening, a live count and a progress sweep — not a line of grey text.
     // The mark with Stop under it on the left; what it's for fills the rest of the card, in full, wrapping if it must.
     return (
-      <div role="status" aria-live="polite" className="mb-4 overflow-hidden rounded-2xl border border-brand-300 bg-brand-50">
-        <div className="flex items-start gap-3 px-4 py-3">
-          <div className="flex shrink-0 flex-col items-center gap-1.5">
+      <SearchingBanner
+        aside={
+          <>
             <WonderSearching size={32} />
             {/* Stop: the search ends and the list goes back to what it was before it started. */}
             <button type="button" onClick={() => void search.stop()} className="inline-flex min-h-8 items-center rounded-full border border-brand-300 bg-surface px-2.5 text-[12px] font-medium text-brand-700 hover:bg-brand-100">
               Stop
             </button>
-          </div>
+          </>
+        }
+      >
           {/* The words themselves open the search's details (no separate button). */}
           <Link href={`/app/runs/${active.id}?from=find`} aria-label={`Details of this search: ${stage?.activeLabel ?? "Searching"}`} className="min-w-0 flex-1 space-y-0.5 pt-1">
             <p className="text-[15px] font-semibold leading-5 text-ink">{stage?.activeLabel ?? "Searching"}…</p>
@@ -325,11 +328,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
               {searchedAs(active.config) && <span className="font-medium text-brand-700"> · as {searchedAs(active.config)}</span>}
             </p>
           </Link>
-        </div>
-        <div className="h-1 w-full overflow-hidden bg-brand-200" aria-hidden>
-          <div className="wj-sweep h-full w-2/5 rounded-full bg-brand-500" />
-        </div>
-      </div>
+      </SearchingBanner>
     );
   }
   if (!last) return null;

@@ -1,19 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, GitCompareArrows, History, Search, SlidersHorizontal, X } from "lucide-react";
+import { GitCompareArrows } from "lucide-react";
 import type { JobFilters as Filters, JobSort, JobSource, WorkMode } from "@/domain/jobs/types";
 import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
 import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/findMode";
-import { Chip, Input, Select } from "@/components/common/Input";
+import { Chip } from "@/components/common/Input";
 import { useBottomBar } from "@/components/navigation/MobileNav";
 import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
-import { Button } from "@/components/common/Button";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { DictateButton } from "@/components/common/DictateButton";
-import { PlaceInput } from "@/components/common/PlaceInput";
+import { ChoiceChips, DictationNotes, FilterBox, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/platform/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -52,36 +50,6 @@ const LEVELS: { value: NonNullable<Filters["levels"]>[number]; label: string }[]
   { value: "director", label: "Director+" },
 ];
 
-/** The last few searches under a box while it has focus: a tap uses one, × forgets it. */
-function RecentSearches({ items, onPick, onForget }: { items: string[]; onPick: (t: string) => void; onForget: (t: string) => void }) {
-  if (!items.length) return null;
-  return (
-    // Taps here mustn't take the focus from the box first (that would close the list before the tap lands).
-    <ul aria-label="Recent searches" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
-      {items.map((t) => (
-        <li key={t} className="flex items-center">
-          <button type="button" onClick={() => onPick(t)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left text-[14px] text-ink hover:bg-bg-soft">
-            <History className="size-4 shrink-0 text-ink-4" aria-hidden />
-            <span className="truncate">{t}</span>
-          </button>
-          <button type="button" aria-label={`Remove “${t}” from recent searches`} onClick={() => onForget(t)} className="mr-1 grid size-11 shrink-0 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-ink">
-            <X className="size-4" aria-hidden />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** What's typed, against a history: the ones containing it, not itself. */
-const historyFor = (items: string[], text: string) => {
-  const now = text.trim().toLowerCase();
-  return items.filter((t) => t.toLowerCase() !== now && (!now || t.toLowerCase().includes(now)));
-};
-
-/** Refine's chips: small enough that each group fits one line on a phone. */
-const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[430px]:px-2 max-[380px]:px-1.5 max-[380px]:text-[11.5px]";
-
 /** Each mode's own job types (domain/jobs/findMode.ts). */
 function JobTypeChips({ filters, onChange, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const picked = filters.jobTypes ?? [];
@@ -109,30 +77,12 @@ const refineCount = (f: Filters, profilePlaces?: string[]) =>
 /** Full Time's places count only when they differ from the Career Profile's own (in any order). */
 const placesChanged = (picked: string[] | undefined, profile: string[] | undefined) => picked !== undefined && (!profile || [...picked].map((p) => p.toLowerCase()).sort().join("|") !== [...profile].map((p) => p.toLowerCase()).sort().join("|"));
 
-const PILL = "relative flex h-10 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
-
 /** Opens and closes Find's Refine panel: the first control in the row under Looking for / the search box. */
 export function RefineButton({ count: shown, className }: { /** What's set now, as the open panel shows it; defaults to the saved filters. */ count?: number; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   const saved = useJobsStore((s) => refineCount(s.filters));
-  const count = shown ?? saved;
-  return (
-    <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", more && "border-brand-200 bg-brand-50", className)}>
-      <SlidersHorizontal className="size-4" aria-hidden />
-      {count ? <span>{count}</span> : null}
-    </button>
-  );
-}
-
-/** A pill that opens Refine at its own section, labelled with what's picked there. */
-function PillButton({ label, shown, open, onClick, className }: { label: string; shown: string; open: boolean; onClick: () => void; className?: string }) {
-  return (
-    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-2.5 max-[430px]:pr-1.5 max-[430px]:text-[12.5px]", className)}>
-      <span className="min-w-0 flex-1 truncate">{shown}</span>
-      <ChevronDown className="size-4 shrink-0 text-ink-2 max-[430px]:size-3.5" aria-hidden />
-    </button>
-  );
+  return <RefineToggle open={more} count={shown ?? saved} onToggle={() => setMore((m) => !m)} className={className} />;
 }
 
 const SALARY_LAKH = [5, 10, 20, 30, 50];
@@ -144,28 +94,12 @@ const SORT_LABEL: Record<JobSort, string> = { best_match: "Relevance", date: "Ne
 export function SortMenu({ className }: { className?: string }) {
   const sort = useJobsStore((s) => s.sort);
   const setSort = useJobsStore((s) => s.setSort);
-  return (
-    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-3 [&_select]:outline-none", className)}>
-      Sort by <span className="font-semibold text-ink">{SORT_LABEL[sort]}</span>
-      <ChevronDown className="size-4 text-ink-2" aria-hidden />
-      <select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as JobSort)} className="absolute inset-0 cursor-pointer opacity-0">
-        {(Object.keys(SORT_LABEL) as JobSort[]).map((k) => (
-          <option key={k} value={k}>
-            {SORT_LABEL[k]}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  return <SortSelect value={sort} labels={SORT_LABEL} onChange={setSort} className={className} />;
 }
 
 /** Easy Apply works only on jobs posted on WonderJobs: the "WonderJobs employers" source. */
 export const EASY_APPLY_SOURCE = "employers";
 export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && sourceIds[0] === EASY_APPLY_SOURCE;
-
-const SAVED_TOGGLE = "inline-flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors";
-const SAVED_TOGGLE_ON = "border-brand-200 bg-brand-50 text-brand-700";
-const SAVED_TOGGLE_OFF = "border-line bg-surface text-ink-2 hover:text-ink";
 
 /**
  * Full Time searches the Career Profile (Looking for, on the page); Part Time what's typed in its box
@@ -224,7 +158,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     const t = setTimeout(() => setSection(null), 1600);
     return () => clearTimeout(t);
   }, [more, section]);
-  const sectionClass = (at: RefineSection) => cn("-m-1.5 flex flex-col gap-1 rounded-[12px] p-1.5 text-[13px] font-medium text-ink-2 outline-none transition-shadow", section === at && "ring-2 ring-brand-400 bg-brand-50/60");
+  const sectionClass = (at: RefineSection) => refineSectionClass(section === at);
   const view = viewOf(filters);
   const partTime = findModeOf(filters) === "part_time";
   // Part Time's last few searches, under the box while it has focus; one tap searches again.
@@ -271,109 +205,85 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
         }}
       >
         {partTime && (
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
-          <Input
+          <SearchBox
             value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              if (dictation.listening) dictation.rebase(e.target.value);
-            }}
-            onFocus={() => setBoxFocused(true)}
-            onBlur={() => setBoxFocused(false)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setBoxFocused(false);
+            onValue={setDraft}
+            onClear={() => {
+              setDraft("");
+              if (filters.query) onChange({ query: "" });
             }}
             placeholder="Search jobs, skills or companies"
-            aria-label="Search jobs"
-            enterKeyHint="search"
-            className={cn("h-10 rounded-full pl-10", dictation.supported ? "pr-20" : "pr-10")}
+            label="Search jobs"
+            dictation={dictation}
+            dictateLabel="what you're looking for"
+            focused={boxFocused}
+            onFocused={setBoxFocused}
+            history={history}
+            onPick={(t) => {
+              setDraft(t);
+              setBoxFocused(false);
+              (document.activeElement as HTMLElement | null)?.blur();
+              submit(t);
+            }}
+            onForget={(t) => forgetSearch(t)}
           />
-          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
-            {draft && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => {
-                  setDraft("");
-                  if (filters.query) onChange({ query: "" });
-                }}
-                className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink"
-              >
-                <X className="size-4" aria-hidden />
-              </button>
-            )}
-            {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what you're looking for" />}
-          </div>
-          {boxFocused && (
-            <RecentSearches
-              items={history}
-              onPick={(t) => {
-                setDraft(t);
-                setBoxFocused(false);
-                (document.activeElement as HTMLElement | null)?.blur();
-                submit(t);
-              }}
-              onForget={(t) => forgetSearch(t)}
-            />
-          )}
-        </div>
         )}
         {/* Refine, work mode, pay and the search — one row, the same in both modes. */}
         <div className="flex items-center gap-2">
           <RefineButton count={activeCount} />
           <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="min-w-0 flex-auto" />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
-          <button type="submit" aria-label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} title={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className="wj-gradient-bg grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-            <ArrowRight className="size-5" aria-hidden />
-          </button>
+          <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} />
         </div>
       </form>
       {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
-      {dictation.listening && <p aria-live="polite" className="-mt-1 text-[12px] text-ink-3">{dictation.interim ? `Hearing: ${dictation.interim}` : "Listening — say the role and where, e.g. “IAM director roles in Mumbai”."}</p>}
-      {dictation.error && <p role="alert" className="-mt-1 text-[12px] text-danger-600">{dictation.error}</p>}
+      <DictationNotes dictation={dictation} hint="Listening — say the role and where, e.g. “IAM director roles in Mumbai”." />
       {more && (
-        <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
-          <div className="-mb-1 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-3">
-            {/* Back to the list without changing anything typed here. */}
-            <button type="button" onClick={() => setMore(false)} className="inline-flex min-h-8 items-center gap-1.5 text-[13px] font-medium text-ink-2 hover:text-ink">
-              <ArrowLeft className="size-4" aria-hidden /> Back to jobs
-            </button>
-            {/* Easy Apply is for jobs companies posted on WonderJobs, so this narrows the list to that one source. */}
-            <label title="Only jobs you can send with Easy Apply" className="flex min-h-8 shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
-              <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={easyApplyOnly(filters.sourceIds)} onChange={(e) => onChange({ sourceIds: e.target.checked ? [EASY_APPLY_SOURCE] : [] })} />
-              <span>Easy Apply only</span>
-            </label>
-          </div>
-          {refineTop && <div className="border-b border-line pb-2 sm:col-span-2 lg:col-span-3 [&>*:last-child]:mb-0">{refineTop}</div>}
+        <RefinePanel
+          backLabel="Back to jobs"
+          onBack={() => setMore(false)}
+          // Easy Apply is for jobs companies posted on WonderJobs, so this narrows the list to that one source.
+          corner={<RefineCheck label="Easy Apply only" title="Only jobs you can send with Easy Apply" checked={easyApplyOnly(filters.sourceIds)} onChange={(on) => onChange({ sourceIds: on ? [EASY_APPLY_SOURCE] : [] })} />}
+          top={refineTop}
+          onSave={() => {
+            commit();
+            setMore(false);
+          }}
+          links={
+            <>
+              <button type="button" onClick={() => onCompare(!compare)} aria-pressed={compare} className="inline-flex min-h-8 items-center gap-1.5 font-medium text-brand-600 hover:underline">
+                <GitCompareArrows className="size-3.5" aria-hidden /> {compare ? "Stop comparing" : "Compare jobs"}
+              </button>
+              {activeCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Everything back to where the mode starts: places too (Full Time's follow the profile again).
+                    onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, locations: filters.skipProfile ? [] : undefined });
+                    setWhere((filters.skipProfile ? [] : (sourceSearch?.places ?? [])).join(", "));
+                    if (searchAs?.set) searchAs.clear();
+                    useJobsStore.getState().setSort("best_match");
+                  }}
+                  className="inline-flex min-h-8 items-center font-medium text-ink-3 hover:text-ink hover:underline"
+                >
+                  Clear refinements
+                </button>
+              )}
+            </>
+          }
+        >
           {/* Show and Posted share a row: both are short. */}
           <div className="flex items-start gap-3 sm:col-span-2 lg:col-span-3">
             {views && (
-              <div className="flex min-w-0 flex-1 flex-col gap-1 text-[13px] font-medium text-ink-2">
-                Show
-                <div className="flex flex-wrap gap-1">
-                  {VIEWS.map((v) => (
-                    <Chip key={v.value} active={view === v.value} isDefault={v.value === "all"} onClick={() => onChange(VIEW_PATCH[v.value])} className={REFINE_CHIP}>
-                      {v.label}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
+              <RefineField label="Show" className="min-w-0 flex-1">
+                <ChoiceChips options={VIEWS.map((v) => ({ ...v, isDefault: v.value === "all" }))} value={view} onPick={(v) => onChange(VIEW_PATCH[v])} />
+              </RefineField>
             )}
-            <label className="flex w-32 shrink-0 flex-col gap-1 text-[13px] font-medium text-ink-2">
-              Posted
-              <Select className="h-9 text-[14px]" value={filters.freshnessDays ?? ""} onChange={(e) => onChange({ freshnessDays: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">Any time</option>
-                <option value="1">Last 24 hours</option>
-                <option value="7">Last week</option>
-                <option value="30">Last month</option>
-              </Select>
-            </label>
+            <RefineSelect label="Posted" value={String(filters.freshnessDays ?? "")} onChange={(v) => onChange({ freshnessDays: v ? Number(v) : null })} options={POSTED} />
           </div>
-          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-            Job type
+          <RefineField label="Job type">
             <JobTypeChips filters={filters} onChange={onChange} className="flex-wrap overflow-visible" />
-          </div>
+          </RefineField>
           {/* Work mode, with Hide Pipeline beside it (jobs you're already preparing, have applied to or are interviewing for). */}
           <div className="flex items-end gap-3">
             <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={cn(sectionClass("work_mode"), "min-w-0 flex-1")}>
@@ -386,31 +296,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
                 ))}
               </div>
             </div>
-            <label title="Hide jobs you're already applying to" className="flex min-h-7 shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
-              <input type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-              <span>Hide Pipeline</span>
-            </label>
+            <RefineCheck label="Hide Pipeline" title="Hide jobs you're already applying to" checked={!!filters.hideInPipeline} onChange={(on) => onChange({ hideInPipeline: on })} className="min-h-7" />
           </div>
           <div id="wj-refine-salary" role="group" aria-label="Salary" tabIndex={-1} className={sectionClass("salary")}>
             Salary
-            <div className="flex flex-wrap gap-1">
-              <Chip active={!filters.minSalary} isDefault onClick={() => onChange({ minSalary: undefined })} className={REFINE_CHIP}>
-                Any
-              </Chip>
-              {salaryOptions.map((l) => (
-                <Chip key={l} active={!!filters.minSalary && lakh(filters.minSalary) === l} onClick={() => onChange({ minSalary: l * 100_000 })} className={REFINE_CHIP}>
-                  ₹{l}L+
-                </Chip>
-              ))}
-            </div>
+            <ChoiceChips options={[{ value: -1, label: "Any", isDefault: true }, ...salaryOptions.map((l) => ({ value: l, label: <>₹{l}L+</> }))]} value={filters.minSalary ? lakh(filters.minSalary) : -1} onPick={(l) => onChange({ minSalary: l < 0 ? undefined : l * 100_000 })} />
           </div>
-          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-            <span aria-hidden>Location</span>
-            {/* Real places worldwide as you type; each picked one a pill, as many as wanted. */}
-            <PlaceInput inputClassName="h-9 text-[14px]" label="Location" places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} placeholder={splitPlaces(where).some((p) => !/^remote$/i.test(p)) ? "Add another place" : "Anywhere — e.g. Dubai"} />
-          </div>
-          <div className="flex flex-col gap-1 text-[13px] font-medium text-ink-2">
-            Level
+          <RefinePlaces places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} />
+          <RefineField label="Level">
             <div className="flex flex-wrap gap-1">
               {LEVELS.map((l) => (
                 <Chip key={l.value} active={!!filters.levels?.includes(l.value)} onClick={() => onChange({ levels: filters.levels?.includes(l.value) ? filters.levels.filter((x) => x !== l.value) : [...(filters.levels ?? []), l.value] })} className={REFINE_CHIP}>
@@ -418,118 +311,31 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
                 </Chip>
               ))}
             </div>
-          </div>
-          {/* One action: keep what's set here and go back to the list. */}
-          <div className="sticky bottom-[calc(var(--wj-mobile-nav-h)+0.5rem)] flex flex-wrap items-center gap-2 border-t border-line bg-surface pt-2 sm:col-span-2 md:bottom-2 lg:col-span-3">
-            <Button
-              className="min-w-0 flex-1 sm:flex-none"
-              onClick={() => {
-                commit();
-                setMore(false);
-              }}
-            >
-              Save
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 text-[13px] sm:col-span-2 lg:col-span-3">
-            <button type="button" onClick={() => onCompare(!compare)} aria-pressed={compare} className="inline-flex min-h-8 items-center gap-1.5 font-medium text-brand-600 hover:underline">
-              <GitCompareArrows className="size-3.5" aria-hidden /> {compare ? "Stop comparing" : "Compare jobs"}
-            </button>
-            {activeCount > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  // Everything back to where the mode starts: places too (Full Time's follow the profile again).
-                  onChange({ minFit: null, exactFit: false, workModes: [], levels: [], jobTypes: [], company: "", salaryListed: false, strictProfile: false, hideInPipeline: false, sourceIds: [], freshnessDays: null, minSalary: undefined, locations: filters.skipProfile ? [] : undefined });
-                  setWhere((filters.skipProfile ? [] : (sourceSearch?.places ?? [])).join(", "));
-                  if (searchAs?.set) searchAs.clear();
-                  useJobsStore.getState().setSort("best_match");
-                }}
-                className="inline-flex min-h-8 items-center font-medium text-ink-3 hover:text-ink hover:underline"
-              >
-                Clear refinements
-              </button>
-            )}
-          </div>
-        </div>
+          </RefineField>
+        </RefinePanel>
       )}
     </div>
   );
 }
 
+const POSTED = [
+  { value: "", label: "Any time" },
+  { value: "1", label: "Last 24 hours" },
+  { value: "7", label: "Last week" },
+  { value: "30", label: "Last month" },
+];
+
 /** Saved's own filter row (Saved has no Refine): the words narrow the saved jobs as they're typed; the job types and Hide Pipeline. */
 function ShortlistFilters({ text, onText, filters, onChange, className }: { text: string; onText: (t: string) => void; filters: Filters; onChange: (patch: Partial<Filters>) => void; className?: string }) {
   const dictation = useDictation({ textAtStart: () => text, onText });
   const recent = useJobsStore((s) => s.recentSavedSearches);
-  const [focused, setFocused] = useState(false);
-  // Enter (or the arrow): the words stay as the filter, go into Saved's history and the keyboard closes.
-  const enter = (t = text) => {
-    useJobsStore.getState().rememberSearch(t, "saved");
-    setFocused(false);
-    (document.activeElement as HTMLElement | null)?.blur();
-  };
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <form
-        className="relative min-w-0"
-        onSubmit={(e) => {
-          e.preventDefault();
-          enter();
-        }}
-      >
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
-        {/* A plain text box: the browser's own clear button would be a second ×. */}
-        <Input
-          inputMode="search"
-          value={text}
-          onChange={(e) => {
-            onText(e.target.value);
-            if (dictation.listening) dictation.rebase(e.target.value);
-          }}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setFocused(false);
-          }}
-          placeholder="Filter saved jobs"
-          aria-label="Filter saved jobs"
-          enterKeyHint="search"
-          className={cn("h-11 rounded-full pl-10 sm:h-12", text ? (dictation.supported ? "pr-28" : "pr-20") : dictation.supported ? "pr-12" : "pr-4")}
-        />
-        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-          {text && (
-            <button type="button" aria-label="Clear filter" onClick={() => onText("")} className="rounded-full p-2 text-ink-4 hover:bg-bg-soft hover:text-ink">
-              <X className="size-4" aria-hidden />
-            </button>
-          )}
-          {text.trim() && (
-            <button type="submit" aria-label="Enter" className="grid size-8 place-items-center rounded-full bg-brand-600 text-white hover:bg-brand-700">
-              <ArrowRight className="size-4" aria-hidden />
-            </button>
-          )}
-          {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label="what to look for in your saved jobs" />}
-        </div>
-        {focused && (
-          <RecentSearches
-            items={historyFor(recent, text)}
-            onPick={(t) => {
-              onText(t);
-              enter(t);
-            }}
-            onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")}
-          />
-        )}
-      </form>
+      <FilterBox text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
       <JobTypeChips filters={filters} onChange={onChange} />
       <div className="flex flex-wrap gap-2">
-        <label className={cn(SAVED_TOGGLE, filters.hideInPipeline ? SAVED_TOGGLE_ON : SAVED_TOGGLE_OFF)}>
-          <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.hideInPipeline} onChange={(e) => onChange({ hideInPipeline: e.target.checked })} />
-          Hide Pipeline
-        </label>
-        <label title="Only saved jobs you can send with Easy Apply" className={cn(SAVED_TOGGLE, filters.savedEasyApply ? SAVED_TOGGLE_ON : SAVED_TOGGLE_OFF)}>
-          <input type="checkbox" className="size-3.5 shrink-0 accent-[var(--color-brand-600)]" checked={!!filters.savedEasyApply} onChange={(e) => onChange({ savedEasyApply: e.target.checked })} />
-          Easy Apply only
-        </label>
+        <TogglePill label="Hide Pipeline" checked={!!filters.hideInPipeline} onChange={(on) => onChange({ hideInPipeline: on })} />
+        <TogglePill label="Easy Apply only" title="Only saved jobs you can send with Easy Apply" checked={!!filters.savedEasyApply} onChange={(on) => onChange({ savedEasyApply: on })} />
       </div>
     </div>
   );

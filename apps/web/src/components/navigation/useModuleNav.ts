@@ -1,0 +1,20 @@
+"use client";
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useUIStore } from "@/store/ui";
+import { moduleFromPath, moduleNav, type NavItem } from "./nav";
+
+/**
+ * The four places for the module in use (docs/WONDERSTAR_PLATFORM.md §4.1): the page's own module, or else the one
+ * picked last in Find's menu (kept per account). Opening a module's page makes it the active one.
+ */
+export function useModuleNav(): NavItem[] {
+  const pathname = usePathname();
+  const fromPath = moduleFromPath(pathname);
+  const stored = useUIStore((s) => s.activeModule);
+  const setActive = useUIStore((s) => s.setActiveModule);
+  useEffect(() => {
+    if (fromPath && fromPath !== (stored ?? "jobs")) setActive(fromPath);
+  }, [fromPath, stored, setActive]);
+  return moduleNav(fromPath ?? stored ?? "jobs");
+}

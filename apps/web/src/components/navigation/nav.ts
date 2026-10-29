@@ -1,4 +1,5 @@
-import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, Building2, CalendarDays, Database, Dna, FileText, GraduationCap, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
+import { BarChart3, ChartNoAxesColumn, Bookmark, Bot, Building2, CalendarCheck, CalendarClock, CalendarDays, CalendarHeart, Database, Dna, FileText, GraduationCap, Handshake, History, LayoutDashboard, LayoutList, LifeBuoy, MessagesSquare, Search, UserRound, type LucideIcon } from "lucide-react";
+import { isLive, moduleById, type ModuleId } from "@/modules/registry";
 
 export interface NavItem {
   href: string;
@@ -73,4 +74,41 @@ export const MOBILE_NAV: NavItem[] = PRIMARY_NAV;
 
 export function isActivePath(pathname: string, item: NavItem) {
   return item.match ? item.match(pathname) : pathname === item.href || pathname.startsWith(item.href + "/");
+}
+
+/* ------------------------------------------------------------------ WonderStar modules (docs/WONDERSTAR_PLATFORM.md §4.1) */
+
+const PIPELINE_ICONS: Record<string, LucideIcon> = { LayoutList, Handshake, CalendarCheck, CalendarClock, CalendarHeart };
+// The pages under You that belong to every module (account, settings, workspaces), so opening one keeps the module's tabs.
+const SHARED_YOU = ["/app/ask", "/app/career-dna", "/app/skill-up", "/app/recruiters", "/app/resume-studio", "/app/settings", "/app/automation", "/app/hiring", "/app/profile", "/app/notifications"];
+
+/**
+ * The same four places for a WonderStar module other than Jobs: Find, Saved, the module's Pipeline (its own label
+ * and icon from the manifest) and You, each at the module's own route. Jobs keeps PRIMARY_NAV exactly.
+ */
+export function moduleNav(id: ModuleId): NavItem[] {
+  const m = moduleById(id);
+  if (!m || id === "jobs") return PRIMARY_NAV;
+  const r = m.routes;
+  return [
+    { href: r.find, label: "Find", icon: Search, match: (p) => p === r.find },
+    { href: r.saved, label: "Saved", icon: Bookmark, match: (p) => p === r.saved },
+    { href: r.pipeline, label: m.pipeline.label, icon: PIPELINE_ICONS[m.pipeline.icon] ?? LayoutList, match: (p) => p === r.pipeline },
+    { href: r.you, label: "You", icon: UserRound, match: (p) => p === r.you || p.startsWith(`${r.you}/`) || p.startsWith(`/app/m/${id}/company`) || p === "/app/runs" || under(...SHARED_YOU)(p) },
+  ];
+}
+
+/**
+ * The module a page belongs to: a live module's own pages are that module's; Jobs' Find, Saved, Pipeline and You pages
+ * are Jobs'; any other page (account, settings, notifications…) belongs to none, so the tabs stay the active module's.
+ */
+export function moduleFromPath(pathname: string): ModuleId | null {
+  const m = /^\/app\/m\/([^/]+)/.exec(pathname);
+  if (m) {
+    const found = moduleById(m[1]);
+    return found && isLive(found) ? found.id : null;
+  }
+  const [find, saved, pipeline] = PRIMARY_NAV;
+  if (isActivePath(pathname, find) || isActivePath(pathname, saved) || isActivePath(pathname, pipeline) || pathname === "/app/you") return "jobs";
+  return null;
 }

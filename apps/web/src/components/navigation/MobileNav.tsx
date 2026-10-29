@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
-import { MOBILE_NAV, isActivePath } from "./nav";
+import { isActivePath } from "./nav";
+import { useModuleNav } from "./useModuleNav";
 
 /** The bottom bar: the four places, nothing else. Each place's own pages are tabs at its top (or rows
  * on You); help, account and sign-out are in the account menu — the top-bar avatar, or the round button above the bar. */
@@ -24,6 +25,8 @@ export function MobileNav() {
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
   const barShown = useUIStore((s) => s.bottomBars > 0);
+  // Jobs' four places, or the active WonderStar module's.
+  const nav = useModuleNav();
   return (
     <>
       {/* The account menu (help, account, sign out) within thumb's reach, above the bar. */}
@@ -41,7 +44,7 @@ export function MobileNav() {
       )}
       <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
         <ul className="grid grid-flow-col auto-cols-fr">
-          {MOBILE_NAV.map((item) => {
+          {nav.map((item) => {
             const active = isActivePath(pathname, item);
             const Icon = item.icon;
             return (

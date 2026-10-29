@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
-import { PRIMARY_NAV, REPORT_NAV, isActivePath, type NavItem } from "./nav";
+import { REPORT_NAV, isActivePath, type NavItem } from "./nav";
+import { useModuleNav } from "./useModuleNav";
 
 function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = isActivePath(pathname, item);
@@ -35,13 +36,14 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
 export function Sidebar() {
   const pathname = usePathname();
   const collapsed = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
+  const nav = useModuleNav();
   return (
     <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[216px] px-4")} aria-label="Sidebar">
       <div className={cn("flex h-16 items-center", collapsed ? "justify-center" : "px-1")}>
         <WonderLogo href="/app" compact={collapsed} />
       </div>
       <nav aria-label="Primary" className="mt-4 flex flex-col gap-0.5">
-        {PRIMARY_NAV.map((item) => (
+        {nav.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
         ))}
       </nav>

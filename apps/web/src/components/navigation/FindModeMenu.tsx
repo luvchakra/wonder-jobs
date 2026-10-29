@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Briefcase, Check, ChevronDown, Clock } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
@@ -10,7 +10,9 @@ import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 import { toast } from "@/components/feedback/Toast";
 import { ICONS, TINTS } from "@/platform/brand/tiles";
-import { MODULES, type ModuleTint, type UpcomingKindId } from "@/modules/registry";
+import { MODULES, type ModuleId, type ModuleTint, type UpcomingKindId } from "@/modules/registry";
+import { moduleFromPath } from "./nav";
+import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 
 // Each kind's icon sits in its WonderStar tile: a rounded square in the kind's tint (platform/brand/tiles.tsx,
@@ -21,8 +23,9 @@ const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefca
 ];
 // Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
 const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
-// A module that's live (WJ-418: Internships) links out of Jobs to its own pages; the rest stay "Coming soon".
-const LIVE_HREF = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, m.routes.find]] : []))) as Partial<Record<UpcomingKindId, string>>;
+// A module that's live (WJ-418: Internships) is picked here like Full Time and Part Time: the four tabs become its own
+// (docs/WONDERSTAR_PLATFORM.md §4.1). The rest stay "Coming soon".
+const LIVE = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, { id: m.id, href: m.routes.find }]] : []))) as Partial<Record<UpcomingKindId, { id: ModuleId; href: string }>>;
 const SEEN = "wj.findModeMenuSeen";
 const seen = () => {
   try {
@@ -39,11 +42,15 @@ const seen = () => {
  */
 export function FindModeMenu() {
   const current = useJobsStore((s) => findModeOf(s.filters));
+  const router = useRouter();
+  // The module whose Find this is (the menu shows on Jobs' Find and on each live module's).
+  const onModule = moduleFromPath(usePathname());
+  const setActiveModule = useUIStore((s) => s.setActiveModule);
   const [open, setOpen] = useState(false);
   // The coming-soon kinds the platform shows, in its order (Admin → Settings → Menus → Find menu).
   const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
-  const live = kinds.filter((k) => LIVE_HREF[k.id]);
-  const upcoming = kinds.filter((k) => !LIVE_HREF[k.id]);
+  const live = kinds.filter((k) => LIVE[k.id]);
+  const upcoming = kinds.filter((k) => !LIVE[k.id]);
   // The pulse that invites a first tap: until the menu has been opened once on this browser.
   const [hint, setHint] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -66,7 +73,8 @@ export function FindModeMenu() {
     };
   }, [open]);
 
-  const now = MODES.find((m) => m.mode === current)!;
+  const liveNow = onModule && onModule !== "jobs" ? live.find((k) => LIVE[k.id]!.id === onModule) : undefined;
+  const now = liveNow ? { label: liveNow.label, icon: UPCOMING_ICON[liveNow.id].icon } : MODES.find((m) => m.mode === current)!;
   const Icon = now.icon;
   const toggle = () => {
     setOpen((v) => !v);
@@ -101,7 +109,7 @@ export function FindModeMenu() {
       {open && (
         <div role="menu" aria-label="Kind of jobs" className="absolute left-0 top-10 z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
           {MODES.map((m) => {
-            const on = m.mode === current;
+            const on = !liveNow && m.mode === current;
             const I = m.icon;
             return (
               <button
@@ -111,7 +119,12 @@ export function FindModeMenu() {
                 aria-checked={on}
                 onClick={() => {
                   setOpen(false);
-                  if (!on) switchFindMode(m.mode);
+                  if (liveNow) {
+                    // Back to Jobs, in the kind picked.
+                    setActiveModule("jobs");
+                    if (m.mode !== current) switchFindMode(m.mode);
+                    router.push("/app/jobs");
+                  } else if (!on) switchFindMode(m.mode);
                 }}
                 className={cn("flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors", on ? "bg-brand-50" : "hover:bg-bg-soft")}
               >
@@ -126,22 +139,36 @@ export function FindModeMenu() {
               </button>
             );
           })}
-          {/* Other WonderStar modules that are open: each leaves Jobs for its own module. */}
+          {/* The other WonderStar modules that are open, picked the same way: the four tabs become the module's. */}
           {live.length > 0 && (
             <div role="group" aria-label="More on WonderStar">
               <div className="mx-2 mb-1 mt-1.5 border-t border-line" />
               {live.map((k) => {
                 const { icon: I, tint } = UPCOMING_ICON[k.id];
+                const target = LIVE[k.id]!;
+                const on = liveNow?.id === k.id;
                 return (
-                  <Link key={k.id} href={LIVE_HREF[k.id]!} role="menuitem" onClick={() => setOpen(false)} className="flex w-full items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left transition-colors hover:bg-bg-soft">
-                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", TINTS[tint].tile, TINTS[tint].icon)}>
-                      <I className="size-4" aria-hidden />
+                  <button
+                    key={k.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={on}
+                    onClick={() => {
+                      setOpen(false);
+                      setActiveModule(target.id);
+                      if (!on) router.push(target.href);
+                    }}
+                    className={cn("flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors", on ? "bg-brand-50" : "hover:bg-bg-soft")}
+                  >
+                    <span className={cn("grid size-10 shrink-0 place-items-center rounded-[12px]", on ? "wj-gradient-bg text-white" : `${TINTS[tint].tile} ${TINTS[tint].icon}`)}>
+                      <I className="size-[18px]" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-medium text-ink">{k.label}</span>
+                      <span className={cn("block text-[14.5px] font-semibold", on ? "text-brand-700" : "text-ink")}>{k.label}</span>
                       <span className="block text-[12px] text-ink-3">{k.hint}</span>
                     </span>
-                  </Link>
+                    {on && <Check className="size-4 shrink-0 text-brand-600" aria-hidden />}
+                  </button>
                 );
               })}
             </div>

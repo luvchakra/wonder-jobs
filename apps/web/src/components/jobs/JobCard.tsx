@@ -1,7 +1,8 @@
 "use client";
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bookmark, CheckCircle2, ThumbsDown, Zap } from "lucide-react";
+import { ArrowUpRight, ThumbsDown, Zap } from "lucide-react";
+import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/platform/find/parts";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
@@ -47,8 +48,6 @@ export function shortPlace(location: string): string {
   return places.length > 1 ? `${places[0]} +${places.length - 1}` : places[0];
 }
 
-const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center gap-0.5 rounded-full px-2.5 text-[12px] font-semibold text-white";
-
 const MATCH_TONE: Record<JobMatch["fit"], string> = {
   strong: "bg-success-100 text-success-600",
   worth_considering: "bg-brand-50 text-brand-700",
@@ -67,19 +66,14 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   // The posting's own first sentences about the role, shown only where the card has spare room (see .wj-fill).
   const summary = useMemo(() => jdSummary(job.description), [job.description]);
   return (
-    <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
-      <div className="flex items-stretch gap-3">
-        {/* The match sits under the logo, so the company and the title get the card's whole width. */}
-        <div className="flex shrink-0 flex-col items-center gap-1">
+    <ResultCard
+      className={className}
+      aside={
+        <>
           <CompanyLogo name={job.company} domain={job.companyDomain} logo size={compact ? 36 : 44} />
           {/* The company's employee-review rating, just under the logo, in its short form: ★ 4.3. */}
           {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} size={13} compact className="-mt-0.5" />}
-          {match && (
-            <span className={cn("rounded-[8px] px-1.5 py-0.5 text-center text-[12px] font-semibold leading-none", MATCH_TONE[match.fit])} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`}>
-              {match.score}%<span className="mt-0.5 block text-[10px] font-medium">Match</span>
-              <span className="wj-sr-only">, {FIT_META[match.fit].label}</span>
-            </span>
-          )}
+          {match && <FitPill tone={MATCH_TONE[match.fit]} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`} top={<>{match.score}%</>} bottom="Match" srText={FIT_META[match.fit].label} />}
           {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
               (a job posted on WonderJobs; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
@@ -96,61 +90,28 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
               <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
             </a>
           ) : null}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* The title leads (two lines at most); the company and the first place share the line below it. */}
-          <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink">
-            <Link href={`/app/jobs/${job.id}`} className="after:absolute after:inset-0 after:content-['']">
-              {job.title}
-            </Link>
-          </h3>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-3">
-            <span className="font-medium text-ink-2">{job.company}</span>
-            <span aria-hidden>·</span>
-            <span title={job.location}>{shortPlace(job.location)}</span>
-            <span aria-hidden>·</span>
-            <span>{WORK_MODE_LABEL[job.workMode]}</span>
-            {type && (
-              <>
-                <span aria-hidden>·</span>
-                <span title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[type]}</span>
-              </>
-            )}
-            {salary && (
-              <>
-                <span aria-hidden>·</span>
-                <span className="font-medium text-ink-2">{salary}</span>
-              </>
-            )}
-          </p>
-          {/* Skills and why it fits sit beside the logo, so nothing leaves a gap under it. */}
-          {tags.length > 0 && (
-            <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Skills">
-              {tags.map((t) => (
-                <li key={t} className="rounded-full bg-bg-soft px-2.5 py-0.5 text-[12px] text-ink">
-                  {t}
-                </li>
-              ))}
-            </ul>
-          )}
-          {reasons.length > 0 && (
-            <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5" aria-label="Why it fits">
-              {reasons.map((r) => (
-                <li key={r} className="flex items-center gap-1 text-[12.5px] text-ink-2">
-                  <CheckCircle2 className="size-3.5 shrink-0 fill-success-600 text-white" aria-hidden />
-                  {r}
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* Fills whatever room is left beside the logo column — never makes the card taller, and shows only when two lines fit. */}
-          {summary && (
-            <div className="wj-fill mt-1.5 min-h-0 flex-1" title="From the job description">
-              <p className="wj-fill-text text-[12.5px] leading-[1.4] text-ink-3">{summary}</p>
-            </div>
-          )}
-        </div>
-        {onReject && (
+        </>
+      }
+      title={
+        <Link href={`/app/jobs/${job.id}`} className={CARD_TARGET}>
+          {job.title}
+        </Link>
+      }
+      // The company and the first place share the line below the title.
+      facts={[
+        <span key="c" className="font-medium text-ink-2">{job.company}</span>,
+        <span key="p" title={job.location}>{shortPlace(job.location)}</span>,
+        <span key="m">{WORK_MODE_LABEL[job.workMode]}</span>,
+        type && <span key="t" title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[type]}</span>,
+        salary && <span key="s" className="font-medium text-ink-2">{salary}</span>,
+      ]}
+      // Skills and why it fits sit beside the logo, so nothing leaves a gap under it.
+      tags={tags}
+      reasons={reasons}
+      summary={summary}
+      summaryTitle="From the job description"
+      trailing={
+        onReject && (
           <button
             type="button"
             onClick={(e) => {
@@ -162,35 +123,27 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           >
             <ThumbsDown className="size-4" aria-hidden />
           </button>
-        )}
-      </div>
-      <div className="mt-1 flex items-center gap-2">
-        {status && <Badge tone={statusTone}>{status}</Badge>}
-        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">
+        )
+      }
+      status={status && <Badge tone={statusTone}>{status}</Badge>}
+      footnote={
+        <>
           {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
           {relativeTime(job.postedAt)}
           {brief?.size && ` · ${brief.size}`}
           {brief?.h1b ? <span title="Certified H-1B applications in the US Department of Labor's latest disclosure file">{` · H-1B ${brief.h1b.toLocaleString("en-US")}`}</span> : null}
-        </span>
-        {onToggleSave && (
-          // Share, then Save, at the card's corner.
-          <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
-          <ShareJobButton job={job} className="size-9 text-ink-2" />
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onToggleSave();
-            }}
-            aria-pressed={saved}
-            aria-label={saved ? "Remove from saved" : "Save job"}
-            className={cn("flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-bg-soft", saved ? "text-brand-600" : "text-ink-2")}
-          >
-            <Bookmark className="size-5" fill={saved ? "currentColor" : "none"} aria-hidden />
-          </button>
-          </div>
-        )}
-      </div>
+        </>
+      }
+      // Share, then Save, at the card's corner.
+      actions={
+        onToggleSave && (
+          <>
+            <ShareJobButton job={job} className="size-9 text-ink-2" />
+            <SaveButton saved={!!saved} onToggle={onToggleSave} noun="job" />
+          </>
+        )
+      }
+    >
       {decision && <JobDecision decision={decision} className="mt-3 border-t border-line pt-3" />}
       <div className={cn("flex flex-wrap items-center justify-end gap-2", (onPrepare || onToggleCompare) && "mt-3")}>
         {(onPrepare || onToggleCompare) && (
@@ -209,6 +162,6 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           </div>
         )}
       </div>
-    </article>
+    </ResultCard>
   );
 }

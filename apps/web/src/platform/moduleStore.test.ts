@@ -19,3 +19,17 @@ describe("module-scoped stores", () => {
     expect(out.recentSearches).toHaveLength(MODULE_RECENT_CAP);
   });
 });
+
+describe("module search history", () => {
+  it("keeps Find's and Saved's apart, and forgets one", () => {
+    const s = moduleStore("internships");
+    s.getState().rememberSearch("design");
+    s.getState().rememberSearch("pune", "saved");
+    expect(s.getState().recentSearches[0]).toBe("design");
+    expect(s.getState().recentSavedSearches).toEqual(["pune"]);
+    s.getState().forgetSearch("design");
+    expect(s.getState().recentSearches).not.toContain("design");
+    expect(s.getState().recentSavedSearches).toEqual(["pune"]);
+    expect(compactModuleState({ ...s.getState(), recentSavedSearches: Array.from({ length: 20 }, (_, i) => `s${i}`) }).recentSavedSearches).toHaveLength(MODULE_RECENT_CAP);
+  });
+});
