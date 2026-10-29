@@ -279,6 +279,14 @@ so the design stays one system: same tokens, one primary action per screen, fold
    `internships.apply`, Pipeline (Applied · Shortlisted · Offer · Accepted / Closed + Deadlines), Saved across
    modules, bell + push on a company's decision. Not used: `employer_jobs.internship` (Jobs' table stays Jobs').
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
+   **Done (WJ-419, 2026-10-29):** Teaching is live at `/app/m/teaching` — its own JobsLake sources (WonderStar
+   schools, Adzuna India, Greenhouse/Lever/Ashby; teaching titles only), school postings in Teaching → School (same
+   workspace and roles), `bookings` for demo classes (migration 0036), the teacher profile (qualifications prefilled
+   from the Career Profile, read only; their own background-check statement), Find with board/grades/pay/online facets
+   and match reasons, one-tap Apply gated by `teaching.apply`, Pipeline (Applied · Demo class · Appointed / Closed +
+   Demo-class bookings), notifications both ways. The platform now checks compliance flags before a module is live
+   (`platform/compliance.ts`, §7); Teaching's `minors` is answered by organisation-only posting and the disclosed
+   background-check statement. Parents as individual owners are not built (they'd need their own `minors` safeguards).
 7. **Talent & Services** — adds quotes, payments and reviews.
 8. **Events & Social** — adds capacity, RSVP and waitlist.
 9. **Buy, Sell & Rent** — adds photos, offers and anti-scam rules.

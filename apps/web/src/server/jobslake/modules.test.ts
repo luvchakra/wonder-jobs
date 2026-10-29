@@ -34,15 +34,15 @@ describe("JobsLake per-module datasets (WonderStar)", () => {
 
   it("a module's sources are its own: Jobs never lists another module's, and another module never lists Jobs'", async () => {
     const store = jobsLakeStore();
-    const intern = { ...BUILTIN_SOURCES[0], id: "teach_board", builtin: false, module: "teaching" } as SourceRecord;
+    const intern = { ...BUILTIN_SOURCES[0], id: "events_board", builtin: false, module: "events" } as SourceRecord;
     const added = { ...BUILTIN_SOURCES[0], id: "jobs_added", builtin: false } as SourceRecord;
     await store.putSource(intern);
     await store.putSource(added);
     const jobs = (await listSources()).map((s) => s.id);
     expect(jobs).toContain("jobs_added");
-    expect(jobs).not.toContain("teach_board");
-    expect((await listSources("teaching")).map((s) => s.id)).toEqual(["teach_board"]);
-    expect(await listSources("events")).toEqual([]);
+    expect(jobs).not.toContain("events_board");
+    expect((await listSources("events")).map((s) => s.id)).toEqual(["events_board"]);
+    expect(await listSources("therapists")).toEqual([]);
   });
 
   it("warm-pool postings: Jobs never reads another module's, and no module reads Jobs'", async () => {
@@ -61,7 +61,7 @@ describe("JobsLake per-module datasets (WonderStar)", () => {
 
   it("a module's search asks none of Jobs' sources and writes nothing into Jobs' pool; Jobs' search is unchanged", async () => {
     connector.mockResolvedValue({ jobs: [job()], warnings: [] });
-    const { response } = await search(req({ module: "teaching" }), { trigger: "search" });
+    const { response } = await search(req({ module: "events" }), { trigger: "search" });
     expect(connector).not.toHaveBeenCalled();
     expect(response.results).toEqual([]);
     expect(response.sources).toEqual([]);
@@ -70,7 +70,7 @@ describe("JobsLake per-module datasets (WonderStar)", () => {
     const jobsRun = await search(req(), { trigger: "search" });
     expect(connector).toHaveBeenCalled();
     expect(jobsRun.response.results.length).toBeGreaterThan(0);
-    expect(await jobsLakeStore().listOpportunities({ module: "teaching" })).toEqual([]);
+    expect(await jobsLakeStore().listOpportunities({ module: "events" })).toEqual([]);
   });
 
   it("the API takes a module, defaults to Jobs, and refuses one the registry doesn't know", () => {

@@ -6,6 +6,7 @@
  *
  * Jobs' manifest describes the app that exists today and only points at today's routes; nothing here changes it.
  */
+import { complianceProblems } from "@/platform/compliance";
 
 export const MODULE_IDS = ["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace"] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -64,6 +65,8 @@ export interface ModuleManifest {
   trust: { reviews: "off" | "after_done" | "both_sides" };
   money?: { kind: "none" | "fee_display" | "booking_payment" | "escrow"; currency: string };
   compliance?: ("health_data" | "minors" | "payments" | "housing")[];
+  /** What the module does to answer its compliance flags (platform/compliance.ts checks these before it may be live). */
+  safeguards?: string[];
 }
 
 const shell = (id: ModuleId) => ({ find: `/app/m/${id}`, saved: `/app/m/${id}/saved`, pipeline: `/app/m/${id}/pipeline`, you: `/app/m/${id}/you` });
@@ -127,7 +130,7 @@ export const MODULES: readonly ModuleManifest[] = [
     hint: "School and college teachers",
     icon: "BookOpen",
     accent: "mint",
-    status: "soon",
+    status: "live",
     menuId: "teaching",
     routes: shell("teaching"),
     persona: [
@@ -135,18 +138,22 @@ export const MODULES: readonly ModuleManifest[] = [
       { key: "grades", label: "Grade levels", type: "list" },
       { key: "boards", label: "Boards", type: "list" },
       { key: "qualifications", label: "Qualifications", type: "list" },
+      { key: "backgroundCheck", label: "Background check", type: "choice", options: ["Yes", "No"] },
     ],
     listing: [
-      { key: "subject", label: "Subject", type: "text", facet: true },
+      { key: "subject", label: "Subject", type: "text" },
       { key: "grades", label: "Grades", type: "list", facet: true },
-      { key: "board", label: "Board", type: "text", facet: true },
-      { key: "pay", label: "Pay", type: "money" },
+      { key: "board", label: "Board", type: "choice", facet: true },
+      { key: "schoolType", label: "Institution", type: "choice" },
+      { key: "pay", label: "Pay a month", type: "money", facet: true },
+      { key: "workMode", label: "Online, hybrid or on-site", type: "choice", facet: true },
     ],
-    response: { verb: "apply", questions: true, states: ["applied", "demo_class", "appointed", "closed"], capability: "teaching.apply" },
+    response: { verb: "apply", questions: false, states: ["applied", "demo_class", "appointed", "closed", "withdrawn"], capability: "teaching.apply" },
     pipeline: { label: "Pipeline", icon: "LayoutList", stages: stages("Applied", "Demo class", "Appointed / Closed"), sections: ["Demo-class bookings"] },
     ownerSide: { workspace: "company" },
     trust: { reviews: "off" },
     compliance: ["minors"],
+    safeguards: ["organisation_owners_only", "background_check_disclosed"],
   },
   {
     id: "cofounders",
@@ -276,4 +283,5 @@ export function moduleById(id: string): ModuleManifest | undefined {
   return isModuleId(id) ? BY_ID.get(id) : undefined;
 }
 
-export const isLive = (m: ModuleManifest) => m.status === "live";
+/** Live: switched on, and every compliance flag it carries is answered (platform/compliance.ts); otherwise it shows Coming soon. */
+export const isLive = (m: ModuleManifest) => m.status === "live" && complianceProblems(m).length === 0;

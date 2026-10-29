@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isModuleId, MODULE_IDS, MODULES, moduleById } from "./registry";
+import { isLive, isModuleId, MODULE_IDS, MODULES, moduleById } from "./registry";
+import { complianceProblems } from "@/platform/compliance";
 import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
 import { PRIMARY_NAV } from "@/components/navigation/nav";
 
@@ -19,15 +20,21 @@ describe("WonderStar module registry", () => {
     expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
   });
 
-  it("Internships is live (WJ-418); every other module is coming soon; each lives at /app/m/<id>", () => {
+  it("Internships (WJ-418) and Teaching (WJ-419) are live; every other module is coming soon; each lives at /app/m/<id>", () => {
     expect(moduleById("internships")!.status).toBe("live");
+    expect(moduleById("teaching")!.status).toBe("live");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
-      if (m.id !== "internships") expect(m.status, m.id).toBe("soon");
+      if (m.id !== "internships" && m.id !== "teaching") expect(m.status, m.id).toBe("soon");
       expect(m.routes.find).toBe(`/app/m/${m.id}`);
       expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);
       // Capabilities are namespaced per module (resolveCapability stays the one gate).
       expect(m.response.capability.startsWith(`${m.id}.`), m.id).toBe(true);
     }
+  });
+
+  it("a live module has answered every compliance flag it carries (platform/compliance.ts)", () => {
+    for (const m of MODULES.filter(isLive)) expect(complianceProblems(m), m.id).toEqual([]);
+    expect(complianceProblems({ id: "teaching", compliance: ["minors"] })).toEqual(["teaching: minors needs organisation_owners_only", "teaching: minors needs background_check_disclosed"]);
   });
 
   it("the Find menu's module kinds are derived from it and unchanged (a live one links out, the rest are Coming soon)", () => {

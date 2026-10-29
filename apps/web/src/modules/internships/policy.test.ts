@@ -21,7 +21,7 @@ describe("internships.apply — the student's press of Apply sends at once, unle
   });
 
   it("is a module capability: Jobs' Automation list is unchanged", () => {
-    expect(MODULE_CAPABILITIES).toEqual(["internships.apply"]);
+    expect(MODULE_CAPABILITIES).toContain("internships.apply");
     expect(CAPABILITIES as readonly string[]).not.toContain("internships.apply");
   });
 });

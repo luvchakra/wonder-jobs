@@ -535,6 +535,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ WonderStar brand across the whole app: logo, app icons, colours, Poppins, Find menu icon tiles (WJ-416)
 - ✅ Stop no longer brings back a posting found closed during the search; E2E sample postings use reserved hosts, so GJ-022 is deterministic (WJ-417)
 - ✅ WonderStar Internships module: own sources, company postings, student profile, Find with stipend/duration/start, one-tap apply (internships.apply), Pipeline with Deadlines, shared Saved, notifications (WJ-418, migration 0035)
+- ✅ WonderStar Teaching module: own sources, school postings, teacher profile with background-check statement, Find (board/grades/pay), one-tap apply (teaching.apply), demo-class bookings, Pipeline, compliance gate for flagged modules (WJ-419, migration 0036)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)

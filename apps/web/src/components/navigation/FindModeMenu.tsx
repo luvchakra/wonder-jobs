@@ -10,7 +10,7 @@ import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 import { toast } from "@/components/feedback/Toast";
 import { ICONS, TINTS } from "@/platform/brand/tiles";
-import { MODULES, type ModuleTint, type UpcomingKindId } from "@/modules/registry";
+import { isLive, MODULES, type ModuleTint, type UpcomingKindId } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 
 // Each kind's icon sits in its WonderStar tile: a rounded square in the kind's tint (platform/brand/tiles.tsx,
@@ -22,7 +22,7 @@ const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefca
 // Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
 const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
 // A module that's live (WJ-418: Internships) links out of Jobs to its own pages; the rest stay "Coming soon".
-const LIVE_HREF = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, m.routes.find]] : []))) as Partial<Record<UpcomingKindId, string>>;
+const LIVE_HREF = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && isLive(m) ? [[m.menuId, m.routes.find]] : []))) as Partial<Record<UpcomingKindId, string>>;
 const SEEN = "wj.findModeMenuSeen";
 const seen = () => {
   try {

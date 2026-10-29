@@ -88,7 +88,8 @@ describe("help guide", () => {
 
   it("does not describe a public demo, which no longer exists", () => {
     const text = HELP_SECTIONS.flatMap((s) => s.body).concat(HELP_FAQ.map((f) => f.a)).join("\n");
-    expect(text).not.toMatch(/\bdemo\b/i);
+    // "Demo class" is Teaching's own step (a trial lesson before appointment, WJ-419), not a demo of the app.
+    expect(text).not.toMatch(/\bdemo\b(?![- ]class)/i);
   });
 });
 
