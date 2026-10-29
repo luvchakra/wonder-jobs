@@ -163,7 +163,8 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   };
 
   return (
-    <div>
+    // Under the page's 20px top padding, the search box sits 8px from the top bar: the same gap as between it and the chips.
+    <div className="-mt-3">
       <h1 className="wj-sr-only">Find {noun.many}</h1>
       {busy && (
         <SearchingBanner aside={<WonderSearching size={32} />}>

@@ -4,7 +4,7 @@ import { ModuleFind, type FacetSpec, type FacetValues, type FindRun } from "@/wo
 import { call } from "../api";
 import { applyFacets, type InternshipListing } from "../domain";
 import { selectProfile, useInternshipsStore } from "../store";
-import { InternshipCard, InternshipSheet } from "./Listing";
+import { InternshipCard } from "./Listing";
 
 const STIPENDS = [5_000, 10_000, 20_000, 50_000];
 const MONTHS = [1, 2, 3, 6, 12];
@@ -57,7 +57,6 @@ export function InternshipsFind() {
       search={search}
       refine={refineInternships}
       Card={InternshipCard}
-      Sheet={InternshipSheet}
       idle={{ title: "Search for an internship", body: "Type the field you want to intern in — for example what you study — and press Search." }}
       needWords="Type the field you want to intern in — for example what you study."
       dictateHint="Listening — say the field and where, e.g. “marketing internship in Pune”."

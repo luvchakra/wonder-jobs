@@ -23,6 +23,10 @@ export const STORED_DESCRIPTION = 1500;
 export interface ModuleResponseRef {
   stage: string;
   at: string;
+  /** Where it stands within the stage, as the module names it ("applied", "withdrawn"). */
+  status?: string;
+  /** What the person did toward it, oldest first ("resume", "apply_opened"), as Jobs' Preparing cards show. */
+  marks?: string[];
 }
 
 /** The last search as Find showed it: what was searched, where, each source's count, and the results in order. */
@@ -49,7 +53,13 @@ export interface ModuleState {
   linkOpenAt: Record<string, string>;
   /** Save or unsave; `item` is the listing as the card showed it. */
   toggleSaved: (listingId: string, item?: unknown) => void;
-  setResponse: (listingId: string, stage: string) => void;
+  /**
+   * Set where a response stands; `item` keeps the listing with it (for Pipeline after a reload), `mark` adds what the
+   * person did toward it, and marks already there are kept.
+   */
+  setResponse: (listingId: string, stage: string, extra?: { status?: string; mark?: string; item?: unknown }) => void;
+  /** Take a response out of the module's Pipeline. */
+  clearResponse: (listingId: string) => void;
   /** Into Find's history, or Saved's. */
   rememberSearch: (q: string, where?: "find" | "saved") => void;
   forgetSearch: (q: string, where?: "find" | "saved") => void;
@@ -59,6 +69,9 @@ export interface ModuleState {
   markClosed: (listingId: string, reason: string) => void;
   markLinkOpen: (listingIds: string[]) => void;
 }
+
+/** A listing the person has seen: kept with a save or response, else from the last search. */
+export const findListing = (s: Pick<ModuleState, "items" | "lastRun">, id: string): unknown => s.items[id] ?? s.lastRun?.results.find((r) => r.id === id);
 
 /** What a module may set when its store is first made. */
 export interface ModuleStoreOptions {
@@ -141,7 +154,13 @@ function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
             }
             return { saved, items };
           }),
-        setResponse: (listingId, stage) => set((s) => ({ responses: { ...s.responses, [listingId]: { stage, at: new Date().toISOString() } } })),
+        setResponse: (listingId, stage, extra = {}) =>
+          set((s) => {
+            const marks = [...new Set([...(s.responses[listingId]?.marks ?? []), ...(extra.mark ? [extra.mark] : [])])];
+            const ref: ModuleResponseRef = { stage, at: new Date().toISOString(), ...(extra.status ? { status: extra.status } : {}), ...(marks.length ? { marks } : {}) };
+            return { responses: { ...s.responses, [listingId]: ref }, ...(extra.item !== undefined ? { items: { ...s.items, [listingId]: extra.item } } : {}) };
+          }),
+        clearResponse: (listingId) => set((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== listingId)) })),
         setPersona: (persona) => set({ persona }),
         rememberSearch: (q, where = "find") => {
           const key = where === "saved" ? "recentSavedSearches" : "recentSearches";

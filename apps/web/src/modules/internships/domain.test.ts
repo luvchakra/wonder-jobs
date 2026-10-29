@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFacets, cleanPosting, deadlines, durationFromText, matchInternship, missingProfile, monthlyFromYearly, profileFromCareer, stageOf, stipendLabel, type InternshipListing } from "./domain";
+import { OUTSIDE_STAGE, outsideStatus, applyFacets, cleanPosting, deadlines, durationFromText, matchInternship, missingProfile, monthlyFromYearly, profileFromCareer, stageOf, stipendLabel, type InternshipListing } from "./domain";
 
 const listing = (over: Partial<InternshipListing> = {}): InternshipListing => ({ id: "x", origin: "outside", title: "React Developer Intern", company: "Acme", location: "Pune", workMode: "hybrid", terms: { currency: "INR" }, termsFrom: "posting", skills: ["React", "TypeScript"], description: "Build UI.", sourceId: "intern_remotive", sourceName: "Remotive internships", ...over });
 
@@ -52,5 +52,13 @@ describe("Internships domain", () => {
     const saved = [listing({ id: "ws_l1", title: "A", terms: { currency: "INR", applyBy: "2099-01-05" } }), listing({ id: "ws_l2", title: "B", terms: { currency: "INR", applyBy: "2099-01-01" } })];
     const mine = [{ id: "r1", postingId: "l1", title: "A", company: "Acme", status: "applied" as const, terms: { currency: "INR" }, appliedAt: "", updatedAt: "2099-01-01T00:00:00Z" }];
     expect(deadlines(saved, mine, "2098-12-01").map((d) => d.title)).toEqual(["B"]);
+  });
+
+  it("an outside internship stands where the student marked it; older marks read as applied", () => {
+    expect(outsideStatus(undefined)).toBeNull();
+    expect(outsideStatus({ stage: "applied" })).toBe("applied");
+    expect(outsideStatus({ stage: "preparing", status: "preparing" })).toBe("preparing");
+    expect(outsideStatus({ stage: "accepted_closed", status: "withdrawn" })).toBe("withdrawn");
+    expect(OUTSIDE_STAGE.withdrawn).toBe("accepted_closed");
   });
 });
