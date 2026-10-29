@@ -6,7 +6,7 @@ import { JOB_TYPES, jobTypeOf, type JobType } from "@/domain/jobs/jobType";
 
 export const runtime = "nodejs";
 
-/** The warm pool: canonical opportunities JobsLake has actually retrieved, newest first. */
+/** The warm pool: canonical opportunities WorksLake has actually retrieved, newest first. */
 export async function GET(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;

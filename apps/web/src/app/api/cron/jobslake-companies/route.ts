@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * JobsLake's daily company refresh: every company its last two weeks of postings name a domain for, how many
+ * WorksLake's daily company refresh: every company its last two weeks of postings name a domain for, how many
  * postings each has, and the logos still missing (`refreshCompanies`), with the limits set in Scheduler.
  * Vercel Cron calls it with `CRON_SECRET` as `Authorization: Bearer …`; with no secret configured it refuses to run.
  */

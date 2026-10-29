@@ -23,7 +23,7 @@ so it doesn't lengthen CI.
 ## The nightly (`.github/workflows/e2e-nightly.yml`)
 
 - **Three parts, in parallel:**
-  - `local`: every spec against a fresh local build with no Supabase (demo journeys, the JobsLake admin
+  - `local`: every spec against a fresh local build with no Supabase (demo journeys, the WorksLake admin
     portal, which only opens without real auth, the browser helper, résumé templates…).
   - `signed-in`: `auth.spec.ts`, `jobslake.spec.ts`, `help-access.spec.ts` and `hiring.spec.ts` (which also runs in `local`, with no-auth browsers carrying test emails) against a fresh local build on the Supabase
     project, with disposable accounts.
@@ -34,9 +34,9 @@ so it doesn't lengthen CI.
   build cache is restored.
 - **Clean start:** the run's global setup (`apps/web/e2e/cleanup.ts`) first deletes throwaway data earlier
   runs left in the test Supabase project, older than two hours: `wj-e2e-…@example.com` accounts with
-  their rows, and the JobsLake sources the admin journeys add (`Remotive API <ms>`, `Credentialed <ms>`,
+  their rows, and the WorksLake sources the admin journeys add (`Remotive API <ms>`, `Credentialed <ms>`,
   `Audited <ms>`). Nothing else is ever touched. A run killed halfway therefore can't break the next one.
-  The JobsLake admin journeys, the only ones that change a shared setting (sources), run only against a
+  The WorksLake admin journeys, the only ones that change a shared setting (sources), run only against a
   server without Supabase Auth, where that state lives in memory and dies with the server.
 - **Production, pre-launch only:** the app isn't live yet, so the owner allowed E2E to use the
   production Supabase project and deployment (2026-10-16). Tests only create and delete their own

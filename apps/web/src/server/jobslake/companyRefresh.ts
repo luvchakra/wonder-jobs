@@ -1,8 +1,8 @@
 /**
- * JobsLake's daily company refresh (owner, 2026-10-17). Searches already record each employer they see; this
- * goes over every posting JobsLake kept from the last two weeks, so the directory holds every company those
+ * WorksLake's daily company refresh (owner, 2026-10-17). Searches already record each employer they see; this
+ * goes over every posting WorksLake kept from the last two weeks, so the directory holds every company those
  * postings name a domain for, with how many postings it has, and looks for the logos still missing — so a
- * search's job cards show them straight from JobsLake. Domains are only ever ones a source reported or the
+ * search's job cards show them straight from WorksLake. Domains are only ever ones a source reported or the
  * employer's own apply link shows (`companiesFrom`), never guessed from a name.
  *
  * It also gives stored postings saved before job types existed the type their title states

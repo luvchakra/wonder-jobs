@@ -52,7 +52,7 @@ export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promi
     // carry a credential) only ever go to the origin the admin configured.
     const callerHeaders = url.origin === origin ? (opts.headers ?? {}) : {};
     try {
-      res = await fetch(url, { method: opts.method ?? "GET", body: opts.body, headers: { "user-agent": "JobsLake/1.0 (+https://wonderjobs-wonder-team4.vercel.app)", accept: "application/json, application/xml, text/xml, text/html;q=0.8", ...(opts.body ? { "content-type": "application/json" } : {}), ...callerHeaders }, redirect: "manual", signal, cache: "no-store" });
+      res = await fetch(url, { method: opts.method ?? "GET", body: opts.body, headers: { "user-agent": "WorksLake/1.0 (+https://wonderjobs-wonder-team4.vercel.app)", accept: "application/json, application/xml, text/xml, text/html;q=0.8", ...(opts.body ? { "content-type": "application/json" } : {}), ...callerHeaders }, redirect: "manual", signal, cache: "no-store" });
     } catch (e) {
       if (signal.aborted) throw new Error(`No response within ${Math.round(timeoutMs / 1000)}s`);
       throw new Error(`${url.hostname} could not be reached${e instanceof Error && e.message ? ` (${e.message.slice(0, 80)})` : ""}`);

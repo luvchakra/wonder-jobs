@@ -118,7 +118,7 @@ export async function GET(req: Request) {
   } catch (e) {
     failures.push({ tenantId: "*", error: `billing reconciliation: ${e instanceof Error ? e.message : String(e)}` });
   }
-  // JobsLake API pay-as-you-go: re-read each subscription from Stripe and report yesterday's overage (once per day, idempotent).
+  // WorksLake API pay-as-you-go: re-read each subscription from Stripe and report yesterday's overage (once per day, idempotent).
   let apiUsage: ApiUsageReport | null = null;
   try {
     apiUsage = await reportApiUsage(now);

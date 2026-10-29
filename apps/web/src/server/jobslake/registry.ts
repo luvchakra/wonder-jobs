@@ -1,5 +1,5 @@
 /**
- * The JobsLake source registry (spec §48): built-in sources (today's WonderJobs fetchers, with the
+ * The WorksLake source registry (spec §48): built-in sources (today's WonderJobs fetchers, with the
  * combined "careers" source split into its Greenhouse / Lever / Ashby platforms), the partnership
  * catalogue, and admin-added sources. Also resolves each source to the connector that fetches it.
  *
@@ -57,14 +57,14 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
 /**
  * The partner portals. None has an open job-search API: each stays "Do not use" until its
  * partnership hands over an endpoint and credential, a test passes, and an admin confirms the
- * signed agreement at activation (admin.ts). Until then JobsLake doesn't read it — and never scrapes it.
+ * signed agreement at activation (admin.ts). Until then WorksLake doesn't read it — and never scrapes it.
  */
 export const PARTNERSHIP_SOURCES: SourceRecord[] = PARTNER_PRESETS.map((p) =>
   builtin({ id: `partner_${p.id}`, name: p.name, provider: p.name, category: "portal", accessStrategy: "partner_api", geography: p.geography, capabilities: ["Search", "Apply URL"], status: "do_not_use", statusReason: PARTNER_STATUS_REASON, config: { kind: "partnership", partner: p.id }, description: `${p.name} jobs through a ${p.name} partnership or data-licensing agreement.` }),
 );
 
 /**
- * Every source JobsLake knows for one module's dataset (default Jobs): built-ins (with any admin status override),
+ * Every source WorksLake knows for one module's dataset (default Jobs): built-ins (with any admin status override),
  * admin-added, partnership. A module's search only ever asks its own sources.
  */
 export async function listSources(module: ModuleId = "jobs"): Promise<SourceRecord[]> {

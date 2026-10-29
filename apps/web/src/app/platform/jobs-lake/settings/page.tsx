@@ -13,8 +13,8 @@ type Settings = {
 };
 
 const FLAG_INFO: { key: keyof JobsLakeFlags; env: string; label: string; off: string }[] = [
-  { key: "jobsLakeEnabled", env: "JOBSLAKE_ENABLED", label: "JobsLake", off: "Everything below is off; WonderWorks searches each source directly." },
-  { key: "jobsLakeSearchEnabled", env: "JOBSLAKE_SEARCH_ENABLED", label: "Search through JobsLake", off: "WonderWorks searches each source directly." },
+  { key: "jobsLakeEnabled", env: "JOBSLAKE_ENABLED", label: "WorksLake", off: "Everything below is off; WonderWorks searches each source directly." },
+  { key: "jobsLakeSearchEnabled", env: "JOBSLAKE_SEARCH_ENABLED", label: "Search through WorksLake", off: "WonderWorks searches each source directly." },
   { key: "jobsLakeStreamingEnabled", env: "JOBSLAKE_STREAMING_ENABLED", label: "Streaming search", off: "Searches return in one response." },
   { key: "jobsLakeWarmPoolEnabled", env: "JOBSLAKE_WARM_POOL_ENABLED", label: "Warm pool", off: "Nothing is stored; every search is live only." },
   { key: "jobsLakeMcpEnabled", env: "JOBSLAKE_MCP_ENABLED", label: "MCP interface", off: "The MCP endpoint answers 404." },

@@ -1,5 +1,5 @@
 /**
- * Read models for the JobsLake APIs and admin portal: sources (never with a secret), health,
+ * Read models for the WorksLake APIs and admin portal: sources (never with a secret), health,
  * coverage, data quality and alerts. REST, MCP and the admin pages all serialize through these, so
  * the same question gets the same answer everywhere.
  *
@@ -169,7 +169,7 @@ export async function qualityView(days = 7): Promise<QualityView> {
 
 export async function alertsView(): Promise<Alert[]> {
   const [sources, runs] = await Promise.all([listSources(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - 7 * 86_400_000).toISOString(), limit: 5000 })]);
-  // Only sources JobsLake is meant to be reading raise alerts; a paused or do-not-use source is quiet by design.
+  // Only sources WorksLake is meant to be reading raise alerts; a paused or do-not-use source is quiet by design.
   return sources
     .filter((s) => s.status === "active" || s.status === "degraded")
     .flatMap((s) => deriveAlerts(s.id, s.name, runs))

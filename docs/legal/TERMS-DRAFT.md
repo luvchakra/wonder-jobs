@@ -9,7 +9,7 @@ The current Terms already say "Don't scrape, overload or reverse-engineer the se
 You may use WonderJobs only for your own job search, or, in a hiring workspace, for your organization's hiring. You must not, and must not help or allow anyone else to:
 
 1. **Reverse engineer.** Copy, decompile, disassemble or reverse engineer the service or its software, or try to derive its source code, models, prompts, scoring methods or data structures, except where the law expressly allows it despite this restriction.
-2. **Scrape or harvest.** Use any robot, spider, crawler, scraper, browser automation or other automated means to access, collect, copy or index the service or its content, other than the WonderJobs browser extension and the JobsLake API used under their own terms.
+2. **Scrape or harvest.** Use any robot, spider, crawler, scraper, browser automation or other automated means to access, collect, copy or index the service or its content, other than the WonderJobs browser extension and the WorksLake API used under their own terms.
 3. **Use AI agents to access the service.** Let an AI agent, assistant or automated browsing tool sign in, navigate, or extract content on your behalf, except as WonderJobs itself provides.
 4. **Train models.** Use the service, its content, or its output (including AI drafts, scores, insights and job data) to train, fine-tune, evaluate or improve any machine-learning or AI model.
 5. **Build a competing product.** Access or use the service to build, benchmark or support a product or service that competes with WonderJobs, or copy its features, design or user experience for that purpose.

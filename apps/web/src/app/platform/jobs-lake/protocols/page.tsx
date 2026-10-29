@@ -8,7 +8,7 @@ export default function ProtocolsPage() {
   const { data, error, reload } = useAdmin<Doc>("/api/jobs-lake/v1/protocol");
   return (
     <>
-      <PageTitle title="Protocols" subtitle="JobsLake Protocol v1 — the contract WonderWorks and any other consumer use. Also served publicly at /api/jobs-lake/v1/protocol." />
+      <PageTitle title="Protocols" subtitle="WorksLake Protocol v1 — the contract WonderWorks and any other consumer use. Also served publicly at /api/jobs-lake/v1/protocol." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

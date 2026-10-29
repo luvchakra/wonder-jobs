@@ -35,7 +35,7 @@ describe("decideQuota", () => {
     if (!d.allowed) {
       expect(d.reason).toBe("free_exhausted");
       expect(d.message).toContain("100 free");
-      expect(d.message).toContain("Account → JobsLake API");
+      expect(d.message).toContain("Account → WorksLake API");
     }
   });
   it("bills past the allowance when pay-as-you-go is active", () => {

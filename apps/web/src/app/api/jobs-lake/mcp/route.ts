@@ -10,17 +10,17 @@ export const maxDuration = 60;
 /**
  * POST /api/jobs-lake/mcp — the optional MCP adapter (Streamable HTTP, JSON responses). Off unless
  * JOBSLAKE_MCP_ENABLED is set, and every call needs the JOBSLAKE_MCP_TOKEN bearer token or a
- * JobsLake API key (`Authorization: Bearer jl_live_…` or `x-api-key`). A key gets search_jobs,
+ * WorksLake API key (`Authorization: Bearer jl_live_…` or `x-api-key`). A key gets search_jobs,
  * get_job and refresh_job, metered like REST.
  */
 export async function POST(req: Request) {
-  if (!jobsLakeFlags().jobsLakeMcpEnabled) return jlError("FEATURE_DISABLED", "The JobsLake MCP interface is turned off.", 404);
+  if (!jobsLakeFlags().jobsLakeMcpEnabled) return jlError("FEATURE_DISABLED", "The WorksLake MCP interface is turned off.", 404);
   let caller: Caller;
   if (hasServiceToken(req)) caller = { kind: "service" };
   else {
     const dev = await developerCaller(req);
     if (dev instanceof NextResponse) return dev;
-    if (!dev) return jlError("UNAUTHORIZED", "A JobsLake API key or service token is required.", 401);
+    if (!dev) return jlError("UNAUTHORIZED", "A WorksLake API key or service token is required.", 401);
     caller = dev;
   }
   const body = await readJson(req, 64_000);

@@ -1,6 +1,6 @@
-# JobsLake — architecture and operations
+# WorksLake — architecture and operations
 
-JobsLake is WonderJobs' platform job-acquisition layer: the source registry, connectors, the
+WorksLake is WonderJobs' platform job-acquisition layer: the source registry, connectors, the
 canonical opportunity model, dedupe and provenance, source health and runs, credentials, the admin
 portal, and the Protocol v1 APIs (REST, stream, MCP). WonderJobs owns the candidate — Career
 Profile, matching, ranking, applications — and receives only `CanonicalOpportunity`s.
@@ -58,16 +58,16 @@ token see the upstream message.
 - **Browser search stage** (`services/workflow/executors.ts`): signed-in runs call
   `POST /api/jobs-lake/v1/search/stream` once with the candidate's search terms, locations and
   enabled sources — nothing else. Each source's evidence appears as it answers; "Searched with:
-  JobsLake · N sources planned" and "Sources searched: X of N answered" say how broad the search was.
-  The dedupe stage uses JobsLake's merge ("Cross-posted duplicates merged"). After matching, per-source
+  WorksLake · N sources planned" and "Sources searched: X of N answered" say how broad the search was.
+  The dedupe stage uses WorksLake's merge ("Cross-posted duplicates merged"). After matching, per-source
   relevant/strong counts go to `/v1/telemetry` (counts only).
-- **No fallback (owner, 2026-10-17):** every job search goes through JobsLake. If it's switched off or
-  doesn't answer, the search stage fails and says so ("JobsLake: Off" / "Didn't answer"); nothing
+- **No fallback (owner, 2026-10-17):** every job search goes through WorksLake. If it's switched off or
+  doesn't answer, the search stage fails and says so ("WorksLake: Off" / "Didn't answer"); nothing
   searches a source directly, and the old `/api/jobs/search` endpoint is gone.
 - **Scheduled runs** (`server/workflow/serverExecutors.ts`) call `core.search` in-process, same rule.
 - **Job detail → Sources & signals → "Where this job was found"**: every sighting, which one is shown,
   access type, employer site, which source supplied title / apply link / date / salary, and a
-  "Check <source> now" refresh. Unknown JobsLake source ids render by name.
+  "Check <source> now" refresh. Unknown WorksLake source ids render by name.
 - Demo and local mode keep the generated sample data (unchanged).
 
 ## Access and security
@@ -93,7 +93,7 @@ token see the upstream message.
 
 | Variable | Default | Off means |
 |---|---|---|
-| `JOBSLAKE_ENABLED` | on | Everything below is off; signed-in searches don't run (they say JobsLake is off) |
+| `JOBSLAKE_ENABLED` | on | Everything below is off; signed-in searches don't run (they say WorksLake is off) |
 | `JOBSLAKE_SEARCH_ENABLED` | on | Searches don't run and say so; v1 search answers `FEATURE_DISABLED` |
 | `JOBSLAKE_STREAMING_ENABLED` | on | The client uses the plain search endpoint |
 | `JOBSLAKE_WARM_POOL_ENABLED` | on | Nothing is stored; every search is live only |
@@ -105,7 +105,7 @@ token see the upstream message.
 Migration `0007_jobslake.sql` creates `wonderjobs.jobslake_sources`, `_credentials`, `_runs`,
 `_audit`, `_opportunities` (RLS enabled, revoked from `anon`/`authenticated`, reached only by the
 service role). These are platform tables — no tenant column, no candidate data. Until 0007 is applied,
-JobsLake runs on an in-memory store and says so on the Overview and Settings pages ("history … resets
+WorksLake runs on an in-memory store and says so on the Overview and Settings pages ("history … resets
 when the server restarts").
 
 ## Operating it
@@ -119,7 +119,7 @@ when the server restarts").
 
 - In-repo module rather than a separate service; the protocol boundary is kept so it can be split.
 - No scraper engine, and no partnership connectors — both are listed and blocked, never faked.
-- Health, coverage and quality cover what JobsLake has actually recorded (7-day default, 24 h / 30 days
+- Health, coverage and quality cover what WorksLake has actually recorded (7-day default, 24 h / 30 days
   selectable); no projections or backfilled history.
 - Role family, seniority and industry are derived from posting text and labelled "derived".
 - Admin settings are read-only (environment variables), so every change is a deploy-time decision.

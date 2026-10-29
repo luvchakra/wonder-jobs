@@ -68,10 +68,10 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const sources: JobSource[] = snapshot.jobs.sources.filter((s) => s.enabled && (wanted.length ? wanted.includes(s.id) : true));
       const criteria = { query: ctx.run.config.searchCriteria.query, locations: ctx.run.config.searchCriteria.locations };
       ctx.setProgress(0, null);
-      // Only through JobsLake (owner, 2026-10-17): the same core search the browser's stream uses, called
+      // Only through WorksLake (owner, 2026-10-17): the same core search the browser's stream uses, called
       // in-process. When it's off or fails, the run says so; it never goes to a source directly.
       if (!sources.length) ctx.fail({ category: "fatal", message: "No job sources are switched on for this schedule.", actions: ["fix_config", "stop"] });
-      if (!jobsLakeFlags().jobsLakeSearchEnabled) ctx.fail({ category: "fatal", message: "JobsLake search is switched off on this deployment, so this scheduled search didn't run.", actions: ["retry", "stop"] });
+      if (!jobsLakeFlags().jobsLakeSearchEnabled) ctx.fail({ category: "fatal", message: "WorksLake search is switched off on this deployment, so this scheduled search didn't run.", actions: ["retry", "stop"] });
       try {
         // Scheduled runs search the same broader phrasings by rule (no model call on the cron).
         const variants = ruleVariants(criteria.query).slice(0, MAX_VARIANTS);
@@ -80,11 +80,11 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
         if (said) ctx.addEvidence(said);
         lake = response;
       } catch (e) {
-        ctx.addEvidence({ label: "JobsLake", value: "Didn't answer", tone: "warning" });
-        ctx.fail({ category: "fatal", message: `JobsLake didn't answer (${e instanceof Error ? e.message : String(e)}). The next scheduled search will try again.`, actions: ["retry", "stop"] });
+        ctx.addEvidence({ label: "WorksLake", value: "Didn't answer", tone: "warning" });
+        ctx.fail({ category: "fatal", message: `WorksLake didn't answer (${e instanceof Error ? e.message : String(e)}). The next scheduled search will try again.`, actions: ["retry", "stop"] });
       }
       if (lake) {
-        ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${lake.metadata.sourcesPlanned} sources planned`, tone: "info" });
+        ctx.addEvidence({ label: "Searched with", value: `WorksLake · ${lake.metadata.sourcesPlanned} sources planned`, tone: "info" });
         for (const st of lake.sources) {
           const ev = sourceEvidence(st);
           if (ev) ctx.addEvidence(ev);
@@ -106,14 +106,14 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
             actions: ["retry", "fix_config", "stop"],
           });
         }
-        return { data: { jobIds: canonical.map((j) => j.id), perSource: Object.fromEntries(lake.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved])), searchedWith: "JobsLake", requestId: lake.requestId }, counts: { discovered, sources: lake.metadata.sourcesSucceeded } };
+        return { data: { jobIds: canonical.map((j) => j.id), perSource: Object.fromEntries(lake.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved])), searchedWith: "WorksLake", requestId: lake.requestId }, counts: { discovered, sources: lake.metadata.sourcesSucceeded } };
       }
-      return ctx.fail({ category: "fatal", message: "JobsLake didn't answer. The next scheduled search will try again.", actions: ["retry", "stop"] });
+      return ctx.fail({ category: "fatal", message: "WorksLake didn't answer. The next scheduled search will try again.", actions: ["retry", "stop"] });
     },
 
     dedupe: async (ctx) => {
       if (lake) {
-        // Already merged by JobsLake, every sighting kept.
+        // Already merged by WorksLake, every sighting kept.
         ctx.setProgress(canonical.length, canonical.length);
         ctx.setCounts({ unique: canonical.length, duplicates: lake.metadata.duplicates });
         ctx.addEvidence({ label: "Unique opportunities", value: canonical.length.toLocaleString("en-IN"), tone: "success" });

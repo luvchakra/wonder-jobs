@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 afterEach(() => __setJobsLakeStore(undefined));
 
-describe("JobsLake per-module datasets (WonderWorks)", () => {
+describe("WorksLake per-module datasets (WonderWorks)", () => {
   it("every built-in source feeds Jobs, so Jobs' sources are exactly today's", async () => {
     for (const s of [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES]) expect(s.module).toBe("jobs");
     expect((await listSources()).map((s) => s.id)).toEqual([...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].map((s) => s.id));

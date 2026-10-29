@@ -1,5 +1,5 @@
 /**
- * Partner job portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs): what JobsLake knows about each
+ * Partner job portals (LinkedIn, Indeed, Naukri, foundit, TimesJobs): what WorksLake knows about each
  * before a partnership exists, and the pure rules a partner connection has to satisfy.
  *
  * None of these portals has an open job-search API. Access comes from a signed partnership or
@@ -30,7 +30,7 @@ export interface PartnerConnection {
   format: PartnerFormat;
   /** https only; checked against the SSRF policy when saved and again at every request. */
   endpoint: string;
-  /** Query-string name the partner searches by. Empty = a full feed that JobsLake filters locally. */
+  /** Query-string name the partner searches by. Empty = a full feed that WorksLake filters locally. */
   queryParam?: string;
   locationParam?: string;
   auth: ConnectorAuth;

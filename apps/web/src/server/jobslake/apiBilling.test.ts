@@ -30,7 +30,7 @@ beforeEach(() => {
   __clearApiPriceCache();
   calls = [];
   routes = {
-    "GET /prices/price_api": () => ({ json: { id: "price_api", active: true, currency: "usd", billing_scheme: "per_unit", unit_amount_decimal: "1", recurring: { usage_type: "metered", interval: "month" }, product: { name: "JobsLake API" } } }),
+    "GET /prices/price_api": () => ({ json: { id: "price_api", active: true, currency: "usd", billing_scheme: "per_unit", unit_amount_decimal: "1", recurring: { usage_type: "metered", interval: "month" }, product: { name: "WorksLake API" } } }),
     "POST /checkout/sessions": () => ({ json: { id: "cs_test_1", url: "https://checkout.stripe.com/c/cs_test_1" } }),
     "GET /subscriptions/sub_api": () => ({ json: { id: "sub_api", status: "active" } }),
     "POST /billing/meter_events": () => ({ json: { object: "billing.meter_event" } }),
@@ -74,7 +74,7 @@ describe("pay-as-you-go checkout", () => {
   });
 
   it("shows the price Stripe has, and refuses a price that isn't metered rather than inventing one", async () => {
-    expect((await apiAccountStatus(OWNER, NOW)).billing).toEqual({ state: "available", price: { unitAmountDecimal: "1", currency: "USD", perUnits: 1, productName: "JobsLake API" } });
+    expect((await apiAccountStatus(OWNER, NOW)).billing).toEqual({ state: "available", price: { unitAmountDecimal: "1", currency: "USD", perUnits: 1, productName: "WorksLake API" } });
     __clearApiPriceCache();
     routes["GET /prices/price_api"] = () => ({ json: { id: "price_api", active: true, currency: "usd", unit_amount: 900, recurring: { usage_type: "licensed", interval: "month" } } });
     const s = await apiAccountStatus(OWNER, NOW);

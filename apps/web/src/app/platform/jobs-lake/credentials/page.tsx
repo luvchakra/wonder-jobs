@@ -13,7 +13,7 @@ export default function CredentialsPage() {
     <>
       <PageTitle title="Credentials" subtitle="Encrypted with AES-256-GCM on the server and shown only masked. Set or replace one from its source's Configuration tab." />
       <div className="mb-4">
-        <Note>JobsLake never returns a credential through any API, never logs one, and never puts one in an error message.</Note>
+        <Note>WorksLake never returns a credential through any API, never logs one, and never puts one in an error message.</Note>
       </div>
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
@@ -25,7 +25,7 @@ export default function CredentialsPage() {
             empty="No source uses a credential."
             columns={[
               { header: "Source", cell: (r) => <Link href={`/platform/jobs-lake/sources/${r.id}`} className="font-medium text-ink hover:underline">{r.name}</Link> },
-              { header: "Managed by", cell: (r) => (r.credential?.managedBy === "environment" ? "Deployment environment" : "JobsLake") },
+              { header: "Managed by", cell: (r) => (r.credential?.managedBy === "environment" ? "Deployment environment" : "WorksLake") },
               { header: "State", cell: (r) => <StatusPill tone={r.credential?.present ? "success" : "warning"} label={r.credential?.present ? "Set" : "Missing"} /> },
               { header: "Value", cell: (r) => <span className="font-mono text-[12px]">{r.credential?.masked ?? "—"}</span> },
               { header: "Last changed", cell: (r) => (r.credential?.replacedAt ? relativeTime(r.credential.replacedAt) : r.credential?.createdAt ? relativeTime(r.credential.createdAt) : "—") },

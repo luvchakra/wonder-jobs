@@ -29,7 +29,7 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
 const fetchAll = () => Promise.all([call<ApiAccountStatus>("/api/jobs-lake/api-billing").catch(() => null), call<{ keys: ApiKeyView[] }>("/api/jobs-lake/keys").then((r) => r.keys).catch(() => null)]);
 
 /**
- * Account → JobsLake API: use JobsLake from your own code with an API key. Every number is the
+ * Account → WorksLake API: use WorksLake from your own code with an API key. Every number is the
  * account's real metered usage; the price is the one Stripe has. Folded until wanted.
  */
 export function JobsLakeApiCard({ returnState }: { returnState: string | null }) {
@@ -121,7 +121,7 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
 
   return (
     <div id="jobslake-api" className="mt-4 scroll-mt-20">
-      <Fold title="JobsLake API" hint={usage ?? "Search jobs from your own code"} open={returnState !== null || linked || undefined}>
+      <Fold title="WorksLake API" hint={usage ?? "Search jobs from your own code"} open={returnState !== null || linked || undefined}>
         <div className="flex flex-col gap-4 text-[13px]">
           {!status && !keys && <p className="text-ink-3">The API isn&apos;t reachable just now.</p>}
 

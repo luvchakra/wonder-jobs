@@ -9,7 +9,7 @@ const Reply = z.object({
 });
 
 /**
- * AI suggestions for improving JobsLake's sources, from the same facts the page shows. A proposal only:
+ * AI suggestions for improving WorksLake's sources, from the same facts the page shows. A proposal only:
  * each is checked against those facts (domain/jobslake/insights.ts) and nothing changes a source.
  * Null when no model is configured or the call fails — the rule-based suggestions still stand.
  */

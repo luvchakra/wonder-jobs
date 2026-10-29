@@ -15,7 +15,7 @@ describe("provider event normalisation", () => {
     expect(fromStripeEvent({ id: "evt_2", type: "checkout.session.completed", created: T, data: { object: { mode: "payment" } } }).kind).toBe("ignored");
   });
 
-  it("ignores JobsLake API pay-as-you-go events, so they never grant or change the candidate plan", () => {
+  it("ignores WorksLake API pay-as-you-go events, so they never grant or change the candidate plan", () => {
     const meta = { tenant_id: "tenant-a", purpose: "jobslake_api" };
     const events = [
       { type: "checkout.session.completed", object: { mode: "subscription", client_reference_id: "tenant-a", subscription: "sub_api", customer: "cus_1", metadata: meta } },

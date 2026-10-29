@@ -442,9 +442,9 @@ describe("checkout discounts", () => {
   });
 });
 
-/* ------------------------------------------------------------ JobsLake API */
+/* ------------------------------------------------------------ WorksLake API */
 
-describe("JobsLake API pricing", () => {
+describe("WorksLake API pricing", () => {
   it("stored settings take precedence over the environment; unknown sources are refused", async () => {
     vi.stubEnv("JOBSLAKE_API_FREE_SEARCHES", "250");
     providers([]);

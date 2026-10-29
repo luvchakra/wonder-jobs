@@ -113,7 +113,7 @@ export function analyticsReport(input: { applications: Application[]; jobs: Reco
   for (const a of submitted) {
     const fit = input.matches[a.jobId]?.fit;
     appliedFit[fit ?? "unknown"]++;
-    // Named as the job cards name them: JobsLake's sightings first, else the source list.
+    // Named as the job cards name them: WorksLake's sightings first, else the source list.
     const job = input.jobs[a.jobId];
     const names = job?.lake?.sightings.length ? job.lake.sightings.map((x) => x.sourceName) : (job?.sourceIds ?? []).map((id) => input.sourceName?.(id) ?? id);
     for (const name of new Set(names)) sourceCount.set(name, (sourceCount.get(name) ?? 0) + 1);

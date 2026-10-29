@@ -9,7 +9,7 @@ import { stubPractice } from "./fixtures/ai";
  * candidate of e2e/fixtures/sample.ts, on a local web server with no Supabase (so no real account is needed and
  * every test here runs unconditionally, unlike auth.spec.ts's account-dependent block). The product has no
  * demo mode: the candidate's stores are filled before the page loads, and searches answer from the same sample
- * postings through the real JobsLake path.
+ * postings through the real WorksLake path.
  */
 
 test.describe("Golden journey — opening the app", () => {
@@ -274,7 +274,7 @@ test.describe("Golden journey — search", () => {
     await page.getByRole("textbox", { name: "Search jobs" }).fill("designer");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.locator("#main").getByText(/^Showing \d+ jobs? for “designer”/)).toBeVisible({ timeout: 20_000 });
-    // The best results are real matches for the typed text, not a fixed set. (JobsLake also lists what it saw in
+    // The best results are real matches for the typed text, not a fixed set. (WorksLake also lists what it saw in
     // other searches this week that fit the words more loosely, further down.)
     // (Top-level results only: each card carries its own "why" lists, which are list items too.)
     const items = await results.locator(":scope > li").all();

@@ -9,13 +9,13 @@ import { MCP_TOOLS } from "./mcp";
 export function protocolDocument() {
   const plan = apiPlanConfig(process.env, cachedApiPlan());
   return {
-    name: "JobsLake Protocol",
+    name: "WorksLake Protocol",
     version: PROTOCOL_VERSION,
     base: "/api/jobs-lake/v1",
     endpoints: [
       { method: "POST", path: "/search", auth: "WonderWorks session, API key or service token", description: "Search live sources; returns canonical opportunities, per-source outcomes and dedupe counts." },
       { method: "POST", path: "/search/stream", auth: "WonderWorks session, API key or service token", description: "The same search as newline-delimited JSON events, emitted as the work happens." },
-      { method: "GET", path: "/opportunities/:id", auth: "WonderWorks session, API key or service token", description: "One canonical opportunity, by JobsLake id or WonderWorks job id." },
+      { method: "GET", path: "/opportunities/:id", auth: "WonderWorks session, API key or service token", description: "One canonical opportunity, by WorksLake id or WonderWorks job id." },
       { method: "POST", path: "/opportunities/:id/refresh", auth: "WonderWorks session, API key or service token", description: "Re-read an opportunity from its canonical source." },
       { method: "GET", path: "/sources", auth: "Platform admin or service token", description: "Registered sources with access strategy, status and run-derived health." },
       { method: "GET", path: "/sources/:id", auth: "Platform admin or service token", description: "One source." },
@@ -33,7 +33,7 @@ export function protocolDocument() {
     },
     apiKeys: {
       header: "Authorization: Bearer jl_live_… (or x-api-key: jl_live_…)",
-      create: "Account → JobsLake API in WonderWorks. A key is shown once; up to 5 active keys per account.",
+      create: "Account → WorksLake API in WonderWorks. A key is shown once; up to 5 active keys per account.",
       units: "1 per search (REST, stream or MCP search_jobs) and 1 per refresh. Reading an opportunity is free.",
       freePerMonth: plan.freeMonthly,
       overFree: `Past ${plan.freeMonthly} free units a calendar month (UTC): HTTP 402 QUOTA_EXCEEDED, unless the account turned on pay-as-you-go (Stripe, billed per unit at the price shown on the Account page).`,

@@ -36,7 +36,7 @@ export default function SourcesPage() {
     <>
       <PageTitle
         title="Sources"
-        subtitle="Every source JobsLake knows, how it's accessed, and how it has actually performed over the last 7 days."
+        subtitle="Every source WorksLake knows, how it's accessed, and how it has actually performed over the last 7 days."
         actions={
           <Button size="sm" href="/platform/jobs-lake/add">
             Add source

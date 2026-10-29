@@ -1,5 +1,5 @@
 /**
- * The JobsLake search cache: what each source returned for a search, reused when the next search
+ * The WorksLake search cache: what each source returned for a search, reused when the next search
  * asks the same source the same question — even worded differently. Pure rules only; the store and
  * the search wiring live in `server/jobslake/cache.ts` and `core.ts`.
  *

@@ -5,7 +5,7 @@ import { companyProfile } from "@/server/jobslake/companies";
 export const runtime = "nodejs";
 
 /**
- * GET ?d=domain&n=name — what JobsLake knows about a company (size and industry as TheirStack reports them, its
+ * GET ?d=domain&n=name — what WorksLake knows about a company (size and industry as TheirStack reports them, its
  * open and new postings, H-1B filings from the Department of Labor). Public, platform-wide data; 404 when none.
  */
 export async function GET(req: Request) {

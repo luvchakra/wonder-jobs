@@ -1,10 +1,10 @@
 /**
- * The JobsLake MCP adapter (spec §37): JSON-RPC 2.0 over Streamable HTTP, answering with plain JSON.
+ * The WorksLake MCP adapter (spec §37): JSON-RPC 2.0 over Streamable HTTP, answering with plain JSON.
  * Every tool calls the same service function as its REST endpoint and returns the same JSON, so an
  * MCP result and a REST result for the same question are identical (WJ-JL-029).
  *
  * MCP doesn't grant authorization by itself (spec §57): the route requires the MCP flag and either
- * the service token or a JobsLake API key before anything here runs. An API key gets only the tools
+ * the service token or a WorksLake API key before anything here runs. An API key gets only the tools
  * its REST endpoints allow, metered and restricted exactly as REST (the same service functions).
  */
 import { JOB_TYPES } from "@/domain/jobs/jobType";
@@ -29,7 +29,7 @@ const idArg = { type: "object", properties: { id: { type: "string", description:
 export const MCP_TOOLS: Tool[] = [
   {
     name: "search_jobs",
-    description: "Search live job sources through JobsLake. Returns canonical opportunities with source provenance, per-source outcomes and dedupe counts. Same schema as POST /api/jobs-lake/v1/search.",
+    description: "Search live job sources through WorksLake. Returns canonical opportunities with source provenance, per-source outcomes and dedupe counts. Same schema as POST /api/jobs-lake/v1/search.",
     inputSchema: {
       type: "object",
       properties: {
@@ -50,7 +50,7 @@ export const MCP_TOOLS: Tool[] = [
   { name: "refresh_job", description: "Re-read one opportunity from its canonical source. Same schema as POST /api/jobs-lake/v1/opportunities/:id/refresh.", inputSchema: idArg, run: async (a, c) => refreshOpportunityById(c, String(a.id ?? "")) },
   {
     name: "search_sources",
-    description: "List JobsLake sources with access strategy, status and health, optionally filtered by text.",
+    description: "List WorksLake sources with access strategy, status and health, optionally filtered by text.",
     inputSchema: { type: "object", properties: { text: { type: "string" } } },
     platform: true,
     run: async (a) => {
@@ -68,7 +68,7 @@ export const MCP_TOOLS: Tool[] = [
   },
   {
     name: "get_coverage",
-    description: "Coverage of the JobsLake warm pool by source, country, role family, seniority, industry and freshness.",
+    description: "Coverage of the WorksLake warm pool by source, country, role family, seniority, industry and freshness.",
     inputSchema: { type: "object", properties: { days: { type: "integer", minimum: 1, maximum: 30 } } },
     platform: true,
     run: async (a) => ok(await coveragePublic(Math.min(30, Math.max(1, Number(a.days) || 7)))),

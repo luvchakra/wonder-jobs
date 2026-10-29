@@ -8,9 +8,9 @@ name: E2E nightly
 #
 # Three parts, in parallel (measured 2026-10-15: the whole suite is ~11 min of test time on 2 workers,
 # far under the ~30 min that would justify splitting it further by time):
-#   local       every spec against a local build with no Supabase: demo journeys, the JobsLake admin
+#   local       every spec against a local build with no Supabase: demo journeys, the WorksLake admin
 #               portal (it only opens without real auth), the browser helper, résumé templates…
-#   signed-in   the specs with signed-in journeys (auth, JobsLake candidate search) against a local
+#   signed-in   the specs with signed-in journeys (auth, WorksLake candidate search) against a local
 #               build on the Supabase project, with disposable wj-e2e-*@example.com accounts
 #   production  the real-account walk-through against the production deployment, same accounts
 # signed-in and production need the E2E_SUPABASE_* secrets; without them they report BLOCKED.
@@ -64,7 +64,7 @@ jobs:
             production: false
             specs: "e2e/auth.spec.ts e2e/jobslake.spec.ts e2e/help-access.spec.ts e2e/hiring.spec.ts"
             budget_ms: 1800000
-            # One at a time: these share one server and one Supabase project, and JobsLake's live searches
+            # One at a time: these share one server and one Supabase project, and WorksLake's live searches
             # (multi-MB boards, warm-pool reads and writes) stalled the hiring journey's requests for 8–17s
             # when the two ran side by side (nightly run 32).
             workers: 1

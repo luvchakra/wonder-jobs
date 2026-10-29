@@ -141,7 +141,7 @@ export interface RunConfig {
     locations: string[];
     workModes: ("remote" | "hybrid" | "onsite")[];
     minSalary?: number;
-    /** Job types the words asked for ("part time"): JobsLake asks the sources that list them first. */
+    /** Job types the words asked for ("part time"): WorksLake asks the sources that list them first. */
     jobTypes?: JobType[];
   };
   minMatchThreshold: number;

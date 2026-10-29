@@ -85,11 +85,11 @@ function stripeInvoiceTenant(inv: Obj): string | undefined {
   return str(obj(obj(inv.subscription_details).metadata).tenant_id) ?? str(obj(obj(obj(inv.parent).subscription_details).metadata).tenant_id);
 }
 
-/** Metadata `purpose` WonderJobs puts on the JobsLake API's pay-as-you-go checkout and subscription. */
+/** Metadata `purpose` WonderJobs puts on the WorksLake API's pay-as-you-go checkout and subscription. */
 export const JOBSLAKE_API_PURPOSE = "jobslake_api";
 
 /**
- * Whether a Stripe object belongs to the JobsLake API's metered billing rather than the candidate
+ * Whether a Stripe object belongs to the WorksLake API's metered billing rather than the candidate
  * plan: the checkout session or subscription carries `purpose` in its metadata, and an invoice
  * carries its subscription's metadata (either shape Stripe has used).
  */
@@ -103,7 +103,7 @@ export function fromStripeEvent(event: unknown): BillingEvent {
   const type = str(e.type) ?? "unknown";
   const o = obj(obj(e.data).object);
   const base = { provider: "stripe" as const, eventId: str(e.id) ?? "", providerType: type, occurredAt: iso(e.created) ?? new Date(0).toISOString() };
-  // JobsLake API billing never touches the candidate plan: a pay-as-you-go subscription grants no Pro.
+  // WorksLake API billing never touches the candidate plan: a pay-as-you-go subscription grants no Pro.
   if (isJobsLakeApi(o)) return { ...base, kind: "ignored" };
   switch (type) {
     case "checkout.session.completed": {

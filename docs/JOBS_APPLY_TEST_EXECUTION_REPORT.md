@@ -59,5 +59,5 @@ The runs were repeated: the chromium suite ran 3 times (24/24 twice, and the ful
 - **Domain protection works only where the helper can run:** the static ATS hosts, and sites the candidate allowed. On a host with neither, the helper isn't present to notice. The session stays paused only if it was on a permitted host.
 - **Multi-instance races.** Sessions are read-modify-write JSON documents per tenant, serialised within one server instance. Concurrent writes from two instances could race.
 - **No production telemetry store.** The admin view aggregates sessions of the latest 200 tenants on demand.
-- **Real-account run blocked.** The signed-in (Supabase) run of these journeys needs the same approval as the JobsLake candidate journeys: a disposable account.
+- **Real-account run blocked.** The signed-in (Supabase) run of these journeys needs the same approval as the WorksLake candidate journeys: a disposable account.
 - **Not built:** authorized application APIs, confirmation-email evidence and the Chrome side panel. The reasons are in the audit.

@@ -118,7 +118,7 @@ function render(v) {
   $("job").hidden = false;
   setText("job-from", `Read from ${v.readFrom}`);
   setText("job-title", v.title);
-  // The company's logo from JobsLake when it has one; nothing is shown otherwise.
+  // The company's logo from WorksLake when it has one; nothing is shown otherwise.
   const logo = $("job-logo");
   logo.hidden = !v.logo;
   if (v.logo && v.logo.startsWith("data:image/")) logo.src = v.logo;

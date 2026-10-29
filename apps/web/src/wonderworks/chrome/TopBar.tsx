@@ -4,8 +4,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { Avatar } from "@/components/common/Avatar";
-import { WonderStarMark } from "@/wonderworks/brand/Logo";
+import { FlipAvatar } from "./FlipAvatar";
 import { useCareerStore } from "@/store/career";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
@@ -58,7 +57,7 @@ export function TopBar() {
   useOutside(profileRef, () => setProfileOpen(false));
 
   const menuConfig = useMenu("account");
-  // Platform admins get an Admin link (the JobsLake portal); everyone else never sees it.
+  // Platform admins get an Admin link (the WorksLake portal); everyone else never sees it.
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (mode !== "user") return;
@@ -160,11 +159,8 @@ export function TopBar() {
 
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Every screen (owner, 2026-10-29): the avatar and the WonderWorks mark on the left, the kind menu in the centre,
-          the bell on the right. */}
-      <Link href="/app" aria-label="WonderWorks home" title="WonderWorks" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
-        <WonderStarMark className="h-[17px] w-auto" />
-      </Link>
+      {/* Every screen (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then;
+          there's no separate logo), the kind menu in the centre, the bell on the right. */}
       <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
@@ -182,7 +178,7 @@ export function TopBar() {
 
       <div className="relative order-[-3]" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
-          <Avatar name={displayName} size={34} self />
+          <FlipAvatar name={displayName} />
         </button>
         {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
       </div>

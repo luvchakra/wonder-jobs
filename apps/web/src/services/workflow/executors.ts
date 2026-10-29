@@ -1,6 +1,6 @@
 /**
  * Stage executors for the Run Wonder workflow. Each does real work on real
- * data (JobsLake search, the candidate's AI) and reports progress through the
+ * data (WorksLake search, the candidate's AI) and reports progress through the
  * engine context — the UI only ever renders engine state.
  */
 import { RestartSignal, StopSignal, type StageContext, type StageExecutor } from "@/domain/workflow/engine";
@@ -74,12 +74,12 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const sourceIds = ctx.run.config.sourceIds.length ? ctx.run.config.sourceIds : useJobsStore.getState().sources.filter((s) => s.enabled).map((s) => s.id);
       const enabled = useJobsStore.getState().sources.filter((s) => s.enabled && s.available !== false && sourceIds.includes(s.id));
       ctx.setProgress(0, null);
-      // Search only through JobsLake — one request, every source, deduplicated with provenance.
-      // When JobsLake is off or doesn't answer, the run says so; it never goes to a source directly.
+      // Search only through WorksLake — one request, every source, deduplicated with provenance.
+      // When WorksLake is off or doesn't answer, the run says so; it never goes to a source directly.
       if (!enabled.length) ctx.fail({ category: "user_action_required", message: "No job sources are switched on. Turn one on and search again.", actions: ["fix_config", "stop"] });
-      if (!jobsLakeCapability().search) ctx.fail({ category: "recoverable", message: "JobsLake search is switched off on this deployment, so Wonder can't search right now.", actions: ["retry", "stop"] });
+      if (!jobsLakeCapability().search) ctx.fail({ category: "recoverable", message: "WorksLake search is switched off on this deployment, so Wonder can't search right now.", actions: ["retry", "stop"] });
       const lake = await searchWithJobsLake(ctx, enabled.map((s) => s.id));
-      if (!lake) return ctx.fail({ category: "recoverable", message: "JobsLake didn't answer, so no new jobs were found. Retry in a moment.", actions: ["retry", "stop"] });
+      if (!lake) return ctx.fail({ category: "recoverable", message: "WorksLake didn't answer, so no new jobs were found. Retry in a moment.", actions: ["retry", "stop"] });
       lakeCache.set(ctx.run.id, lake);
       const m = lake.response.metadata;
       const discovered = m.retrieved + m.warm;
@@ -90,14 +90,14 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         ctx.fail({ category: allFailed ? "recoverable" : "user_action_required", message: allFailed ? `All sources failed (${failed.join(", ")}). Retry in a moment.` : "No jobs matched your search. Widen the query or locations.", actions: ["retry", "fix_config", "stop"] });
       }
       const perSource = Object.fromEntries(lake.response.sources.filter((x) => x.outcome === "ok" || x.outcome === "empty").map((x) => [x.sourceId, x.retrieved]));
-      return { data: { jobIds: lake.jobs.map((j) => j.id), perSource, searchedWith: "JobsLake", requestId: lake.response.requestId }, counts: { discovered, sources: m.sourcesSucceeded } };
+      return { data: { jobIds: lake.jobs.map((j) => j.id), perSource, searchedWith: "WorksLake", requestId: lake.response.requestId }, counts: { discovered, sources: m.sourcesSucceeded } };
     },
 
     dedupe: async (ctx) => {
       const lake = lakeCache.get(ctx.run.id);
       // The search results live in memory only; a reload between stages loses them, so this says so instead of continuing with nothing.
       if (!lake) return ctx.fail({ category: "recoverable", message: "The search results were lost when the page reloaded. Search again.", actions: ["retry", "stop"] });
-      // JobsLake already merged cross-posted duplicates (by apply URL, identity and content), keeping every sighting.
+      // WorksLake already merged cross-posted duplicates (by apply URL, identity and content), keeping every sighting.
       const m = lake.response.metadata;
       canonicalCache.set(ctx.run.id, lake.jobs);
       ctx.setProgress(lake.jobs.length, lake.jobs.length);
@@ -455,7 +455,7 @@ export function seedCachesFromCatalog(runId: string) {
   );
 }
 
-/* ------------------------------------------------------------- JobsLake */
+/* ------------------------------------------------------------- WorksLake */
 
 /**
  * Smart search: broader phrasings to search alongside the candidate's words — AI-proposed and checked
@@ -497,8 +497,8 @@ function warnFor(ctx: StageContext, s: SourceSearchStatus) {
 }
 
 /**
- * The search stage through JobsLake: streamed when the deployment allows it, so each source's
- * evidence appears the moment that source answers. Returns null when JobsLake is off or failed — the
+ * The search stage through WorksLake: streamed when the deployment allows it, so each source's
+ * evidence appears the moment that source answers. Returns null when WorksLake is off or failed — the
  * caller then searches each source directly, and the evidence says which path ran.
  */
 async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promise<{ response: SearchResponse; jobs: CanonicalJob[] } | null> {
@@ -507,7 +507,7 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
   const req = searchRequestFor({ ...ctx.run.config.searchCriteria, variants: phrasings.variants }, sourceIds, "balanced", 500);
 
   const abort = new AbortController();
-  // Stop ends the request at once: the search doesn't wait for JobsLake's next answer to notice.
+  // Stop ends the request at once: the search doesn't wait for WorksLake's next answer to notice.
   const onStop = () => abort.abort();
   ctx.stopSignal.addEventListener("abort", onStop, { once: true });
   let control: unknown = null;
@@ -521,8 +521,8 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
       throw sig;
     }
     if (e.type === "search_started") {
-      ctx.addEvidence({ label: "Searched with", value: `JobsLake · ${e.plannedSources.length} sources planned`, tone: "info" });
-      // Only once JobsLake is searching them: the direct fallback path searches the candidate's words alone.
+      ctx.addEvidence({ label: "Searched with", value: `WorksLake · ${e.plannedSources.length} sources planned`, tone: "info" });
+      // Only once WorksLake is searching them: the direct fallback path searches the candidate's words alone.
       const said = phrasingEvidence(phrasings.variants, phrasings.fromAi);
       if (said) ctx.addEvidence(said);
     }
@@ -566,8 +566,8 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
     if (e instanceof StopSignal || e instanceof RestartSignal) throw e;
     const disabled = e instanceof JobsLakeError && e.body?.code === "FEATURE_DISABLED";
     if (disabled) setJobsLakeCapability({ search: false });
-    ctx.addEvidence({ label: "JobsLake", value: disabled ? "Off" : "Didn't answer", tone: "warning" });
-    if (!disabled) ctx.warn(`JobsLake didn't answer (${e instanceof Error ? e.message : "unknown error"}).`);
+    ctx.addEvidence({ label: "WorksLake", value: disabled ? "Off" : "Didn't answer", tone: "warning" });
+    if (!disabled) ctx.warn(`WorksLake didn't answer (${e instanceof Error ? e.message : "unknown error"}).`);
     return null;
   }
   ctx.stopSignal.removeEventListener("abort", onStop);

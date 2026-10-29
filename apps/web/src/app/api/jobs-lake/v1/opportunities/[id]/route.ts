@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET /api/jobs-lake/v1/opportunities/:id — by JobsLake id (opp_…) or WonderJobs job id. `?module=` reads that module's dataset (default jobs). */
+/** GET /api/jobs-lake/v1/opportunities/:id — by WorksLake id (opp_…) or WonderJobs job id. `?module=` reads that module's dataset (default jobs). */
 export async function GET(req: Request, ctx: Ctx) {
   const caller = await requireApiCaller(req);
   if (caller instanceof NextResponse) return caller;

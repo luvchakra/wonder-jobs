@@ -1,5 +1,5 @@
 /**
- * Persistence for the JobsLake developer API (migration 0015): API keys (hashes only), per-day usage
+ * Persistence for the WorksLake developer API (migration 0015): API keys (hashes only), per-day usage
  * and pay-as-you-go billing state. Supabase when configured, memory otherwise (local / tests).
  *
  * Tenant isolation: every read and write takes the owner (the session's tenant id) and filters by it
@@ -7,7 +7,7 @@
  * not owner-scoped: `findKeyByHash` (authentication itself — it is how the owner is learned, from a
  * hash of a 256-bit secret) and `listSubscribedBilling` (the daily usage report across accounts, server-only).
  *
- * Unlike the rest of JobsLake this store does NOT degrade to memory when its tables are missing: keys
+ * Unlike the rest of WorksLake this store does NOT degrade to memory when its tables are missing: keys
  * and usage that vanish on restart would be wrong in a way nobody could see. Errors surface instead.
  */
 import { getSupabaseAdmin, touchTenant } from "@/server/supabase";
@@ -126,7 +126,7 @@ class SupabaseApiStore implements ApiStore {
     return sb.schema("wonderjobs");
   }
   private fail(what: string, error: { message: string }): never {
-    throw new Error(`JobsLake API could not ${what}: ${error.message}`);
+    throw new Error(`WorksLake API could not ${what}: ${error.message}`);
   }
   async createKey(k: ApiKeyRecord) {
     await touchTenant(k.ownerId);
@@ -156,7 +156,7 @@ class SupabaseApiStore implements ApiStore {
     const { data, error } = await this.sb().rpc("jobslake_api_meter", { owner: ownerId, d: day, n });
     if (error) this.fail("meter usage", error);
     const total = Number(data);
-    if (!Number.isFinite(total)) throw new Error("JobsLake API could not meter usage: no total returned");
+    if (!Number.isFinite(total)) throw new Error("WorksLake API could not meter usage: no total returned");
     return total;
   }
   async usage(ownerId: string, fromDay: string) {

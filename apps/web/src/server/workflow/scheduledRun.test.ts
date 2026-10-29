@@ -5,11 +5,11 @@ import { EMPTY_DNA } from "@/domain/career/types";
 import { defaultPolicy } from "@/domain/automation/policy";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 
-// What the sources answer, by search terms. Searching goes only through JobsLake, so every test reaches
-// these jobs through JobsLake's core search (mocked below), the way a scheduled run does in production.
+// What the sources answer, by search terms. Searching goes only through WorksLake, so every test reaches
+// these jobs through WorksLake's core search (mocked below), the way a scheduled run does in production.
 const searchSource = vi.fn();
 
-// JobsLake's core search, in-process. By default it answers with whatever `searchSource` returns.
+// WorksLake's core search, in-process. By default it answers with whatever `searchSource` returns.
 const lakeSearch = vi.fn();
 vi.mock("@/server/jobslake/core", () => ({ search: (...args: unknown[]) => lakeSearch(...args) }));
 
@@ -27,7 +27,7 @@ function response(jobs: Job[]): SearchResponse {
   const c = canonicalize(jobs.map((j) => ({ source: remotive, job: j })));
   return { requestId: "req_test01", protocolVersion: PROTOCOL_VERSION, searchMode: "balanced", results: c.opportunities, sources: [{ sourceId: "remotive", sourceName: "Remotive", outcome: "ok", retrieved: jobs.length, durationMs: 40 }], metadata: { retrieved: jobs.length, normalized: jobs.length, duplicates: c.duplicates, unique: c.opportunities.length, sourcesPlanned: 1, sourcesSucceeded: 1, sourcesFailed: 0, warm: 0, live: c.opportunities.length } };
 }
-/** JobsLake answering with what the sources returned for these terms. */
+/** WorksLake answering with what the sources returned for these terms. */
 async function lakeFromSources(req: { query: { text: string; locations: string[] } }) {
   const { jobs } = (await searchSource("remotive", { query: req.query.text, locations: req.query.locations })) as { jobs: Job[] };
   return { response: response(jobs), plan: {} };
@@ -296,8 +296,8 @@ describe("runDueSchedules", () => {
     expect(searchSource).not.toHaveBeenCalled();
   });
 
-  describe("through JobsLake", () => {
-    it("searches with JobsLake core, keeps job ids, and records where each job was found", async () => {
+  describe("through WorksLake", () => {
+    it("searches with WorksLake core, keeps job ids, and records where each job was found", async () => {
       process.env.JOBSLAKE_SEARCH_ENABLED = "1";
       lakeSearch.mockResolvedValue({ response: response([job(1), job(2), job(3)]), plan: {} });
       await seed();
@@ -305,7 +305,7 @@ describe("runDueSchedules", () => {
       const report = await runDueSchedules(TENANT, { now: later });
       expect(report?.outcome).toBe("completed");
       expect(searchSource).not.toHaveBeenCalled();
-      // Only search terms, places and the candidate's own source choices reach JobsLake.
+      // Only search terms, places and the candidate's own source choices reach WorksLake.
       expect(lakeSearch.mock.calls[0][0]).toEqual({ query: { text: "product manager", locations: ["Bengaluru"], variants: ["product"] }, sourceIds: ["remotive"], searchMode: "balanced", limit: 500 });
 
       const jobs = (await stateStore.get(TENANT, "wj.jobs"))!.state as { state: JobsDoc };
@@ -316,7 +316,7 @@ describe("runDueSchedules", () => {
       expect(search.evidence.map((e) => e.label)).toEqual(expect.arrayContaining(["Searched with", "Remotive", "Sources searched"]));
     });
 
-    it("never searches a source directly: when JobsLake fails the run fails and says so", async () => {
+    it("never searches a source directly: when WorksLake fails the run fails and says so", async () => {
       lakeSearch.mockRejectedValue(new Error("store offline"));
       await seed();
 
@@ -325,10 +325,10 @@ describe("runDueSchedules", () => {
       expect(searchSource).not.toHaveBeenCalled();
       const wf = (await stateStore.get(TENANT, "wj.workflow"))!.state as { state: WorkflowDoc };
       const search = Object.values(wf.state.runs)[0].stages.find((st) => st.key === "search")!;
-      expect(search.evidence.find((e) => e.label === "JobsLake")?.value).toBe("Didn't answer");
+      expect(search.evidence.find((e) => e.label === "WorksLake")?.value).toBe("Didn't answer");
     });
 
-    it("doesn't search at all when JobsLake search is switched off", async () => {
+    it("doesn't search at all when WorksLake search is switched off", async () => {
       process.env.JOBSLAKE_SEARCH_ENABLED = "0";
       await seed();
       const report = await runDueSchedules(TENANT, { now: later });

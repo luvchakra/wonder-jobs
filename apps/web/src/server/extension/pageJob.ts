@@ -103,11 +103,11 @@ export interface PageJobView {
   needsProfile: boolean;
   /** The candidate's application for this job, when there is one. */
   application: { id: string; status: ApplicationStatus; statusLabel: string; since: string } | null;
-  /** The company's logo from JobsLake's directory (a data: URL), when it has one; the panel shows the initial otherwise. */
+  /** The company's logo from WorksLake's directory (a data: URL), when it has one; the panel shows the initial otherwise. */
   logo?: string;
 }
 
-/** The company's logo from JobsLake — only for a company it recorded from a real posting; never looked up by guessing. */
+/** The company's logo from WorksLake — only for a company it recorded from a real posting; never looked up by guessing. */
 async function logoOf(job: CanonicalJob): Promise<string | undefined> {
   const l = await companyLogo({ domain: job.companyDomain, name: job.company }).catch(() => undefined);
   return l ? `data:${l.type};base64,${l.data.toString("base64")}` : undefined;

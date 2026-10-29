@@ -85,7 +85,7 @@ Allowed ranges in the tests: ATS 2–3, Extreme 2–4, Sparse 1, International 1
 - **DOCX fonts.** DOCX uses Arial/Georgia (spec §41 approved list). The PDF embeds Inter, Source Serif 4 or IBM Plex Sans, subset, OFL. The two formats therefore look alike but are not pixel-identical.
 - **Layout.** All eight templates are single-column this release (reading order, ATS). The metadata keeps `columns: 2` for a later version.
 - **Out of scope.** No AI rewriting inside templates: the document is the candidate's own facts, and a target job only reorders them. AI-drafted application résumés (Markdown) are unchanged and listed under "Tailored drafts".
-- **Signed-in accounts.** The gallery and generation run the same code for signed-in accounts. The Playwright journeys use demo mode, because a real-account run needs a disposable Supabase user (same approval as the JobsLake candidate journeys).
+- **Signed-in accounts.** The gallery and generation run the same code for signed-in accounts. The Playwright journeys use demo mode, because a real-account run needs a disposable Supabase user (same approval as the WorksLake candidate journeys).
 
 ## Rendering QA pass (2026-09-25, WJ-164)
 

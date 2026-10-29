@@ -158,7 +158,7 @@ export function PartnerConnectionEditor({ name, preset, connection, onSave }: { 
           </>
         )}
       </div>
-      <Fold title="Search parameters and more" hint="Leave empty for a full feed — JobsLake filters it locally.">
+      <Fold title="Search parameters and more" hint="Leave empty for a full feed — WorksLake filters it locally.">
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Search parameter" htmlFor="pc-q">
             <Input id="pc-q" value={d.queryParam} onChange={set("queryParam")} className={mono} />
