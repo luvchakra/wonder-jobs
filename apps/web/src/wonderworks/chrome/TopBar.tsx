@@ -2,9 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Bot, ChartNoAxesColumn, ChevronRight, Database, Download, KeyRound, LifeBuoy, ListChecks, LogOut, Sparkles, User } from "lucide-react";
+import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
 import { WonderStarMark } from "@/wonderworks/brand/Logo";
 import { useCareerStore } from "@/store/career";
@@ -18,7 +17,7 @@ import { toast } from "@/components/feedback/Toast";
 import dynamic from "next/dynamic";
 // Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
-import { NOTIFICATION_ACTION, visibleNotifications } from "@/domain/career/notifications";
+import { visibleNotifications } from "@/domain/career/notifications";
 import { useChromeSlots } from "./slots";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -40,7 +39,6 @@ export function TopBar() {
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const slots = useChromeSlots();
   const dna = useCareerStore((s) => s.dna);
-  const [notifOpen, setNotifOpen] = useState(false);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
   const profileOpen = menu !== null;
@@ -51,15 +49,12 @@ export function TopBar() {
   const email = useAuthStore((s) => s.email);
   const displayName = dna.name || email?.split("@")[0] || "You";
   const notifications = useCareerStore((s) => s.notifications);
-  const markRead = useCareerStore((s) => s.markRead);
   const shown = hydrated ? visibleNotifications(notifications) : [];
   const unread = shown.filter((n) => !n.read).length;
-  // Tasks' badge and the career status come from the modules (WonderJobs: its applications), through the chrome's slots.
+  // The bell's Needs attention count and the career status come from the modules (WonderJobs: its applications), through the chrome's slots.
   const { tasks, careerStatus } = slots.useStatus(hydrated);
   const { available: canInstall, promptInstall } = useInstallPrompt();
-  const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  useOutside(notifRef, () => setNotifOpen(false));
   useOutside(profileRef, () => setProfileOpen(false));
 
   const menuConfig = useMenu("account");
@@ -166,66 +161,24 @@ export function TopBar() {
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
       {/* Every screen (owner, 2026-10-29): the avatar and the WonderWorks mark on the left, the kind menu in the centre,
-          Tasks and the bell on the right. */}
+          the bell on the right. */}
       <Link href="/app" aria-label="WonderWorks home" title="WonderWorks" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
         <WonderStarMark className="h-[17px] w-auto" />
       </Link>
       <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
-      {/* Tasks: what needs you (Needs attention). Ask Wonder is under You, and ⌘K on a computer. */}
-      <Link href="/app/tasks" aria-label={`Tasks${tasks ? `, ${tasks} need attention` : ""}`} title="Tasks" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
-        <ListChecks className="size-5" aria-hidden />
-        {tasks > 0 && <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white">{tasks > 9 ? "9+" : tasks}</span>}
-      </Link>
-
-      {/* On phones the panel is placed against the header (not the bell) so it spans the screen with a margin. */}
-      <div className="md:relative" ref={notifRef}>
-        <button type="button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={notifOpen} onClick={() => setNotifOpen((v) => !v)} className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
-          <Bell className="size-5" aria-hidden />
-          {unread > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-danger-600 ring-2 ring-surface" aria-hidden />}
-        </button>
-        {notifOpen && (
-          <div role="dialog" aria-label="Notifications" className="absolute inset-x-3 top-[calc(100%+0.25rem)] flex max-h-[min(70dvh,32rem)] flex-col rounded-[20px] border border-line bg-surface p-2 shadow-lg wj-animate-fade-up md:inset-x-auto md:right-0 md:top-12 md:w-[380px]">
-            <div className="flex shrink-0 items-center justify-between px-3 py-2">
-              <p className="text-[15px] font-semibold text-ink">Notifications</p>
-              {unread > 0 && (
-                <button type="button" onClick={() => markRead()} className="text-xs font-medium text-brand-600 hover:underline">
-                  Mark all read
-                </button>
-              )}
-            </div>
-            <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
-              {shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-3">You&apos;re all caught up.</li>}
-              {shown.slice(0, 10).map((n) => (
-                <li key={n.id} className={cn("flex items-start gap-3 px-3 py-3", !n.read && "bg-brand-50/50 first:rounded-t-[12px] last:rounded-b-[12px]")}>
-                  <span className={cn("mt-[7px] size-2 shrink-0 rounded-full", n.read ? "bg-line-strong" : "bg-brand-500")} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-semibold leading-snug text-ink">{n.title}</p>
-                    <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-ink-3">{n.body}</p>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="text-[12px] text-ink-4">{relativeTime(n.at)}</span>
-                      <Link
-                        href={n.href}
-                        onClick={() => {
-                          markRead(n.id);
-                          setNotifOpen(false);
-                        }}
-                        className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-brand-600 pl-3 pr-2 text-[13px] font-semibold text-white hover:bg-brand-700"
-                      >
-                        {n.action ?? NOTIFICATION_ACTION[n.category] ?? "Open"} <ChevronRight className="size-3.5" aria-hidden />
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            {/* Everything, and the choices about what you're told. */}
-            <Link href="/app/notifications" onClick={() => setNotifOpen(false)} className="mt-1 shrink-0 rounded-[12px] px-3 py-2.5 text-center text-[13px] font-medium text-brand-600 hover:bg-bg-soft">
-              Notification center
-            </Link>
-          </div>
+      {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
+          on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
+      <Link href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}${tasks ? `, ${tasks} need attention` : ""}`} title="Notifications" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
+        <Bell className="size-5" aria-hidden />
+        {tasks > 0 ? (
+          <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>
+            {tasks > 9 ? "9+" : tasks}
+          </span>
+        ) : (
+          unread > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-danger-600 ring-2 ring-surface" aria-hidden />
         )}
-      </div>
+      </Link>
 
       <div className="relative order-[-3]" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">

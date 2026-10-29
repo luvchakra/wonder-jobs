@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useCareerStore } from "@/store/career";
@@ -11,13 +12,21 @@ import { NOTIFY_TOPICS, topicOf, type NotifyTopic } from "@/domain/notifications
 
 /** Each kind's chip, short. */
 const TOPIC_CHIP: Record<NotifyTopic, string> = { messages: "Messages", interviews: "Interviews", follow_ups: "Follow-ups", matches: "Matches", searches: "Searches", applications: "Applications", saved_jobs: "Saved jobs" };
-import { EmptyState } from "@/components/common/States";
+import { EmptyState, PageLoading } from "@/components/common/States";
+import { NeedsAttention, useAttentionRows } from "./NeedsAttention";
+
+type Tab = "notifications" | "attention";
 
 /**
- * Notification center (owner, 2026-10-22): everything the bell holds; Notifications & email (/app/settings/notifications)
- * is where you choose what you're told, and how.
+ * Notifications (owner, 2026-10-29): the bell opens this page. Two tabs — Notifications (everything that happened) and
+ * Needs attention (what needs you, `?tab=attention`). Notifications & email (/app/settings/notifications) is where you
+ * choose what you're told, and how.
  */
-export default function NotificationsPage() {
+function NotificationsPage() {
+  const router = useRouter();
+  const tab: Tab = useSearchParams().get("tab") === "attention" ? "attention" : "notifications";
+  const setTab = (t: Tab) => router.replace(t === "attention" ? "/app/notifications?tab=attention" : "/app/notifications", { scroll: false });
+  const rows = useAttentionRows();
   const notifications = useCareerStore((s) => s.notifications);
   const markRead = useCareerStore((s) => s.markRead);
   // All, Unread, or one kind (Messages, Interviews…) — the kinds Notifications & email lists, those present here.
@@ -32,12 +41,29 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h1 className="text-[20px] font-semibold text-ink">Notifications</h1>
-        {unread > 0 && (
+        {tab === "notifications" && unread > 0 && (
           <button type="button" onClick={() => markRead()} className="text-[13px] font-medium text-brand-600 hover:underline">
             Mark all read
           </button>
         )}
       </div>
+      <div role="tablist" aria-label="Notifications" className="-mx-4 mb-4 flex overflow-x-auto border-b border-line px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+        {(
+          [
+            { id: "notifications", label: "Notifications", n: unread },
+            { id: "attention", label: "Needs attention", n: rows.length },
+          ] as const
+        ).map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[14px] font-medium transition-colors", tab === t.id ? "border-brand-500 text-brand-700" : "border-transparent text-ink-3 hover:text-ink")}>
+            {t.label}
+            {t.n > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold leading-5 text-white">{t.n > 99 ? "99+" : t.n}</span>}
+          </button>
+        ))}
+      </div>
+      {tab === "attention" ? (
+        <NeedsAttention rows={rows} />
+      ) : (
+        <>
       <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="group" aria-label="Show">
         <Chip active={show === "all"} onClick={() => setShow("all")} className="h-8 shrink-0 px-3 text-[12.5px]">
           All · {all.length}
@@ -72,6 +98,8 @@ export default function NotificationsPage() {
           ))}
         </ul>
       )}
+        </>
+      )}
       <Link href="/app/settings/notifications" className="mt-4 flex items-center justify-between gap-3 rounded-[16px] border border-line bg-surface px-4 py-3.5 text-[14px] text-ink hover:bg-surface-2">
         <span>
           Notification settings
@@ -80,5 +108,13 @@ export default function NotificationsPage() {
         <ChevronRight className="size-4 shrink-0 text-ink-4" aria-hidden />
       </Link>
     </div>
+  );
+}
+
+export default function NotificationsRoute() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <NotificationsPage />
+    </Suspense>
   );
 }
