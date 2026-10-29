@@ -13,7 +13,7 @@ import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";

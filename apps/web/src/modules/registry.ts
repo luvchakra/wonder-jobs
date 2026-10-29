@@ -2,13 +2,13 @@
  * WonderWorks' module registry (docs/WONDERWORKS_PLATFORM.md §4), the composition root: every module's manifest, read by
  * the Find menu, the tabs, the module shell and JobsLake's per-module datasets. A module is "soon" until its own step
  * ships — the shell then shows "Coming soon" and nothing else (CLAUDE.md, real data only). The manifest types live in
- * WonderWorks (`wonderstar/manifest.ts`); each live module's manifest lives in its own folder.
+ * WonderWorks (`wonderworks/manifest.ts`); each live module's manifest lives in its own folder.
  */
-import { shellRoutes as shell, stagesOf as stages, type ModuleId, type ModuleManifest } from "@/wonderstar/manifest";
+import { shellRoutes as shell, stagesOf as stages, type ModuleId, type ModuleManifest } from "@/wonderworks/manifest";
 import { jobsManifest } from "./jobs/manifest";
 import { internshipsManifest } from "./internships/manifest";
 
-export * from "@/wonderstar/manifest";
+export * from "@/wonderworks/manifest";
 
 export const MODULES: readonly ModuleManifest[] = [
   jobsManifest,

@@ -1,5 +1,5 @@
 import { Bookmark, CalendarCheck, CalendarClock, CalendarHeart, ChartNoAxesColumn, Handshake, LayoutList, LifeBuoy, Search, UserRound, type LucideIcon } from "lucide-react";
-import type { ModuleManifest } from "@/wonderstar/manifest";
+import type { ModuleManifest } from "@/wonderworks/manifest";
 
 export interface NavItem {
   href: string;

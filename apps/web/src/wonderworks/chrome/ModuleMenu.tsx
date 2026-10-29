@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, type LucideIcon } from "lucide-react";
 import { toast } from "@/components/feedback/Toast";
-import { TINTS } from "@/wonderstar/brand/tiles";
-import type { ModuleTint } from "@/wonderstar/manifest";
+import { TINTS } from "@/wonderworks/brand/tiles";
+import type { ModuleTint } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 
 /** One entry in the menu: the active module's own choices (WonderJobs: Full Time Jobs, Part Time Jobs), or a module. */

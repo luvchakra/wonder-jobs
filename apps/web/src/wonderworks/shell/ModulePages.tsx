@@ -2,18 +2,18 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Inbox, UserRound } from "lucide-react";
-import { WonderStarSplash } from "@/wonderstar/brand/Logo";
+import { WonderStarSplash } from "@/wonderworks/brand/Logo";
 import { EmptyState } from "@/components/common/States";
 import type { ReactNode } from "react";
-import type { ModuleId, ModuleManifest } from "@/wonderstar/manifest";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
-import { StageTiles } from "@/wonderstar/pipeline/parts";
-import { YouOverview } from "@/wonderstar/you/YouOverview";
-import { FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderstar/find/parts";
+import type { ModuleId, ModuleManifest } from "@/wonderworks/manifest";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { StageTiles } from "@/wonderworks/pipeline/parts";
+import { YouOverview } from "@/wonderworks/you/YouOverview";
+import { FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderworks/find/parts";
 import { useDictation } from "@/lib/dictation";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
-import { moduleStore } from "@/wonderstar/store";
+import { moduleStore } from "@/wonderworks/store";
 
 type ShellModule = Exclude<ModuleId, "jobs">;
 /** A module the shell renders: any but Jobs, whose tabs are the jobs portal's own routes. */

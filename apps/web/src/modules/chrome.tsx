@@ -1,9 +1,9 @@
 "use client";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChromeSlotsProvider, type ChromeSlots } from "@/wonderstar/chrome/slots";
-import { ModuleMenu } from "@/wonderstar/chrome/ModuleMenu";
-import { ICONS } from "@/wonderstar/brand/tiles";
+import { ChromeSlotsProvider, type ChromeSlots } from "@/wonderworks/chrome/slots";
+import { ModuleMenu } from "@/wonderworks/chrome/ModuleMenu";
+import { ICONS } from "@/wonderworks/brand/tiles";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 import { useUIStore } from "@/store/ui";

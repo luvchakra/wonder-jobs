@@ -1,7 +1,7 @@
 "use client";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { ModuleId } from "@/wonderstar/manifest";
+import type { ModuleId } from "@/wonderworks/manifest";
 
 /** Caps, like store/jobs.ts: what a reload needs, never an uncapped list. */
 export const MODULE_SAVED_CAP = 300;

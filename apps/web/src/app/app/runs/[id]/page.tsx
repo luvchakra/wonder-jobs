@@ -16,7 +16,7 @@ import { formatDuration, formatNumber, formatTime, relativeTime, shortId } from 
 import { useNow } from "@/lib/motion";
 import { track } from "@/lib/analytics";
 import { getWorkflowService } from "@/services/workflow/service";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";

@@ -6,7 +6,7 @@ import { Bell, Bot, ChartNoAxesColumn, ChevronRight, Database, Download, KeyRoun
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
-import { WonderStarMark } from "@/wonderstar/brand/Logo";
+import { WonderStarMark } from "@/wonderworks/brand/Logo";
 import { useCareerStore } from "@/store/career";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";

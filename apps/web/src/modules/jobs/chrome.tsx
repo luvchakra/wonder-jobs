@@ -9,7 +9,7 @@ import { computeApplicationAttention } from "@/domain/career/attention";
 import { actionsRequired } from "@/domain/digest/build";
 import { switchFindMode } from "@/lib/switchFindMode";
 import { useNow } from "@/lib/motion";
-import type { MenuItem } from "@/wonderstar/chrome/ModuleMenu";
+import type { MenuItem } from "@/wonderworks/chrome/ModuleMenu";
 
 /** Jobs' choices in WonderWorks' module menu: Full Time Jobs and Part Time Jobs, each in its tint (§9 "Icons"). */
 export const JOBS_MENU_CHOICES: Omit<MenuItem, "on">[] = [

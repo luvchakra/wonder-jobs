@@ -6,12 +6,12 @@ import { WORK_MODE_LABEL } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL } from "@/domain/jobs/jobType";
 import { MODE_JOB_TYPES, findModeOf, modeJobTypeLabel } from "@/domain/jobs/findMode";
 import { Chip } from "@/components/common/Input";
-import { useBottomBar } from "@/wonderstar/chrome/MobileNav";
+import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FilterBox, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderstar/find/parts";
+import { ChoiceChips, DictationNotes, FilterBox, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.

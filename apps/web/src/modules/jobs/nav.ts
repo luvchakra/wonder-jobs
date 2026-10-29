@@ -1,5 +1,5 @@
 import { BarChart3, Bot, Building2, CalendarDays, Database, Dna, FileText, GraduationCap, History, LayoutDashboard, LayoutList, MessagesSquare, Search } from "lucide-react";
-import { moduleTabs, under, type NavItem } from "@/wonderstar/chrome/nav";
+import { moduleTabs, under, type NavItem } from "@/wonderworks/chrome/nav";
 import { jobsManifest } from "./manifest";
 
 /**

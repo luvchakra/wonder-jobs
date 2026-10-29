@@ -19,7 +19,7 @@ import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
-import { SearchingBanner } from "@/wonderstar/find/parts";
+import { SearchingBanner } from "@/wonderworks/find/parts";
 
 /* ------------------------------------------------------------------ blocker */
 

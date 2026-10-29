@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { isLive, moduleById, MODULES, type ModuleId, type ModuleManifest } from "./registry";
-import { ModuleSaved } from "@/wonderstar/shell/ModulePages";
+import { ModuleSaved } from "@/wonderworks/shell/ModulePages";
 import { InternshipCard, InternshipSheet } from "./internships/components/Listing";
 import type { InternshipListing } from "./internships/domain";
 

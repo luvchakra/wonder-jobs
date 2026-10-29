@@ -12,7 +12,7 @@ import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
 import { downloadBytes } from "@/lib/download";
 import { track } from "@/lib/analytics";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";

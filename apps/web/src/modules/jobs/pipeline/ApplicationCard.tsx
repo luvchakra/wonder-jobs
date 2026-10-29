@@ -8,7 +8,7 @@ import { formatDate, formatSalaryRange, relativeTime } from "@/lib/format";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { cn } from "@/lib/cn";
-import { StageCard } from "@/wonderstar/pipeline/parts";
+import { StageCard } from "@/wonderworks/pipeline/parts";
 
 const STILL_PREPARING = new Set(["preparing", "ready_for_review", "saved"]);
 

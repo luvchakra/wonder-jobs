@@ -1,4 +1,4 @@
-import { isActivePath, moduleTabs, type NavItem } from "@/wonderstar/chrome/nav";
+import { isActivePath, moduleTabs, type NavItem } from "@/wonderworks/chrome/nav";
 import { PRIMARY_NAV } from "./jobs/nav";
 import { isLive, moduleById, type ModuleId } from "./registry";
 

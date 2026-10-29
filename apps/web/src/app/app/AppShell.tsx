@@ -1,10 +1,10 @@
 "use client";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Sidebar } from "@/wonderstar/chrome/Sidebar";
-import { TopBar } from "@/wonderstar/chrome/TopBar";
-import { MobileNav } from "@/wonderstar/chrome/MobileNav";
-import { SectionTabs } from "@/wonderstar/chrome/SectionTabs";
+import { Sidebar } from "@/wonderworks/chrome/Sidebar";
+import { TopBar } from "@/wonderworks/chrome/TopBar";
+import { MobileNav } from "@/wonderworks/chrome/MobileNav";
+import { SectionTabs } from "@/wonderworks/chrome/SectionTabs";
 import { Toaster } from "@/components/feedback/Toast";
 import { StoreHydrator } from "@/store/StoreHydrator";
 import { useHydration } from "@/store/hydration";
@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/auth";
 import { PageLoading } from "@/components/common/States";
 import { PrivacyNoticeGate } from "@/components/privacy/PrivacyNoticeGate";
 import { useHelperSaves } from "@/components/extension/useHelperSaves";
-import { useScrollBars } from "@/wonderstar/chrome/useScrollBars";
+import { useScrollBars } from "@/wonderworks/chrome/useScrollBars";
 
 /**
  * Renders product pages once local state is hydrated. A signed-in account

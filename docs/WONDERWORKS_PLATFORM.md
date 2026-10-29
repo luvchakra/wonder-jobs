@@ -165,7 +165,7 @@ export interface ModuleManifest {
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
-Find, Saved and You are WonderWorks' (`src/wonderstar/`) and identical across modules, with Jobs' look as the
+Find, Saved and You are WonderWorks' (`src/wonderworks/`) and identical across modules, with Jobs' look as the
 reference; a module supplies only its own fields, filters, card details and data. Only the Pipeline tab varies: its
 name, stages and views come from the module's manifest (`moduleTabs`). WonderJobs keeps "Pipeline"; Internships' is
 "Applications" (owner, 2026-10-29).
@@ -240,7 +240,7 @@ another (owner, 2026-10-29).
 
 ```
 apps/web/src/
-  wonderstar/            # the shared layer; imports no module (boundaries.test.ts)
+  wonderworks/            # the shared layer; imports no module (boundaries.test.ts)
     manifest.ts          # ModuleManifest and its parts, shellRoutes, stagesOf, isLive
     store.ts             # one capped store per module (saves, responses, Find's and Saved's history, persona)
     find/parts.tsx       # Find's parts: SearchBox, RefineToggle, PillButton, SearchSubmit, RefinePanel, RefineField,
@@ -313,7 +313,7 @@ the rare.
    You stay as they are.
    **Done (WJ-415, 2026-10-28):** `modules/registry.ts` with all eight manifests (Jobs live, the rest soon);
    `UPCOMING_KINDS` derives from it; the module shell `/app/m/[module]` (Find · Saved · Pipeline · You, from
-   `platform/shell` and module-scoped stores `wonderstar/store.ts`) shows Coming soon until a module goes live.
+   `platform/shell` and module-scoped stores `wonderworks/store.ts`) shows Coming soon until a module goes live.
    Jobs' bottom bar is unchanged. Platform `listings`/`responses` tables wait for the module that needs them.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,

@@ -7,7 +7,7 @@ import { useWorkflowStore } from "@/store/workflow";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
-import { YouOverview } from "@/wonderstar/you/YouOverview";
+import { YouOverview } from "@/wonderworks/you/YouOverview";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 

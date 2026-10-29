@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, FileUp, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";

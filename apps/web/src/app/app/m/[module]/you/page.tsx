@@ -1,4 +1,4 @@
-import { ModuleYou } from "@/wonderstar/shell/ModulePages";
+import { ModuleYou } from "@/wonderworks/shell/ModulePages";
 import { InternshipsYou } from "@/modules/internships/components/You";
 import { shellManifest, shellTab, type ShellParams } from "../shell";
 

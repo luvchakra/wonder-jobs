@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 /**
  * WonderWorks and its modules (CLAUDE.md, "WonderWorks and its modules"):
- * - WonderWorks (`src/wonderstar/`) is the shared layer and imports no module: nothing under `src/modules/`, and none of
+ * - WonderWorks (`src/wonderworks/`) is the shared layer and imports no module: nothing under `src/modules/`, and none of
  *   the Jobs module's code that still lives at its older paths (JOBS_OWNED).
  * - A module (`src/modules/<id>/`) never contains or imports another module's code: no other module's folder, none of
  *   the composition root's files (`src/modules/*.ts(x)`, which wire every module together), and — for any module but
@@ -47,7 +47,7 @@ const MODULES = readdirSync(join(SRC, "modules")).filter((n) => statSync(join(SR
 
 describe("WonderWorks and its modules", () => {
   it("WonderWorks imports no module and none of Jobs' code", () => {
-    const offenders = files(join(SRC, "wonderstar"))
+    const offenders = files(join(SRC, "wonderworks"))
       .filter((f) => f !== __filename)
       .flatMap((f) => imports(f).filter(({ target }) => target.startsWith("modules/") || target === "modules" || target.startsWith("app/") || jobsOwned(target)).map(({ spec }) => `${relative(SRC, f)} → ${spec}`));
     expect(offenders).toEqual([]);

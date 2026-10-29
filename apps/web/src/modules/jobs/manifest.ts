@@ -1,4 +1,4 @@
-import { stagesOf, type ModuleManifest } from "@/wonderstar/manifest";
+import { stagesOf, type ModuleManifest } from "@/wonderworks/manifest";
 
 /** WonderJobs' manifest: it describes the jobs portal that exists today and only points at its routes. */
 export const jobsManifest: ModuleManifest = {

@@ -276,7 +276,7 @@ test.describe("JobsApply with the browser helper", () => {
     // The candidate follows a job board's link to another site, in a tab of their own.
     const other = await context.newPage();
     await other.goto("https://careers.redirected.test/apply");
-    // The helper's own words (extension/content/autofill.js): the extension is released on its own and keeps its name until then.
+    // The helper's own words (extension/content/autofill.js), WonderWorks since #387.
     await expect(panel(other).getByRole("button", { name: "Fill with WonderWorks" })).toBeVisible({ timeout: 15_000 });
     // The popup's "Fill the form on this tab", run against that tab.
     const id = new URL(context.serviceWorkers()[0].url()).host;

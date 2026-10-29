@@ -3,11 +3,11 @@ import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { RefreshCw, Search } from "lucide-react";
 import { EmptyState, ErrorState } from "@/components/common/States";
 import { WonderSearching } from "@/components/brand/WonderSearching";
-import { useBottomBar } from "@/wonderstar/chrome/MobileNav";
+import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { useDictation } from "@/lib/dictation";
 import { useUIStore } from "@/store/ui";
-import { moduleStore } from "@/wonderstar/store";
-import type { ModuleId } from "@/wonderstar/manifest";
+import { moduleStore } from "@/wonderworks/store";
+import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 import { ChoiceChips, DictationNotes, PillButton, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
