@@ -103,6 +103,14 @@ export function latestSearchRun(runs: WorkflowRun[]): WorkflowRun | undefined {
 }
 
 /**
+ * Whether the automatic wider search after `runId` found nothing may still start: only while that search is
+ * still the latest and none is running. The candidate's own newer search always wins over it.
+ */
+export function mayWidenAfter(runs: WorkflowRun[], runId: string, searching: boolean): boolean {
+  return !searching && latestSearchRun(runs)?.id === runId;
+}
+
+/**
  * The search behind the jobs on screen (`searchedFor`: the typed words behind the catalog, "" for the
  * profile's own search). Normally the latest search; but once typed words are cleared and the profile's
  * results come back, it's the profile search that found them — so what the screen says it searched stays true.

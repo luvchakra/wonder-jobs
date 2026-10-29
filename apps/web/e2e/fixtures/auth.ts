@@ -104,7 +104,12 @@ export async function signInThroughUI(page: Page, account: Pick<TestAccount, "em
  * detached element. Call this right after signing in whenever the test is about to use the TopBar.
  */
 export async function skipOnboardingIfShown(page: Page): Promise<void> {
-  await page.waitForURL(/\/onboarding/, { timeout: 3_000 }).catch(() => {});
+  // The app sends a new account to onboarding once its stored state has loaded, which on a first visit waits on
+  // the server: wait for that decision (the page's loading skeleton gone, or onboarding), not a fixed time.
+  await expect(async () => {
+    if (/\/onboarding/.test(page.url())) return;
+    await expect(page.locator('#main [aria-busy="true"][aria-label="Loading"]')).toHaveCount(0, { timeout: 1_000 });
+  }).toPass({ timeout: 45_000 });
   if (/\/onboarding/.test(page.url())) {
     await page.getByRole("button", { name: "Skip" }).click();
     // Against a deployment, the first sign-in after a quiet spell can wait on cold functions; allow for that.
