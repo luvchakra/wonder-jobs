@@ -11,9 +11,9 @@ import { greeting } from "@/lib/format";
 import { useHomeAttention } from "@/lib/useHomeAttention";
 import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
-import { JobsBoard } from "@/components/jobs/JobsBoard";
+import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
-import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/components/jobs/JobsReadiness";
+import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/modules/jobs/components/JobsReadiness";
 
 /**
  * Signed in = looking at relevant jobs. This screen is the job list, searched on open when it's

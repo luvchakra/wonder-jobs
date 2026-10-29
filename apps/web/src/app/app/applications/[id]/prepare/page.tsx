@@ -2,7 +2,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useBottomBar } from "@/components/navigation/MobileNav";
+import { useBottomBar } from "@/wonderstar/chrome/MobileNav";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
@@ -21,15 +21,15 @@ import { ProviderError } from "@/domain/ai/types";
 import { FallbackProvider, TemplateAIService, WonderJobsAIProvider } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { track } from "@/lib/analytics";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Tabs } from "@/components/common/Tabs";
 import { Badge } from "@/components/common/Badge";
 import { EmptyState, ErrorState } from "@/components/common/States";
-import { ArtifactEditor } from "@/components/applications/ArtifactEditor";
+import { ArtifactEditor } from "@/modules/jobs/pipeline/ArtifactEditor";
 import { toast } from "@/components/feedback/Toast";
-import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
+import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
 
 type Tab = ArtifactType | "review";
 

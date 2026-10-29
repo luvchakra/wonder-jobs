@@ -1,10 +1,10 @@
 "use client";
 import { use, useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { useInterviewPractice, NEEDS_AI } from "@/lib/useInterviewPractice";
+import { useInterviewPractice, NEEDS_AI } from "@/modules/jobs/useInterviewPractice";
 import { useApplicationsStore } from "@/store/applications";
 import { MOCK_MAX_QUESTIONS, MOCK_MINUTES, parseMockQuestion, parseMockReview, transcriptText, type MockSession, type MockTurn } from "@/domain/applications/practice";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { EmptyState } from "@/components/common/States";

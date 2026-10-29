@@ -7,11 +7,11 @@ import { useJobsStore } from "@/store/jobs";
 import { actionsRequired } from "@/domain/digest/build";
 import { computeApplicationAttention } from "@/domain/career/attention";
 import { useNow } from "@/lib/motion";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { EmptyState } from "@/components/common/States";
 import { AttentionList, type AttentionRow } from "@/components/career/AttentionList";
-import { attentionRows } from "@/components/applications/ApplicationAttentionList";
-import { applicationHref } from "@/components/applications/ApplicationCard";
+import { attentionRows } from "@/modules/jobs/pipeline/ApplicationAttentionList";
+import { applicationHref } from "@/modules/jobs/pipeline/ApplicationCard";
 
 /**
  * Needs attention (the top bar's checklist): one list of what needs the candidate — interviews, follow-ups,

@@ -6,7 +6,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { Tabs } from "@/components/common/Tabs";
-import { JobQualityBadge } from "@/components/jobs/JobQualityBadge";
+import { JobQualityBadge } from "@/modules/jobs/components/JobQualityBadge";
 import { WORK_MODE_LABEL, type JobQuality, type WorkMode } from "@/domain/jobs/types";
 import { cn } from "@/lib/cn";
 

@@ -6,7 +6,7 @@
  * is only ever computed from the posting and the student's own profile, and always says why.
  */
 import type { CareerDNA } from "@/domain/career/types";
-import type { WorkMode } from "@/domain/jobs/types";
+import type { WorkMode } from "@/wonderstar/find/place";
 
 export const INTERNSHIPS = "internships" as const;
 
