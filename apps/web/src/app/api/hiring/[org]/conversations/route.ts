@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { orgConversations, startConversation } from "@/server/hiring";
@@ -15,5 +16,5 @@ export async function GET(req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
   const Body = z.object({ candidate: z.string().min(1).max(120), body: z.string().min(1).max(4000), jobId: z.string().max(80).optional() });
-  return hiringRoute(req, async (s, b) => ({ id: await startConversation(s, org, b.candidate, b.body, b.jobId) }), { schema: Body, write: true });
+  return hiringRoute(req, async (s, b) => ({ id: await startConversation(s, org, b.candidate, b.body, b.jobId, after) }), { schema: Body, write: true });
 }

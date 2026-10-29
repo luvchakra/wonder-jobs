@@ -303,7 +303,10 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     expect(hit, JSON.stringify(results.map((r) => r.title))).toBeTruthy();
     expect(JSON.stringify(hit)).toContain(COMPANY);
     // And in Find, among every source's results once the search has finished.
+    // Wait for the search itself first: right after the page opens it hasn't started yet, so "Searching" isn't shown.
+    const searched = page.waitForResponse((r) => r.url().includes("/api/jobs-lake/v1/search") && r.request().method() === "POST", { timeout: 240_000 });
     await page.goto(`/app/jobs?search=${encodeURIComponent(JOB_TITLE)}`);
+    expect((await searched).status()).toBe(200);
     await expect(page.getByText("Searching job sources")).toHaveCount(0, { timeout: 240_000 });
     const card = page.getByText(JOB_TITLE, { exact: true });
     for (let i = 0; i < 20 && !(await card.count()); i++) {
