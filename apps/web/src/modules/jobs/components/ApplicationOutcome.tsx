@@ -1,5 +1,4 @@
 "use client";
-import { CheckCircle2, XCircle } from "lucide-react";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import { useApplicationsStore } from "@/store/applications";
 import { MARKED_APPLIED, MARKED_WITHDRAWN } from "@/domain/applications/cardStatus";
@@ -7,7 +6,7 @@ import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
-import { cn } from "@/lib/cn";
+import { OutcomeButtons } from "@/wonderworks/listing/OutcomeButtons";
 
 /** Apply opened on the employer's site (job page or card): remembered for the job's page, and the job enters Pipeline → Preparing. */
 export function noteApplyOpened(jobId: string) {
@@ -26,7 +25,8 @@ export function useAsksOutcome(jobId: string): boolean {
 /**
  * The candidate's own record of how this job's application went (owner, 2026-10-25): Mark as applied puts it in
  * Pipeline as Submitted, Mark as withdrawn as Withdrawn — their word, recorded on the application's timeline as theirs.
- * Nothing is sent anywhere. Shown once Apply was opened on the employer's site or a résumé was made for the job.
+ * Nothing is sent anywhere. Shown once Apply was opened on the employer's site or a résumé was made for the job, on
+ * WonderWorks' OutcomeButtons.
  */
 export function ApplicationOutcome({ job }: { job: CanonicalJob }) {
   const app = useApplicationsStore((s) => Object.values(s.applications).find((a) => a.jobId === job.id));
@@ -38,17 +38,5 @@ export function ApplicationOutcome({ job }: { job: CanonicalJob }) {
     track("application_marked", { jobId: job.id, outcome });
     toast.success(outcome === "applied" ? "Marked as applied" : "Marked as withdrawn", "It's in Pipeline.");
   };
-  const done = app?.status === "submitted";
-  const dropped = app?.status === "withdrawn";
-  const btn = "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-[12px] border px-2 text-[12.5px] font-medium wj-press";
-  return (
-    <div className="grid grid-cols-2 gap-2" role="group" aria-label="How did this application go?">
-      <button type="button" aria-pressed={done} onClick={() => !done && mark("applied")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "border-line bg-surface text-ink hover:bg-surface-2")}>
-        <CheckCircle2 className="size-4" aria-hidden /> {done ? "Applied" : "Mark as applied"}
-      </button>
-      <button type="button" aria-pressed={dropped} onClick={() => !dropped && mark("withdrawn")} className={cn(btn, dropped ? "border-line-strong bg-bg-soft text-ink-2" : "border-line bg-surface text-ink hover:bg-surface-2")}>
-        <XCircle className="size-4" aria-hidden /> {dropped ? "Withdrawn" : "Mark as withdrawn"}
-      </button>
-    </div>
-  );
+  return <OutcomeButtons outcome={app?.status === "submitted" ? "applied" : app?.status === "withdrawn" ? "withdrawn" : null} onMark={mark} />;
 }

@@ -14,12 +14,11 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
-import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState } from "@/components/common/States";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { MatchBadge } from "@/modules/jobs/components/MatchBadge";
 import { JobQualityBadge } from "@/modules/jobs/components/JobQualityBadge";
 import { ShareJobButton } from "@/modules/jobs/components/ShareJobButton";
@@ -28,7 +27,7 @@ import { CustomResumeButton } from "@/modules/jobs/components/CustomResumeButton
 import { EasyApply } from "@/modules/jobs/components/EasyApply";
 import { JobDecision } from "@/modules/jobs/components/JobDecision";
 import { JobSourcesCard } from "@/modules/jobs/components/JobSourcesCard";
-import { CompanyFold } from "@/modules/jobs/components/CompanyFold";
+import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
 import { HiddenJobNotice } from "@/modules/jobs/components/HiddenJobNotice";
 import { jobBriefKey, useCompanyBriefs } from "@/modules/jobs/components/useCompanyBriefs";
 import { checkOneJobLink } from "@/lib/useLinkCheck";
@@ -42,7 +41,7 @@ import { useMediaQuery } from "@/lib/motion";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
-import { RatingStars } from "@/modules/jobs/components/RatingStars";
+import { RatingStars } from "@/wonderworks/listing/RatingStars";
 import { DescriptionLanguage } from "@/modules/jobs/components/DescriptionLanguage";
 import { useJobTranslation } from "@/lib/useJobTranslation";
 import { TRANSLATE_LANGUAGES } from "@/domain/jobs/translate";
@@ -130,23 +129,23 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const txDir = txLang === "ar" ? "rtl" : undefined;
   const requirements = tx?.requirements ?? job.requirements;
   const niceToHave = tx?.niceToHave ?? job.niceToHave;
-  const longDescription = description.length > 280 || description.split("\n").length > 6;
+  const longDescription = isLongText(description);
   const hasRequirements = job.requirements.length > 0 || job.niceToHave.length > 0 || job.skills.length > 0;
   // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
   return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeader
-        back={{ href: "/app/jobs", label: "Jobs" }}
-        title={tx?.title ?? job.title}
-        actions={
+    <ListingPage
+      back={{ href: "/app/jobs", label: "Jobs" }}
+      title={tx?.title ?? job.title}
+      actions={
           <div className="flex items-center gap-2">
             <ShareJobButton job={job} className="size-10 border border-line bg-surface text-ink-2" />
             <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => (saved ? unsave(job.id) : save(job.id))}>
               {saved ? "Saved" : "Save"}
             </Button>
           </div>
-        }
-      />
+      }
+      notice={
+        <>
       {closed && (
         <div role="alert" className="mb-4 rounded-[14px] border border-warning-600/30 bg-warning-100/50 px-4 py-3 text-[14px] text-ink-2">
           <p className="font-semibold text-ink">This posting has closed</p>
@@ -157,12 +156,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
         </div>
       )}
       <HiddenJobNotice job={job} className="mb-4" />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-x-5">
-        <Card className="min-w-0 lg:col-start-1">
-          <div className="flex items-start gap-3">
-            <CompanyLogo name={job.company} domain={job.companyDomain} logo size={40} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-semibold text-ink">
+        </>
+      }
+    >
+        <ListingMain>
+          <ListingHead
+            company={job.company}
+            domain={job.companyDomain}
+            name={
+              <>
                 {job.company}
                 {brief?.size && <span className="font-normal text-ink-3">{` · ${brief.size}`}</span>}
                 {brief?.rating ? (
@@ -177,24 +179,28 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
                     {` · H-1B ${brief.h1b.toLocaleString("en-US")}`}
                   </span>
                 ) : null}
-              </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3">
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="size-3.5" aria-hidden /> {job.location}
+              </>
+            }
+            facts={[
+              <span key="l" className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5" aria-hidden /> {job.location}
+              </span>,
+              <span key="m">{WORK_MODE_LABEL[job.workMode]}</span>,
+              jobTypeOf(job) && (
+                <span key="t" title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>
+                  {JOB_TYPE_LABEL[jobTypeOf(job)!]}
                 </span>
-                <span>{WORK_MODE_LABEL[job.workMode]}</span>
-                {jobTypeOf(job) && <span title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[jobTypeOf(job)!]}</span>}
-                {salary && (
-                  <span className="inline-flex items-center gap-1">
-                    <Wallet className="size-3.5" aria-hidden /> {salary}
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="size-3.5" aria-hidden /> {relativeTime(job.postedAt)}
+              ),
+              salary && (
+                <span key="s" className="inline-flex items-center gap-1">
+                  <Wallet className="size-3.5" aria-hidden /> {salary}
                 </span>
-              </div>
-            </div>
-          </div>
+              ),
+              <span key="p" className="inline-flex items-center gap-1">
+                <Clock className="size-3.5" aria-hidden /> {relativeTime(job.postedAt)}
+              </span>,
+            ]}
+          />
           {(match || application || rejected) && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {match && <MatchBadge match={match} showLabel />}
@@ -254,18 +260,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               )}
             </p>
           )}
-          <p
-            lang={txLang}
-            dir={txDir}
-            className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6", translation.state?.status === "loading" && "opacity-60")}
-          >
-            {tx?.description ?? description}
-          </p>
-          {longDescription && (
-            <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
-              {expanded ? "Less" : "More"}
-            </button>
-          )}
+          <ClampedText text={tx?.description ?? description} long={longDescription} expanded={expanded} onToggle={() => setExpanded((v) => !v)} lang={txLang} dir={txDir} className={cn(translation.state?.status === "loading" && "opacity-60")} />
           {/* With the whole description open: requirements, the company and the sources, then the full
               description's link and Not for me on one row. */}
           {(expanded || !longDescription) && (
@@ -358,10 +353,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               </div>
             </>
           )}
-        </Card>
+        </ListingMain>
 
-        <aside className="lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <Card className="flex flex-col gap-2">
+        <ListingAside>
             {wonderJob ? (
               <>
                 <EasyApply job={job} />
@@ -441,9 +435,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             )}
             {/* After Apply on the employer's site (or a résumé made for it): how did it go? */}
             {asksOutcome && <ApplicationOutcome job={job} />}
-          </Card>
-        </aside>
-      </div>
-    </div>
+        </ListingAside>
+    </ListingPage>
   );
 }

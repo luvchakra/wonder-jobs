@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { CanonicalJob } from "@/domain/jobs/types";
 import { companyLines, type CompanyProfile } from "@/domain/jobslake/companies";
 import { getClientMode } from "@/lib/mode";
 import { Fold } from "@/components/common/Fold";
@@ -8,11 +7,11 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { RatingStars } from "./RatingStars";
 
 /**
- * A job's Company section: what WorksLake knows about the employer (size, industry, HQ, founding, listing and
+ * A listing's Company section, for every module (taken from Jobs' job page): what WorksLake knows about the employer (size, industry, HQ, founding, listing and
  * revenue as TheirStack or Wikidata report them, its open roles, H-1B filings from the Department of Labor), each
  * with its source. Shows only what was found.
  */
-export function CompanyFold({ job, open }: { job: Pick<CanonicalJob, "company" | "companyDomain" | "industry">; open?: boolean }) {
+export function CompanyFold({ job, open }: { job: { company: string; companyDomain?: string; industry?: string }; open?: boolean }) {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   useEffect(() => {
     if (getClientMode().mode !== "user") return;

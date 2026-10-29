@@ -174,7 +174,8 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
   const showAnyway = () => setFilters(CLEAR_FILTERS_PATCH);
 
   return (
-    <div>
+    // Under the page's 20px top padding, the search box sits 8px from the top bar: the same gap as between it and the chips.
+    <div className="-mt-3">
       {header}
       <JobFiltersBar
         filters={effective}

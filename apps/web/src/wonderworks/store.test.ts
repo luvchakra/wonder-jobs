@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactModuleState, MODULE_CATALOG_CAP, MODULE_RECENT_CAP, MODULE_SAVED_CAP, moduleStore, STORED_DESCRIPTION, storedListing } from "./store";
+import { compactModuleState, findListing, MODULE_CATALOG_CAP, MODULE_RECENT_CAP, MODULE_SAVED_CAP, moduleStore, STORED_DESCRIPTION, storedListing } from "./store";
 
 describe("module-scoped stores", () => {
   it("one store per module, never shared with another module", () => {
@@ -66,5 +66,27 @@ describe("module catalog persistence", () => {
   it("shortens only a long string description", () => {
     expect(storedListing({ id: "a", description: "short" })).toEqual({ id: "a", description: "short" });
     expect(storedListing(null)).toBeNull();
+  });
+});
+
+describe("module responses", () => {
+  it("keep a status, the marks made toward one, and the listing; clearing takes it out", () => {
+    const s = moduleStore("events");
+    s.getState().setResponse("r1", "preparing", { status: "preparing", mark: "apply_opened", item: { id: "r1", title: "T" } });
+    s.getState().setResponse("r1", "preparing", { status: "preparing", mark: "resume" });
+    s.getState().setResponse("r1", "preparing", { status: "preparing", mark: "resume" });
+    expect(s.getState().responses.r1).toMatchObject({ stage: "preparing", status: "preparing", marks: ["apply_opened", "resume"] });
+    s.getState().setResponse("r1", "applied", { status: "applied" });
+    expect(s.getState().responses.r1).toMatchObject({ stage: "applied", status: "applied", marks: ["apply_opened", "resume"] });
+    expect(findListing(s.getState(), "r1")).toEqual({ id: "r1", title: "T" });
+    s.getState().clearResponse("r1");
+    expect(s.getState().responses.r1).toBeUndefined();
+  });
+
+  it("a listing's page finds it in what was kept, else in the last search", () => {
+    const run = { searched: { query: "q", places: [] }, sources: [], results: [{ id: "a" }, { id: "b" }], at: "2026-10-29T00:00:00Z" } as unknown as Parameters<typeof findListing>[0]["lastRun"];
+    expect(findListing({ items: {}, lastRun: run }, "b")).toEqual({ id: "b" });
+    expect(findListing({ items: { b: { id: "b", kept: true } }, lastRun: run }, "b")).toEqual({ id: "b", kept: true });
+    expect(findListing({ items: {}, lastRun: null }, "b")).toBeUndefined();
   });
 });

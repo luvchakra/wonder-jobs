@@ -331,6 +331,25 @@ export function stageOf(s: InternshipStatus): "applied" | "shortlisted" | "offer
   return s === "applied" || s === "shortlisted" || s === "offer" ? s : "accepted_closed";
 }
 
+// ---- the student's own record of an internship applied to on another site ----------------------------------------
+
+/** Where an outside internship stands, by the student's own word: Preparing, Applied or Withdrawn. */
+export type OutsideStatus = "preparing" | "applied" | "withdrawn";
+
+/** What the student did toward one, as Jobs' Preparing cards show it. */
+export const MARK_LABEL: Record<string, string> = { resume: "Résumé made", apply_opened: "Apply opened" };
+
+/** A response's status (refs from before statuses were kept read as applied); null when there's none. */
+export function outsideStatus(ref: { stage: string; status?: string } | undefined): OutsideStatus | null {
+  if (!ref) return null;
+  if (ref.status === "preparing" || ref.status === "applied" || ref.status === "withdrawn") return ref.status;
+  return ref.stage === "preparing" ? "preparing" : "applied";
+}
+
+/** The Pipeline stage each outside status sits in. */
+export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "accepted_closed" };
+export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
+
 /** One of the student's own applications, as their Pipeline shows it. */
 export interface MyInternshipApplication {
   id: string;

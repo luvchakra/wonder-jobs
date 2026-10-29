@@ -6,24 +6,24 @@ import type { Tone } from "@/components/common/Badge";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
 import { PageHeader, SectionHeader } from "@/wonderworks/chrome/PageHeader";
 import { toast } from "@/components/feedback/Toast";
-import { internshipsManifest } from "../manifest";
+import { internshipsManifest, listingHref } from "../manifest";
 import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { relativeTime } from "@/lib/format";
 import { call } from "../api";
-import { canWithdraw, deadlines, durationLabel, shortDate, stageOf, STATUS_LABEL, stipendLabel, type InternshipListing, type InternshipStatus, type MyInternshipApplication } from "../domain";
+import { canWithdraw, deadlines, MARK_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, durationLabel, shortDate, stageOf, STATUS_LABEL, stipendLabel, type InternshipListing, type InternshipStatus, type MyInternshipApplication } from "../domain";
 import { savedItems, useInternshipsStore } from "../store";
 
 const noop = () => () => undefined;
 /** An application's own page (components/Application.tsx). */
 const itemHref = (id: string) => `/app/m/internships/pipeline/${encodeURIComponent(id)}`;
 
-type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; line: string; at: string; app?: MyInternshipApplication; outside?: InternshipListing };
+type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; line: string; at: string; tags?: string[]; app?: MyInternshipApplication; outside?: InternshipListing };
 
 const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "brand", offer: "success", accepted: "success", closed: "neutral", withdrawn: "neutral" };
 
 /**
- * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Applied · Shortlisted ·
- * Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
+ * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Preparing · Applied ·
+ * Shortlisted · Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
  * chips; the same compact cards, with the one action each needs, each opening its application's page; then Deadlines. WonderWorks applications come from the
  * server (what the company actually did); outside ones are those the student marked applied after applying on the
  * employer's page.
@@ -53,7 +53,9 @@ export function InternshipsPipeline() {
     if (mounted)
       for (const [id, r] of Object.entries(responses)) {
         const l = items[id] as InternshipListing | undefined;
-        if (l?.origin === "outside") out.push({ id, title: l.title, company: l.company, stage: r.stage, status: "Applied on their site", tone: "info", line: l.location, at: r.at, outside: l });
+        const st = outsideStatus(r);
+        // Outside ones as the student marked them; a WonderWorks one only while it's still being prepared (the server has it once sent).
+        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", line: l.location, at: r.at, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: l });
       }
     return out.sort((a, b) => b.at.localeCompare(a.at));
   }, [apps, responses, items, mounted]);
@@ -68,9 +70,11 @@ export function InternshipsPipeline() {
   const current = tab ?? (count("offer") ? "offer" : (stages.find((s) => count(s.id))?.id ?? stages[0].id));
   const label = stages.find((s) => s.id === current)!.label;
   const inStage = list.filter((i) => i.stage === current);
-  const statuses = [...new Set(inStage.map((i) => i.status))];
+  // Preparing is filtered by what was done (Résumé made, Apply opened), as on Jobs; the other stages by status.
+  const facetsOf = (i: Item) => (current === "preparing" ? (i.tags ?? []) : [i.status]);
+  const statuses = [...new Set(inStage.flatMap(facetsOf))];
   const picked = status && statuses.includes(status) ? status : null;
-  const shown = picked ? inStage.filter((i) => i.status === picked) : inStage;
+  const shown = picked ? inStage.filter((i) => facetsOf(i).includes(picked)) : inStage;
 
   const act = async (id: string, action: "withdraw" | "accept") => {
     setBusy(id);
@@ -107,14 +111,14 @@ export function InternshipsPipeline() {
               <StageEmpty label={label} />
             ) : (
               <>
-                {statuses.length > 1 && <StageFilter label={`Filter ${label} by status`} all={inStage.length} options={statuses.map((st) => ({ value: st, label: st, count: inStage.filter((i) => i.status === st).length }))} value={picked} onPick={setStatus} />}
+                {(statuses.length > 1 || (current === "preparing" && statuses.length > 0)) && <StageFilter label={current === "preparing" ? "Filter Preparing" : `Filter ${label} by status`} all={inStage.length} options={statuses.map((st) => ({ value: st, label: st, count: inStage.filter((i) => facetsOf(i).includes(st)).length }))} value={picked} onPick={setStatus} />}
                 <StageList label={label}>
                   {shown.map((i) => {
                     const offer = i.app?.status === "offer";
                     const withdraw = !!i.app && !offer && canWithdraw(i.app.status);
                     return (
                       <li key={i.id} className="relative">
-                        <StageCard href={itemHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} when={relativeTime(i.at)} actionSpace={offer || withdraw} className={i.outside ? "pr-11" : undefined} />
+                        <StageCard href={i.stage === "preparing" ? listingHref(i.id) : itemHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={offer || withdraw} className={i.outside ? "pr-11" : undefined} />
                         {offer && (
                           <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
                             <Button size="sm" variant="ghost" loading={busy === i.id} onClick={() => void act(i.id, "withdraw")} aria-label={`Decline the offer from ${i.company}`}>
@@ -131,7 +135,7 @@ export function InternshipsPipeline() {
                           </Button>
                         )}
                         {i.outside && (
-                          <button type="button" onClick={() => useInternshipsStore.setState((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== i.id)) }))} aria-label={`Remove ${i.company} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
+                          <button type="button" onClick={() => useInternshipsStore.getState().clearResponse(i.id)} aria-label={`Remove ${i.company} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
                             <X className="size-4" aria-hidden />
                           </button>
                         )}

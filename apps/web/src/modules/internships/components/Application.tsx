@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { CheckCircle2, ExternalLink, Send, Star, Trash2, Trophy, Undo2, XCircle } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, type Tone } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -13,8 +14,8 @@ import { StageTimeline } from "@/wonderworks/pipeline/parts";
 import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from "@/wonderworks/pipeline/item";
 import { formatDate } from "@/lib/format";
 import { call } from "../api";
-import { internshipsManifest } from "../manifest";
-import { canWithdraw, durationLabel, shortDate, stageOf, startLabel, STATUS_LABEL, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipStatus, type MyInternshipApplicationDetail } from "../domain";
+import { internshipsManifest, listingHref } from "../manifest";
+import { canWithdraw, MARK_LABEL, OUTSIDE_LABEL, outsideStatus, durationLabel, shortDate, stageOf, startLabel, STATUS_LABEL, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipStatus, type MyInternshipApplicationDetail } from "../domain";
 import { useInternshipsStore } from "../store";
 
 const noop = () => () => undefined;
@@ -73,11 +74,12 @@ export function InternshipApplication({ id }: { id: string }) {
 
   if (outside) {
     const l = outside.item;
+    const st = outsideStatus(outside.ref) ?? "applied";
     return (
       <ItemPage
         back={BACK}
         title={`${l.title} · ${l.company}`}
-        badge={<Badge tone="info">Applied on their site</Badge>}
+        badge={<Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge>}
       >
         <ItemMain>
           <Card>
@@ -89,11 +91,14 @@ export function InternshipApplication({ id }: { id: string }) {
               )}
             </ItemHead>
             <p className="mt-3 text-[13px] text-ink-3">
-              Marked applied {formatDate(outside.ref.at)} · from {l.sourceName}
+              {st === "applied" ? "Marked applied" : st === "withdrawn" ? "Marked withdrawn" : "Preparing since"} {formatDate(outside.ref.at)} · from {l.sourceName} ·{" "}
+              <Link href={listingHref(l.id)} className="font-medium text-brand-600 hover:underline">
+                Internship details
+              </Link>
             </p>
           </Card>
           <ItemSection title="Timeline">
-            <StageTimeline events={[{ id: "applied", at: outside.ref.at, title: "Applied on their site", detail: "Marked applied by you", icon: Send }]} />
+            <StageTimeline events={[{ id: st, at: outside.ref.at, title: OUTSIDE_LABEL[st], detail: st === "preparing" ? (outside.ref.marks ?? []).map((m) => MARK_LABEL[m] ?? m).join(" · ") || undefined : `Marked ${st} by you`, icon: st === "withdrawn" ? Undo2 : Send }]} />
           </ItemSection>
         </ItemMain>
         <ItemAside>
@@ -106,7 +111,7 @@ export function InternshipApplication({ id }: { id: string }) {
             icon={<Trash2 className="size-4" aria-hidden />}
             className="text-danger-600"
             onClick={() => {
-              useInternshipsStore.setState((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== id)) }));
+              useInternshipsStore.getState().clearResponse(id);
               toast.success("Removed from Applications");
               router.push(BACK.href);
             }}
@@ -170,7 +175,7 @@ export function InternshipApplication({ id }: { id: string }) {
       </ItemMain>
       <ItemAside>
         <Card>
-          <StageSteps stages={internshipsManifest.pipeline.stages} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "accepted_closed" ? STATUS_LABEL[app.status] : undefined} />
+          <StageSteps stages={internshipsManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "accepted_closed" ? STATUS_LABEL[app.status] : undefined} />
           {offer ? (
             <div className="mt-3 flex gap-2">
               <Button size="sm" full loading={busy} onClick={() => void act("accept")} aria-label={`Accept the offer from ${app.company}`}>

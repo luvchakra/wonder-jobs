@@ -42,7 +42,7 @@ export function moduleTabs(m: Pick<ModuleManifest, "id" | "routes" | "pipeline">
   const r = m.routes;
   const pick = (t: Tab, dflt: NavItem["match"]) => (t in match ? match[t] : dflt);
   const tabs: NavItem[] = [
-    { href: r.find, label: "Find", icon: Search, match: pick("find", (p) => p === r.find) },
+    { href: r.find, label: "Find", icon: Search, match: pick("find", (p) => p === r.find || p.startsWith(`${r.find}/listing/`)) },
     { href: r.saved, label: "Saved", icon: Bookmark, match: pick("saved", (p) => p === r.saved) },
     { href: r.pipeline, label: m.pipeline.label, icon: PIPELINE_ICONS[m.pipeline.icon] ?? LayoutList, match: pick("pipeline", (p) => p === r.pipeline) },
     { href: r.you, label: "You", icon: UserRound, match: pick("you", (p) => p === r.you || p.startsWith(`${r.you}/`) || p.startsWith(`/app/m/${m.id}/company`) || p === "/app/runs" || under(...SHARED_YOU)(p)) },

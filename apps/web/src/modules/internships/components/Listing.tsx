@@ -17,7 +17,8 @@ import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { cn } from "@/lib/cn";
 import { call } from "../api";
-import { durationLabel, matchInternship, missingProfile, SCHEDULE_LABEL, shortDate, startLabel, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipMatch, type StudentProfile } from "../domain";
+import { durationLabel, matchInternship, missingProfile, outsideStatus, SCHEDULE_LABEL, shortDate, startLabel, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipMatch, type StudentProfile } from "../domain";
+import { listingHref } from "../manifest";
 import { selectProfile, useInternshipsStore } from "../store";
 
 /** "Pune · Hybrid · Full time". */
@@ -35,7 +36,7 @@ export function useMatch(l: InternshipListing): InternshipMatch {
 }
 
 /** "Strong" / "Partial" fit, in the pill Jobs uses for its match. */
-const FIT: Record<Exclude<InternshipMatch["fit"], "unknown">, { word: string; tone: string; title: string }> = {
+export const FIT: Record<Exclude<InternshipMatch["fit"], "unknown">, { word: string; tone: string; title: string }> = {
   strong: { word: "Strong", tone: "bg-success-100 text-success-600", title: "Strong fit — your skills, field and dates line up with it" },
   some: { word: "Partial", tone: "bg-brand-50 text-brand-700", title: "Partial fit — some of your skills, field or dates line up with it" },
 };
@@ -43,11 +44,11 @@ const FIT: Record<Exclude<InternshipMatch["fit"], "unknown">, { word: string; to
 /**
  * One internship in the results, on the card Jobs' Find uses (platform/find/parts.tsx): the company's logo with the fit
  * and Apply under it; the title; company · place · duration · start · stipend a month (where a job shows work mode and
- * salary); skills; why it fits; where it was found, and Save.
+ * salary); skills; why it fits; where it was found, and Save. Its title opens the internship's page.
  */
 export const InternshipCard = memo(function InternshipCard({ item: l, onOpen }: { item: InternshipListing; onOpen: (id: string) => void }) {
   const saved = useInternshipsStore((s) => !!s.saved[l.id]);
-  const applied = useInternshipsStore((s) => !!s.responses[l.id]);
+  const applied = useInternshipsStore((s) => outsideStatus(s.responses[l.id]) === "applied");
   const toggle = useInternshipsStore((s) => s.toggleSaved);
   const m = useMatch(l);
   const fit = m.fit === "unknown" ? null : FIT[m.fit];
@@ -62,9 +63,9 @@ export const InternshipCard = memo(function InternshipCard({ item: l, onOpen }: 
         </>
       }
       title={
-        <button type="button" onClick={() => onOpen(l.id)} className={cn(CARD_TARGET, "text-left")}>
+        <Link href={listingHref(l.id)} onClick={() => onOpen(l.id)} className={CARD_TARGET}>
           {l.title}
-        </button>
+        </Link>
       }
       facts={[
         <span key="c" className="font-medium text-ink-2">
@@ -93,42 +94,6 @@ export const InternshipCard = memo(function InternshipCard({ item: l, onOpen }: 
   );
 });
 
-/** The whole posting: its terms (and where each came from), every match signal with its reason, and Apply. */
-export function InternshipSheet({ item: l, onClose }: { item: InternshipListing | null; onClose: () => void }) {
-  const m = useMatch(l ?? EMPTY);
-  if (!l) return null;
-  return (
-    <Modal open onClose={onClose} title={l.title} description={`${l.company} · ${placeLine(l)}`} footer={<ApplyButton listing={l} full />}>
-      <dl className="grid grid-cols-2 gap-3 text-[13px]">
-        {[
-          ["Stipend", stipendLabel(l.terms)],
-          ["Duration", durationLabel(l.terms)],
-          ["Start", l.terms.startsOn ? shortDate(l.terms.startsOn) : "Not stated"],
-          ["Apply by", l.terms.applyBy ? shortDate(l.terms.applyBy) : "Not stated"],
-        ].map(([k, v]) => (
-          <div key={k}>
-            <dt className="text-ink-4">{k}</dt>
-            <dd className="font-medium text-ink">{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-2 text-[12px] text-ink-4">{l.termsFrom === "company" ? `Terms as ${l.company} posted them on WonderWorks.` : `Only what the posting itself states, from ${l.sourceName}.`}</p>
-      {m.signals.length > 0 && (
-        <ul aria-label="How it fits" className="mt-3 space-y-1 text-[13px]">
-          {m.signals.map((s) => (
-            <li key={s.text} className={s.tone === "good" ? "text-success-600" : "text-warning-600"}>
-              {s.text}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-3 whitespace-pre-line text-[13.5px] leading-relaxed text-ink-2">{l.description}</p>
-      {l.skills.length > 0 && <p className="mt-3 text-[12.5px] text-ink-3">Skills: {l.skills.join(", ")}</p>}
-    </Modal>
-  );
-}
-const EMPTY: InternshipListing = { id: "", origin: "outside", title: "", company: "", location: "", terms: { currency: "INR" }, termsFrom: "posting", skills: [], description: "", sourceId: "", sourceName: "" };
-
 type Sheet = { profile: StudentProfile; name: string; fileId: string | null; decision: "run" | "ask" };
 
 /**
@@ -138,7 +103,7 @@ type Sheet = { profile: StudentProfile; name: string; fileId: string | null; dec
  * On an outside internship: the employer's own page opens; the student can then mark it applied.
  */
 export function ApplyButton({ listing: l, size = "md", full, card }: { listing: InternshipListing; size?: "sm" | "md"; full?: boolean; /** The small Apply under a card's logo, as on Jobs' cards. */ card?: boolean }) {
-  const applied = useInternshipsStore((s) => s.responses[l.id]);
+  const applied = useInternshipsStore((s) => outsideStatus(s.responses[l.id]) === "applied");
   const setResponse = useInternshipsStore((s) => s.setResponse);
   const profile = useInternshipsStore(selectProfile);
   const policy = useAutomationStore((s) => s.policy);
@@ -148,10 +113,12 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [working, setWorking] = useState(false);
 
-  // Kept with the response so Pipeline and Deadlines can show it after a reload.
-  const remember = (stage: string) => {
-    setResponse(l.id, stage);
-    useInternshipsStore.setState((s) => ({ items: { ...s.items, [l.id]: l } }));
+  // Kept with the response (and the listing) so Pipeline and Deadlines can show it after a reload.
+  const remember = (stage: "applied") => setResponse(l.id, stage, { status: stage, item: l });
+  // Apply opened on their site: in Applications → Preparing until the student marks how it went (as Jobs does).
+  const opened = () => {
+    window.open(l.applyUrl, "_blank", "noopener,noreferrer");
+    if (!applied && outsideStatus(useInternshipsStore.getState().responses[l.id]) !== "withdrawn") setResponse(l.id, "preparing", { status: "preparing", mark: "apply_opened", item: l });
   };
 
   if (l.origin === "outside" && card)
@@ -162,7 +129,7 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
         title="Apply on their site"
         className={APPLY_BTN}
         onClick={() => {
-          window.open(l.applyUrl, "_blank", "noopener,noreferrer");
+          opened();
           toast.info(`Opened ${l.company}'s page`, "Apply there. Then mark it applied to track it in Pipeline.", { label: "I applied", onClick: () => remember("applied") });
         }}
       >
@@ -178,7 +145,7 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
         variant={applied ? "outline" : "primary"}
         iconRight={<ExternalLink className="size-3.5" aria-hidden />}
         onClick={() => {
-          window.open(l.applyUrl, "_blank", "noopener,noreferrer");
+          opened();
           if (!applied) toast.info(`Opened ${l.company}'s page`, "Apply there. Then mark it applied to track it in Pipeline.", { label: "I applied", onClick: () => remember("applied") });
         }}
       >

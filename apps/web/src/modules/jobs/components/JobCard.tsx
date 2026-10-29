@@ -16,7 +16,7 @@ import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge, type Tone } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";
-import { RatingStars } from "./RatingStars";
+import { RatingStars } from "@/wonderworks/listing/RatingStars";
 import { noteApplyOpened } from "./ApplicationOutcome";
 import { jdSummary } from "@/domain/jobs/jdSummary";
 import { JobDecision } from "./JobDecision";

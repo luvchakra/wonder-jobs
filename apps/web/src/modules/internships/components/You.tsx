@@ -3,6 +3,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Building2, GraduationCap, Zap } from "lucide-react";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { YouOverview } from "@/wonderworks/you/YouOverview";
+import { useResumeRow } from "@/wonderworks/you/useResumeRow";
 import { Button } from "@/components/common/Button";
 import { Field, Input, Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
@@ -18,19 +19,23 @@ const MODE_LABEL: Record<PolicyMode, string> = { automatic: "Automatic", ask: "A
 
 /**
  * Internships → You (WJ-418, WJ-421): Jobs' You page — the Career Profile and its rows — with Internships' own rows in
- * the same style: the student's details, the one setting this module adds (internships.apply) and posting internships.
+ * the same style: the student's details, My Resume (WonderWorks' row, as on Jobs), the one setting this module adds
+ * (internships.apply) and posting internships.
  */
 export function InternshipsYou() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useInternshipsStore(selectProfile);
   const mode = useAutomationStore((s) => s.policy["internships.apply"]) ?? "ask";
   const details = mounted && saved ? [saved.college, saved.course].filter(Boolean).join(" · ") : "";
+  // Internships ask for a résumé too: the same My Resume as Jobs, to upload or update it.
+  const resume = useResumeRow();
   return (
     <YouOverview
       module={{
         label: "Internships",
         rows: [
           { href: "/app/m/internships/you/profile", label: "Your details", value: details || "Add them", icon: GraduationCap },
+          { ...resume, value: mounted ? resume.value : "" },
           { href: "/app/m/internships/you/profile#apply", label: CAPABILITY_META["internships.apply"].label, value: mounted ? MODE_LABEL[mode] : "", icon: Zap },
           { href: "/app/m/internships/company", label: "Post internships", value: "For companies", icon: Building2 },
         ],
