@@ -19,7 +19,7 @@ export function GET() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0F172A",
+          background: "#FFFFFF",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
