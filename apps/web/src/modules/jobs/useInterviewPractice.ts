@@ -29,4 +29,4 @@ export function useInterviewPractice(id: string) {
   return { app, job, dna, allowed, ask };
 }
 
-export const NEEDS_AI = "Practice needs an AI model: WonderStar AI where it's connected, or your own key in You → AI provider.";
+export const NEEDS_AI = "Practice needs an AI model: WonderWorks AI where it's connected, or your own key in You → AI provider.";

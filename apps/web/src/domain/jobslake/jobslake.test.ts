@@ -288,7 +288,7 @@ describe("source planner", () => {
     expect(planSearch({ ...req("balanced"), sourceIds: ["gh"] }, sources, {}).waves.flat().map((x) => x.id)).toEqual(["gh"]);
   });
 
-  it("always asks WonderStar employers in the first wave, beside the strongest four, so the jobs open to Easy Apply are never skipped", () => {
+  it("always asks WonderWorks employers in the first wave, beside the strongest four, so the jobs open to Easy Apply are never skipped", () => {
     const withOwn = [...sources, S("employers", ["global"])];
     for (const mode of ["fast", "balanced", "maximum_coverage"] as const) {
       const p = planSearch(req(mode), withOwn, {});

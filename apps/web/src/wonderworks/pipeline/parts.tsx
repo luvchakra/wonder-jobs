@@ -6,7 +6,7 @@ import { Badge, type Tone } from "@/components/common/Badge";
 import { cn } from "@/lib/cn";
 
 /**
- * Pipeline's building blocks, shared by every WonderWorks module (docs/WONDERSTAR_PLATFORM.md §4.1): the row of stage
+ * Pipeline's building blocks, shared by every WonderWorks module (docs/WONDERWORKS_PLATFORM.md §4.1): the row of stage
  * tiles with counts, a stage's filter chips, its list and its compact cards. Extracted from the jobs portal's Pipeline
  * (app/app/applications/page.tsx, components/applications/ApplicationCard.tsx), which renders through them unchanged;
  * a module brings only its stages and what each card says.

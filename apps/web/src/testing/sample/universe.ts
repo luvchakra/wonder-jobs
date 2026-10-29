@@ -60,8 +60,8 @@ let cached: Universe | null = null;
 
 /** Sample-only marker postings (see the canary note in `getUniverse`). Never change these names. */
 export const CANARIES: Pick<Job, "id" | "title" | "company" | "companyDomain" | "location" | "country" | "description" | "applyUrl">[] = [
-  { id: "job_canary_quillfeather", title: "Cartography Data Steward", company: "Quillfeather Mapworks (sample)", companyDomain: "quillfeather-mapworks.example", location: "Pune, India", country: "IN", description: "Quillfeather Mapworks (sample) keeps hand-drawn survey maps in order. This is a sample posting in the WonderStar demo.", applyUrl: "https://quillfeather-mapworks.example/jobs/7341" },
-  { id: "job_canary_tamarind", title: "Tidal Archive Curator", company: "Tamarind Lighthouse Co. (sample)", companyDomain: "tamarind-lighthouse.example", location: "Kochi, India", country: "IN", description: "Tamarind Lighthouse Co. (sample) catalogues tide tables. This is a sample posting in the WonderStar demo.", applyUrl: "https://tamarind-lighthouse.example/careers/2219" },
+  { id: "job_canary_quillfeather", title: "Cartography Data Steward", company: "Quillfeather Mapworks (sample)", companyDomain: "quillfeather-mapworks.example", location: "Pune, India", country: "IN", description: "Quillfeather Mapworks (sample) keeps hand-drawn survey maps in order. This is a sample posting in the WonderWorks demo.", applyUrl: "https://quillfeather-mapworks.example/jobs/7341" },
+  { id: "job_canary_tamarind", title: "Tidal Archive Curator", company: "Tamarind Lighthouse Co. (sample)", companyDomain: "tamarind-lighthouse.example", location: "Kochi, India", country: "IN", description: "Tamarind Lighthouse Co. (sample) catalogues tide tables. This is a sample posting in the WonderWorks demo.", applyUrl: "https://tamarind-lighthouse.example/careers/2219" },
 ];
 
 export function getUniverse(): Universe {

@@ -29,7 +29,7 @@ export interface SourceFetcher {
   delta?: boolean;
 }
 
-const UA = "WonderStar/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
+const UA = "WonderWorks/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
 const REVALIDATE = 900;
 const MAX_PER_SOURCE = 150;
 
@@ -546,7 +546,7 @@ const employers: SourceFetcher = {
       companyDomain: org.website ? new URL(org.website).hostname.replace(/^www\./, "") : undefined,
       location: job.location,
       remote: job.workMode === "remote",
-      description: `${org.verified ? "" : `Posted on WonderStar by ${org.name} — an employer WonderStar hasn't verified yet.\n\n`}${job.description}`,
+      description: `${org.verified ? "" : `Posted on WonderWorks by ${org.name} — an employer WonderWorks hasn't verified yet.\n\n`}${job.description}`,
       tags: job.skills,
       postedAt: job.updatedAt,
       applyUrl: job.applyUrl,

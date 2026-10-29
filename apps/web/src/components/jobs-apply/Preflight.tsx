@@ -131,7 +131,7 @@ export function Preflight(props: {
                       {m.title} {recommended && <Badge tone="brand">Recommended</Badge>}
                     </span>
                     <span className="block text-[12px] text-ink-3">{m.body}</span>
-                    {m.key === "helper" && props.helperInstalled === false && <span className="mt-1 block text-[12px] font-medium text-warning-600">Needs the WonderStar browser helper</span>}
+                    {m.key === "helper" && props.helperInstalled === false && <span className="mt-1 block text-[12px] font-medium text-warning-600">Needs the WonderWorks browser helper</span>}
                     {disabled && <span className="mt-1 block text-[12px] font-medium text-ink-3">“Fill application forms” is off in Automation</span>}
                   </span>
                 </button>

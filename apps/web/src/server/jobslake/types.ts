@@ -83,7 +83,7 @@ export interface SourceRecord extends JobSourceDescriptor {
   paid?: boolean;
   /** Lists only these job types (a part-time or gig board): planned after the general sources unless the search asks for one of them. */
   jobTypes?: JobType[];
-  /** The WonderStar module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */
+  /** The WonderWorks module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */
   module?: ModuleId;
 }
 

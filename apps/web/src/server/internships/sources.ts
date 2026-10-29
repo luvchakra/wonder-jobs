@@ -4,7 +4,7 @@
  *
  * Real sources only, each through its official API, keeping only postings that are internships — as the source itself
  * reports the type, or as the posting's title says it (`domain/jobs/jobType.ts`); an untyped posting never counts:
- * - WonderStar companies: internships posted in a hiring workspace (Internships → Company).
+ * - WonderWorks companies: internships posted in a hiring workspace (Internships → Company).
  * - Adzuna India: its search API asked for the student's words plus "intern" (needs the Adzuna credentials: "Needs setup" without).
  * - Company career sites: the Greenhouse, Lever and Ashby boards JobsLake already reads, and SmartRecruiters' public Posting API.
  * - Remotive and Remote OK: their public APIs (Remotive reports "internship" as a job type; Remote OK as a tag).
@@ -31,7 +31,7 @@ function source(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | 
 export const WONDERSTAR_INTERNSHIPS = "intern_wonderstar";
 
 export const INTERNSHIP_SOURCES: SourceRecord[] = [
-  source({ id: WONDERSTAR_INTERNSHIPS, name: "WonderStar companies", provider: "WonderStar", category: "portal", geography: ["global"], description: "Internships companies post in their WonderStar hiring workspace." }),
+  source({ id: WONDERSTAR_INTERNSHIPS, name: "WonderWorks companies", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Internships companies post in their WonderWorks hiring workspace." }),
   source({ id: "intern_adzuna_in", name: "Adzuna India internships", provider: "Adzuna", category: "aggregator", geography: ["IN"], secretRef: "env:ADZUNA", capabilities: [...FEED_CAPS, "Salary"], description: "Adzuna India's search API, asked for internships." }),
   source({ id: "intern_careers", name: "Company career sites", provider: "Greenhouse, Lever, Ashby", category: "ats", geography: ["global"], description: "Internships on the Greenhouse, Lever and Ashby career sites JobsLake reads." }),
   source({ id: "intern_smartrecruiters", name: "SmartRecruiters career sites", provider: "SmartRecruiters", category: "ats", geography: ["IN", "global"], description: "Internships on SmartRecruiters career sites (public Posting API)." }),
@@ -56,7 +56,7 @@ export function internshipSourceAvailable(s: SourceRecord): boolean {
 
 /**
  * Fetch one Internships source. Throws `needsSetup(message)` for missing credentials. Under the E2E fixture only the
- * WonderStar companies source is real (the test's own postings); outside sources answer nothing.
+ * WonderWorks companies source is real (the test's own postings); outside sources answer nothing.
  */
 export async function runInternshipSource(s: SourceRecord, c: SearchCriteria, depth: Depth, needsSetup: (m: string) => Error): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (fixtureJobsOn() && s.id !== WONDERSTAR_INTERNSHIPS) return { jobs: [], warnings: [] };
@@ -72,7 +72,7 @@ export async function runInternshipSource(s: SourceRecord, c: SearchCriteria, de
         description: posting.description,
         tags: posting.skills,
         postedAt: posting.updatedAt,
-        // Applying happens in WonderStar (Apply on the internship); this is where the posting lives.
+        // Applying happens in WonderWorks (Apply on the internship); this is where the posting lives.
         applyUrl: new URL(`/app/m/internships?posting=${posting.id}`, siteUrl().origin).toString(),
         employerSite: true,
         applyPath: "platform" as const,

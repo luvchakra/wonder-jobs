@@ -7,7 +7,7 @@ import type { NavItem } from "./nav";
 import { useChromeSlots } from "./slots";
 
 /**
- * The four places for the module in use (docs/WONDERSTAR_PLATFORM.md §4.1): the page's own module, or else the one
+ * The four places for the module in use (docs/WONDERWORKS_PLATFORM.md §4.1): the page's own module, or else the one
  * picked last in Find's menu (kept per account). Opening a module's page makes it the active one.
  */
 export function useModuleNav(): NavItem[] {

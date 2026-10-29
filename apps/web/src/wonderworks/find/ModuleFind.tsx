@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn";
 import { ChoiceChips, DictationNotes, PillButton, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
- * A WonderWorks module's Find (docs/WONDERSTAR_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
+ * A WonderWorks module's Find (docs/WONDERWORKS_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
  * search box (microphone, clear, recent searches), one row of Refine, the module's pill facets and the round Search
  * button, the Refine panel, the line that says how many and from where, the cards, and the same empty states. A module
  * plugs in only its own fields (`facets`), its search, its card and its sheet. Opening the page searches nothing.

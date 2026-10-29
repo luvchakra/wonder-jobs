@@ -18,7 +18,7 @@ import { CareerJobPage } from "./_site/JobPage";
 import { consentText } from "@/components/careers/CareersApplyForm";
 import nextConfig from "../../../next.config";
 
-const job = { id: "job_abc123", title: "Product Engineer", location: "Bengaluru", workMode: "hybrid", jobType: "full_time", salaryMin: 2_000_000, salaryMax: 3_000_000, currency: "INR", description: "Line one\n<script>alert(1)</script>", skills: ["TypeScript", "Postgres"], company: "WonderStar", updatedAt: "2026-10-21T00:00:00Z" };
+const job = { id: "job_abc123", title: "Product Engineer", location: "Bengaluru", workMode: "hybrid", jobType: "full_time", salaryMin: 2_000_000, salaryMax: 3_000_000, currency: "INR", description: "Line one\n<script>alert(1)</script>", skills: ["TypeScript", "Postgres"], company: "WonderWorks", updatedAt: "2026-10-21T00:00:00Z" };
 const html = async (el: Promise<React.ReactElement> | React.ReactElement) => renderToStaticMarkup(await el);
 
 beforeEach(() => {
@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe("/careers", () => {
   it("lists only the jobs the careers API returned, with their facts and links", async () => {
-    list.mockResolvedValue({ state: "ok", data: { site: { name: "WonderStar careers", retentionMonths: 12 }, jobs: [job] } });
+    list.mockResolvedValue({ state: "ok", data: { site: { name: "WonderWorks careers", retentionMonths: 12 }, jobs: [job] } });
     const out = await html(CareersPage());
     expect(out).toContain("Product Engineer");
     expect(out).toContain('href="/careers/job_abc123"');
@@ -55,7 +55,7 @@ describe("/careers", () => {
     isAdmin = true;
     out = await html(CareersPage());
     expect(out).toContain("For admins");
-    expect(out).toContain("WonderStar Admin → Careers");
+    expect(out).toContain("WonderWorks Admin → Careers");
     list.mockResolvedValue({ state: "unauthorized" });
     expect(await html(CareersPage())).toContain("401");
   });
@@ -71,7 +71,7 @@ describe("/careers", () => {
 
 describe("/careers/<job id>", () => {
   it("shows the description as text, the JobPosting data and the form with the site's retention", async () => {
-    getJob.mockResolvedValue({ state: "ok", data: { job, site: { name: "WonderStar careers", retentionMonths: 12 } } });
+    getJob.mockResolvedValue({ state: "ok", data: { job, site: { name: "WonderWorks careers", retentionMonths: 12 } } });
     const out = await html(CareerJobPage({ id: "job_abc123" }));
     expect(out).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(out).not.toContain("<script>alert(1)</script>");
@@ -86,8 +86,8 @@ describe("/careers/<job id>", () => {
     const out = await html(CareerJobPage({ id: "job_abc123" }));
     expect(out).toContain("for this and similar roles.");
     expect(out).not.toMatch(/deletes it \d+ month/);
-    expect(consentText(null)).toBe("I agree that WonderStar stores my application to consider me for this and similar roles.");
-    expect(consentText(6)).toBe("I agree that WonderStar stores my application to consider me for this and similar roles, and deletes it 6 months after its last update.");
+    expect(consentText(null)).toBe("I agree that WonderWorks stores my application to consider me for this and similar roles.");
+    expect(consentText(6)).toBe("I agree that WonderWorks stores my application to consider me for this and similar roles, and deletes it 6 months after its last update.");
   });
 
   it("says a closed position is no longer open, with a way back", async () => {
@@ -109,9 +109,9 @@ describe("/careers/status", () => {
     expect(rules.findIndex((r) => r.source === "/careers/status")).toBeGreaterThan(rules.findIndex((r) => r.source === "/:path*"));
   });
 
-  it("shows the status, asking WonderStar with the token in the body, never in the address", async () => {
+  it("shows the status, asking WonderWorks with the token in the body, never in the address", async () => {
     const token = "wjst_" + "x".repeat(40);
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ application: { status: "reviewing", statusLabel: "In review", jobTitle: "Product Engineer", company: "WonderStar", appliedAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-05T00:00:00Z", canWithdraw: true } }), { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ application: { status: "reviewing", statusLabel: "In review", jobTitle: "Product Engineer", company: "WonderWorks", appliedAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-05T00:00:00Z", canWithdraw: true } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     const out = await html(CareersStatusPage({ searchParams: Promise.resolve({ t: token }) }));

@@ -17,9 +17,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || (local ? "http" : "https");
   return {
     id: "/app",
-    name: "WonderStar — Your AI job-search agent",
-    short_name: "WonderStar",
-    description: "WonderStar scans the market, finds opportunities that actually fit you, and helps you take the next step.",
+    name: "WonderWorks — Your AI job-search agent",
+    short_name: "WonderWorks",
+    description: "WonderWorks scans the market, finds opportunities that actually fit you, and helps you take the next step.",
     start_url: "/app",
     scope: "/",
     display: "standalone",

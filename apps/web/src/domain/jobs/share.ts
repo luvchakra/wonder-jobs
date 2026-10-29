@@ -10,7 +10,7 @@ import { formatSalaryRange } from "@/lib/format";
  */
 export type ShareJob = Pick<CanonicalJob, "id" | "title" | "company" | "location" | "workMode" | "salaryMin" | "salaryMax" | "currency" | "jobType" | "jobTypeFrom">;
 
-export const SHARE_PITCH = "WonderStar is an AI job-search agent that finds jobs that fit you, from real sources.";
+export const SHARE_PITCH = "WonderWorks is an AI job-search agent that finds jobs that fit you, from real sources.";
 
 /** The job's public page. */
 export function shareUrl(origin: string, id: string): string {
@@ -39,9 +39,9 @@ export function shareMessage(job: ShareJob, url: string, home: string): ShareMes
   const facts = shareFacts(job);
   return {
     subject: `Job you might like: ${role}`,
-    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderStar. ${SHARE_PITCH} ${home}`].join("\n"),
-    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderStar, the AI job-search agent.", "", url].join("\n"),
-    text: `${role}\n${facts}\n\nFound with WonderStar, the AI job-search agent.`,
+    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderWorks. ${SHARE_PITCH} ${home}`].join("\n"),
+    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderWorks, the AI job-search agent.", "", url].join("\n"),
+    text: `${role}\n${facts}\n\nFound with WonderWorks, the AI job-search agent.`,
   };
 }
 

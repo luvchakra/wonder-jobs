@@ -47,7 +47,7 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "himalayas", name: "Himalayas", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas", capabilities: FEED_CAPS, description: legacyNote("himalayas") }),
   builtin({ id: "himalayas_parttime", name: "Himalayas part-time", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas_parttime", jobTypes: ["part_time", "temporary"], capabilities: [...FEED_CAPS, "Salary", "Job type"], description: legacyNote("himalayas_parttime") }),
   builtin({ id: "freelancer", name: "Freelancer.com gigs", provider: "Freelancer.com", category: "aggregator", accessStrategy: "official_api", geography: ["global", "remote"], legacySourceId: "freelancer", jobTypes: ["gig"], capabilities: [...FEED_CAPS, "Job type"], description: legacyNote("freelancer") }),
-  builtin({ id: "employers", name: "WonderStar employers", provider: "WonderStar", category: "portal", accessStrategy: "official_api", geography: ["global"], legacySourceId: "employers", capabilities: [...FEED_CAPS, "Job type"], description: "Jobs companies post in their WonderStar hiring workspace." }),
+  builtin({ id: "employers", name: "WonderWorks employers", provider: "WonderWorks", category: "portal", accessStrategy: "official_api", geography: ["global"], legacySourceId: "employers", capabilities: [...FEED_CAPS, "Job type"], description: "Jobs companies post in their WonderWorks hiring workspace." }),
   builtin({ id: "arbeitnow", name: "Arbeitnow", provider: "Arbeitnow", category: "aggregator", accessStrategy: "official_api", geography: ["DE", "remote"], legacySourceId: "arbeitnow", capabilities: FEED_CAPS, description: legacyNote("arbeitnow") }),
   builtin({ id: "theirstack", name: "TheirStack", provider: "TheirStack", category: "aggregator", accessStrategy: "licensed", geography: ["global"], legacySourceId: "theirstack", capabilities: [...FEED_CAPS, "Salary", "Employer identity"], secretRef: "env:THEIRSTACK", paid: true, description: legacyNote("theirstack") }),
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),
@@ -70,7 +70,7 @@ export const PARTNERSHIP_SOURCES: SourceRecord[] = PARTNER_PRESETS.map((p) =>
 export async function listSources(module: ModuleId = "jobs"): Promise<SourceRecord[]> {
   const stored = await jobsLakeStore().listSources(module);
   const byId = new Map(stored.map((s) => [s.id, s]));
-  // Another module's own built-in sources (WonderStar): Internships' live in server/internships/sources.ts.
+  // Another module's own built-in sources (WonderWorks): Internships' live in server/internships/sources.ts.
   const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
     const o = byId.get(b.id);
     if (!o) return b;

@@ -1,5 +1,5 @@
 /**
- * WonderWorks' manifest types (docs/WONDERSTAR_PLATFORM.md §4): what every module describes about itself. A manifest is
+ * WonderWorks' manifest types (docs/WONDERWORKS_PLATFORM.md §4): what every module describes about itself. A manifest is
  * data WonderWorks reads (the Find menu, the tabs, the module shell, JobsLake's per-module datasets); it never lists a
  * posting. The modules themselves are listed in `modules/registry.ts`, the composition root — WonderWorks imports no module.
  */
@@ -36,7 +36,7 @@ export interface ModuleManifest {
   hint: string;
   /** A lucide icon name (platform/brand/tiles.ts draws it). */
   icon: ModuleIcon;
-  /** The tint of its icon tile (docs/WONDERSTAR_PLATFORM.md section 9), so each module is recognisable while the design system stays one. */
+  /** The tint of its icon tile (docs/WONDERWORKS_PLATFORM.md section 9), so each module is recognisable while the design system stays one. */
   accent: ModuleTint;
   status: ModuleStatus;
   /** Its id in the Find dropdown's "Coming soon" group (MENUS.find_kinds). */

@@ -31,7 +31,7 @@ const search = (query: string, places: string[]) => call<FindRun<InternshipListi
 
 /**
  * Internships Find (WJ-418, WJ-421): Jobs' Find with Internships' own fields. The student's words and places, searched
- * across the Internships dataset's own sources (WonderStar companies, Adzuna, company career sites, Remotive, Remote OK).
+ * across the Internships dataset's own sources (WonderWorks companies, Adzuna, company career sites, Remotive, Remote OK).
  * Opening the page searches nothing; the box starts from their last search or their course, and asks when there's
  * neither. Refine: stipend a month, duration, start month, remote.
  */

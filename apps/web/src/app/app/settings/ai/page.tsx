@@ -54,15 +54,15 @@ function AISettingsInner() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="AI provider" description="WonderStar AI, or your own key. Never switched without asking." />
+      <PageHeader title="AI provider" description="WonderWorks AI, or your own key. Never switched without asking." />
       {wantSwitch === "wonderjobs" && config.activeProvider !== "wonderjobs" && (
         <Card className="mb-5 flex items-start gap-3 border-brand-200 bg-brand-50/60">
           <Info className="mt-0.5 size-5 shrink-0 text-brand-600" aria-hidden />
           <div className="flex-1">
-            <p className="text-[14px] font-semibold text-ink">Switch to WonderStar AI?</p>
-            <p className="text-[13px] text-ink-2">Your {AI_PROVIDERS[config.activeProvider].name} key stays connected. WonderStar AI is included in your plan and adds no charge to your provider account.</p>
+            <p className="text-[14px] font-semibold text-ink">Switch to WonderWorks AI?</p>
+            <p className="text-[13px] text-ink-2">Your {AI_PROVIDERS[config.activeProvider].name} key stays connected. WonderWorks AI is included in your plan and adds no charge to your provider account.</p>
             <Button size="sm" className="mt-3" onClick={() => use("wonderjobs")}>
-              Switch to WonderStar AI
+              Switch to WonderWorks AI
             </Button>
           </div>
         </Card>
@@ -77,7 +77,7 @@ function AISettingsInner() {
             <ProviderMark id="wonderjobs" size={40} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-[15px] font-semibold text-ink">WonderStar AI</h3>
+                <h3 className="text-[15px] font-semibold text-ink">WonderWorks AI</h3>
                 <Badge tone="success" icon={<CheckCircle2 className="size-3.5" aria-hidden />}>Included in your plan</Badge>
                 {config.activeProvider === "wonderjobs" && <Badge tone="brand">Active</Badge>}
               </div>
@@ -112,19 +112,19 @@ function AISettingsInner() {
         )}
       </Fold>
 
-      <Fold title="If your provider fails" hint={config.allowPlatformFallback ? "Falls back to WonderStar AI automatically" : "Asks before switching"} className="mb-3">
+      <Fold title="If your provider fails" hint={config.allowPlatformFallback ? "Falls back to WonderWorks AI automatically" : "Asks before switching"} className="mb-3">
 
           <ol className="list-decimal space-y-1 pl-5 text-[13px] text-ink-2">
             <li>Wonder explains what went wrong (key rejected, rate limit, outage).</li>
-            <li>You can retry, switch provider, or continue with WonderStar AI.</li>
+            <li>You can retry, switch provider, or continue with WonderWorks AI.</li>
             <li>Wonder asks before any switch that changes who gets billed.</li>
           </ol>
           <div className="mt-4 flex items-center justify-between gap-4 rounded-[14px] bg-surface-2 p-3">
             <div>
-              <p className="text-[13px] font-medium text-ink">Fall back to WonderStar AI automatically</p>
-              <p className="text-[12px] text-ink-3">Off by default. When on, a failed BYOK request is retried on WonderStar AI (included in your plan) without asking.</p>
+              <p className="text-[13px] font-medium text-ink">Fall back to WonderWorks AI automatically</p>
+              <p className="text-[12px] text-ink-3">Off by default. When on, a failed BYOK request is retried on WonderWorks AI (included in your plan) without asking.</p>
             </div>
-            <Switch checked={config.allowPlatformFallback} onChange={setAllowPlatformFallback} label="Automatic fallback to WonderStar AI" />
+            <Switch checked={config.allowPlatformFallback} onChange={setAllowPlatformFallback} label="Automatic fallback to WonderWorks AI" />
           </div>
       </Fold>
 

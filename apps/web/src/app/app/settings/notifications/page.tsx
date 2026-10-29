@@ -22,7 +22,7 @@ export default function NotificationSettingsPage() {
         </>
       ) : (
         // Choices are kept with an account; a signed-out browser has none to keep them in.
-        <p className="text-[13px] text-ink-3">Sign in to choose what WonderStar tells you, and how.</p>
+        <p className="text-[13px] text-ink-3">Sign in to choose what WonderWorks tells you, and how.</p>
       )}
     </div>
   );

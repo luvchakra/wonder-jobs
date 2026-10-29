@@ -5,7 +5,7 @@
  * and `status()` says so — the admin portal shows it, so nobody mistakes an in-memory history that
  * resets on restart for durable storage.
  *
- * Each module has its own dataset (WonderStar, migration 0033): sources and warm-pool postings carry a `module`, and
+ * Each module has its own dataset (WonderWorks, migration 0033): sources and warm-pool postings carry a `module`, and
  * every read filters by it — defaulting to "jobs" — so Jobs never sees another module's rows and no module sees Jobs'.
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
@@ -181,7 +181,7 @@ class SupabaseStore implements JobsLakeStore {
 
   async status(): Promise<StoreStatus> {
     const fb = await this.ready();
-    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderStar database." };
+    return fb ? fb.status() : { backend: "supabase", durable: true, message: "Stored in the WonderWorks database." };
   }
   async listSources(module: ModuleId = "jobs") {
     const fb = await this.ready();

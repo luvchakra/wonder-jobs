@@ -1,5 +1,5 @@
 /**
- * Runs on WonderStar' own pages, where the session cookie works. Mints a
+ * Runs on WonderWorks' own pages, where the session cookie works. Mints a
  * short-lived bearer token and hands it to the service worker, so the
  * extension can read the candidate's prepared materials later from an
  * employer's site — where that cookie can't go.
@@ -41,11 +41,11 @@ window.addEventListener("wonderjobs:jobsapply-pair", async (event) => {
   try {
     const res = await fetch(`${location.origin}/api/jobs-apply/sessions/${encodeURIComponent(sessionId)}/token`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}", cache: "no-store" });
     const body = await res.json().catch(() => null);
-    if (!res.ok || !body?.token) return reply(false, body?.error?.message ?? "WonderStar refused the connection.");
+    if (!res.ok || !body?.token) return reply(false, body?.error?.message ?? "WonderWorks refused the connection.");
     const r = await chrome.runtime.sendMessage({ type: "jobsApplyPair", payload: { origin: location.origin, sessionId, token: body.token, expiresAt: body.expiresAt, destination: body.destination } });
     reply(!!r?.ok, r?.ok ? undefined : "The helper couldn't store the connection.");
   } catch {
-    reply(false, "WonderStar couldn't be reached.");
+    reply(false, "WonderWorks couldn't be reached.");
   }
 });
 

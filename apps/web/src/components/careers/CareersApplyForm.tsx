@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 
 /** The consent line on WonderJobs' own careers form; the period comes from the site and is left out when it has none. */
 export function consentText(retentionMonths: number | null): string {
-  const base = "I agree that WonderStar stores my application to consider me for this and similar roles";
+  const base = "I agree that WonderWorks stores my application to consider me for this and similar roles";
   return retentionMonths ? `${base}, and deletes it ${retentionMonths} month${retentionMonths === 1 ? "" : "s"} after its last update.` : `${base}.`;
 }
 

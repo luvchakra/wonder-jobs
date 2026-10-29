@@ -1,7 +1,7 @@
 /**
  * Reads the job on this page, once, when the candidate opens the side panel or clicks the helper's icon
  * (docs/EXTENSION_BEYOND_AUTOFILL.md). Read-only: it touches nothing on the page, presses nothing, keeps
- * nothing, and returns plain text to the side panel, which asks WonderStar to score it.
+ * nothing, and returns plain text to the side panel, which asks WonderWorks to score it.
  *
  * Order: the page's schema.org JobPosting (most careers sites and ATSs publish one), then LinkedIn's and
  * Naukri's job view, then — only when the page plainly reads like a posting — its main text.

@@ -88,7 +88,7 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
           })}
           {/* The other WonderWorks modules that are open, picked the same way: the four tabs become the module's. */}
           {live.length > 0 && (
-            <div role="group" aria-label="More on WonderStar">
+            <div role="group" aria-label="More on WonderWorks">
               <div className="mx-2 mb-1 mt-1.5 border-t border-line" />
               {live.map((k) => {
                 const { icon: I, tint, on } = k;

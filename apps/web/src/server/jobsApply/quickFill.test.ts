@@ -41,7 +41,7 @@ async function seed(tenant: string, over: { policy?: Record<string, string> } = 
   await writeClientState(tenant, "wj.automation", 2, { policy: { ...defaultPolicy(), ...(over.policy ?? {}) }, defaultLevel: "guided" } as never);
 }
 
-describe("quick plan — Fill on a page with no WonderStar application", () => {
+describe("quick plan — Fill on a page with no WonderWorks application", () => {
   it("fills from the Career Profile, CV history, saved answers and latest résumé; leaves the rest to the candidate", async () => {
     await seed("t-quick-1");
     await resumeFileStore().save("t-quick-1", { filename: "Kunal_CV.pdf", mime: "application/pdf", bytes: Buffer.from("%PDF-1.4 test") });

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   WonderJobs design tokens — the WonderStar identity (docs/WONDERSTAR_PLATFORM.md §9,
+   WonderJobs design tokens — the WonderWorks identity (docs/WONDERWORKS_PLATFORM.md §9,
    docs/brand/wonderstar-identity.png): Star Purple brand scale, Indigo/Sky Blue/Magenta
    accents, Deep Navy ink, near-white surfaces, thin borders, soft shadows. Every screen
    (product + marketing) consumes these tokens only.
@@ -53,7 +53,7 @@
   --wj-pink-500: #ec4899; /* Magenta */
 
   /* gradients */
-  /* primary: Star Purple → Indigo; text: Star Purple → Sky Blue, as in the wordmark's "Star" */
+  /* primary: Star Purple → Indigo; text: Star Purple → Sky Blue, as in the wordmark's "Works" */
   --wj-gradient-brand: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
   --wj-gradient-text: linear-gradient(90deg, #7c3aed 0%, #4f46e5 50%, #3b82f6 100%);
 
@@ -120,7 +120,7 @@
   --color-info-600: var(--wj-info-600);
   --color-pink-500: var(--wj-pink-500);
 
-  /* WonderStar brand colours (docs/WONDERSTAR_PLATFORM.md section 9), named as there. */
+  /* WonderWorks brand colours (docs/WONDERWORKS_PLATFORM.md section 9), named as there. */
   --color-star-purple: var(--wj-brand-500);
   --color-sky-blue: var(--wj-blue-500);
   --color-magenta: var(--wj-pink-500);

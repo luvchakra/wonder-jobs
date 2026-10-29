@@ -546,6 +546,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Top bar: avatar + WonderStar mark on the left, the kind menu as text in the centre, on every page (WJ-422)
 - ✅ Browser helper renamed WonderStar helper, with the WonderStar icon (0.3.7) (WJ-424)
 - ✅ Top bar: the menu fills the space between the mark and the icons and looks like one of its rows; no pulse (WJ-425)
+- ✅ The product is called WonderWorks: copy, logo wordmark, browser helper 0.3.8, docs (WJ-426)
 - ✅ WonderWorks caching and persistence, taken from WonderJobs: every module keeps its last search, closed listings and link checks, synced to the account (WJ-428)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP

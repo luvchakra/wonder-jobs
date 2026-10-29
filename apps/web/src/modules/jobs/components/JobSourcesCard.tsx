@@ -43,7 +43,7 @@ export function JobSourcesCard({ lake }: { lake: JobLakeProvenance }) {
         {lake.employerVerified && <Badge tone="success">On the employer&apos;s own site</Badge>}
       </div>
       <p className="mt-1 text-[13px] text-ink-3">
-        Found on {lake.sightings.length} source{lake.sightings.length === 1 ? "" : "s"}. WonderStar shows the most authoritative listing — the employer&apos;s own careers site when there is one.
+        Found on {lake.sightings.length} source{lake.sightings.length === 1 ? "" : "s"}. WonderWorks shows the most authoritative listing — the employer&apos;s own careers site when there is one.
       </p>
 
       <ul className="mt-4 divide-y divide-line rounded-[14px] border border-line">

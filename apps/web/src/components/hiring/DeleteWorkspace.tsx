@@ -48,7 +48,7 @@ export function DeleteWorkspace({ org, onClose, onDeleted }: { org: Organization
     >
       <div className="flex flex-col gap-3 text-[14px]">
         <p className="text-ink-2">
-          This removes {org.name}&apos;s jobs (from searches and career sites), their applications, career sites, the shortlist, messages, team and invitations. Everyone&apos;s own WonderStar account stays. It can&apos;t be undone.
+          This removes {org.name}&apos;s jobs (from searches and career sites), their applications, career sites, the shortlist, messages, team and invitations. Everyone&apos;s own WonderWorks account stays. It can&apos;t be undone.
         </p>
         <Field label={`Type ${org.name} to confirm`} htmlFor="dw-confirm">
           <Input

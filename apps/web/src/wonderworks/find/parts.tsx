@@ -9,7 +9,7 @@ import type { Dictation } from "@/lib/dictation";
 import { cn } from "@/lib/cn";
 
 /**
- * Find's building blocks, shared by every WonderWorks module (docs/WONDERSTAR_PLATFORM.md §4.1): the search box, the
+ * Find's building blocks, shared by every WonderWorks module (docs/WONDERWORKS_PLATFORM.md §4.1): the search box, the
  * row of Refine / pills / round Search button, the Refine panel and its fields, the results line, grid and cards.
  * Extracted from the jobs portal's Find (components/jobs/JobFilters.tsx, JobsBoard.tsx, JobCard.tsx), which renders
  * through them unchanged, so a module's Find looks and works like Jobs' and only its fields differ.

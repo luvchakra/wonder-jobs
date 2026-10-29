@@ -10,7 +10,7 @@ export async function unavailableState(r: Exclude<Result<unknown>, { state: "ok"
       title: "Careers isn't set up yet",
       body: "Please check back soon.",
       retry: false,
-      adminReason: admin ? (r.state === "needs_setup" ? "No career-site key is saved. Paste it in WonderStar Admin → Careers." : "WonderStar refused the saved career-site key (401). It may be revoked; save a new one in WonderStar Admin → Careers.") : null,
+      adminReason: admin ? (r.state === "needs_setup" ? "No career-site key is saved. Paste it in WonderWorks Admin → Careers." : "WonderWorks refused the saved career-site key (401). It may be revoked; save a new one in WonderWorks Admin → Careers.") : null,
     };
   return {
     title: "Careers is unavailable right now",

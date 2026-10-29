@@ -70,7 +70,7 @@ export function HelpAssistant({ className }: { className?: string }) {
                   Read: {t.sectionTitle} <ArrowRight className="size-3.5" aria-hidden />
                 </Link>
               )}
-              {t.role === "assistant" && t.source && <p className="mt-1 text-[10.5px] text-ink-4">{t.source === "model" ? "Written by WonderStar AI from the guide" : "From the guide"}</p>}
+              {t.role === "assistant" && t.source && <p className="mt-1 text-[10.5px] text-ink-4">{t.source === "model" ? "Written by WonderWorks AI from the guide" : "From the guide"}</p>}
             </div>
             {t.role === "user" && (
               <span className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -88,7 +88,7 @@ export function HelpAssistant({ className }: { className?: string }) {
           void ask(q);
         }}
       >
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask anything about WonderStar…" aria-label="Your question" maxLength={500} />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask anything about WonderWorks…" aria-label="Your question" maxLength={500} />
         <Button type="submit" disabled={busy || !q.trim()} icon={<Send className="size-4" aria-hidden />}>
           Ask
         </Button>

@@ -40,7 +40,7 @@ export function Sidebar() {
   return (
     <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[216px] px-4")} aria-label="Sidebar">
       <div className={cn("flex h-16 items-center", collapsed ? "justify-center" : "px-1")}>
-        <WonderLogo href="/app" compact={collapsed} />
+        <WonderLogo href="/app" size={24} compact={collapsed} />
       </div>
       <nav aria-label="Primary" className="mt-4 flex flex-col gap-0.5">
         {nav.map((item) => (

@@ -475,7 +475,7 @@ describe("session state machine", () => {
     for (const secret of ["Priya", "priya@example.com", "98765", "My private motivation", "gh_src"]) expect(log).not.toContain(secret);
   });
 
-  it("human-only items can't be given a value through WonderStar", () => {
+  it("human-only items can't be given a value through WonderWorks", () => {
     const s = S.recordInspection(fresh(), greenhouseForm(), NOW);
     expect(() => S.resolveIntervention(s, "iv_wa", { action: "approve", value: "Yes" }, NOW)).toThrow(/never fills/);
     const ok = S.resolveIntervention(s, "iv_wa", { action: "answered_on_portal" }, NOW);

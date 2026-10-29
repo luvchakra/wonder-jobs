@@ -158,13 +158,13 @@ async function showJob() {
   const ticket = ++reading;
   if (!connectedNow) return hint(null);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  // WonderStar' own pages already show their jobs.
+  // WonderWorks' own pages already show their jobs.
   if (tab?.url && tab.url.startsWith(appOrigin)) return hint(null);
   const page = await readTab(tab);
   if (ticket !== reading) return;
   if (page === undefined) {
     const allowed = await chrome.permissions.contains({ origins: JOB_SITES }).catch(() => false);
-    return hint("Click the WonderStar icon on a job page to see how well it fits you.", !allowed && !IS_POPUP);
+    return hint("Click the WonderWorks icon on a job page to see how well it fits you.", !allowed && !IS_POPUP);
   }
   if (!page) return hint(null);
   const r = await chrome.runtime.sendMessage({ type: "jobRead", payload: { page } }).catch(() => null);
