@@ -9,6 +9,9 @@
 
 WonderWorks is the shared layer (`src/wonderworks/`). WonderJobs, Internships and every other module inherit from it and extend it. Anything shared lives in WonderWorks. No module contains another module's code. A change in one module never breaks another.
 
+- **The modules** are Jobs (with its Full Time and Part Time modes), Internships, and every kind still to come. Keep the line clear: WonderWorks holds the common code; a module holds only what is its own (owner, 2026-10-29).
+- **When a second module needs something a module already has** (a layout, a part, a helper), move it into WonderWorks first and have both use it. Never copy it into the second module. Example: the Pipeline item page (`wonderworks/pipeline/item.tsx`), taken from Jobs' application page and used by Jobs and Internships.
+
 The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then WonderStar). Users see WonderWorks everywhere, the browser helper included ("WonderWorks helper"). The job data layer is **WorksLake** (owner, 2026-10-29; formerly JobsLake); its `jobslake` folders, `jobsLake*` identifiers, `JOBSLAKE_*` env vars and `/platform/jobs-lake` routes keep the old name. Internal identifiers keep their old names: the `wonderjobs` schema, `wj-*`/`wj_*` names, `WONDERJOBS_*` env vars, extension storage keys and message types, file names, the Vercel project, domain and package names.
 
 - **Filtering, search runs, caching/persistence, navigation and other cross-cutting features live in the WonderWorks layer, taken from WonderJobs.** Modules inherit them; a module never re-implements them (owner, 2026-10-29). Persistence: `wonderworks/catalog.ts` (capped, trimmed, memoised catalogs) and `store.ts` (a module's synced store: saves, responses, history, last search, closed listings, link checks).
