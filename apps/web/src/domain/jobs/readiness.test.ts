@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EMPTY_DNA, type CareerDNA } from "@/domain/career/types";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
-import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, latestSearchRun, onlyLevel, profileVocabulary, widenSearch, type ReadinessInput } from "./readiness";
+import { autoSearchDecision, catalogSearchRun, checkedWiderQuery, jobsReadiness, latestSearchRun, mayWidenAfter, onlyLevel, profileVocabulary, widenSearch, type ReadinessInput } from "./readiness";
 
 const source = (over: Partial<JobSource> = {}): JobSource => ({ id: "remotive", name: "Remotive", integrated: true, enabled: true, reliability: "high", color: "#000", short: "R", ...over });
 const iamDna: CareerDNA = {
@@ -124,6 +124,15 @@ describe("widening a search that found nothing", () => {
     expect(widenSearch("senior director svp iam", ["Mumbai"])).toEqual({ query: "senior director svp iam", locations: [], dropped: "the location (Mumbai)" });
     expect(widenSearch("senior director svp iam", [])).toEqual({ query: "iam", locations: [], dropped: "the level words" });
     expect(widenSearch("iam", [])).toBeNull();
+  });
+
+  it("widens only while the empty search is still the latest and nothing is searching: a newer search wins", () => {
+    const barista = run({ id: "barista", createdAt: "2026-10-03T06:00:00.000Z" });
+    const designer = run({ id: "designer", createdAt: "2026-10-03T06:00:05.000Z" });
+    expect(mayWidenAfter([barista], "barista", false)).toBe(true);
+    expect(mayWidenAfter([barista], "barista", true)).toBe(false);
+    expect(mayWidenAfter([barista, designer], "barista", false)).toBe(false);
+    expect(mayWidenAfter([barista, designer], "barista", true)).toBe(false);
   });
 });
 
