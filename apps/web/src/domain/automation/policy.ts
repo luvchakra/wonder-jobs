@@ -29,7 +29,14 @@ export const CAPABILITIES = [
   "change_search_preferences",
 ] as const;
 
-export type Capability = (typeof CAPABILITIES)[number];
+/**
+ * WonderStar modules' own capabilities (docs/WONDERSTAR_PLATFORM.md §7: module-namespaced, one gate). Kept out of
+ * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
+ * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
+ */
+export const MODULE_CAPABILITIES = ["internships.apply"] as const;
+
+export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
 
 export interface CapabilityMeta {
@@ -81,6 +88,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // The candidate's own press of Easy Apply (a job a company posted on WonderJobs) is what sends; this only decides whether
   // that press sends at once from their Career Profile, résumé and saved answers, or shows them first (owner, 2026-10-28).
   easy_apply: { key: "easy_apply", label: "Send Easy Apply in one tap", description: "When you press Easy Apply, send your Career Profile details, résumé and saved answers to the company at once. Ask me shows them first; Off turns Easy Apply off.", risk: "low", external: true, default: "automatic" },
+  // Internships (WJ-418): the student's own press of Apply on an internship a company posted on WonderStar is what sends;
+  // this only decides whether that press sends at once with their Internships profile and résumé, or shows them first.
+  "internships.apply": { key: "internships.apply", label: "Send internship applications in one tap", description: "When you press Apply on an internship posted on WonderStar, send your Internships profile and résumé to the company at once. Ask me shows them first; Off turns it off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },
@@ -89,7 +99,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
 export type AutomationPolicy = Record<Capability, PolicyMode>;
 
 export function defaultPolicy(): AutomationPolicy {
-  return Object.fromEntries(CAPABILITIES.map((c) => [c, CAPABILITY_META[c].default])) as AutomationPolicy;
+  return Object.fromEntries([...CAPABILITIES, ...MODULE_CAPABILITIES].map((c) => [c, CAPABILITY_META[c].default])) as AutomationPolicy;
 }
 
 /** The saved policy's schema version. 2 (2026-10-09): save_jobs defaults to off. 3: résumé and cover-letter drafts default to "ask". */

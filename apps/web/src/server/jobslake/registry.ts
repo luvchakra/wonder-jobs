@@ -19,6 +19,7 @@ import { readCredential } from "./credentials";
 import { fixtureJobs, fixtureJobsOn } from "./e2eFixture";
 import { jobsLakeStore, sourceModule } from "./store";
 import type { ModuleId } from "@/modules/registry";
+import { INTERNSHIP_SOURCES, internshipSourceAvailable, runInternshipSource } from "@/server/internships/sources";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
@@ -69,7 +70,8 @@ export const PARTNERSHIP_SOURCES: SourceRecord[] = PARTNER_PRESETS.map((p) =>
 export async function listSources(module: ModuleId = "jobs"): Promise<SourceRecord[]> {
   const stored = await jobsLakeStore().listSources(module);
   const byId = new Map(stored.map((s) => [s.id, s]));
-  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
+  // Another module's own built-in sources (WonderStar): Internships' live in server/internships/sources.ts.
+  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
     const o = byId.get(b.id);
     if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
@@ -94,6 +96,7 @@ export async function getSource(id: string): Promise<SourceRecord | undefined> {
 export async function isAvailable(s: SourceRecord): Promise<boolean> {
   switch (s.config.kind) {
     case "builtin":
+      if (sourceModule(s) !== "jobs") return internshipSourceAvailable(s);
       return (fixtureJobsOn() && s.id !== "employers") || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
     case "ats_board":
     case "feed":
@@ -138,6 +141,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
+      if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
       // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
       if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby") {
