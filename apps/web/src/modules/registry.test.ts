@@ -19,9 +19,10 @@ describe("WonderStar module registry", () => {
     expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
   });
 
-  it("every other module is coming soon and lives at /app/m/<id>", () => {
+  it("Internships is live (WJ-417); every other module is coming soon; each lives at /app/m/<id>", () => {
+    expect(moduleById("internships")!.status).toBe("live");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
-      expect(m.status, m.id).toBe("soon");
+      if (m.id !== "internships") expect(m.status, m.id).toBe("soon");
       expect(m.routes.find).toBe(`/app/m/${m.id}`);
       expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);
       // Capabilities are namespaced per module (resolveCapability stays the one gate).
@@ -29,7 +30,7 @@ describe("WonderStar module registry", () => {
     }
   });
 
-  it("the Find menu's coming-soon kinds are derived from it and unchanged", () => {
+  it("the Find menu's module kinds are derived from it and unchanged (a live one links out, the rest are Coming soon)", () => {
     expect(UPCOMING_KINDS).toEqual([
       { id: "internships", label: "Internships", hint: "Student roles and co-ops" },
       { id: "teaching", label: "Teaching", hint: "School and college teachers" },

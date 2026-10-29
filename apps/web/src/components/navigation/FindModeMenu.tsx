@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Briefcase, Check, ChevronDown, Clock } from "lucide-react";
 import { useJobsStore } from "@/store/jobs";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
@@ -20,6 +21,8 @@ const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefca
 ];
 // Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
 const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
+// A module that's live (WJ-417: Internships) links out of Jobs to its own pages; the rest stay "Coming soon".
+const LIVE_HREF = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, m.routes.find]] : []))) as Partial<Record<UpcomingKindId, string>>;
 const SEEN = "wj.findModeMenuSeen";
 const seen = () => {
   try {
@@ -38,7 +41,9 @@ export function FindModeMenu() {
   const current = useJobsStore((s) => findModeOf(s.filters));
   const [open, setOpen] = useState(false);
   // The coming-soon kinds the platform shows, in its order (Admin → Settings → Menus → Find menu).
-  const upcoming = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
+  const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
+  const live = kinds.filter((k) => LIVE_HREF[k.id]);
+  const upcoming = kinds.filter((k) => !LIVE_HREF[k.id]);
   // The pulse that invites a first tap: until the menu has been opened once on this browser.
   const [hint, setHint] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -121,6 +126,26 @@ export function FindModeMenu() {
               </button>
             );
           })}
+          {/* Other WonderStar modules that are open: each leaves Jobs for its own module. */}
+          {live.length > 0 && (
+            <div role="group" aria-label="More on WonderStar">
+              <div className="mx-2 mb-1 mt-1.5 border-t border-line" />
+              {live.map((k) => {
+                const { icon: I, tint } = UPCOMING_ICON[k.id];
+                return (
+                  <Link key={k.id} href={LIVE_HREF[k.id]!} role="menuitem" onClick={() => setOpen(false)} className="flex w-full items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left transition-colors hover:bg-bg-soft">
+                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-[10px]", TINTS[tint].tile, TINTS[tint].icon)}>
+                      <I className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium text-ink">{k.label}</span>
+                      <span className="block text-[12px] text-ink-3">{k.hint}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
           {/* Not built yet: shown muted and not selectable, with no listings behind them. */}
           {upcoming.length > 0 && (
             <div role="group" aria-label="Coming soon">
