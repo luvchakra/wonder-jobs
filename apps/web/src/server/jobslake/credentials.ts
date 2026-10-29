@@ -23,6 +23,8 @@ export interface CredentialStatus {
 /** Deployment-managed credentials: whether they're set, and a description that never includes a value. */
 const ENV_REFS: Record<string, { present: (env: Record<string, string | undefined>) => boolean; label: (env: Record<string, string | undefined>) => string }> = {
   "env:ADZUNA": { present: (e) => !!e.ADZUNA_APP_ID && !!e.ADZUNA_APP_KEY, label: () => "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
+  "env:USAJOBS": { present: (e) => !!e.USAJOBS_API_KEY && !!e.USAJOBS_EMAIL, label: () => "USAJOBS_API_KEY + USAJOBS_EMAIL" },
+  "env:JOOBLE": { present: (e) => !!e.JOOBLE_API_KEY, label: () => "JOOBLE_API_KEY" },
   // Either variable may hold the keys; only how many are set is ever shown.
   "env:THEIRSTACK": {
     present: (e) => theirStackKeys(e).length > 0,
