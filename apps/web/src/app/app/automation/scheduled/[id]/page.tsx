@@ -5,7 +5,7 @@ import { Copy, Play, Trash2 } from "lucide-react";
 import { useWorkflowStore } from "@/store/workflow";
 import { getWorkflowService } from "@/services/workflow/service";
 import { track } from "@/lib/analytics";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { ScheduleBuilder } from "@/components/automation/ScheduleBuilder";
 import { SimpleScheduleSetup } from "@/components/automation/SimpleScheduleSetup";
 import { Button, IconButton } from "@/components/common/Button";

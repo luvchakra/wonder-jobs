@@ -1,9 +1,9 @@
 "use client";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChromeSlotsProvider, type ChromeSlots } from "@/wonderstar/chrome/slots";
-import { ModuleMenu } from "@/wonderstar/chrome/ModuleMenu";
-import { ICONS } from "@/wonderstar/brand/tiles";
+import { ChromeSlotsProvider, type ChromeSlots } from "@/wonderworks/chrome/slots";
+import { ModuleMenu } from "@/wonderworks/chrome/ModuleMenu";
+import { ICONS } from "@/wonderworks/brand/tiles";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 import { useUIStore } from "@/store/ui";
@@ -61,7 +61,7 @@ function FindMenu() {
 
 const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus: useJobsStatus };
 
-/** The composition root for the app chrome: WonderStar's top bar, tabs and section tabs, filled from the modules. */
+/** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {
   return <ChromeSlotsProvider value={SLOTS}>{children}</ChromeSlotsProvider>;
 }

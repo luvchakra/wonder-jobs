@@ -3,12 +3,12 @@ import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * WonderStar and its modules (CLAUDE.md, "WonderStar and its modules"):
- * - WonderStar (`src/wonderstar/`) is the shared layer and imports no module: nothing under `src/modules/`, and none of
+ * WonderWorks and its modules (CLAUDE.md, "WonderWorks and its modules"):
+ * - WonderWorks (`src/wonderworks/`) is the shared layer and imports no module: nothing under `src/modules/`, and none of
  *   the Jobs module's code that still lives at its older paths (JOBS_OWNED).
  * - A module (`src/modules/<id>/`) never contains or imports another module's code: no other module's folder, none of
  *   the composition root's files (`src/modules/*.ts(x)`, which wire every module together), and — for any module but
- *   Jobs — none of Jobs' code at its older paths. Shared things move up into WonderStar.
+ *   Jobs — none of Jobs' code at its older paths. Shared things move up into WonderWorks.
  * Type-only imports count too: a module's types are its code.
  */
 const SRC = resolve(__dirname, "..");
@@ -17,8 +17,8 @@ const SRC = resolve(__dirname, "..");
 const JOBS_OWNED = ["store/jobs", "store/applications", "domain/jobs/", "domain/applications/", "services/jobs/", "lib/switchFindMode"];
 
 /**
- * Imports a module may keep while it moves onto WonderStar, by exact file and specifier, so nothing else can slip
- * through. Empty: every module is on WonderStar. Add nothing here without a plan to remove it.
+ * Imports a module may keep while it moves onto WonderWorks, by exact file and specifier, so nothing else can slip
+ * through. Empty: every module is on WonderWorks. Add nothing here without a plan to remove it.
  */
 const KNOWN: Record<string, string[]> = {};
 
@@ -47,7 +47,7 @@ const MODULES = readdirSync(join(SRC, "modules")).filter((n) => statSync(join(SR
 
 describe("WonderStar and its modules", () => {
   it("WonderStar imports no module and none of Jobs' code", () => {
-    const offenders = files(join(SRC, "wonderstar"))
+    const offenders = files(join(SRC, "wonderworks"))
       .filter((f) => f !== __filename)
       .flatMap((f) => imports(f).filter(({ target }) => target.startsWith("modules/") || target === "modules" || target.startsWith("app/") || jobsOwned(target)).map(({ spec }) => `${relative(SRC, f)} → ${spec}`));
     expect(offenders).toEqual([]);

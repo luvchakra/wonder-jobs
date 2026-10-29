@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isActivePath } from "@/wonderstar/chrome/nav";
+import { isActivePath } from "@/wonderworks/chrome/nav";
 import { moduleFromPath, moduleNav } from "./nav";
 import { PRIMARY_NAV } from "./jobs/nav";
 

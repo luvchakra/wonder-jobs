@@ -39,7 +39,7 @@ import { track } from "@/lib/analytics";
 import { downloadBytes } from "@/lib/download";
 import { useAIService } from "@/lib/useAIService";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Fold } from "@/components/common/Fold";

@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/ui";
-import type { ModuleId } from "@/wonderstar/manifest";
+import type { ModuleId } from "@/wonderworks/manifest";
 import type { NavItem } from "./nav";
 import { useChromeSlots } from "./slots";
 

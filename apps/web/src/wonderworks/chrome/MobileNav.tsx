@@ -25,7 +25,7 @@ export function MobileNav() {
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
   const barShown = useUIStore((s) => s.bottomBars > 0);
-  // Jobs' four places, or the active WonderStar module's.
+  // Jobs' four places, or the active WonderWorks module's.
   const nav = useModuleNav();
   return (
     <>

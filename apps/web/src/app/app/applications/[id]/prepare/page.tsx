@@ -2,7 +2,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useBottomBar } from "@/wonderstar/chrome/MobileNav";
+import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-apply/profile";
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
@@ -21,7 +21,7 @@ import { ProviderError } from "@/domain/ai/types";
 import { FallbackProvider, TemplateAIService, WonderJobsAIProvider } from "@/services/ai/service";
 import { RemoteBYOKProvider } from "@/services/ai/client";
 import { track } from "@/lib/analytics";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Tabs } from "@/components/common/Tabs";

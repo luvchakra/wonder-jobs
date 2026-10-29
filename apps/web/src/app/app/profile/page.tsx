@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { PlanCard } from "@/components/billing/PlanCard";
 import { planBadgeLabel } from "@/domain/billing/plans";

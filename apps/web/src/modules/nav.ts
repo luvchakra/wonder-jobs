@@ -1,10 +1,10 @@
-import { isActivePath, moduleTabs, type NavItem } from "@/wonderstar/chrome/nav";
+import { isActivePath, moduleTabs, type NavItem } from "@/wonderworks/chrome/nav";
 import { PRIMARY_NAV } from "./jobs/nav";
 import { isLive, moduleById, type ModuleId } from "./registry";
 
 /**
  * The composition root's tabs: each module's four places (docs/WONDERSTAR_PLATFORM.md §4.1). Jobs keeps PRIMARY_NAV
- * exactly; every other live module gets WonderStar's tabs at its own routes, with its Pipeline label from its manifest.
+ * exactly; every other live module gets WonderWorks' tabs at its own routes, with its Pipeline label from its manifest.
  */
 export function moduleNav(id: ModuleId): NavItem[] {
   const m = moduleById(id);

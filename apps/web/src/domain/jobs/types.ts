@@ -1,5 +1,5 @@
 import type { JobType, JobTypeFrom } from "./jobType";
-import type { WorkMode } from "@/wonderstar/find/place";
+import type { WorkMode } from "@/wonderworks/find/place";
 export type { WorkMode };
 
 /** How a work mode is written in the UI. Lives here, not in a component: server code (link-preview metadata) reads it too, and a value imported from a `"use client"` module resolves to a client reference on the server, not the object. */

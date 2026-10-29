@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SCHEDULE_TEMPLATES } from "@/domain/workflow/scheduleTemplates";
 import type { LookFrequency } from "@/domain/workflow/simpleSchedule";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { ScheduleBuilder } from "@/components/automation/ScheduleBuilder";
 import { SimpleScheduleSetup } from "@/components/automation/SimpleScheduleSetup";
 import { PageLoading } from "@/components/common/States";

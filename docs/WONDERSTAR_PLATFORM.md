@@ -165,7 +165,7 @@ export interface ModuleManifest {
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
-Find, Saved and You are WonderStar's (`src/wonderstar/`) and identical across modules, with Jobs' look as the
+Find, Saved and You are WonderStar's (`src/wonderworks/`) and identical across modules, with Jobs' look as the
 reference; a module supplies only its own fields, filters, card details and data. Only the Pipeline tab varies: its
 name, stages and views come from the module's manifest (`moduleTabs`). WonderJobs keeps "Pipeline"; Internships' is
 "Applications" (owner, 2026-10-29).
@@ -234,13 +234,13 @@ Rules carried over unchanged: RLS on and service-role only; every query filters 
 
 ## 6. Code layout
 
-WonderStar is the shared layer. WonderJobs, Internships and every other module inherit from it and extend it.
-Anything shared lives in WonderStar. No module contains another module's code. A change in one module never breaks
+WonderWorks is the shared layer. WonderJobs, Internships and every other module inherit from it and extend it.
+Anything shared lives in WonderWorks. No module contains another module's code. A change in one module never breaks
 another (owner, 2026-10-29).
 
 ```
 apps/web/src/
-  wonderstar/            # the shared layer; imports no module (boundaries.test.ts)
+  wonderworks/            # the shared layer; imports no module (boundaries.test.ts)
     manifest.ts          # ModuleManifest and its parts, shellRoutes, stagesOf, isLive
     store.ts             # one capped store per module (saves, responses, Find's and Saved's history, persona)
     find/parts.tsx       # Find's parts: SearchBox, RefineToggle, PillButton, SearchSubmit, RefinePanel, RefineField,
@@ -265,15 +265,15 @@ apps/web/src/
                          # (Jobs keeps /app/jobs, /app/saved, /app/applications, /app/you)
 ```
 
-- A module imports only WonderStar, the app's foundation (`lib`, `components/common`, `store/*` and `domain/*` that
-  aren't a module's, `services`) and itself. WonderStar imports no module.
+- A module imports only WonderWorks, the app's foundation (`lib`, `components/common`, `store/*` and `domain/*` that
+  aren't a module's, `services`) and itself. WonderWorks imports no module.
 - Jobs' stores and domain code (`store/jobs`, `store/applications`, `domain/jobs`, `domain/applications`,
   `services/jobs`) haven't moved into `modules/jobs/` yet; they count as Jobs' code, so nothing else imports them.
 - Not yet: the app foundation still reaches Jobs' code indirectly (store hydration and the workflow scheduler in
   `app/app/AppShell.tsx`, Ask Wonder in the command palette, `store/ui` reading the registry). Moving those behind
   module hooks is the next shared-layer step.
 - Each module has its own Claude session. All work for a module happens in that one session, never in another
-  module's session, and never across several sessions for the same module. WonderStar shared-layer work has its own
+  module's session, and never across several sessions for the same module. WonderWorks shared-layer work has its own
   session too.
 
 How a module plugs in (Internships is the example):
@@ -313,7 +313,7 @@ the rare.
    You stay as they are.
    **Done (WJ-415, 2026-10-28):** `modules/registry.ts` with all eight manifests (Jobs live, the rest soon);
    `UPCOMING_KINDS` derives from it; the module shell `/app/m/[module]` (Find · Saved · Pipeline · You, from
-   `platform/shell` and module-scoped stores `wonderstar/store.ts`) shows Coming soon until a module goes live.
+   `platform/shell` and module-scoped stores `wonderworks/store.ts`) shows Coming soon until a module goes live.
    Jobs' bottom bar is unchanged. Platform `listings`/`responses` tables wait for the module that needs them.
 2. **Listing & Response cores** — extract `employer_jobs` / `job_applications` logic behind `platform/listing` and
    `platform/response` (Jobs-first; tables renamed by views so nothing moves at once). Screening questions, answers,

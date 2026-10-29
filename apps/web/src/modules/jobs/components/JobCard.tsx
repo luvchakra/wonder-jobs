@@ -1,9 +1,9 @@
 "use client";
-import { shortPlace } from "@/wonderstar/find/place";
+import { shortPlace } from "@/wonderworks/find/place";
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ThumbsDown, Zap } from "lucide-react";
-import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderstar/find/parts";
+import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/domain/jobs/sources";

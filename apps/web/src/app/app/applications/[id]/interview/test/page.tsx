@@ -4,7 +4,7 @@ import { CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { useInterviewPractice, NEEDS_AI } from "@/modules/jobs/useInterviewPractice";
 import { useApplicationsStore } from "@/store/applications";
 import { parseQuiz, quizResult, QUIZ_LENGTH, QUIZ_PASS, QUIZ_SECONDS, type QuizQuestion } from "@/domain/applications/practice";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { EmptyState } from "@/components/common/States";

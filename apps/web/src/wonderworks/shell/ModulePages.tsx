@@ -2,18 +2,18 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Inbox, UserRound } from "lucide-react";
-import { WonderStarSplash } from "@/wonderstar/brand/Logo";
+import { WonderStarSplash } from "@/wonderworks/brand/Logo";
 import { EmptyState } from "@/components/common/States";
 import type { ReactNode } from "react";
-import type { ModuleId, ModuleManifest } from "@/wonderstar/manifest";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
-import { StageTiles } from "@/wonderstar/pipeline/parts";
-import { YouOverview } from "@/wonderstar/you/YouOverview";
-import { FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderstar/find/parts";
+import type { ModuleId, ModuleManifest } from "@/wonderworks/manifest";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { StageTiles } from "@/wonderworks/pipeline/parts";
+import { YouOverview } from "@/wonderworks/you/YouOverview";
+import { FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderworks/find/parts";
 import { useDictation } from "@/lib/dictation";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
-import { moduleStore } from "@/wonderstar/store";
+import { moduleStore } from "@/wonderworks/store";
 
 type ShellModule = Exclude<ModuleId, "jobs">;
 /** A module the shell renders: any but Jobs, whose tabs are the jobs portal's own routes. */
@@ -42,7 +42,7 @@ export function ModuleFind({ m }: { m: ShellManifest }) {
 
 /**
  * Saved (§4.1), with Jobs' Saved layout: the box that narrows the saves as you type, the modules as chips (one list
- * across WonderStar's live modules, filterable by module), Hide Pipeline, and the same cards Find shows. Jobs keeps its
+ * across WonderWorks' live modules, filterable by module), Hide Pipeline, and the same cards Find shows. Jobs keeps its
  * own Saved (the jobs portal is unchanged), a tap away.
  */
 export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /** Every live module but Jobs, in the registry's order. */ live: ShellManifest[]; /** A module's own card for a saved listing. */ card: (module: ShellModule, item: unknown) => ReactNode; /** The words Saved's box matches in a saved listing. */ cardText: (module: ShellModule, item: unknown) => string }) {

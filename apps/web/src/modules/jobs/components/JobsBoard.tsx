@@ -9,7 +9,7 @@ import { useApplicationsStore } from "@/store/applications";
 import { useDebounced } from "@/lib/useDebounce";
 import { useNow } from "@/lib/motion";
 import { Button } from "@/components/common/Button";
-import { ResultsGrid, ResultsLine, ShowMore } from "@/wonderstar/find/parts";
+import { ResultsGrid, ResultsLine, ShowMore } from "@/wonderworks/find/parts";
 import { JobCard } from "@/modules/jobs/components/JobCard";
 import { EASY_APPLY_SOURCE, JobFiltersBar, SortMenu, type SourceSearch } from "@/modules/jobs/components/JobFilters";
 import { savedTextMatches } from "@/domain/jobs/savedText";

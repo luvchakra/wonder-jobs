@@ -6,7 +6,7 @@ import { Bell, Bot, ChartNoAxesColumn, ChevronRight, Database, Download, KeyRoun
 import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 import { Avatar } from "@/components/common/Avatar";
-import { WonderStarMark } from "@/wonderstar/brand/Logo";
+import { WonderStarMark } from "@/wonderworks/brand/Logo";
 import { useCareerStore } from "@/store/career";
 import { useUIStore } from "@/store/ui";
 import { useHydration } from "@/store/hydration";
@@ -165,7 +165,7 @@ export function TopBar() {
 
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Every screen (owner, 2026-10-29): the avatar and the WonderStar mark on the left, the kind menu in the centre,
+      {/* Every screen (owner, 2026-10-29): the avatar and the WonderWorks mark on the left, the kind menu in the centre,
           Tasks and the bell on the right. */}
       <Link href="/app" aria-label="WonderStar home" title="WonderStar" className="order-[-2] -ml-1 grid size-[34px] shrink-0 place-items-center rounded-full bg-soft-lavender wj-press">
         <WonderStarMark className="h-[17px] w-auto" />

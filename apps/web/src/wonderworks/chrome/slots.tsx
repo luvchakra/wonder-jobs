@@ -7,7 +7,7 @@ import type { NavItem } from "./nav";
  * composition root (`modules/chrome.tsx`) provides it. Each slot falls back to an empty, honest default.
  */
 export interface ChromeSlots {
-  /** A module's four places (WonderStar's Find, Saved and You, and its own Pipeline tab). */
+  /** A module's four places (WonderWorks' Find, Saved and You, and its own Pipeline tab). */
   tabsFor: (module: string) => NavItem[];
   /** The module a page belongs to, or null for pages every module shares. */
   moduleFromPath: (pathname: string) => string | null;

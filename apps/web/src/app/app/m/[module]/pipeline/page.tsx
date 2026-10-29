@@ -1,4 +1,4 @@
-import { ModulePipeline } from "@/wonderstar/shell/ModulePages";
+import { ModulePipeline } from "@/wonderworks/shell/ModulePages";
 import { InternshipsPipeline } from "@/modules/internships/components/Pipeline";
 import { shellManifest, shellTab, type ShellParams } from "../shell";
 

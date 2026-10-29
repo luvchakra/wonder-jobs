@@ -1,5 +1,5 @@
 "use client";
-import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { useAuthStore } from "@/store/auth";
 import { NotifyPrefsCard } from "@/components/account/NotifyPrefsCard";
 import { PushNotifications } from "@/components/pwa/PushNotifications";
