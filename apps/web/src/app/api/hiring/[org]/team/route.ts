@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { cancelInvite, inviteMember, listTeam, removeMember, setMemberRole } from "@/server/hiring";
@@ -14,7 +15,7 @@ export async function GET(req: Request, ctx: Ctx) {
 
 export async function POST(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
-  return hiringRoute(req, (s, b) => inviteMember(s, org, b.email, b.role), { schema: z.object({ email: z.string().trim().max(254), role: Role }), write: true });
+  return hiringRoute(req, (s, b) => inviteMember(s, org, b.email, b.role, after), { schema: z.object({ email: z.string().trim().max(254), role: Role }), write: true });
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {

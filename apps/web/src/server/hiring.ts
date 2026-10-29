@@ -262,7 +262,7 @@ export async function listTeam(s: Session, orgId: string): Promise<{ members: Me
   return { members: team, invites: pending };
 }
 
-export async function inviteMember(s: Session, orgId: string, to: string, role: OrgRole): Promise<OrgInvite> {
+export async function inviteMember(s: Session, orgId: string, to: string, role: OrgRole, later?: Later): Promise<OrgInvite> {
   await requirePermission(s, orgId, "org.manage");
   const e = email(to);
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new HiringError("That doesn't look like an email address.");
@@ -272,9 +272,13 @@ export async function inviteMember(s: Session, orgId: string, to: string, role: 
   await invites().remove({ org_id: orgId, email: e });
   const row: InviteRow = { id: id("inv"), org_id: orgId, email: e, role, invited_by: s.tenantId, created_at: now() };
   await invites().insert(row);
-  // The invited person hears about it by email (N30); the invite still waits in Hiring if the email can't go.
-  const org = await orgs().one({ id: orgId });
-  if (org) await sendMail({ to: e, subject: `Join ${org.name} on WonderJobs`, ...inviteEmail(org.name, role, s.name ?? s.email ?? undefined) }).catch(() => undefined);
+  // The invited person hears about it by email (N30), after the answer: the invite still waits in Hiring if the email can't go.
+  const mail = async () => {
+    const org = await orgs().one({ id: orgId });
+    if (org) await sendMail({ to: e, subject: `Join ${org.name} on WonderJobs`, ...inviteEmail(org.name, role, s.name ?? s.email ?? undefined) }).catch(() => undefined);
+  };
+  if (later) later(mail);
+  else await mail();
   return toInvite(row);
 }
 

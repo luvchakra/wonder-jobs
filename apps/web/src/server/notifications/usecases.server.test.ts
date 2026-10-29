@@ -199,6 +199,16 @@ describe("Recruiters, hiring workspaces", () => {
     expect(mails[0].text).toContain("/app/hiring");
   });
 
+  it("N30 a route's invitation answers once it's stored; the email goes after the answer", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme" });
+    const queued: (() => Promise<unknown>)[] = [];
+    const inv = await H.inviteMember(owner, org.id, "Rec@Acme.com", "recruiter", (task) => queued.push(task));
+    expect(mails).toEqual([]);
+    expect((await H.listTeam(owner, org.id)).invites.map((i) => i.id)).toEqual([inv.id]);
+    await queued[0]();
+    expect(mails).toEqual([expect.objectContaining({ to: "rec@acme.com", subject: "Join Acme on WonderJobs" })]);
+  });
+
   it("N18 / N19 a company's message reaches the candidate; their reply reaches who started the thread", async () => {
     const { org } = await H.createWorkspace(owner, { name: "Acme" });
     const inv = await H.inviteMember(owner, org.id, rec.email!, "recruiter");
