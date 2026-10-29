@@ -18,7 +18,7 @@ beforeEach(() => {
   status.mockReset();
 });
 
-describe("applying on WonderJobs' own careers page", () => {
+describe("applying on WonderStar' own careers page", () => {
   it("checks and trims the form before forwarding it", async () => {
     submit.mockResolvedValue({ state: "ok", data: { ok: true, id: "app_1" } });
     const res = await post({ ...form, coverNote: "  Hello  " });
@@ -27,7 +27,7 @@ describe("applying on WonderJobs' own careers page", () => {
     expect(submit).toHaveBeenCalledWith("job_abc123", { name: "Asha Rao", email: "asha@example.com", resumeUrl: "https://drive.example.com/cv", consent: true, coverNote: "Hello" });
   });
 
-  it("refuses a missing name, a bad email, http links and no consent, without calling WonderJobs", async () => {
+  it("refuses a missing name, a bad email, http links and no consent, without calling WonderStar", async () => {
     for (const bad of [{ ...form, name: "" }, { ...form, email: "nope" }, { ...form, resumeUrl: "http://x.io/cv" }, { ...form, resumeUrl: "" }, { ...form, linkedinUrl: "javascript:alert(1)" }, { ...form, consent: false }]) {
       const res = await post(bad);
       expect(res.status).toBe(400);
@@ -54,7 +54,7 @@ describe("applying on WonderJobs' own careers page", () => {
     expect((await post(form)).status).toBe(200);
   });
 
-  it("says sent only on WonderJobs' 200; passes 400 / 409 messages on; a plain retry otherwise", async () => {
+  it("says sent only on WonderStar' 200; passes 400 / 409 messages on; a plain retry otherwise", async () => {
     submit.mockResolvedValueOnce({ state: "rejected", status: 409, message: "You already applied for this job." });
     let res = await post(form);
     expect([res.status, (await res.json()).error]).toEqual([409, "You already applied for this job."]);

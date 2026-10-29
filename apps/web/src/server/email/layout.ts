@@ -71,17 +71,17 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
     ...(input.links ?? []),
   ].map((l) => ({ label: l.label, href: abs(l.href) }));
   const home = input.brand ? abs(input.brand.home) : abs("/");
-  const sender = input.brand ? `${input.brand.name} · applications handled by WonderJobs` : "WonderJobs";
+  const sender = input.brand ? `${input.brand.name} · applications handled by WonderStar` : "WonderStar";
   const header = input.brand
     ? `<a href="${escapeHtml(home)}" style="text-decoration:none;font-size:20px;font-weight:700;color:${C.ink}">${escapeHtml(input.brand.name)}</a>`
-    : `<a href="${escapeHtml(home)}" style="text-decoration:none"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="WonderJobs" style="display:block;border:0;outline:none;text-decoration:none;height:${LOGO_HEIGHT}px;width:${LOGO_WIDTH}px;font-size:20px;font-weight:700;color:${C.brand600}"></a>`;
+    : `<a href="${escapeHtml(home)}" style="text-decoration:none"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="WonderStar" style="display:block;border:0;outline:none;text-decoration:none;height:${LOGO_HEIGHT}px;width:${LOGO_WIDTH}px;font-size:20px;font-weight:700;color:${C.brand600}"></a>`;
 
   const linkHtml = links.map((l) => `<a href="${escapeHtml(l.href)}" style="color:${C.muted};text-decoration:underline">${escapeHtml(l.label)}</a>`).join(` &nbsp;·&nbsp; `);
   // Pads the preview so mail apps don't pull body text in after the preheader.
   const previewPad = "&#8203;&nbsp;".repeat(60);
 
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(input.brand?.name ?? "WonderJobs")}</title></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(input.brand?.name ?? "WonderStar")}</title></head>
 <body style="margin:0;padding:0;background:${C.bg};font-family:${EMAIL_FONT};color:${C.ink};-webkit-text-size-adjust:100%">
 <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:${C.bg}">${escapeHtml(input.preheader)}${previewPad}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.bg}" style="background:${C.bg}"><tr><td align="center" style="padding:24px 12px">

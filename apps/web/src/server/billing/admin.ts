@@ -167,7 +167,7 @@ export const ENFORCED_AT: Record<string, string> = {
   scheduledSearches: "Server: scheduled runs (server/workflow/scheduledRun.ts) run at most this many.",
   dailySearches: "Browser: the schedule screens (scheduleAllowance); the server doesn't re-check it yet.",
   keepWatch: "Browser: the schedule screens (scheduleAllowance); the server doesn't re-check it yet.",
-  aiDraftsPerMonth: "Server: /api/ai/complete counts each WonderJobs AI draft.",
+  aiDraftsPerMonth: "Server: /api/ai/complete counts each WonderStar AI draft.",
   roles: "Browser: the Roles card; the server doesn't re-check it yet.",
   resumeTemplates: "Browser: the Résumé studio gallery.",
   atsReport: "Server: /api/resume-files/[id]/ats.",
@@ -198,7 +198,7 @@ async function createStripePrice(cfg: StripeConfig, plans: PlansConfig, plan: Pa
   const current = plans.priceRefs[plan].stripe;
   let product: string;
   if (current) product = (await readStripePrice(cfg, current, true)).productId;
-  else product = await once(`${key}:stripe-product`, async () => (await stripeCall<{ id: string }>(cfg, "POST", "/products", { name: `WonderJobs ${plans.plans[plan].label}`, metadata: { wonderjobs_plan: plan } }, `${key}:product`)).id);
+  else product = await once(`${key}:stripe-product`, async () => (await stripeCall<{ id: string }>(cfg, "POST", "/products", { name: `WonderStar ${plans.plans[plan].label}`, metadata: { wonderjobs_plan: plan } }, `${key}:product`)).id);
   const p = await stripeCall<{ id: string }>(
     cfg,
     "POST",

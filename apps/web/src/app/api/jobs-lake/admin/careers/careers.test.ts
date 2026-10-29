@@ -22,7 +22,7 @@ beforeEach(async () => {
   await DELETE();
 });
 
-describe("the careers key setting in WonderJobs Admin", () => {
+describe("the careers key setting in WonderStar Admin", () => {
   it("is for admins only", async () => {
     admin = null;
     expect((await GET()).status).toBe(403);
@@ -51,7 +51,7 @@ describe("the careers key setting in WonderJobs Admin", () => {
   });
 
   it("reports the connection test as is", async () => {
-    testConnection.mockResolvedValue({ state: "connected", jobs: 3, site: "WonderJobs careers" });
-    expect((await (await POST()).json()).check).toEqual({ state: "connected", jobs: 3, site: "WonderJobs careers" });
+    testConnection.mockResolvedValue({ state: "connected", jobs: 3, site: "WonderStar careers" });
+    expect((await (await POST()).json()).check).toEqual({ state: "connected", jobs: 3, site: "WonderStar careers" });
   });
 });

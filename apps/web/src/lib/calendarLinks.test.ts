@@ -6,7 +6,7 @@ describe("calendar subscribe links", () => {
     const l = calendarSubscribeLinks("https://jobs.wonderapps.biz/api/calendar/t1.abc.ics");
     expect(l.apple).toBe("webcal://jobs.wonderapps.biz/api/calendar/t1.abc.ics");
     expect(l.google).toBe("https://calendar.google.com/calendar/r?cid=webcal%3A%2F%2Fjobs.wonderapps.biz%2Fapi%2Fcalendar%2Ft1.abc.ics");
-    expect(l.outlook).toBe("https://outlook.live.com/calendar/0/addfromweb?url=https%3A%2F%2Fjobs.wonderapps.biz%2Fapi%2Fcalendar%2Ft1.abc.ics&name=WonderJobs");
+    expect(l.outlook).toBe("https://outlook.live.com/calendar/0/addfromweb?url=https%3A%2F%2Fjobs.wonderapps.biz%2Fapi%2Fcalendar%2Ft1.abc.ics&name=WonderStar");
     expect(l.office365).toContain("https://outlook.office.com/calendar/0/addfromweb?url=https%3A%2F%2F");
   });
 });

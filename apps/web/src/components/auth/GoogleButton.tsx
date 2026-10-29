@@ -12,7 +12,7 @@ function GoogleMark() {
   );
 }
 
-const NOT_ENABLED = "Google sign-in isn't switched on for WonderJobs yet. Use your email instead.";
+const NOT_ENABLED = "Google sign-in isn't switched on for WonderStar yet. Use your email instead.";
 
 /**
  * Google OAuth through Supabase Auth (PKCE). Supabase redirects back to

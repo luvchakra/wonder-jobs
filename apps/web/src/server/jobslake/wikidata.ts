@@ -7,7 +7,7 @@
 import { cleanDomain, companyKey, employerDomainOf, type CompanyFacts } from "@/domain/jobslake/companies";
 
 const ENDPOINT = "https://query.wikidata.org/sparql";
-const UA = "WonderJobs/1.0 (https://jobs.wonderapps.biz; company facts for job seekers)";
+const UA = "WonderStar/1.0 (https://jobs.wonderapps.biz; company facts for job seekers)";
 
 type Binding = Record<string, { value: string } | undefined>;
 

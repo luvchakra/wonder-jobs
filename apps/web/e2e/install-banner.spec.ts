@@ -14,7 +14,7 @@ void _p;
 void _i;
 void _d;
 
-const banner = (page: Page) => page.getByRole("region", { name: "Install the WonderJobs app" });
+const banner = (page: Page) => page.getByRole("region", { name: "Install the WonderStar app" });
 
 /** Fires a fake `beforeinstallprompt` whose prompt resolves with `outcome`. */
 async function offerInstall(page: Page, outcome: "accepted" | "dismissed") {
@@ -39,7 +39,7 @@ test.describe("Install banner — Android phone (Chromium)", () => {
     await page.goto("/about");
     await offerInstall(page, "accepted");
     await expect(banner(page)).toBeVisible();
-    await expect(banner(page).getByText("WonderJobs app")).toBeVisible();
+    await expect(banner(page).getByText("WonderStar app")).toBeVisible();
     await banner(page).getByRole("button", { name: "Install" }).click();
     await expect(banner(page)).toBeHidden();
     expect(await page.evaluate(() => (window as unknown as { __prompted?: number }).__prompted)).toBe(1);

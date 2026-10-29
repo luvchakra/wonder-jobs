@@ -24,7 +24,7 @@ beforeEach(async () => {
   await stateStore.remove(PLATFORM_TENANT, "wj.findkindsmenu");
 });
 
-describe("menus in WonderJobs Admin", () => {
+describe("menus in WonderStar Admin", () => {
   it("are for admins only to read and change", async () => {
     admin = null;
     expect((await GET()).status).toBe(403);

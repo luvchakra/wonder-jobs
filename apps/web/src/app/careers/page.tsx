@@ -9,7 +9,7 @@ import { jobFacts } from "./_site/meta";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Careers at WonderJobs", description: "Open positions at WonderJobs. Apply online." };
+export const metadata: Metadata = { title: "Careers at WonderStar", description: "Open positions at WonderStar. Apply online." };
 
 /** WonderJobs' own open positions, read from the careers API (never sample or stored jobs). */
 export default async function CareersPage() {
@@ -25,7 +25,7 @@ export default async function CareersPage() {
   const { jobs } = r.data;
   return (
     <CareersShell>
-      <h1 className="text-[28px] font-semibold tracking-tight sm:text-[34px]">Work at WonderJobs</h1>
+      <h1 className="text-[28px] font-semibold tracking-tight sm:text-[34px]">Work at WonderStar</h1>
       {jobs.length === 0 ? (
         <p className="mt-3 text-[15px] text-ink-2">No open positions right now</p>
       ) : (

@@ -16,7 +16,7 @@ export function ProviderSelector({ config, value, onChange, className }: { confi
       <button type="button" role="radio" aria-checked={value === "wonderjobs"} onClick={() => onChange("wonderjobs")} className={cn("flex items-center gap-3 rounded-[14px] border p-3 text-left transition-colors", value === "wonderjobs" ? "border-brand-500 bg-brand-50/60 ring-4 ring-brand-100" : "border-line bg-surface hover:border-line-strong")}>
         <Radio active={value === "wonderjobs"} />
         <span className="flex-1">
-          <span className="block text-[14px] font-semibold text-ink">WonderJobs AI</span>
+          <span className="block text-[14px] font-semibold text-ink">WonderStar AI</span>
           <span className="block text-[12px] text-ink-3">Included in your plan</span>
         </span>
         <ProviderMark id="wonderjobs" size={30} />

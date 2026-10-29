@@ -147,7 +147,7 @@ function Brand() {
       <span className="grid size-9 place-items-center rounded-[10px] bg-brand-500 text-[15px] font-bold text-white" aria-hidden>
         W
       </span>
-      <span className="text-[15px] font-semibold text-white">WonderJobs Admin</span>
+      <span className="text-[15px] font-semibold text-white">WonderStar Admin</span>
     </Link>
   );
 }
@@ -162,7 +162,7 @@ export function AdminShell({ actor, children }: { actor: string; children: React
         Signed in as {actor}
       </p>
       <Link href="/app" className="mt-1 inline-block text-white/75 hover:text-white">
-        Back to WonderJobs
+        Back to WonderStar
       </Link>
     </div>
   );

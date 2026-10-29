@@ -2,7 +2,7 @@
  * One-click "subscribe" links for a calendar feed. Each opens the calendar app's own subscribe screen
  * with the feed already filled in; the candidate confirms there. Nothing is added without that click.
  */
-export function calendarSubscribeLinks(feedUrl: string, name = "WonderJobs") {
+export function calendarSubscribeLinks(feedUrl: string, name = "WonderStar") {
   const webcal = feedUrl.replace(/^https?:\/\//i, "webcal://");
   const enc = encodeURIComponent;
   return {

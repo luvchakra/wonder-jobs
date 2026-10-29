@@ -40,7 +40,7 @@ async function accountEmail(tenantId: string): Promise<string> {
  */
 export async function GET(req: Request) {
   const tenantId = tenantFromAuthHeader(req.headers.get("authorization"));
-  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderJobs again." }, { status: 401, headers: { "cache-control": "no-store" } });
+  if (!tenantId) return NextResponse.json({ error: "Connect the extension to WonderStar again." }, { status: 401, headers: { "cache-control": "no-store" } });
   const rl = rateLimit(`ext-profile:${tenantId}`, { capacity: 60, refillPerSec: 1 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
 

@@ -168,7 +168,7 @@ export function SharedJobView({ job, applyUrl }: { job: SharedJob; applyUrl: str
           </div>
         }
       >
-        <p className="text-[13px] text-ink-3">After that you&apos;ll be right back in WonderJobs, ready to {ask?.reason ?? "go on"}.</p>
+        <p className="text-[13px] text-ink-3">After that you&apos;ll be right back in WonderStar, ready to {ask?.reason ?? "go on"}.</p>
       </Modal>
     </div>
   );

@@ -87,10 +87,10 @@ export function renderDigestEmail(d: Digest, opts: { origin: string; name?: stri
 </td></tr></table>
 <div style="padding:12px 0 0">${tiles}</div>
 ${funnel}${matches}${sections}
-<div style="font-size:12px;color:${MUTED};padding:16px 4px 0">Every number here comes from your own WonderJobs account.</div>`;
+<div style="font-size:12px;color:${MUTED};padding:16px 4px 0">Every number here comes from your own WonderStar account.</div>`;
 
   const text = [
-    opts.name ? `Hi ${opts.name}, here's your WonderJobs update (${period}).` : `Here's your WonderJobs update (${period}).`,
+    opts.name ? `Hi ${opts.name}, here's your WonderStar update (${period}).` : `Here's your WonderStar update (${period}).`,
     "",
     `${d.cta.label}: ${abs(d.cta.href)}`,
     "",
@@ -98,7 +98,7 @@ ${funnel}${matches}${sections}
     ...(d.topMatches.length ? ["", "STRONG MATCHES WAITING FOR YOU", ...d.topMatches.map((m) => `- ${m.title} at ${m.company}${m.location ? ` (${m.location})` : ""} ${abs(m.href)}`)] : []),
     ...SECTIONS.filter((x) => d[x.key].length).flatMap((x) => ["", x.title.toUpperCase(), ...d[x.key].map((i) => `- ${i.text}${i.origin === "ai" ? " (suggested by AI)" : ""}${i.href ? ` ${abs(i.href)}` : ""}`)]),
     "",
-    "Every number here comes from your own WonderJobs account.",
+    "Every number here comes from your own WonderStar account.",
   ].join("\n");
   const preheader = [plural(s.strongMatches, "strong match", "strong matches"), `${s.applied} applied`, period].join(" · ");
   const mail = renderEmailLayout({
@@ -106,7 +106,7 @@ ${funnel}${matches}${sections}
     preheader,
     bodyHtml: body,
     bodyText: text,
-    reason: "You get this activity digest when there's been activity on your WonderJobs account, at most once a day.",
+    reason: "You get this activity digest when there's been activity on your WonderStar account, at most once a day.",
     links: [{ label: "Stop these emails", href: opts.unsubscribeUrl }],
   });
   return { subject: d.subject, ...mail };

@@ -29,11 +29,11 @@ export function WonderLogo({ href = "/", className, compact = false, size = 28, 
   const content = compact ? (
     <WonderMark size={size} />
   ) : (
-    <Image src={LOGO[tone]} alt="WonderJobs" width={LOGO_SIZE.width} height={LOGO_SIZE.height} style={{ height: size, width: "auto" }} className="select-none shrink-0" priority unoptimized />
+    <Image src={LOGO[tone]} alt="WonderStar" width={LOGO_SIZE.width} height={LOGO_SIZE.height} style={{ height: size, width: "auto" }} className="select-none shrink-0" priority unoptimized />
   );
   if (!href) return <span className={cn("inline-flex items-center shrink-0", className)}>{content}</span>;
   return (
-    <Link href={href} className={cn("inline-flex items-center shrink-0", className)} aria-label="WonderJobs home">
+    <Link href={href} className={cn("inline-flex items-center shrink-0", className)} aria-label="WonderStar home">
       {content}
     </Link>
   );
@@ -41,5 +41,5 @@ export function WonderLogo({ href = "/", className, compact = false, size = 28, 
 
 /** Stacked logo with the "Discover opportunities. Unlock possibilities." tagline — for hero and brand moments, not navigation. */
 export function WonderLockup({ className, size = 96, tone = "light" }: { className?: string; size?: number; tone?: BrandTone }) {
-  return <Image src={LOCKUP[tone]} alt="WonderJobs" width={LOCKUP_SIZE.width} height={LOCKUP_SIZE.height} style={{ height: size, width: "auto" }} className={cn("select-none shrink-0", className)} priority unoptimized />;
+  return <Image src={LOCKUP[tone]} alt="WonderStar" width={LOCKUP_SIZE.width} height={LOCKUP_SIZE.height} style={{ height: size, width: "auto" }} className={cn("select-none shrink-0", className)} priority unoptimized />;
 }
