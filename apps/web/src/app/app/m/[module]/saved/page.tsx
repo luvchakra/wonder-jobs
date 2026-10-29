@@ -1,4 +1,4 @@
-import { ModuleSaved } from "@/platform/shell/ModulePages";
+import { ModuleSaved } from "@/wonderstar/shell/ModulePages";
 import { shellTab, type ShellParams } from "../shell";
 
 export default async function ModuleSavedPage(p: ShellParams) {

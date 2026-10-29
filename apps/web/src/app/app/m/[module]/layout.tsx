@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { isLive, moduleById } from "@/modules/registry";
-import { ModuleComingSoon } from "@/platform/shell/ModulePages";
+import { ModuleComingSoon } from "@/wonderstar/shell/ModulePages";
 import { shellModule, type ShellParams } from "./shell";
 
 export async function generateMetadata({ params }: ShellParams): Promise<Metadata> {

@@ -4,10 +4,10 @@ import { X } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import type { Tone } from "@/components/common/Badge";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
-import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { PageHeader, SectionHeader } from "@/wonderstar/chrome/PageHeader";
 import { toast } from "@/components/feedback/Toast";
-import { moduleById } from "@/modules/registry";
-import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/platform/pipeline/parts";
+import { internshipsManifest } from "../manifest";
+import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderstar/pipeline/parts";
 import { relativeTime } from "@/lib/format";
 import { call } from "../api";
 import { canWithdraw, deadlines, durationLabel, shortDate, stageOf, STATUS_LABEL, stipendLabel, type InternshipListing, type InternshipStatus, type MyInternshipApplication } from "../domain";
@@ -27,7 +27,7 @@ const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "br
  * employer's page.
  */
 export function InternshipsPipeline() {
-  const stages = moduleById("internships")!.pipeline.stages;
+  const stages = internshipsManifest.pipeline.stages;
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const responses = useInternshipsStore((s) => s.responses);
   const items = useInternshipsStore((s) => s.items);

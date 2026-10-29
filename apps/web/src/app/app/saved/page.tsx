@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import { PageLoading } from "@/components/common/States";
 import { EmptyState } from "@/components/common/States";
-import { JobsBoard } from "@/components/jobs/JobsBoard";
+import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 
 /** Saved: the shortlist. Every job the candidate bookmarked, whatever its fit. */
 export default function SavedPage() {

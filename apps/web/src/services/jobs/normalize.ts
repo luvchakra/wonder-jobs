@@ -4,6 +4,7 @@
  * posting's own text with deterministic rules, so it is explainable and never
  * invented. Runs on the server (fetchers) and is pure, so it is unit-tested.
  */
+import { stripHeadlineLabel, stripSelfReference } from "@/wonderstar/you/headline";
 import { resolveJobType } from "@/domain/jobs/jobType";
 import type { Job, WorkMode } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
@@ -487,19 +488,7 @@ export function inPlaces(job: Pick<Job, "location" | "workMode">, places: string
   return fixed.some((p) => placeNamed(job.location, p) || (/^india$/i.test(p.trim()) && INDIA_PLACES.test(job.location)));
 }
 
-/** "I am a senior director" / "I'm …" / the common "iam …" typo at the start of a goal is the candidate
- *  talking about themselves, not a search term — left in, "iam" reads as identity-and-access-management. */
-export function stripSelfReference(text: string): string {
-  // "I am" / "I'm" in any case; "iam" / "Iam" only — written in capitals, "IAM" is the field (identity and access management).
-  return text.replace(/^\s*(?:i\s+am|i['’]?m)\b\s*(?:an?\s+)?/i, "").replace(/^\s*(?:iam|Iam)\b\s*(?:an?\s+)?/, "");
-}
 
-/** A headline sometimes leads with a meta-label ("Target: Senior Director / SVP — …") rather than
- *  the role itself — the label names the *field*, not part of the title, and searching for it
- *  literally finds nothing (no real posting is titled "Target …"). Strip it before the role is read. */
-export function stripHeadlineLabel(text: string): string {
-  return text.replace(/^\s*(?:target|goal|objective|seeking|desired\s*role|looking\s*for|open\s*to|career\s*goal)\s*[:\-–—]\s*/i, "");
-}
 
 /**
  * The search the boards are asked for when the candidate hasn't typed one: their own headline
@@ -533,3 +522,5 @@ export function profileSearchQuery(dna: { headline: string; careerGoal: string }
   if (!goal.length) return defaultSearchQuery(dna);
   return goal.slice(0, 4).join(" ");
 }
+
+export { stripHeadlineLabel, stripSelfReference };

@@ -11,17 +11,17 @@ import { Minus, Plus, X } from "lucide-react";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { APPLICATION_STATUS_META, applicationJobOf, FUNNEL_STAGES, type Application, type ApplicationStatus } from "@/domain/applications/types";
-import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
+import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
 import { removeFromPipeline } from "@/lib/pipeline";
 import { toast } from "@/components/feedback/Toast";
-import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { PageHeader, SectionHeader } from "@/wonderstar/chrome/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
-import { StageEmpty, StageFilter, StageList, StageTiles } from "@/platform/pipeline/parts";
+import { StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderstar/pipeline/parts";
 import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { Modal } from "@/components/common/Modal";
 import { Field, Select } from "@/components/common/Input";
-import { ApplicationCard } from "@/components/applications/ApplicationCard";
+import { ApplicationCard } from "@/modules/jobs/pipeline/ApplicationCard";
 
 type Tab = "all" | "in_progress" | "submitted" | "interview" | "outcome";
 const TABS: { value: Tab; label: string }[] = [

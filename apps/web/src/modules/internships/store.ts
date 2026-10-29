@@ -1,5 +1,5 @@
 "use client";
-import { moduleStore } from "@/platform/moduleStore";
+import { moduleStore } from "@/wonderstar/store";
 import type { InternshipListing, StudentProfile } from "./domain";
 
 /** Internships' own saves, responses, searches and profile (wj.m.internships), separate from Jobs' stores. */

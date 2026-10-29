@@ -7,7 +7,7 @@ import { CANDIDATE_STATUS_LABEL } from "@/domain/experience/outcomes";
 import type { WorkflowRun } from "@/domain/workflow/types";
 import { formatDuration, formatNumber, formatTime } from "@/lib/format";
 import { useNow } from "@/lib/motion";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
 import { EmptyState } from "@/components/common/States";
 import { ActiveRunCard } from "@/components/workflow/ActiveRunCard";

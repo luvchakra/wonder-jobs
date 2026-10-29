@@ -1,4 +1,4 @@
-import { ModuleFind } from "@/platform/shell/ModulePages";
+import { ModuleFind } from "@/wonderstar/shell/ModulePages";
 import { InternshipsFind } from "@/modules/internships/components/Find";
 import { shellTab, type ShellParams } from "./shell";
 

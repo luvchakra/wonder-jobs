@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, PageLoading } from "@/components/common/States"
 import { toast } from "@/components/feedback/Toast";
 import { can, type OrgPermission } from "@/domain/org/permissions";
 import { ORG_ROLE_LABEL, type OrgRole } from "@/domain/org/types";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Tabs } from "@/components/common/Tabs";
 import { Badge } from "@/components/common/Badge";
 import { relativeTime } from "@/lib/format";

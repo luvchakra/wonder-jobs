@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { ModuleFind, type FacetSpec, type FacetValues, type FindRun } from "@/platform/find/ModuleFind";
+import { ModuleFind, type FacetSpec, type FacetValues, type FindRun } from "@/wonderstar/find/ModuleFind";
 import { call } from "../api";
 import { applyFacets, type InternshipListing } from "../domain";
 import { selectProfile, useInternshipsStore } from "../store";

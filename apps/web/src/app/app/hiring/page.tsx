@@ -6,7 +6,7 @@ import { Modal } from "@/components/common/Modal";
 import { can } from "@/domain/org/permissions";
 import { ORG_ROLE_LABEL } from "@/domain/org/types";
 import { hiringApi } from "@/services/hiring/client";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Field, Input, Select } from "@/components/common/Input";

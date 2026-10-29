@@ -6,7 +6,7 @@ import { AlertCircle, Bell, BellOff, CalendarDays, ChevronLeft, ChevronRight, Ma
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { CalendarSubscribe } from "@/components/calendar/CalendarSubscribe";

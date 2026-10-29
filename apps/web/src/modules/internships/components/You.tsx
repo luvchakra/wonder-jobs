@@ -1,8 +1,8 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
 import { Building2, GraduationCap, Zap } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { YouOverview } from "@/components/you/YouOverview";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { YouOverview } from "@/wonderstar/you/YouOverview";
 import { Button } from "@/components/common/Button";
 import { Field, Input, Segmented } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";

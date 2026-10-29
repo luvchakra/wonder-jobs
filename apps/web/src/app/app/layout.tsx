@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { AppShell } from "@/components/layout/AppShell";
+import { AppShell } from "./AppShell";
+import { AppChrome } from "@/modules/chrome";
 import { PRIVATE_PAGE } from "@/lib/robots";
 
 /** The signed-in app is never indexed or used for AI training. */
@@ -17,7 +18,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: EARLY_STATE_FETCH }} />
-      <AppShell>{children}</AppShell>
+      <AppChrome>
+        <AppShell>{children}</AppShell>
+      </AppChrome>
     </>
   );
 }
