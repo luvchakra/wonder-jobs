@@ -35,7 +35,7 @@ function FindMenu() {
   return (
     <ModuleMenu
       label="Kind of jobs"
-      now={liveNow ? liveNow.label : JOBS_MENU_CHOICES.find((c) => c.id === current)!.label}
+      now={liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!}
       choices={JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current }))}
       live={liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id }))}
       upcoming={kinds.filter((k) => !LIVE[k.id]).map((k) => ({ ...k, ...LOOK[k.id] }))}

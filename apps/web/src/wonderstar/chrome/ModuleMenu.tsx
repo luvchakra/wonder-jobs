@@ -17,31 +17,15 @@ export interface MenuItem {
   on: boolean;
 }
 
-const SEEN = "wj.findModeMenuSeen";
-const seen = () => {
-  try {
-    return localStorage.getItem(SEEN) === "1";
-  } catch {
-    return true;
-  }
-};
-
 /**
  * WonderStar's module menu, in the centre of the top bar on every page (owner, 2026-10-29): the current value as text
  * with a chevron ("Full Time Jobs ▾", "Internships ▾"), opening a menu of the active module's own choices, then the
  * live modules and "Coming soon". A soft pulse invites the first tap, then stops for good. What a pick does is the
  * composition root's (`modules/chrome.tsx`): each tile is in its module's tint (§9 "Icons").
  */
-export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Kind of jobs". */ label: string; /** The current value's label. */ now: string; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
+export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Kind of jobs". */ label: string; /** The current value, shown as its own row. */ now: Pick<MenuItem, "label" | "icon" | "tint">; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  // The pulse that invites a first tap: until the menu has been opened once on this browser.
-  const [hint, setHint] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // Read after mount (browser storage isn't there on the server).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHint(!seen());
-  }, []);
   useEffect(() => {
     if (!open) return;
     const out = (e: MouseEvent) => {
@@ -56,33 +40,23 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
     };
   }, [open]);
 
-  const toggle = () => {
-    setOpen((v) => !v);
-    if (hint) {
-      setHint(false);
-      try {
-        localStorage.setItem(SEEN, "1");
-      } catch {
-        /* the pulse just shows again next time */
-      }
-    }
-  };
-
   return (
-    <div ref={ref} className="relative min-w-0 max-w-full">
+    <div ref={ref} className="relative w-full min-w-0 md:max-w-[22rem]">
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${label}: ${now}`}
-        title={now}
-        onClick={toggle}
-        className="relative flex h-9 max-w-full min-w-0 items-center gap-0.5 rounded-full px-1.5 text-[14px] font-semibold text-ink hover:bg-bg-soft wj-press md:gap-1 md:px-3 md:text-[15px]"
+        aria-label={`${label}: ${now.label}`}
+        title={now.label}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-11 w-full min-w-0 items-center gap-2 rounded-[14px] bg-surface-2 py-1.5 pl-1.5 pr-2 text-left transition-colors hover:bg-bg-soft wj-press md:gap-2.5 md:pr-2.5"
       >
-        {hint && <span aria-hidden className="absolute inset-0 -z-10 rounded-full bg-brand-100 motion-safe:animate-ping" />}
-        <span className="min-w-0 truncate">{now}</span>
+        <span className={cn("grid size-7 shrink-0 place-items-center rounded-[9px] md:size-8 md:rounded-[10px]", TINTS[now.tint].tile, TINTS[now.tint].icon)}>
+          <now.icon className="size-[15px] md:size-4" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink md:text-[14.5px]">{now.label}</span>
         {/* The chevron says it opens. */}
-        <ChevronDown className={cn("size-3.5 shrink-0 text-brand-600 transition-transform md:size-4", open && "rotate-180")} strokeWidth={2.5} aria-hidden />
+        <ChevronDown className={cn("size-3.5 shrink-0 text-ink-3 transition-transform md:size-4", open && "rotate-180")} strokeWidth={2.5} aria-hidden />
       </button>
       {open && (
         <div role="menu" aria-label={label} className="absolute left-1/2 top-11 z-40 -translate-x-1/2 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
