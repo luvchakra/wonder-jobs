@@ -6,7 +6,7 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
 import { useWorkflowStore } from "@/store/workflow";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/States";
 import { Segmented } from "@/components/common/Input";

@@ -4,10 +4,11 @@
  * to `changes` when the helper changes.
  */
 export const EXTENSION_RELEASE = {
-  version: "0.3.6",
-  date: "2026-10-17",
+  version: "0.3.7",
+  date: "2026-10-29",
   /** What changed in recent versions, newest first — the page shows these. */
   changes: [
+    { version: "0.3.7", note: "Now called WonderStar helper, with the WonderStar icon; its button reads Fill with WonderStar. Nothing it fills or presses changed." },
     { version: "0.3.6", note: "The side panel shows the company's logo from JobsLake, and its wording matches the app (Career Profile, Automation, Guide me)." },
     { version: "0.3.5", note: "Ignores third-party frames inside application forms, finds Submit links styled as buttons, and reads Lever's required marks." },
     { version: "0.3.4", note: "Never treats a portal's Sign In or Create Account button as a step, and skips hidden fields meant for bots." },

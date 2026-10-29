@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
  * their code. `import type` is erased at build time, so it's allowed.
  */
 const ROOT = join(__dirname);
-const BROWSER_DIRS = ["components", "store", "services", "lib", "domain", "content"];
+const BROWSER_DIRS = ["components", "store", "services", "lib", "domain", "content", "wonderstar", "modules"];
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {

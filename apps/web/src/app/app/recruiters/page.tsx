@@ -8,7 +8,7 @@ import type { TalentProfile } from "@/domain/org/types";
 import { hiringApi, type ConversationView } from "@/services/hiring/client";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { PageLoading } from "@/components/common/States";

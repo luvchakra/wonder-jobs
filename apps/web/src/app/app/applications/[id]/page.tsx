@@ -12,7 +12,7 @@ import { buildDocxBytes, DOCX_MIME } from "@/lib/docx";
 import { downloadBytes } from "@/lib/download";
 import { track } from "@/lib/analytics";
 import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
@@ -22,13 +22,13 @@ import { cn } from "@/lib/cn";
 import { useAutomationStore } from "@/store/automation";
 import { submitDecision } from "@/domain/jobs-apply/policy";
 import { CompanyLogo } from "@/components/common/Avatar";
-import { ApplicationTimeline } from "@/components/applications/ApplicationTimeline";
-import { FollowUpAction } from "@/components/applications/FollowUpAction";
+import { ApplicationTimeline } from "@/modules/jobs/pipeline/ApplicationTimeline";
+import { FollowUpAction } from "@/modules/jobs/pipeline/FollowUpAction";
 import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
-import { useRecoverJobs } from "@/components/jobs/useRecoverJobs";
+import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
 
 const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
 

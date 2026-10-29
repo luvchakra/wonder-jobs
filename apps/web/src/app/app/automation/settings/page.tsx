@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Check, Hand, Lock, X } from "lucide-react";
 import { AUTOMATION_LEVEL_META, CAPABILITIES, CAPABILITY_META, resolveCapability, type Capability } from "@/domain/automation/policy";
 import { useAutomationStore } from "@/store/automation";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Fold } from "@/components/common/Fold";
 import { Button } from "@/components/common/Button";

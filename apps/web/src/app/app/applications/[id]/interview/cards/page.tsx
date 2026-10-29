@@ -1,10 +1,10 @@
 "use client";
 import { use, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw, Shuffle, Sparkles } from "lucide-react";
-import { useInterviewPractice, NEEDS_AI } from "@/lib/useInterviewPractice";
+import { useInterviewPractice, NEEDS_AI } from "@/modules/jobs/useInterviewPractice";
 import { useApplicationsStore } from "@/store/applications";
 import { FLASHCARD_COUNT, parseFlashcards } from "@/domain/applications/practice";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Button, IconButton } from "@/components/common/Button";
 import { EmptyState } from "@/components/common/States";

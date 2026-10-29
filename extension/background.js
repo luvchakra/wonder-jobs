@@ -1,6 +1,6 @@
 /**
- * Service worker: the only place that holds the WonderJobs bearer token and
- * the only place that talks to the WonderJobs API. Content scripts on
+ * Service worker: the only place that holds the WonderStar bearer token and
+ * the only place that talks to the WonderStar API. Content scripts on
  * employers' sites ask it for data by message, so a page never sees the token.
  */
 import { WONDERJOBS_ORIGINS } from "./config.js";
@@ -16,7 +16,7 @@ async function writeConnection(connection) {
   await chrome.storage.local.set({ [STORAGE_KEY]: connection });
 }
 
-/** A token with at least a minute left on it, or null — the bridge content script refreshes it whenever a WonderJobs tab is open. */
+/** A token with at least a minute left on it, or null — the bridge content script refreshes it whenever a WonderStar tab is open. */
 async function liveConnection() {
   const connection = await readConnection();
   if (!connection?.token) return null;
@@ -25,8 +25,8 @@ async function liveConnection() {
 }
 
 /**
- * Ask WonderJobs for a fresh token without a tab being involved. This only
- * works while the browser still has a valid WonderJobs session cookie, which
+ * Ask WonderStar for a fresh token without a tab being involved. This only
+ * works while the browser still has a valid WonderStar session cookie, which
  * is exactly the "reuse your existing sign-in" model — no separate password,
  * no long-lived secret stored here.
  */
@@ -73,7 +73,7 @@ async function api(path, body) {
 /**
  * Apply with Wonder sessions this browser is paired with. Each holds a *session-scoped* token
  * (tenant + session + nonce, 30 minutes) that only this worker ever sees: content scripts ask the
- * worker to call WonderJobs on their behalf, and only the JobsApply helper endpoints are allowed.
+ * worker to call WonderStar on their behalf, and only the JobsApply helper endpoints are allowed.
  */
 const SESSIONS_KEY = "wj.jobsapply.sessions";
 const JOBSAPPLY_PATHS = /^\/api\/jobs-apply\/extension\/(session|inspect|fill-plan|events|file)(\?kind=(resume|cover_letter))?$/;
@@ -133,7 +133,7 @@ async function injectInto(tabId) {
 
 /**
  * Chrome only puts content scripts into pages loaded after the helper is installed or updated, and an
- * update cuts the old copies off. Put the bridge back into WonderJobs tabs that are already open, so
+ * update cuts the old copies off. Put the bridge back into WonderStar tabs that are already open, so
  * they see the helper without a reload.
  */
 chrome.runtime.onInstalled.addListener(async () => {
@@ -168,7 +168,7 @@ async function jobsApplyCall({ sessionId, path, method = "GET", body }) {
     return { error: "network" };
   }
   if (res.status === 401) {
-    // Expired, stopped from WonderJobs, or ended: forget the token. Reopening from WonderJobs pairs again.
+    // Expired, stopped from WonderStar, or ended: forget the token. Reopening from WonderStar pairs again.
     delete all[sessionId];
     await writeSessions(all);
     return { error: "revoked" };
@@ -198,14 +198,14 @@ if (chrome.sidePanel?.open) {
   chrome.action.setPopup({ popup: "popup/popup.html?popup=1" });
 }
 
-/** After a Save, open WonderJobs tabs take the job from the server copy (the message carries ids only). */
+/** After a Save, open WonderStar tabs take the job from the server copy (the message carries ids only). */
 async function tellWonderJobsTabs(message) {
   const tabs = await chrome.tabs.query({ url: WONDERJOBS_ORIGINS.map((o) => `${o}/*`) }).catch(() => []);
   for (const t of tabs) if (t.id != null) chrome.tabs.sendMessage(t.id, message).catch(() => undefined);
 }
 
 const handlers = {
-  /** Called by the bridge content script running on WonderJobs itself. */
+  /** Called by the bridge content script running on WonderStar itself. */
   async storeToken({ origin, token, expiresAt }) {
     if (!token || !origin) return { ok: false };
     await writeConnection({ origin, token, expiresAt, connectedAt: Date.now() });
@@ -246,7 +246,7 @@ const handlers = {
     await chrome.storage.local.remove([STORAGE_KEY, SESSIONS_KEY]);
     return { ok: true };
   },
-  /** From the bridge on WonderJobs: a session token minted with the candidate's own cookie. */
+  /** From the bridge on WonderStar: a session token minted with the candidate's own cookie. */
   async jobsApplyPair({ origin, sessionId, token, expiresAt, destination }) {
     if (!origin || !sessionId || !token || !destination?.domain) return { ok: false };
     const all = await readSessions();

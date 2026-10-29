@@ -1,0 +1,37 @@
+"use client";
+import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/cn";
+import { isActivePath, sectionFor } from "./nav";
+import { useChromeSlots } from "./slots";
+
+/** The pages of the place you're in (Applications, Profile, Settings), as tabs at its top. */
+export function SectionTabs() {
+  const pathname = usePathname();
+  const section = sectionFor(pathname, useChromeSlots().sections);
+  // The current page's tab in view, when the row is wider than the screen.
+  const activeRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [pathname]);
+  // Only on a section's own pages — a detail page (one application, one run) has its own back link.
+  // You has no tab row (owner, 2026-10-24): its pages are the rows on the You page.
+  if (!section || section.title === "You" || !section.items.some((i) => i.href === pathname)) return null;
+  return (
+    <nav aria-label={section.title} className="-mx-4 mb-4 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+      <ul className="flex">
+        {section.items.map((item) => {
+          const active = isActivePath(pathname, item);
+          return (
+            <li key={item.href} className="shrink-0">
+              <Link ref={active ? activeRef : undefined} href={item.href} aria-current={active ? "page" : undefined} className={cn("inline-flex h-10 items-center border-b-2 px-2 text-[14px] font-medium transition-colors", active ? "border-brand-500 text-brand-700" : "border-transparent text-ink-3 hover:text-ink")}>
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
