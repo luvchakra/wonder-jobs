@@ -15,7 +15,7 @@ const noop = () => () => undefined;
 type Item = { id: string; title: string; company: string; stage: string; status: string; at: string; app?: MyInternshipApplication; outside?: InternshipListing };
 
 /**
- * Internships' Pipeline (WJ-417): Applied · Shortlisted · Offer · Accepted / Closed with real counts, opening on the stage
+ * Internships' Pipeline (WJ-418): Applied · Shortlisted · Offer · Accepted / Closed with real counts, opening on the stage
  * with something to do, and Deadlines. WonderStar applications come from the server (what the company actually did);
  * outside ones are those the student marked applied after applying on the employer's page.
  */

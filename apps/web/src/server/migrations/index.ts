@@ -1215,7 +1215,7 @@ create index if not exists jobslake_opportunities_module_observed_idx on wonderj
   },
   {
     name: "0035_module_listings_responses.sql",
-    sql: `-- WonderStar Internships (WJ-417): the platform's listings and responses (docs/WONDERSTAR_PLATFORM.md section 5),
+    sql: `-- WonderStar Internships (WJ-418): the platform's listings and responses (docs/WONDERSTAR_PLATFORM.md section 5),
 -- module-keyed, so a module's postings and applications live apart from Jobs' employer_jobs and job_applications.
 --   listings — a company's posting in one module (today: internships), posted from its hiring workspace. attrs holds the
 --     module's own terms (internships: stipend a month, duration, start date, apply-by date, part or full time),

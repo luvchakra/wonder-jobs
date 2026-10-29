@@ -88,7 +88,7 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // The candidate's own press of Easy Apply (a job a company posted on WonderJobs) is what sends; this only decides whether
   // that press sends at once from their Career Profile, résumé and saved answers, or shows them first (owner, 2026-10-28).
   easy_apply: { key: "easy_apply", label: "Send Easy Apply in one tap", description: "When you press Easy Apply, send your Career Profile details, résumé and saved answers to the company at once. Ask me shows them first; Off turns Easy Apply off.", risk: "low", external: true, default: "automatic" },
-  // Internships (WJ-417): the student's own press of Apply on an internship a company posted on WonderStar is what sends;
+  // Internships (WJ-418): the student's own press of Apply on an internship a company posted on WonderStar is what sends;
   // this only decides whether that press sends at once with their Internships profile and résumé, or shows them first.
   "internships.apply": { key: "internships.apply", label: "Send internship applications in one tap", description: "When you press Apply on an internship posted on WonderStar, send your Internships profile and résumé to the company at once. Ask me shows them first; Off turns it off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },

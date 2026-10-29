@@ -1,5 +1,5 @@
 /**
- * Internships Find (WJ-417): one search of JobsLake's Internships dataset (module = 'internships'), turned into
+ * Internships Find (WJ-418): one search of JobsLake's Internships dataset (module = 'internships'), turned into
  * internship listings with their terms, and the per-source provenance the student sees ("searched X in Y across Z").
  *
  * A WonderStar posting carries the terms its company gave (stipend a month, duration, start date, apply-by date, part

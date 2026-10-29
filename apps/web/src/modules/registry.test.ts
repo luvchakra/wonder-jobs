@@ -19,7 +19,7 @@ describe("WonderStar module registry", () => {
     expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
   });
 
-  it("Internships is live (WJ-417); every other module is coming soon; each lives at /app/m/<id>", () => {
+  it("Internships is live (WJ-418); every other module is coming soon; each lives at /app/m/<id>", () => {
     expect(moduleById("internships")!.status).toBe("live");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
       if (m.id !== "internships") expect(m.status, m.id).toBe("soon");

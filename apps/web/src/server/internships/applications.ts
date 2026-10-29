@@ -1,5 +1,5 @@
 /**
- * WonderStar Internships (WJ-417): companies' internship postings and students' applications to them, in the
+ * WonderStar Internships (WJ-418): companies' internship postings and students' applications to them, in the
  * platform's module-keyed `listings` / `responses` tables (module = 'internships'), apart from Jobs' employer_jobs and
  * job_applications.
  *

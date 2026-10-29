@@ -14,7 +14,7 @@ import { selectProfile, useInternshipsStore } from "../store";
 const noop = () => () => undefined;
 
 /**
- * Internships → You (WJ-417): the student's profile — college, course, graduation year and when they can intern —
+ * Internships → You (WJ-418): the student's profile — college, course, graduation year and when they can intern —
  * prefilled from their Career Profile's education when it has one (read only; nothing is written back to it), and
  * asked otherwise. Below it, the one setting this module adds (internships.apply) and, folded, posting internships
  * as a company.

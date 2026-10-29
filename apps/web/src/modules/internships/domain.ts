@@ -1,5 +1,5 @@
 /**
- * WonderStar Internships (WJ-417, docs/WONDERSTAR_PLATFORM.md §4): what an internship is, what a student tells us, what
+ * WonderStar Internships (WJ-418, docs/WONDERSTAR_PLATFORM.md §4): what an internship is, what a student tells us, what
  * "fits" means and how an application moves. Pure, so the server, the Internships screens and the tests share it.
  *
  * Real data only: a term a posting doesn't state stays unstated ("Stipend not stated"), never guessed; a match signal

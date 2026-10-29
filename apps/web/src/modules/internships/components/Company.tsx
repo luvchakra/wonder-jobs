@@ -19,7 +19,7 @@ type Data = { internships: InternshipPosting[]; applications: InternshipApplicat
 const ACTION_LABEL: Partial<Record<InternshipStatus, string>> = { shortlisted: "Shortlist", offer: "Make an offer", closed: "Not moving forward" };
 
 /**
- * Internships → Company (WJ-417): a hiring workspace's internships and the applications to them. The same workspace
+ * Internships → Company (WJ-418): a hiring workspace's internships and the applications to them. The same workspace
  * and roles as Hiring (domain/org/permissions.ts::can, checked again on the server for every action); its own screen,
  * its own form and its own data — nothing here touches Jobs' job form or job listings.
  */

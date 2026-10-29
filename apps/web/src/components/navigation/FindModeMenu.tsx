@@ -21,7 +21,7 @@ const MODES: { mode: FindMode; label: string; hint: string; icon: typeof Briefca
 ];
 // Each coming-soon kind's icon and tint are its module's (modules/registry.ts), as on Explore.
 const UPCOMING_ICON = Object.fromEntries(MODULES.flatMap((m) => (m.menuId ? [[m.menuId, { icon: ICONS[m.icon], tint: m.accent }]] : []))) as Record<UpcomingKindId, { icon: typeof Briefcase; tint: ModuleTint }>;
-// A module that's live (WJ-417: Internships) links out of Jobs to its own pages; the rest stay "Coming soon".
+// A module that's live (WJ-418: Internships) links out of Jobs to its own pages; the rest stay "Coming soon".
 const LIVE_HREF = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status === "live" ? [[m.menuId, m.routes.find]] : []))) as Partial<Record<UpcomingKindId, string>>;
 const SEEN = "wj.findModeMenuSeen";
 const seen = () => {

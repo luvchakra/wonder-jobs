@@ -19,7 +19,7 @@ const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceLine["state"], string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
 
 /**
- * Internships Find (WJ-417): the student's field and places, searched across the Internships dataset's own sources
+ * Internships Find (WJ-418): the student's field and places, searched across the Internships dataset's own sources
  * (WonderStar companies, Adzuna, company career sites, Remotive, Remote OK). Opening the page searches nothing; the
  * field starts from their last search or their course, and when there's neither it asks. Refine: stipend, duration,
  * start month, remote. Every run says what it searched, where, and what each source gave.

@@ -1,5 +1,5 @@
 /**
- * The Internships module's own JobsLake sources (WJ-417): a separate dataset (module = 'internships'), so none of these
+ * The Internships module's own JobsLake sources (WJ-418): a separate dataset (module = 'internships'), so none of these
  * ever answers a Jobs search and no Jobs source ever answers an Internships one (server/jobslake/registry.ts::listSources).
  *
  * Real sources only, each through its official API, keeping only postings that are internships — as the source itself

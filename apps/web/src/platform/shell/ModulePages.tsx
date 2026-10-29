@@ -1,10 +1,12 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Bookmark, Inbox, UserRound } from "lucide-react";
 import { WonderStarSplash } from "@/platform/brand/Logo";
 import { EmptyState } from "@/components/common/States";
-import { moduleById, type ModuleId } from "@/modules/registry";
+import { isLive, moduleById, MODULES, type ModuleId } from "@/modules/registry";
+import { SavedCard } from "@/modules/savedCards";
+import { Chip } from "@/components/common/Input";
 import { moduleStore } from "@/platform/moduleStore";
 
 type ShellModule = Exclude<ModuleId, "jobs">;
@@ -32,11 +34,43 @@ export function ModuleFind({ id }: { id: ShellModule }) {
   return <EmptyState title="No listings yet" body={`${m.label} listings show here once a company posts one or a source brings them in.`} />;
 }
 
+/**
+ * Saved (§4.1): one list across WonderStar's modules, filterable by module — every live module's saves, each in its
+ * own card. Jobs keeps its own Saved (the jobs portal is unchanged), linked from here.
+ */
 export function ModuleSaved({ id }: { id: ShellModule }) {
-  const n = Object.keys(moduleStore(id)((s) => s.saved)).length;
   const ready = useMounted();
-  if (ready && n > 0) return <p className="text-sm text-ink-3">{n} saved</p>;
-  return <EmptyState icon={<Bookmark className="size-5" aria-hidden />} title="Nothing saved yet" body="Tap the bookmark on a listing to keep it here." />;
+  const live = MODULES.filter((m): m is typeof m & { id: ShellModule } => m.id !== "jobs" && isLive(m));
+  // One subscription per live module, in the registry's fixed order.
+  const per = live.map((m) => ({ m, saved: moduleStore(m.id)((s) => s.saved), items: moduleStore(m.id)((s) => s.items) }));
+  const [only, setOnly] = useState<ShellModule | "all">(id);
+  const list = per
+    .filter((p) => only === "all" || p.m.id === only)
+    .flatMap((p) => Object.entries(p.saved).flatMap(([lid, at]) => (p.items[lid] ? [{ module: p.m.id, id: lid, at, item: p.items[lid] }] : [])))
+    .sort((a, b) => b.at.localeCompare(a.at));
+  return (
+    <div>
+      <div role="group" aria-label="Module" className="mb-3 flex flex-wrap gap-2">
+        {[{ id: "all" as const, label: "All" }, ...live.map((m) => ({ id: m.id, label: m.label }))].map((c) => (
+          <Chip key={c.id} active={only === c.id} onClick={() => setOnly(c.id)}>
+            {c.label}
+          </Chip>
+        ))}
+        <Link href="/app/saved" className="ml-auto self-center text-[13px] text-ink-3 underline">
+          Saved jobs
+        </Link>
+      </div>
+      {ready && list.length > 0 ? (
+        <ul className="space-y-3">
+          {list.map((x) => (
+            <SavedCard key={`${x.module}:${x.id}`} module={x.module} item={x.item} />
+          ))}
+        </ul>
+      ) : (
+        <EmptyState icon={<Bookmark className="size-5" aria-hidden />} title="Nothing saved yet" body="Tap the bookmark on a listing to keep it here." />
+      )}
+    </div>
+  );
 }
 
 /** The module's own tab: its stages with real counts from the person's responses. */
