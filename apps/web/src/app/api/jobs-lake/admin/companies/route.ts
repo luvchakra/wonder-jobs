@@ -5,7 +5,7 @@ import { companyDirectory } from "@/server/jobslake/companies";
 
 export const runtime = "nodejs";
 
-/** JobsLake's company directory: a page of companies (most open roles first) with their facts, counts and H-1B totals. */
+/** WorksLake's company directory: a page of companies (most open roles first) with their facts, counts and H-1B totals. */
 export async function GET(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;

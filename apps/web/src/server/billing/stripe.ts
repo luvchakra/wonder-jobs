@@ -44,7 +44,7 @@ export function formEncode(params: Record<string, unknown>, prefix = ""): string
 }
 
 /**
- * One Stripe API call. Exported for the JobsLake API's metered billing (server/jobslake/apiBilling.ts) and
+ * One Stripe API call. Exported for the WorksLake API's metered billing (server/jobslake/apiBilling.ts) and
  * billing administration (server/billing/admin.ts). `stripeVersion` pins the API version for calls whose
  * shape changed between versions (promotion codes); otherwise the account's default applies.
  */

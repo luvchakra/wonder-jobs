@@ -1,7 +1,7 @@
 /**
  * Company identity for logos and metadata. A company's domain is only ever one a source reported, or the
  * host of a job's apply link on the employer's own site — never guessed from the name. A job whose source
- * gives no domain is matched to one by its exact (normalized) company name, as JobsLake saw it elsewhere.
+ * gives no domain is matched to one by its exact (normalized) company name, as WorksLake saw it elsewhere.
  */
 import { ratingMonth, type CompanyRatings } from "./ratings";
 import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/destination";
@@ -45,7 +45,7 @@ export function companyKey(name: string): string {
     .trim();
 }
 
-/** What JobsLake keeps about a company — only what sources reported, plus its cached logo. */
+/** What WorksLake keeps about a company — only what sources reported, plus its cached logo. */
 /** Facts about an employer exactly as a source reported them; `from` names that source. */
 export interface CompanyFacts {
   industry?: string;
@@ -81,14 +81,14 @@ export interface CompanyRecord {
   /** The name as most recently seen. */
   name: string;
   nameKey: string;
-  /** JobsLake source ids that reported this company with this domain. */
+  /** WorksLake source ids that reported this company with this domain. */
   sources: string[];
   firstSeenAt: string;
   lastSeenAt: string;
   logo?: { data: string; type: string; from: string } | null;
   /** When a logo was last looked for (found or not). */
   logoCheckedAt?: string;
-  /** How many of its postings JobsLake saw in the last two weeks — set by the daily refresh only. */
+  /** How many of its postings WorksLake saw in the last two weeks — set by the daily refresh only. */
   openJobs?: number;
   countedAt?: string;
   /** Its postings first published in the last 7 days — set by the daily refresh only. */
@@ -105,7 +105,7 @@ export interface CompanyRecord {
   ratingsAt?: string;
 }
 
-/** What JobsLake knows about a company, every value from a named source or its own postings; no logo. */
+/** What WorksLake knows about a company, every value from a named source or its own postings; no logo. */
 export interface CompanyProfile {
   name: string;
   facts?: CompanyRecord["facts"];
@@ -139,7 +139,7 @@ export interface CompanyLine {
 const compact = (v: number, locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(v);
 const CURRENCY: Record<string, string> = { "United States dollar": "$", euro: "€", "pound sterling": "£", "Indian rupee": "₹", "Japanese yen": "¥" };
 
-/** The facts JobsLake has for a company, in the order they're shown; each from the first source that has it. */
+/** The facts WorksLake has for a company, in the order they're shown; each from the first source that has it. */
 export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[] {
   const n = (v: number) => v.toLocaleString(locale);
   const out: CompanyLine[] = [];
@@ -168,7 +168,7 @@ export function companyLines(p: CompanyProfile, locale = "en-US"): CompanyLine[]
   add("Listed", (f) => (f.ticker ? `${f.exchange ? `${f.exchange}: ` : ""}${f.ticker}` : undefined));
   if (!out.some((l) => l.label === "Listed")) add("Funding", (f) => (f.fundingStage ? stageLabel(f.fundingStage) || undefined : undefined));
   add("Revenue", (f) => (f.revenue ? (CURRENCY[f.revenue.currency] ? `${CURRENCY[f.revenue.currency]}${compact(f.revenue.amount, locale)}` : `${compact(f.revenue.amount, locale)} ${f.revenue.currency}`) : undefined), (f) => f.revenue?.year);
-  if (p.openJobs !== undefined && p.openJobs > 0) out.push({ label: "Hiring", value: `${n(p.openJobs)} open ${p.openJobs === 1 ? "role" : "roles"}${p.newJobs7d ? ` · ${n(p.newJobs7d)} new this week` : ""}`, source: "JobsLake, last two weeks" });
+  if (p.openJobs !== undefined && p.openJobs > 0) out.push({ label: "Hiring", value: `${n(p.openJobs)} open ${p.openJobs === 1 ? "role" : "roles"}${p.newJobs7d ? ` · ${n(p.newJobs7d)} new this week` : ""}`, source: "WorksLake, last two weeks" });
   if (p.h1b) out.push({ label: "H-1B visas", value: `${n(p.h1b.filings)} certified ${p.h1b.filings === 1 ? "application" : "applications"}${p.h1b.medianWage ? ` · median $${n(p.h1b.medianWage)}` : ""}`, source: `US Dept. of Labor, ${p.h1b.through}` });
   return out;
 }

@@ -47,7 +47,7 @@ export interface InternshipPosting {
 
 /** One internship as Find shows it, from a WonderWorks company or an outside source. */
 export interface InternshipListing {
-  /** `ws_<postingId>` for a WonderWorks posting; the JobsLake opportunity id otherwise. */
+  /** `ws_<postingId>` for a WonderWorks posting; the WorksLake opportunity id otherwise. */
   id: string;
   origin: "wonderstar" | "outside";
   /** A WonderWorks posting's own id: what Apply sends to. */
@@ -155,7 +155,7 @@ export function durationFromText(s: string): number | undefined {
   return months >= 1 && months <= 24 ? months : undefined;
 }
 
-/** A yearly salary range (how JobsLake keeps pay) as a month's stipend; nothing when the posting states none. */
+/** A yearly salary range (how WorksLake keeps pay) as a month's stipend; nothing when the posting states none. */
 export function monthlyFromYearly(min: number | undefined, max: number | undefined, currency: string): Pick<InternshipTerms, "stipendMin" | "stipendMax" | "currency"> {
   const m = (v: number | undefined) => (typeof v === "number" && v > 0 ? Math.round(v / 12) : undefined);
   const lo = m(min) ?? m(max);

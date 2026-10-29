@@ -52,7 +52,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const job = useJobsStore((s) => s.jobs[id]);
   useRecoverJobs([id]);
-  // The company's size and H-1B filings, from JobsLake, for the line under its name.
+  // The company's size and H-1B filings, from WorksLake, for the line under its name.
   const briefs = useCompanyBriefs(job ? [job] : []);
   const brief = job ? briefs.get(jobBriefKey(job)) : undefined;
   const match = useJobsStore((s) => s.matches[id]);
@@ -121,7 +121,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     );
   }
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
-  // JobsLake's sightings when present (they include sources WonderJobs has no entry for); otherwise the known sources.
+  // WorksLake's sightings when present (they include sources WonderJobs has no entry for); otherwise the known sources.
   const sources = job.lake ? [...new Map(job.lake.sightings.map((s) => [s.sourceId, { id: s.sourceId, name: s.sourceName }])).values()] : job.sourceIds.map((sid) => JOB_SOURCES.find((s) => s.id === sid) ?? { id: sid, name: sid });
 
   const decision = describeDecision(job, match, quality, application);
@@ -339,7 +339,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
               </div>
               {/* Some sources (Adzuna) share only the start of a description, and saved jobs keep the first part: say so. */}
               {/(…|\.\.\.)\s*$/.test(description) && <p className="mt-3 text-[13px] text-ink-3">This is the part the source shares.</p>}
-              {/* The source's own id for this posting (from the sighting JobsLake used), to quote to the employer or find it again there. */}
+              {/* The source's own id for this posting (from the sighting WorksLake used), to quote to the employer or find it again there. */}
               {sourceJobRef && (
                 <p className="mt-2 text-[12.5px] text-ink-3">
                   Job ID <span className="select-all font-medium text-ink-2">{sourceJobRef.id}</span> on {sourceJobRef.source}

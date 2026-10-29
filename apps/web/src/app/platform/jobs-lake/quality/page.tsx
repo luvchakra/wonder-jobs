@@ -9,7 +9,7 @@ export default function QualityPage() {
   const { data, error, reload } = useAdmin<{ quality: QualityView; coverage: CoverageView }>(`quality?days=${days}`);
   return (
     <>
-      <PageTitle title="Data quality" subtitle="Measured on the canonical jobs JobsLake stored, and on each source's recorded runs." actions={<Segmented value={days} onChange={setDays} label="Period" size="sm" options={[{ value: "1", label: "24 h" }, { value: "7", label: "7 days" }, { value: "30", label: "30 days" }]} />} />
+      <PageTitle title="Data quality" subtitle="Measured on the canonical jobs WorksLake stored, and on each source's recorded runs." actions={<Segmented value={days} onChange={setDays} label="Period" size="sm" options={[{ value: "1", label: "24 h" }, { value: "7", label: "7 days" }, { value: "30", label: "30 days" }]} />} />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
@@ -21,7 +21,7 @@ export default function QualityPage() {
                 <Meter label="Valid apply URLs" value={data.quality.validApplyUrls} />
                 <Meter judged={false} label="Posted in the last 7 days" value={data.quality.freshUnder7Days} />
                 <Meter judged={false} label="From the employer's own site" value={data.quality.employerVerified} />
-                <Meter judged={false} label="Compensation disclosed" value={data.quality.compensationDisclosed} hint="Depends on employers, not on JobsLake." />
+                <Meter judged={false} label="Compensation disclosed" value={data.quality.compensationDisclosed} hint="Depends on employers, not on WorksLake." />
                 <Meter judged={false} label="Seen on more than one source" value={data.quality.multiSource} />
               </div>
             ) : (

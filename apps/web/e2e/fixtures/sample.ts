@@ -10,7 +10,7 @@ import { sampleDocs } from "./sampleDocs";
  * against has no Supabase (local mode), so the browser is "signed in" by the cookie the proxy would have set, and
  * its stores start from the documents below — written through the stores' own `partialize`, so they are exactly
  * what the product would have saved. Searches answer from the same sample postings (WJ_E2E_FIXTURE_JOBS, set by
- * playwright.config.ts) through the real JobsLake path.
+ * playwright.config.ts) through the real WorksLake path.
  */
 
 export interface SampleOptions {

@@ -1,7 +1,7 @@
 /**
  * H-1B sponsorship from the US Department of Labor's LCA disclosure files (OFLC, public, quarterly). The "H-1B
  * data" workflow aggregates a file per employer (`scripts/h1b/aggregate.py`) and posts it here gzipped; employers
- * are keyed by the same normalized company name as JobsLake's directory ("Figma, Inc." → "figma"), and the daily
+ * are keyed by the same normalized company name as WorksLake's directory ("Figma, Inc." → "figma"), and the daily
  * company refresh copies a company's totals onto it. Names are matched exactly, never fuzzily.
  */
 import { companyKey, type H1bRecord } from "@/domain/jobslake/companies";

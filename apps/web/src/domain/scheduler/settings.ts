@@ -1,14 +1,14 @@
 /**
- * The platform scheduler's knobs, as a platform admin sets them (JobsLake admin → Scheduler). Each cron
+ * The platform scheduler's knobs, as a platform admin sets them (WorksLake admin → Scheduler). Each cron
  * reads these at the start of its run; anything missing or out of range falls back to the default, so a
  * bad value can never stop the cron outright or let it run past Vercel's time limit.
  */
 export interface SchedulerSettings {
   /** The daily run (`/api/cron/scheduled-runs`): candidates' saved schedules, reminders and digests. */
   scheduledRuns: { enabled: boolean; maxTenants: number; tenantBudgetSec: number; reminders: boolean; digests: boolean };
-  /** JobsLake's company refresh (`/api/cron/jobslake-companies`): the company directory and its logos. */
+  /** WorksLake's company refresh (`/api/cron/jobslake-companies`): the company directory and its logos. */
   companyRefresh: { enabled: boolean; logoLimit: number; budgetSec: number };
-  /** JobsLake's company-ratings job (`/api/cron/jobslake-ratings`): how often it runs and who's told when it has no key left. */
+  /** WorksLake's company-ratings job (`/api/cron/jobslake-ratings`): how often it runs and who's told when it has no key left. */
   ratings: { enabled: boolean; frequency: RatingsFrequency; notifyEmail: string };
   updatedAt?: string;
   updatedBy?: string;
@@ -103,7 +103,7 @@ export const MAX_CRON_RUNS = 60;
 /** The platform's cron jobs as `vercel.json` declares them (a unit test holds the two together). Times are UTC. */
 export const CRON_JOBS = [
   { id: "scheduled-runs", runner: "vercel", path: "/api/cron/scheduled-runs", schedule: "0 2 * * *", label: "Daily run", description: "Candidates' saved schedules, follow-up and interview reminders, activity digests, billing reconciliation and retention purges." },
-  { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "JobsLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
+  { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "WorksLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
   { id: "jobslake-ratings", runner: "vercel", path: "/api/cron/jobslake-ratings", schedule: "50 1 * * *", label: "Company ratings", description: "Looks up employee-review ratings from Explorium for companies never looked up (or not for 90 days), on the frequency set in Company ratings. Emails the owner when no API key is left." },
   { id: "application-reminders", runner: "vercel", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
   // Called by GitHub Actions (.github/workflows/reminders.yml): Vercel's plan runs its own crons once a day.

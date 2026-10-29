@@ -9,7 +9,7 @@ import { jobsLakeStore } from "./store";
  * Never logged, never returned by any API, never put in an error message.
  *
  * `env:` refs point at deployment environment variables (e.g. Adzuna's app id/key) — those are
- * managed in the hosting platform, so JobsLake can report them but not replace them.
+ * managed in the hosting platform, so WorksLake can report them but not replace them.
  */
 export interface CredentialStatus {
   ref: string;

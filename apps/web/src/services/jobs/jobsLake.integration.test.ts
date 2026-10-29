@@ -139,7 +139,7 @@ describe("search stage (signed in)", () => {
     useJobsStore.getState().setSourceAvailability({ adzuna_in: false });
   });
 
-  it("searches through the JobsLake stream and dedupe keeps JobsLake's merge", async () => {
+  it("searches through the WorksLake stream and dedupe keeps WorksLake's merge", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       if (String(url).endsWith("/search/stream")) return new Response(ndjson(events(response())));
       return new Response("{}");
@@ -151,8 +151,8 @@ describe("search stage (signed in)", () => {
     // Only sources that are on and searchable here (Adzuna has no credentials), and only search terms, broader phrasings of them and places.
     // (The AI phrasing route answered nothing usable here, so the rules picked the phrasing.)
     expect(body).toEqual({ query: { text: "identity security", locations: ["Bengaluru"], variants: ["identity"] }, sourceIds: ["careers", "remoteok"], searchMode: "balanced", limit: 500 });
-    expect(out.data).toMatchObject({ jobIds: ["careers_1"], searchedWith: "JobsLake", requestId: "req_abcdef01" });
-    expect(evidence.map((e) => `${e.label}: ${e.value}`)).toEqual(["Searched with: JobsLake · 3 sources planned", "Also searched: “identity”", "Greenhouse: 1 jobs", "Remote OK: 1 jobs", "Adzuna India: Needs setup", "Sources searched: 2 of 3 answered"]);
+    expect(out.data).toMatchObject({ jobIds: ["careers_1"], searchedWith: "WorksLake", requestId: "req_abcdef01" });
+    expect(evidence.map((e) => `${e.label}: ${e.value}`)).toEqual(["Searched with: WorksLake · 3 sources planned", "Also searched: “identity”", "Greenhouse: 1 jobs", "Remote OK: 1 jobs", "Adzuna India: Needs setup", "Sources searched: 2 of 3 answered"]);
     expect(warnings).toEqual(["Adzuna India isn't configured on this deployment yet, so it was skipped."]);
 
     const d = await executors.dedupe(c);
@@ -174,8 +174,8 @@ describe("search stage (signed in)", () => {
     expect(st.jobs.careers_1.lake?.sightings).toHaveLength(2);
   });
 
-  it("Stop ends a search still waiting on JobsLake at once, and nothing else is searched", async () => {
-    // JobsLake that hasn't answered yet: the request hangs until it is aborted.
+  it("Stop ends a search still waiting on WorksLake at once, and nothing else is searched", async () => {
+    // WorksLake that hasn't answered yet: the request hangs until it is aborted.
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
       if (!String(url).endsWith("/search/stream")) return new Response("{}");
       return new Promise<Response>((_, reject) => (init?.signal as AbortSignal).addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
@@ -187,26 +187,26 @@ describe("search stage (signed in)", () => {
     await vi.waitFor(() => expect(fetchSpy.mock.calls.some(([u]) => String(u).endsWith("/search/stream"))).toBe(true));
     stop.abort();
     await expect(searching).rejects.toBeInstanceOf(StopSignal);
-    // Stopped is not "JobsLake didn't answer", and no source is searched instead.
-    expect(evidence.some((e) => e.label === "JobsLake")).toBe(false);
+    // Stopped is not "WorksLake didn't answer", and no source is searched instead.
+    expect(evidence.some((e) => e.label === "WorksLake")).toBe(false);
     expect(fetchSpy.mock.calls.filter(([u]) => String(u).endsWith("/search/stream") || String(u).endsWith("/search"))).toHaveLength(1);
   });
 
-  it("never searches a source directly: when JobsLake fails the search fails and says so", async () => {
+  it("never searches a source directly: when WorksLake fails the search fails and says so", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ error: { code: "INTERNAL", message: "down", retryable: true } }), { status: 500 }));
     const { c, evidence } = ctx();
-    await expect(executors.search(c)).rejects.toThrow(/JobsLake didn't answer/);
-    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Didn't answer", tone: "warning" });
-    // Only JobsLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
+    await expect(executors.search(c)).rejects.toThrow(/WorksLake didn't answer/);
+    expect(evidence[0]).toEqual({ label: "WorksLake", value: "Didn't answer", tone: "warning" });
+    // Only WorksLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
     expect(fetchSpy.mock.calls.map(([url]) => String(url)).filter((u) => !u.includes("/api/jobs-lake/") && !u.startsWith("/api/ai/"))).toEqual([]);
   });
 
-  it("a disabled JobsLake means no search, said plainly, and no source is asked directly", async () => {
+  it("a disabled WorksLake means no search, said plainly, and no source is asked directly", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ error: { code: "FEATURE_DISABLED", message: "off", retryable: false } }), { status: 404 }));
     const { c, evidence } = ctx();
-    await expect(executors.search(c)).rejects.toThrow(/JobsLake didn't answer/);
-    expect(evidence[0]).toEqual({ label: "JobsLake", value: "Off", tone: "warning" });
-    // Only JobsLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
+    await expect(executors.search(c)).rejects.toThrow(/WorksLake didn't answer/);
+    expect(evidence[0]).toEqual({ label: "WorksLake", value: "Off", tone: "warning" });
+    // Only WorksLake (and the AI phrasing helper) is called — never a job source or the old direct endpoint.
     expect(fetchSpy.mock.calls.map(([url]) => String(url)).filter((u) => !u.includes("/api/jobs-lake/") && !u.startsWith("/api/ai/"))).toEqual([]);
   });
 });

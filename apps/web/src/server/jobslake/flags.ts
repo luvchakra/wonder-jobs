@@ -1,5 +1,5 @@
 /**
- * JobsLake feature flags (spec §81). On by default except MCP; each can be switched off with its
+ * WorksLake feature flags (spec §81). On by default except MCP; each can be switched off with its
  * environment variable set to "0" — so every migration step is reversible without a deploy of code.
  */
 export interface JobsLakeFlags {

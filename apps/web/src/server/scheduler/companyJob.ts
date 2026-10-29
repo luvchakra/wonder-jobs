@@ -1,5 +1,5 @@
 /**
- * JobsLake's company refresh as the scheduler runs it — from the daily cron or an admin's Run now:
+ * WorksLake's company refresh as the scheduler runs it — from the daily cron or an admin's Run now:
  * the settings in force, then the refresh, then one line in the run log.
  */
 import { refreshCompanies, type CompanyRefreshReport } from "@/server/jobslake/companyRefresh";

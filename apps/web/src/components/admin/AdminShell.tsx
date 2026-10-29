@@ -67,7 +67,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: "/platform/billing/plans", label: "Plans & features" },
       { href: "/platform/billing/prices", label: "Prices" },
       { href: "/platform/billing/discounts", label: "Discounts" },
-      { href: "/platform/billing/api", label: "JobsLake API" },
+      { href: "/platform/billing/api", label: "WorksLake API" },
       { href: "/platform/billing/history", label: "History" },
     ],
   },

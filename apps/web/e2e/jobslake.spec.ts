@@ -3,7 +3,7 @@ import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIf
 import { openDescription } from "./utils/jobPage";
 
 /**
- * JobsLake journeys WJ-JL-001..040 (JobsLake spec §88). Everything here runs against real sources —
+ * WorksLake journeys WJ-JL-001..040 (WorksLake spec §88). Everything here runs against real sources —
  * Greenhouse, Lever, Ashby, the remote-job aggregators and Remotive's public API — never a mock.
  *
  * Two server set-ups, each honestly reported as skipped when it isn't the one running:
@@ -11,7 +11,7 @@ import { openDescription } from "./utils/jobPage";
  *   `JOBSLAKE_LOCAL_ADMIN=1` with Supabase Auth unconfigured (the portal refuses that switch whenever
  *   real auth is on). MCP journeys also need JOBSLAKE_MCP_ENABLED=1 and JOBSLAKE_MCP_TOKEN, shared
  *   with this process.
- * - Candidate journeys need a signed-in account, because only real accounts search through JobsLake
+ * - Candidate journeys need a signed-in account, because only real accounts search through WorksLake
  *   (a local build has no real sources). They create a disposable, pre-confirmed Supabase
  *   account and delete it afterwards; without Supabase admin credentials they're BLOCKED, not faked.
  *
@@ -43,16 +43,16 @@ async function noHorizontalScroll(page: Page) {
 
 /* ================================================================= admin */
 
-test.describe("JobsLake admin", () => {
+test.describe("WorksLake admin", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeEach(async ({ request }, info) => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
     info.skip(!(await adminReachable(request)), "BLOCKED: admin portal not reachable (run with JOBSLAKE_LOCAL_ADMIN=1 and Supabase Auth unconfigured)");
   });
 
-  test("WJ-JL-013 admin opens JobsLake", async ({ page }) => {
+  test("WJ-JL-013 admin opens WorksLake", async ({ page }) => {
     await page.goto(PORTAL);
-    await expect(page.getByRole("heading", { name: "JobsLake", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WorksLake", level: 1 })).toBeVisible();
     await expect(page.getByText("Active sources", { exact: true })).toBeVisible();
   });
 
@@ -200,10 +200,10 @@ test.describe("JobsLake admin", () => {
 
 /* ============================================================== protocol */
 
-test.describe("JobsLake protocol", () => {
+test.describe("WorksLake protocol", () => {
   test.beforeEach(async ({ request }, info) => {
     info.skip(info.project.name !== "chromium", "API journeys run once");
-    info.skip(!(await adminReachable(request)), "BLOCKED: needs the local JobsLake server set-up");
+    info.skip(!(await adminReachable(request)), "BLOCKED: needs the local WorksLake server set-up");
   });
 
   test("WJ-JL-028/035/036/037 REST results are valid canonical opportunities with provenance; failures stay per source", async ({ request }) => {
@@ -258,11 +258,11 @@ test.describe("JobsLake protocol", () => {
 
 const RUN_URL = /\/app\/runs\/(?!new$)[^/?]+(\?.*)?$/;
 
-test.describe("Candidate searches through JobsLake", () => {
+test.describe("Candidate searches through WorksLake", () => {
   let account: TestAccount | null = null;
   test.beforeEach(async ({ page }, info) => {
     info.skip(info.project.name !== "chromium" && info.project.name !== "Mobile Chrome", "Chromium-only sandbox");
-    info.skip(!supabaseConfigured(), "BLOCKED: needs Supabase credentials — only signed-in accounts search through JobsLake");
+    info.skip(!supabaseConfigured(), "BLOCKED: needs Supabase credentials — only signed-in accounts search through WorksLake");
     info.skip(info.title.startsWith("WJ-JL-031") && info.project.name !== "Mobile Chrome", "mobile project only");
     info.setTimeout(180_000);
     account = await createTestAccount("jobslake");
@@ -318,7 +318,7 @@ test.describe("Candidate searches through JobsLake", () => {
     }).toPass({ timeout: 120_000 });
   }
 
-  test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to JobsLake — terms and places only", async ({ page }) => {
+  test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to WorksLake — terms and places only", async ({ page }) => {
     await page.goto("/app/jobs");
     await expect(page.getByRole("button", { name: "Kind of jobs: Full Time Jobs" })).toBeVisible();
     const { lake } = await find(page, "Product designer roles, remote");

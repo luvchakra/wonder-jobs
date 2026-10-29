@@ -1,6 +1,6 @@
 /**
  * Scheduler settings and the recent cron runs, kept under the platform tenant in the state store
- * (like JobsLake API pricing). Only platform admins write the settings; only the crons and an admin's
+ * (like WorksLake API pricing). Only platform admins write the settings; only the crons and an admin's
  * Run now write runs. Neither holds a candidate's data — runs carry counts, never tenant ids.
  */
 import { MAX_CRON_RUNS, SCHEDULER_DEFAULTS, cleanScheduler, type CronRun, type SchedulerSettings } from "@/domain/scheduler/settings";

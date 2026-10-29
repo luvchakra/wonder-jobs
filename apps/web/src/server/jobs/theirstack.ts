@@ -2,7 +2,7 @@
  * TheirStack (theirstack.com): a paid, licensed job-postings API — LinkedIn, Indeed, ATS and career-site
  * postings worldwide, deduplicated. It costs one API credit per job returned, so WonderJobs uses it only
  * to top up a search the free sources left thin (planner: last wave, paid), at most PER_SEARCH jobs a
- * call and THEIRSTACK_MONTHLY_CREDITS a month. Its postings are never served to JobsLake API keys
+ * call and THEIRSTACK_MONTHLY_CREDITS a month. Its postings are never served to WorksLake API keys
  * (its terms don't permit redistribution as a dataset) and each one is labelled as coming from TheirStack.
  */
 import type { Job } from "@/domain/jobs/types";
@@ -211,7 +211,7 @@ export async function fetchTheirStack(c: SearchCriteria & { titles?: string[]; m
     break;
   }
   if (!data) throw new TheirStackError(`TheirStack: ${last} on all ${order.length} key(s)`);
-  // What TheirStack says about each company goes straight to JobsLake's company directory, once per company —
+  // What TheirStack says about each company goes straight to WorksLake's company directory, once per company —
   // never into the postings themselves.
   await recordCompanyFacts(data.flatMap((j) => { const facts = theirStackFacts(j.company_object); const domain = j.company_domain || j.company_object?.domain; return facts && domain ? [{ domain, name: j.company_object?.name || j.company || "", facts, source: "theirstack" }] : []; })).catch(() => {});
   const seen = new Set<string>();

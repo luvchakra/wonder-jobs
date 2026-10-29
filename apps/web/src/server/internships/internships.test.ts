@@ -135,7 +135,7 @@ describe("The company moves an application on", () => {
   });
 });
 
-describe("Internships' JobsLake dataset", () => {
+describe("Internships' WorksLake dataset", () => {
   it("has its own sources; Jobs' list is exactly what it was", async () => {
     expect(INTERNSHIP_SOURCES.every((s) => s.module === "internships")).toBe(true);
     expect((await listSources("internships")).map((s) => s.id)).toEqual(INTERNSHIP_SOURCES.map((s) => s.id));

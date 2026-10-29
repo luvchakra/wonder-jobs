@@ -3,7 +3,7 @@ import { stateStore } from "@/server/state";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 
 /**
- * JobsLake API pricing as a billing admin set it (Billing → JobsLake API), kept in the platform
+ * WorksLake API pricing as a billing admin set it (Billing → WorksLake API), kept in the platform
  * state store. Precedence everywhere: this stored value, then the environment, then the defaults.
  *
  * Read through a short cache so a metered request doesn't add a database round trip; a save

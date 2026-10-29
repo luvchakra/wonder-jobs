@@ -1,6 +1,6 @@
 /**
- * Response mapping for custom sources (spec §28): a source's JSON → the fields JobsLake needs.
- * An admin points at the list of items and says which source field fills which JobsLake field;
+ * Response mapping for custom sources (spec §28): a source's JSON → the fields WorksLake needs.
+ * An admin points at the list of items and says which source field fills which WorksLake field;
  * validation says whether the result is good enough to serve, before anything is activated.
  */
 

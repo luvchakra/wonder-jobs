@@ -72,7 +72,7 @@ export type AutomaticDiscountInput = z.infer<typeof AutomaticDiscountInput>;
 
 export const PromoDeactivateInput = z.object({ id: z.string().regex(/^promo_[A-Za-z0-9]{3,100}$/), active: z.literal(false) }).strict();
 
-/** JobsLake API pricing, stored on the platform; unset fields fall back to the environment, then the defaults. */
+/** WorksLake API pricing, stored on the platform; unset fields fall back to the environment, then the defaults. */
 export const ApiPlanInput = z
   .object({
     freeMonthly: z.number().int().min(0).max(10_000_000),

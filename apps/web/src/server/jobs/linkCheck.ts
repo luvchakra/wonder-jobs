@@ -1,6 +1,6 @@
 /**
  * Is a job's original posting still open? Checked from the server (the browser can't read another
- * site's page), through the same SSRF-safe fetch JobsLake uses. Only a definite answer counts as
+ * site's page), through the same SSRF-safe fetch WorksLake uses. Only a definite answer counts as
  * closed — a 404/410, or the page itself saying the posting has closed. A bot-protection challenge,
  * a timeout or a server error is "unknown": real browsers usually get through, so the job stays.
  */

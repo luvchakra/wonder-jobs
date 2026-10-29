@@ -57,7 +57,7 @@ describe("logos — fetched once, cached, only for known companies", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("never fetches for a company JobsLake hasn't recorded", async () => {
+  it("never fetches for a company WorksLake hasn't recorded", async () => {
     const fetcher = vi.fn();
     expect(await companyLogo({ domain: "evil.example.com", name: "Nobody" }, Date.now(), fetcher as unknown as typeof fetch)).toBeUndefined();
     expect(fetcher).not.toHaveBeenCalled();

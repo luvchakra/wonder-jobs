@@ -33,7 +33,7 @@ export type SourceConfig =
 export interface SourceLimits {
   timeoutMs: number;
   maxResults: number;
-  /** Minimum minutes between refreshes JobsLake itself triggers. */
+  /** Minimum minutes between refreshes WorksLake itself triggers. */
   refreshMinutes: number;
 }
 
@@ -57,7 +57,7 @@ export interface TestReport {
   error?: string;
 }
 
-/** A source as JobsLake manages it. Never contains a credential — only `secretRef`. */
+/** A source as WorksLake manages it. Never contains a credential — only `secretRef`. */
 export interface SourceRecord extends JobSourceDescriptor {
   category: SourceCategory;
   accessStrategy: AccessStrategy;

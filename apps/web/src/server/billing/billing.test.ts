@@ -99,7 +99,7 @@ describe("webhook handling end to end (in-memory store)", () => {
     expect((await entitlement("tenant-a")).plan).toBe("pro");
   });
 
-  it("a JobsLake API pay-as-you-go subscription never grants Pro", async () => {
+  it("a WorksLake API pay-as-you-go subscription never grants Pro", async () => {
     const meta = { tenant_id: "tenant-a", purpose: "jobslake_api" };
     const events = [
       { id: "evt_api_1", type: "checkout.session.completed", created: now, data: { object: { mode: "subscription", client_reference_id: "tenant-a", subscription: "sub_api", customer: "cus_1", metadata: meta } } },

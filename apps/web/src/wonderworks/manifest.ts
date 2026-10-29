@@ -1,6 +1,6 @@
 /**
  * WonderWorks' manifest types (docs/WONDERWORKS_PLATFORM.md §4): what every module describes about itself. A manifest is
- * data WonderWorks reads (the Find menu, the tabs, the module shell, JobsLake's per-module datasets); it never lists a
+ * data WonderWorks reads (the Find menu, the tabs, the module shell, WorksLake's per-module datasets); it never lists a
  * posting. The modules themselves are listed in `modules/registry.ts`, the composition root — WonderWorks imports no module.
  */
 

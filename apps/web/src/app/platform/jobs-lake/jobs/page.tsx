@@ -10,7 +10,7 @@ import { AccessBadge, LoadError, Loading, PageTitle, Panel, num, useAdmin } from
 
 const PAGE = 50;
 
-/** The warm pool: canonical opportunities JobsLake actually retrieved, newest first. */
+/** The warm pool: canonical opportunities WorksLake actually retrieved, newest first. */
 export default function JobsPage() {
   const [q, setQ] = useState("");
   const [applied, setApplied] = useState("");

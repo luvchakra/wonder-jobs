@@ -232,7 +232,7 @@ const handlers = {
   async remember({ items }) {
     return api("/api/extension/remember", { items });
   },
-  /** The job the side panel read from the candidate's tab: scored against their Career Profile, with the company logo from JobsLake. Reads only. */
+  /** The job the side panel read from the candidate's tab: scored against their Career Profile, with the company logo from WorksLake. Reads only. */
   async jobRead({ page }) {
     return api("/api/extension/job/read", page);
   },

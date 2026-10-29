@@ -1,5 +1,5 @@
 /**
- * Source insights for the JobsLake console: what each source is worth to candidates, not just whether it
+ * Source insights for the WorksLake console: what each source is worth to candidates, not just whether it
  * runs. Every KPI is counted from stored runs (with the relevance candidates' matching reported back) and
  * the warm pool; when there is nothing to count it is null and the page says so — nothing is estimated.
  *

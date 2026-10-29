@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 afterEach(() => __setJobsLakeStore(undefined));
 
-describe("JobsLake core search", () => {
+describe("WorksLake core search", () => {
   it("WJ-JL-035: a failing source doesn't fail the others; the failure is reported and recorded", async () => {
     connector.mockImplementation(async (src: { id: string }) => {
       if (src.id === "greenhouse") return { jobs: [job({})], warnings: [] };
@@ -83,10 +83,10 @@ describe("JobsLake core search", () => {
   it("a failed warm-pool or run-history write is logged, never a failed search — the live results still arrive", async () => {
     const broken = new __MemoryStore();
     broken.upsertOpportunities = async () => {
-      throw new Error("JobsLake could not update the warm pool: ON CONFLICT DO UPDATE command cannot affect row a second time");
+      throw new Error("WorksLake could not update the warm pool: ON CONFLICT DO UPDATE command cannot affect row a second time");
     };
     broken.recordRuns = async () => {
-      throw new Error("JobsLake could not record runs: timeout");
+      throw new Error("WorksLake could not record runs: timeout");
     };
     __setJobsLakeStore(broken);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -132,7 +132,7 @@ describe("JobsLake core search", () => {
     expect(connector.mock.calls.length).toBeGreaterThan(4);
   });
 
-  it("respects the candidate's own source choices (legacy ids map onto JobsLake sources)", async () => {
+  it("respects the candidate's own source choices (legacy ids map onto WorksLake sources)", async () => {
     connector.mockResolvedValue({ jobs: [], warnings: [] });
     await search(req({ sourceIds: ["careers"] }), { trigger: "search" });
     expect(connector.mock.calls.map((c) => c[0].id).sort()).toEqual(["ashby", "greenhouse", "lever"]);
@@ -233,7 +233,7 @@ describe("custom source parsers", () => {
   });
 });
 
-describe("JobsLake search cache — the next similar search reuses each source's answer", () => {
+describe("WorksLake search cache — the next similar search reuses each source's answer", () => {
   const only = (id: string, jobs: Job[]) => async (src: { id: string }) => (src.id === id ? { jobs, warnings: [] } : { jobs: [], warnings: [] });
 
   it("reuses a fresh answer for the same search worded differently, without asking the source or recording a run", async () => {
@@ -339,10 +339,10 @@ describe("JobsLake search cache — the next similar search reuses each source's
   it("a broken cache store means every source is asked — never a failed search", async () => {
     const broken = new __MemoryStore();
     broken.getCachedAnswers = async () => {
-      throw new Error("JobsLake could not read the search cache: relation does not exist");
+      throw new Error("WorksLake could not read the search cache: relation does not exist");
     };
     broken.putCachedAnswers = async () => {
-      throw new Error("JobsLake could not write the search cache: timeout");
+      throw new Error("WorksLake could not write the search cache: timeout");
     };
     __setJobsLakeStore(broken);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -354,7 +354,7 @@ describe("JobsLake search cache — the next similar search reuses each source's
   });
 });
 
-describe("JobsLake smart search — broader phrasings searched at once", () => {
+describe("WorksLake smart search — broader phrasings searched at once", () => {
   it("asks each source every phrasing, merges and deduplicates, and reports what it searched", async () => {
     connector.mockImplementation(async (src: { id: string }, c: { query: string }) => {
       if (src.id !== "greenhouse") return { jobs: [], warnings: [] };

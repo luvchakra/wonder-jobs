@@ -97,7 +97,7 @@ export function MappingEditor({ sourceId, initial, onSave }: { sourceId: string;
         <table className="w-full min-w-[520px] text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-4">
-              <th className="px-2 py-2 font-medium">JobsLake field</th>
+              <th className="px-2 py-2 font-medium">WorksLake field</th>
               <th className="px-2 py-2 font-medium">Source field</th>
               <th className="px-2 py-2 font-medium">Sample value</th>
               <th className="px-2 py-2 text-right font-medium">Filled</th>

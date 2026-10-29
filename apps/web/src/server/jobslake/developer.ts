@@ -1,5 +1,5 @@
 /**
- * The JobsLake developer API: API keys, which sources a key may reach, and metering against the
+ * The WorksLake developer API: API keys, which sources a key may reach, and metering against the
  * free allowance / pay-as-you-go (domain/jobslake/apiPlan.ts).
  *
  * Keys look like `jl_live_<43 base64url chars>` (256 random bits). Only their SHA-256 is stored; the
@@ -88,7 +88,7 @@ export async function authenticateKey(key: string): Promise<{ ownerId: string; k
 
 /**
  * Sources an API key may reach: only those whose terms permit redistribution. Chosen by a billing admin
- * (Billing → JobsLake API, stored on the platform), else JOBSLAKE_API_SOURCE_IDS; by default the built-in
+ * (Billing → WorksLake API, stored on the platform), else JOBSLAKE_API_SOURCE_IDS; by default the built-in
  * employer career-board (ATS) sources — public postings employers publish through their own ATS's public API.
  */
 export function apiSourceIds(env: Record<string, string | undefined> = process.env, stored: StoredApiPlan | undefined = cachedApiPlan()): string[] {

@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 /**
  * POST { companies: [{ d?: domain, n: name }] } (at most 60) — each company's size and H-1B filings for job
- * cards, keyed by `briefKey`. Public, platform-wide data; companies JobsLake knows nothing about are left out.
+ * cards, keyed by `briefKey`. Public, platform-wide data; companies WorksLake knows nothing about are left out.
  */
 export async function POST(req: Request) {
   const session = await requireSession();

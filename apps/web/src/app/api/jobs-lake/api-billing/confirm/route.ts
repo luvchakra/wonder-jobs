@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 /**
  * GET /api/jobs-lake/api-billing/confirm?session_id=cs_… — Stripe Checkout's return. The session is
  * read back from Stripe and must belong to the signed-in account before pay-as-you-go is recorded;
- * then the browser goes back to Account → JobsLake API with the outcome.
+ * then the browser goes back to Account → WorksLake API with the outcome.
  */
 export async function GET(req: Request) {
   const session = await requireSession();

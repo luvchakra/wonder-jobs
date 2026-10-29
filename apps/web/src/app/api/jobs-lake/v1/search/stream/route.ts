@@ -16,7 +16,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const caller = await requireApiCaller(req);
   if (caller instanceof NextResponse) return caller;
-  if (!jobsLakeFlags().jobsLakeStreamingEnabled) return send(err(404, "FEATURE_DISABLED", "JobsLake streaming is turned off; use POST /v1/search."));
+  if (!jobsLakeFlags().jobsLakeStreamingEnabled) return send(err(404, "FEATURE_DISABLED", "WorksLake streaming is turned off; use POST /v1/search."));
   const body = await readJson(req);
   if (body === null) return badJson();
   const parsed = parseSearchRequest(body);

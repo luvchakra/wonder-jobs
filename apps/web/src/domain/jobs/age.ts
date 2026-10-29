@@ -1,5 +1,5 @@
 /**
- * Postings older than two weeks are "too old" (owner, 2026-10-17): JobsLake stops returning them and Find hides
+ * Postings older than two weeks are "too old" (owner, 2026-10-17): WorksLake stops returning them and Find hides
  * them with that reason, because a job-board listing often outlives the employer's page. Saved jobs and jobs in
  * the Pipeline are never hidden for age. A posting with no readable date isn't judged.
  */

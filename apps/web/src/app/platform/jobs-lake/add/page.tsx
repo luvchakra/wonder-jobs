@@ -18,7 +18,7 @@ type Step = "type" | "configure" | "mapping" | "test" | "activate";
 
 const KINDS: { kind: Kind; title: string; body: string; icon: typeof Cloud; tags: string[] }[] = [
   { kind: "ats_board", title: "Career site / ATS", body: "A company board on Greenhouse, Lever, Ashby, SmartRecruiters or Workable.", icon: Globe, tags: ["Employer data", "No key needed"] },
-  { kind: "json_api", title: "Official API", body: "A documented jobs API. You map its response to JobsLake fields.", icon: Cloud, tags: ["Most reliable"] },
+  { kind: "json_api", title: "Official API", body: "A documented jobs API. You map its response to WorksLake fields.", icon: Cloud, tags: ["Most reliable"] },
   { kind: "mcp", title: "MCP", body: "A tool on an MCP server you're authorized to use.", icon: Plug, tags: ["AI-friendly"] },
   { kind: "feed", title: "Feed", body: "An RSS or Atom jobs feed.", icon: Rss, tags: ["Simple"] },
   { kind: "structured", title: "Structured page", body: "A careers page with schema.org JobPosting data.", icon: FileText, tags: ["Public data"] },
@@ -177,7 +177,7 @@ export default function AddSourcePage() {
           )}
 
           {step === "mapping" && source && (
-            <Panel title="Map the response to JobsLake fields">
+            <Panel title="Map the response to WorksLake fields">
               <MappingEditor
                 sourceId={source.id}
                 initial={EMPTY_MAPPING}
@@ -221,7 +221,7 @@ export default function AddSourcePage() {
             <Panel title={activated ? "Source activated" : "Ready to activate"}>
               {activated ? (
                 <div className="flex flex-col items-start gap-3">
-                  <Note tone="success">{source.name} is active. JobsLake includes it in searches from now on, and its health is measured from the runs it records.</Note>
+                  <Note tone="success">{source.name} is active. WorksLake includes it in searches from now on, and its health is measured from the runs it records.</Note>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" href={`/platform/jobs-lake/sources/${source.id}`}>
                       View source
@@ -428,7 +428,7 @@ function ConfigureStep({ kind, url, detection, onBack, onCreated }: { kind: Kind
                 <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} /> Terms and robots.txt reviewed
               </label>
               <div className="md:col-span-2">
-                <Note tone="warning">Scraped sources are recorded as “Do not use”: no scraper engine is enabled on this deployment, so JobsLake never collects from them.</Note>
+                <Note tone="warning">Scraped sources are recorded as “Do not use”: no scraper engine is enabled on this deployment, so WorksLake never collects from them.</Note>
               </div>
             </>
           )}

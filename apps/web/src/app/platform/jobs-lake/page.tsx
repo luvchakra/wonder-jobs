@@ -20,7 +20,7 @@ export default function JobsLakeOverview() {
   return (
     <>
       <PageTitle
-        title="JobsLake"
+        title="WorksLake"
         subtitle="Platform job data — every figure below is counted from recorded runs and stored opportunities."
         actions={
           <Button size="sm" href="/platform/jobs-lake/add">

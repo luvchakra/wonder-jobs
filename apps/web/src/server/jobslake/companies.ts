@@ -1,5 +1,5 @@
 /**
- * JobsLake's company directory (`jobslake_companies`): each employer's domain and name as sources reported
+ * WorksLake's company directory (`jobslake_companies`): each employer's domain and name as sources reported
  * them, and its logo, fetched once and cached here. Platform-wide public data — no tenant, no user. A logo
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
@@ -366,8 +366,8 @@ export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<
 }
 
 /**
- * The cached logo for a company JobsLake knows — by its domain, else by its name — fetched and stored the
- * first time it's asked for (and again after LOGO_TTL_MS). Undefined when JobsLake doesn't know the
+ * The cached logo for a company WorksLake knows — by its domain, else by its name — fetched and stored the
+ * first time it's asked for (and again after LOGO_TTL_MS). Undefined when WorksLake doesn't know the
  * company; null when it has no logo.
  */
 export async function companyLogo(q: { domain?: string; name?: string }, now = Date.now(), fetcher: typeof fetch = fetch): Promise<{ data: Buffer; type: string } | null | undefined> {
@@ -383,7 +383,7 @@ export async function companyLogo(q: { domain?: string; name?: string }, now = D
   return logo ? { data: Buffer.from(logo.data, "base64"), type: logo.type } : null;
 }
 
-/** A company's profile by the domain a source reported, else by its exact (normalized) name; undefined when JobsLake knows nothing. */
+/** A company's profile by the domain a source reported, else by its exact (normalized) name; undefined when WorksLake knows nothing. */
 export async function companyProfile(q: { domain?: string; name?: string }, store: CompanyStore = companyStore()): Promise<CompanyProfile | undefined> {
   const domain = cleanDomain(q.domain);
   const nameKey = q.name ? companyKey(q.name) : "";

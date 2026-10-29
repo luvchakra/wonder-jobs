@@ -16,7 +16,7 @@ import { cn } from "@/lib/cn";
 import { useSectionParallax } from "./useSectionParallax";
 
 /* --------------------------------------------------------------- sources */
-/** Employer boards JobsLake reads directly (its built-in ATS sources), then the open feeds. */
+/** Employer boards WorksLake reads directly (its built-in ATS sources), then the open feeds. */
 const EMPLOYER_BOARDS = ["Greenhouse", "Lever", "Ashby"];
 
 export function SourceLogoStrip() {
@@ -244,7 +244,7 @@ const FEATURES: { icon: typeof Search; t: string; s: string; href: string; cta?:
   { icon: Dna, t: "Career Profile", s: "Read from your CV — role, places, skills, history, links. Conflicts are shown side by side, never silently overwritten.", href: "/sign-up" },
   { icon: Sparkles, t: "Your own AI in one paste", s: "Paste a ChatGPT, Claude or Gemini key — Wonder tells which it is, checks it works, and your drafts use it. Or use WonderWorks AI, included.", href: "/sign-up" },
   { icon: CalendarDays, t: "Your calendar and phone", s: "One tap subscribes Google, Outlook or Apple Calendar to your interviews and follow-ups; install WonderWorks like an app for nudges.", href: "/sign-up" },
-  { icon: KeyRound, t: "JobsLake API", s: "Search the same live job sources from your own code with an API key. A free monthly allowance, then pay as you go.", href: "/api-reference", cta: "API reference" },
+  { icon: KeyRound, t: "WorksLake API", s: "Search the same live job sources from your own code with an API key. A free monthly allowance, then pay as you go.", href: "/api-reference", cta: "API reference" },
 ];
 
 export function FeatureGrid() {

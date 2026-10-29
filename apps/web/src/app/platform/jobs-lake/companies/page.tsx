@@ -26,7 +26,7 @@ function Facts({ c }: { c: DirectoryCompany }) {
 
 const checked = (c: DirectoryCompany) => [c.factsAt && `TheirStack ${relativeTime(c.factsAt)}`, c.wikidataAt && `Wikidata ${relativeTime(c.wikidataAt)}${c.wikidata ? "" : " (none)"}`].filter(Boolean).join(" · ") || "Never";
 
-/** The company directory: every employer JobsLake has recorded from a real posting, with what its sources say about it. */
+/** The company directory: every employer WorksLake has recorded from a real posting, with what its sources say about it. */
 export default function CompaniesPage() {
   const [q, setQ] = useState("");
   const [applied, setApplied] = useState("");
@@ -34,7 +34,7 @@ export default function CompaniesPage() {
   const { data, error, reload, loading } = useAdmin<{ total: number; companies: DirectoryCompany[] }>(`companies?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}`);
   return (
     <>
-      <PageTitle title="Company directory" subtitle="Every employer JobsLake recorded from a real posting, by its website domain — with what each source says about it. Most open roles first." />
+      <PageTitle title="Company directory" subtitle="Every employer WorksLake recorded from a real posting, by its website domain — with what each source says about it. Most open roles first." />
       <form
         className="mb-3 flex gap-2"
         onSubmit={(e) => {

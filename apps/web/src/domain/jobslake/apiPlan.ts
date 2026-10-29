@@ -1,5 +1,5 @@
 /**
- * The JobsLake API plan: a free monthly allowance per account, then pay-as-you-go when the account
+ * The WorksLake API plan: a free monthly allowance per account, then pay-as-you-go when the account
  * turned it on, and a hard monthly safety cap either way. Pure functions — the server meters usage
  * and asks these whether a request may run and what to report to Stripe.
  *
@@ -19,7 +19,7 @@ const posInt = (v: string | undefined, dflt: number, max: number) => {
   return v !== undefined && v.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= max ? n : dflt;
 };
 
-/** What a billing admin stored on the platform (Billing → JobsLake API); any field may be unset. */
+/** What a billing admin stored on the platform (Billing → WorksLake API); any field may be unset. */
 export interface StoredApiPlan {
   freeMonthly?: number;
   maxMonthly?: number;
@@ -54,7 +54,7 @@ export function decideQuota(input: { totalAfter: number; units: number; billingA
     return {
       allowed: false,
       reason: "free_exhausted",
-      message: `This account used its ${config.freeMonthly.toLocaleString("en-US")} free JobsLake API searches this month. Turn on pay-as-you-go under Account → JobsLake API, or wait until the 1st (UTC).`,
+      message: `This account used its ${config.freeMonthly.toLocaleString("en-US")} free WorksLake API searches this month. Turn on pay-as-you-go under Account → WorksLake API, or wait until the 1st (UTC).`,
     };
   }
   // Past the allowance (or straddling it): billed through pay-as-you-go.

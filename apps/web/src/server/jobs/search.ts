@@ -2,7 +2,7 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { SOURCE_FETCHERS } from "./providers";
 
 /**
- * Which sources this deployment can query right now. Searching itself goes only through JobsLake
+ * Which sources this deployment can query right now. Searching itself goes only through WorksLake
  * (owner, 2026-10-17): there is no direct per-source search path any more.
  */
 export function sourceAvailability(): Record<string, boolean> {

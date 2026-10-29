@@ -38,7 +38,7 @@ Also in the mockup: work authorization pre-filled as "India". Work authorization
 | External-action ledger / audit | `store/actions.ts`, `/api/audit` (`action_audit`) | — | Reused for the hand-off |
 | **Browser extension (MV3)** | Exists. Bridge mints a 30-min tenant token. Autofills name, email, résumé DOCX and cover letter on Greenhouse/Lever/Ashby, plus a generic label pass. In-page panel. Never submits. | `extension/*`, `/api/extension/{token,profile,application}`, `server/extensionToken.ts` | No sessions, no form schema, no classification/intervention, no stop, no domain/CAPTCHA/MFA/payment guards, no submission detection, only 6 concepts. Token is tenant-wide, not per session. |
 | Contact facts | `CareerDNA.history.contact` (email, phone, location, LinkedIn, portfolio, website), added with résumé templates | `domain/career/history.ts` | `MISSING_CANDIDATE_FIELDS` still says phone/LinkedIn/location are never held. That is now stale. |
-| JobsLake | Canonical opportunities with sightings (URL, provider, employer source) | `domain/jobs/types.ts` `JobLakeProvenance` | Supplies the apply destination and provider (§58–60) |
+| WorksLake | Canonical opportunities with sightings (URL, provider, employer source) | `domain/jobs/types.ts` `JobLakeProvenance` | Supplies the apply destination and provider (§58–60) |
 | Server state | Per-tenant JSON docs (`app_state`), no store-name constraint in SQL | `server/state.ts` | Needs a store that only the server writes |
 
 Work authorization, sponsorship, salary expectation, notice period and relocation are **not held anywhere**. Nothing is invented for them (spec §8). They become "Needs you".

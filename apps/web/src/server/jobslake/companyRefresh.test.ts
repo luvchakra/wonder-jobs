@@ -7,7 +7,7 @@ const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, ...new Array(400).fill(1)]);
 const opp = (name: string, domain: string | undefined, applyUrl = "https://in.indeed.com/1", employerSite = false) =>
   ({ employer: { name, domain }, canonicalApplyUrl: applyUrl, applyPath: employerSite ? "employer_site" : "platform", quality: { employerVerified: employerSite }, sourceRecords: [{ sourceId: "theirstack" }] }) as unknown as CanonicalOpportunity;
 
-describe("JobsLake's daily company refresh", () => {
+describe("WorksLake's daily company refresh", () => {
   it("gives a company whose postings name no domain its official website from Wikidata, by exact name", async () => {
     const store = new __MemoryCompanies();
     const asked: string[][] = [];

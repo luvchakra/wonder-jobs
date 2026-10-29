@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  * What this deployment can do for the signed-in candidate: which job sources it can query
  * (credentialed ones report false until configured), and whether scheduled runs fire on the server.
  * The second answer decides who ticks the schedule — see `services/scheduler.ts`. `jobsLake` says
- * whether searches go through JobsLake (and stream) or straight to each source.
+ * whether searches go through WorksLake (and stream) or straight to each source.
  */
 export async function GET() {
   const session = await requireSession();
