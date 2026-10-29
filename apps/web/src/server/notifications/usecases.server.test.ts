@@ -213,6 +213,21 @@ describe("Recruiters, hiring workspaces", () => {
     ]);
   });
 
+  it("N18 a route's message answers once it's stored; the notification goes after the answer", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme" });
+    const inv = await H.inviteMember(owner, org.id, rec.email!, "recruiter");
+    await H.acceptInvite(rec, inv.id);
+    await H.saveMyTalentProfile(seeker, profile);
+    pushSent = 1;
+    const queued: (() => Promise<unknown>)[] = [];
+    const cid = await H.startConversation(rec, org.id, "u-seek", "Hi Sam", undefined, (task) => queued.push(task));
+    expect(pushes).toEqual([]);
+    expect(queued).toHaveLength(1);
+    expect((await H.conversationMessages(seeker, cid)).messages.map((m) => m.body)).toEqual(["Hi Sam"]);
+    await queued[0]();
+    expect(pushes).toEqual([{ tenant: "u-seek", title: "Message from Acme" }]);
+  });
+
   it("N28 a verification request emails WonderJobs operators, with the Owner as Reply-To", async () => {
     process.env.CONTACT_NOTIFY_EMAILS = "ops@wonderapps.biz";
     const { org } = await H.createWorkspace(owner, { name: "Acme", website: "acme.com" });
