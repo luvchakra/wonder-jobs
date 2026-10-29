@@ -242,7 +242,8 @@ another (owner, 2026-10-29).
 apps/web/src/
   wonderworks/            # the shared layer; imports no module (boundaries.test.ts)
     manifest.ts          # ModuleManifest and its parts, shellRoutes, stagesOf, isLive
-    store.ts             # one capped store per module (saves, responses, Find's and Saved's history, persona)
+    store.ts             # one capped, synced store per module (saves, responses, history, persona, last search, closed listings, link checks)
+    catalog.ts           # persisted-catalog helpers taken from WonderJobs (caps, trims, memoisation)
     find/parts.tsx       # Find's parts: SearchBox, RefineToggle, PillButton, SearchSubmit, RefinePanel, RefineField,
                          #   ChoiceChips, RefineSelect, RefineCheck, RefinePlaces, SortSelect, ResultsLine, ResultsGrid,
                          #   ShowMore, SearchingBanner, ResultCard, FitPill, SaveButton, FilterBox, TogglePill
