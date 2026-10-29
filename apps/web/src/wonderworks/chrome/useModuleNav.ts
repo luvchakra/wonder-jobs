@@ -11,13 +11,22 @@ import { useChromeSlots } from "./slots";
  * picked last in Find's menu (kept per account). Opening a module's page makes it the active one.
  */
 export function useModuleNav(): NavItem[] {
+  const { tabsFor } = useChromeSlots();
+  return tabsFor(useSelectedModule());
+}
+
+/**
+ * The module selected: the page's own, else the one picked last in Find's menu, else Jobs. Opening a module's page makes
+ * it the active one. What the bell and Notifications show follows it.
+ */
+export function useSelectedModule(): ModuleId {
   const pathname = usePathname();
-  const { moduleFromPath, tabsFor } = useChromeSlots();
+  const { moduleFromPath } = useChromeSlots();
   const fromPath = moduleFromPath(pathname) as ModuleId | null;
   const stored = useUIStore((s) => s.activeModule);
   const setActive = useUIStore((s) => s.setActiveModule);
   useEffect(() => {
     if (fromPath && fromPath !== (stored ?? "jobs")) setActive(fromPath);
   }, [fromPath, stored, setActive]);
-  return tabsFor(fromPath ?? stored ?? "jobs");
+  return fromPath ?? stored ?? "jobs";
 }

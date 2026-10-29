@@ -32,6 +32,29 @@ export function visibleNotifications(list: Notification[]): Notification[] {
   return seen;
 }
 
+/** Kinds that belong to the account, not to any one module (the AI provider): shown in every module. */
+const ACCOUNT_WIDE: readonly Notification["category"][] = ["provider_issue"];
+
+/**
+ * The module a notification belongs to (owner, 2026-10-29): the one it names, else the one its link opens
+ * (`/app/m/<id>/…` is that module's page). Everything made before modules existed — searches, applications, follow-ups,
+ * messages — links into Jobs, so it is Jobs'. Null for the account-wide kinds.
+ */
+export function notificationModule(n: Pick<Notification, "category" | "href" | "module">): string | null {
+  if (n.module) return n.module;
+  const m = /^\/app\/m\/([^/?#]+)/.exec(n.href);
+  if (m) return m[1];
+  return ACCOUNT_WIDE.includes(n.category) ? null : "jobs";
+}
+
+/** What a module's bell and Notifications page show: its own notifications, and the account-wide ones. */
+export function notificationsFor(list: Notification[], module: string): Notification[] {
+  return list.filter((n) => {
+    const m = notificationModule(n);
+    return m === null || m === module;
+  });
+}
+
 export const NOTIFICATION_CAP = 50;
 export const REMINDED_CAP = 200;
 

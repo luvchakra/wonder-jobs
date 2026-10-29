@@ -16,7 +16,8 @@ import { toast } from "@/components/feedback/Toast";
 import dynamic from "next/dynamic";
 // Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
-import { visibleNotifications } from "@/domain/career/notifications";
+import { notificationsFor, visibleNotifications } from "@/domain/career/notifications";
+import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -48,10 +49,12 @@ export function TopBar() {
   const email = useAuthStore((s) => s.email);
   const displayName = dna.name || email?.split("@")[0] || "You";
   const notifications = useCareerStore((s) => s.notifications);
-  const shown = hydrated ? visibleNotifications(notifications) : [];
+  // The bell follows the module selected: its own notifications (and the account's), and its own Needs attention.
+  const selected = useSelectedModule();
+  const shown = hydrated ? visibleNotifications(notificationsFor(notifications, selected)) : [];
   const unread = shown.filter((n) => !n.read).length;
   // The bell's Needs attention count and the career status come from the modules (WonderJobs: its applications), through the chrome's slots.
-  const { tasks, careerStatus } = slots.useStatus(hydrated);
+  const { tasks, careerStatus } = slots.useStatus(hydrated, selected);
   const { available: canInstall, promptInstall } = useInstallPrompt();
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(profileRef, () => setProfileOpen(false));

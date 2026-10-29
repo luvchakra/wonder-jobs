@@ -36,6 +36,6 @@ export function useAttentionRows(): AttentionRow[] {
 }
 
 /** Notifications' second tab. */
-export function NeedsAttention({ rows }: { rows: AttentionRow[] }) {
-  return rows.length ? <AttentionList rows={rows} /> : <EmptyState title="Nothing needs you right now" body="Interviews coming up, follow-ups that are due, replies and offers show here." action={{ label: "Open Pipeline", href: "/app/applications" }} />;
+export function NeedsAttention({ rows, empty }: { rows: AttentionRow[]; /** Where an empty list leads, when it isn't Jobs' Pipeline. */ empty?: { label: string; href: string } }) {
+  return rows.length ? <AttentionList rows={rows} /> : <EmptyState title="Nothing needs you right now" body={empty ? "What needs you here shows up in this list." : "Interviews coming up, follow-ups that are due, replies and offers show here."} action={empty ?? { label: "Open Pipeline", href: "/app/applications" }} />;
 }
