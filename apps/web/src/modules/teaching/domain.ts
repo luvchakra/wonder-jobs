@@ -1,5 +1,5 @@
 /**
- * WonderStar Teaching (WJ-419, docs/WONDERSTAR_PLATFORM.md §4): what a teaching role is, what a teacher tells us, what
+ * WonderStar Teaching (WJ-420, docs/WONDERSTAR_PLATFORM.md §4): what a teaching role is, what a teacher tells us, what
  * "fits" means, how an application moves (applied → demo class → appointed / closed) and what a demo-class booking
  * is. Pure, so the server, the Teaching screens and the tests share it.
  *

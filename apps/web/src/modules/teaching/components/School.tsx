@@ -20,7 +20,7 @@ type Data = { roles: TeachingPosting[]; applications: TeachingApplicationView[] 
 const ACTION_LABEL: Partial<Record<TeachingStatus, string>> = { appointed: "Appoint", closed: "Not moving forward" };
 
 /**
- * Teaching → School (WJ-419): a hiring workspace's teaching roles, the applications to them and their demo classes.
+ * Teaching → School (WJ-420): a hiring workspace's teaching roles, the applications to them and their demo classes.
  * The same workspace and roles as Hiring (domain/org/permissions.ts::can, checked again on the server for every
  * action); only an organisation posts. Each application shows the teacher's own background-check statement.
  */

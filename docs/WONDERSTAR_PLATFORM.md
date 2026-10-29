@@ -279,7 +279,7 @@ so the design stays one system: same tokens, one primary action per screen, fold
    `internships.apply`, Pipeline (Applied · Shortlisted · Offer · Accepted / Closed + Deadlines), Saved across
    modules, bell + push on a company's decision. Not used: `employer_jobs.internship` (Jobs' table stays Jobs').
 6. **Teaching** — adds a demo-class booking (introduces `bookings`).
-   **Done (WJ-419, 2026-10-29):** Teaching is live at `/app/m/teaching` — its own JobsLake sources (WonderStar
+   **Done (WJ-420, 2026-10-29):** Teaching is live at `/app/m/teaching` — its own JobsLake sources (WonderStar
    schools, Adzuna India, Greenhouse/Lever/Ashby; teaching titles only), school postings in Teaching → School (same
    workspace and roles), `bookings` for demo classes (migration 0036), the teacher profile (qualifications prefilled
    from the Career Profile, read only; their own background-check statement), Find with board/grades/pay/online facets

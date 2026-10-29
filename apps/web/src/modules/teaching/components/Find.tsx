@@ -19,7 +19,7 @@ const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceLine["state"], string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
 
 /**
- * Teaching Find (WJ-419): the teacher's subject and places, searched across the Teaching dataset's own sources
+ * Teaching Find (WJ-420): the teacher's subject and places, searched across the Teaching dataset's own sources
  * (WonderStar schools, Adzuna India, company career sites). Opening the page searches nothing; the subject starts from
  * their last search or their first subject, and when there's neither it asks. Refine: board, grades, pay, online.
  * Every run says what it searched, where, and what each source gave.

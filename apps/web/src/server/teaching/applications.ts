@@ -1,5 +1,5 @@
 /**
- * WonderStar Teaching (WJ-419): schools' teaching roles, teachers' applications and demo-class bookings, in the
+ * WonderStar Teaching (WJ-420): schools' teaching roles, teachers' applications and demo-class bookings, in the
  * platform's module-keyed `listings` / `responses` / `bookings` tables (module = 'teaching'), apart from Jobs' tables.
  *
  * School side: every function checks the caller's role in that hiring workspace on the server (`requirePermission` →

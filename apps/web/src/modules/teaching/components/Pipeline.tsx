@@ -14,7 +14,7 @@ const noop = () => () => undefined;
 type Item = { id: string; title: string; company: string; stage: string; status: string; at: string; app?: MyTeachingApplication; outside?: boolean };
 
 /**
- * Teaching's Pipeline (WJ-419): Applied · Demo class · Appointed / Closed with real counts, opening on the stage with
+ * Teaching's Pipeline (WJ-420): Applied · Demo class · Appointed / Closed with real counts, opening on the stage with
  * something to do, and Demo-class bookings — each demo class a school proposed, to confirm or decline. WonderStar
  * applications come from the server; outside ones are those the teacher marked applied after applying on the employer's page.
  */

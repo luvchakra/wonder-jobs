@@ -1297,7 +1297,7 @@ grant all on wonderjobs.listings, wonderjobs.responses, wonderjobs.response_even
   },
   {
     name: "0036_teaching_bookings.sql",
-    sql: `-- WonderStar Teaching (WJ-419): teaching roles and applications use the platform listings/responses tables
+    sql: `-- WonderStar Teaching (WJ-420): teaching roles and applications use the platform listings/responses tables
 -- (module = 'teaching'); a teaching application moves applied, demo_class, appointed or closed, so the responses
 -- status check widens to the union of both modules' states (every existing value stays allowed).
 --   bookings — a demo class (docs/WONDERSTAR_PLATFORM.md section 5): the school proposes a time on an application, the

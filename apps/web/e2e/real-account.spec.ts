@@ -112,7 +112,9 @@ test.describe("Real account — production walk-through", () => {
     // feature; pre-launch, a test account switches plans through the audited test-plan route.
     expect((await page.request.post("/api/billing/test-plan", { data: { plan: "max" } })).status()).toBe(200);
     await page.goto("/app/jobs");
-    const firstJob = page.locator("a[href^='/app/jobs/']").filter({ hasNotText: /^$/ }).first();
+    // A posting on an employer's own site: a job posted on WonderJobs (its card's Apply is "Easy Apply to …") is
+    // applied to on WonderJobs itself with one tap, not through the guided page.
+    const firstJob = page.locator("#main article").filter({ hasNot: page.getByRole("link", { name: /^Easy Apply to / }) }).locator("h3 a[href^='/app/jobs/']").first();
     await expect(firstJob).toBeVisible({ timeout: 30_000 });
     await firstJob.click();
     await page.waitForURL(/\/app\/jobs\/[^/]+$/);
