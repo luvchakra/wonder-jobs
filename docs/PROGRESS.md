@@ -542,6 +542,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
 - ✅ WonderJobs renamed WonderStar everywhere in the app (WJ-420)
+- ✅ Top bar: avatar + WonderStar mark on the left, the kind menu as text in the centre, on every page (WJ-422)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
