@@ -8,7 +8,11 @@ import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { can, type OrgPermission } from "@/domain/org/permissions";
-import type { OrgRole } from "@/domain/org/types";
+import { ORG_ROLE_LABEL, type OrgRole } from "@/domain/org/types";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
+import { Tabs } from "@/components/common/Tabs";
+import { Badge } from "@/components/common/Badge";
+import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { call } from "../api";
 import { COMPANY_NEXT, CURRENCIES, DURATIONS, durationLabel, shortDate, startLabel, STATUS_LABEL, stipendLabel, type InternshipApplicationView, type InternshipPosting, type InternshipStatus } from "../domain";
@@ -19,7 +23,8 @@ type Data = { internships: InternshipPosting[]; applications: InternshipApplicat
 const ACTION_LABEL: Partial<Record<InternshipStatus, string>> = { shortlisted: "Shortlist", offer: "Make an offer", closed: "Not moving forward" };
 
 /**
- * Internships → Company (WJ-418): a hiring workspace's internships and the applications to them. The same workspace
+ * Internships → Company (WJ-418, WJ-421): a hiring workspace's internships and the applications to them, in Hiring's
+ * own layout (the workspace's name and your role, the workspace picker, underline tabs, Hiring's rows). The same workspace
  * and roles as Hiring (domain/org/permissions.ts::can, checked again on the server for every action); its own screen,
  * its own form and its own data — nothing here touches Jobs' job form or job listings.
  */
@@ -30,6 +35,7 @@ export function InternshipsCompany() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<InternshipPosting | "new" | null>(null);
+  const [tab, setTab] = useState<"internships" | "applications">(params.get("tab") === "applications" ? "applications" : "internships");
 
   useEffect(() => {
     call<{ workspaces: Workspace[] }>("/api/hiring")
@@ -52,7 +58,13 @@ export function InternshipsCompany() {
 
   if (error) return <ErrorState title="Couldn't load your workspace" body={error} />;
   if (!spaces) return <PageLoading rows={3} />;
-  if (!spaces.length) return <EmptyState icon={<Building2 className="size-5" aria-hidden />} title="No hiring workspace yet" body="Create one for your company in Hiring, then post internships here." action={{ label: "Open Hiring", href: "/app/hiring" }} />;
+  if (!spaces.length)
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageHeader title="Internships" description="For companies: post internships students find on WonderStar, and review their applications." back={{ href: "/app/hiring", label: "Hiring" }} />
+        <EmptyState icon={<Building2 className="size-5" aria-hidden />} title="No hiring workspace yet" body="Create one for your company in Hiring, then post internships here." action={{ label: "Open Hiring", href: "/app/hiring" }} />
+      </div>
+    );
   if (!data) return <PageLoading rows={3} />;
 
   const setStatus = async (id: string, status: InternshipPosting["status"]) => {
@@ -73,66 +85,82 @@ export function InternshipsCompany() {
     }
   };
 
+  const ws = spaces.find((w) => w.org.id === org)!;
+  const tabs = [{ value: "internships" as const, label: "Internships" }, ...(may("applications.view") ? [{ value: "applications" as const, label: "Applications" }] : [])];
+  const shown = tabs.some((t) => t.value === tab) ? tab : "internships";
   return (
-    <div className="space-y-4">
-      {spaces.length > 1 && (
-        <Field label="Workspace" htmlFor="ic-org">
-          <Select id="ic-org" value={org ?? ""} onChange={(e) => setOrgId(e.target.value)}>
-            {spaces.map((w) => (
-              <option key={w.org.id} value={w.org.id}>
-                {w.org.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
-      <section aria-label="Internships">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold text-ink">Internships</h2>
+    <div className="mx-auto max-w-4xl">
+      <PageHeader
+        title={ws.org.name}
+        description={`Internships · you're ${ORG_ROLE_LABEL[ws.role] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[ws.role]}`}`}
+        back={{ href: `/app/hiring?org=${encodeURIComponent(ws.org.id)}`, label: "Hiring" }}
+        actions={
+          spaces.length > 1 && (
+            <Select value={ws.org.id} onChange={(e) => setOrgId(e.target.value)} aria-label="Workspace" className="w-40 sm:w-44">
+              {spaces.map((w) => (
+                <option key={w.org.id} value={w.org.id}>
+                  {w.org.name}
+                </option>
+              ))}
+            </Select>
+          )
+        }
+      />
+      <Tabs value={shown} onChange={setTab} items={tabs} label="Internships workspace" variant="underline" className="mb-4" />
+      {shown === "internships" && (
+        <section aria-label="Internships">
           {may("jobs.edit") && (
-            <Button size="sm" icon={<Plus className="size-4" aria-hidden />} onClick={() => setForm("new")}>
+            <Button className="mb-4" icon={<Plus className="size-4" aria-hidden />} onClick={() => setForm("new")}>
               Post an internship
             </Button>
           )}
-        </div>
-        {data.internships.length === 0 ? (
-          <EmptyState title="No internships posted" body="Post one and open it: students find it in Internships." />
-        ) : (
-          <ul className="space-y-2">
-            {data.internships.map((p) => (
-              <li key={p.id} className="wj-card flex items-center gap-3 p-3">
-                <button type="button" disabled={!may("jobs.edit")} onClick={() => setForm(p)} className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-[14.5px] font-semibold text-ink">{p.title}</span>
-                  <span className="block text-[12.5px] text-ink-3">
-                    {stipendLabel(p.terms)} · {durationLabel(p.terms)} · {startLabel(p.terms)}
-                    {p.terms.applyBy ? ` · apply by ${shortDate(p.terms.applyBy)}` : ""}
-                  </span>
-                </button>
-                <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase", p.status === "open" ? "bg-success-100 text-success-600" : "bg-surface-2 text-ink-3")}>{p.status}</span>
-                {may("jobs.edit") && (
-                  <Button size="sm" variant="ghost" onClick={() => void setStatus(p.id, p.status === "open" ? "closed" : "open")}>
-                    {p.status === "open" ? "Close" : "Open"}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {may("applications.view") && (
-        <section aria-label="Applications">
-          <h2 className="mb-2 text-[15px] font-semibold text-ink">Applications</h2>
-          {data.applications.length === 0 ? (
-            <EmptyState title="No applications yet" body="Students' applications to your open internships show here." />
+          <p className="mb-3 text-[12px] text-ink-3">Open internships show up in students&apos; searches on WonderStar, with your company&apos;s name.</p>
+          {data.internships.length === 0 ? (
+            <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">No internships yet.{may("jobs.edit") ? " Post one: students see it once you open it." : ""}</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
+              {data.internships.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-b-0">
+                  <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+                    <p className="truncate text-[15px] font-semibold text-ink">{p.title}</p>
+                    <p className="truncate text-[12px] text-ink-3">{[stipendLabel(p.terms), durationLabel(p.terms), startLabel(p.terms), p.terms.applyBy ? `apply by ${shortDate(p.terms.applyBy)}` : ""].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <Badge tone={p.status === "open" ? "success" : "neutral"}>{POSTING_LABEL[p.status]}</Badge>
+                  {may("jobs.edit") && (
+                    <div className="flex gap-3 text-[13px] font-medium">
+                      <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setForm(p)}>
+                        Edit
+                      </button>
+                      {p.status !== "open" ? (
+                        <button type="button" className="min-h-10 text-success-600 hover:underline" onClick={() => void setStatus(p.id, "open")}>
+                          Open
+                        </button>
+                      ) : (
+                        <button type="button" className="min-h-10 text-ink-3 hover:text-ink" onClick={() => void setStatus(p.id, "closed")}>
+                          Close
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+      {shown === "applications" && (
+        <section aria-label="Applications">
+          {data.applications.length === 0 ? (
+            <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">No applications yet. Students&apos; applications to your open internships show here.</p>
+          ) : (
+            <ul className="overflow-hidden rounded-[16px] border border-line bg-surface">
               {data.applications.map((a) => (
-                <li key={a.id} className="wj-card p-3">
+                <li key={a.id} className="border-b border-line px-4 py-3 last:border-b-0">
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14.5px] font-semibold text-ink">{a.name}</p>
-                      <p className="text-[12.5px] text-ink-3">
-                        {a.postingTitle} · {STATUS_LABEL[a.status]}
+                      <p className="truncate text-[15px] font-semibold text-ink">{a.name}</p>
+                      <p className="truncate text-[12px] text-ink-3">
+                        {a.postingTitle} · applied {relativeTime(a.appliedAt)}
                       </p>
                       <p className="text-[12.5px] text-ink-2">
                         {a.profile.course}, {a.profile.college}
@@ -141,18 +169,19 @@ export function InternshipsCompany() {
                       </p>
                       {a.profile.skills?.length ? <p className="text-[12px] text-ink-3">Skills: {a.profile.skills.join(", ")}</p> : null}
                     </div>
+                    <Badge tone={a.status === "offer" || a.status === "accepted" ? "success" : a.status === "shortlisted" ? "brand" : a.status === "applied" ? "info" : "neutral"}>{STATUS_LABEL[a.status]}</Badge>
                     {a.hasResume && (
-                      <a className="shrink-0 text-ink-3 hover:text-star-purple" href={`/api/m/internships/org/${encodeURIComponent(org!)}/applications/${a.id}/resume`} aria-label={`${a.name}'s résumé`}>
+                      <a className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink" href={`/api/m/internships/org/${encodeURIComponent(org!)}/applications/${a.id}/resume`} aria-label={`${a.name}'s résumé`}>
                         <Download className="size-4" aria-hidden />
                       </a>
                     )}
                   </div>
                   {may("applications.decide") && COMPANY_NEXT[a.status].length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-1 flex flex-wrap gap-3 text-[13px] font-medium">
                       {COMPANY_NEXT[a.status].map((st, i) => (
-                        <Button key={st} size="sm" variant={i === 0 ? "secondary" : "ghost"} onClick={() => void decide(a.id, st)}>
+                        <button key={st} type="button" className={cn("min-h-10 hover:underline", i === 0 ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => void decide(a.id, st)}>
                           {ACTION_LABEL[st]}
-                        </Button>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -176,6 +205,8 @@ export function InternshipsCompany() {
     </div>
   );
 }
+
+const POSTING_LABEL: Record<InternshipPosting["status"], string> = { draft: "Draft", open: "Open", closed: "Closed" };
 
 type FormState = { title: string; description: string; location: string; workMode: string; skills: string; stipendMin: string; stipendMax: string; currency: string; durationMonths: string; startsOn: string; applyBy: string; schedule: string };
 

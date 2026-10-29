@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { STATUS_LABEL, TERMINAL } from "@/domain/jobs-apply/states";
 import type { ApplyProgress } from "@/domain/jobs-apply/mapper";
 import { jobsApplyApi, type PublicSession } from "@/services/jobs-apply/client";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";

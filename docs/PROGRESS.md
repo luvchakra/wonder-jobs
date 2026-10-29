@@ -536,11 +536,14 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Stop no longer brings back a posting found closed during the search; E2E sample postings use reserved hosts, so GJ-022 is deterministic (WJ-417)
 - ✅ WonderStar Internships module: own sources, company postings, student profile, Find with stipend/duration/start, one-tap apply (internships.apply), Pipeline with Deadlines, shared Saved, notifications (WJ-418, migration 0035)
 - ✅ E2E nightly 25 fixed: recruiter messages answer before their notifications go out; hiring, real-account and apply specs and the résumé gallery baseline follow the current app (WJ-419)
+- ✅ E2E nightly 27 fixed: hiring invitations answer before their email goes out; the onboarding skip and DECIDE-006 follow the current app (WJ-420)
+- ✅ WonderStar shared layer (`src/wonderstar/`): WonderJobs (`src/modules/jobs/`) and Internships on it, one structure and four tabs for every module, module boundaries enforced by a test (WJ-421)
 - ✅ Company ratings from Explorium: admin job with a list of API keys used one after another; stars on cards (WJ-374)
 - ✅ Company ratings run weekly by themselves, with a run history, an editable frequency and an email when no key is left (WJ-375)
 - ✅ Job cards fill spare room with two lines of the job description (WJ-376)
 - ✅ WonderJobs renamed WonderStar everywhere in the app (WJ-420)
-- ✅ Browser helper renamed WonderStar helper, with the WonderStar icon (0.3.7) (WJ-422)
+- ✅ Top bar: avatar + WonderStar mark on the left, the kind menu as text in the centre, on every page (WJ-422)
+- ✅ Browser helper renamed WonderStar helper, with the WonderStar icon (0.3.7) (WJ-424)
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs

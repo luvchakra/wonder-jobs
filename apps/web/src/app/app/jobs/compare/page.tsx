@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Scale } from "lucide-react";
 import { compareJobs } from "@/domain/jobs/compare";
 import { useJobsStore } from "@/store/jobs";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { CompanyLogo } from "@/components/common/Avatar";

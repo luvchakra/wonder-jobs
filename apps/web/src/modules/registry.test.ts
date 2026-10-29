@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isModuleId, MODULE_IDS, MODULES, moduleById } from "./registry";
 import { UPCOMING_KINDS } from "@/domain/jobs/upcomingKinds";
-import { PRIMARY_NAV } from "@/components/navigation/nav";
+import { PRIMARY_NAV } from "@/modules/jobs/nav";
 
 describe("WonderStar module registry", () => {
   it("has one manifest per module, in the registry's order", () => {

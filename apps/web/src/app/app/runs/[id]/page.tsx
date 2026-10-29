@@ -16,7 +16,7 @@ import { formatDuration, formatNumber, formatTime, relativeTime, shortId } from 
 import { useNow } from "@/lib/motion";
 import { track } from "@/lib/analytics";
 import { getWorkflowService } from "@/services/workflow/service";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/wonderstar/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -28,7 +28,7 @@ import { StageDetail } from "@/components/workflow/StageDetail";
 import { RunErrorBanner } from "@/components/workflow/RunErrorBanner";
 import { ActionApprovalList } from "@/components/workflow/ActionApprovalList";
 import { RunExperience } from "@/components/experience/RunExperience";
-import { JobCard } from "@/components/jobs/JobCard";
+import { JobCard } from "@/modules/jobs/components/JobCard";
 import { toast } from "@/components/feedback/Toast";
 
 /**

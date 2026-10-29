@@ -11,7 +11,8 @@ import { useNow } from "@/lib/motion";
 import { useJobsStore } from "@/store/jobs";
 import { useApplicationsStore } from "@/store/applications";
 import { useCareerStore } from "@/store/career";
-import { PRIMARY_NAV, RESOURCES_NAV, SECTION_TABS } from "@/components/navigation/nav";
+import { RESOURCES_NAV } from "@/wonderstar/chrome/nav";
+import { PRIMARY_NAV, SECTION_TABS } from "@/modules/jobs/nav";
 import { track } from "@/lib/analytics";
 
 export interface Command {
