@@ -102,8 +102,8 @@ def main():
     # Mark alone (also the source of the favicon, apple-touch and PWA icons).
     write("wonderstar-mark.svg", svg(MARK_W, MARK_H, MARK, False, "WonderWorks"))
 
-    # App icon: the mark on Deep Navy, rounded square.
-    icon = f'<rect width="512" height="512" rx="112" fill="{DEEP_NAVY}"/>\n  <g transform="translate(76 96) scale(3)">{MARK}</g>'
+    # App icon: the mark on white, rounded square (as in the logo artwork).
+    icon = f'<rect width="512" height="512" rx="112" fill="#FFFFFF"/>\n  <g transform="translate(76 96) scale(3)">{MARK}</g>'
     write("wonderstar-app-icon.svg", svg(512, 512, icon, False, "WonderWorks"))
 
     # Primary (horizontal): mark + wordmark, the wordmark's cap height ~ 60% of the mark.

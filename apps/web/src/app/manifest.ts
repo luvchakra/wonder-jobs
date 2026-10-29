@@ -2,7 +2,10 @@ import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 
 /**
- * Web app manifest — makes WonderJobs installable (Chrome/Edge "Install app", Android "Add to Home screen").
+ * Web app manifest — makes WonderWorks installable (Chrome/Edge "Install app", Android "Add to Home screen").
+ *
+ * The icons carry `?v=` (ICON_VERSION): bump it whenever the icon changes, so a phone that already installed the app
+ * sees a new icon URL and fetches it (Android refreshes an installed app when its manifest icons change).
  *
  * `related_applications` lists this web app itself so a normal browser tab can ask
  * `navigator.getInstalledRelatedApps()` whether it's already installed and keep the install banner away
@@ -10,6 +13,9 @@ import { headers } from "next/headers";
  * asked — production, a preview deployment or localhost each name themselves. That makes this route
  * dynamic, which costs nothing for a file this small.
  */
+/** The home-screen icon's version (2: the rounded-wings mark on white, 2026-10-29). */
+const ICON_VERSION = 2;
+
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const h = await headers();
   const host = h.get("host") ?? h.get("x-forwarded-host");
@@ -17,7 +23,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || (local ? "http" : "https");
   return {
     id: "/app",
-    name: "WonderWorks — Your AI job-search agent",
+    name: "WonderWorks",
     short_name: "WonderWorks",
     description: "WonderWorks scans the market, finds opportunities that actually fit you, and helps you take the next step.",
     start_url: "/app",
@@ -28,9 +34,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     theme_color: "#f6f6fb",
     categories: ["business", "productivity"],
     icons: [
-      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: `/icon-192.png?v=${ICON_VERSION}`, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: `/icon-512.png?v=${ICON_VERSION}`, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: `/icon-512-maskable.png?v=${ICON_VERSION}`, sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     // Real screens from the product (the landing page's own captures), for Chrome's richer install sheet.
     screenshots: [

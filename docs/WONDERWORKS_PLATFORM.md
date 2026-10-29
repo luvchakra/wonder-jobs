@@ -361,7 +361,7 @@ One set of brand files: the logo SVGs in `public/brand/` (`scripts/brand-svg.py`
 
 - **Logo:** the WonderWorks mark (a "W" of two violet-to-pink wings with a four-point star above) + "WonderWorks" — "Wonder"
   in Deep Navy (white on dark), "Works" in a violet→blue gradient. Variants: primary horizontal, stacked with the
-  tagline, app icon (mark on Deep Navy, rounded square). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
+  tagline, app icon (mark on white, rounded square — the home-screen icon, favicon and helper icon). Tagline: "DISCOVER OPPORTUNITIES. UNLOCK POSSIBILITIES."
   (letter-spaced caps). Recreate as SVG in `public/brand/` — never a raster screenshot of the sheet.
 - **Colours** (the app's design tokens): Star Purple `#7C3AED`, Sky Blue
   `#3B82F6`, Magenta `#EC4899`, Indigo `#4F46E5`, Soft Lavender `#EDE9FE`, Light Blue `#EFF6FF`, Deep Navy `#0F172A`.

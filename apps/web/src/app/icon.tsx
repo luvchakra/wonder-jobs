@@ -4,7 +4,7 @@ import { brandMarkDataUri } from "@/server/brandMark";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-/** Browser-tab favicon: the WonderWorks mark on Deep Navy. */
+/** Browser-tab favicon: the WonderWorks mark on white, like the app icon. */
 export default function Icon() {
   return new ImageResponse(
     (
@@ -15,7 +15,7 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0F172A",
+          background: "#FFFFFF",
           borderRadius: 7,
         }}
       >

@@ -4,7 +4,7 @@ import { brandMarkDataUri } from "@/server/brandMark";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-/** iOS home-screen icon. No transparency — iOS applies its own rounded-square mask. */
+/** iOS home-screen icon: the mark on white, as in the logo artwork. No transparency — iOS applies its own rounded-square mask. */
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -15,7 +15,7 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0F172A",
+          background: "#FFFFFF",
         }}
       >
         { }
