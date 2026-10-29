@@ -77,7 +77,9 @@ export function InternshipsFind() {
         <Field label="Field or role" htmlFor="in-q">
           <Input id="in-q" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search" autoComplete="off" />
         </Field>
-        <PlaceInput label="Where" places={places} onChange={setPlaces} />
+        <Field label="Where (optional)" htmlFor="in-where">
+          <PlaceInput id="in-where" label="Where" places={places} onChange={setPlaces} />
+        </Field>
         <Button type="submit" full loading={busy} icon={<Search className="size-4" aria-hidden />}>
           Search internships
         </Button>
