@@ -9,6 +9,7 @@ import { search } from "@/server/jobslake/core";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { readProTags, SERVICES, termsFromPro, type ServiceListing } from "@/modules/services/domain";
 import { openServicePosts } from "./listings";
+import { listingReviews } from "./requests";
 import { WONDERSTAR_SERVICES } from "./sources";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
@@ -67,6 +68,12 @@ export async function searchServices(input: { query: string; places: string[]; r
       const { posting, org } = p;
       results.push({ id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_SERVICES, sourceName: ws.sourceName });
     } else results.push(outside(o));
+  }
+  // A WonderWorks pro's rating is their clients' reviews on WonderWorks (only from jobs marked done).
+  const reviews = await listingReviews(results.flatMap((r) => (r.postingId ? [r.postingId] : []))).catch(() => new Map());
+  for (const r of results) {
+    const rv = r.postingId ? reviews.get(r.postingId) : undefined;
+    if (rv) r.terms = { ...r.terms, rating: rv.rating, reviews: rv.count };
   }
   // Every source the dataset has, with what it gave: asked, or why it wasn't.
   const lines: ServicesSourceLine[] = response.sources.map((s) => ({

@@ -21,7 +21,7 @@ import { defaultPolicy, resolveCapability, type AutomationLevel, type Automation
 import type { WorkMode } from "@/wonderworks/find/place";
 
 export type ListingRow = { id: string; module: string; org_id: string; title: string; description: string; location: string; work_mode: WorkMode; skills: string[]; attrs: Record<string, unknown>; status: "draft" | "open" | "closed"; created_by: string; created_at: string; updated_at: string };
-export type ResponseRow<S extends string = string, P = Record<string, unknown>> = { id: string; module: string; listing_id: string; org_id: string; responder_tenant: string; email: string; name: string; status: S; profile: P; cover_note: string; consent_at: string; created_at: string; updated_at: string };
+export type ResponseRow<S extends string = string, P = Record<string, unknown>> = { id: string; module: string; listing_id: string; org_id: string; responder_tenant: string; email: string; name: string; status: S; profile: P; cover_note: string; consent_at: string; created_at: string; updated_at: string; /** A module's own record of the deal (Talent & Services: quote, booking, paid marks, review); '{}' elsewhere. */ deal?: Record<string, unknown> };
 export type EventRow = { response_id: string; org_id: string; event: string; actor: string | null; detail: string | null; at: string };
 export type FileRow = { response_id: string; org_id: string; filename: string; mime: string; ciphertext: string; created_at: string };
 export type OrgRow = { id: string; name: string; website: string | null; verified?: boolean };
@@ -84,13 +84,13 @@ export async function readResume(orgId: string, module: string, responseId: stri
  * Email everyone in the workspace who may decide on applications about a new one, and note in its history how many
  * went. Never throws: the application stands either way.
  */
-export async function emailTeam(r: ResponseRow<string, unknown>, mail: { subject: string; heading: string; intro: string; rows: [string, string][]; href: string; tag: string }): Promise<void> {
+export async function emailTeam(r: ResponseRow<string, unknown>, mail: { subject: string; heading: string; intro: string; rows: [string, string][]; href: string; tag: string; /** The link's words (default "Review the application"). */ link?: string }): Promise<void> {
   try {
     const team = [...new Set((await members().find({ org_id: r.org_id })).filter((m) => can(m.role, "applications.decide") && m.email).map((m) => m.email!))];
     const C = EMAIL_COLORS;
     const href = new URL(mail.href, siteUrl().origin).toString();
-    const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(mail.heading)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(mail.intro)}</div>${mail.rows.map(([a, b]) => `<div style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:12px;color:${C.muted}">${escapeHtml(a)}</div><div style="font-size:14px;color:${C.ink}">${escapeHtml(b)}</div></div>`).join("")}<p style="margin:16px 0 0"><a href="${escapeHtml(href)}">Review the application</a></p>`;
-    const bodyText = [mail.heading, "", ...mail.rows.map(([a, b]) => `${a}: ${b}`), "", `Review the application: ${href}`].join("\n");
+    const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(mail.heading)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(mail.intro)}</div>${mail.rows.map(([a, b]) => `<div style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:12px;color:${C.muted}">${escapeHtml(a)}</div><div style="font-size:14px;color:${C.ink}">${escapeHtml(b)}</div></div>`).join("")}<p style="margin:16px 0 0"><a href="${escapeHtml(href)}">${escapeHtml(mail.link ?? "Review the application")}</a></p>`;
+    const bodyText = [mail.heading, "", ...mail.rows.map(([a, b]) => `${a}: ${b}`), "", `${mail.link ?? "Review the application"}: ${href}`].join("\n");
     const rendered = renderEmailLayout({ origin: siteUrl().origin, preheader: mail.intro, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderWorks.", settingsLink: false });
     let sent = 0;
     for (const to of team) if ((await sendMail({ to, subject: mail.subject, replyTo: r.email, ...rendered })).sent) sent++;

@@ -8,7 +8,7 @@ import { getSupabaseAdmin, touchTenant } from "./supabase";
  */
 export interface ServerAuditEvent {
   actionId: string;
-  actionType: "cancel_subscription" | "privacy_export" | "privacy_erasure" | "privacy_notice" | "resume_file" | "test_plan" | "jobslake_api" | "portal_connection" | "easy_apply" | "internships.apply" | "teaching.apply" | "teaching.book_demo";
+  actionType: "cancel_subscription" | "privacy_export" | "privacy_erasure" | "privacy_notice" | "resume_file" | "test_plan" | "jobslake_api" | "portal_connection" | "easy_apply" | "internships.apply" | "teaching.apply" | "teaching.book_demo" | "services.request_quote" | "services.book";
   event: string;
   detail?: string;
 }
