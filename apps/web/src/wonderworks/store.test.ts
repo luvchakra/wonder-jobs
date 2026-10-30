@@ -10,6 +10,20 @@ describe("module-scoped stores", () => {
     expect(moduleStore("events").getState().saved.l1).toBeUndefined();
   });
 
+  it("Therapists' searches and results are never persisted (they can say why someone is looking); saves still are, and other modules keep theirs", () => {
+    const run = { query: "anxiety", places: [], results: [{ id: "r1" }], sources: [], at: "2026-10-30T00:00:00.000Z" } as never;
+    for (const [id, kept] of [["therapists", false], ["marketplace", true]] as const) {
+      const st = moduleStore(id);
+      st.setState({ lastRun: run, recentSearches: ["anxiety"], recentSavedSearches: ["anxiety"] });
+      st.getState().toggleSaved("l1");
+      const out = (st as unknown as { persist: { getOptions(): { partialize?: (s: unknown) => unknown } } }).persist.getOptions().partialize!(st.getState()) as ReturnType<typeof compactModuleState>;
+      expect(out.saved.l1).toBeTruthy();
+      expect(out.lastRun !== null).toBe(kept);
+      expect(out.recentSearches.length > 0).toBe(kept);
+      expect(out.recentSavedSearches.length > 0).toBe(kept);
+    }
+  });
+
   it("persists only capped, newest-first state", () => {
     const saved = Object.fromEntries(Array.from({ length: MODULE_SAVED_CAP + 50 }, (_, i) => [`l${i}`, new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString()]));
     const out = compactModuleState({ saved, responses: {}, recentSearches: Array.from({ length: 20 }, (_, i) => `q${i}`) });

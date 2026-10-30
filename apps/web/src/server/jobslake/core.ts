@@ -181,7 +181,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // every planned source at once; a source's answers are merged and deduplicated.
   const phrasings = [req.query.text, ...(req.query.variants ?? [])].filter((q, i, all) => q.trim() && all.findIndex((x) => searchKey({ query: x, locations: [] }) === searchKey({ query: q, locations: [] })) === i).slice(0, 4);
   const criteriaFor = (q: string) => ({ query: q, locations: req.query.locations });
-  const runSearch = { query: req.query.text.slice(0, 120), places: req.query.locations.slice(0, 5).map((l) => l.slice(0, 60)), phrasings: phrasings.length };
+  // Therapists' words can say why someone is looking (health data): its run history keeps no query text.
+  const runSearch = req.module === "therapists" ? undefined : { query: req.query.text.slice(0, 120), places: req.query.locations.slice(0, 5).map((l) => l.slice(0, 60)), phrasings: phrasings.length };
 
   // The search cache: a recent answer from the same source to the same search (however worded) is
   // reused instead of asking again; a source that fails now falls back to its last answer, labelled.

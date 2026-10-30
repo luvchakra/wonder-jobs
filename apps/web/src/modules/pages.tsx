@@ -17,6 +17,10 @@ import { ServicePage } from "./services/components/ServicePage";
 import { ServicesCompany } from "./services/components/Company";
 import { ServicesBookings } from "./services/components/Bookings";
 import { ServicesBooking } from "./services/components/Booking";
+import { TherapistsFind } from "./therapists/components/Find";
+import { TherapistsProfile, TherapistsYou } from "./therapists/components/You";
+import { TherapistPage } from "./therapists/components/TherapistPage";
+import { TherapistsCompany } from "./therapists/components/Company";
 import type { ModuleId } from "./registry";
 
 /**
@@ -40,6 +44,8 @@ export interface ModulePages {
 const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   internships: { Find: InternshipsFind, Pipeline: InternshipsPipeline, You: InternshipsYou, Profile: InternshipsProfile, Listing: InternshipPage, Item: InternshipApplication, Company: InternshipsCompany },
   services: { Find: ServicesFind, Pipeline: ServicesBookings, You: ServicesYou, Profile: ServicesProfile, Listing: ServicePage, Item: ServicesBooking, Company: ServicesCompany },
+  // Therapists keeps WonderWorks' Pipeline (Sessions) until its booking flow ships.
+  therapists: { Find: TherapistsFind, You: TherapistsYou, Profile: TherapistsProfile, Listing: TherapistPage, Company: TherapistsCompany },
   teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 

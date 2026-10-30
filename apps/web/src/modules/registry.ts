@@ -9,6 +9,7 @@ import { jobsManifest } from "./jobs/manifest";
 import { internshipsManifest } from "./internships/manifest";
 import { teachingManifest } from "./teaching/manifest";
 import { servicesManifest } from "./services/manifest";
+import { therapistsManifest } from "./therapists/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -37,31 +38,7 @@ export const MODULES: readonly ModuleManifest[] = [
     trust: { reviews: "off" },
   },
   servicesManifest,
-  {
-    id: "therapists",
-    label: "Therapists",
-    hint: "Licensed counsellors near you",
-    icon: "HeartPulse",
-    accent: "lavender",
-    status: "soon",
-    menuId: "therapists",
-    routes: shell("therapists"),
-    persona: [
-      { key: "languages", label: "Languages", type: "list" },
-      { key: "mode", label: "Mode", type: "choice", options: ["Online", "In person"] },
-    ],
-    listing: [
-      { key: "licence", label: "Licence", type: "text" },
-      { key: "specialties", label: "Specialties", type: "list", facet: true },
-      { key: "fee", label: "Fee", type: "money", facet: true },
-    ],
-    response: { verb: "book", questions: false, states: ["requested", "confirmed", "held", "cancelled"], capability: "therapists.book" },
-    pipeline: { label: "Sessions", icon: "CalendarClock", stages: stages("Requested", "Confirmed", "Upcoming", "Held / Cancelled"), sections: ["Crisis resources"] },
-    ownerSide: { workspace: "person" },
-    trust: { reviews: "off" },
-    money: { kind: "fee_display", currency: "INR" },
-    compliance: ["health_data"],
-  },
+  therapistsManifest,
   {
     id: "events",
     label: "Events & Social",
