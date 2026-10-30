@@ -1,7 +1,7 @@
 "use client";
-import { memo } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Upload, Zap } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { Badge } from "@/components/common/Badge";
@@ -9,7 +9,15 @@ import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { relativeTime } from "@/lib/format";
 import { toast } from "@/components/feedback/Toast";
-import { gradesLabel, HOURS_LABEL, matchTeaching, outsideStatus, payLabel, WORK_MODE_LABEL, type TeachingListing, type TeachingMatch } from "../domain";
+import { Modal } from "@/components/common/Modal";
+import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { resolveCapability } from "@/domain/automation/policy";
+import { useAutomationStore } from "@/store/automation";
+import { useCareerStore } from "@/store/career";
+import { useResumeFilesStore } from "@/store/resumeFiles";
+import { cn } from "@/lib/cn";
+import { call } from "@/wonderworks/api";
+import { EMPTY_PROFILE, gradesLabel, HOURS_LABEL, matchTeaching, missingProfile, outsideStatus, payLabel, WORK_MODE_LABEL, type TeacherProfile, type TeachingListing, type TeachingMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useTeachingStore } from "../store";
 
@@ -82,13 +90,23 @@ export const TeachingCard = memo(function TeachingCard({ item: l, onOpen }: { it
   );
 });
 
+type Sheet = { profile: TeacherProfile; name: string; fileId: string | null; coverNote: string; decision: "run" | "ask" };
+
 /**
- * Apply. On an outside opening the employer's own page opens; the teacher can then mark it applied. A WonderWorks
- * school's opening is applied to on its page.
+ * Apply. On an opening a school posted on WonderWorks: the teacher's press sends their Teaching details and résumé to
+ * the school — at once when "Send teaching applications in one tap" is Automatic, after showing them when it's Ask me,
+ * never when it's Off (resolveCapability; the server checks it again and fails closed). Anything missing is asked,
+ * never invented. On an outside opening the employer's own page opens; the teacher can then mark it applied.
  */
 export function ApplyButton({ listing: l, size = "md", full, card }: { listing: TeachingListing; size?: "sm" | "md"; full?: boolean; card?: boolean }) {
   const applied = useTeachingStore((s) => isApplied(s, l.id));
   const setResponse = useTeachingStore((s) => s.setResponse);
+  const profile = useTeachingStore(selectProfile);
+  const policy = useAutomationStore((s) => s.policy);
+  const level = useAutomationStore((s) => s.defaultLevel);
+  const dnaName = useCareerStore((s) => s.dna.name);
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [working, setWorking] = useState(false);
   const remember = () => setResponse(l.id, "applied", { status: "applied", item: l });
   const opened = () => {
     window.open(l.applyUrl, "_blank", "noopener,noreferrer");
@@ -96,22 +114,141 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
     if (!applied) toast.info(`Opened ${l.company}'s page`, "Apply there. Then mark it applied to track it in Pipeline.", { label: "I applied", onClick: remember });
   };
 
-  if (l.origin === "wonderstar")
-    return card ? null : (
-      <Button size={size} full={full} variant={applied ? "outline" : "primary"} href={applied ? "/app/m/teaching/pipeline" : undefined} disabled={!applied}>
-        {applied ? "Applied" : "Apply opens soon"}
+  if (l.origin === "outside") {
+    if (card)
+      return applied ? null : (
+        <button type="button" aria-label={`Apply to ${l.title} at ${l.company} on their site (opens in a new tab)`} title="Apply on their site" className={APPLY_BTN} onClick={opened}>
+          Apply
+          <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+        </button>
+      );
+    return (
+      <Button size={size} full={full} variant={applied ? "outline" : "primary"} iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={opened}>
+        {applied ? "Applied · open page" : "Apply on their site"}
       </Button>
     );
-  if (card)
-    return applied ? null : (
-      <button type="button" aria-label={`Apply to ${l.title} at ${l.company} on their site (opens in a new tab)`} title="Apply on their site" className={APPLY_BTN} onClick={opened}>
-        Apply
-        <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
-      </button>
-    );
+  }
+
+  if (applied) return card ? null : <Button size={size} full={full} variant="outline" href="/app/m/teaching/pipeline">Applied</Button>;
+
+  const send = async (x: Sheet) => {
+    if (!x.fileId) throw new Error("Choose your résumé.");
+    try {
+      await call<{ id: string }>("/api/m/teaching/apply", { body: { postingId: l.postingId, name: x.name, profile: x.profile, coverNote: x.coverNote || undefined, resumeFileId: x.fileId, consent: true, confirmed: x.decision === "ask" } });
+      remember();
+      setSheet(null);
+      toast.success(`Application sent to ${l.company}`, "Track it in Pipeline.");
+    } catch (e) {
+      if ((e as { status?: number }).status === 409 && /already applied/i.test((e as Error).message)) {
+        remember();
+        setSheet(null);
+        toast.info("You've already applied", `${l.company} has your application.`);
+        return;
+      }
+      throw e;
+    }
+  };
+
+  const start = async () => {
+    const decision = resolveCapability("teaching.apply", policy, level);
+    if (decision === "skip") {
+      toast.info("Teaching applications are off", "Turn them on in Teaching → You.");
+      return;
+    }
+    setWorking(true);
+    try {
+      await useResumeFilesStore.getState().load();
+      const files = useResumeFilesStore.getState().files;
+      const x: Sheet = { profile: profile ?? EMPTY_PROFILE, name: dnaName?.trim() ?? "", fileId: files[0]?.id ?? null, coverNote: "", decision };
+      // One tap: everything the school needs is there and the teacher chose Automatic.
+      if (decision === "run" && x.name && x.fileId && missingProfile(x.profile).length === 0) await send(x);
+      else setSheet(x);
+    } catch (e) {
+      toast.error("Couldn't send it", (e as Error).message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
-    <Button size={size} full={full} variant={applied ? "outline" : "primary"} iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={opened}>
-      {applied ? "Applied · open page" : "Apply on their site"}
-    </Button>
+    <>
+      {card ? (
+        <button type="button" disabled={working} onClick={() => void start()} aria-label={`Apply to ${l.title} at ${l.company} on WonderWorks`} title="Apply here on WonderWorks" className={cn(APPLY_BTN, "disabled:opacity-70")}>
+          <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
+          Apply
+        </button>
+      ) : (
+        <Button size={size} full={full} loading={working} onClick={() => void start()}>
+          Apply
+        </Button>
+      )}
+      {sheet && <ApplySheet listing={l} sheet={sheet} onClose={() => setSheet(null)} onSend={send} />}
+    </>
+  );
+}
+
+/** What goes to the school, shown before it goes: asks only for what's missing. */
+function ApplySheet({ listing: l, sheet, onClose, onSend }: { listing: TeachingListing; sheet: Sheet; onClose: () => void; onSend: (s: Sheet) => Promise<void> }) {
+  const [x, setX] = useState(sheet);
+  const [subjects, setSubjects] = useState(sheet.profile.subjects.join(", "));
+  const [busy, setBusy] = useState(false);
+  const files = useResumeFilesStore((s) => s.files);
+  const profile = { ...x.profile, subjects: subjects.split(",").map((w) => w.trim()).filter(Boolean) };
+  const missing = missingProfile(profile);
+  const upload = async (f: File | undefined) => {
+    if (!f) return;
+    try {
+      const meta = await useResumeFilesStore.getState().upload(f);
+      setX((v) => ({ ...v, fileId: meta.id }));
+    } catch (e) {
+      toast.error("Couldn't upload it", (e as Error).message);
+    }
+  };
+  const go = async () => {
+    setBusy(true);
+    try {
+      useTeachingStore.getState().setPersona({ ...profile });
+      await onSend({ ...x, profile });
+    } catch (e) {
+      toast.error("Couldn't send it", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const ready = !!x.name.trim() && !!x.fileId && missing.length === 0;
+  return (
+    <Modal open onClose={onClose} title={`Apply to ${l.company}`} description={`${l.title}. ${l.company} gets your name, email, your Teaching details and your résumé.`} footer={<Button full loading={busy} disabled={!ready} onClick={() => void go()}>Send application</Button>}>
+      <div className="space-y-3">
+        <Field label="Your name" htmlFor="ta-name" required>
+          <Input id="ta-name" value={x.name} onChange={(e) => setX((v) => ({ ...v, name: e.target.value }))} autoComplete="name" />
+        </Field>
+        <Field label="Subjects you teach" htmlFor="ta-subjects" hint="Separate them with commas" required>
+          <Input id="ta-subjects" value={subjects} onChange={(e) => setSubjects(e.target.value)} />
+        </Field>
+        <p className="text-[13px] text-ink-2">
+          Grade levels: {profile.grades.length ? gradesLabel(profile.grades) : <Link href="/app/m/teaching/you/profile" className="font-medium text-brand-600 underline">add them in Teaching → You</Link>}
+          {profile.qualifications.length ? ` · holds ${profile.qualifications.join(", ")}` : ""}
+        </p>
+        <Field label="A note to the school (optional)" htmlFor="ta-note">
+          <Textarea id="ta-note" rows={3} value={x.coverNote} onChange={(e) => setX((v) => ({ ...v, coverNote: e.target.value }))} />
+        </Field>
+        <Field label="Résumé" htmlFor="ta-file" required>
+          {files.length > 0 ? (
+            <Select id="ta-file" value={x.fileId ?? ""} onChange={(e) => setX((v) => ({ ...v, fileId: e.target.value || null }))}>
+              {files.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.filename}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-[12px] border border-dashed border-line px-3 text-sm text-ink-2">
+              <Upload className="size-4" aria-hidden /> Upload your résumé (PDF or Word)
+              <input id="ta-file" type="file" accept=".pdf,.doc,.docx" className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
+            </label>
+          )}
+        </Field>
+      </div>
+    </Modal>
   );
 }

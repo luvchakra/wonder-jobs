@@ -1,23 +1,30 @@
 "use client";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
-import { EmptyState } from "@/components/common/States";
+import { Button } from "@/components/common/Button";
+import type { Tone } from "@/components/common/Badge";
+import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
+import { toast } from "@/components/feedback/Toast";
+import { call } from "@/wonderworks/api";
 import { PageHeader, SectionHeader } from "@/wonderworks/chrome/PageHeader";
 import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { relativeTime } from "@/lib/format";
-import { MARK_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, type TeachingListing } from "../domain";
+import { canWithdraw, gradesLabel, MARK_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, stageOf, STATUS_LABEL, type MyTeachingApplication, type TeachingListing } from "../domain";
+import { TONE } from "./Application";
 import { listingHref, teachingManifest } from "../manifest";
 import { useTeachingStore } from "../store";
 
 const noop = () => () => undefined;
+/** An application's own page (components/Application.tsx). */
+const itemHref = (id: string) => `/app/m/teaching/pipeline/${encodeURIComponent(id)}`;
 
-type Item = { id: string; title: string; company: string; stage: string; status: string; at: string; line: string; tags?: string[] };
+type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; at: string; line: string; tags?: string[]; app?: MyTeachingApplication; outside?: boolean };
 
 /**
  * Teaching's Pipeline, in Jobs' Pipeline layout (wonderworks/pipeline/parts.tsx): Preparing · Applied · Demo class ·
  * Appointed / Closed as tiles with real counts, opening on the earliest stage with something in it; a stage's statuses
- * as chips; the same compact cards, each opening its opening's page. What's here is what the teacher did: openings
- * they're preparing for or marked applied after applying on the employer's page.
+ * as chips; the same compact cards, each opening its page. WonderWorks applications come from the server (what the
+ * school actually did); outside ones are those the teacher is preparing for or marked applied on the employer's page.
  */
 export function TeachingPipeline() {
   const stages = teachingManifest.pipeline.stages;
@@ -26,17 +33,45 @@ export function TeachingPipeline() {
   const items = useTeachingStore((s) => s.items);
   const [tab, setTab] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [apps, setApps] = useState<MyTeachingApplication[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = () =>
+    call<{ applications: MyTeachingApplication[] }>("/api/m/teaching/applications")
+      .then((r) => setApps(r.applications))
+      .catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void load();
+  }, []);
 
   const list: Item[] = useMemo(() => {
-    if (!mounted) return [];
-    const out: Item[] = [];
-    for (const [id, r] of Object.entries(responses)) {
-      const l = items[id] as TeachingListing | undefined;
-      const st = outsideStatus(r);
-      if (l && st) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], at: r.at, line: l.location, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined });
-    }
+    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status), status: STATUS_LABEL[a.status], tone: TONE[a.status], at: a.updatedAt, line: [a.terms.subject, a.terms.grades?.length ? gradesLabel(a.terms.grades) : null].filter(Boolean).join(" · "), app: a }));
+    if (mounted)
+      for (const [id, r] of Object.entries(responses)) {
+        const l = items[id] as TeachingListing | undefined;
+        const st = outsideStatus(r);
+        // Outside ones as the teacher marked them; a WonderWorks one only while it's being prepared (the server has it once sent).
+        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", at: r.at, line: l.location, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: true });
+      }
     return out.sort((a, b) => b.at.localeCompare(a.at));
-  }, [responses, items, mounted]);
+  }, [apps, responses, items, mounted]);
+
+  if (error) return <ErrorState title="Couldn't load your applications" body={error} actions={[{ label: "Try again", onClick: () => (setError(null), void load()) }]} />;
+  if (!apps) return <PageLoading rows={3} />;
+
+  const withdraw = async (id: string) => {
+    setBusy(id);
+    try {
+      await call(`/api/m/teaching/applications/${id}`, { body: { action: "withdraw" } });
+      toast.success("Withdrawn", "The school sees it as withdrawn.");
+      await load();
+    } catch (e) {
+      toast.error("Couldn't do that", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const count = (stage: string) => list.filter((i) => i.stage === stage).length;
   const current = tab ?? stages.find((s) => count(s.id))?.id ?? stages[0].id;
@@ -70,14 +105,24 @@ export function TeachingPipeline() {
             <>
               {(statuses.length > 1 || (current === "preparing" && statuses.length > 0)) && <StageFilter label={current === "preparing" ? "Filter Preparing" : `Filter ${label} by status`} all={inStage.length} options={statuses.map((st) => ({ value: st, label: st, count: inStage.filter((i) => facetsOf(i).includes(st)).length }))} value={picked} onPick={setStatus} />}
               <StageList label={label}>
-                {shown.map((i) => (
-                  <li key={i.id} className="relative">
-                    <StageCard href={listingHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.stage === "applied" ? "info" : "neutral" }} tags={i.tags} when={relativeTime(i.at)} className="pr-11" />
-                    <button type="button" onClick={() => useTeachingStore.getState().clearResponse(i.id)} aria-label={`Remove ${i.company} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
-                      <X className="size-4" aria-hidden />
-                    </button>
-                  </li>
-                ))}
+                {shown.map((i) => {
+                  const canGo = !!i.app && canWithdraw(i.app.status);
+                  return (
+                    <li key={i.id} className="relative">
+                      <StageCard href={i.stage === "preparing" ? listingHref(i.id) : itemHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={canGo} className={i.outside ? "pr-11" : undefined} />
+                      {canGo && (
+                        <Button size="sm" variant="ghost" className="absolute bottom-3 right-3" loading={busy === i.id} onClick={() => void withdraw(i.id)} aria-label={`Withdraw your application to ${i.company}`}>
+                          Withdraw
+                        </Button>
+                      )}
+                      {i.outside && (
+                        <button type="button" onClick={() => useTeachingStore.getState().clearResponse(i.id)} aria-label={`Remove ${i.company} from Pipeline`} title="Remove from Pipeline" className="absolute right-1.5 top-1.5 grid size-9 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
+                          <X className="size-4" aria-hidden />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </StageList>
             </>
           )}

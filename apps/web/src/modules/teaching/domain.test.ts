@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFacets, asTeachingQuery, boardsFromText, cleanProfile, gradesFromText, isTeachingTitle, matchTeaching, missingProfile, payLabel, readTerms, requiresFromText, subjectFromText, termsFromPosting, type TeacherProfile, type TeachingListing } from "./domain";
+import { applyFacets, asTeachingQuery, boardsFromText, canWithdraw, cleanPosting, cleanProfile, COMPANY_NEXT, stageOf, gradesFromText, isTeachingTitle, matchTeaching, missingProfile, payLabel, readTerms, requiresFromText, subjectFromText, termsFromPosting, type TeacherProfile, type TeachingListing } from "./domain";
 
 const teacher: TeacherProfile = { subjects: ["Physics", "Mathematics"], grades: ["secondary", "senior"], boards: ["CBSE"], qualifications: ["B.Ed"], languages: ["English"] };
 const listing = (over: Partial<TeachingListing> = {}): TeachingListing => ({ id: "x", origin: "outside", title: "PGT Physics Teacher", company: "DPS", location: "Pune", workMode: "onsite", terms: { currency: "INR", subject: "Physics", grades: ["senior"], boards: ["CBSE"], requires: ["B.Ed"] }, termsFrom: "posting", description: "", sourceId: "s", sourceName: "S", ...over });
@@ -70,5 +70,26 @@ describe("Teaching: the teacher's profile and what fits", () => {
     expect(applyFacets([a, b], { grade: "senior" })).toEqual({ kept: [a], hidden: 1 });
     expect(applyFacets([a, b], { board: "CBSE" }).kept).toEqual([a]);
     expect(applyFacets([a, b], { hours: "tuition", remoteOnly: true }).kept).toEqual([b]);
+  });
+});
+
+describe("Teaching: a school's opening and an application's moves", () => {
+  const form = { title: "PGT Physics", description: "Teach physics to classes 11 and 12 with lab sessions twice a week.", location: "Pune", workMode: "onsite", subject: "Physics", grades: ["senior"], hours: "full_time" };
+  it("subject, grade levels, hours and where are required; pay is the school's to state", () => {
+    expect(cleanPosting({ ...form, subject: "" })).toEqual({ problem: "Give the subject." });
+    expect(cleanPosting({ ...form, grades: ["nope"] })).toEqual({ problem: "Choose the grade levels." });
+    expect(cleanPosting({ ...form, location: "" })).toEqual({ problem: "Say where the teacher will work." });
+    expect(cleanPosting({ ...form, payMin: 50000, payMax: 40000 })).toEqual({ problem: "The pay's upper end is below its lower end." });
+    expect(cleanPosting(form)).toEqual({ value: { title: "PGT Physics", description: form.description, location: "Pune", workMode: "onsite", terms: { currency: "INR", subject: "Physics", grades: ["senior"], hours: "full_time" } } });
+    expect(cleanPosting({ ...form, workMode: "remote", location: "", payMin: 500, currency: "INR", payPer: "hour" })).toMatchObject({ value: { location: "Online", terms: { payMin: 500, payPer: "hour" } } });
+  });
+
+  it("a school appoints or closes; a demo class comes only from booking one; the teacher withdraws while it's open", () => {
+    expect(COMPANY_NEXT.applied).toEqual(["appointed", "closed"]);
+    expect(Object.values(COMPANY_NEXT).flat()).not.toContain("demo_class");
+    expect(COMPANY_NEXT.appointed).toEqual([]);
+    expect(canWithdraw("demo_class")).toBe(true);
+    expect(canWithdraw("appointed")).toBe(false);
+    expect(["applied", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "demo_class", "appointed_closed", "appointed_closed", "appointed_closed"]);
   });
 });

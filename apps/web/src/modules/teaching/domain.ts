@@ -349,3 +349,129 @@ export function outsideStatus(ref: { stage: string; status?: string } | undefine
 /** The Pipeline stage each outside status sits in (manifest: Preparing · Applied · Demo class · Appointed / Closed). */
 export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "appointed_closed" };
 export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
+
+/* ------------------------------------------------------------------ a school's form */
+
+export const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED"] as const;
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+export interface PostingInput {
+  title?: unknown;
+  description?: unknown;
+  location?: unknown;
+  workMode?: unknown;
+  subject?: unknown;
+  grades?: unknown;
+  boards?: unknown;
+  hours?: unknown;
+  requires?: unknown;
+  payMin?: unknown;
+  payMax?: unknown;
+  currency?: unknown;
+  payPer?: unknown;
+}
+
+export type CleanPosting = Pick<TeachingPosting, "title" | "description" | "location" | "workMode" | "terms">;
+
+/**
+ * A school's opening, checked. Subject, grade levels, hours and where are required, so a teacher never meets a
+ * WonderWorks opening that leaves them out; board, qualifications asked for and pay are the school's to state (pay left
+ * out shows "Pay not stated").
+ */
+export function cleanPosting(i: PostingInput): { value: CleanPosting } | { problem: string } {
+  const title = text(i.title, 160);
+  if (title.length < 3) return { problem: "Give the opening a title." };
+  const description = text(i.description, 8000);
+  if (description.length < 30) return { problem: "Describe the role in a few sentences (what and whom the teacher will teach)." };
+  const workMode = oneOf(i.workMode, ["remote", "hybrid", "onsite"] as const);
+  if (!workMode) return { problem: "Say whether it's online, hybrid or on-site." };
+  const location = text(i.location, 160);
+  if (workMode !== "remote" && !location) return { problem: "Say where the teacher will work." };
+  const subject = text(i.subject, 60);
+  if (!subject) return { problem: "Give the subject." };
+  const grades = Array.isArray(i.grades) ? GRADES.filter((g) => (i.grades as unknown[]).includes(g)) : [];
+  if (!grades.length) return { problem: "Choose the grade levels." };
+  const hours = oneOf(i.hours, ["full_time", "part_time", "tuition"] as const);
+  if (!hours) return { problem: "Say whether it's full time, part time or tuition." };
+  const boards = Array.isArray(i.boards) ? BOARDS.filter((b) => (i.boards as unknown[]).includes(b)) : [];
+  const requires = Array.isArray(i.requires) ? [...new Set(i.requires.map((q) => text(q, 40)).filter(Boolean))].slice(0, 10) : [];
+  const currency = oneOf(i.currency, CURRENCIES);
+  const blank = (v: unknown) => v == null || v === "";
+  const payMin = blank(i.payMin) ? undefined : int(i.payMin, 0, 10_000_000);
+  const payMax = blank(i.payMax) ? undefined : int(i.payMax, 0, 10_000_000);
+  if ((!blank(i.payMin) && payMin === undefined) || (!blank(i.payMax) && payMax === undefined)) return { problem: "Pay should be a whole number." };
+  if (payMin !== undefined && payMax !== undefined && payMax < payMin) return { problem: "The pay's upper end is below its lower end." };
+  const paid = payMin !== undefined || payMax !== undefined;
+  if (paid && !currency) return { problem: "Choose the pay's currency." };
+  const payPer = oneOf(i.payPer, ["month", "hour"] as const) ?? "month";
+  const terms: TeachingTerms = {
+    currency: currency ?? "INR",
+    subject,
+    grades,
+    hours,
+    ...(boards.length ? { boards } : {}),
+    ...(requires.length ? { requires } : {}),
+    ...(payMin !== undefined ? { payMin } : {}),
+    ...(payMax !== undefined && payMax !== payMin ? { payMax } : {}),
+    ...(paid ? { payPer } : {}),
+  };
+  return { value: { title, description, location: workMode === "remote" ? location || "Online" : location, workMode, terms } };
+}
+
+/* ------------------------------------------------------------------ applications */
+
+export type TeachingStatus = "applied" | "demo_class" | "appointed" | "closed" | "withdrawn";
+export const STATUS_LABEL: Record<TeachingStatus, string> = { applied: "Applied", demo_class: "Demo class", appointed: "Appointed", closed: "Closed", withdrawn: "Withdrawn" };
+
+/** Where a school may move an application. A demo class is arranged by booking one (bookings), never by a status alone. */
+export const COMPANY_NEXT: Record<TeachingStatus, TeachingStatus[]> = {
+  applied: ["appointed", "closed"],
+  demo_class: ["appointed", "closed"],
+  appointed: [],
+  closed: [],
+  withdrawn: [],
+};
+
+/** The teacher withdraws while it's still open. */
+export const canWithdraw = (s: TeachingStatus) => s === "applied" || s === "demo_class";
+
+/** The Pipeline stage a status sits in (manifest: Preparing · Applied · Demo class · Appointed / Closed). */
+export function stageOf(s: TeachingStatus): "applied" | "demo_class" | "appointed_closed" {
+  return s === "applied" || s === "demo_class" ? s : "appointed_closed";
+}
+
+/** One of the teacher's own applications, as their Pipeline shows it. */
+export interface MyTeachingApplication {
+  id: string;
+  postingId: string;
+  title: string;
+  company: string;
+  status: TeachingStatus;
+  terms: TeachingTerms;
+  appliedAt: string;
+  updatedAt: string;
+}
+
+/** One of the teacher's applications as its page shows it: what they sent, and its history. */
+export interface MyTeachingApplicationDetail extends MyTeachingApplication {
+  location: string;
+  workMode: WorkMode;
+  description: string;
+  sent: { name: string; email: string; profile: TeacherProfile; coverNote: string; resume?: string };
+  events: { id: string; status: TeachingStatus; detail?: string; at: string }[];
+}
+
+/** One application as the school sees it. */
+export interface TeachingApplicationView {
+  id: string;
+  postingId: string;
+  postingTitle: string;
+  name: string;
+  email: string;
+  status: TeachingStatus;
+  profile: TeacherProfile;
+  coverNote: string;
+  hasResume: boolean;
+  appliedAt: string;
+  updatedAt: string;
+}

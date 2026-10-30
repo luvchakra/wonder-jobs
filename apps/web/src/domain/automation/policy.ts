@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -91,6 +91,11 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // Internships (WJ-418): the student's own press of Apply on an internship a company posted on WonderWorks is what sends;
   // this only decides whether that press sends at once with their Internships profile and résumé, or shows them first.
   "internships.apply": { key: "internships.apply", label: "Send internship applications in one tap", description: "When you press Apply on an internship posted on WonderWorks, send your Internships profile and résumé to the company at once. Ask me shows them first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  // Teaching: the teacher's own press of Apply on an opening a school posted on WonderWorks, and of Request on one of the
+  // demo-class slots the school offered, is what sends; these only decide whether that press sends at once or shows
+  // what goes first (owner, 2026-10-30: like Easy Apply).
+  "teaching.apply": { key: "teaching.apply", label: "Send teaching applications in one tap", description: "When you press Apply on a teaching job posted on WonderWorks, send your Teaching details and résumé to the school at once. Ask me shows them first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  "teaching.book_demo": { key: "teaching.book_demo", label: "Request demo classes in one tap", description: "When you press Request on a demo-class time a school offered, send the request to the school at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },
