@@ -12,9 +12,10 @@ import { OwnerWorkspace, useWorkspaces } from "@/wonderworks/owner/Workspace";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { call } from "@/wonderworks/api";
-import { BOARDS, COMPANY_NEXT, CURRENCIES, GRADE_LABEL, GRADES, gradesLabel, HOURS_LABEL, payLabel, QUALIFICATIONS, STATUS_LABEL, type Board, type Grade, type TeachingApplicationView, type TeachingPosting, type TeachingStatus } from "../domain";
+import { BOARDS, BOOKING_LABEL, COMPANY_NEXT, MAX_SLOTS, SCHOOL_MAY, slotLabel, type DemoBooking, type DemoMode, CURRENCIES, GRADE_LABEL, GRADES, gradesLabel, HOURS_LABEL, payLabel, QUALIFICATIONS, STATUS_LABEL, type Board, type Grade, type TeachingApplicationView, type TeachingPosting, type TeachingStatus } from "../domain";
 
-type Data = { openings: TeachingPosting[]; applications: TeachingApplicationView[]; role?: OrgRole };
+type Data = { openings: TeachingPosting[]; applications: TeachingApplicationView[]; bookings: DemoBooking[]; role?: OrgRole };
+const ANSWER_LABEL: Record<(typeof SCHOOL_MAY)[keyof typeof SCHOOL_MAY][number], string> = { confirmed: "Confirm", declined: "Decline", held: "Mark held", cancelled: "Cancel" };
 const ACTION_LABEL: Partial<Record<TeachingStatus, string>> = { appointed: "Appoint", closed: "Not moving forward" };
 const POSTING_LABEL: Record<TeachingPosting["status"], string> = { draft: "Draft", open: "Open", closed: "Closed" };
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -32,6 +33,7 @@ export function TeachingCompany() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<TeachingPosting | "new" | null>(null);
+  const [offerFor, setOfferFor] = useState<TeachingApplicationView | null>(null);
   const [tab, setTab] = useState<"openings" | "applications">(params.get("tab") === "applications" ? "applications" : "openings");
 
   const load = useCallback(() => {
@@ -59,6 +61,16 @@ export function TeachingCompany() {
       load();
     } catch (e) {
       toast.error("Couldn't move it", (e as Error).message);
+    }
+  };
+
+  const answer = async (b: DemoBooking, status: (typeof SCHOOL_MAY)[keyof typeof SCHOOL_MAY][number]) => {
+    try {
+      await call(`/api/m/teaching/org/${encodeURIComponent(org!)}/bookings/${b.id}`, { body: { status } });
+      toast.success(`Demo class ${BOOKING_LABEL[status].toLowerCase()}`, status === "held" ? undefined : "The teacher hears it in the app.");
+      load();
+    } catch (e) {
+      toast.error("Couldn't change it", (e as Error).message);
     }
   };
 
@@ -140,10 +152,16 @@ export function TeachingCompany() {
                       </a>
                     )}
                   </div>
+                  <DemoRows bookings={data.bookings.filter((b) => b.responseId === a.id)} canAnswer={may("applications.decide")} onAnswer={(b, st) => void answer(b, st)} />
                   {may("applications.decide") && COMPANY_NEXT[a.status].length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-3 text-[13px] font-medium">
-                      {COMPANY_NEXT[a.status].map((st, i) => (
-                        <button key={st} type="button" className={cn("min-h-10 hover:underline", i === 0 ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => void decide(a.id, st)}>
+                      {!data.bookings.some((b) => b.responseId === a.id && (b.status === "requested" || b.status === "confirmed" || b.status === "proposed")) && (
+                        <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setOfferFor(a)}>
+                          Offer demo-class times
+                        </button>
+                      )}
+                      {COMPANY_NEXT[a.status].map((st) => (
+                        <button key={st} type="button" className={cn("min-h-10 hover:underline", st === "appointed" ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => void decide(a.id, st)}>
                           {ACTION_LABEL[st]}
                         </button>
                       ))}
@@ -154,6 +172,17 @@ export function TeachingCompany() {
             </ul>
           )}
         </section>
+      )}
+      {offerFor && org && (
+        <OfferTimes
+          orgId={org}
+          application={offerFor}
+          onClose={() => setOfferFor(null)}
+          onSent={() => {
+            setOfferFor(null);
+            load();
+          }}
+        />
       )}
       {form && org && (
         <OpeningForm
@@ -292,6 +321,92 @@ function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
             </Select>
           </Field>
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** An application's demo-class times as the school sees them, with what it may do with each now. */
+function DemoRows({ bookings, canAnswer, onAnswer }: { bookings: DemoBooking[]; canAnswer: boolean; onAnswer: (b: DemoBooking, to: (typeof SCHOOL_MAY)[keyof typeof SCHOOL_MAY][number]) => void }) {
+  const shown = bookings.filter((b) => b.status !== "cancelled" && b.status !== "declined");
+  if (!shown.length) return null;
+  return (
+    <ul className="mt-2 flex flex-col gap-1.5">
+      {shown.map((b) => (
+        <li key={b.id} className="flex flex-wrap items-center gap-x-3 text-[12.5px]">
+          <span className="text-ink-2">Demo class: {slotLabel(b)}</span>
+          <Badge tone={b.status === "requested" ? "brand" : b.status === "proposed" ? "neutral" : "success"}>{BOOKING_LABEL[b.status]}</Badge>
+          {canAnswer &&
+            SCHOOL_MAY[b.status].map((to) => (
+              <button key={to} type="button" className={cn("min-h-9 font-medium hover:underline", to === "confirmed" || to === "held" ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => onAnswer(b, to)}>
+                {ANSWER_LABEL[to]}
+              </button>
+            ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type SlotForm = { at: string };
+
+/** The school offers up to MAX_SLOTS demo-class times; the teacher picks one. Times are the school's own local time. */
+function OfferTimes({ orgId, application: a, onClose, onSent }: { orgId: string; application: TeachingApplicationView; onClose: () => void; onSent: () => void }) {
+  const [slots, setSlots] = useState<SlotForm[]>([{ at: "" }]);
+  const [durationMin, setDuration] = useState("45");
+  const [mode, setMode] = useState<DemoMode>("online");
+  const [location, setLocation] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    try {
+      const list = slots.filter((x) => x.at).map((x) => ({ startsAt: new Date(x.at).toISOString(), durationMin: Number(durationMin), mode, location, note }));
+      await call(`/api/m/teaching/org/${encodeURIComponent(orgId)}/applications/${a.id}/demo`, { body: { slots: list } });
+      toast.success("Times sent", `${a.name} picks one in the app.`);
+      onSent();
+    } catch (e) {
+      toast.error("Couldn't send them", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open onClose={onClose} title="Offer demo-class times" description={`${a.name} picks one of these for ${a.postingTitle}; you then confirm or decline it.`} footer={<Button full loading={busy} disabled={!slots.some((x) => x.at)} onClick={() => void send()}>Send times</Button>}>
+      <div className="space-y-3">
+        {slots.map((x, i) => (
+          <Field key={i} label={`Time ${i + 1}`} htmlFor={`ot-${i}`} required={i === 0}>
+            <Input id={`ot-${i}`} type="datetime-local" value={x.at} onChange={(e) => setSlots((list) => list.map((y, j) => (j === i ? { at: e.target.value } : y)))} />
+          </Field>
+        ))}
+        {slots.length < MAX_SLOTS && (
+          <button type="button" className="min-h-9 text-[13px] font-medium text-brand-600 hover:underline" onClick={() => setSlots((list) => [...list, { at: "" }])}>
+            Add another time
+          </button>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Length" htmlFor="ot-len">
+            <Select id="ot-len" value={durationMin} onChange={(e) => setDuration(e.target.value)}>
+              {[30, 45, 60, 90].map((m) => (
+                <option key={m} value={m}>
+                  {m} min
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Online or in person" htmlFor="ot-mode">
+            <Select id="ot-mode" value={mode} onChange={(e) => setMode(e.target.value as DemoMode)}>
+              <option value="online">Online</option>
+              <option value="in_person">In person</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label={mode === "online" ? "Link (optional)" : "Where"} htmlFor="ot-loc" required={mode === "in_person"}>
+          <Input id="ot-loc" value={location} onChange={(e) => setLocation(e.target.value)} />
+        </Field>
+        <Field label="A note (optional)" htmlFor="ot-note">
+          <Textarea id="ot-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Topic, class size, what to bring" />
+        </Field>
       </div>
     </Modal>
   );

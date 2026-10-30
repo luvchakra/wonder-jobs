@@ -120,15 +120,19 @@ function ProfileForm({ initial }: { initial: TeacherProfile }) {
   );
 }
 
+/** The two settings this module adds, in one card: applying and requesting demo classes (resolveCapability). */
 function ApplySetting() {
-  const meta = CAPABILITY_META["teaching.apply"];
-  const mode = useAutomationStore((s) => s.policy["teaching.apply"]) ?? "ask";
+  const policy = useAutomationStore((s) => s.policy);
   const setCapability = useAutomationStore((s) => s.setCapability);
   return (
-    <section id="apply" aria-label={meta.label} className="wj-card mt-3 scroll-mt-24 space-y-3 p-4">
-      <h2 className="text-[15px] font-semibold text-ink">{meta.label}</h2>
-      <p className="text-[13px] text-ink-3">{meta.description}</p>
-      <Segmented<PolicyMode> label={meta.label} value={mode} onChange={(v) => setCapability("teaching.apply", v)} options={[{ value: "automatic", label: "Automatic" }, { value: "ask", label: "Ask me" }, { value: "off", label: "Off" }]} />
+    <section id="apply" aria-label="Teaching settings" className="wj-card mt-3 scroll-mt-24 space-y-4 p-4">
+      {(["teaching.apply", "teaching.book_demo"] as const).map((cap) => (
+        <div key={cap} className="space-y-2">
+          <h2 className="text-[15px] font-semibold text-ink">{CAPABILITY_META[cap].label}</h2>
+          <p className="text-[13px] text-ink-3">{CAPABILITY_META[cap].description}</p>
+          <Segmented<PolicyMode> label={CAPABILITY_META[cap].label} value={policy[cap] ?? "ask"} onChange={(v) => setCapability(cap, v)} options={[{ value: "automatic", label: "Automatic" }, { value: "ask", label: "Ask me" }, { value: "off", label: "Off" }]} />
+        </div>
+      ))}
     </section>
   );
 }

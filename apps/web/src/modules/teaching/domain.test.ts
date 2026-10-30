@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFacets, asTeachingQuery, boardsFromText, canWithdraw, cleanPosting, cleanProfile, COMPANY_NEXT, stageOf, gradesFromText, isTeachingTitle, matchTeaching, missingProfile, payLabel, readTerms, requiresFromText, subjectFromText, termsFromPosting, type TeacherProfile, type TeachingListing } from "./domain";
+import { applyFacets, asTeachingQuery, boardsFromText, canWithdraw, cleanSlots, demoKey, SCHOOL_MAY, TEACHER_MAY, cleanPosting, cleanProfile, COMPANY_NEXT, stageOf, gradesFromText, isTeachingTitle, matchTeaching, missingProfile, payLabel, readTerms, requiresFromText, subjectFromText, termsFromPosting, type TeacherProfile, type TeachingListing } from "./domain";
 
 const teacher: TeacherProfile = { subjects: ["Physics", "Mathematics"], grades: ["secondary", "senior"], boards: ["CBSE"], qualifications: ["B.Ed"], languages: ["English"] };
 const listing = (over: Partial<TeachingListing> = {}): TeachingListing => ({ id: "x", origin: "outside", title: "PGT Physics Teacher", company: "DPS", location: "Pune", workMode: "onsite", terms: { currency: "INR", subject: "Physics", grades: ["senior"], boards: ["CBSE"], requires: ["B.Ed"] }, termsFrom: "posting", description: "", sourceId: "s", sourceName: "S", ...over });
@@ -91,5 +91,28 @@ describe("Teaching: a school's opening and an application's moves", () => {
     expect(canWithdraw("demo_class")).toBe(true);
     expect(canWithdraw("appointed")).toBe(false);
     expect(["applied", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "demo_class", "appointed_closed", "appointed_closed", "appointed_closed"]);
+  });
+});
+
+describe("Teaching: demo-class times", () => {
+  const now = Date.parse("2026-11-01T00:00:00Z");
+  const at = (h: number) => new Date(now + h * 3_600_000).toISOString();
+  it("1–5 future times, 15–180 minutes, online or in person with a place; sorted; no duplicates", () => {
+    expect(cleanSlots([], now)).toEqual({ problem: "Offer at least one time." });
+    expect(cleanSlots(Array.from({ length: 6 }, (_, i) => ({ startsAt: at(i + 1), durationMin: 45, mode: "online" })), now)).toEqual({ problem: "Offer at most 5 times." });
+    expect(cleanSlots([{ startsAt: at(-1), durationMin: 45, mode: "online" }], now)).toEqual({ problem: "Each time should be in the future." });
+    expect(cleanSlots([{ startsAt: at(1), durationMin: 5, mode: "online" }], now)).toEqual({ problem: "A demo class runs 15 to 180 minutes." });
+    expect(cleanSlots([{ startsAt: at(1), durationMin: 45, mode: "in_person" }], now)).toEqual({ problem: "Say where the demo class is." });
+    expect(cleanSlots([{ startsAt: at(2), durationMin: 45, mode: "online" }, { startsAt: at(2), durationMin: 45, mode: "online" }], now)).toEqual({ problem: "Two of the times are the same." });
+    const ok = cleanSlots([{ startsAt: at(5), durationMin: 45, mode: "online" }, { startsAt: at(2), durationMin: 60, mode: "in_person", location: "Room 4" }], now);
+    expect("value" in ok && ok.value.map((x) => x.startsAt)).toEqual([at(2), at(5)]);
+  });
+
+  it("only the teacher requests; only the school confirms, declines or marks held; one key per application and teacher", () => {
+    expect(TEACHER_MAY.proposed).toEqual(["request"]);
+    expect(Object.values(SCHOOL_MAY).flat()).not.toContain("requested");
+    expect(SCHOOL_MAY.requested).toEqual(["confirmed", "declined"]);
+    expect(SCHOOL_MAY.proposed).toEqual(["cancelled"]);
+    expect(demoKey("rsp_1", "u-1")).toBe("demo:rsp_1:u-1");
   });
 });

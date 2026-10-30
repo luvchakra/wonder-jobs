@@ -475,3 +475,73 @@ export interface TeachingApplicationView {
   appliedAt: string;
   updatedAt: string;
 }
+
+/* ------------------------------------------------------------------ demo classes (bookings) */
+
+/**
+ * A demo class (wonderjobs.bookings, module = 'teaching'), the flow the owner approved (2026-10-30): the school offers
+ * times (proposed); the teacher requests one (requested — their own press, gated by teaching.book_demo); the school
+ * confirms or declines it; then marks it held or cancels it. Either side can cancel before it starts.
+ */
+export type BookingStatus = "proposed" | "requested" | "confirmed" | "declined" | "cancelled" | "held";
+export const BOOKING_LABEL: Record<BookingStatus, string> = { proposed: "Offered", requested: "Requested", confirmed: "Confirmed", declined: "Declined", cancelled: "Cancelled", held: "Held" };
+export type DemoMode = "online" | "in_person";
+export const MODE_LABEL: Record<DemoMode, string> = { online: "Online", in_person: "In person" };
+
+export interface DemoBooking {
+  id: string;
+  responseId: string;
+  /** ISO date-time. */
+  startsAt: string;
+  durationMin: number;
+  mode: DemoMode;
+  location: string;
+  note: string;
+  status: BookingStatus;
+}
+
+export interface SlotInput {
+  startsAt?: unknown;
+  durationMin?: unknown;
+  mode?: unknown;
+  location?: unknown;
+  note?: unknown;
+}
+
+export const MAX_SLOTS = 5;
+
+/** The times a school offers, checked: 1–5, each in the future, 15–180 minutes, online or in person (with a place). */
+export function cleanSlots(list: SlotInput[], now = Date.now()): { value: Omit<DemoBooking, "id" | "responseId" | "status">[] } | { problem: string } {
+  if (!list.length) return { problem: "Offer at least one time." };
+  if (list.length > MAX_SLOTS) return { problem: `Offer at most ${MAX_SLOTS} times.` };
+  const out: Omit<DemoBooking, "id" | "responseId" | "status">[] = [];
+  for (const i of list) {
+    const at = typeof i.startsAt === "string" ? Date.parse(i.startsAt) : NaN;
+    if (Number.isNaN(at)) return { problem: "Give each time a date and hour." };
+    if (at <= now) return { problem: "Each time should be in the future." };
+    const durationMin = int(i.durationMin, 15, 180);
+    if (!durationMin) return { problem: "A demo class runs 15 to 180 minutes." };
+    const mode = oneOf(i.mode, ["online", "in_person"] as const);
+    if (!mode) return { problem: "Say whether it's online or in person." };
+    const location = text(i.location, 300);
+    if (mode === "in_person" && !location) return { problem: "Say where the demo class is." };
+    out.push({ startsAt: new Date(at).toISOString(), durationMin, mode, location, note: text(i.note, 500) });
+  }
+  if (new Set(out.map((s) => s.startsAt)).size !== out.length) return { problem: "Two of the times are the same." };
+  return { value: out.sort((a, b) => a.startsAt.localeCompare(b.startsAt)) };
+}
+
+/** What each side may do with a booking now. Only the teacher requests; only the school confirms, declines or marks it held. */
+export const TEACHER_MAY: Record<BookingStatus, ("request" | "cancel")[]> = { proposed: ["request"], requested: ["cancel"], confirmed: ["cancel"], declined: [], cancelled: [], held: [] };
+export const SCHOOL_MAY: Record<BookingStatus, ("confirmed" | "declined" | "held" | "cancelled")[]> = { proposed: ["cancelled"], requested: ["confirmed", "declined"], confirmed: ["held", "cancelled"], declined: [], cancelled: [], held: [] };
+
+/** The request's idempotency key: one demo-class request per application and teacher. */
+export const demoKey = (responseId: string, tenantId: string) => `demo:${responseId}:${tenantId}`;
+
+/** "Tue 4 Nov, 10:30 · 45 min · Online" in the viewer's own time zone. */
+export function slotLabel(b: Pick<DemoBooking, "startsAt" | "durationMin" | "mode">, timeZone?: string): string {
+  const d = new Date(b.startsAt);
+  const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone });
+  return `${day}, ${time} · ${b.durationMin} min · ${MODE_LABEL[b.mode]}`;
+}
