@@ -46,6 +46,10 @@ export function ModuleFind({ m }: { m: ShellManifest }) {
  * own Saved (the jobs portal is unchanged), a tap away.
  */
 export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /** Every live module but Jobs, in the registry's order. */ live: ShellManifest[]; /** A module's own card for a saved listing. */ card: (module: ShellModule, item: unknown) => ReactNode; /** The words Saved's box matches in a saved listing. */ cardText: (module: ShellModule, item: unknown) => string }) {
+  // React Compiler would cache `moduleStore(x)(selector)` (its callee isn't named use…) and skip those hooks on the next
+  // render, changing the hook order. The subscriptions below run in a loop over the live modules, so this component
+  // isn't compiled.
+  "use no memo";
   const id = m.id;
   const ready = useMounted();
   // One subscription per live module, in the registry's fixed order.
@@ -111,8 +115,9 @@ export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /**
 
 /** The module's own tab, in Jobs' Pipeline layout: its stages as tiles with real counts from the person's responses. */
 export function ModulePipeline({ m }: { m: ShellManifest }) {
-  const id = m.id;
-  const responses = moduleStore(id)((s) => s.responses);
+  // Bound to a use… name so React Compiler treats it as the hook it is (see ModuleSaved).
+  const useModule = moduleStore(m.id);
+  const responses = useModule((s) => s.responses);
   const ready = useMounted();
   const [stage, setStage] = useState(m.pipeline.stages[0].id);
   const count = (st: string) => (ready ? Object.values(responses).filter((r) => r.stage === st).length : 0);
