@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { teachingManifest } from "./manifest";
 import { applyFacets, asTeachingQuery, boardsFromText, canWithdraw, cleanSlots, demoKey, SCHOOL_MAY, TEACHER_MAY, cleanPosting, cleanProfile, COMPANY_NEXT, stageOf, gradesFromText, isTeachingTitle, matchTeaching, missingProfile, payLabel, readTerms, requiresFromText, subjectFromText, termsFromPosting, type TeacherProfile, type TeachingListing } from "./domain";
 
 const teacher: TeacherProfile = { subjects: ["Physics", "Mathematics"], grades: ["secondary", "senior"], boards: ["CBSE"], qualifications: ["B.Ed"], languages: ["English"] };
@@ -81,6 +82,12 @@ describe("Teaching: a school's opening and an application's moves", () => {
     expect(cleanPosting({ ...form, location: "" })).toEqual({ problem: "Say where the teacher will work." });
     expect(cleanPosting({ ...form, payMin: 50000, payMax: 40000 })).toEqual({ problem: "The pay's upper end is below its lower end." });
     expect(cleanPosting(form)).toEqual({ value: { title: "PGT Physics", description: form.description, location: "Pune", workMode: "onsite", terms: { currency: "INR", subject: "Physics", grades: ["senior"], hours: "full_time" } } });
+    // Demo class is the school's own explicit choice, off unless it says so.
+    expect(cleanPosting({ ...form, demo: true })).toMatchObject({ value: { terms: { demo: true } } });
+    expect(cleanPosting({ ...form, demo: "yes" })).toMatchObject({ value: { terms: { currency: "INR" } } });
+    expect("value" in cleanPosting({ ...form, demo: "yes" }) && (cleanPosting({ ...form, demo: "yes" }) as { value: { terms: { demo?: boolean } } }).value.terms.demo).toBeUndefined();
+    expect(readTerms({ demo: true }).demo).toBe(true);
+    expect(readTerms({ demo: "true" }).demo).toBeUndefined();
     expect(cleanPosting({ ...form, workMode: "remote", location: "", payMin: 500, currency: "INR", payPer: "hour" })).toMatchObject({ value: { location: "Online", terms: { payMin: 500, payPer: "hour" } } });
   });
 
@@ -90,7 +97,9 @@ describe("Teaching: a school's opening and an application's moves", () => {
     expect(COMPANY_NEXT.appointed).toEqual([]);
     expect(canWithdraw("demo_class")).toBe(true);
     expect(canWithdraw("appointed")).toBe(false);
-    expect(["applied", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "demo_class", "appointed_closed", "appointed_closed", "appointed_closed"]);
+    // Pipeline is generic: a demo class (WonderWorks-only) stays under Applied, as a status.
+    expect(["applied", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "applied", "appointed_closed", "appointed_closed", "appointed_closed"]);
+    expect(teachingManifest.pipeline.stages.map((s) => s.label)).toEqual(["Preparing", "Applied", "Appointed / Closed"]);
   });
 });
 

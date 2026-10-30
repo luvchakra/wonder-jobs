@@ -14,7 +14,7 @@ is extracted from it step by step (§8).
 | --- | --- | --- | --- | --- |
 | **Jobs** (today) | Job seeker | Company hiring workspace | Apply (Easy Apply, helper, guided) | Hired |
 | **Internships** | Student | Company / startup | Apply (with college, availability) | Offer accepted, start date |
-| **Teaching** | Teacher / tutor | School, college, coaching centre, parent | Apply, then demo class | Appointed |
+| **Teaching** | Teacher / tutor | School, college, coaching centre, parent | Apply (a demo class on jobs schools post here) | Appointed |
 | **Co-founders** | Founder | Founder (both sides are people) | Show interest; connect only when it's mutual | Agreed to build together |
 | **Talent & Services** | Client | Freelancer / service pro | Request a quote → book | Job done, paid, reviewed |
 | **Therapists** | Client | Licensed counsellor | Book a session | Session held |
@@ -156,7 +156,7 @@ export interface ModuleManifest {
 | --- | --- | --- | --- | --- | --- |
 | **Jobs** | Career DNA, résumé, answers | Salary, work mode, job type, skills, screening | Apply · new → reviewing → interview → offer → hired / declined | Company workspace, 3 roles, scorecards | Company verification; final submit opt-in (WJ-249) |
 | **Internships** | College, course, graduation year, availability window | Stipend (monthly, range), duration, start date, deadline, part/full-time | Apply · same states + "offer accepted" | Company workspace (reuse Hiring) | College email verification; minimum age |
-| **Teaching** | Subjects, grade levels, boards, qualifications (B.Ed, CTET), languages | Subject, grades, board, hours, school type, pay | Apply → demo class (booking) → appointed | School workspace; parents as individual owners | Background check badge; `minors` compliance |
+| **Teaching** | Subjects, grade levels, boards, qualifications (B.Ed, CTET), languages | Subject, grades, board, hours, school type, pay | Apply → appointed; a demo class (booking) when the job includes one | School workspace; parents as individual owners | Background check badge; `minors` compliance |
 | **Co-founders** | Role (tech/business), skills, commitment, idea or open, equity expectations, location | (No listings: people are the listings) | Connect · interested → mutual → talking → building / passed | None (person to person) | Profile review before connecting; `mutual` before messages |
 | **Talent & Services** | Skills, rates, portfolio, service area | Service, price (fixed/hourly/quote), area, availability | Request quote → quoted → booked → done → paid → reviewed | Individual pro or agency workspace | ID verification; reviews after done; escrow / payments |
 | **Therapists** | Concerns, preferences (language, gender, mode), budget | Licence (number, body, expiry), specialties, modalities, fee, languages, online/in-person | Book · requested → confirmed → held / cancelled | Individual practitioner or clinic workspace | Licence verification + re-check on expiry; `health_data`; crisis resources on every page; no public outcome ratings |
@@ -199,7 +199,7 @@ The Pipeline tab per module:
 | --- | --- | --- | --- |
 | **Jobs** | Pipeline | Saved to apply · Applied · Interview · Offer · Hired / Closed | Calendar, Insights, Interview prep (today's) |
 | **Internships** | Applications | Applied · Shortlisted · Offer · Accepted / Closed | Deadlines |
-| **Teaching** | Pipeline | Applied · Demo class · Appointed / Closed | Demo-class bookings |
+| **Teaching** | Pipeline | Applied · Appointed / Closed (a demo class is a status under Applied) | Demo-class bookings |
 | **Co-founders** | Connections | Interested · Mutual · Talking · Building / Passed | — (mutual-only messaging lives on each item) |
 | **Talent & Services** | Bookings | Requested · Quoted · Booked · Done · Reviewed | Payments and receipts |
 | **Therapists** | Sessions | Requested · Confirmed · Upcoming · Held / Cancelled | Crisis resources (always shown); no ratings |

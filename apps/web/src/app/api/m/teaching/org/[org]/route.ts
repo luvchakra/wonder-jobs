@@ -23,6 +23,7 @@ const Posting = z.object({
   payMax: z.number().int().min(0).max(10_000_000).optional(),
   currency: z.string().length(3).optional(),
   payPer: z.enum(["month", "hour"]).optional(),
+  demo: z.boolean().optional(),
 });
 
 /** The workspace's teaching openings, and their applications and demo classes when the caller's role may view them. */

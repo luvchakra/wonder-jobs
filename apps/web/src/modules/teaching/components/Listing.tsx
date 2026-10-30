@@ -73,6 +73,11 @@ export const TeachingCard = memo(function TeachingCard({ item: l, onOpen }: { it
         </span>,
         l.terms.grades?.length && <span key="g">{gradesLabel(l.terms.grades)}</span>,
         l.terms.hours && <span key="h">{HOURS_LABEL[l.terms.hours]}</span>,
+        l.terms.demo && (
+          <span key="d" className="font-medium text-brand-700">
+            Demo class
+          </span>
+        ),
         pay && (
           <span key="$" className="font-medium text-ink-2">
             {pay}
