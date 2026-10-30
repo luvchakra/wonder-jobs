@@ -8,6 +8,7 @@ import { shellRoutes as shell, stagesOf as stages, type ModuleId, type ModuleMan
 import { jobsManifest } from "./jobs/manifest";
 import { internshipsManifest } from "./internships/manifest";
 import { teachingManifest } from "./teaching/manifest";
+import { servicesManifest } from "./services/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -35,32 +36,7 @@ export const MODULES: readonly ModuleManifest[] = [
     ownerSide: { workspace: "none" },
     trust: { reviews: "off" },
   },
-  {
-    id: "services",
-    label: "Talent & Services",
-    hint: "Hire or offer a skill",
-    icon: "Users",
-    accent: "lightblue",
-    status: "soon",
-    menuId: "talent_services",
-    routes: shell("services"),
-    persona: [
-      { key: "skills", label: "Skills", type: "list" },
-      { key: "rate", label: "Rate", type: "money" },
-      { key: "area", label: "Service area", type: "text" },
-    ],
-    listing: [
-      { key: "service", label: "Service", type: "text", facet: true },
-      { key: "price", label: "Price", type: "money", facet: true },
-      { key: "area", label: "Area", type: "text", facet: true },
-    ],
-    response: { verb: "request_quote", questions: true, states: ["requested", "quoted", "booked", "done", "paid", "reviewed"], capability: "services.request_quote" },
-    pipeline: { label: "Bookings", icon: "CalendarCheck", stages: stages("Requested", "Quoted", "Booked", "Done", "Reviewed"), sections: ["Payments and receipts"] },
-    ownerSide: { workspace: "person" },
-    trust: { reviews: "after_done" },
-    money: { kind: "escrow", currency: "INR" },
-    compliance: ["payments"],
-  },
+  servicesManifest,
   {
     id: "therapists",
     label: "Therapists",

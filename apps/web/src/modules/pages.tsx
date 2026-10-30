@@ -11,6 +11,9 @@ import { TeachingPage } from "./teaching/components/TeachingPage";
 import { TeachingPipeline } from "./teaching/components/Pipeline";
 import { TeachingApplication } from "./teaching/components/Application";
 import { TeachingCompany } from "./teaching/components/Company";
+import { ServicesFind } from "./services/components/Find";
+import { ServicesProfile, ServicesYou } from "./services/components/You";
+import { ServicePage } from "./services/components/ServicePage";
 import type { ModuleId } from "./registry";
 
 /**
@@ -33,6 +36,8 @@ export interface ModulePages {
 
 const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   internships: { Find: InternshipsFind, Pipeline: InternshipsPipeline, You: InternshipsYou, Profile: InternshipsProfile, Listing: InternshipPage, Item: InternshipApplication, Company: InternshipsCompany },
+  // Talent & Services keeps WonderWorks' Pipeline (Bookings) until its quote and booking flow ships.
+  services: { Find: ServicesFind, You: ServicesYou, Profile: ServicesProfile, Listing: ServicePage },
   teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 
