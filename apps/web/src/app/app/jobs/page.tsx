@@ -115,7 +115,9 @@ function JobsHome() {
     <>
       {/* Full Time or Part Time is chosen from the menu in the top bar, beside the avatar. */}
       {/* Full Time: what Wonder searches for, with one tap to change it. */}
-      {mode === "full_time" && <WantedRole className="mb-2" />}
+      {/* 8px under the top bar and 8px above the chips, as Part Time's search box: the board below is pulled up 12px
+          (JobsBoard's -mt-3), so the pill takes the same pull and leaves 20px for it. */}
+      {mode === "full_time" && <WantedRole className="-mt-3 mb-5" />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
