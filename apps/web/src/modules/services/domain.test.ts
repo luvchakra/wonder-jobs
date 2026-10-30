@@ -124,9 +124,13 @@ describe("a pro's listing form", () => {
 
   it("a quote carries no price, and GST is only the pro's own yes", async () => {
     const { cleanServicePosting } = await import("./domain");
-    const q = cleanServicePosting({ ...local, priceKind: "quote", priceMin: 500 }) as { value: { terms: Record<string, unknown> } };
-    expect(q.value.terms.priceMin).toBeUndefined();
-    expect((cleanServicePosting({ ...local, gst: "yes" }) as { value: { terms: Record<string, unknown> } }).value.terms.gst).toBeUndefined();
-    expect((cleanServicePosting({ ...local, gst: true }) as { value: { terms: Record<string, unknown> } }).value.terms.gst).toBe(true);
+    const terms = (x: Record<string, unknown>) => {
+      const c = cleanServicePosting(x);
+      if ("problem" in c) throw new Error(c.problem);
+      return c.value.terms;
+    };
+    expect(terms({ ...local, priceKind: "quote", priceMin: 500 }).priceMin).toBeUndefined();
+    expect(terms({ ...local, gst: "yes" }).gst).toBeUndefined();
+    expect(terms({ ...local, gst: true }).gst).toBe(true);
   });
 });
