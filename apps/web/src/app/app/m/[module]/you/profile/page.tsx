@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { InternshipsProfile } from "@/modules/internships/components/You";
+import { modulePages } from "@/modules/pages";
 import { shellTab, type ShellParams } from "../../shell";
 
-/** A module's persona details (You → its rows): Internships' student details today. */
+/** A module's persona details (You → its rows). */
 export default async function ModuleProfilePage(p: ShellParams) {
-  const id = await shellTab(p, "you");
-  if (id === "internships") return <InternshipsProfile />;
-  notFound();
+  const { Profile } = modulePages(await shellTab(p, "you"));
+  if (!Profile) notFound();
+  return <Profile />;
 }

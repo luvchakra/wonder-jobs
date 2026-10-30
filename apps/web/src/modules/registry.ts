@@ -7,39 +7,14 @@
 import { shellRoutes as shell, stagesOf as stages, type ModuleId, type ModuleManifest } from "@/wonderworks/manifest";
 import { jobsManifest } from "./jobs/manifest";
 import { internshipsManifest } from "./internships/manifest";
+import { teachingManifest } from "./teaching/manifest";
 
 export * from "@/wonderworks/manifest";
 
 export const MODULES: readonly ModuleManifest[] = [
   jobsManifest,
   internshipsManifest,
-  {
-    id: "teaching",
-    label: "Teaching",
-    hint: "School and college teachers",
-    icon: "BookOpen",
-    accent: "mint",
-    status: "soon",
-    menuId: "teaching",
-    routes: shell("teaching"),
-    persona: [
-      { key: "subjects", label: "Subjects", type: "list" },
-      { key: "grades", label: "Grade levels", type: "list" },
-      { key: "boards", label: "Boards", type: "list" },
-      { key: "qualifications", label: "Qualifications", type: "list" },
-    ],
-    listing: [
-      { key: "subject", label: "Subject", type: "text", facet: true },
-      { key: "grades", label: "Grades", type: "list", facet: true },
-      { key: "board", label: "Board", type: "text", facet: true },
-      { key: "pay", label: "Pay", type: "money" },
-    ],
-    response: { verb: "apply", questions: true, states: ["applied", "demo_class", "appointed", "closed"], capability: "teaching.apply" },
-    pipeline: { label: "Pipeline", icon: "LayoutList", stages: stages("Applied", "Demo class", "Appointed / Closed"), sections: ["Demo-class bookings"] },
-    ownerSide: { workspace: "company" },
-    trust: { reviews: "off" },
-    compliance: ["minors"],
-  },
+  teachingManifest,
   {
     id: "cofounders",
     label: "Co-founders",

@@ -10,6 +10,7 @@
 import type { Job } from "@/domain/jobs/types";
 import { finish, getJson, museLocation, placesToSearch, rawFromHimalayas, rawFromMuse, type HimalayasJob, type MuseJob, type SearchCriteria } from "@/server/jobs/providers";
 import { corePhrase, titleMatches, type RawPosting } from "@/services/jobs/normalize";
+import { fetchJooble } from "@/server/jobslake/jooble";
 
 /** A student's words, asked of a general job source as an internship search ("marketing" → "marketing intern"). */
 export const asIntern = (c: SearchCriteria): SearchCriteria => ({ ...c, query: /\b(intern|internship|trainee)\b/i.test(c.query) ? c.query : `${c.query} intern`.trim() });
@@ -107,32 +108,8 @@ export async function fetchUsaJobsInternships(c: SearchCriteria): Promise<Job[]>
 }
 
 /* ---------- Jooble ---------- */
-export interface JoobleJob { id: string | number; title: string; location?: string; snippet?: string; salary?: string; source?: string; type?: string; link: string; company?: string; updated?: string }
-
-export const joobleAvailable = () => !!process.env.JOOBLE_API_KEY;
-
-export function rawFromJooble(j: JoobleJob): RawPosting {
-  return {
-    externalId: `jooble:${j.id}`,
-    title: j.title.replace(/<[^>]+>/g, "").trim(),
-    company: j.company ?? "",
-    location: j.location ?? "",
-    remote: /remote/i.test(j.location ?? ""),
-    description: (j.snippet ?? "").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim(),
-    tags: [j.type ?? ""].filter(Boolean),
-    postedAt: j.updated,
-    applyUrl: j.link,
-    salaryText: j.salary || undefined,
-    employerSite: false,
-    applyPath: "platform" as const,
-    jobType: j.type ?? null,
-  };
-}
+export { joobleAvailable, rawFromJooble, type JoobleJob } from "@/server/jobslake/jooble";
 
 export async function fetchJoobleInternships(c: SearchCriteria): Promise<Job[]> {
-  const url = `https://jooble.org/api/${encodeURIComponent(process.env.JOOBLE_API_KEY ?? "")}`;
-  const keywords = asIntern(c).query;
-  const places = placesToSearch(c);
-  const pages = await Promise.all((places.length ? places : [""]).map((location) => getJson<{ jobs?: JoobleJob[] }>(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords, location, page: "1" }) })));
-  return finish("intern_jooble", pages.flatMap((p) => p.jobs ?? []).map(rawFromJooble), c);
+  return fetchJooble("intern_jooble", asIntern(c).query, c);
 }

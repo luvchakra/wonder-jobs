@@ -1,9 +1,10 @@
 import { ModuleFind } from "@/wonderworks/shell/ModulePages";
-import { InternshipsFind } from "@/modules/internships/components/Find";
+import { modulePages } from "@/modules/pages";
 import { shellManifest, shellTab, type ShellParams } from "./shell";
 
 export default async function ModuleFindPage(p: ShellParams) {
   const id = await shellTab(p, "find");
-  if (id === "internships") return <InternshipsFind />;
+  const { Find } = modulePages(id);
+  if (Find) return <Find />;
   return id && <ModuleFind m={shellManifest(id)} />;
 }

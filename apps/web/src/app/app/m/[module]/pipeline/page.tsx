@@ -1,9 +1,10 @@
 import { ModulePipeline } from "@/wonderworks/shell/ModulePages";
-import { InternshipsPipeline } from "@/modules/internships/components/Pipeline";
+import { modulePages } from "@/modules/pages";
 import { shellManifest, shellTab, type ShellParams } from "../shell";
 
 export default async function ModulePipelinePage(p: ShellParams) {
   const id = await shellTab(p, "pipeline");
-  if (id === "internships") return <InternshipsPipeline />;
+  const { Pipeline } = modulePages(id);
+  if (Pipeline) return <Pipeline />;
   return id && <ModulePipeline m={shellManifest(id)} />;
 }

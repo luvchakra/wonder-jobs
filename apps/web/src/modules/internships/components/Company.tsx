@@ -14,7 +14,7 @@ import { Tabs } from "@/components/common/Tabs";
 import { Badge } from "@/components/common/Badge";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { call } from "../api";
+import { call } from "@/wonderworks/api";
 import { COMPANY_NEXT, CURRENCIES, DURATIONS, durationLabel, shortDate, startLabel, STATUS_LABEL, stipendLabel, type InternshipApplicationView, type InternshipPosting, type InternshipStatus } from "../domain";
 
 type Workspace = { org: { id: string; name: string }; role: OrgRole };
