@@ -90,3 +90,47 @@ describe("Refine", () => {
     expect(applyFacets(items, {})).toMatchObject({ hidden: 0 });
   });
 });
+
+describe("a pro's listing form", () => {
+  const local = { title: "Split AC service", description: "Wet service of indoor and outdoor units, gas check and a test run.", lane: "local", category: "AC service & repair", location: "Pune", areas: ["Kothrud", "Kothrud", " 411038 "], priceKind: "visit", priceMin: 599, currency: "INR" };
+  const remote = { title: "Logo and brand identity", description: "Three logo concepts, two rounds of revisions and a brand sheet.", lane: "remote", category: "Design", priceKind: "fixed", priceMin: 8000, priceMax: 15000, turnaroundDays: 7, skills: ["Figma", "Illustrator"], visitCharge: 100, materials: "extra", areas: ["Pune"] };
+
+  it("keeps a local trade's terms and a remote project's, each only with its own fields", async () => {
+    const { cleanServicePosting } = await import("./domain");
+    const l = cleanServicePosting(local);
+    expect(l).toEqual({ value: { title: "Split AC service", description: local.description, location: "Pune", workMode: "onsite", terms: { currency: "INR", lane: "local", category: "AC service & repair", priceKind: "visit", priceMin: 599, areas: ["Kothrud", "411038"] } } });
+    const r = cleanServicePosting(remote);
+    // A remote listing carries no visit charge, materials or areas, even if sent.
+    expect(r).toEqual({ value: { title: "Logo and brand identity", description: remote.description, location: "Remote", workMode: "remote", terms: { currency: "INR", lane: "remote", category: "Design", priceKind: "fixed", priceMin: 8000, priceMax: 15000, turnaroundDays: 7, skills: ["Figma", "Illustrator"] } } });
+  });
+
+  it("asks for what clients compare, and never fills it in", async () => {
+    const { cleanServicePosting } = await import("./domain");
+    const problem = (x: Record<string, unknown>) => ("problem" in cleanServicePosting(x) ? (cleanServicePosting(x) as { problem: string }).problem : null);
+    expect(problem({ ...local, title: "" })).toBe("Give the service a title.");
+    expect(problem({ ...local, description: "AC" })).toMatch(/Describe what you do/);
+    expect(problem({ ...local, lane: undefined })).toMatch(/client's place or remotely/);
+    expect(problem({ ...local, category: "Design" })).toBe("Choose the trade.");
+    expect(problem({ ...local, location: "" })).toBe("Say which city you work in.");
+    expect(problem({ ...local, areas: [] })).toBe("List the areas or pin codes you serve.");
+    // A visit is a local trade's price; an hourly rate a remote project's.
+    expect(problem({ ...local, priceKind: "hourly" })).toBe("Say how you charge.");
+    expect(problem({ ...remote, priceKind: "visit" })).toBe("Say how you charge.");
+    expect(problem({ ...local, priceMin: undefined })).toBe("Give your price, or choose Quote on request.");
+    expect(problem({ ...local, priceMin: 12.5 })).toBe("Prices should be whole numbers.");
+    expect(problem({ ...remote, priceMax: 100 })).toBe("The price's upper end is below its lower end.");
+    expect(problem({ ...local, warrantyDays: 0 })).toBe("Days should be a whole number.");
+  });
+
+  it("a quote carries no price, and GST is only the pro's own yes", async () => {
+    const { cleanServicePosting } = await import("./domain");
+    const terms = (x: Record<string, unknown>) => {
+      const c = cleanServicePosting(x);
+      if ("problem" in c) throw new Error(c.problem);
+      return c.value.terms;
+    };
+    expect(terms({ ...local, priceKind: "quote", priceMin: 500 }).priceMin).toBeUndefined();
+    expect(terms({ ...local, gst: "yes" }).gst).toBeUndefined();
+    expect(terms({ ...local, gst: true }).gst).toBe(true);
+  });
+});

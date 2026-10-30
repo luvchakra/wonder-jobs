@@ -1,6 +1,6 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
-import { MapPin } from "lucide-react";
+import { Briefcase, MapPin } from "lucide-react";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { YouOverview } from "@/wonderworks/you/YouOverview";
 import { Button } from "@/components/common/Button";
@@ -11,11 +11,21 @@ import { selectProfile, useServicesStore } from "../store";
 
 const noop = () => () => undefined;
 
-/** Talent & Services → You: Jobs' You page with this module's row under it: the client's area. */
+/** Talent & Services → You: Jobs' You page with this module's rows under it: the client's area, and listing services (for pros). */
 export function ServicesYou() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useServicesStore(selectProfile);
-  return <YouOverview module={{ label: "Talent & Services", rows: [{ href: "/app/m/services/you/profile", label: "Your area", value: (mounted && saved?.area) || "Add it", icon: MapPin }] }} />;
+  return (
+    <YouOverview
+      module={{
+        label: "Talent & Services",
+        rows: [
+          { href: "/app/m/services/you/profile", label: "Your area", value: (mounted && saved?.area) || "Add it", icon: MapPin },
+          { href: "/app/m/services/company", label: "Offer your services", value: "For pros", icon: Briefcase },
+        ],
+      }}
+    />
+  );
 }
 
 /** The client's city or pin code, their own words: pros' service areas are compared with it. */
