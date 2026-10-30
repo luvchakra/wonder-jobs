@@ -92,14 +92,19 @@ describe("Teaching: a school's opening and an application's moves", () => {
   });
 
   it("a school appoints or closes; a demo class comes only from booking one; the teacher withdraws while it's open", () => {
-    expect(COMPANY_NEXT.applied).toEqual(["appointed", "closed"]);
+    expect(COMPANY_NEXT.applied).toEqual(["shortlisted", "appointed", "closed"]);
+    expect(COMPANY_NEXT.shortlisted).toEqual(["appointed", "closed"]);
     expect(Object.values(COMPANY_NEXT).flat()).not.toContain("demo_class");
     expect(COMPANY_NEXT.appointed).toEqual([]);
     expect(canWithdraw("demo_class")).toBe(true);
     expect(canWithdraw("appointed")).toBe(false);
-    // Pipeline is generic: a demo class (WonderWorks-only) stays under Applied, as a status.
-    expect(["applied", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "applied", "appointed_closed", "appointed_closed", "appointed_closed"]);
-    expect(teachingManifest.pipeline.stages.map((s) => s.label)).toEqual(["Preparing", "Applied", "Appointed / Closed"]);
+    // In Process is what the school picked up: shortlisted, or a demo class (a status here, never a stage of its own).
+    expect(["applied", "shortlisted", "demo_class", "appointed", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "in_process", "in_process", "appointed_closed", "appointed_closed", "appointed_closed"]);
+    expect(teachingManifest.pipeline.stages.map((s) => s.label)).toEqual(["Preparing", "Applied", "In Process", "Appointed / Closed"]);
+    // Every stage a status maps to is one the manifest has.
+    const ids = teachingManifest.pipeline.stages.map((s) => s.id);
+    for (const s of ["applied", "shortlisted", "demo_class", "appointed", "closed", "withdrawn"]) expect(ids).toContain(stageOf(s as never));
+    expect(canWithdraw("shortlisted")).toBe(true);
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { CalendarCheck, CheckCircle2, ExternalLink, Send, Trash2, Undo2, XCircle } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ExternalLink, Send, Star, Trash2, Undo2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, type Tone } from "@/components/common/Badge";
@@ -24,13 +24,15 @@ const BACK = { href: "/app/m/teaching/pipeline", label: "Pipeline" };
 const facts = (parts: (string | null | undefined)[]) => parts.filter(Boolean).join(" · ");
 const termLines = (t: TeachingTerms, location: string, workMode?: keyof typeof WORK_MODE_LABEL) => [facts([location, workMode ? WORK_MODE_LABEL[workMode] : null, t.hours ? HOURS_LABEL[t.hours] : null, payLabel(t)]), facts([t.subject, t.grades?.length ? gradesLabel(t.grades) : null, t.boards?.join(", ")])];
 
-export const TONE: Record<TeachingStatus, Tone> = { applied: "info", demo_class: "brand", appointed: "success", closed: "neutral", withdrawn: "neutral" };
-const ICON = { applied: Send, demo_class: CalendarCheck, appointed: CheckCircle2, closed: XCircle, withdrawn: Undo2 } as const;
+export const TONE: Record<TeachingStatus, Tone> = { applied: "info", shortlisted: "brand", demo_class: "brand", appointed: "success", closed: "neutral", withdrawn: "neutral" };
+const ICON = { applied: Send, shortlisted: Star, demo_class: CalendarCheck, appointed: CheckCircle2, closed: XCircle, withdrawn: Undo2 } as const;
 
 function eventTitle(status: TeachingStatus, school: string) {
   switch (status) {
     case "applied":
       return "Applied";
+    case "shortlisted":
+      return `Shortlisted by ${school}`;
     case "demo_class":
       return "Demo class";
     case "appointed":
@@ -168,7 +170,7 @@ export function TeachingApplication({ id }: { id: string }) {
       </ItemMain>
       <ItemAside>
         <Card>
-          <StageSteps stages={teachingManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "appointed_closed" || app.status === "demo_class" ? STATUS_LABEL[app.status] : undefined} />
+          <StageSteps stages={teachingManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage !== "applied" ? STATUS_LABEL[app.status] : undefined} />
           <p className="mt-2 text-[12px] text-ink-4">{app.company} moves this on. You hear the moment they do.</p>
         </Card>
         <Fold title="What you sent" hint={sent.resume ? "With your résumé" : undefined}>

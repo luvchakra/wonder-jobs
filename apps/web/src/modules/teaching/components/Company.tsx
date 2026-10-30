@@ -16,7 +16,7 @@ import { BOARDS, BOOKING_LABEL, COMPANY_NEXT, MAX_SLOTS, SCHOOL_MAY, slotLabel, 
 
 type Data = { openings: TeachingPosting[]; applications: TeachingApplicationView[]; bookings: DemoBooking[]; role?: OrgRole };
 const ANSWER_LABEL: Record<(typeof SCHOOL_MAY)[keyof typeof SCHOOL_MAY][number], string> = { confirmed: "Confirm", declined: "Decline", held: "Mark held", cancelled: "Cancel" };
-const ACTION_LABEL: Partial<Record<TeachingStatus, string>> = { appointed: "Appoint", closed: "Not moving forward" };
+const ACTION_LABEL: Partial<Record<TeachingStatus, string>> = { shortlisted: "Shortlist", appointed: "Appoint", closed: "Not moving forward" };
 const POSTING_LABEL: Record<TeachingPosting["status"], string> = { draft: "Draft", open: "Open", closed: "Closed" };
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -149,7 +149,7 @@ export function TeachingCompany() {
                       <p className="text-[12.5px] text-ink-2">{[a.profile.subjects.join(", "), gradesLabel(a.profile.grades), a.profile.boards.join(", ")].filter(Boolean).join(" · ")}</p>
                       {a.profile.qualifications.length > 0 && <p className="text-[12px] text-ink-3">Holds {a.profile.qualifications.join(", ")}</p>}
                     </div>
-                    <Badge tone={a.status === "appointed" ? "success" : a.status === "demo_class" ? "brand" : a.status === "applied" ? "info" : "neutral"}>{STATUS_LABEL[a.status]}</Badge>
+                    <Badge tone={a.status === "appointed" ? "success" : a.status === "demo_class" || a.status === "shortlisted" ? "brand" : a.status === "applied" ? "info" : "neutral"}>{STATUS_LABEL[a.status]}</Badge>
                     {a.hasResume && (
                       <a className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink" href={`/api/m/teaching/org/${encodeURIComponent(org!)}/applications/${a.id}/resume`} aria-label={`${a.name}'s résumé`}>
                         <Download className="size-4" aria-hidden />
@@ -165,7 +165,7 @@ export function TeachingCompany() {
                         </button>
                       )}
                       {COMPANY_NEXT[a.status].map((st) => (
-                        <button key={st} type="button" className={cn("min-h-10 hover:underline", st === "appointed" ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => void decide(a.id, st)}>
+                        <button key={st} type="button" className={cn("min-h-10 hover:underline", st === "shortlisted" || st === "appointed" ? "text-brand-600" : "text-ink-3 hover:text-ink")} onClick={() => void decide(a.id, st)}>
                           {ACTION_LABEL[st]}
                         </button>
                       ))}

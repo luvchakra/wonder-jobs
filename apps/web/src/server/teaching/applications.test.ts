@@ -136,6 +136,21 @@ describe("Applying (teacher side): teaching.apply through resolveCapability, on 
   });
 });
 
+describe("The school shortlists an application", () => {
+  it("moves it to Shortlisted (In Process), the teacher is told, and it can still be withdrawn, appointed or closed", async () => {
+    const { orgId, postingId, cvId } = await openOpening();
+    await policy(teacher.tenantId, "automatic");
+    const { id } = await apply(postingId, cvId);
+    await expect(T.decideApplication(recruiter, orgId, id, "shortlisted")).rejects.toMatchObject({ status: 403 });
+    await T.decideApplication(owner, orgId, id, "shortlisted");
+    expect(delivered).toEqual([{ tenantId: teacher.tenantId, notice: expect.objectContaining({ module: "teaching", title: "Shortlisted by Sunrise School", href: "/app/m/teaching/pipeline" }) }]);
+    expect((await T.myApplications(teacher))[0].status).toBe("shortlisted");
+    await expect(T.decideApplication(owner, orgId, id, "shortlisted")).rejects.toMatchObject({ status: 409 });
+    await T.withdrawApplication(teacher, id);
+    expect((await T.myApplication(teacher, id)).events.map((e) => e.status)).toEqual(["applied", "shortlisted", "withdrawn"]);
+  });
+});
+
 describe("The school moves an application on", () => {
   it("needs applications.decide; the teacher gets a Teaching notice; only allowed moves; another workspace can't", async () => {
     const { orgId, postingId, cvId } = await openOpening();
