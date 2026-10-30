@@ -48,7 +48,7 @@ describe("Internships domain", () => {
   });
 
   it("stages and deadlines", () => {
-    expect(["applied", "shortlisted", "offer", "accepted", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "shortlisted", "offer", "offer", null, null]);
+    expect(["applied", "shortlisted", "offer", "accepted", "closed", "withdrawn"].map((s) => stageOf(s as never))).toEqual(["applied", "shortlisted", "offer", "offer", "offer", "offer"]);
     const saved = [listing({ id: "ws_l1", title: "A", terms: { currency: "INR", applyBy: "2099-01-05" } }), listing({ id: "ws_l2", title: "B", terms: { currency: "INR", applyBy: "2099-01-01" } })];
     const mine = [{ id: "r1", postingId: "l1", title: "A", company: "Acme", status: "applied" as const, terms: { currency: "INR" }, appliedAt: "", updatedAt: "2099-01-01T00:00:00Z" }];
     expect(deadlines(saved, mine, "2098-12-01").map((d) => d.title)).toEqual(["B"]);
@@ -58,7 +58,7 @@ describe("Internships domain", () => {
     expect(outsideStatus(undefined)).toBeNull();
     expect(outsideStatus({ stage: "applied" })).toBe("applied");
     expect(outsideStatus({ stage: "preparing", status: "preparing" })).toBe("preparing");
-    expect(outsideStatus({ stage: "withdrawn", status: "withdrawn" })).toBe("withdrawn");
-    expect(OUTSIDE_STAGE.withdrawn).toBeNull();
+    expect(outsideStatus({ stage: "offer", status: "withdrawn" })).toBe("withdrawn");
+    expect(OUTSIDE_STAGE.withdrawn).toBe("offer");
   });
 });

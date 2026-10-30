@@ -327,11 +327,11 @@ export const COMPANY_NEXT: Record<InternshipStatus, InternshipStatus[]> = {
 export const canWithdraw = (s: InternshipStatus) => s === "applied" || s === "shortlisted" || s === "offer";
 
 /**
- * The Pipeline stage a status sits in: an accepted offer stays under Offer; a closed or withdrawn application is in none
- * (owner, 2026-10-30: Applications has no Accepted / Closed stage).
+ * The Pipeline stage a status sits in. Applications has no Accepted / Closed stage (owner, 2026-10-30): how an offer
+ * ended — accepted, closed or withdrawn — stays under Offer, as a chip.
  */
-export function stageOf(s: InternshipStatus): "applied" | "shortlisted" | "offer" | null {
-  return s === "accepted" ? "offer" : s === "applied" || s === "shortlisted" || s === "offer" ? s : null;
+export function stageOf(s: InternshipStatus): "applied" | "shortlisted" | "offer" {
+  return s === "applied" || s === "shortlisted" ? s : "offer";
 }
 
 // ---- the student's own record of an internship applied to on another site ----------------------------------------
@@ -350,7 +350,7 @@ export function outsideStatus(ref: { stage: string; status?: string } | undefine
 }
 
 /** The Pipeline stage each outside status sits in. */
-export const OUTSIDE_STAGE: Record<OutsideStatus, string | null> = { preparing: "preparing", applied: "applied", withdrawn: null };
+export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "offer" };
 export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
 
 /** One of the student's own applications, as their Pipeline shows it. */
