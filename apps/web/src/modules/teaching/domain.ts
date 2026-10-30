@@ -349,7 +349,7 @@ export function outsideStatus(ref: { stage: string; status?: string } | undefine
   return s === "preparing" || s === "applied" || s === "withdrawn" ? s : null;
 }
 
-/** The Pipeline stage each outside status sits in (manifest: Preparing · Applied · Appointed / Closed). */
+/** The Pipeline stage each outside status sits in. */
 export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "appointed_closed" };
 export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
 
@@ -425,12 +425,13 @@ export function cleanPosting(i: PostingInput): { value: CleanPosting } | { probl
 
 /* ------------------------------------------------------------------ applications */
 
-export type TeachingStatus = "applied" | "demo_class" | "appointed" | "closed" | "withdrawn";
-export const STATUS_LABEL: Record<TeachingStatus, string> = { applied: "Applied", demo_class: "Demo class", appointed: "Appointed", closed: "Closed", withdrawn: "Withdrawn" };
+export type TeachingStatus = "applied" | "shortlisted" | "demo_class" | "appointed" | "closed" | "withdrawn";
+export const STATUS_LABEL: Record<TeachingStatus, string> = { applied: "Applied", shortlisted: "Shortlisted", demo_class: "Demo class", appointed: "Appointed", closed: "Closed", withdrawn: "Withdrawn" };
 
 /** Where a school may move an application. A demo class is arranged by booking one (bookings), never by a status alone. */
 export const COMPANY_NEXT: Record<TeachingStatus, TeachingStatus[]> = {
-  applied: ["appointed", "closed"],
+  applied: ["shortlisted", "appointed", "closed"],
+  shortlisted: ["appointed", "closed"],
   demo_class: ["appointed", "closed"],
   appointed: [],
   closed: [],
@@ -438,15 +439,19 @@ export const COMPANY_NEXT: Record<TeachingStatus, TeachingStatus[]> = {
 };
 
 /** The teacher withdraws while it's still open. */
-export const canWithdraw = (s: TeachingStatus) => s === "applied" || s === "demo_class";
+export const canWithdraw = (s: TeachingStatus) => s === "applied" || s === "shortlisted" || s === "demo_class";
+
+/** Applications the school is still working on: it can offer or confirm demo-class times on these. */
+export const isOpenApplication = canWithdraw;
 
 /**
- * The Pipeline stage a status sits in (manifest: Preparing · Applied · Appointed / Closed). A demo class is only for
- * jobs schools post on WonderWorks, so Pipeline stays generic (owner, 2026-10-30): an application with a demo class
- * stays under Applied, with Demo class as its status chip.
+ * The Pipeline stage a status sits in (manifest: Preparing · Applied · In Process · Appointed / Closed, owner,
+ * 2026-10-30). In Process is what the school has picked up — shortlisted, or a demo class arranged — with the status as
+ * its chip. A demo class is only for jobs schools post on WonderWorks, so it's a status here, never a stage of its own.
  */
-export function stageOf(s: TeachingStatus): "applied" | "appointed_closed" {
-  return s === "applied" || s === "demo_class" ? "applied" : "appointed_closed";
+export function stageOf(s: TeachingStatus): "applied" | "in_process" | "appointed_closed" {
+  if (s === "applied") return "applied";
+  return s === "shortlisted" || s === "demo_class" ? "in_process" : "appointed_closed";
 }
 
 /** One of the teacher's own applications, as their Pipeline shows it. */

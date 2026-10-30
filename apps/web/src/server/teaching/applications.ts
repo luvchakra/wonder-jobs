@@ -168,6 +168,7 @@ export async function orgApplications(s: Session, orgId: string): Promise<Teachi
 /** The bell and push a teacher gets when a school moves their application on (as their settings allow). */
 export function teacherNotice(status: TeachingStatus, title: string, school: string): Notice {
   const href = "/app/m/teaching/pipeline";
+  if (status === "shortlisted") return { category: "application_status", module: TEACHING, title: `Shortlisted by ${school}`, body: `${school} shortlisted you for ${title}.`, href, action: "Open Pipeline" };
   if (status === "appointed") return { category: "application_status", module: TEACHING, title: `Appointed by ${school}`, body: `${school} appointed you for ${title}.`, href, action: "Open Pipeline" };
   return { category: "application_status", module: TEACHING, title: `Update from ${school}`, body: `${school} isn't moving forward with your application for ${title}.`, href };
 }

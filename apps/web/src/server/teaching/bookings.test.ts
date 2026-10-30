@@ -124,6 +124,15 @@ describe("Demo classes: the school answers", () => {
     expect((await T.myApplications(teacher))[0].status).toBe("appointed");
   });
 
+  it("a shortlisted application can be offered times; confirming keeps it In Process as Demo class", async () => {
+    const { orgId, responseId } = await applied();
+    await T.decideApplication(owner, orgId, responseId, "shortlisted");
+    const [a] = await B.offerDemo(owner, orgId, responseId, [slot(24)]);
+    await B.requestDemo(teacher, a.id);
+    await B.answerDemo(owner, orgId, a.id, "confirmed");
+    expect((await T.myApplications(teacher))[0].status).toBe("demo_class");
+  });
+
   it("declining frees the teacher to ask for another time; the teacher can cancel their own request", async () => {
     const { orgId, responseId } = await applied();
     const [a, b] = await B.offerDemo(owner, orgId, responseId, [slot(24), slot(48)]);

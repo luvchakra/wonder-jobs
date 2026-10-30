@@ -13,7 +13,7 @@ import { table } from "../db/table";
 import { HiringError, requirePermission } from "../hiring";
 import { deliver, type Notice } from "../notifications/deliver";
 import { capabilityDecision, emailTeam, listings, newId, now, orgs, record, responses as allResponses } from "../modules/responses";
-import { cleanSlots, demoKey, readTerms, SCHOOL_MAY, slotLabel, TEACHER_MAY, TEACHING, type BookingStatus, type DemoBooking, type DemoMode, type SlotInput, type TeacherProfile, type TeachingStatus } from "@/modules/teaching/domain";
+import { cleanSlots, demoKey, isOpenApplication, readTerms, SCHOOL_MAY, slotLabel, TEACHER_MAY, TEACHING, type BookingStatus, type DemoBooking, type DemoMode, type SlotInput, type TeacherProfile, type TeachingStatus } from "@/modules/teaching/domain";
 
 type BookingRow = { id: string; module: string; response_id: string; org_id: string; responder_tenant: string; starts_at: string; duration_min: number; mode: DemoMode; location: string; note: string; status: BookingStatus; created_by: string; created_at: string; updated_at: string; idempotency_key?: string | null };
 
@@ -47,7 +47,7 @@ export async function offerDemo(s: Session, orgId: string, responseId: string, s
   await requirePermission(s, orgId, "applications.decide");
   const r = await responses().one({ id: responseId, org_id: orgId, module: TEACHING });
   if (!r) throw new HiringError("That application isn't in this workspace.", 404);
-  if (r.status !== "applied" && r.status !== "demo_class") throw new HiringError("This application is no longer open.", 409);
+  if (!isOpenApplication(r.status)) throw new HiringError("This application is no longer open.", 409);
   // A demo class is the school's own choice per job: only a job that says so can have one.
   const job = await listings().one({ id: r.listing_id, org_id: orgId, module: TEACHING });
   if (!readTerms(job?.attrs).demo) throw new HiringError("This job doesn't include a demo class. Turn Demo class on in the job first.", 409);
@@ -87,7 +87,7 @@ export async function answerDemo(s: Session, orgId: string, bookingId: string, t
     await record(r, `demo:${to}`, s.tenantId, slotLabel(toBooking(b), "UTC"));
     if (to === "confirmed") {
       for (const other of await bookings().find({ response_id: r.id, org_id: orgId, module: TEACHING, status: "proposed" })) await bookings().update({ id: other.id, org_id: orgId, module: TEACHING, status: "proposed" }, { status: "cancelled", updated_at: now() });
-      if (r.status === "applied" && (await responses().update({ id: r.id, org_id: orgId, module: TEACHING, status: "applied" }, { status: "demo_class", updated_at: now() }))) await record(r, "status:demo_class", s.tenantId);
+      if ((r.status === "applied" || r.status === "shortlisted") && (await responses().update({ id: r.id, org_id: orgId, module: TEACHING, status: r.status }, { status: "demo_class", updated_at: now() }))) await record(r, "status:demo_class", s.tenantId);
     }
     if (to !== "held") {
       const { title, school } = await titles(r);
@@ -131,7 +131,7 @@ export async function requestDemo(s: Session, bookingId: string, confirmed = fal
   if (!TEACHER_MAY[b.status].includes("request")) throw new HiringError("That time is no longer offered.", 409);
   if (Date.parse(b.starts_at) <= Date.now()) throw new HiringError("That time has passed.", 409);
   const r = await responses().one({ id: b.response_id, responder_tenant: s.tenantId, module: TEACHING });
-  if (!r || (r.status !== "applied" && r.status !== "demo_class")) throw new HiringError("This application is no longer open.", 409);
+  if (!r || !isOpenApplication(r.status)) throw new HiringError("This application is no longer open.", 409);
   const siblings = await bookings().find({ response_id: b.response_id, responder_tenant: s.tenantId, module: TEACHING });
   if (siblings.some((x) => LIVE.includes(x.status))) throw new HiringError("You've already asked for a demo-class time on this application.", 409);
   // A declined or cancelled request frees its key, so another time can be asked for.

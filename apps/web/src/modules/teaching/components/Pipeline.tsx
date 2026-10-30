@@ -21,8 +21,9 @@ const itemHref = (id: string) => `/app/m/teaching/pipeline/${encodeURIComponent(
 type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; at: string; line: string; tags?: string[]; app?: MyTeachingApplication; outside?: boolean };
 
 /**
- * Teaching's Pipeline, in Jobs' Pipeline layout (wonderworks/pipeline/parts.tsx): Preparing · Applied · Appointed / Closed
- * as tiles with real counts (a demo class is only for jobs schools post here, so it's a status chip under Applied), opening on the earliest stage with something in it; a stage's statuses
+ * Teaching's Pipeline, in Jobs' Pipeline layout (wonderworks/pipeline/parts.tsx): Preparing · Applied · In Process ·
+ * Appointed / Closed as tiles with real counts (In Process holds what the school picked up — Shortlisted or Demo class —
+ * as status chips), opening on the earliest stage with something in it; a stage's statuses
  * as chips; the same compact cards, each opening its page. WonderWorks applications come from the server (what the
  * school actually did); outside ones are those the teacher is preparing for or marked applied on the employer's page.
  */

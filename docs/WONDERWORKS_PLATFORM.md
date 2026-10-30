@@ -199,7 +199,7 @@ The Pipeline tab per module:
 | --- | --- | --- | --- |
 | **Jobs** | Pipeline | Saved to apply · Applied · Interview · Offer · Hired / Closed | Calendar, Insights, Interview prep (today's) |
 | **Internships** | Applications | Applied · Shortlisted · Offer · Accepted / Closed | Deadlines |
-| **Teaching** | Pipeline | Applied · Appointed / Closed (a demo class is a status under Applied) | Demo-class bookings |
+| **Teaching** | Pipeline | Applied · In Process · Appointed / Closed (In Process: Shortlisted, Demo class) | Demo-class bookings |
 | **Co-founders** | Connections | Interested · Mutual · Talking · Building / Passed | — (mutual-only messaging lives on each item) |
 | **Talent & Services** | Bookings | Requested · Quoted · Booked · Done · Reviewed | Payments and receipts |
 | **Therapists** | Sessions | Requested · Confirmed · Upcoming · Held / Cancelled | Crisis resources (always shown); no ratings |
