@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -96,6 +96,11 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // what goes first (owner, 2026-10-30: like Easy Apply).
   "teaching.apply": { key: "teaching.apply", label: "Send teaching applications in one tap", description: "When you press Apply on a teaching job posted on WonderWorks, send your Teaching details and résumé to the school at once. Ask me shows them first; Off turns it off.", risk: "low", external: true, default: "automatic" },
   "teaching.book_demo": { key: "teaching.book_demo", label: "Request demo classes in one tap", description: "When you press Request on a demo-class time a school offered, send the request to the school at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  // Talent & Services (WJ-441): the client's own press of Request a quote on a pro's WonderWorks listing, and of Accept
+  // and book on the quote the pro sent, is what sends; these only decide whether that press sends at once or shows what
+  // goes first (like Easy Apply). WonderWorks holds no money: booking only tells the pro the job is on.
+  "services.request_quote": { key: "services.request_quote", label: "Send quote requests in one tap", description: "When you press Request a quote on a pro's WonderWorks listing, send what you need to the pro at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  "services.book": { key: "services.book", label: "Book a quoted job in one tap", description: "When you press Accept and book on a pro's quote, tell the pro the job is on at once (no money moves through WonderWorks). Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },

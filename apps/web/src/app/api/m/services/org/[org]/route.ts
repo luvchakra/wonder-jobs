@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { orgServices, saveService, setServiceStatus } from "@/server/services/listings";
+import { orgRequests } from "@/server/services/requests";
 import { membershipOf } from "@/server/hiring";
+import { can } from "@/domain/org/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,10 +28,14 @@ const Posting = z.object({
   gst: z.boolean().optional(),
 });
 
-/** The workspace's service listings, and the caller's role in it. */
+/** The workspace's service listings, its quote requests when the caller's role may view them, and that role. */
 export async function GET(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
-  return hiringRoute(req, async (s) => ({ listings: await orgServices(s, org), role: (await membershipOf(s, org))?.role }));
+  return hiringRoute(req, async (s) => {
+    const listings = await orgServices(s, org);
+    const role = (await membershipOf(s, org))?.role;
+    return { listings, requests: can(role, "applications.view") ? await orgRequests(s, org) : [], role };
+  });
 }
 
 /** Post a listing (a draft until opened). */

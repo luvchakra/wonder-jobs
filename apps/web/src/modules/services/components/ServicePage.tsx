@@ -1,7 +1,8 @@
 "use client";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Bookmark, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
+import { Bookmark, Clock, ExternalLink, MapPin, Star, Wallet } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
@@ -12,6 +13,10 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LANE_LABEL, materialsLabel, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
 import { useServicesStore } from "../store";
+import { call } from "@/wonderworks/api";
+import { shortDate } from "@/wonderworks/listing/terms";
+import type { ReviewSummary } from "../deal";
+import { RequestQuote } from "./Request";
 import { FIT, useMatch } from "./Listing";
 
 const noop = () => () => undefined;
@@ -37,7 +42,21 @@ export function ServicePage({ id }: { id: string }) {
   return <Page l={l} />;
 }
 
+/** A WonderWorks pro's reviews from clients whose job was marked done (public, like the listing). */
+function useReviews(postingId: string | undefined) {
+  const [r, setR] = useState<ReviewSummary | null>(null);
+  useEffect(() => {
+    if (!postingId) return;
+    call<{ reviews: ReviewSummary | null }>(`/api/m/services/reviews?listing=${encodeURIComponent(postingId)}`)
+      .then((x) => setR(x.reviews))
+      .catch(() => setR(null));
+  }, [postingId]);
+  return r;
+}
+
 function Page({ l }: { l: ServiceListing }) {
+  const params = useSearchParams();
+  const reviews = useReviews(l.origin === "wonderstar" ? l.postingId : undefined);
   const saved = useServicesStore((s) => !!s.saved[l.id]);
   const toggle = useServicesStore((s) => s.toggleSaved);
   const m = useMatch(l);
@@ -94,29 +113,38 @@ function Page({ l }: { l: ServiceListing }) {
             ),
           ]}
         />
-        {fit && (
+        {(fit || reviews) && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span title={fit.title} className={cn("rounded-full px-2.5 py-1 text-[12px] font-semibold", fit.tone)}>
-              {fit.label}
-            </span>
+            {reviews && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning-50 px-2.5 py-1 text-[12px] font-semibold text-warning-700">
+                <Star className="size-3.5 fill-current" aria-hidden /> {reviews.rating.toFixed(1)} · {reviews.count} review{reviews.count === 1 ? "" : "s"}
+              </span>
+            )}
+            {fit && (
+              <span title={fit.title} className={cn("rounded-full px-2.5 py-1 text-[12px] font-semibold", fit.tone)}>
+                {fit.label}
+              </span>
+            )}
           </div>
         )}
-        <Fold className="mt-4" title="Service area" hint={m.signals.length ? undefined : "Add your area to compare"}>
-          {m.signals.length ? (
-            <ul className="flex flex-col gap-2">
-              {m.signals.map((x) => (
-                <li key={x.text} className="flex gap-2 text-[14px]">
-                  <span className={cn("mt-2 size-1.5 shrink-0 rounded-full", x.tone === "good" ? "bg-success-600" : "bg-warning-600")} aria-hidden />
-                  <span className="text-ink-2">{x.text}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-ink-3">
-              Wonder compares a local pro&apos;s service areas with yours. Add your city or pin code in <Link href="/app/m/services/you/profile" className="font-medium text-brand-600 hover:underline">Talent &amp; Services → You</Link>.
-            </p>
-          )}
-        </Fold>
+        {t.lane !== "remote" && (
+          <Fold className="mt-4" title="Service area" hint={m.signals.length ? undefined : "Add your area to compare"}>
+            {m.signals.length ? (
+              <ul className="flex flex-col gap-2">
+                {m.signals.map((x) => (
+                  <li key={x.text} className="flex gap-2 text-[14px]">
+                    <span className={cn("mt-2 size-1.5 shrink-0 rounded-full", x.tone === "good" ? "bg-success-600" : "bg-warning-600")} aria-hidden />
+                    <span className="text-ink-2">{x.text}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-3">
+                Wonder compares a local pro&apos;s service areas with yours. Add your city or pin code in <Link href="/app/m/services/you/profile" className="font-medium text-brand-600 hover:underline">Talent &amp; Services → You</Link>.
+              </p>
+            )}
+          </Fold>
+        )}
         <h2 className="mt-4 text-[15px] font-semibold text-ink">About</h2>
         <ClampedText text={l.description || "The pro shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
@@ -145,6 +173,21 @@ function Page({ l }: { l: ServiceListing }) {
                 <p className="mt-3 text-[12px] text-ink-4">As {l.sourceName} reports it. WonderWorks adds nothing to it.</p>
               </Fold>
             )}
+            {reviews && (
+              <Fold title="Reviews" hint={`${reviews.rating.toFixed(1)} of 5 · ${reviews.count} on WonderWorks`} open>
+                <ul className="flex flex-col gap-3">
+                  {reviews.latest.map((r) => (
+                    <li key={r.at} className="text-[13px]">
+                      <p className="inline-flex items-center gap-1 font-medium text-ink">
+                        <Star className="size-3.5 fill-current text-warning-600" aria-hidden /> {r.rating} · {r.name} · {shortDate(r.at.slice(0, 10))}
+                      </p>
+                      {r.text && <p className="text-ink-2">{r.text}</p>}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[12px] text-ink-4">From clients whose job with {l.company} was marked done on WonderWorks.</p>
+              </Fold>
+            )}
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
               <p className="text-[13px] text-ink-2">
                 {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}. Work and payment with this pro happen there, on their terms.`}
@@ -155,13 +198,16 @@ function Page({ l }: { l: ServiceListing }) {
         )}
       </ListingMain>
 
+      {(l.origin === "wonderstar" || l.applyUrl) && (
       <ListingAside>
+        {l.origin === "wonderstar" && l.postingId && <RequestQuote listing={l} start={params.get("quote") === "1"} />}
         {l.origin === "outside" && l.applyUrl && (
           <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
             Open their page
           </Button>
         )}
       </ListingAside>
+      )}
     </ListingPage>
   );
 }

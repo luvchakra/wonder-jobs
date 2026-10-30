@@ -3,12 +3,14 @@ import { memo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Star } from "lucide-react";
 import { CompanyLogo } from "@/components/common/Avatar";
+import { Badge } from "@/components/common/Badge";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { relativeTime } from "@/lib/format";
 import { LANE_LABEL, materialsLabel, matchService, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing, type ServiceMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useServicesStore } from "../store";
+import { isOpen } from "./Request";
 
 export function useMatch(l: ServiceListing): ServiceMatch {
   return matchService(l, useServicesStore(selectProfile));
@@ -29,6 +31,7 @@ export const FIT: Record<Exclude<ServiceMatch["fit"], "unknown">, { top: string;
 export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item: ServiceListing; onOpen: (id: string) => void }) {
   const saved = useServicesStore((s) => !!s.saved[l.id]);
   const toggle = useServicesStore((s) => s.toggleSaved);
+  const requested = useServicesStore((s) => isOpen(s, l.id));
   const m = useMatch(l);
   const fit = m.fit === "unknown" ? null : FIT[m.fit];
   const t = l.terms;
@@ -39,6 +42,11 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
         <>
           <CompanyLogo name={l.company} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
+          {l.origin === "wonderstar" && !requested && (
+            <Link href={`${listingHref(l.id)}?quote=1`} onClick={() => onOpen(l.id)} aria-label={`Request a quote from ${l.company}`} title="Request a quote" className={APPLY_BTN}>
+              Quote
+            </Link>
+          )}
           {l.origin === "outside" && l.applyUrl && (
             <a href={l.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.company}'s page on ${l.sourceName} (opens in a new tab)`} title={`Open their page on ${l.sourceName}`} className={APPLY_BTN}>
               View
@@ -71,7 +79,7 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
         turnaroundLabel(t.turnaroundDays) && <span key="t">{turnaroundLabel(t.turnaroundDays)}</span>,
         materialsLabel(t.materials) && <span key="m">{materialsLabel(t.materials)}</span>,
         rating && (
-          <span key="r" className="inline-flex items-center gap-0.5" title="As reported by the source">
+          <span key="r" className="inline-flex items-center gap-0.5" title={l.origin === "wonderstar" ? "From clients' reviews on WonderWorks" : `As ${l.sourceName} reports it`}>
             <Star className="size-3 fill-current" aria-hidden /> {rating}
           </span>
         ),
@@ -80,6 +88,7 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
       reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
       summary={l.description.slice(0, 240)}
       summaryTitle="From their profile"
+      status={requested && <Badge tone="brand">Quote requested</Badge>}
       footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="pro" />}
     />
