@@ -1,6 +1,8 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
-import { Briefcase, Languages } from "lucide-react";
+import { Briefcase, Languages, Zap } from "lucide-react";
+import { CAPABILITY_META, type PolicyMode } from "@/domain/automation/policy";
+import { useAutomationStore } from "@/store/automation";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { YouOverview } from "@/wonderworks/you/YouOverview";
 import { Button } from "@/components/common/Button";
@@ -10,11 +12,13 @@ import { cleanProfile, EMPTY_PROFILE, LANGUAGES, MODE_LABEL, MODES, type ClientP
 import { selectProfile, useTherapistsStore } from "../store";
 
 const noop = () => () => undefined;
+const MODE_TEXT: Record<PolicyMode, string> = { automatic: "Automatic", ask: "Ask me", off: "Off" };
 
 /** Therapists → You: Jobs' You page with this module's rows under it: your preferences, and listing yourself (for practitioners). */
 export function TherapistsYou() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useTherapistsStore(selectProfile);
+  const policy = useAutomationStore((s) => s.policy["therapists.book"]) ?? "ask";
   const value = mounted && saved ? [saved.languages.join(", "), saved.mode ? MODE_LABEL[saved.mode] : ""].filter(Boolean).join(" · ") || "Saved" : "Add them";
   return (
     <YouOverview
@@ -22,6 +26,7 @@ export function TherapistsYou() {
         label: "Therapists",
         rows: [
           { href: "/app/m/therapists/you/profile", label: "Your preferences", value, icon: Languages },
+          { href: "/app/m/therapists/you/profile#settings", label: CAPABILITY_META["therapists.book"].label, value: mounted ? MODE_TEXT[policy] : "", icon: Zap },
           { href: "/app/m/therapists/company", label: "List yourself", value: "For practitioners", icon: Briefcase },
         ],
       }}
@@ -37,6 +42,7 @@ export function TherapistsProfile() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Your Therapists preferences" back={{ href: "/app/m/therapists/you", label: "You" }} />
       {mounted && <PreferencesForm key={saved ? "saved" : "new"} initial={saved ?? EMPTY_PROFILE} />}
+      {mounted && <Settings />}
     </div>
   );
 }
@@ -83,5 +89,19 @@ function PreferencesForm({ initial }: { initial: ClientProfile }) {
         Save
       </Button>
     </form>
+  );
+}
+
+/** The setting this module adds: whether Request a session sends at once (resolveCapability). */
+function Settings() {
+  const value = useAutomationStore((s) => s.policy["therapists.book"]) ?? "ask";
+  const setCapability = useAutomationStore((s) => s.setCapability);
+  const meta = CAPABILITY_META["therapists.book"];
+  return (
+    <section id="settings" aria-label="Therapists settings" className="wj-card mt-3 scroll-mt-24 space-y-2 p-4">
+      <h2 className="text-[15px] font-semibold text-ink">{meta.label}</h2>
+      <p className="text-[13px] text-ink-3">{meta.description}</p>
+      <Segmented<PolicyMode> label={meta.label} value={value} onChange={(v) => setCapability("therapists.book", v)} options={[{ value: "automatic", label: "Automatic" }, { value: "ask", label: "Ask me" }, { value: "off", label: "Off" }]} />
+    </section>
   );
 }

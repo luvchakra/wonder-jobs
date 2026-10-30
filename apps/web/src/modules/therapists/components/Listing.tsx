@@ -2,12 +2,14 @@
 import { memo } from "react";
 import Link from "next/link";
 import { shortPlace } from "@/wonderworks/find/place";
-import { CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
+import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
+import { Badge } from "@/components/common/Badge";
 import { CompanyLogo } from "@/components/common/Avatar";
 import { relativeTime } from "@/lib/format";
 import { feeLabel, lengthLabel, matchTherapist, modesLabel, type TherapistListing, type TherapistMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useTherapistsStore } from "../store";
+import { isOpen } from "./Request";
 
 export function useMatch(l: TherapistListing): TherapistMatch {
   return matchTherapist(l, useTherapistsStore(selectProfile));
@@ -27,6 +29,7 @@ export const FIT: Record<Exclude<TherapistMatch["fit"], "unknown">, { top: strin
 export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { item: TherapistListing; onOpen: (id: string) => void }) {
   const saved = useTherapistsStore((s) => !!s.saved[l.id]);
   const toggle = useTherapistsStore((s) => s.toggleSaved);
+  const requested = useTherapistsStore((s) => isOpen(s, l.id));
   const m = useMatch(l);
   const fit = m.fit === "unknown" ? null : FIT[m.fit];
   const t = l.terms;
@@ -36,6 +39,11 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
         <>
           <CompanyLogo name={l.company} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
+          {!requested && (
+            <Link href={`${listingHref(l.id)}?book=1`} onClick={() => onOpen(l.id)} aria-label={`Request a session with ${l.company}`} title="Request a session" className={APPLY_BTN}>
+              Book
+            </Link>
+          )}
         </>
       }
       title={
@@ -59,6 +67,7 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
       reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
       summary={l.description.slice(0, 240)}
       summaryTitle="In their words"
+      status={requested && <Badge tone="brand">Session requested</Badge>}
       footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="practitioner" />}
     />

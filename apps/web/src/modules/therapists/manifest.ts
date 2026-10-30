@@ -6,7 +6,7 @@ export const listingHref = (id: string) => `/app/m/therapists/listing/${encodeUR
 /**
  * Therapists' manifest (docs/WONDERWORKS_PLATFORM.md §4, step 11). A pro-listed directory with no clinical data: the
  * practitioner's own words about how they work, their languages, focus areas and fee. WonderWorks verifies no licence
- * and shows no rating; the owner's legal review decides those (tracker, Therapists). Sessions (the booking flow) follow.
+ * and shows no rating; the owner's legal review decides those (tracker, Therapists). Sessions: sessions.ts.
  */
 export const therapistsManifest: ModuleManifest = {
   id: "therapists",
@@ -29,7 +29,7 @@ export const therapistsManifest: ModuleManifest = {
     { key: "fee", label: "Fee", type: "money", facet: true },
   ],
   response: { verb: "book", questions: false, states: ["requested", "confirmed", "held", "cancelled"], capability: "therapists.book" },
-  pipeline: { label: "Sessions", icon: "CalendarClock", stages: stagesOf("Requested", "Confirmed", "Upcoming", "Held / Cancelled") },
+  pipeline: { label: "Sessions", icon: "CalendarClock", stages: stagesOf("Requested", "Upcoming", "Held / Closed") },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
   money: { kind: "fee_display", currency: "INR" },

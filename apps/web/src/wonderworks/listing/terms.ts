@@ -24,3 +24,8 @@ export function monthlyFromYearly(min: number | undefined, max: number | undefin
   const hi = m(max);
   return { ...(lo !== undefined ? { min: lo } : {}), ...(hi !== undefined && hi !== lo ? { max: hi } : {}) };
 }
+
+/** YYYY-MM-DD, `days` after `from`. */
+export const addDays = (from: string, days: number) => new Date(Date.parse(`${from}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+/** Today in India (the platform's market), as YYYY-MM-DD. */
+export const todayIst = (now = Date.now()) => new Date(now + 330 * 60_000).toISOString().slice(0, 10);

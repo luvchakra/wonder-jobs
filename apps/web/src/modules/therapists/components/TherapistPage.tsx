@@ -1,18 +1,20 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Bookmark, Clock, MapPin, Wallet } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
 import { FIT, useMatch } from "./Listing";
+import { RequestSession } from "./Request";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/therapists", label: "Therapists" };
@@ -37,6 +39,7 @@ export function TherapistPage({ id }: { id: string }) {
 }
 
 function Page({ l }: { l: TherapistListing }) {
+  const params = useSearchParams();
   const saved = useTherapistsStore((s) => !!s.saved[l.id]);
   const toggle = useTherapistsStore((s) => s.toggleSaved);
   const m = useMatch(l);
@@ -127,11 +130,14 @@ function Page({ l }: { l: TherapistListing }) {
               <p className="mt-3 text-[12px] text-ink-4">As {l.company} listed them on WonderWorks.</p>
             </Fold>
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
-              <p className="text-[13px] text-ink-2">Listed on WonderWorks by {l.company}.{l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""} Booking a session comes next; for now, contact them through their own channels.</p>
+              <p className="text-[13px] text-ink-2">Listed on WonderWorks by {l.company}.{l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}</p>
             </Fold>
           </div>
         )}
       </ListingMain>
+      <ListingAside>
+        <RequestSession listing={l} start={params.get("book") === "1"} />
+      </ListingAside>
     </ListingPage>
   );
 }

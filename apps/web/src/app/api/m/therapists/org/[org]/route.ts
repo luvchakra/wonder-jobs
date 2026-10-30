@@ -2,6 +2,8 @@ import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { orgTherapists, saveTherapist, setTherapistStatus } from "@/server/therapists/listings";
 import { membershipOf } from "@/server/hiring";
+import { orgSessions } from "@/server/therapists/sessions";
+import { can } from "@/domain/org/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,10 +23,14 @@ const Posting = z.object({
   sessionMinutes: z.number().int().min(10).max(300).optional(),
 });
 
-/** The workspace's practitioner listings and the caller's role. */
+/** The workspace's practitioner listings, its session requests when the caller's role may view them, and that role. */
 export async function GET(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
-  return hiringRoute(req, async (s) => ({ listings: await orgTherapists(s, org), role: (await membershipOf(s, org))?.role }));
+  return hiringRoute(req, async (s) => {
+    const listings = await orgTherapists(s, org);
+    const role = (await membershipOf(s, org))?.role;
+    return { listings, sessions: can(role, "applications.view") ? await orgSessions(s, org) : [], role };
+  });
 }
 
 /** List yourself (a draft until opened). */
