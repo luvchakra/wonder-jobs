@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { orgApplications, orgOpenings, saveOpening, setOpeningStatus } from "@/server/teaching/applications";
+import { orgBookings } from "@/server/teaching/bookings";
 import { can } from "@/domain/org/permissions";
 import { membershipOf } from "@/server/hiring";
 
@@ -24,13 +25,15 @@ const Posting = z.object({
   payPer: z.enum(["month", "hour"]).optional(),
 });
 
-/** The workspace's teaching openings, and their applications when the caller's role may view them. */
+/** The workspace's teaching openings, and their applications and demo classes when the caller's role may view them. */
 export async function GET(req: Request, ctx: Ctx) {
   const { org } = await ctx.params;
   return hiringRoute(req, async (s) => {
     const openings = await orgOpenings(s, org);
     const role = (await membershipOf(s, org))?.role;
-    return { openings, applications: can(role, "applications.view") ? await orgApplications(s, org) : [], role };
+    const view = can(role, "applications.view");
+    const [applications, bookings] = view ? await Promise.all([orgApplications(s, org), orgBookings(s, org)]) : [[], []];
+    return { openings, applications, bookings, role };
   });
 }
 

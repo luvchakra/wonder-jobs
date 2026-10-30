@@ -9,7 +9,7 @@ import { call } from "@/wonderworks/api";
 import { PageHeader, SectionHeader } from "@/wonderworks/chrome/PageHeader";
 import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { relativeTime } from "@/lib/format";
-import { canWithdraw, gradesLabel, MARK_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, stageOf, STATUS_LABEL, type MyTeachingApplication, type TeachingListing } from "../domain";
+import { BOOKING_LABEL, canWithdraw, gradesLabel, MARK_LABEL, slotLabel, type DemoBooking, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, stageOf, STATUS_LABEL, type MyTeachingApplication, type TeachingListing } from "../domain";
 import { TONE } from "./Application";
 import { listingHref, teachingManifest } from "../manifest";
 import { useTeachingStore } from "../store";
@@ -34,12 +34,16 @@ export function TeachingPipeline() {
   const [tab, setTab] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [apps, setApps] = useState<MyTeachingApplication[] | null>(null);
+  const [demos, setDemos] = useState<(DemoBooking & { title: string; school: string })[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = () =>
-    call<{ applications: MyTeachingApplication[] }>("/api/m/teaching/applications")
-      .then((r) => setApps(r.applications))
+    Promise.all([call<{ applications: MyTeachingApplication[] }>("/api/m/teaching/applications"), call<{ bookings: (DemoBooking & { title: string; school: string })[] }>("/api/m/teaching/bookings")])
+      .then(([r, b]) => {
+        setApps(r.applications);
+        setDemos(b.bookings);
+      })
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
     void load();
@@ -73,6 +77,13 @@ export function TeachingPipeline() {
     }
   };
 
+  // Demo-class bookings (the manifest's section): times to pick, and requested or confirmed ones still to come, soonest first.
+  const nowIso = new Date().toISOString();
+  const live = new Set(demos.filter((d) => d.status === "requested" || d.status === "confirmed").map((d) => d.responseId));
+  const upcoming = demos.filter((d) => d.startsAt >= nowIso && (d.status === "requested" || d.status === "confirmed" || (d.status === "proposed" && !live.has(d.responseId))));
+  const toPick = [...new Map(upcoming.filter((d) => d.status === "proposed").map((d) => [d.responseId, d])).values()];
+  const booked = upcoming.filter((d) => d.status !== "proposed");
+
   const count = (stage: string) => list.filter((i) => i.stage === stage).length;
   const current = tab ?? stages.find((s) => count(s.id))?.id ?? stages[0].id;
   const label = stages.find((s) => s.id === current)!.label;
@@ -85,6 +96,23 @@ export function TeachingPipeline() {
   return (
     <div>
       <PageHeader title={teachingManifest.pipeline.label} />
+      {(toPick.length > 0 || booked.length > 0) && (
+        <section aria-label="Demo-class bookings" className="mb-6">
+          <SectionHeader title="Demo-class bookings" />
+          <StageList label="Demo-class bookings">
+            {toPick.map((d) => (
+              <li key={`pick:${d.responseId}`}>
+                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school }} company={d.school} title={d.title} badge={{ label: "Pick a time", tone: "warning" }} when="" />
+              </li>
+            ))}
+            {booked.map((d) => (
+              <li key={d.id}>
+                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school }} company={d.school} title={d.title} line={slotLabel(d)} badge={{ label: BOOKING_LABEL[d.status], tone: d.status === "confirmed" ? "success" : "brand" }} when="" />
+              </li>
+            ))}
+          </StageList>
+        </section>
+      )}
       {list.length === 0 ? (
         <EmptyState title="Nothing in Pipeline yet" body="Teaching jobs you apply to show here, with where each stands." action={{ label: "Find teaching jobs", href: "/app/m/teaching" }} />
       ) : (

@@ -15,7 +15,8 @@ import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from
 import { formatDate } from "@/lib/format";
 import { call } from "@/wonderworks/api";
 import { listingHref, teachingManifest } from "../manifest";
-import { canWithdraw, gradesLabel, HOURS_LABEL, MARK_LABEL, OUTSIDE_LABEL, outsideStatus, payLabel, stageOf, STATUS_LABEL, WORK_MODE_LABEL, type MyTeachingApplicationDetail, type TeachingListing, type TeachingStatus, type TeachingTerms } from "../domain";
+import { DemoTimes } from "./Demo";
+import { canWithdraw, gradesLabel, HOURS_LABEL, MARK_LABEL, OUTSIDE_LABEL, outsideStatus, payLabel, stageOf, STATUS_LABEL, WORK_MODE_LABEL, type DemoBooking, type MyTeachingApplicationDetail, type TeachingListing, type TeachingStatus, type TeachingTerms } from "../domain";
 import { useTeachingStore } from "../store";
 
 const noop = () => () => undefined;
@@ -55,10 +56,14 @@ export function TeachingApplication({ id }: { id: string }) {
   const [app, setApp] = useState<MyTeachingApplicationDetail | null>(null);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [demos, setDemos] = useState<DemoBooking[]>([]);
 
   const load = () =>
-    call<{ application: MyTeachingApplicationDetail }>(`/api/m/teaching/applications/${encodeURIComponent(id)}`)
-      .then((r) => setApp(r.application))
+    Promise.all([call<{ application: MyTeachingApplicationDetail }>(`/api/m/teaching/applications/${encodeURIComponent(id)}`), call<{ bookings: DemoBooking[] }>("/api/m/teaching/bookings")])
+      .then(([r, b]) => {
+        setApp(r.application);
+        setDemos(b.bookings.filter((x) => x.responseId === id));
+      })
       .catch((e: Error & { status?: number }) => setError({ message: e.message, status: e.status }));
   const isOutside = !!outside;
   useEffect(() => {
@@ -152,6 +157,11 @@ export function TeachingApplication({ id }: { id: string }) {
             </Fold>
           )}
         </Card>
+        {demos.length > 0 && (
+          <ItemSection title="Demo class">
+            <DemoTimes bookings={demos} school={app.company} onChange={() => void load()} />
+          </ItemSection>
+        )}
         <ItemSection title="Timeline">
           <StageTimeline events={app.events.map((e) => ({ id: e.id, at: e.at, title: eventTitle(e.status, app.company), detail: e.detail && e.detail !== eventTitle(e.status, app.company) ? e.detail : undefined, icon: ICON[e.status] }))} />
         </ItemSection>
