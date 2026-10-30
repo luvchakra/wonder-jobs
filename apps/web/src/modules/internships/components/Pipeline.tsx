@@ -23,7 +23,7 @@ const TONE: Record<InternshipStatus, Tone> = { applied: "info", shortlisted: "br
 
 /**
  * Internships' Pipeline (WJ-418, WJ-421), in Jobs' Pipeline layout (platform/pipeline/parts.tsx): Preparing · Applied ·
- * Shortlisted · Offer · Accepted / Closed as tiles with real counts, opening on the stage with something to do; a stage's statuses as
+ * Shortlisted · Offer as tiles with real counts, opening on the stage with something to do; a stage's statuses as
  * chips; the same compact cards, with the one action each needs, each opening its application's page; then Deadlines. WonderWorks applications come from the
  * server (what the company actually did); outside ones are those the student marked applied after applying on the
  * employer's page.
@@ -49,15 +49,16 @@ export function InternshipsPipeline() {
   }, []);
 
   const list: Item[] = useMemo(() => {
-    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status), status: STATUS_LABEL[a.status], tone: TONE[a.status], line: `${stipendLabel(a.terms)} · ${durationLabel(a.terms)}`, at: a.updatedAt, app: a }));
+    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status) ?? "", status: STATUS_LABEL[a.status], tone: TONE[a.status], line: `${stipendLabel(a.terms)} · ${durationLabel(a.terms)}`, at: a.updatedAt, app: a }));
     if (mounted)
       for (const [id, r] of Object.entries(responses)) {
         const l = items[id] as InternshipListing | undefined;
         const st = outsideStatus(r);
         // Outside ones as the student marked them; a WonderWorks one only while it's still being prepared (the server has it once sent).
-        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", line: l.location, at: r.at, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: l });
+        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st] ?? "", status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", line: l.location, at: r.at, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: l });
       }
-    return out.sort((a, b) => b.at.localeCompare(a.at));
+    // A closed or withdrawn application is in no stage, so it isn't listed.
+    return out.filter((i) => i.stage).sort((a, b) => b.at.localeCompare(a.at));
   }, [apps, responses, items, mounted]);
 
   const due = useMemo(() => (mounted && apps ? deadlines(savedItems({ saved, items }), apps) : []), [mounted, apps, saved, items]);

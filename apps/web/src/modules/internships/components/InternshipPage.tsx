@@ -59,7 +59,7 @@ function Page({ l }: { l: InternshipListing }) {
   const stipend = l.terms.stipendMin || l.terms.stipendMax ? stipendLabel(l.terms) : null;
 
   const mark = (outcome: "applied" | "withdrawn") => {
-    setResponse(l.id, outcome === "applied" ? "applied" : "accepted_closed", { status: outcome, item: l });
+    setResponse(l.id, outcome, { status: outcome, item: l });
     toast.success(outcome === "applied" ? "Marked as applied" : "Marked as withdrawn", "It's in Applications.");
   };
 

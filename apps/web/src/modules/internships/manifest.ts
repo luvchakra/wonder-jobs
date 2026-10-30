@@ -28,7 +28,7 @@ export const internshipsManifest: ModuleManifest = {
     { key: "workMode", label: "Remote, hybrid or on-site", type: "choice", options: ["Remote", "Hybrid", "On-site"], facet: true },
   ],
   response: { verb: "apply", questions: false, states: ["applied", "shortlisted", "offer", "accepted", "closed", "withdrawn"], capability: "internships.apply" },
-  pipeline: { label: "Applications", icon: "LayoutList", stages: stagesOf("Preparing", "Applied", "Shortlisted", "Offer", "Accepted / Closed"), sections: ["Deadlines"] },
+  pipeline: { label: "Applications", icon: "LayoutList", stages: stagesOf("Preparing", "Applied", "Shortlisted", "Offer"), sections: ["Deadlines"] },
   ownerSide: { workspace: "company" },
   trust: { reviews: "off" },
 };
