@@ -175,7 +175,7 @@ export function InternshipApplication({ id }: { id: string }) {
       </ItemMain>
       <ItemAside>
         <Card>
-          <StageSteps stages={internshipsManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "accepted_closed" ? STATUS_LABEL[app.status] : undefined} />
+          <StageSteps stages={internshipsManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage ?? ""} reached={new Set(app.events.flatMap((e) => stageOf(e.status) ?? []))} currentLabel={app.status === "accepted" ? STATUS_LABEL.accepted : undefined} />
           {offer ? (
             <div className="mt-3 flex gap-2">
               <Button size="sm" full loading={busy} onClick={() => void act("accept")} aria-label={`Accept the offer from ${app.company}`}>
