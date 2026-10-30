@@ -90,13 +90,14 @@ describe("Freelancer.com experts", () => {
 describe("WonderWorks pros", () => {
   it("are module-keyed rows: only open 'services' listings are read, never another module's or a draft", async () => {
     const at = new Date().toISOString();
-    const row = (id: string, module: string, status: string) => ({ id, module, org_id: "org1", title: `T ${id}`, description: "d", location: "Pune", work_mode: "onsite", skills: [], attrs: { category: "Plumbing", priceKind: "visit", priceMin: 299 }, status, created_by: "u1", created_at: at, updated_at: at });
+    const row = (id: string, module: string, status: string, title = "Plumber for leaks and fittings", category = "Plumbing") => ({ id, module, org_id: "org1", title, description: "d", location: "Pune", work_mode: "onsite", skills: [], attrs: { category, priceKind: "visit", priceMin: 299 }, status, created_by: "u1", created_at: at, updated_at: at });
     await table("hiring_orgs").insert({ id: "org1", name: "Pune Plumbers", website: null, verified: false } as never);
-    for (const r of [row("a", "services", "open"), row("b", "services", "draft"), row("c", "teaching", "open"), row("d", "services", "closed")]) await table("listings").insert(r as never);
+    for (const r of [row("a", "services", "open"), row("b", "services", "draft"), row("c", "teaching", "open"), row("d", "services", "closed"), row("e", "services", "open", "Logo and brand design", "Design")]) await table("listings").insert(r as never);
     const posts = await openServicePosts();
-    expect(posts.map((p) => p.posting.id)).toEqual(["a"]);
-    expect(posts[0]).toMatchObject({ org: { name: "Pune Plumbers", verified: false }, posting: { terms: { lane: "local", category: "Plumbing", priceKind: "visit", priceMin: 299 } } });
+    expect(posts.map((p) => p.posting.id).sort()).toEqual(["a", "e"]);
+    expect(posts.find((p) => p.posting.id === "a")).toMatchObject({ org: { name: "Pune Plumbers", verified: false }, posting: { terms: { lane: "local", category: "Plumbing", priceKind: "visit", priceMin: 299 } } });
     const jobs = await runServicesSource(SERVICES_SOURCES.find((s) => s.id === WONDERSTAR_SERVICES)!, { query: "plumber", locations: [] });
+    // The client's words narrow them: a plumber search doesn't list a logo designer.
     expect(jobs.jobs.map((j) => j.externalId)).toEqual(["a"]);
   });
 });

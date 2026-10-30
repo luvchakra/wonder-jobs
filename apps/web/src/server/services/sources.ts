@@ -13,7 +13,7 @@
  */
 import type { Job } from "@/domain/jobs/types";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
-import { getJson, type SearchCriteria } from "@/server/jobs/providers";
+import { finish, getJson, type SearchCriteria } from "@/server/jobs/providers";
 import { matchesLocations, normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
@@ -123,23 +123,22 @@ export async function runServicesSource(s: SourceRecord, c: SearchCriteria): Pro
   switch (s.id) {
     case WONDERSTAR_SERVICES: {
       const { openServicePosts } = await import("./listings");
-      const jobs = (await openServicePosts()).map(({ posting, org }) =>
-        normalizePosting(WONDERSTAR_SERVICES, {
-          externalId: posting.id,
-          title: posting.title,
-          company: org.name,
-          location: posting.location,
-          remote: posting.workMode === "remote",
-          description: posting.description,
-          tags: [posting.terms.category ?? ""].filter(Boolean),
-          postedAt: posting.updatedAt,
-          // A quote is requested in WonderWorks; this is where the listing lives.
-          applyUrl: new URL(`/app/m/services?listing=${posting.id}`, siteUrl().origin).toString(),
-          employerSite: true,
-          applyPath: "platform" as const,
-        }),
-      );
-      return { jobs: jobs.filter((j) => matchesLocations(j, c.locations)), warnings: [] };
+      // The client's words and places narrow pros' listings, as every source's postings (finish).
+      const raws: RawPosting[] = (await openServicePosts()).map(({ posting, org }) => ({
+        externalId: posting.id,
+        title: posting.title,
+        company: org.name,
+        location: posting.location,
+        remote: posting.workMode === "remote",
+        description: posting.description,
+        tags: [posting.terms.category ?? "", ...(posting.terms.skills ?? [])].filter(Boolean),
+        postedAt: posting.updatedAt,
+        // A quote is requested in WonderWorks; this is where the listing lives.
+        applyUrl: new URL(`/app/m/services?listing=${posting.id}`, siteUrl().origin).toString(),
+        employerSite: true,
+        applyPath: "platform" as const,
+      }));
+      return { jobs: finish(WONDERSTAR_SERVICES, raws, c), warnings: [] };
     }
     case FREELANCER_EXPERTS:
       return { jobs: await fetchFreelancerExperts(c), warnings: [] };

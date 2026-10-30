@@ -8,7 +8,6 @@ import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
 import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
-import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LANE_LABEL, materialsLabel, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
@@ -20,7 +19,8 @@ const FIND = { href: "/app/m/services", label: "Talent & Services" };
 
 /**
  * One pro's own page, on WonderWorks' listing page (wonderworks/listing/): the head and whether they serve you, Why,
- * About, then under the whole description the Terms, Track record, Pro and Source folds; beside them the way in.
+ * About, then under the whole description the Terms, Track record and Source folds (no company lookup: a pro is a
+ * person or a small agency, and a name match would show some other company); beside them the way in.
  * Shown from what the client saw: their saves, else their last search.
  */
 export function ServicePage({ id }: { id: string }) {
@@ -97,7 +97,7 @@ function Page({ l }: { l: ServiceListing }) {
         {fit && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span title={fit.title} className={cn("rounded-full px-2.5 py-1 text-[12px] font-semibold", fit.tone)}>
-              {fit.word} you
+              {fit.label}
             </span>
           </div>
         )}
@@ -145,7 +145,6 @@ function Page({ l }: { l: ServiceListing }) {
                 <p className="mt-3 text-[12px] text-ink-4">As {l.sourceName} reports it. WonderWorks adds nothing to it.</p>
               </Fold>
             )}
-            <CompanyFold job={{ company: l.company }} />
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
               <p className="text-[13px] text-ink-2">
                 {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}. Work and payment with this pro happen there, on their terms.`}

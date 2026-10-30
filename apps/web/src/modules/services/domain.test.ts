@@ -63,6 +63,10 @@ describe("whether a pro serves the client", () => {
     // Remote work has no area to compare, and no area saved means no signal.
     expect(matchService(L({ lane: "remote" }), area)).toEqual({ fit: "unknown", signals: [] });
     expect(matchService(L({ lane: "local", areas: ["Pune"] }), null).fit).toBe("unknown");
+    // A pin code against city names (or the reverse) can't be compared, so nothing is claimed either way.
+    expect(matchService(L({ lane: "local", areas: ["Pune"] }), { area: "411001" })).toEqual({ fit: "unknown", signals: [] });
+    expect(matchService(L({ lane: "local", areas: ["411001", "411002"] }), { area: "411001" }).fit).toBe("strong");
+    expect(matchService(L({ lane: "local", areas: ["400001"] }), { area: "411001" }).fit).toBe("some");
   });
 
   it("asks for the area it compares with", () => {

@@ -218,11 +218,13 @@ export interface ServiceMatch {
 }
 
 const norm = (s: string) => s.trim().toLowerCase();
+const isPin = (s: string) => /^\d{6}$/.test(s.trim());
 
 /**
  * What fits, from the listing's own terms and the client's own area only. A local pro fits when a service area they
  * state covers the client's city or pin code; one that states other areas doesn't. A remote pro has no area to
- * compare, so it gives no signal. A term not stated gives no signal (not a bad one).
+ * compare, so it gives no signal. A term not stated gives no signal (not a bad one), and neither does a pin code set
+ * against city names (or the reverse): WonderWorks can't tell whether Pune covers 411001, so it doesn't say.
  */
 export function matchService(l: Pick<ServiceListing, "terms" | "location">, p: ClientProfile | undefined | null): ServiceMatch {
   const signals: MatchSignal[] = [];
@@ -233,7 +235,9 @@ export function matchService(l: Pick<ServiceListing, "terms" | "location">, p: C
     const areas = (t.areas?.length ? t.areas : [l.location]).filter(Boolean);
     if (areas.length) {
       const hit = areas.some((a) => norm(a) === where || norm(a).includes(where) || where.includes(norm(a)));
-      signals.push(hit ? { tone: "good", text: `Serves ${p.area}` } : { tone: "bad", text: `Serves ${areas.slice(0, 3).join(", ")}, not ${p.area}` });
+      const comparable = areas.some((a) => isPin(a) === isPin(p.area));
+      if (hit) signals.push({ tone: "good", text: `Serves ${p.area}` });
+      else if (comparable) signals.push({ tone: "bad", text: `Serves ${areas.slice(0, 3).join(", ")}, not ${p.area}` });
     }
   }
   const bad = signals.some((s) => s.tone === "bad");

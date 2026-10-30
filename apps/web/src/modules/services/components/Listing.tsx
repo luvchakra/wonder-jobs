@@ -15,9 +15,9 @@ export function useMatch(l: ServiceListing): ServiceMatch {
 }
 
 /** "Serves you" under the logo, in the pill Jobs uses for its match. */
-export const FIT: Record<Exclude<ServiceMatch["fit"], "unknown">, { word: string; tone: string; title: string }> = {
-  strong: { word: "Serves", tone: "bg-success-100 text-success-600", title: "This pro states a service area that covers yours" },
-  some: { word: "Elsewhere", tone: "bg-brand-50 text-brand-700", title: "This pro states service areas that don't include yours" },
+export const FIT: Record<Exclude<ServiceMatch["fit"], "unknown">, { top: string; bottom: string; label: string; tone: string; title: string }> = {
+  strong: { top: "Serves", bottom: "you", label: "Serves your area", tone: "bg-success-100 text-success-600", title: "This pro states a service area that covers yours" },
+  some: { top: "Other", bottom: "areas", label: "Serves other areas", tone: "bg-brand-50 text-brand-700", title: "This pro states service areas that don't include yours" },
 };
 
 /**
@@ -38,7 +38,7 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
       aside={
         <>
           <CompanyLogo name={l.company} logo size={44} />
-          {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.word} bottom="you" srText={fit.title} />}
+          {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
           {l.origin === "outside" && l.applyUrl && (
             <a href={l.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.company}'s page on ${l.sourceName} (opens in a new tab)`} title={`Open their page on ${l.sourceName}`} className={APPLY_BTN}>
               View

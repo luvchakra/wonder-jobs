@@ -42,7 +42,7 @@ export function outside(o: CanonicalOpportunity): ServiceListing {
     termsFrom: "posting",
     description: o.description.slice(0, 1200),
     applyUrl: o.canonicalApplyUrl,
-    postedAt: o.postedAt,
+    // A directory profile has no listing date (the source's date is when the account was made), so none is shown.
     sourceId: rec?.sourceId ?? "",
     sourceName: rec?.sourceName ?? "",
   };
