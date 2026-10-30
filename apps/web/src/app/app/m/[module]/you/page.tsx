@@ -1,9 +1,10 @@
 import { ModuleYou } from "@/wonderworks/shell/ModulePages";
-import { InternshipsYou } from "@/modules/internships/components/You";
+import { modulePages } from "@/modules/pages";
 import { shellManifest, shellTab, type ShellParams } from "../shell";
 
 export default async function ModuleYouPage(p: ShellParams) {
   const id = await shellTab(p, "you");
-  if (id === "internships") return <InternshipsYou />;
+  const { You } = modulePages(id);
+  if (You) return <You />;
   return id && <ModuleYou m={shellManifest(id)} />;
 }

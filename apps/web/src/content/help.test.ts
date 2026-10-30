@@ -86,9 +86,9 @@ describe("help guide", () => {
     expect(text).not.toMatch(/supabase|postgres|vercel|next\.?js|react|row-level|\bRLS\b|database|webhook|\bSMTP\b|aes-?256/i);
   });
 
-  it("does not describe a public demo, which no longer exists", () => {
+  it("does not describe a public demo, which no longer exists (Teaching's demo class is a lesson, not a demo of the app)", () => {
     const text = HELP_SECTIONS.flatMap((s) => s.body).concat(HELP_FAQ.map((f) => f.a)).join("\n");
-    expect(text).not.toMatch(/\bdemo\b/i);
+    expect(text).not.toMatch(/\bdemo\b(?![ -]class)/i);
   });
 });
 

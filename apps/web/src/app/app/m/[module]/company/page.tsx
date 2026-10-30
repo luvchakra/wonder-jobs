@@ -1,15 +1,16 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { InternshipsCompany } from "@/modules/internships/components/Company";
+import { modulePages } from "@/modules/pages";
 import { shellModule, type ShellParams } from "../shell";
 
-/** Internships → Company: a hiring workspace's internships and their applications (the owner side, WJ-418). */
+/** A module's owner side: a company's (or school's) workspace, its listings and their responses. */
 export default async function ModuleCompanyPage(p: ShellParams) {
   const m = await shellModule(p);
-  if (m.id !== "internships") notFound();
+  const { Company } = modulePages(m.id === "jobs" ? null : m.id);
+  if (!Company) notFound();
   return (
     <Suspense>
-      <InternshipsCompany />
+      <Company />
     </Suspense>
   );
 }

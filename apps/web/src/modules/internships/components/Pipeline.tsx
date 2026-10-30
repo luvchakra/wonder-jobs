@@ -9,7 +9,7 @@ import { toast } from "@/components/feedback/Toast";
 import { internshipsManifest, listingHref } from "../manifest";
 import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { relativeTime } from "@/lib/format";
-import { call } from "../api";
+import { call } from "@/wonderworks/api";
 import { canWithdraw, deadlines, MARK_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, durationLabel, shortDate, stageOf, STATUS_LABEL, stipendLabel, type InternshipListing, type InternshipStatus, type MyInternshipApplication } from "../domain";
 import { savedItems, useInternshipsStore } from "../store";
 

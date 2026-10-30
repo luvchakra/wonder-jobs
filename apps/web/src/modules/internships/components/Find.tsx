@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import { ModuleFind, type FacetSpec, type FacetValues, type FindRun } from "@/wonderworks/find/ModuleFind";
-import { call } from "../api";
+import { call } from "@/wonderworks/api";
 import { applyFacets, type InternshipListing } from "../domain";
 import { selectProfile, useInternshipsStore } from "../store";
 import { InternshipCard } from "./Listing";

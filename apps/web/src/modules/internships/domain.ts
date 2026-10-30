@@ -7,12 +7,14 @@
  */
 import type { CareerDNA } from "@/domain/career/types";
 import type { WorkMode } from "@/wonderworks/find/place";
+import { isDate, monthlyFromYearly as monthly, money, shortDate, WORK_MODE_LABEL } from "@/wonderworks/listing/terms";
+
+export { isDate, shortDate, WORK_MODE_LABEL };
 
 export const INTERNSHIPS = "internships" as const;
 
 export type Schedule = "part_time" | "full_time";
 export const SCHEDULE_LABEL: Record<Schedule, string> = { part_time: "Part time", full_time: "Full time" };
-export const WORK_MODE_LABEL: Record<WorkMode, string> = { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" };
 export const DURATIONS = [1, 2, 3, 4, 6, 9, 12] as const;
 export const CURRENCIES = ["INR", "USD", "EUR", "GBP"] as const;
 
@@ -70,8 +72,6 @@ export interface InternshipListing {
   sourceName: string;
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-export const isDate = (v: unknown): v is string => typeof v === "string" && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 const int = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : undefined);
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -157,16 +157,12 @@ export function durationFromText(s: string): number | undefined {
 
 /** A yearly salary range (how WorksLake keeps pay) as a month's stipend; nothing when the posting states none. */
 export function monthlyFromYearly(min: number | undefined, max: number | undefined, currency: string): Pick<InternshipTerms, "stipendMin" | "stipendMax" | "currency"> {
-  const m = (v: number | undefined) => (typeof v === "number" && v > 0 ? Math.round(v / 12) : undefined);
-  const lo = m(min) ?? m(max);
-  const hi = m(max);
-  return { currency, ...(lo !== undefined ? { stipendMin: lo } : {}), ...(hi !== undefined && hi !== lo ? { stipendMax: hi } : {}) };
+  const { min: lo, max: hi } = monthly(min, max);
+  return { currency, ...(lo !== undefined ? { stipendMin: lo } : {}), ...(hi !== undefined ? { stipendMax: hi } : {}) };
 }
 
 /* ------------------------------------------------------------------ display */
 
-const SYMBOL: Record<string, string> = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
-const money = (v: number, currency: string) => `${SYMBOL[currency] ?? `${currency} `}${v.toLocaleString(currency === "INR" ? "en-IN" : "en-US")}`;
 
 /** "₹15,000–₹20,000 a month", "Unpaid", or "Stipend not stated". */
 export function stipendLabel(t: Pick<InternshipTerms, "stipendMin" | "stipendMax" | "currency">): string {
@@ -178,7 +174,6 @@ export function stipendLabel(t: Pick<InternshipTerms, "stipendMin" | "stipendMax
 
 export const durationLabel = (t: Pick<InternshipTerms, "durationMonths">) => (t.durationMonths ? `${t.durationMonths} ${t.durationMonths === 1 ? "month" : "months"}` : "Duration not stated");
 
-export const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export const startLabel = (t: Pick<InternshipTerms, "startsOn">) => (t.startsOn ? `Starts ${shortDate(t.startsOn)}` : "Start date not stated");
 

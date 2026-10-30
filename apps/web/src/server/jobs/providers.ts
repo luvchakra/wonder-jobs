@@ -193,9 +193,9 @@ export function placesToSearch(c: Pick<SearchCriteria, "locations">, max = 5): s
     .slice(0, max);
 }
 
-const adzunaAvailable = () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
+export const adzunaAvailable = () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
 /** One Adzuna India search; `extra` narrows it with Adzuna's own filters (`&part_time=1`). */
-async function adzunaSearch(sourceId: string, c: SearchCriteria, extra = ""): Promise<Job[]> {
+export async function adzunaSearch(sourceId: string, c: SearchCriteria, extra = ""): Promise<Job[]> {
   const id = process.env.ADZUNA_APP_ID;
   const key = process.env.ADZUNA_APP_KEY;
   if (!id || !key) return [];

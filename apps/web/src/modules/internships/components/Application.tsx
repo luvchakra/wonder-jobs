@@ -13,7 +13,7 @@ import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { StageTimeline } from "@/wonderworks/pipeline/parts";
 import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from "@/wonderworks/pipeline/item";
 import { formatDate } from "@/lib/format";
-import { call } from "../api";
+import { call } from "@/wonderworks/api";
 import { internshipsManifest, listingHref } from "../manifest";
 import { canWithdraw, MARK_LABEL, OUTSIDE_LABEL, outsideStatus, durationLabel, shortDate, stageOf, startLabel, STATUS_LABEL, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipStatus, type MyInternshipApplicationDetail } from "../domain";
 import { useInternshipsStore } from "../store";

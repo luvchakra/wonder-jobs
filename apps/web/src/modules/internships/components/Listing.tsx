@@ -16,7 +16,7 @@ import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { cn } from "@/lib/cn";
-import { call } from "../api";
+import { call } from "@/wonderworks/api";
 import { durationLabel, matchInternship, missingProfile, outsideStatus, SCHEDULE_LABEL, shortDate, startLabel, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipMatch, type StudentProfile } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useInternshipsStore } from "../store";

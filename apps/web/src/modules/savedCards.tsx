@@ -3,6 +3,8 @@ import { isLive, moduleById, MODULES, type ModuleId, type ModuleManifest } from 
 import { ModuleSaved } from "@/wonderworks/shell/ModulePages";
 import { InternshipCard } from "./internships/components/Listing";
 import type { InternshipListing } from "./internships/domain";
+import { TeachingCard } from "./teaching/components/Listing";
+import type { TeachingListing } from "./teaching/domain";
 
 const noop = () => undefined;
 
@@ -10,6 +12,7 @@ const noop = () => undefined;
 export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">; item: unknown }) {
   // Its title opens the listing's own page.
   if (module === "internships") return <InternshipCard item={item as InternshipListing} onOpen={noop} />;
+  if (module === "teaching") return <TeachingCard item={item as TeachingListing} onOpen={noop} />;
   return null;
 }
 
@@ -18,6 +21,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
   if (module === "internships") {
     const l = item as InternshipListing;
     return [l.title, l.company, l.location, ...l.skills].join(" ");
+  }
+  if (module === "teaching") {
+    const l = item as TeachingListing;
+    return [l.title, l.company, l.location, l.terms.subject ?? "", ...(l.terms.boards ?? [])].join(" ");
   }
   return "";
 }
