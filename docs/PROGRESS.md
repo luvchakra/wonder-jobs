@@ -564,3 +564,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ⬜ Operator-side: set `WONDERJOBS_AI_KEY`, `ADZUNA_APP_ID/KEY`, enable Google provider, Site URL + Redirect URLs, custom SMTP
 - ⬜ Uptime / error monitoring beyond Vercel's built-in logs
 - ✅ Talent & Services: Find goes live — search for local pros and remote freelancers, price/visit/warranty/rating on the card, Refine, a pro's page, Saved and your area in You (WJ-439)
+- ✅ Talent & Services: pros list their services from You → Offer your services — at the client's place or remote, with price, visit charge, materials, warranty, areas or turnaround (WJ-440)

@@ -316,3 +316,89 @@ export function readTerms(raw: unknown): ServiceTerms {
     ...(r.gst === true ? { gst: true } : {}),
   };
 }
+
+/* ------------------------------------------------------------------ posting a listing */
+
+export const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED"] as const;
+
+/** Which price kinds each lane offers: a visit is a local trade's, an hourly rate a remote project's. */
+export const LANE_PRICES: Record<Lane, PriceKind[]> = { local: ["visit", "fixed", "quote"], remote: ["fixed", "hourly", "quote"] };
+export const PRICE_KIND_LABEL: Record<PriceKind, string> = { visit: "A visit", fixed: "Fixed price", hourly: "By the hour", quote: "Quote on request" };
+
+/** What the pro's form sends; every field is checked by `cleanServicePosting`. */
+export interface ServicePostingInput {
+  title?: unknown;
+  description?: unknown;
+  lane?: unknown;
+  category?: unknown;
+  location?: unknown;
+  areas?: unknown;
+  priceKind?: unknown;
+  priceMin?: unknown;
+  priceMax?: unknown;
+  currency?: unknown;
+  visitCharge?: unknown;
+  materials?: unknown;
+  warrantyDays?: unknown;
+  turnaroundDays?: unknown;
+  skills?: unknown;
+  gst?: unknown;
+}
+
+export type CleanServicePosting = Pick<ServicePosting, "title" | "description" | "location" | "workMode" | "terms">;
+
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const blank = (v: unknown) => v == null || v === "";
+const whole = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : undefined);
+const words = (v: unknown, max: number, len: number) => (Array.isArray(v) ? [...new Set(v.map((x) => text(x, len)).filter(Boolean))].slice(0, max) : []);
+
+/**
+ * A pro's listing, checked. What a client compares is required, so a WonderWorks listing never leaves it out: the lane,
+ * the service, how it's priced (and the price unless it's on quote), and for work at the client's place the city and the
+ * areas served. A visit charge, materials, warranty, turnaround, skills and GST are the pro's to state; left out, they
+ * show "Not stated". Nothing is filled in for them.
+ */
+export function cleanServicePosting(i: ServicePostingInput): { value: CleanServicePosting } | { problem: string } {
+  const title = text(i.title, 160);
+  if (title.length < 3) return { problem: "Give the service a title." };
+  const description = text(i.description, 8000);
+  if (description.length < 30) return { problem: "Describe what you do in a few sentences (what's included, how you work)." };
+  const lane = oneOf(i.lane, ["local", "remote"] as const);
+  if (!lane) return { problem: "Say whether you work at the client's place or remotely." };
+  const category = oneOf(i.category, CATEGORIES);
+  if (!category || laneOf(category) !== lane) return { problem: lane === "local" ? "Choose the trade." : "Choose the kind of work." };
+  const location = text(i.location, 160);
+  const areas = words(i.areas, 20, 40);
+  if (lane === "local" && !location) return { problem: "Say which city you work in." };
+  if (lane === "local" && !areas.length) return { problem: "List the areas or pin codes you serve." };
+  const priceKind = oneOf(i.priceKind, LANE_PRICES[lane]);
+  if (!priceKind) return { problem: "Say how you charge." };
+  const priceMin = blank(i.priceMin) ? undefined : whole(i.priceMin, 0, 10_000_000);
+  const priceMax = blank(i.priceMax) ? undefined : whole(i.priceMax, 0, 10_000_000);
+  const visitCharge = blank(i.visitCharge) ? undefined : whole(i.visitCharge, 0, 100_000);
+  if ((!blank(i.priceMin) && priceMin === undefined) || (!blank(i.priceMax) && priceMax === undefined) || (!blank(i.visitCharge) && visitCharge === undefined)) return { problem: "Prices should be whole numbers." };
+  if (priceKind !== "quote" && priceMin === undefined) return { problem: "Give your price, or choose Quote on request." };
+  if (priceMin !== undefined && priceMax !== undefined && priceMax < priceMin) return { problem: "The price's upper end is below its lower end." };
+  const currency = oneOf(i.currency, CURRENCIES) ?? "INR";
+  const warrantyDays = blank(i.warrantyDays) ? undefined : whole(i.warrantyDays, 1, 3650);
+  const turnaroundDays = blank(i.turnaroundDays) ? undefined : whole(i.turnaroundDays, 1, 365);
+  if ((!blank(i.warrantyDays) && warrantyDays === undefined) || (!blank(i.turnaroundDays) && turnaroundDays === undefined)) return { problem: "Days should be a whole number." };
+  const materials = lane === "local" ? oneOf(i.materials, ["included", "extra"] as const) : undefined;
+  const skills = words(i.skills, 10, 40);
+  const terms: ServiceTerms = {
+    currency,
+    lane,
+    category,
+    priceKind,
+    ...(priceKind !== "quote" && priceMin !== undefined ? { priceMin } : {}),
+    ...(priceKind !== "quote" && priceMax !== undefined && priceMax !== priceMin ? { priceMax } : {}),
+    ...(lane === "local" && visitCharge !== undefined ? { visitCharge } : {}),
+    ...(materials ? { materials } : {}),
+    ...(warrantyDays ? { warrantyDays } : {}),
+    ...(lane === "local" ? { areas } : {}),
+    ...(lane === "remote" && turnaroundDays ? { turnaroundDays } : {}),
+    ...(skills.length ? { skills } : {}),
+    ...(i.gst === true ? { gst: true } : {}),
+  };
+  return { value: { title, description, location: lane === "remote" ? location || "Remote" : location, workMode: lane === "remote" ? "remote" : "onsite", terms } };
+}
