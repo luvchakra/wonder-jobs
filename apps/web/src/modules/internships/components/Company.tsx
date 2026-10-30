@@ -1,23 +1,19 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Building2, Download, Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
-import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import { can, type OrgPermission } from "@/domain/org/permissions";
-import { ORG_ROLE_LABEL, type OrgRole } from "@/domain/org/types";
-import { PageHeader } from "@/wonderworks/chrome/PageHeader";
-import { Tabs } from "@/components/common/Tabs";
+import type { OrgRole } from "@/domain/org/types";
+import { OwnerWorkspace, useWorkspaces } from "@/wonderworks/owner/Workspace";
 import { Badge } from "@/components/common/Badge";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { call } from "@/wonderworks/api";
 import { COMPANY_NEXT, CURRENCIES, DURATIONS, durationLabel, shortDate, startLabel, STATUS_LABEL, stipendLabel, type InternshipApplicationView, type InternshipPosting, type InternshipStatus } from "../domain";
 
-type Workspace = { org: { id: string; name: string }; role: OrgRole };
 type Data = { internships: InternshipPosting[]; applications: InternshipApplicationView[]; role?: OrgRole };
 
 const ACTION_LABEL: Partial<Record<InternshipStatus, string>> = { shortlisted: "Shortlist", offer: "Make an offer", closed: "Not moving forward" };
@@ -30,21 +26,13 @@ const ACTION_LABEL: Partial<Record<InternshipStatus, string>> = { shortlisted: "
  */
 export function InternshipsCompany() {
   const params = useSearchParams();
-  const [spaces, setSpaces] = useState<Workspace[] | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(params.get("org"));
+  const workspaces = useWorkspaces();
+  const { ws, may } = workspaces;
+  const org = ws?.org.id ?? null;
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<InternshipPosting | "new" | null>(null);
   const [tab, setTab] = useState<"internships" | "applications">(params.get("tab") === "applications" ? "applications" : "internships");
-
-  useEffect(() => {
-    call<{ workspaces: Workspace[] }>("/api/hiring")
-      .then((r) => setSpaces(r.workspaces.filter((w) => can(w.role, "jobs.view"))))
-      .catch((e: Error) => setError(e.message));
-  }, []);
-  const org = orgId && spaces?.some((w) => w.org.id === orgId) ? orgId : (spaces?.[0]?.org.id ?? null);
-  const role = spaces?.find((w) => w.org.id === org)?.role;
-  const may = (p: OrgPermission) => can(role, p);
 
   const load = useCallback(() => {
     if (!org) return;
@@ -55,17 +43,6 @@ export function InternshipsCompany() {
   useEffect(() => {
     load();
   }, [load]);
-
-  if (error) return <ErrorState title="Couldn't load your workspace" body={error} />;
-  if (!spaces) return <PageLoading rows={3} />;
-  if (!spaces.length)
-    return (
-      <div className="mx-auto max-w-4xl">
-        <PageHeader title="Internships" description="For companies: post internships students find on WonderWorks, and review their applications." back={{ href: "/app/hiring", label: "Hiring" }} />
-        <EmptyState icon={<Building2 className="size-5" aria-hidden />} title="No hiring workspace yet" body="Create one for your company in Hiring, then post internships here." action={{ label: "Open Hiring", href: "/app/hiring" }} />
-      </div>
-    );
-  if (!data) return <PageLoading rows={3} />;
 
   const setStatus = async (id: string, status: InternshipPosting["status"]) => {
     try {
@@ -85,29 +62,20 @@ export function InternshipsCompany() {
     }
   };
 
-  const ws = spaces.find((w) => w.org.id === org)!;
   const tabs = [{ value: "internships" as const, label: "Internships" }, ...(may("applications.view") ? [{ value: "applications" as const, label: "Applications" }] : [])];
   const shown = tabs.some((t) => t.value === tab) ? tab : "internships";
   return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title={ws.org.name}
-        description={`Internships · you're ${ORG_ROLE_LABEL[ws.role] === "Owner" ? "an Owner" : `a ${ORG_ROLE_LABEL[ws.role]}`}`}
-        back={{ href: `/app/hiring?org=${encodeURIComponent(ws.org.id)}`, label: "Hiring" }}
-        actions={
-          spaces.length > 1 && (
-            <Select value={ws.org.id} onChange={(e) => setOrgId(e.target.value)} aria-label="Workspace" className="w-40 sm:w-44">
-              {spaces.map((w) => (
-                <option key={w.org.id} value={w.org.id}>
-                  {w.org.name}
-                </option>
-              ))}
-            </Select>
-          )
-        }
-      />
-      <Tabs value={shown} onChange={setTab} items={tabs} label="Internships workspace" variant="underline" className="mb-4" />
-      {shown === "internships" && (
+    <OwnerWorkspace
+      module="Internships"
+      intro="For companies: post internships students find on WonderWorks, and review their applications."
+      noWorkspace="Create one for your company in Hiring, then post internships here."
+      state={{ ...workspaces, error: workspaces.error ?? error }}
+      loaded={!!data}
+      tabs={tabs}
+      tab={shown}
+      onTab={setTab}
+    >
+      {data && shown === "internships" && (
         <section aria-label="Internships">
           {may("jobs.edit") && (
             <Button className="mb-4" icon={<Plus className="size-4" aria-hidden />} onClick={() => setForm("new")}>
@@ -148,7 +116,7 @@ export function InternshipsCompany() {
           )}
         </section>
       )}
-      {shown === "applications" && (
+      {data && shown === "applications" && (
         <section aria-label="Applications">
           {data.applications.length === 0 ? (
             <p className="rounded-[16px] border border-line bg-surface p-4 text-[14px] text-ink-3">No applications yet. Students&apos; applications to your open internships show here.</p>
@@ -202,7 +170,7 @@ export function InternshipsCompany() {
           }}
         />
       )}
-    </div>
+    </OwnerWorkspace>
   );
 }
 

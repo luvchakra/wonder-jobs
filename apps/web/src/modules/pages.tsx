@@ -9,6 +9,8 @@ import { TeachingFind } from "./teaching/components/Find";
 import { TeachingProfile, TeachingYou } from "./teaching/components/You";
 import { TeachingPage } from "./teaching/components/TeachingPage";
 import { TeachingPipeline } from "./teaching/components/Pipeline";
+import { TeachingApplication } from "./teaching/components/Application";
+import { TeachingCompany } from "./teaching/components/Company";
 import type { ModuleId } from "./registry";
 
 /**
@@ -31,7 +33,7 @@ export interface ModulePages {
 
 const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   internships: { Find: InternshipsFind, Pipeline: InternshipsPipeline, You: InternshipsYou, Profile: InternshipsProfile, Listing: InternshipPage, Item: InternshipApplication, Company: InternshipsCompany },
-  teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage },
+  teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 
 export const modulePages = (id: Exclude<ModuleId, "jobs"> | null): ModulePages => (id && PAGES[id]) || {};

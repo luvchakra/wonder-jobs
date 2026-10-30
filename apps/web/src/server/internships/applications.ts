@@ -11,19 +11,11 @@
  * Applying is the student's own press, gated by `resolveCapability("internships.apply")` read here on the server from
  * their saved policy (a failed or missing lookup fails closed to asking), once per posting and email, and audited.
  */
-import { randomUUID } from "node:crypto";
 import type { Session } from "../auth";
-import { table } from "../db/table";
 import { HiringError, requirePermission } from "../hiring";
-import { sendMail } from "../notify";
-import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "../email/layout";
 import { deliver, type Notice } from "../notifications/deliver";
-import { decryptFile, encryptFile, resumeFileStore } from "../resume/files";
-import { readClientState } from "../clientState";
-import { siteUrl } from "@/lib/siteUrl";
-import { can } from "@/domain/org/permissions";
-import type { OrgRole } from "@/domain/org/types";
-import { defaultPolicy, resolveCapability, type AutomationLevel, type AutomationPolicy } from "@/domain/automation/policy";
+import { resumeFileStore } from "../resume/files";
+import { capabilityDecision, emailTeam, events, files, keepResume, listings as allListings, newId, now, openListings, orgs, readResume, record, responses as allResponses, type ListingRow as SharedListingRow, type ResponseRow as SharedResponseRow } from "../modules/responses";
 import {
   canWithdraw,
   cleanPosting,
@@ -43,30 +35,13 @@ import {
 } from "@/modules/internships/domain";
 
 // ---- rows ----------------------------------------------------------------------------------------------------
-export type ListingRow = { id: string; module: string; org_id: string; title: string; description: string; location: string; work_mode: InternshipPosting["workMode"]; skills: string[]; attrs: Record<string, unknown>; status: InternshipPosting["status"]; created_by: string; created_at: string; updated_at: string };
-type ResponseRow = { id: string; module: string; listing_id: string; org_id: string; responder_tenant: string; email: string; name: string; status: InternshipStatus; profile: StudentProfile & { skills?: string[] }; cover_note: string; consent_at: string; created_at: string; updated_at: string };
-type EventRow = { response_id: string; org_id: string; event: string; actor: string | null; detail: string | null; at: string };
-type FileRow = { response_id: string; org_id: string; filename: string; mime: string; ciphertext: string; created_at: string };
-type OrgRow = { id: string; name: string; website: string | null; verified?: boolean };
-type MemberRow = { org_id: string; tenant_id: string; role: OrgRole; email: string | null };
+export type ListingRow = SharedListingRow;
+type ResponseRow = SharedResponseRow<InternshipStatus, StudentProfile & { skills?: string[] }>;
 
-const listings = () => table<ListingRow>("listings");
-const responses = () => table<ResponseRow>("responses");
-const events = () => table<EventRow>("response_events");
-const files = () => table<FileRow>("response_files");
-const orgs = () => table<OrgRow>("hiring_orgs");
-const members = () => table<MemberRow>("hiring_members");
-
-const now = () => new Date().toISOString();
-const newId = (p: string) => `${p}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
-/** Résumé copies are encrypted per workspace, apart from Jobs' Easy Apply files. */
-const fileOwner = (orgId: string) => `org:${orgId}:internships`;
+const listings = allListings;
+const responses = () => allResponses<InternshipStatus, StudentProfile & { skills?: string[] }>();
 
 export const toPosting = (r: ListingRow): InternshipPosting => ({ id: r.id, orgId: r.org_id, title: r.title, description: r.description, location: r.location, workMode: r.work_mode, skills: r.skills ?? [], terms: readTerms(r.attrs), status: r.status, createdAt: r.created_at, updatedAt: r.updated_at });
-
-async function record(r: Pick<ResponseRow, "id" | "org_id">, event: string, actor: string | null, detail?: string) {
-  await events().insert({ response_id: r.id, org_id: r.org_id, event, actor, detail: detail ?? null, at: now() });
-}
 
 // ---- company side: postings ------------------------------------------------------------------------------------
 
@@ -104,26 +79,13 @@ export async function setInternshipStatus(s: Session, orgId: string, postingId: 
 
 /** Every open internship whose last day to apply hasn't passed, with its company (public postings: the one cross-tenant read). */
 export async function openInternships(limit = 300): Promise<{ posting: InternshipPosting; org: { id: string; name: string; verified: boolean } }[]> {
-  const rows = (await listings().find({ module: INTERNSHIPS, status: "open" }, { order: "updated_at", desc: true, limit })).map(toPosting).filter((p) => stillOpen(p.terms));
-  const byOrg = new Map((await orgs().findIn("id", [...new Set(rows.map((p) => p.orgId))])).map((o) => [o.id, o]));
-  return rows.flatMap((posting) => {
-    const o = byOrg.get(posting.orgId);
-    return o ? [{ posting, org: { id: o.id, name: o.name, verified: !!o.verified } }] : [];
-  });
+  return (await openListings(INTERNSHIPS, toPosting, limit)).filter((p) => stillOpen(p.posting.terms));
 }
 
 // ---- the gate ------------------------------------------------------------------------------------------------
 
 /** `resolveCapability("internships.apply")` for this student, from their saved policy. No saved policy, or a failed read: ask. */
-export async function applyDecision(tenantId: string): Promise<"run" | "ask" | "skip"> {
-  try {
-    const st = await readClientState<{ policy?: Partial<AutomationPolicy>; defaultLevel?: AutomationLevel }>(tenantId, "wj.automation");
-    if (!st?.policy) return "ask";
-    return resolveCapability("internships.apply", { ...defaultPolicy(), ...st.policy }, st.defaultLevel ?? "guided");
-  } catch {
-    return "ask";
-  }
-}
+export const applyDecision = (tenantId: string) => capabilityDecision(tenantId, "internships.apply");
 
 // ---- student side --------------------------------------------------------------------------------------------
 
@@ -171,7 +133,7 @@ export async function applyToInternship(s: Session, input: ApplyInput): Promise<
     if (/duplicate|unique/i.test(e instanceof Error ? e.message : "")) throw new HiringError("You've already applied for this internship.", 409);
     throw e;
   }
-  await files().insert({ response_id: row.id, org_id: org.id, filename: file.meta.filename, mime: file.meta.mime, ciphertext: encryptFile(fileOwner(org.id), row.id, file.bytes), created_at: at });
+  await keepResume(row, file, at);
   await record(row, "submitted", "applicant", "Applied on WonderWorks Internships");
   return { id: row.id, title: posting.title, company: org.name, notify: () => notifyTeam(row, posting.title) };
 }
@@ -286,32 +248,26 @@ export async function decideInternship(s: Session, orgId: string, responseId: st
 /** The résumé sent with an application, for someone in that workspace who may view applications. */
 export async function internshipResume(s: Session, orgId: string, responseId: string): Promise<{ filename: string; mime: string; bytes: Buffer }> {
   await requirePermission(s, orgId, "applications.view");
-  const f = await files().one({ response_id: responseId, org_id: orgId });
+  const f = await readResume(orgId, INTERNSHIPS, responseId);
   if (!f) throw new HiringError("This application has no résumé file.", 404);
-  return { filename: f.filename, mime: f.mime, bytes: decryptFile(fileOwner(orgId), responseId, f.ciphertext) };
+  return f;
 }
 
 // ---- email to the team ---------------------------------------------------------------------------------------
 
 async function notifyTeam(r: ResponseRow, title: string): Promise<void> {
-  try {
-    const team = [...new Set((await members().find({ org_id: r.org_id })).filter((m) => can(m.role, "applications.decide") && m.email).map((m) => m.email!))];
-    const C = EMAIL_COLORS;
-    const href = new URL(`/app/m/internships/company?org=${encodeURIComponent(r.org_id)}`, siteUrl().origin).toString();
-    const p = r.profile;
-    const rows: [string, string][] = [
+  const p = r.profile;
+  await emailTeam(r, {
+    tag: "internships",
+    subject: `New internship application for ${title}: ${r.name}`,
+    heading: `New internship application: ${r.name}`,
+    intro: `${r.name} applied for ${title} on WonderWorks Internships.`,
+    rows: [
       ["College", p.college],
       ["Course", `${p.course}${p.graduationYear ? `, graduating ${p.graduationYear}` : ""}`],
       ["Available", `${p.availableFrom ?? "?"} to ${p.availableTo ?? "?"}`],
       ["Email", r.email],
-    ];
-    const bodyHtml = `<div style="font-size:18px;font-weight:700;margin:0 0 8px">${escapeHtml(`New internship application: ${r.name}`)}</div><div style="margin:0 0 10px;color:${C.ink2}">${escapeHtml(`${r.name} applied for ${title} on WonderWorks Internships.`)}</div>${rows.map(([a, b]) => `<div style="padding:6px 0;border-bottom:1px solid ${C.line}"><div style="font-size:12px;color:${C.muted}">${escapeHtml(a)}</div><div style="font-size:14px;color:${C.ink}">${escapeHtml(b)}</div></div>`).join("")}<p style="margin:16px 0 0"><a href="${escapeHtml(href)}">Review the application</a></p>`;
-    const bodyText = [`New internship application: ${r.name}`, "", ...rows.map(([a, b]) => `${a}: ${b}`), "", `Review the application: ${href}`].join("\n");
-    const mail = renderEmailLayout({ origin: siteUrl().origin, preheader: `${r.name} applied for ${title}`, bodyHtml, bodyText, reason: "You're getting this because you can decide on applications in this hiring workspace on WonderWorks.", settingsLink: false });
-    let sent = 0;
-    for (const to of team) if ((await sendMail({ to, subject: `New internship application for ${title}: ${r.name}`, replyTo: r.email, ...mail })).sent) sent++;
-    await record(r, "email:team", "system", team.length ? `${sent} of ${team.length} sent` : "no one with an email can decide");
-  } catch (e) {
-    console.error("[internships] team email failed", e instanceof Error ? e.message.slice(0, 200) : e);
-  }
+    ],
+    href: `/app/m/internships/company?org=${encodeURIComponent(r.org_id)}`,
+  });
 }

@@ -1,27 +1,32 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Building2, Zap } from "lucide-react";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { YouOverview } from "@/wonderworks/you/YouOverview";
 import { useResumeRow } from "@/wonderworks/you/useResumeRow";
 import { Button } from "@/components/common/Button";
-import { Chip, Field, Input } from "@/components/common/Input";
+import { Chip, Field, Input, Segmented } from "@/components/common/Input";
+import { CAPABILITY_META, type PolicyMode } from "@/domain/automation/policy";
+import { useAutomationStore } from "@/store/automation";
 import { toast } from "@/components/feedback/Toast";
 import { BOARDS, cleanProfile, EMPTY_PROFILE, GRADE_LABEL, GRADES, QUALIFICATIONS, type TeacherProfile } from "../domain";
 import { selectProfile, useTeachingStore } from "../store";
 
 const noop = () => () => undefined;
+const MODE_LABEL: Record<PolicyMode, string> = { automatic: "Automatic", ask: "Ask me", off: "Off" };
 const words = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 /**
  * Teaching → You: Jobs' You page — the Career Profile and its rows — with Teaching's own rows in the same style: the
- * teacher's details and My Resume (WonderWorks' row, as on Jobs).
+ * teacher's details, My Resume (WonderWorks' row, as on Jobs), the setting this module adds (teaching.apply) and
+ * posting teaching jobs.
  */
 export function TeachingYou() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useTeachingStore(selectProfile);
   const resume = useResumeRow();
+  const mode = useAutomationStore((s) => s.policy["teaching.apply"]) ?? "ask";
   return (
     <YouOverview
       module={{
@@ -29,13 +34,15 @@ export function TeachingYou() {
         rows: [
           { href: "/app/m/teaching/you/profile", label: "Your details", value: (mounted && saved?.subjects.join(", ")) || "Add them", icon: BookOpen },
           { ...resume, value: mounted ? resume.value : "" },
+          { href: "/app/m/teaching/you/profile#apply", label: CAPABILITY_META["teaching.apply"].label, value: mounted ? MODE_LABEL[mode] : "", icon: Zap },
+          { href: "/app/m/teaching/company", label: "Post teaching jobs", value: "For schools", icon: Building2 },
         ],
       }}
     />
   );
 }
 
-/** The teacher's Teaching details: subjects, grade levels, boards, qualifications and languages — their own words, asked. */
+/** The teacher's Teaching details — subjects, grade levels, boards, qualifications and languages, their own words — and the setting this module adds. */
 export function TeachingProfile() {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const saved = useTeachingStore(selectProfile);
@@ -43,6 +50,7 @@ export function TeachingProfile() {
     <div className="mx-auto max-w-2xl">
       <PageHeader title="Your Teaching details" back={{ href: "/app/m/teaching/you", label: "You" }} />
       {mounted && <ProfileForm key={saved ? "saved" : "new"} initial={saved ?? EMPTY_PROFILE} />}
+      {mounted && <ApplySetting />}
     </div>
   );
 }
@@ -109,5 +117,18 @@ function ProfileForm({ initial }: { initial: TeacherProfile }) {
         Save
       </Button>
     </form>
+  );
+}
+
+function ApplySetting() {
+  const meta = CAPABILITY_META["teaching.apply"];
+  const mode = useAutomationStore((s) => s.policy["teaching.apply"]) ?? "ask";
+  const setCapability = useAutomationStore((s) => s.setCapability);
+  return (
+    <section id="apply" aria-label={meta.label} className="wj-card mt-3 scroll-mt-24 space-y-3 p-4">
+      <h2 className="text-[15px] font-semibold text-ink">{meta.label}</h2>
+      <p className="text-[13px] text-ink-3">{meta.description}</p>
+      <Segmented<PolicyMode> label={meta.label} value={mode} onChange={(v) => setCapability("teaching.apply", v)} options={[{ value: "automatic", label: "Automatic" }, { value: "ask", label: "Ask me" }, { value: "off", label: "Off" }]} />
+    </section>
   );
 }
