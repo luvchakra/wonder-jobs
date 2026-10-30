@@ -123,6 +123,17 @@ export async function cancelMySession(s: Session, id: string): Promise<{ status:
   };
 }
 
+/** The client marks a confirmed session completed (held) once it has started. Either side's mark moves it; the other's then finds it already held. */
+export async function completeMySession(s: Session, id: string): Promise<{ status: SessionStatus }> {
+  const r = await responses().one({ id, responder_tenant: s.tenantId, module: THERAPISTS });
+  if (!r) throw new HiringError("That session isn't yours.", 404);
+  const d = readDeal(r.deal);
+  if (!clientMay(r.status, d).includes("held")) throw new HiringError(r.status === "confirmed" ? "You can mark it completed once the session has started." : `A session that's ${STATUS_LABEL[r.status].toLowerCase()} can't be marked completed.`, 409);
+  await move(r, { responder_tenant: s.tenantId }, { status: "held" });
+  await record(r, "status:held", "client");
+  return { status: "held" };
+}
+
 // ---- practitioner side ---------------------------------------------------------------------------------------------
 
 /** The workspace's session requests (applications.view). The client's email and phone only once confirmed. */

@@ -123,13 +123,13 @@ export function sessionLabel(s: ConfirmedSession) {
 
 /* ------------------------------------------------------------------ who may do what */
 
-export type ClientMove = "cancel";
+export type ClientMove = "cancel" | "held";
 export type PractitionerMove = "confirm" | "decline" | "held" | "cancel";
 
-/** The client can cancel a request, or a confirmed session before it starts. */
+/** The client can cancel a request, or a confirmed session before it starts; once it has started they can mark it completed (held). */
 export function clientMay(status: SessionStatus, d: SessionDeal, now = Date.now()): ClientMove[] {
   if (status === "requested") return ["cancel"];
-  if (status === "confirmed" && d.session && startsAt(d.session) > now) return ["cancel"];
+  if (status === "confirmed" && d.session) return startsAt(d.session) > now ? ["cancel"] : ["held"];
   return [];
 }
 

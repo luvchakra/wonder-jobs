@@ -39,10 +39,10 @@ describe("who may do what", () => {
   const s = { date: "2026-11-03", time: "18:00", minutes: 50, mode: "online" as const };
   const before = Date.parse("2026-11-03T10:00:00Z");
   const after = Date.parse("2026-11-03T14:00:00Z");
-  it("the client cancels a request, or a confirmed session before it starts", () => {
+  it("the client cancels a request, or a confirmed session before it starts, and completes it after", () => {
     expect(clientMay("requested", {})).toEqual(["cancel"]);
     expect(clientMay("confirmed", { session: s }, before)).toEqual(["cancel"]);
-    expect(clientMay("confirmed", { session: s }, after)).toEqual([]);
+    expect(clientMay("confirmed", { session: s }, after)).toEqual(["held"]);
     expect(clientMay("held", { session: s })).toEqual([]);
   });
   it("the practitioner confirms or declines; marks held only once it has started", () => {
@@ -50,5 +50,15 @@ describe("who may do what", () => {
     expect(practitionerMay("confirmed", { session: s }, before)).toEqual(["cancel"]);
     expect(practitionerMay("confirmed", { session: s }, after)).toEqual(["held", "cancel"]);
     expect(practitionerMay("declined", {})).toEqual([]);
+  });
+});
+
+describe("the client marking a started session completed", () => {
+  const s = { date: "2026-11-03", time: "18:00", minutes: 50, mode: "online" as const };
+  it("only once it has started; before that they can cancel", () => {
+    expect(clientMay("confirmed", { session: s }, Date.parse("2026-11-03T10:00:00Z"))).toEqual(["cancel"]);
+    expect(clientMay("confirmed", { session: s }, Date.parse("2026-11-03T14:00:00Z"))).toEqual(["held"]);
+    expect(clientMay("requested", {})).toEqual(["cancel"]);
+    expect(clientMay("held", { session: s })).toEqual([]);
   });
 });
