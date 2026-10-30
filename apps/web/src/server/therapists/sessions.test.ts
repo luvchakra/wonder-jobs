@@ -15,7 +15,7 @@ import * as H from "@/server/hiring";
 import { saveService, setServiceStatus } from "@/server/services/listings";
 import { orgRequests } from "@/server/services/requests";
 import { saveTherapist, setTherapistStatus } from "./listings";
-import { cancelMySession, mySessions, orgSessions, practitionerAct, requestSession } from "./sessions";
+import { cancelMySession, completeMySession, mySessions, orgSessions, practitionerAct, requestSession } from "./sessions";
 
 const pr: Session = { userId: "u-pr", tenantId: "u-pr", email: "asha@calm.test", name: "Asha" };
 const recruiter: Session = { userId: "u-rec", tenantId: "u-rec", email: "rec@calm.test" };
@@ -85,6 +85,27 @@ describe("a session: request, confirm, held", () => {
     expect((await mySessions(client))[0]).toMatchObject({ status: "cancelled", deal: { cancelledBy: "client" } });
     expect(mailed.some((m) => /Cancelled/.test(m.subject))).toBe(true);
     await expect(cancelMySession(client, out.id)).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe("completing a session", () => {
+  it("the client can mark it completed only once it has started; then the practitioner can't mark it again", async () => {
+    const { orgId, listingId } = await listed();
+    const out = await ask(listingId);
+    await expect(completeMySession(client, out.id)).rejects.toMatchObject({ status: 409 });
+    await practitionerAct(pr, orgId, out.id, { action: "confirm", session: { date: "2026-11-03", time: "18:30", minutes: 50 } }, TODAY);
+    await expect(completeMySession(client, out.id)).rejects.toMatchObject({ status: 409, message: expect.stringContaining("started") });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-03T14:00:00Z"));
+      await expect(completeMySession(other, out.id)).rejects.toMatchObject({ status: 404 });
+      await expect(completeMySession(client, out.id)).resolves.toEqual({ status: "held" });
+      expect((await mySessions(client))[0]).toMatchObject({ status: "held" });
+      await expect(completeMySession(client, out.id)).rejects.toMatchObject({ status: 409 });
+      await expect(practitionerAct(pr, orgId, out.id, { action: "held" })).rejects.toMatchObject({ status: 409 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

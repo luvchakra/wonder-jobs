@@ -41,6 +41,20 @@ export function TherapistsSession({ id }: { id: string }) {
       setBusy(false);
     }
   };
+  const complete = async () => {
+    setBusy(true);
+    try {
+      await call(`/api/m/therapists/sessions/${encodeURIComponent(r.id)}`, { body: { action: "held" } });
+      useTherapistsStore.getState().setResponse(`ws_${r.listingId}`, STAGE_OF.held, { status: "held" });
+      toast.success("Marked completed", "It's under Held / Closed in Sessions.");
+      reload();
+    } catch (e) {
+      toast.error("Couldn't mark it completed", (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const may = clientMay(r.status, r.deal);
   const rows: [string, string][] = [
     ["You asked for", requestLabel(r.request)],
     ...(s ? ([["Confirmed", sessionLabel(s)], [s.mode === "online" ? "Meeting link" : "Where", s.where ?? (s.mode === "online" ? "They'll send it before the session" : "Ask them for the address")]] as [string, string][]) : []),
@@ -61,7 +75,13 @@ export function TherapistsSession({ id }: { id: string }) {
           ))}
         </dl>
         {s && <p className="text-[12px] text-ink-3">{MODE_LABEL[s.mode]} session. You pay {r.practitioner} directly; no money moves through WonderWorks.</p>}
-        {clientMay(r.status, r.deal).includes("cancel") && (
+        {may.includes("held") && (
+          <Button full loading={busy} onClick={() => void complete()}>
+            Mark as completed
+          </Button>
+        )}
+        {r.status === "confirmed" && may.includes("cancel") && <p className="text-[12px] text-ink-3">You can mark it completed once the session has started.</p>}
+        {may.includes("cancel") && (
           <Button variant="outline" full loading={busy} onClick={() => void cancel()}>
             {r.status === "requested" ? "Cancel request" : "Cancel session"}
           </Button>
