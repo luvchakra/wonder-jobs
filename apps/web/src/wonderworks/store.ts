@@ -73,6 +73,14 @@ export interface ModuleState {
 /** A listing the person has seen: kept with a save or response, else from the last search. */
 export const findListing = (s: Pick<ModuleState, "items" | "lastRun">, id: string): unknown => s.items[id] ?? s.lastRun?.results.find((r) => r.id === id);
 
+/**
+ * Modules whose searches are never stored: what a client types or sees in a Therapists search can say why they are
+ * looking (health data, docs/WONDERWORKS_PLATFORM.md section 7), so the last search, its results and the recent
+ * searches live in memory for the session only and are never written to the account. Saves and the client's own
+ * settings still persist.
+ */
+export const PRIVATE_SEARCH_MODULES: ReadonlySet<ModuleId> = new Set<ModuleId>(["therapists"]);
+
 /** What a module may set when its store is first made. */
 export interface ModuleStoreOptions {
   /** A listing as storage keeps it. By default a `description` longer than STORED_DESCRIPTION is shortened, as on Jobs. */
@@ -126,10 +134,11 @@ type Persisted = ReturnType<typeof compactModuleState>;
 function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
   const name = moduleStoreName(id);
   const trim = opts.trimItem ?? storedListing;
+  const privateSearch = PRIVATE_SEARCH_MODULES.has(id);
   // Persisting runs on every change; the run (up to MODULE_CATALOG_CAP listings) is copied only when it changed.
   const persisted = memoOnInputs(
     (saved: ModuleState["saved"], responses: ModuleState["responses"], recentSearches: string[], recentSavedSearches: string[], items: ModuleState["items"], persona: ModuleState["persona"], lastRun: ModuleState["lastRun"], closed: ModuleState["closed"], linkOpenAt: ModuleState["linkOpenAt"]) =>
-      compactModuleState({ saved, responses, recentSearches, recentSavedSearches, items, persona, lastRun, closed, linkOpenAt }, trim),
+      compactModuleState(privateSearch ? { saved, responses, recentSearches: [], recentSavedSearches: [], items, persona, lastRun: null, closed, linkOpenAt } : { saved, responses, recentSearches, recentSavedSearches, items, persona, lastRun, closed, linkOpenAt }, trim),
   );
   const store = create<ModuleState>()(
     persist<ModuleState, [], [], Persisted>(

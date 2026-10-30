@@ -7,6 +7,8 @@ import { TeachingCard } from "./teaching/components/Listing";
 import type { TeachingListing } from "./teaching/domain";
 import { ServiceCard } from "./services/components/Listing";
 import type { ServiceListing } from "./services/domain";
+import { TherapistCard } from "./therapists/components/Listing";
+import type { TherapistListing } from "./therapists/domain";
 
 const noop = () => undefined;
 
@@ -16,6 +18,7 @@ export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">;
   if (module === "internships") return <InternshipCard item={item as InternshipListing} onOpen={noop} />;
   if (module === "teaching") return <TeachingCard item={item as TeachingListing} onOpen={noop} />;
   if (module === "services") return <ServiceCard item={item as ServiceListing} onOpen={noop} />;
+  if (module === "therapists") return <TherapistCard item={item as TherapistListing} onOpen={noop} />;
   return null;
 }
 
@@ -32,6 +35,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
   if (module === "services") {
     const l = item as ServiceListing;
     return [l.title, l.company, l.location, l.terms.category ?? "", ...(l.terms.skills ?? []), ...(l.terms.areas ?? [])].join(" ");
+  }
+  if (module === "therapists") {
+    const l = item as TherapistListing;
+    return [l.title, l.company, l.location, ...(l.terms.focus ?? []), ...(l.terms.languages ?? [])].join(" ");
   }
   return "";
 }
