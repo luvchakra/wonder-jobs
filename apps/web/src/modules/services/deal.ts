@@ -8,7 +8,7 @@
  * each side marks it paid (WonderWorks holds no money, owner 2026-10-30); the client reviews it — only a job marked done
  * can be reviewed — and can report a problem, within the pro's stated warranty when there is one.
  */
-import { money, shortDate } from "@/wonderworks/listing/terms";
+import { addDays, money, shortDate, todayIst } from "@/wonderworks/listing/terms";
 import { CURRENCIES, type Lane } from "./domain";
 
 export type ServiceStatus = "requested" | "quoted" | "booked" | "done" | "declined" | "cancelled";
@@ -28,10 +28,8 @@ const oneOf = <T extends string>(v: unknown, all: readonly T[]) => (typeof v ===
 const whole = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : undefined);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDate = (v: unknown): v is string => typeof v === "string" && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
-/** YYYY-MM-DD, `days` after `from`. */
-export const addDays = (from: string, days: number) => new Date(Date.parse(`${from}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-/** Today in India (the module's market), as YYYY-MM-DD. */
-export const todayIst = (now = Date.now()) => new Date(now + 330 * 60_000).toISOString().slice(0, 10);
+// The date helpers live in WonderWorks (Therapists uses them too).
+export { addDays, todayIst };
 
 /**
  * The server answers 409 with this when the person's saved setting (read there, failing closed) is Ask me while the
