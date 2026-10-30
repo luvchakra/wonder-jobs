@@ -168,7 +168,7 @@ export function TeachingApplication({ id }: { id: string }) {
       </ItemMain>
       <ItemAside>
         <Card>
-          <StageSteps stages={teachingManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "appointed_closed" ? STATUS_LABEL[app.status] : undefined} />
+          <StageSteps stages={teachingManifest.pipeline.stages.filter((s) => s.id !== "preparing")} current={stage} reached={new Set(app.events.map((e) => stageOf(e.status)))} currentLabel={stage === "appointed_closed" || app.status === "demo_class" ? STATUS_LABEL[app.status] : undefined} />
           <p className="mt-2 text-[12px] text-ink-4">{app.company} moves this on. You hear the moment they do.</p>
         </Card>
         <Fold title="What you sent" hint={sent.resume ? "With your résumé" : undefined}>

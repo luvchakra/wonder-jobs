@@ -20,7 +20,7 @@ process.env.SECRET_ENCRYPTION_KEY = "test-secret-key-for-career-status-links-012
 const owner: Session = { userId: "u-owner", tenantId: "u-owner", email: "owner@school.test" };
 const teacher: Session = { userId: "u-tea", tenantId: "u-tea", email: "meera@example.com" };
 const other: Session = { userId: "u-other", tenantId: "u-other", email: "ravi@example.com" };
-const OPENING = { title: "PGT Physics", description: "Teach physics to classes 11 and 12 at our CBSE school, with lab sessions twice a week.", location: "Pune", workMode: "onsite", subject: "Physics", grades: ["senior"], hours: "full_time" };
+const OPENING = { title: "PGT Physics", description: "Teach physics to classes 11 and 12 at our CBSE school, with lab sessions twice a week.", location: "Pune", workMode: "onsite", subject: "Physics", grades: ["senior"], hours: "full_time", demo: true };
 const PROFILE = { subjects: ["Physics"], grades: ["senior"], boards: [], qualifications: [], languages: [] };
 const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
 const slot = (h: number) => ({ startsAt: inHours(h), durationMin: 45, mode: "online" as const });
@@ -45,6 +45,17 @@ async function applied() {
   const { id } = await T.applyToOpening(teacher, { postingId: p.id, name: "Meera", profile: PROFILE, resumeFileId: cv.id, consent: true });
   return { orgId: org.id, responseId: id };
 }
+
+describe("Demo classes: a job has to include one", () => {
+  it("a job without Demo class on can't have times offered; turning it on allows it", async () => {
+    const { orgId, responseId } = await applied();
+    const [job] = await T.orgOpenings(owner, orgId);
+    await T.saveOpening(owner, orgId, { ...OPENING, demo: false }, job.id);
+    await expect(B.offerDemo(owner, orgId, responseId, [slot(24)])).rejects.toMatchObject({ status: 409, message: expect.stringMatching(/doesn't include a demo class/) });
+    await T.saveOpening(owner, orgId, { ...OPENING, demo: true }, job.id);
+    expect((await B.offerDemo(owner, orgId, responseId, [slot(24)]))[0].status).toBe("proposed");
+  });
+});
 
 describe("Demo classes: the school offers times", () => {
   it("needs applications.decide in that workspace; times are checked; the teacher hears it in Teaching", async () => {

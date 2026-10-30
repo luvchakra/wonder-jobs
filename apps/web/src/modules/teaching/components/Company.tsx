@@ -74,6 +74,9 @@ export function TeachingCompany() {
     }
   };
 
+  // Only a job with Demo class on can have one; the others never show the button.
+  const demoJobs = new Set((data?.openings ?? []).filter((p) => p.terms.demo).map((p) => p.id));
+
   const tabs = [{ value: "openings" as const, label: "Openings" }, ...(may("applications.view") ? [{ value: "applications" as const, label: "Applications" }] : [])];
   const shown = tabs.some((t) => t.value === tab) ? tab : "openings";
   return (
@@ -105,6 +108,7 @@ export function TeachingCompany() {
                     <p className="truncate text-[15px] font-semibold text-ink">{p.title}</p>
                     <p className="truncate text-[12px] text-ink-3">{[p.terms.subject, gradesLabel(p.terms.grades), p.terms.hours ? HOURS_LABEL[p.terms.hours] : null, payLabel(p.terms)].filter(Boolean).join(" · ")}</p>
                   </div>
+                  {p.terms.demo && <Badge tone="brand">Demo class</Badge>}
                   <Badge tone={p.status === "open" ? "success" : "neutral"}>{POSTING_LABEL[p.status]}</Badge>
                   {may("jobs.edit") && (
                     <div className="flex gap-3 text-[13px] font-medium">
@@ -155,7 +159,7 @@ export function TeachingCompany() {
                   <DemoRows bookings={data.bookings.filter((b) => b.responseId === a.id)} canAnswer={may("applications.decide")} onAnswer={(b, st) => void answer(b, st)} />
                   {may("applications.decide") && COMPANY_NEXT[a.status].length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-3 text-[13px] font-medium">
-                      {!data.bookings.some((b) => b.responseId === a.id && (b.status === "requested" || b.status === "confirmed" || b.status === "proposed")) && (
+                      {demoJobs.has(a.postingId) && !data.bookings.some((b) => b.responseId === a.id && (b.status === "requested" || b.status === "confirmed" || b.status === "proposed")) && (
                         <button type="button" className="min-h-10 text-brand-600 hover:underline" onClick={() => setOfferFor(a)}>
                           Offer demo-class times
                         </button>
@@ -199,7 +203,7 @@ export function TeachingCompany() {
   );
 }
 
-type FormState = { title: string; description: string; location: string; workMode: string; subject: string; grades: Grade[]; boards: Board[]; hours: string; requires: string[]; payMin: string; payMax: string; currency: string; payPer: string };
+type FormState = { title: string; description: string; location: string; workMode: string; subject: string; grades: Grade[]; boards: Board[]; hours: string; requires: string[]; payMin: string; payMax: string; currency: string; payPer: string; demo: boolean };
 
 function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; posting: TeachingPosting | null; onClose: () => void; onSaved: () => void }) {
   const t = p?.terms;
@@ -217,6 +221,7 @@ function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
     payMax: t?.payMax?.toString() ?? "",
     currency: t?.currency ?? "INR",
     payPer: t?.payPer ?? "month",
+    demo: !!t?.demo,
   });
   const [busy, setBusy] = useState(false);
   const set = (k: keyof FormState) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -224,7 +229,7 @@ function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
   const save = async () => {
     setBusy(true);
     try {
-      const posting = { title: f.title, description: f.description, location: f.location, workMode: f.workMode || undefined, subject: f.subject, grades: f.grades, boards: f.boards, hours: f.hours || undefined, requires: f.requires, payMin: num(f.payMin), payMax: num(f.payMax), currency: f.currency, payPer: f.payPer };
+      const posting = { title: f.title, description: f.description, location: f.location, workMode: f.workMode || undefined, subject: f.subject, grades: f.grades, boards: f.boards, hours: f.hours || undefined, requires: f.requires, payMin: num(f.payMin), payMax: num(f.payMax), currency: f.currency, payPer: f.payPer, demo: f.demo };
       const url = `/api/m/teaching/org/${encodeURIComponent(orgId)}`;
       await (p ? call(url, { method: "PATCH", body: { id: p.id, posting } }) : call(url, { body: posting }));
       toast.success(p ? "Saved" : "Posted as a draft", p ? undefined : "Open it when it's ready for teachers.");
@@ -300,6 +305,13 @@ function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
             ))}
           </div>
         </fieldset>
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[12px] border border-line px-3 py-2.5">
+          <input type="checkbox" className="mt-1 size-4 accent-[var(--color-brand-600)]" checked={f.demo} onChange={(e) => setF((x) => ({ ...x, demo: e.target.checked }))} />
+          <span>
+            <span className="block text-[14px] font-medium text-ink">Demo class</span>
+            <span className="block text-[12px] text-ink-3">Teachers see it on the job. After they apply, you offer times and they pick one.</span>
+          </span>
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Pay (optional)" htmlFor="tf-pmin">
             <Input id="tf-pmin" inputMode="numeric" value={f.payMin} onChange={set("payMin")} />

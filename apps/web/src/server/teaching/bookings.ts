@@ -13,7 +13,7 @@ import { table } from "../db/table";
 import { HiringError, requirePermission } from "../hiring";
 import { deliver, type Notice } from "../notifications/deliver";
 import { capabilityDecision, emailTeam, listings, newId, now, orgs, record, responses as allResponses } from "../modules/responses";
-import { cleanSlots, demoKey, SCHOOL_MAY, slotLabel, TEACHER_MAY, TEACHING, type BookingStatus, type DemoBooking, type DemoMode, type SlotInput, type TeacherProfile, type TeachingStatus } from "@/modules/teaching/domain";
+import { cleanSlots, demoKey, readTerms, SCHOOL_MAY, slotLabel, TEACHER_MAY, TEACHING, type BookingStatus, type DemoBooking, type DemoMode, type SlotInput, type TeacherProfile, type TeachingStatus } from "@/modules/teaching/domain";
 
 type BookingRow = { id: string; module: string; response_id: string; org_id: string; responder_tenant: string; starts_at: string; duration_min: number; mode: DemoMode; location: string; note: string; status: BookingStatus; created_by: string; created_at: string; updated_at: string; idempotency_key?: string | null };
 
@@ -48,6 +48,9 @@ export async function offerDemo(s: Session, orgId: string, responseId: string, s
   const r = await responses().one({ id: responseId, org_id: orgId, module: TEACHING });
   if (!r) throw new HiringError("That application isn't in this workspace.", 404);
   if (r.status !== "applied" && r.status !== "demo_class") throw new HiringError("This application is no longer open.", 409);
+  // A demo class is the school's own choice per job: only a job that says so can have one.
+  const job = await listings().one({ id: r.listing_id, org_id: orgId, module: TEACHING });
+  if (!readTerms(job?.attrs).demo) throw new HiringError("This job doesn't include a demo class. Turn Demo class on in the job first.", 409);
   const c = cleanSlots(slots);
   if ("problem" in c) throw new HiringError(c.problem);
   const current = await bookings().find({ response_id: r.id, org_id: orgId, module: TEACHING });

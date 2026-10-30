@@ -42,6 +42,8 @@ export interface TeachingTerms {
   payMax?: number;
   currency: string;
   payPer?: PayPer;
+  /** A WonderWorks school's own choice: a demo class is part of hiring for this job. Outside postings never carry it. */
+  demo?: boolean;
 }
 
 /** One teaching opening as Find shows it, from a WonderWorks school or an outside source. */
@@ -329,6 +331,7 @@ export function readTerms(raw: unknown): TeachingTerms {
     ...(int(r.payMin, 0, 10_000_000) !== undefined ? { payMin: r.payMin as number } : {}),
     ...(int(r.payMax, 0, 10_000_000) !== undefined ? { payMax: r.payMax as number } : {}),
     ...(payPer ? { payPer } : {}),
+    ...(r.demo === true ? { demo: true } : {}),
   };
 }
 
@@ -346,7 +349,7 @@ export function outsideStatus(ref: { stage: string; status?: string } | undefine
   return s === "preparing" || s === "applied" || s === "withdrawn" ? s : null;
 }
 
-/** The Pipeline stage each outside status sits in (manifest: Preparing · Applied · Demo class · Appointed / Closed). */
+/** The Pipeline stage each outside status sits in (manifest: Preparing · Applied · Appointed / Closed). */
 export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "appointed_closed" };
 export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
 
@@ -369,6 +372,7 @@ export interface PostingInput {
   payMax?: unknown;
   currency?: unknown;
   payPer?: unknown;
+  demo?: unknown;
 }
 
 export type CleanPosting = Pick<TeachingPosting, "title" | "description" | "location" | "workMode" | "terms">;
@@ -414,6 +418,7 @@ export function cleanPosting(i: PostingInput): { value: CleanPosting } | { probl
     ...(payMin !== undefined ? { payMin } : {}),
     ...(payMax !== undefined && payMax !== payMin ? { payMax } : {}),
     ...(paid ? { payPer } : {}),
+    ...(i.demo === true ? { demo: true } : {}),
   };
   return { value: { title, description, location: workMode === "remote" ? location || "Online" : location, workMode, terms } };
 }
@@ -435,9 +440,13 @@ export const COMPANY_NEXT: Record<TeachingStatus, TeachingStatus[]> = {
 /** The teacher withdraws while it's still open. */
 export const canWithdraw = (s: TeachingStatus) => s === "applied" || s === "demo_class";
 
-/** The Pipeline stage a status sits in (manifest: Preparing · Applied · Demo class · Appointed / Closed). */
-export function stageOf(s: TeachingStatus): "applied" | "demo_class" | "appointed_closed" {
-  return s === "applied" || s === "demo_class" ? s : "appointed_closed";
+/**
+ * The Pipeline stage a status sits in (manifest: Preparing · Applied · Appointed / Closed). A demo class is only for
+ * jobs schools post on WonderWorks, so Pipeline stays generic (owner, 2026-10-30): an application with a demo class
+ * stays under Applied, with Demo class as its status chip.
+ */
+export function stageOf(s: TeachingStatus): "applied" | "appointed_closed" {
+  return s === "applied" || s === "demo_class" ? "applied" : "appointed_closed";
 }
 
 /** One of the teacher's own applications, as their Pipeline shows it. */

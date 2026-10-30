@@ -556,6 +556,7 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Teaching is live: Find teaching jobs by subject (WonderWorks schools, Adzuna India, Jooble, Himalayas), each opening's page with its fit, Pipeline and Your details (WJ-434)
 - ✅ Teaching: schools post teaching jobs from their workspace; teachers apply in one tap (Automatic, Ask me or Off), track and withdraw applications, and open each application's page (WJ-435)
 - ✅ Teaching: demo-class bookings — schools offer times, teachers request one in one tap, schools confirm or decline and mark it held (WJ-436)
+- ✅ Teaching: Demo class is a per-job option schools turn on (shown on the card and the job's page); Pipeline stays generic — Preparing, Applied, Appointed / Closed (WJ-437)
 - ✅ New WonderWorks logo mark (rounded wings under a star) across the app, icons, emails and the browser helper; the bell opens a full Notifications page with Notifications and Needs attention tabs, replacing the Tasks icon
 - ✅ JobsLake is called WorksLake everywhere people read it (internal `jobslake` names unchanged); the top bar drops its logo, and the avatar turns over to the mark for 2 s every 10 s
 - ⬜ Operator-side: SMTP mailbox (`SMTP_HOST/USER/PASS`) + contact addresses; rotate the Supabase service-role key (shared in chat once)

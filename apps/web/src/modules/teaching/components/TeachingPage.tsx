@@ -1,7 +1,7 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Bookmark, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
+import { Bookmark, CalendarCheck, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
@@ -81,11 +81,19 @@ function Page({ l }: { l: TeachingListing }) {
             </>
           }
           facts={[
-            <span key="l" className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" aria-hidden /> {l.location || "Place not stated"}
-            </span>,
+            // An online job's place is just "Online": its work mode already says so.
+            l.workMode !== "remote" && (
+              <span key="l" className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5" aria-hidden /> {l.location || "Place not stated"}
+              </span>
+            ),
             l.workMode && <span key="m">{WORK_MODE_LABEL[l.workMode]}</span>,
             t.hours && <span key="h">{HOURS_LABEL[t.hours]}</span>,
+            t.demo && (
+              <span key="d" className="inline-flex items-center gap-1 font-medium text-brand-700">
+                <CalendarCheck className="size-3.5" aria-hidden /> Demo class
+              </span>
+            ),
             pay && (
               <span key="$" className="inline-flex items-center gap-1">
                 <Wallet className="size-3.5" aria-hidden /> {pay}
@@ -142,6 +150,7 @@ function Page({ l }: { l: TeachingListing }) {
                     ["Asks for", t.requires?.length ? t.requires.join(", ") : "Not stated"],
                     ["Hours", t.hours ? HOURS_LABEL[t.hours] : "Not stated"],
                     ["Pay", payLabel(t)],
+                    ...(l.origin === "wonderstar" ? [["Demo class", t.demo ? "Yes — the school may offer you times for a demo class after you apply" : "No"]] : []),
                   ].map(([k, v]) => (
                     <div key={k}>
                       <dt className="text-ink-4">{k}</dt>
