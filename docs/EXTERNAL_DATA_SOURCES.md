@@ -389,3 +389,11 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 
 **India:** no Indian source with explicit open reuse was found for jobs, internships or teaching. Indian government sites set reuse per site; a school, college or employer that gives written permission can be added with the crawler.
 
+### 13.5 All locations, hourly runs and the admin page (2026-10-31)
+
+- **No location limit** (owner): sources anywhere are taken when their terms permit reuse; listings keep their own place.
+- **Paged APIs** (`json_api` with `nextPath`, e.g. `links.next`): a run reads up to `maxPagesPerRun` pages a second apart, only on the source's host, and the next run carries on; finds are added to earlier runs'. UK Teaching Vacancies is re-registered this way to cover all ~66 pages (~6,500 vacancies) instead of the newest 100.
+- **Hourly:** GitHub Actions (`.github/workflows/gateway-collect.yml`) calls `/api/cron/gateway-collect` every hour (Vercel's plan allows daily crons only); each source still runs on its own interval.
+- **Admin page:** Platform → WorksLake → Sources → **Gateway** (`/platform/jobs-lake/gateway`): listings held per module, active sources, runs and records collected in the last 24 h, each source's status, listings, last/next run and crawl progress, the newest 100 runs (tests, collections, failures with their code), WorksLake's calls today, and **Collect now** per active source (audited).
+- **Still not added:** Canada Job Bank (monthly CSV well over the 2 MB fetch limit; needs a streaming CSV reader) and confs.tech (no organiser field; needs event fields). Careerjet and Ticketmaster need free keys.
+

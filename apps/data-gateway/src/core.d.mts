@@ -7,5 +7,6 @@ export interface GatewayState {
   keys: Record<string, unknown>[];
   usage: Record<string, unknown>[];
   audits: Record<string, unknown>[];
+  runs: Record<string, unknown>[];
 }
 export function initial(): GatewayState;

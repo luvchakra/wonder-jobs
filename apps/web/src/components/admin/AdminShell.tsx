@@ -43,6 +43,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/add`, label: "Add a source" },
       { href: `${LAKE}/credentials`, label: "Credentials" },
       { href: `${LAKE}/protocols`, label: "Protocols" },
+      { href: `${LAKE}/gateway`, label: "Gateway" },
     ],
   },
   {

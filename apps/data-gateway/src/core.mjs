@@ -7,7 +7,7 @@ const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
-export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [] });
+export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [], runs: [] });
 
 export class ApiError extends Error {
   constructor(status, code, message, headers = {}) { super(message); this.status = status; this.code = code; this.headers = headers; }
@@ -28,7 +28,7 @@ export class JsonStore {
       const stored = JSON.parse(await readFile(this.filename, "utf8"));
       if (stored.version !== 1 || !Array.isArray(stored.sources) || !Array.isArray(stored.keys) || !Array.isArray(stored.listings)) throw Error("Unsupported store version");
       // Older or hand-edited files may lack the smaller tables; the rest of the service expects all of them.
-      this.data = { ...initial(), ...stored, consumers: Array.isArray(stored.consumers) ? stored.consumers : initial().consumers, usage: Array.isArray(stored.usage) ? stored.usage : [], audits: Array.isArray(stored.audits) ? stored.audits : [] };
+      this.data = { ...initial(), ...stored, consumers: Array.isArray(stored.consumers) ? stored.consumers : initial().consumers, usage: Array.isArray(stored.usage) ? stored.usage : [], audits: Array.isArray(stored.audits) ? stored.audits : [], runs: Array.isArray(stored.runs) ? stored.runs : [] };
     } catch (e) { if (e.code !== "ENOENT") throw e; await this.persist(); }
     return this;
   }
@@ -120,11 +120,16 @@ export function validateSource(source) {
   }
   if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
+  if (source.kind === "json_api" && source.nextPath !== undefined) {
+    if (typeof source.nextPath !== "string" || !/^[\w.]{1,100}$/.test(source.nextPath)) throw new ApiError(400, "INVALID_REQUEST", "nextPath must be a dot path like links.next");
+    const pages = Number(source.maxPagesPerRun ?? 5);
+    if (!Number.isInteger(pages) || pages < 1 || pages > 50) throw new ApiError(400, "INVALID_REQUEST", "maxPagesPerRun must be 1-50");
+  }
   const retentionHours = Number(source.retentionHours ?? 24);
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -216,4 +221,12 @@ export class RateLimiter {
     w.count++;
     return 0;
   }
+}
+
+/** Keeps the run log to its newest entries. */
+export const MAX_RUNS = 300;
+export function logRun(state, run) {
+  if (!Array.isArray(state.runs)) state.runs = [];
+  state.runs.push(run);
+  if (state.runs.length > MAX_RUNS) state.runs.splice(0, state.runs.length - MAX_RUNS);
 }

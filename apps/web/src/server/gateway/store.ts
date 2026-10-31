@@ -28,7 +28,7 @@ function split(s: GatewayState): Record<Part, string> {
 function join(docs: Partial<Record<Part, unknown>>): GatewayState {
   const base = initial();
   const main = (docs.main ?? {}) as Partial<GatewayState>;
-  return { ...base, ...main, version: 1, listings: (docs.listings as GatewayState["listings"]) ?? [], usage: (docs.usage as GatewayState["usage"]) ?? [] };
+  return { ...base, ...main, version: 1, runs: Array.isArray(main.runs) ? main.runs : [], listings: (docs.listings as GatewayState["listings"]) ?? [], usage: (docs.usage as GatewayState["usage"]) ?? [] };
 }
 
 export class SupabaseGatewayStore implements GatewayStore {

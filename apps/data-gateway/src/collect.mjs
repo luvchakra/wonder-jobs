@@ -163,6 +163,7 @@ export function parseStructured(html) {
 export async function fetchRecords(source, deps = {}) {
   if (!source.termsReviewed || !source.redistributionAllowed || !["terms_permit", "granted_in_writing"].includes(source.permission)) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Permission missing");
   if (source.kind === "crawl") return crawlRecords(source, deps);
+  if (source.kind === "json_api" && source.nextPath) return pagedRecords(source, deps);
   if (source.kind === "structured") await checkRobots(source);
   const body = await safeGet(source.url);
   let items;
@@ -180,4 +181,46 @@ export async function fetchRecords(source, deps = {}) {
     if (normalized && !seen.has(normalized.id)) { seen.add(normalized.id); out.push(normalized); }
   }
   return { discovered: items.length * source.modules.length, valid: out.length, results: out };
+}
+
+const dig = (obj, path) => String(path || "").split(".").filter(Boolean).reduce((v, k) => (v && typeof v === "object" ? v[k] : undefined), obj);
+
+/**
+ * A JSON API that pages its results (`nextPath` names where the next page's URL is, e.g. `links.next`). A run reads up to
+ * `maxPagesPerRun` pages, a second apart, starting where the last run stopped (`crawlCursor`), and only follows next
+ * links on the source's own host. When the last page is reached the next run starts again from the first. What a run
+ * finds is added to earlier runs' finds, so the whole feed is covered over several runs.
+ */
+export async function pagedRecords(source, deps = {}) {
+  const get = deps.get ?? safeGet;
+  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const now = deps.now ?? (() => Date.now());
+  const started = now();
+  const host = new URL(source.url).hostname;
+  const perRun = Math.max(1, Math.min(50, source.maxPagesPerRun ?? 5));
+  let next = typeof source.crawlCursor === "string" && source.crawlCursor ? source.crawlCursor : source.url;
+  const items = [];
+  let read = 0, failed = 0;
+  while (next && read < perRun) {
+    if (read > 0) { if (now() - started > 40000) break; await sleep(1000); }
+    let url;
+    try { url = new URL(next); } catch { next = null; break; }
+    if (url.hostname !== host || url.protocol !== "https:") { next = null; break; }
+    read++;
+    let parsed;
+    try { parsed = JSON.parse(await get(url.toString(), { origin: host })); }
+    catch (e) { failed++; if (read === 1) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); break; }
+    const page = dig(parsed, source.itemsPath);
+    if (!Array.isArray(page)) { if (read === 1) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); break; }
+    items.push(...page.slice(0, 500));
+    const n = dig(parsed, source.nextPath);
+    next = typeof n === "string" && n ? new URL(n, url).toString() : null;
+  }
+  const observedAt = new Date(now()).toISOString();
+  const out = [], seen = new Set();
+  for (const module of source.modules) for (const item of items) {
+    const normalized = normalize(source, item, module, observedAt);
+    if (normalized && !seen.has(normalized.id)) { seen.add(normalized.id); out.push(normalized); }
+  }
+  return { discovered: items.length * source.modules.length, valid: out.length, results: out, merge: true, crawl: { pages: null, read, failed, cursor: next } };
 }
