@@ -71,7 +71,7 @@ export function ParallaxHero() {
       <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 pb-24 pt-32 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:pt-40">
         <div data-parallax={FACTORS.copy} data-fade="1" className="will-change-transform">
           <p className="wj-eyebrow wj-hero-in text-brand-700" style={{ "--wj-i": 0 } as CSSProperties}>
-            Your AI career agent
+            One account for what you do next
           </p>
           <h1 id="hero-title" className="wj-hero-in mt-4 text-display font-semibold text-ink" style={{ "--wj-i": 1 } as CSSProperties}>
             Your next opportunity is out there.
@@ -79,7 +79,7 @@ export function ParallaxHero() {
             <span className="wj-gradient-text">Wonder finds it.</span>
           </h1>
           <p className="wj-hero-in mt-6 max-w-lg text-[17px] leading-relaxed text-ink-2" style={{ "--wj-i": 2 } as CSSProperties}>
-            Tell Wonder the role — or upload your CV — and your jobs are on screen in a minute. Every listing shows the pay and the source and explains the match. Tap Apply with Wonder and it fills the employer&apos;s form, on your computer or your phone. You review and submit.
+            Jobs, internships, teaching, a pro to hire, a counsellor, a co-founder, something to do, something to buy. Tell Wonder what you need — or upload your CV — and real listings are on screen in a minute, the source named on each. For jobs, Apply with Wonder fills the employer&apos;s form; you review and submit.
           </p>
           <div className="wj-hero-in mt-8 flex flex-wrap items-center gap-3" style={{ "--wj-i": 3 } as CSSProperties}>
             <Button href="/sign-up" size="xl" className="rounded-full" iconRight={<ArrowRight className="size-4" aria-hidden />}>

@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { ParallaxHero } from "@/components/landing/ParallaxHero";
-import { AgentSection, ExtensionSection, FeatureGrid, FinalCTA, JourneySection, MarketingFooter, PersonaSection, ProviderSection, SourceLogoStrip } from "@/components/landing/Sections";
-import { ContactSection, ShowcaseSection } from "@/components/landing/Showcase";
-import { AskWonderSection, ControlSection } from "@/components/landing/OutcomeSections";
-import { TrustSection } from "@/components/landing/TrustSection";
+import { AgentSection, FinalCTA, JourneySection, MarketingFooter, SourceLogoStrip } from "@/components/landing/Sections";
+import { ContactSection } from "@/components/landing/Showcase";
+import { KindsSection } from "@/components/landing/Kinds";
 import { PricingSection } from "@/components/landing/Pricing";
 import { getPlansConfig } from "@/server/billing/plansConfig";
 
 export const metadata: Metadata = {
   title: "WonderWorks — Your next opportunity is out there. Wonder finds it.",
-  description: "Upload your CV and see your jobs in a minute. Wonder searches real job sources — company career sites, SmartRecruiters, The Muse, Adzuna India and remote boards — shows the designation, pay and source on every listing, explains every match, builds your résumé and fills the employer's form. You review and submit. Free, Pro and Max plans; your own AI key works too.",
+  description: "One account for jobs, internships, teaching, hiring a pro, counsellors, co-founders, events and buying or selling. Tell Wonder what you need and see real listings in a minute — the source named on every one, every match explained. Apply with Wonder fills the employer's form and you review and submit. Free, Pro and Max plans; your own AI key works too.",
 };
 
 /** Prices come from the billing configuration; re-read every few minutes. */
 export const revalidate = 300;
 
+/** Page one of two: what WonderWorks is, the eight kinds, how a search becomes an application, the price. Page two is /features. */
 export default async function LandingPage() {
   const { plans } = await getPlansConfig();
   return (
@@ -27,17 +27,10 @@ export default async function LandingPage() {
       <main id="main">
         <ParallaxHero />
         <SourceLogoStrip />
+        <KindsSection />
         <AgentSection />
         <JourneySection />
-        <AskWonderSection />
-        <FeatureGrid />
-        <ShowcaseSection />
-        <ControlSection />
-        <PersonaSection />
-        <ExtensionSection />
-        <ProviderSection />
         <PricingSection plans={plans} />
-        <TrustSection />
         <FinalCTA />
         <ContactSection />
       </main>
