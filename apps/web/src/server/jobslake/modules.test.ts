@@ -34,15 +34,17 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
 
   it("a module's sources are its own: Jobs never lists another module's, and another module never lists Jobs'", async () => {
     const store = jobsLakeStore();
-    const intern = { ...BUILTIN_SOURCES[0], id: "events_board", builtin: false, module: "events" } as SourceRecord;
+    // Marketplace has no sources of its own yet; every other module's built-ins are covered by its own tests.
+    expect(await listSources("marketplace")).toEqual([]);
+    const intern = { ...BUILTIN_SOURCES[0], id: "market_board", builtin: false, module: "marketplace" } as SourceRecord;
     const added = { ...BUILTIN_SOURCES[0], id: "jobs_added", builtin: false } as SourceRecord;
     await store.putSource(intern);
     await store.putSource(added);
     const jobs = (await listSources()).map((s) => s.id);
     expect(jobs).toContain("jobs_added");
-    expect(jobs).not.toContain("events_board");
-    expect((await listSources("events")).map((s) => s.id)).toEqual(["events_board"]);
-    expect(await listSources("marketplace")).toEqual([]);
+    expect(jobs).not.toContain("market_board");
+    expect((await listSources("marketplace")).map((s) => s.id)).toEqual(["market_board"]);
+    expect((await listSources("events")).map((s) => s.id)).not.toContain("market_board");
   });
 
   it("warm-pool postings: Jobs never reads another module's, and no module reads Jobs'", async () => {
@@ -61,7 +63,7 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
 
   it("a module's search asks none of Jobs' sources and writes nothing into Jobs' pool; Jobs' search is unchanged", async () => {
     connector.mockResolvedValue({ jobs: [job()], warnings: [] });
-    const { response } = await search(req({ module: "events" }), { trigger: "search" });
+    const { response } = await search(req({ module: "marketplace" }), { trigger: "search" });
     expect(connector).not.toHaveBeenCalled();
     expect(response.results).toEqual([]);
     expect(response.sources).toEqual([]);
@@ -70,7 +72,7 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
     const jobsRun = await search(req(), { trigger: "search" });
     expect(connector).toHaveBeenCalled();
     expect(jobsRun.response.results.length).toBeGreaterThan(0);
-    expect(await jobsLakeStore().listOpportunities({ module: "events" })).toEqual([]);
+    expect(await jobsLakeStore().listOpportunities({ module: "marketplace" })).toEqual([]);
   });
 
   it("the API takes a module, defaults to Jobs, and refuses one the registry doesn't know", () => {

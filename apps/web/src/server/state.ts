@@ -10,7 +10,7 @@
 import { getSupabaseAdmin, touchTenant } from "./supabase";
 
 // The "wj.m.*" documents are the live modules' own stores (wonderworks/store.ts), one per module; stateStores.test.ts checks every live module has one.
-export const STATE_STORES = ["wj.career", "wj.jobs", "wj.applications", "wj.automation", "wj.ai", "wj.workflow", "wj.actions", "wj.ui", "wj.m.internships", "wj.m.teaching", "wj.m.services", "wj.m.therapists", "wj.m.cofounders"] as const;
+export const STATE_STORES = ["wj.career", "wj.jobs", "wj.applications", "wj.automation", "wj.ai", "wj.workflow", "wj.actions", "wj.ui", "wj.m.internships", "wj.m.teaching", "wj.m.services", "wj.m.therapists", "wj.m.events", "wj.m.cofounders"] as const;
 export type StateStoreName = (typeof STATE_STORES)[number];
 /**
  * Documents only server routes write (JobsApply sessions: helper-reported evidence and the audit trail).
