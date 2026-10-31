@@ -10,6 +10,7 @@ import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { attendeeMay, needsConfirm, STAGE_OF, STATUS_LABEL, whenLabel } from "../domain";
 import { useEventsStore } from "../store";
+import { Cover } from "./Cover";
 import { lineOf, TONE, useMyRsvps } from "./Pipeline";
 
 const BACK = { href: "/app/m/events/pipeline", label: "My events" };
@@ -58,6 +59,7 @@ export function EventsItem({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader back={BACK} title={r.title} description={lineOf(r)} />
+      <Cover postingId={r.listingId} cover={r.cover} place="page" alt={`Cover photo for ${r.title}`} />
       <section className="wj-card space-y-3 p-4">
         <Badge tone={TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
         <dl className="space-y-2 text-[14px]">

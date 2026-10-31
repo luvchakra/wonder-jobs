@@ -395,10 +395,11 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * where each module puts its own: Jobs' place, work mode and salary; Internships' place, duration, start and stipend),
  * skills, why it fits, a summary where there's room, then a footer line with Save.
  */
-export function ResultCard({ className, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
+export function ResultCard({ className, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
+      {cover}
       <div className="flex items-stretch gap-3">
         {/* The fit sits under the logo, so the title gets the card's whole width. */}
         <div className="flex shrink-0 flex-col items-center gap-1">{aside}</div>

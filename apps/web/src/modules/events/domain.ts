@@ -28,6 +28,8 @@ export interface EventTerms {
   ageMin?: number;
   /** Kinds and interests, from CATEGORIES plus the organiser's own words. */
   tags: string[];
+  /** The cover photo's version (when it was set), when the event has one. */
+  cover?: number;
 }
 
 /** One event as Find shows it, with the seats left at search time (never who is going). */
@@ -192,7 +194,8 @@ export function readTerms(raw: unknown): EventTerms {
   const endsAt = instant(r.endsAt);
   const capacity = whole(r.capacity, 1, MAX_CAPACITY);
   const ageMin = whole(r.ageMin, 1, 99);
-  return { startsAt, ...(endsAt ? { endsAt } : {}), ...(capacity ? { capacity } : {}), online: r.online === true, ...(ageMin ? { ageMin } : {}), tags: words(r.tags, MAX_TAGS, 30) };
+  const cover = whole(r.cover, 1, Number.MAX_SAFE_INTEGER);
+  return { startsAt, ...(endsAt ? { endsAt } : {}), ...(capacity ? { capacity } : {}), online: r.online === true, ...(ageMin ? { ageMin } : {}), tags: words(r.tags, MAX_TAGS, 30), ...(cover ? { cover } : {}) };
 }
 
 export type CleanEventPosting = Pick<EventPosting, "title" | "description" | "location" | "workMode" | "terms">;
@@ -222,6 +225,13 @@ export function cleanEventPosting(i: EventPostingInput, now = Date.now()): { val
   return { value: { title, description, location, workMode: online ? "remote" : "onsite", terms } };
 }
 
+/** The cover photo's address, with its version so a new photo is fetched and an old one is cached for good. */
+export const coverSrc = (postingId: string, cover: number | undefined) => (cover ? `/api/m/events/cover/${encodeURIComponent(postingId)}?v=${cover}` : undefined);
+
+export const COVER_MAX_BYTES = 5 * 1024 * 1024;
+/** The longest side a cover is scaled to before it is sent (cards show it small, the event page wide). */
+export const COVER_MAX_SIDE = 1280;
+
 /* ------------------------------------------------------------------ India time in a form */
 
 /** An instant as the value of a datetime-local box, in India time ("2026-11-08T18:00"). */
@@ -243,6 +253,8 @@ export interface MyRsvp {
   online: boolean;
   /** Waitlist place, 1 = next. */
   place?: number;
+  /** The event's cover photo version, when it has one. */
+  cover?: number;
   updatedAt: string;
 }
 

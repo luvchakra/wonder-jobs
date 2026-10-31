@@ -80,9 +80,10 @@ function Tags({ tags }: { tags: string[] }) {
  * status badge with when. `actionSpace` leaves the bottom-right corner free for an action the list lays over it.
  * `href` makes the card a link; `onOpen` a button; neither, a plain card.
  */
-export function StageCard({ href, onOpen, logo, company, title, line, step, tags = [], badge, when, actionSpace = false, className }: { href?: string; onOpen?: () => void; logo: { name: string; domain?: string }; company: string; title: string; line?: string; step?: string; tags?: string[]; badge: { label: string; tone: Tone }; when: string; actionSpace?: boolean; className?: string }) {
+export function StageCard({ href, onOpen, logo, company, title, line, step, tags = [], badge, when, actionSpace = false, className, cover }: { href?: string; onOpen?: () => void; logo: { name: string; domain?: string }; company: string; title: string; line?: string; step?: string; tags?: string[]; badge: { label: string; tone: Tone }; when: string; actionSpace?: boolean; className?: string; /** A picture across the top of the card (Events' cover). */ cover?: React.ReactNode }) {
   const body = (
     <>
+      {cover}
       <div className="flex items-start gap-2.5">
         <CompanyLogo name={logo.name} domain={logo.domain} logo size={32} />
         <span className="min-w-0 flex-1">
