@@ -19,13 +19,14 @@ describe("WonderWorks module registry", () => {
     expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
   });
 
-  it("Internships (WJ-418), Teaching, Talent & Services and Therapists are live; every other module is coming soon; each lives at /app/m/<id>", () => {
+  it("Internships (WJ-418), Teaching, Co-founders, Talent & Services and Therapists are live; every other module is coming soon; each lives at /app/m/<id>", () => {
     expect(moduleById("internships")!.status).toBe("live");
     expect(moduleById("teaching")!.status).toBe("live");
     expect(moduleById("services")!.status).toBe("live");
     expect(moduleById("therapists")!.status).toBe("live");
+    expect(moduleById("cofounders")!.status).toBe("live");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
-      if (m.id !== "internships" && m.id !== "teaching" && m.id !== "services" && m.id !== "therapists") expect(m.status, m.id).toBe("soon");
+      if (m.id !== "internships" && m.id !== "teaching" && m.id !== "services" && m.id !== "therapists" && m.id !== "cofounders") expect(m.status, m.id).toBe("soon");
       expect(m.routes.find).toBe(`/app/m/${m.id}`);
       expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);
       // Capabilities are namespaced per module (resolveCapability stays the one gate).

@@ -23,6 +23,12 @@ import { TherapistPage } from "./therapists/components/TherapistPage";
 import { TherapistsCompany } from "./therapists/components/Company";
 import { TherapistsSessions } from "./therapists/components/Sessions";
 import { TherapistsSession } from "./therapists/components/Session";
+import { CofoundersFind } from "./cofounders/components/Find";
+import { CofoundersPipeline } from "./cofounders/components/Pipeline";
+import { CofoundersConnection } from "./cofounders/components/Connection";
+import { CofoundersProfile, CofoundersYou } from "./cofounders/components/You";
+import { CofounderPage } from "./cofounders/components/CofounderPage";
+import { CofoundersTeams } from "./cofounders/components/Teams";
 import type { ModuleId } from "./registry";
 
 /**
@@ -47,6 +53,7 @@ const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   internships: { Find: InternshipsFind, Pipeline: InternshipsPipeline, You: InternshipsYou, Profile: InternshipsProfile, Listing: InternshipPage, Item: InternshipApplication, Company: InternshipsCompany },
   services: { Find: ServicesFind, Pipeline: ServicesBookings, You: ServicesYou, Profile: ServicesProfile, Listing: ServicePage, Item: ServicesBooking, Company: ServicesCompany },
   therapists: { Find: TherapistsFind, Pipeline: TherapistsSessions, You: TherapistsYou, Profile: TherapistsProfile, Listing: TherapistPage, Item: TherapistsSession, Company: TherapistsCompany },
+  cofounders: { Find: CofoundersFind, Pipeline: CofoundersPipeline, You: CofoundersYou, Profile: CofoundersProfile, Listing: CofounderPage, Item: CofoundersConnection, Company: CofoundersTeams },
   teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 
