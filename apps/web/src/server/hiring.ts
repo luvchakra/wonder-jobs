@@ -27,7 +27,7 @@ import type { Conversation, ConversationStatus, EmployerJob, EmployerJobStatus, 
 export class HiringError extends Error {
   constructor(
     message: string,
-    public status: 400 | 403 | 404 | 409 = 400,
+    public status: 400 | 403 | 404 | 409 | 429 = 400,
   ) {
     super(message);
     this.name = "HiringError";
