@@ -13,7 +13,7 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ageLabel, seatsLabel, whenLabel, type EventListing } from "../domain";
 import { useEventsStore } from "../store";
-import { fitOf, useMatch } from "./Listing";
+import { fitOf, useMatch, shareOf } from "./Listing";
 import { Rsvp } from "./Rsvp";
 
 const noop = () => () => undefined;
@@ -58,6 +58,7 @@ function Page({ l }: { l: EventListing }) {
   ];
   return (
     <ListingPage
+      share={shareOf(l)}
       back={FIND}
       title={l.title}
       actions={

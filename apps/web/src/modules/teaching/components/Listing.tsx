@@ -20,6 +20,7 @@ import { call } from "@/wonderworks/api";
 import { EMPTY_PROFILE, gradesLabel, HOURS_LABEL, matchTeaching, missingProfile, outsideStatus, payLabel, WORK_MODE_LABEL, type TeacherProfile, type TeachingListing, type TeachingMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useTeachingStore } from "../store";
+import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 
 /** "Pune · On-site · Full time". */
 export const placeLine = (l: Pick<TeachingListing, "location" | "workMode" | "terms">) => [l.location, l.workMode ? WORK_MODE_LABEL[l.workMode] : null, l.terms.hours ? HOURS_LABEL[l.terms.hours] : null].filter(Boolean).join(" · ");
@@ -51,6 +52,7 @@ export const TeachingCard = memo(function TeachingCard({ item: l, onOpen }: { it
   const pay = l.terms.payMin !== undefined || l.terms.payMax !== undefined ? payLabel(l.terms) : null;
   return (
     <ResultCard
+      share={shareOf(l)}
       aside={
         <>
           <CompanyLogo name={l.company} logo size={44} />
@@ -257,3 +259,12 @@ function ApplySheet({ listing: l, sheet, onClose, onSend }: { listing: TeachingL
     </Modal>
   );
 }
+
+/** What Share sends about a teaching job: its public facts, linking to the original posting when it came from outside. */
+export const shareOf = (l: TeachingListing): ListingShareProps => ({
+  module: "teaching",
+  noun: "teaching job",
+  title: l.title,
+  facts: [l.company, l.workMode === "remote" ? WORK_MODE_LABEL.remote : shortPlace(l.location), l.terms.grades?.length ? gradesLabel(l.terms.grades) : null],
+  url: (l.origin === "outside" && l.applyUrl) || "/app/m/teaching",
+});

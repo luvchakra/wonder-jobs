@@ -13,7 +13,7 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
-import { FIT, useMatch } from "./Listing";
+import { FIT, useMatch, shareOf } from "./Listing";
 import { RequestSession } from "./Request";
 
 const noop = () => () => undefined;
@@ -58,6 +58,7 @@ function Page({ l }: { l: TherapistListing }) {
   ];
   return (
     <ListingPage
+      share={shareOf(l)}
       back={FIND}
       title={l.title}
       actions={

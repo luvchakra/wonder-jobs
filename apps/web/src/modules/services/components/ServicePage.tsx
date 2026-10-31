@@ -17,7 +17,7 @@ import { call } from "@/wonderworks/api";
 import { shortDate } from "@/wonderworks/listing/terms";
 import type { ReviewSummary } from "../deal";
 import { RequestQuote } from "./Request";
-import { FIT, useMatch } from "./Listing";
+import { FIT, useMatch, shareOf } from "./Listing";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/services", label: "Talent & Services" };
@@ -79,6 +79,7 @@ function Page({ l }: { l: ServiceListing }) {
   ];
   return (
     <ListingPage
+      share={shareOf(l)}
       back={FIND}
       title={l.title}
       actions={

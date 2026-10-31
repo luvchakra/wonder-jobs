@@ -8,6 +8,7 @@ import { relativeTime } from "@/lib/format";
 import { matchListing, STATUS_LABEL, type CofounderListing, type ConnStatus, type Fit } from "../domain";
 import { listingHref } from "../manifest";
 import { selectPersona, useCofoundersStore } from "../store";
+import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 
 export function useMatch(l: CofounderListing): Fit {
   return matchListing(l, useCofoundersStore(selectPersona));
@@ -43,6 +44,7 @@ export const CofounderCard = memo(function CofounderCard({ item: l, onOpen }: { 
   const roles = (t.openRoles ?? []).map((o) => `${o.role}${o.skills.length ? ` (${o.skills.slice(0, 2).join(", ")})` : ""}`);
   return (
     <ResultCard
+      share={shareOf(l)}
       aside={
         <>
           <CompanyLogo name={l.title} logo size={44} />
@@ -77,3 +79,6 @@ export const CofounderCard = memo(function CofounderCard({ item: l, onOpen }: { 
     />
   );
 });
+
+/** What Share sends about a founder profile or team: the listing's title and the link only — nothing about the person. The link goes to the module. */
+export const shareOf = (l: CofounderListing): ListingShareProps => ({ module: "cofounders", noun: l.kind === "team" ? "team" : "co-founder profile", title: l.title, url: "/app/m/cofounders" });

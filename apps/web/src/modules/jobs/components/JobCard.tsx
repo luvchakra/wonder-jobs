@@ -62,6 +62,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   const summary = useMemo(() => jdSummary(job.description), [job.description]);
   return (
     <ResultCard
+      share={null}
       className={className}
       aside={
         <>

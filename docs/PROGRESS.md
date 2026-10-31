@@ -580,3 +580,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Buy, Sell & Rent: tap a listing in My listings to see its details, status and conversations (WJ-453)
 - ✅ Buy, Sell & Rent: Deals shows each item's own listing card (photo, price, condition, area) (WJ-454)
 - ✅ Buy, Sell & Rent: a deal's page shows the listing's photos and details; a buyer still sees the photos after the sale (WJ-455)
+- ✅ Share on every listing card and listing page in every module, from one shared component (WJ-456)

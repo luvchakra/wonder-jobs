@@ -1,6 +1,7 @@
 import { WORK_MODE_LABEL, type CanonicalJob } from "./types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "./jobType";
 import { formatSalaryRange } from "@/lib/format";
+import { emailHref, whatsappHref, type ShareMessage } from "@/wonderworks/listing/share";
 
 /**
  * Sharing a job with someone else (owner, 2026-10-19): a link to its public page on WonderJobs, whose
@@ -24,15 +25,7 @@ export function shareFacts(job: ShareJob): string {
   return [job.location, WORK_MODE_LABEL[job.workMode], type ? JOB_TYPE_LABEL[type] : null, salary].filter(Boolean).join(" · ");
 }
 
-export interface ShareMessage {
-  subject: string;
-  /** Plain-text email body. */
-  body: string;
-  /** WhatsApp text: the link comes last and alone, so WhatsApp previews it as the job's card. */
-  whatsapp: string;
-  /** For the phone's own share sheet. */
-  text: string;
-}
+export type { ShareMessage };
 
 export function shareMessage(job: ShareJob, url: string, home: string): ShareMessage {
   const role = `${job.title} at ${job.company}`;
@@ -45,10 +38,4 @@ export function shareMessage(job: ShareJob, url: string, home: string): ShareMes
   };
 }
 
-export function emailHref(m: ShareMessage): string {
-  return `mailto:?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
-}
-
-export function whatsappHref(m: ShareMessage): string {
-  return `https://wa.me/?text=${encodeURIComponent(m.whatsapp)}`;
-}
+export { emailHref, whatsappHref };

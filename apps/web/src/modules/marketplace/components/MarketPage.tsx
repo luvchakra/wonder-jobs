@@ -21,6 +21,7 @@ import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
 import { Gallery } from "./Gallery";
 import { ScamWarning } from "./ScamWarning";
+import { shareOf } from "./Listing";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/marketplace", label: "Buy, Sell & Rent" };
@@ -165,6 +166,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
   ];
   return (
     <ListingPage
+      share={shareOf(l)}
       back={owner ? { href: "/app/m/marketplace/company", label: "My listings" } : FIND}
       title={l.title}
       actions={
