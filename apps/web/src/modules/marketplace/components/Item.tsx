@@ -15,9 +15,11 @@ import { ReportBlock } from "@/wonderworks/pipeline/ReportBlock";
 import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from "@/wonderworks/pipeline/item";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { ClampedText, isLongText } from "@/wonderworks/listing/ListingPage";
 import { MAX_MESSAGE, priceLabel, STAGE_OF, STATUS_LABEL } from "../domain";
 import { marketplaceManifest } from "../manifest";
 import type { ThreadMessage, ThreadView } from "../threads";
+import { Gallery } from "./Gallery";
 import { lineOf, TONE } from "./Pipeline";
 import { ScamWarning } from "./ScamWarning";
 
@@ -35,6 +37,7 @@ export function MarketplaceItem({ id }: { id: string }) {
   const [data, setData] = useState<{ thread: ThreadView; messages: ThreadMessage[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const url = `/api/m/marketplace/threads/${encodeURIComponent(id)}`;
   const load = () =>
     call<{ thread: ThreadView; messages: ThreadMessage[] }>(url)
@@ -63,6 +66,17 @@ export function MarketplaceItem({ id }: { id: string }) {
   return (
     <ItemPage back={BACK} title={t.title} badge={<Badge tone={TONE[t.status]}>{STATUS_LABEL[t.status]}</Badge>}>
       <ItemMain>
+        <ItemSection title="The item">
+          <Gallery listingId={t.listingId} photos={t.item.photos} title={t.title} />
+          <p className="text-[15px] font-semibold text-ink">
+            {priceLabel(t.price)}
+            {t.item.negotiable ? " · negotiable" : ""}
+          </p>
+          <p className="text-[13px] text-ink-3">{[t.item.condition, t.item.area, t.item.category].join(" · ")}</p>
+          <div className="mt-2">
+            <ClampedText text={t.item.description} long={isLongText(t.item.description)} expanded={showAll} onToggle={() => setShowAll((v) => !v)} />
+          </div>
+        </ItemSection>
         <ItemSection title={t.side === "buyer" ? "The seller" : "The buyer"}>
           <ItemHead company={t.counterpart} lines={[lineOf(t), agreed && `Agreed price ${priceLabel(agreed.amount)}. Pay in person, when you've seen and received the item.`]} />
         </ItemSection>
