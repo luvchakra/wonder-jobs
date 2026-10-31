@@ -1,4 +1,5 @@
 "use client";
+import { ListingShare, type ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { Fragment, useState } from "react";
 import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, ChevronDown, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { Chip, Input, Select } from "@/components/common/Input";
@@ -394,7 +395,7 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * where each module puts its own: Jobs' place, work mode and salary; Internships' place, duration, start and stipend),
  * skills, why it fits, a summary where there's room, then a footer line with Save.
  */
-export function ResultCard({ className, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, actions, children }: { className?: string; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
+export function ResultCard({ className, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
@@ -443,7 +444,12 @@ export function ResultCard({ className, aside, title, facts, tags = [], reasons 
       <div className="mt-1 flex items-center gap-2">
         {status}
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">{footnote}</span>
-        {actions && <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">{actions}</div>}
+        {(share || actions) && (
+          <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
+            {share && <ListingShare {...share} />}
+            {actions}
+          </div>
+        )}
       </div>
       {children}
     </article>

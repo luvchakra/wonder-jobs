@@ -16,7 +16,7 @@ import { cn } from "@/lib/cn";
 import { DECISION_LABEL, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
 import { useCofoundersStore } from "../store";
 import { Act } from "./Act";
-import { FIT, connStatus, useMatch, verbOf } from "./Listing";
+import { FIT, connStatus, useMatch, verbOf, shareOf } from "./Listing";
 import { Safety } from "./Safety";
 
 const noop = () => () => undefined;
@@ -69,6 +69,7 @@ function Page({ l }: { l: CofounderListing }) {
       ];
   return (
     <ListingPage
+      share={shareOf(l)}
       back={FIND}
       title={l.title}
       actions={

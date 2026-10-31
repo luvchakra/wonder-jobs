@@ -38,6 +38,7 @@ function DealCard({ t }: { t: ThreadView }) {
   const i = t.item;
   return (
     <ResultCard
+      share={null}
       aside={<Thumb listingId={t.listingId} photo={i.photo} size={44} />}
       title={
         <Link href={itemHref(t.id)} className={CARD_TARGET}>

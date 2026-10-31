@@ -9,6 +9,7 @@ import { relativeTime } from "@/lib/format";
 import { matchListing, priceLabel, type MarketListing } from "../domain";
 import { listingHref, photoSrc } from "../manifest";
 import { selectPersona, useMarketplaceStore } from "../store";
+import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 
 /** The first photo, small, through the listing's own route; a store icon until the seller adds one. */
 export function Thumb({ listingId, photo, size = 56 }: { listingId: string; photo?: string; size?: number }) {
@@ -35,6 +36,7 @@ export const MarketCard = memo(function MarketCard({ item: l, onOpen }: { item: 
   const t = l.terms;
   return (
     <ResultCard
+      share={shareOf(l)}
       aside={
         <>
           <Thumb listingId={l.listingId} photo={l.terms.photos[0]} size={44} />
@@ -63,3 +65,6 @@ export const MarketCard = memo(function MarketCard({ item: l, onOpen }: { item: 
     />
   );
 });
+
+/** What Share sends about a listing for sale or rent: price, condition and the area, never the seller. The link goes to the module. */
+export const shareOf = (l: MarketListing): ListingShareProps => ({ module: "marketplace", noun: "listing", title: l.title, facts: [priceLabel(l.terms.price), l.terms.condition, shortPlace(l.area)], url: "/app/m/marketplace" });
