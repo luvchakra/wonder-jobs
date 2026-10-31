@@ -17,7 +17,7 @@ export const marketplaceManifest: ModuleManifest = {
   hint: "Pre-used items",
   icon: "Store",
   accent: "peach",
-  status: "soon",
+  status: "live",
   menuId: "buy_sell_rent",
   routes: shellRoutes("marketplace"),
   persona: [{ key: "area", label: "Area", type: "text" }],
