@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -105,6 +105,14 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // sends; this only decides whether that press sends at once or shows what goes first. Ask me by default: a request to
   // a therapist is more personal than a job application, so the client sees exactly what goes (owner plan, 2026-10-30).
   "therapists.book": { key: "therapists.book", label: "Send session requests in one tap", description: "When you press Request a session on a practitioner's WonderWorks listing, send it to them at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
+  // Co-founders: these involve other people, so the ones that reach someone first (connect, join, invite) and the one that
+  // gives out contact details ask first by default and show what goes. A message is typed and sent by the person's own
+  // press, so it sends at once. Nothing here runs without the person's own press, at any automation level.
+  "cofounders.connect": { key: "cofounders.connect", label: "Show interest in a co-founder", description: "When you press Connect on someone's profile, tell them you're interested. They see only the fields you chose to show. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
+  "cofounders.join": { key: "cofounders.join", label: "Ask to join a team", description: "When you press Ask to join on a team, send your request to its founders. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
+  "cofounders.invite": { key: "cofounders.invite", label: "Invite someone to your team", description: "When you press Invite on someone's profile, ask them to join your team. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
+  "cofounders.message": { key: "cofounders.message", label: "Send messages to co-founders", description: "Once interest is mutual, a message you write and send goes to the other person or the team at once. Ask me shows it first; Off turns messaging off.", risk: "low", external: true, default: "automatic" },
+  "cofounders.share_contact": { key: "cofounders.share_contact", label: "Share your contact details", description: "When you press Share contact in a mutual connection, your email goes to the other side. Ask me shows it first; Off never shares it.", risk: "medium", external: true, default: "ask" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },

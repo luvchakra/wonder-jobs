@@ -10,6 +10,7 @@ import { internshipsManifest } from "./internships/manifest";
 import { teachingManifest } from "./teaching/manifest";
 import { servicesManifest } from "./services/manifest";
 import { therapistsManifest } from "./therapists/manifest";
+import { cofoundersManifest } from "./cofounders/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -17,26 +18,7 @@ export const MODULES: readonly ModuleManifest[] = [
   jobsManifest,
   internshipsManifest,
   teachingManifest,
-  {
-    id: "cofounders",
-    label: "Co-founders",
-    hint: "Find someone to build with",
-    icon: "Handshake",
-    accent: "lavender",
-    status: "soon",
-    menuId: "cofounders",
-    routes: shell("cofounders"),
-    persona: [
-      { key: "role", label: "Role", type: "choice", options: ["Tech", "Business"] },
-      { key: "skills", label: "Skills", type: "list" },
-      { key: "commitment", label: "Commitment", type: "text" },
-    ],
-    listing: [],
-    response: { verb: "connect", questions: false, mutual: true, states: ["interested", "mutual", "talking", "building", "passed"], capability: "cofounders.connect" },
-    pipeline: { label: "Connections", icon: "Handshake", stages: stages("Interested", "Mutual", "Talking", "Building / Passed") },
-    ownerSide: { workspace: "none" },
-    trust: { reviews: "off" },
-  },
+  cofoundersManifest,
   servicesManifest,
   therapistsManifest,
   {
