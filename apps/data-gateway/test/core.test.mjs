@@ -90,3 +90,30 @@ test("an unmapped or non-text field is left out, never the whole record", () => 
   assert.equal(got.organization, "Example");
   assert.equal(normalize(src, posting({ employer: { name: "x" } }), "jobs"), null);
 });
+import { RateLimiter } from "../src/core.mjs";
+import { OPENAPI } from "../src/openapi.mjs";
+test("rate limiter allows the minute's allowance per key, then says when to retry, then renews", () => {
+  let t = 1_000_000;
+  const l = new RateLimiter(2, () => t);
+  assert.equal(l.take("a"), 0);
+  assert.equal(l.take("a"), 0);
+  assert.ok(l.take("a") > 0);
+  assert.equal(l.take("b"), 0, "another key has its own allowance");
+  t += 60_000;
+  assert.equal(l.take("a"), 0);
+});
+test("lazy changes are in memory at once and reach the disk on flush", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gateway-lazy-"));
+  try {
+    const file = join(dir, "g.json");
+    const store = await new JsonStore(file).init();
+    store.lazy((s) => s.usage.push({ day: "2026-10-31", count: 1 }), 60000);
+    assert.equal(store.data.usage.length, 1);
+    await store.flush();
+    assert.equal((await new JsonStore(file).init()).data.usage.length, 1);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+test("the API description covers every module and the keyed routes", () => {
+  assert.deepEqual(OPENAPI.components.schemas.Listing.properties.module.enum, MODULES);
+  for (const path of ["/v1/search", "/v1/listings/{id}", "/v1/workslake/{module}/listings", "/v1/admin/keys/{id}/rotate", "/v1/admin/sources/{id}/activate"]) assert.ok(OPENAPI.paths[path], path);
+});

@@ -28,6 +28,14 @@ Every API key has module-specific read permissions and can be revoked or rotated
 - Existing platform partner portal Do not use entries remain unchanged.
 - Tests: npm run gateway:check (Node syntax and unit suites). Existing root npm test now runs gateway tests.
 
+## Behaviour worth knowing
+
+- **Rate limit:** each API key gets GATEWAY_RATE_LIMIT_PER_MINUTE calls a minute (default 120). Over it, the answer is 429 with `Retry-After`. Counted in memory, per process.
+- **Writes:** a search does not rewrite the data file. Usage counts are kept in memory and written within five seconds, or when the service is stopped (SIGTERM/SIGINT). Key, source and collection changes are written at once.
+- **Robots:** `*` and a trailing `$` in robots.txt rules are honoured; the most specific rule wins and Allow wins a tie. The query string counts.
+- **API description:** `GET /v1/openapi.json` lists every route, its parameters, bodies, errors and security scheme; a test checks the keyed routes it names are served.
+- **Mapping:** a field a source does not map, or whose value is not text, a number or true/false, is left out. It is never filled with the record.
+
 ## Production limitations
 
-This is an isolated **single-instance MVP**, not a publicly scalable service. Its JSON file store persists across process restarts on one mounted persistent disk only; multi-replica operation can corrupt state. Before production, migrate to PostgreSQL transactions, distributed job queue/locks and distributed rate limiting, replace the minimal OpenAPI stub with a complete schema, run source licensing/privacy reviews, add monitoring and verify production deployment behind TLS. No external API consumers should be provisioned before those controls are in place.
+This is an isolated **single-instance MVP**, not a publicly scalable service. Its JSON file store persists across process restarts on one mounted persistent disk only; multi-replica operation can corrupt state. Before production, migrate to PostgreSQL transactions, distributed job queue/locks and a shared rate limiter (today's is per process), run source licensing/privacy reviews, add monitoring and verify production deployment behind TLS. No external API consumers should be provisioned before those controls are in place.

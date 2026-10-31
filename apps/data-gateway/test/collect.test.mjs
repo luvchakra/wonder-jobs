@@ -28,3 +28,15 @@ test("schema.org JSON-LD parser ignores unstructured scripts", () => {
   assert.equal(result[0].organization, "Example");
   assert.equal(decodeEntities("&lt;b&gt;Test&amp;more&lt;/b&gt;"), "<b>Test&more</b>");
 });
+import { robotsPattern } from "../src/collect.mjs";
+test("robots rules honour * and $ and never block more than they say", () => {
+  const rules = "User-agent: *\nDisallow: /*.pdf$\nDisallow: /search?\nDisallow: /admin/*/secret\n";
+  assert.equal(robotsAllowed(rules, "/jobs"), true);
+  assert.equal(robotsAllowed(rules, "/files/cv.pdf"), false);
+  assert.equal(robotsAllowed(rules, "/files/cv.pdf.html"), true);
+  assert.equal(robotsAllowed(rules, "/search?q=x"), false);
+  assert.equal(robotsAllowed(rules, "/admin/a/secret"), false);
+  assert.equal(robotsAllowed(rules, "/admin/a/open"), true);
+  assert.equal(robotsAllowed("User-agent: *\nDisallow: /a\nAllow: /a", "/a"), true, "equally specific: Allow wins");
+  assert.ok(robotsPattern("/a.b").test("/a.b") && !robotsPattern("/a.b").test("/axb"), "dots are literal");
+});

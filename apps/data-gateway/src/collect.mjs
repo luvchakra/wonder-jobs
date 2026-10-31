@@ -75,8 +75,19 @@ export function robotsAllowed(robots, path, agent = "WorksLakeGateway") {
   flush();
   const exact = groups.filter((g) => g.agents.includes(agent.toLowerCase()));
   const selected = exact.length ? exact : groups.filter((g) => g.agents.includes("*"));
-  const matching = selected.flatMap((g) => g.rules).filter((r) => r.path && path.startsWith(r.path.replace(/\*.*$/, ""))).sort((a, b) => b.path.length - a.path.length || (a.type === "allow" ? -1 : 1));
-  return !matching.length || matching[0].type === "allow";
+  // The most specific (longest) matching rule decides; Allow beats Disallow when they are equally specific.
+  let best = null;
+  for (const rule of selected.flatMap((g) => g.rules)) {
+    if (!rule.path || !robotsPattern(rule.path).test(path)) continue;
+    if (!best || rule.path.length > best.path.length || rule.path.length === best.path.length && rule.type === "allow") best = rule;
+  }
+  return !best || best.type === "allow";
+}
+/** A robots.txt path rule as a matcher: `*` is any run of characters and a trailing `$` anchors the end. */
+export function robotsPattern(rule) {
+  const anchored = rule.endsWith("$");
+  const body = (anchored ? rule.slice(0, -1) : rule).split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+  return new RegExp("^" + body + (anchored ? "$" : ""));
 }
 export async function checkRobots(source) {
   const base = new URL(source.url);
@@ -87,7 +98,7 @@ export async function checkRobots(source) {
     if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return;
     throw new ApiError(403, "ROBOTS_UNAVAILABLE", "Cannot verify robots policy");
   }
-  if (!robotsAllowed(txt, base.pathname)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
+  if (!robotsAllowed(txt, base.pathname + base.search)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
 }
 export function decodeEntities(s) {
   return String(s || "").replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_m, entity) => {

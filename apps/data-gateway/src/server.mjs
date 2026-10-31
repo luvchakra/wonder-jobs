@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import { resolve } from "node:path";
-import { ApiError, JsonStore, MODULES, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, search, recordUsage, checkScope } from "./core.mjs";
+import { ApiError, JsonStore, RateLimiter, MODULES, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, search, recordUsage, checkScope } from "./core.mjs";
 import { fetchRecords } from "./collect.mjs";
+import { OPENAPI } from "./openapi.mjs";
 
 const env = process.env;
 const adminToken = env.GATEWAY_ADMIN_TOKEN;
@@ -9,8 +10,10 @@ const cursorSecret = env.GATEWAY_CURSOR_SECRET;
 if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32 || adminToken === cursorSecret) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
 const store = await new JsonStore(resolve(env.GATEWAY_DATA_FILE || "./.data/gateway.json")).init();
 const activeCrawls = new Set();
+const perMinute = Number.isInteger(Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE)) && Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) > 0 ? Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) : 120;
+const limiter = new RateLimiter(perMinute);
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
-const reply = (res, status, body) => { res.writeHead(status, JSON_HEADERS); res.end(JSON.stringify(body)); };
+const reply = (res, status, body, extra = {}) => { res.writeHead(status, { ...JSON_HEADERS, ...extra }); res.end(JSON.stringify(body)); };
 const routeSegments = (pathname) => pathname.split("/").filter(Boolean);
 async function readBody(req) {
   let bytes = 0, parts = [];
@@ -81,7 +84,7 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
     const p = routeSegments(url.pathname);
     if (req.method === "GET" && url.pathname === "/v1/health") return reply(res, 200, { ok: true, storage: "local_durable_file", workersEnabled: env.GATEWAY_COLLECTORS_ENABLED === "1" });
-    if (req.method === "GET" && url.pathname === "/v1/openapi.json") return reply(res, 200, { openapi: "3.1.0", info: { title: "WorksLake Data Gateway", version: "0.1.0" }, paths: { "/v1/search": { post: { summary: "Module-scoped search" } }, "/v1/workslake/{module}/listings": { get: { summary: "WorksLake compatibility feed" } }, "/v1/listings/{id}": { get: { summary: "Listing by ID" } }, "/v1/modules": { get: {} }, "/v1/sources": { get: {} }, "/v1/usage": { get: {} } } });
+    if (req.method === "GET" && url.pathname === "/v1/openapi.json") return reply(res, 200, OPENAPI);
     if (p[0] !== "v1") throw new ApiError(404, "NOT_FOUND", "No such route");
     const auth = req.headers.authorization;
     if (p[1] === "admin") {
@@ -125,13 +128,15 @@ const server = createServer(async (req, res) => {
       throw new ApiError(404, "NOT_FOUND", "Unknown administrator route");
     }
     const caller = await requireConsumer(store, auth);
+    const wait = limiter.take(caller.id);
+    if (wait) throw new ApiError(429, "RATE_LIMITED", "Too many requests; retry in " + wait + "s", { "retry-after": String(wait) });
     const module = p[2];
     if (req.method === "GET" && p[1] === "modules" && p.length === 2) return reply(res, 200, { modules: MODULES.filter((m) => caller.scopes.includes("read:" + m)) });
     if (req.method === "GET" && p[1] === "sources" && p.length === 2) {
       const selected = url.searchParams.get("module");
       checkScope(caller, selected);
       const sources = await store.read((s) => s.sources.filter((x) => x.enabled && x.modules.includes(selected)).filter((x) => caller.consumerId === "workslake" || x.externalRedistributionAllowed).map(sourcePublic));
-      await store.change((s) => recordUsage(s, caller, "/v1/sources", selected));
+      store.lazy((s) => recordUsage(s, caller, "/v1/sources", selected));
       return reply(res, 200, { sources });
     }
     if (req.method === "GET" && p[1] === "usage" && p.length === 2) return reply(res, 200, { usage: await store.read((s) => s.usage.filter((u) => u.consumerId === caller.consumerId)) });
@@ -139,7 +144,7 @@ const server = createServer(async (req, res) => {
       const payload = await readBody(req);
       const result = await store.read((s) => search(s, caller, payload, cursorSecret));
       result.results = result.results.map(publicListing);
-      await store.change((s) => recordUsage(s, caller, "/v1/search", payload.module, result.results.length));
+      store.lazy((s) => recordUsage(s, caller, "/v1/search", payload.module, result.results.length));
       return reply(res, 200, result);
     }
     if (req.method === "GET" && p[1] === "workslake" && p[3] === "listings" && p.length === 4) {
@@ -147,7 +152,7 @@ const server = createServer(async (req, res) => {
       const result = await store.read((s) => search(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
       // Current WorksLake Protocol v1 requires genuine published dates; leave undated profiles out, don't manufacture dates.
       const items = result.results.filter((x) => x.publishedAt).map(workslakeItem);
-      await store.change((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
+      store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
       return reply(res, 200, { items });
     }
     if (req.method === "GET" && p[1] === "listings" && p.length === 3) {
@@ -156,14 +161,14 @@ const server = createServer(async (req, res) => {
       checkScope(caller, entry.module);
       const allowed = await store.read((s) => s.sources.some((x) => x.id === entry.sourceId && x.enabled && x.redistributionAllowed && (caller.consumerId === "workslake" || x.externalRedistributionAllowed)));
       if (!allowed) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
-      await store.change((s) => recordUsage(s, caller, "/v1/listings", entry.module, 1));
+      store.lazy((s) => recordUsage(s, caller, "/v1/listings", entry.module, 1));
       return reply(res, 200, { listing: publicListing(entry) });
     }
     throw new ApiError(404, "NOT_FOUND", "No such route");
   } catch (e) {
     const status = e instanceof ApiError ? e.status : 500;
     if (status === 500) console.error("Gateway request failed:", e?.code || e?.name || "INTERNAL");
-    reply(res, status, { error: { code: e instanceof ApiError ? e.code : "INTERNAL", message: status === 500 ? "Internal error" : e.message } });
+    reply(res, status, { error: { code: e instanceof ApiError ? e.code : "INTERNAL", message: status === 500 ? "Internal error" : e.message } }, e instanceof ApiError ? e.headers : {});
   }
 });
 server.listen(Number(env.GATEWAY_PORT || "8790"), env.GATEWAY_HOST || "127.0.0.1", () => console.log("WorksLake Data Gateway listening"));
@@ -171,3 +176,6 @@ if (env.GATEWAY_COLLECTORS_ENABLED === "1") {
   setInterval(() => { scheduledCollection().catch((e) => console.error("Gateway scheduler error", e.code || "INTERNAL")); }, 60_000).unref();
   scheduledCollection().catch((e) => console.error("Gateway initial scan failed", e.code || "INTERNAL"));
 }
+
+// Usage counts are written lazily; write them before the process goes.
+for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => { server.close(); store.flush().catch(() => undefined).finally(() => process.exit(0)); });

@@ -10,7 +10,7 @@ const MAX_PAGE = 100;
 export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [] });
 
 export class ApiError extends Error {
-  constructor(status, code, message) { super(message); this.status = status; this.code = code; }
+  constructor(status, code, message, headers = {}) { super(message); this.status = status; this.code = code; this.headers = headers; }
 }
 
 export function secureEqual(a, b) {
@@ -27,7 +27,8 @@ export class JsonStore {
     try {
       const stored = JSON.parse(await readFile(this.filename, "utf8"));
       if (stored.version !== 1 || !Array.isArray(stored.sources) || !Array.isArray(stored.keys) || !Array.isArray(stored.listings)) throw Error("Unsupported store version");
-      this.data = stored;
+      // Older or hand-edited files may lack the smaller tables; the rest of the service expects all of them.
+      this.data = { ...initial(), ...stored, consumers: Array.isArray(stored.consumers) ? stored.consumers : initial().consumers, usage: Array.isArray(stored.usage) ? stored.usage : [], audits: Array.isArray(stored.audits) ? stored.audits : [] };
     } catch (e) { if (e.code !== "ENOENT") throw e; await this.persist(); }
     return this;
   }
@@ -38,6 +39,21 @@ export class JsonStore {
     await rename(tmp, this.filename);
   }
   async read(fn) { await this.queue; return fn(this.data); }
+  /**
+   * A change that need not reach the disk at once (usage counts): applied in memory now, written within `delayMs`
+   * together with whatever else changed, or on flush(). Keeps a search from rewriting the whole file.
+   */
+  lazy(fn, delayMs = 5000) {
+    fn(this.data);
+    if (this.timer) return;
+    this.timer = setTimeout(() => { this.timer = null; this.flush().catch(() => undefined); }, delayMs);
+    this.timer.unref?.();
+  }
+  /** Writes everything now. */
+  flush() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    return this.change(() => undefined);
+  }
   async change(fn) {
     const job = this.queue.then(async () => {
       const snapshot = structuredClone(this.data);
@@ -155,4 +171,23 @@ export function recordUsage(state, consumer, route, module, results = 0) {
   if (!item) state.usage.push(item = { day, consumerId: consumer.consumerId, keyId: consumer.id, route, module, count: 0, results: 0 });
   item.count++; item.results += results;
   state.usage = state.usage.filter((u) => Date.parse(u.day) > Date.now() - 93 * 86400000);
+}
+
+/**
+ * A fixed one-minute allowance per API key, in memory (one instance; a shared limiter replaces it with several).
+ * `take` returns 0 when the call is allowed, else the seconds until the allowance renews.
+ */
+export class RateLimiter {
+  constructor(perMinute = 120, now = () => Date.now()) { this.perMinute = perMinute; this.now = now; this.windows = new Map(); }
+  take(keyId) {
+    const t = this.now(), w = this.windows.get(keyId);
+    if (!w || t - w.start >= 60000) {
+      if (this.windows.size > 5000) for (const [k, v] of this.windows) if (t - v.start >= 60000) this.windows.delete(k);
+      this.windows.set(keyId, { start: t, count: 1 });
+      return 0;
+    }
+    if (w.count >= this.perMinute) return Math.max(1, Math.ceil((w.start + 60000 - t) / 1000));
+    w.count++;
+    return 0;
+  }
 }
