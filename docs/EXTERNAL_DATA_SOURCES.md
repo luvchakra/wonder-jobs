@@ -19,6 +19,30 @@ Every module's listings come from two places: **WonderWorks' own** (what people 
 
 ---
 
+## 0. Why WonderWorks was not getting data — live diagnosis, 2026-10-31
+
+Each module's real search was run against the live feeds (no mocks). What came back, and why:
+
+| Module · query | Result | Why |
+|---|---|---|
+| Internships · "marketing" | 36 results (Himalayas 29, SmartRecruiters 5, Arbeitnow 1, Jobicy 1) | Free feeds work. **Adzuna, Jooble and USAJOBS: Needs setup** (no credential) — these are the India and US sources, so India coverage is thin. The Muse, Remote OK, Remotive: 0 for this query. |
+| Internships · "software", Pune | 3 results (Himalayas) | Same: the India-strong sources are the ones without keys. |
+| Teaching · "english teacher" | 15 results (Himalayas only) | **Adzuna and Jooble: Needs setup.** WonderWorks schools: 0 (no school has posted a match). |
+| **Talent & Services · "designer"** | **0 results** | **A bug, now fixed (below).** Freelancer.com returned 39 pros; WorksLake dropped all 39 as "too old". |
+| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners exist; no outside source by design. |
+| Events · "music" | 1 result | Only WonderWorks' own events; no outside source yet. |
+
+**The Talent & Services bug.** A directory profile has no posting date, so its "posted" date was the day the freelancer made their account (often years ago). WorksLake serves only postings from the last two weeks (`domain/jobs/age.ts`), so every pro was removed (`tooOld: 39` in the search metadata). Fixed in `server/services/sources.ts`: a pro is not a dated posting, so it carries no date and isn't judged for age. After the fix the same search returns 39. This source has never returned a result before.
+
+**Tried and not kept.** Adding the free feeds Internships uses (career sites, SmartRecruiters, Remotive, Remote OK, Jobicy, Arbeitnow) to Teaching returned 0 teaching jobs for "english teacher" and "maths tutor": those boards are almost all tech roles. They would only add six calls to every Teaching search, so they were not added. More free feeds do not fix Teaching; the Adzuna and Jooble keys do.
+
+**What is still blocking data, in order of effect**
+1. **Missing credentials** for Adzuna (Jobs, Internships, Teaching), Jooble (Internships, Teaching) and USAJOBS (Internships). Free to get; the owner must create the accounts and set the env vars (§11). *In the environment this was run in, none of them were set; whether they are set on production is still unverified.*
+2. **Few WonderWorks postings**: the app's own schools, pros, practitioners and events are the only supply for Therapists, Events, Co-founders and Buy, Sell & Rent.
+3. **Narrow queries on small remote feeds.**
+
+---
+
 ## 1. How imports work (the rules every source follows)
 
 - **WorksLake keeps one dataset per module.** A source belongs to one module; another module's sources and listings never appear in its searches (`module` column, `server/<module>/sources.ts`). Jobs' built-ins are in `server/jobslake/registry.ts`.
@@ -163,7 +187,7 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 | Scraping services for freelancer sites (Apify and similar) | Paid per result | Rejected: terms-of-service risk, and our rule is no scraping. |
 
 **Open issues**
-1. **Nothing else is open**, so supply for local services must come from pros listing on WonderWorks.
+1. **Was returning nothing at all** — fixed 2026-10-31 (see §0). It now returns the Freelancer.com pros for a search. **Nothing else is open**, so supply for local services must come from pros listing on WonderWorks.
 2. **Freelancer.com data is remote work only.** Client details need OAuth and are not used.
 3. **Ratings:** the Freelancer.com feed carries its own rating where it gives one; WonderWorks' reviews are separate and are not mixed with it.
 
