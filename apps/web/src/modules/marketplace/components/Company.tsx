@@ -11,6 +11,7 @@ import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Act } from "@/wonderworks/pipeline/Act";
 import { CATEGORIES, CONDITIONS, MAX_PHOTOS, priceLabel, type Condition, type ListingState, type MarketListing } from "../domain";
 import { photoSrc } from "../manifest";
+import { preparePhoto } from "../photo";
 import { ScamWarning } from "./ScamWarning";
 
 type Mine = MarketListing & { state: ListingState };
@@ -124,12 +125,16 @@ function Editor({ initial, onDone }: { initial: Mine | null; onDone: () => void 
     const lid = id ?? (await save());
     if (!lid) return;
     for (const f of Array.from(files).slice(0, MAX_PHOTOS - photos.length)) {
-      const fd = new FormData();
-      fd.append("file", f);
-      const res = await fetch(`${url(lid)}/photos`, { method: "POST", body: fd });
-      const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
-      if (!res.ok || !data.id) return void toast.error("Couldn't add the photo", data.error ?? "Try another.");
-      setPhotos((p) => [...p, data.id!]);
+      try {
+        const fd = new FormData();
+        fd.append("file", await preparePhoto(f));
+        const res = await fetch(`${url(lid)}/photos`, { method: "POST", body: fd });
+        const data = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+        if (!res.ok || !data.id) throw new Error(data.error ?? (res.status === 413 ? "That photo is too large." : `The upload failed (${res.status}). Try again.`));
+        setPhotos((p) => [...p, data.id!]);
+      } catch (e) {
+        return void toast.error("Couldn't add the photo", (e as Error).message);
+      }
     }
   };
   return (
