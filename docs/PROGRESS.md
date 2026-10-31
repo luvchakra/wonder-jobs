@@ -582,3 +582,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Buy, Sell & Rent: a deal's page shows the listing's photos and details; a buyer still sees the photos after the sale (WJ-455)
 - ✅ Share on every listing card and listing page in every module, from one shared component (WJ-456)
 - ✅ Talent & Services shows Freelancer.com pros again: they were all dropped as "too old" because a profile's date is when the account was made (WJ-457)
+- ✅ Share sends the listing's full details as they are at that moment, and its link opens a public page with a real preview card instead of a sign-in screen (WJ-458)

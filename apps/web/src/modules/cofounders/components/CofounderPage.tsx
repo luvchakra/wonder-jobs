@@ -16,8 +16,9 @@ import { cn } from "@/lib/cn";
 import { DECISION_LABEL, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
 import { useCofoundersStore } from "../store";
 import { Act } from "./Act";
-import { FIT, connStatus, useMatch, verbOf, shareOf } from "./Listing";
+import { FIT, connStatus, useMatch, verbOf } from "./Listing";
 import { Safety } from "./Safety";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/cofounders", label: "Co-founders" };

@@ -28,6 +28,11 @@ export interface TherapistsSearchResult {
 
 const MAX_RESULTS = 200;
 
+/** A practitioner's open listing as Find and its public page list it: with the terms they gave. */
+export function wonderworksTherapist({ posting, org }: Awaited<ReturnType<typeof openTherapistPosts>>[number], sourceName: string): TherapistListing {
+  return { id: `ws_${posting.id}`, postingId: posting.id, title: posting.title, company: org.name, location: posting.location, workMode: posting.workMode, terms: posting.terms, description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERWORKS_THERAPISTS, sourceName };
+}
+
 /** Search practitioners for these words and places. The words are the client's own; there is no default. */
 export async function searchTherapists(input: { query: string; places: string[]; refresh?: boolean }): Promise<TherapistsSearchResult> {
   const query = input.query.trim().slice(0, 120);
@@ -43,8 +48,7 @@ export async function searchTherapists(input: { query: string; places: string[];
     // Only a listing that is still open is shown, with the terms the practitioner gave.
     const p = ws ? byPosting.get(ws.sourceJobId) : undefined;
     if (!ws || !p) continue;
-    const { posting, org } = p;
-    results.push({ id: `ws_${posting.id}`, postingId: posting.id, title: posting.title, company: org.name, location: posting.location, workMode: posting.workMode, terms: posting.terms, description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERWORKS_THERAPISTS, sourceName: ws.sourceName });
+    results.push(wonderworksTherapist(p, ws.sourceName));
   }
   const lines: TherapistsSourceLine[] = response.sources.map((s) => ({
     id: s.sourceId,

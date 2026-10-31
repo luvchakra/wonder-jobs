@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, emailHref, listingShareMessage, whatsappHref } from "./share";
+import { absoluteUrl, emailHref, excerpt, listingShareMessage, publicPath, whatsappHref } from "./share";
 
 describe("sharing a listing", () => {
   it("a message carries the title, the public facts and the link, last and alone on WhatsApp", () => {
@@ -27,5 +27,32 @@ describe("sharing a listing", () => {
     const m = listingShareMessage({ noun: "event", title: "A & B", url: "x" }, "https://x.test");
     expect(emailHref(m)).toBe(`mailto:?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`);
     expect(whatsappHref(m)).toBe(`https://wa.me/?text=${encodeURIComponent(m.whatsapp)}`);
+  });
+
+  it("carries every labelled detail and the description, not just the headline: what the listing shows at the moment of sharing", () => {
+    const m = listingShareMessage(
+      { noun: "internship", title: "React Intern", facts: ["Acme", "Pune", "₹10,000 a month"], lines: ["Duration: 3 months", false, "Skills: React, SQL", 0, "Apply by: 30 Nov 2026"], details: "Build the dashboard.\nWork with the design team.", url: "x" },
+      "https://x.test/s/internships/ws_1",
+    );
+    for (const part of ["*React Intern*", "Acme · Pune · ₹10,000 a month", "Duration: 3 months", "Skills: React, SQL", "Apply by: 30 Nov 2026", "Build the dashboard.", "Work with the design team."]) expect(m.whatsapp).toContain(part);
+    expect(m.whatsapp).not.toContain("false");
+    expect(m.body).toContain("Skills: React, SQL");
+    expect(m.text).toContain("Duration: 3 months");
+    expect(m.whatsapp.split("\n").at(-1)).toBe("https://x.test/s/internships/ws_1");
+  });
+
+  it("a long description is cut at a word, with an ellipsis, and a short one is kept whole", () => {
+    const long = Array.from({ length: 200 }, (_, i) => `word${i}`).join(" ");
+    const e = excerpt(long, 100);
+    expect(e.length).toBeLessThanOrEqual(101);
+    expect(e.endsWith("…")).toBe(true);
+    // Cut at a word: the last thing before the ellipsis is a whole word of the original.
+    expect(long.split(" ")).toContain(e.slice(0, -1).split(" ").pop());
+    expect(excerpt("Short and sweet.", 100)).toBe("Short and sweet.");
+    expect(excerpt(undefined)).toBe("");
+  });
+
+  it("a listing's public page is /s/<module>/<id>, encoded", () => {
+    expect(publicPath("events", "ws_a b")).toBe("/s/events/ws_a%20b");
   });
 });

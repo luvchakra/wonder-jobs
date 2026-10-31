@@ -10,7 +10,7 @@ import { feeLabel, lengthLabel, matchTherapist, modesLabel, type TherapistListin
 import { listingHref } from "../manifest";
 import { selectProfile, useTherapistsStore } from "../store";
 import { isOpen } from "./Request";
-import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
+import { shareOf } from "../share";
 
 export function useMatch(l: TherapistListing): TherapistMatch {
   return matchTherapist(l, useTherapistsStore(selectProfile));
@@ -75,9 +75,3 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
     />
   );
 });
-
-/**
- * What Share sends about a practitioner: the listing's title and the link only — no name, fee or place — since what
- * someone looks for in this module can be personal. The link goes to the module.
- */
-export const shareOf = (l: TherapistListing): ListingShareProps => ({ module: "therapists", noun: "practitioner", title: l.title, url: "/app/m/therapists" });

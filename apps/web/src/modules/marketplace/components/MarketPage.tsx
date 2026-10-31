@@ -21,7 +21,7 @@ import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
 import { Gallery } from "./Gallery";
 import { ScamWarning } from "./ScamWarning";
-import { shareOf } from "./Listing";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/marketplace", label: "Buy, Sell & Rent" };

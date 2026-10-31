@@ -17,7 +17,8 @@ import { call } from "@/wonderworks/api";
 import { shortDate } from "@/wonderworks/listing/terms";
 import type { ReviewSummary } from "../deal";
 import { RequestQuote } from "./Request";
-import { FIT, useMatch, shareOf } from "./Listing";
+import { FIT, useMatch } from "./Listing";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/services", label: "Talent & Services" };

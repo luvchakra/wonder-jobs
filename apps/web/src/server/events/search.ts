@@ -25,6 +25,11 @@ export interface EventsSearchResult {
 
 const MAX_RESULTS = 200;
 
+/** A WonderWorks organiser's open event as Find and its public page list it: with the terms they gave and the seats left now. */
+export function wonderworksEvent({ posting, org }: Awaited<ReturnType<typeof openEventPosts>>[number], c: { going: number; waiting: number }, sourceName: string): EventListing {
+  return { id: `ws_${posting.id}`, postingId: posting.id, title: posting.title, company: org.name, location: posting.location, workMode: posting.workMode, terms: posting.terms, description: posting.description.slice(0, 4000), seatsLeft: seatsLeft(posting.terms.capacity, c.going), waitlisted: c.waiting, postedAt: posting.updatedAt, sourceId: WONDERWORKS_EVENTS, sourceName };
+}
+
 /** Search events for these words and places. They are the person's own; there is no default. */
 export async function searchEvents(input: { query: string; places: string[]; refresh?: boolean }): Promise<EventsSearchResult> {
   const query = input.query.trim().slice(0, 120);
@@ -42,10 +47,7 @@ export async function searchEvents(input: { query: string; places: string[]; ref
   });
   // Seats are counted live, per event: a number, never who is going.
   const seats = await seatCounts(hits.map((h) => h.posting.id));
-  const results: EventListing[] = hits.map(({ ws, posting, org }) => {
-    const c = seats.get(posting.id) ?? { going: 0, waiting: 0 };
-    return { id: `ws_${posting.id}`, postingId: posting.id, title: posting.title, company: org.name, location: posting.location, workMode: posting.workMode, terms: posting.terms, description: posting.description.slice(0, 4000), seatsLeft: seatsLeft(posting.terms.capacity, c.going), waitlisted: c.waiting, postedAt: posting.updatedAt, sourceId: WONDERWORKS_EVENTS, sourceName: ws.sourceName };
-  });
+  const results: EventListing[] = hits.map(({ ws, ...p }) => wonderworksEvent(p, seats.get(p.posting.id) ?? { going: 0, waiting: 0 }, ws.sourceName));
   const lines: EventsSourceLine[] = response.sources.map((s) => ({
     id: s.sourceId,
     name: s.sourceName,

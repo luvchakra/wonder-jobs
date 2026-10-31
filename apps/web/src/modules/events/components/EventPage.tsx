@@ -13,8 +13,9 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ageLabel, seatsLabel, whenLabel, type EventListing } from "../domain";
 import { useEventsStore } from "../store";
-import { fitOf, useMatch, shareOf } from "./Listing";
+import { fitOf, useMatch } from "./Listing";
 import { Rsvp } from "./Rsvp";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/events", label: "Events" };

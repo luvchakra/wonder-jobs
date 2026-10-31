@@ -49,6 +49,11 @@ export function outside(o: CanonicalOpportunity): ServiceListing {
   };
 }
 
+/** A WonderWorks pro's open listing as Find and its public page list it: with the terms the pro gave. */
+export function wonderworksService({ posting, org }: Awaited<ReturnType<typeof openServicePosts>>[number], sourceName: string): ServiceListing {
+  return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_SERVICES, sourceName };
+}
+
 /** Search services for these words and places. The words are the client's own; there is no default. */
 export async function searchServices(input: { query: string; places: string[]; refresh?: boolean }): Promise<ServicesSearchResult> {
   const query = input.query.trim().slice(0, 120);
@@ -65,8 +70,7 @@ export async function searchServices(input: { query: string; places: string[]; r
       // Only a listing that is still open is shown — with its pro's own terms.
       const p = byPosting.get(ws.sourceJobId);
       if (!p) continue;
-      const { posting, org } = p;
-      results.push({ id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_SERVICES, sourceName: ws.sourceName });
+      results.push(wonderworksService(p, ws.sourceName));
     } else results.push(outside(o));
   }
   // A WonderWorks pro's rating is their clients' reviews on WonderWorks (only from jobs marked done).

@@ -17,7 +17,8 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { gradesLabel, HOURS_LABEL, outsideStatus, payLabel, WORK_MODE_LABEL, type TeachingListing } from "../domain";
 import { useTeachingStore } from "../store";
-import { ApplyButton, FIT, useMatch, shareOf } from "./Listing";
+import { ApplyButton, FIT, useMatch } from "./Listing";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/teaching", label: "Teaching" };

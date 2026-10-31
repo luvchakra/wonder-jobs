@@ -20,7 +20,7 @@ import { call } from "@/wonderworks/api";
 import { durationLabel, matchInternship, missingProfile, outsideStatus, SCHEDULE_LABEL, shortDate, startLabel, stipendLabel, WORK_MODE_LABEL, type InternshipListing, type InternshipMatch, type StudentProfile } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useInternshipsStore } from "../store";
-import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
+import { shareOf } from "../share";
 
 /** "Pune · Hybrid · Full time". */
 export const placeLine = (l: Pick<InternshipListing, "location" | "workMode" | "terms">) => [l.location, l.workMode ? WORK_MODE_LABEL[l.workMode] : null, l.terms.schedule ? SCHEDULE_LABEL[l.terms.schedule] : null].filter(Boolean).join(" · ");
@@ -289,12 +289,3 @@ function ApplySheet({ listing: l, sheet, onClose, onSend, onSaveProfile }: { lis
     </Modal>
   );
 }
-
-/** What Share sends about an internship: its public facts, linking to the original posting when it came from outside. */
-export const shareOf = (l: InternshipListing): ListingShareProps => ({
-  module: "internships",
-  noun: "internship",
-  title: l.title,
-  facts: [l.company, l.workMode === "remote" ? WORK_MODE_LABEL.remote : shortPlace(l.location), l.terms.stipendMin || l.terms.stipendMax ? stipendLabel(l.terms) : null, l.terms.durationMonths ? durationLabel(l.terms) : null],
-  url: (l.origin === "outside" && l.applyUrl) || "/app/m/internships",
-});
