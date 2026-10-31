@@ -14,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { ageLabel, seatsLabel, whenLabel, type EventListing } from "../domain";
 import { useEventsStore } from "../store";
 import { fitOf, useMatch } from "./Listing";
+import { Cover } from "./Cover";
 import { Rsvp } from "./Rsvp";
 import { shareOf } from "../share";
 
@@ -69,6 +70,7 @@ function Page({ l }: { l: EventListing }) {
       }
     >
       <ListingMain>
+        <Cover postingId={l.postingId} cover={t.cover} place="page" alt={`Cover photo for ${l.title}`} />
         <ListingHead
           company={l.company}
           name={l.company}

@@ -101,7 +101,7 @@ export async function myRsvps(s: Session): Promise<MyRsvp[]> {
       const p = byPost.get(r.listing_id);
       if (!p) return [];
       const t = readTerms(p.attrs);
-      return [{ id: r.id, listingId: p.id, title: p.title, organiser: byOrg.get(r.org_id) ?? "The organiser", status: r.status, startsAt: t.startsAt, location: p.location, online: t.online, ...(r.status === "waitlist" ? { place: waitlistPlace(queues.get(r.listing_id) ?? [], { createdAt: r.created_at, id: r.id }) } : {}), updatedAt: r.updated_at }];
+      return [{ id: r.id, listingId: p.id, title: p.title, organiser: byOrg.get(r.org_id) ?? "The organiser", status: r.status, startsAt: t.startsAt, location: p.location, online: t.online, ...(t.cover ? { cover: t.cover } : {}), ...(r.status === "waitlist" ? { place: waitlistPlace(queues.get(r.listing_id) ?? [], { createdAt: r.created_at, id: r.id }) } : {}), updatedAt: r.updated_at }];
     })
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }

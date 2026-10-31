@@ -51,8 +51,9 @@ export async function saveEvent(s: Session, orgId: string, input: EventPostingIn
     if (!old) throw new HiringError("That event isn't in this workspace.", 404);
     // Everything but capacity here; the capacity goes through the lock that promotes the waitlist.
     const { capacity, ...rest } = c.value.terms;
-    const kept = readTerms(old.attrs).capacity;
-    await listings().update({ id: postingId, org_id: orgId, module: EVENTS }, { ...fields, attrs: { ...rest, ...(kept ? { capacity: kept } : {}) } });
+    const was = readTerms(old.attrs);
+    // The cover has its own route (covers.ts); an edit of the words keeps it.
+    await listings().update({ id: postingId, org_id: orgId, module: EVENTS }, { ...fields, attrs: { ...rest, ...(was.capacity ? { capacity: was.capacity } : {}), ...(was.cover ? { cover: was.cover } : {}) } });
     const promoted = await setCapacity({ listingId: postingId, orgId, capacity });
     return { posting: toPosting((await listings().one({ id: postingId, org_id: orgId, module: EVENTS }))!), promoted };
   }

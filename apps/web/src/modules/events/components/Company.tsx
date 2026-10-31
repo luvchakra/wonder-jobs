@@ -9,7 +9,9 @@ import { Badge, type Tone } from "@/components/common/Badge";
 import type { OrgRole } from "@/domain/org/types";
 import { OwnerWorkspace, useWorkspaces } from "@/wonderworks/owner/Workspace";
 import { call } from "@/wonderworks/api";
-import { CATEGORIES, fromIstInput, organiserMay, STATUS_LABEL, toIstInput, whenLabel, type Attendee, type EventPosting, type RsvpStatus } from "../domain";
+import { preparePhoto } from "@/wonderworks/photo";
+import { Cover } from "./Cover";
+import { CATEGORIES, COVER_MAX_SIDE, coverSrc, fromIstInput, organiserMay, STATUS_LABEL, toIstInput, whenLabel, type Attendee, type EventPosting, type RsvpStatus } from "../domain";
 
 type Data = { events: EventPosting[]; rsvps: Attendee[]; role?: OrgRole };
 const POSTING_LABEL: Record<EventPosting["status"], string> = { draft: "Draft", open: "Open", closed: "Closed" };
@@ -137,7 +139,8 @@ export function EventsCompany() {
                 const wait = data.rsvps.filter((r) => r.listingId === p.id && r.status === "waitlist").length;
                 return (
                   <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 last:border-b-0">
-                    <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+                    <Cover postingId={p.id} cover={p.terms.cover} place="thumb" />
+                    <div className="min-w-0 flex-1 basis-40">
                       <p className="truncate text-[15px] font-semibold text-ink">{p.title}</p>
                       <p className="truncate text-[12px] text-ink-3">
                         {[whenLabel(p.terms.startsAt), p.terms.online ? "Online" : p.location, p.terms.capacity ? `${going} of ${p.terms.capacity} seats` : `${going} going`, wait ? `${wait} waiting` : ""].filter(Boolean).join(" · ")}
@@ -195,6 +198,24 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
   const [tags, setTags] = useState<string[]>(t?.tags ?? []);
   const [tell, setTell] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The cover: a photo chosen now (sent after the event is saved), or the current one marked for removal.
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [dropCover, setDropCover] = useState(false);
+  const choose = (f: File | undefined) => {
+    if (!f) return;
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(f);
+    setPreview(URL.createObjectURL(f));
+    setDropCover(false);
+  };
+  const clear = () => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(null);
+    setPreview(null);
+    if (t?.cover) setDropCover(true);
+  };
+  const shown = preview ?? (!dropCover ? coverSrc(p?.id ?? "", t?.cover) : undefined) ?? null;
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(/[^\d]/g, "")));
   const save = async () => {
     const startsAt = fromIstInput(starts);
@@ -204,8 +225,24 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
     try {
       const posting = { title, description, location: place || undefined, startsAt, endsAt, capacity: num(capacity), online, ageMin: num(ageMin), tags };
       const url = `/api/m/events/org/${encodeURIComponent(orgId)}`;
-      await (p ? call(url, { method: "PATCH", body: { id: p.id, posting, tell } }) : call(url, { body: posting }));
-      toast.success(p ? "Saved" : "Saved as a draft", p ? (tell ? "People going were told it changed." : undefined) : "Open it when it's ready.");
+      const saved = p ? ((await call<{ posting: EventPosting }>(url, { method: "PATCH", body: { id: p.id, posting, tell } })).posting) : await call<EventPosting>(url, { body: posting });
+      // The event is saved first; then its cover. A cover that can't go is said so, and the event stays saved.
+      let coverProblem: string | null = null;
+      try {
+        if (photo) {
+          const fd = new FormData();
+          fd.append("file", await preparePhoto(photo, COVER_MAX_SIDE));
+          const res = await fetch(`${url}/events/${encodeURIComponent(saved.id)}/cover`, { method: "POST", body: fd });
+          if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? (res.status === 413 ? "That photo is too large." : `The upload failed (${res.status}).`));
+        } else if (dropCover && p) {
+          const res = await fetch(`${url}/events/${encodeURIComponent(saved.id)}/cover`, { method: "DELETE" });
+          if (!res.ok) throw new Error("The cover couldn't be removed.");
+        }
+      } catch (e) {
+        coverProblem = (e as Error).message;
+      }
+      if (coverProblem) toast.error("Saved, but the cover didn't go", `${coverProblem} Edit the event to try again.`);
+      else toast.success(p ? "Saved" : "Saved as a draft", p ? (tell ? "People going were told it changed." : undefined) : "Open it when it's ready.");
       onSaved();
     } catch (e) {
       toast.error("Couldn't save it", (e as Error).message);
@@ -216,6 +253,23 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
   return (
     <Modal open onClose={onClose} title={p ? "Edit event" : "Post an event"} footer={<Button full loading={busy} onClick={() => void save()}>{p ? "Save" : "Save as draft"}</Button>}>
       <div className="space-y-3">
+        <Field label="Cover photo" hint="One picture, shown on the event everywhere it appears. JPEG, PNG or WebP">
+          {shown && (
+            // eslint-disable-next-line @next/next/no-img-element -- the organiser's own picture, from a local preview or our cover route
+            <img src={shown} alt="Cover preview" className="mb-2 aspect-[16/7] w-full rounded-[12px] bg-bg-soft object-cover" />
+          )}
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex min-h-10 cursor-pointer items-center rounded-full border border-line bg-surface px-4 text-[13px] font-medium text-ink hover:border-ink-4/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500">
+              {shown ? "Change photo" : "Add a photo"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => (choose(e.target.files?.[0]), (e.target.value = ""))} />
+            </label>
+            {shown && (
+              <button type="button" className="min-h-10 px-2 text-[13px] font-medium text-ink-3 hover:text-ink" onClick={clear}>
+                Remove
+              </button>
+            )}
+          </div>
+        </Field>
         <Field label="Name" htmlFor="ef-title" required>
           <Input id="ef-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sunday board games" />
         </Field>

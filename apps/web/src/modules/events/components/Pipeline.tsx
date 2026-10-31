@@ -6,6 +6,7 @@ import { CalendarSubscribe } from "@/components/calendar/CalendarSubscribe";
 import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { StageCard, StageEmpty, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
+import { Cover } from "./Cover";
 import { STAGE_OF, STATUS_LABEL, hasStarted, whenLabel, type MyRsvp, type RsvpStatus } from "../domain";
 import { eventsManifest } from "../manifest";
 import { useEventsStore } from "../store";
@@ -75,7 +76,7 @@ export function EventsPipeline() {
               <StageList label={label}>
                 {shown.map((r) => (
                   <li key={r.id}>
-                    <StageCard href={itemHref(r.id)} logo={{ name: r.organiser }} company={r.organiser} title={r.title} line={lineOf(r)} tags={[]} badge={{ label: STATUS_LABEL[r.status], tone: TONE[r.status] }} when={whenLabel(r.startsAt)} />
+                    <StageCard cover={<Cover postingId={r.listingId} cover={r.cover} place="stage" />} href={itemHref(r.id)} logo={{ name: r.organiser }} company={r.organiser} title={r.title} line={lineOf(r)} tags={[]} badge={{ label: STATUS_LABEL[r.status], tone: TONE[r.status] }} when={whenLabel(r.startsAt)} />
                   </li>
                 ))}
               </StageList>

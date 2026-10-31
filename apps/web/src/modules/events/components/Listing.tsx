@@ -9,6 +9,7 @@ import { relativeTime } from "@/lib/format";
 import { ageLabel, matchEvent, seatsLabel, whenLabel, type EventListing, type EventMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectPersona, useEventsStore } from "../store";
+import { Cover } from "./Cover";
 import { isLive } from "./Rsvp";
 import { shareOf } from "../share";
 
@@ -33,6 +34,7 @@ export const EventCard = memo(function EventCard({ item: l, onOpen }: { item: Ev
   const t = l.terms;
   return (
     <ResultCard
+      cover={<Cover postingId={l.postingId} cover={t.cover} place="card" />}
       share={shareOf(l)}
       aside={
         <>
