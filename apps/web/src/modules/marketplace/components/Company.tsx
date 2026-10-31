@@ -12,6 +12,7 @@ import { Act } from "@/wonderworks/pipeline/Act";
 import { CATEGORIES, CONDITIONS, MAX_PHOTOS, priceLabel, type Condition, type ListingState, type MarketListing } from "../domain";
 import { photoSrc } from "../manifest";
 import { preparePhoto } from "../photo";
+import { Thumb } from "./Listing";
 import { ScamWarning } from "./ScamWarning";
 
 type Mine = MarketListing & { state: ListingState };
@@ -62,8 +63,9 @@ export function MarketplaceCompany() {
             <ul className="mt-3 flex flex-col gap-2" aria-label="My listings">
               {list.map((l) => (
                 <li key={l.listingId} className="wj-card flex flex-col gap-2 p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
+                  <div className="flex items-start gap-3">
+                    <Thumb l={l} size={64} />
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-ink">{l.title}</p>
                       <p className="text-[13px] text-ink-3">{priceLabel(l.terms.price)} · {l.terms.condition} · {l.area} · {l.terms.photos.length} photo{l.terms.photos.length === 1 ? "" : "s"}</p>
                     </div>
@@ -179,7 +181,7 @@ function Editor({ initial, onDone }: { initial: Mine | null; onDone: () => void 
       <Field label="Area" htmlFor="mk-area2" hint="Where buyers can see it, e.g. Indiranagar, Bengaluru">
         <Input id="mk-area2" value={area} maxLength={80} onChange={(e) => setArea(e.target.value)} />
       </Field>
-      <Field label={`Photos (${photos.length} of ${MAX_PHOTOS})`} hint="JPEG, PNG or WebP, up to 5 MB each. Location data is removed. At least one is needed to publish.">
+      <Field label={`Photos (${photos.length} of ${MAX_PHOTOS})`} hint="JPEG, PNG or WebP. Each photo is shrunk on your device and its location data is removed. At least one is needed to publish.">
         <div className="flex flex-wrap gap-2">
           {id &&
             photos.map((p) => (
