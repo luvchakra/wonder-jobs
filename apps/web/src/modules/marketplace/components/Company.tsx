@@ -75,7 +75,7 @@ export function MarketplaceCompany() {
               {list.map((l) => (
                 <li key={l.listingId} className="wj-card flex flex-col gap-2 p-3">
                   <Link href={listingHref(`mk_${l.listingId}`)} aria-label={`Open ${l.title}`} className="flex items-start gap-3 rounded-[12px] hover:bg-bg-soft/60">
-                    <Thumb l={l} size={64} />
+                    <Thumb listingId={l.listingId} photo={l.terms.photos[0]} size={64} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-ink">{l.title}</p>
                       <p className="text-[13px] text-ink-3">{priceLabel(l.terms.price)} · {l.terms.condition} · {l.area} · {l.terms.photos.length} photo{l.terms.photos.length === 1 ? "" : "s"}</p>

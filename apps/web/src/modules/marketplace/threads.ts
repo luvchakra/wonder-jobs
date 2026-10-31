@@ -6,6 +6,8 @@ export interface ThreadView {
   listingId: string;
   title: string;
   price: number;
+  /** The item as its listing card shows it. */
+  item: { photo?: string; condition: string; area: string; category: string; negotiable: boolean };
   side: "buyer" | "seller";
   counterpart: string;
   status: ThreadStatus;

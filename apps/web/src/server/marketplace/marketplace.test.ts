@@ -105,6 +105,14 @@ describe("conversations and offers", () => {
     expect(notificationModule({ category: "application_status", href: "/", ...delivered[0].notice } as never)).toBe("marketplace");
     expect(delivered[0].notice.body).not.toMatch(/table|3500/i);
   });
+  it("carries the item's own card details in each conversation (photo, condition, area, category)", async () => {
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    const v = (await thread(buyer, t)).thread;
+    expect(v.item).toMatchObject({ condition: "Used", area: "Indiranagar", category: "Furniture", negotiable: false });
+    expect(v.item.photo).toMatch(/^pho_/);
+    expect((await thread(seller, t)).thread.item).toEqual(v.item);
+  });
   it("hides a conversation from everyone but its two sides", async () => {
     const id = await listed();
     const { id: t } = await startThread(buyer, id, "Hi there");

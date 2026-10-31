@@ -578,3 +578,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Buy, Sell & Rent: adding a photo works with phone-sized photos (shrunk on your device first) (WJ-451)
 - ✅ Buy, Sell & Rent: My listings shows each listing's photo (WJ-452)
 - ✅ Buy, Sell & Rent: tap a listing in My listings to see its details, status and conversations (WJ-453)
+- ✅ Buy, Sell & Rent: Deals shows each item's own listing card (photo, price, condition, area) (WJ-454)

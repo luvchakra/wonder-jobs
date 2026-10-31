@@ -2,10 +2,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Tone } from "@/components/common/Badge";
+import { Thumb } from "./Listing";
 import { EmptyState, ErrorState, PageLoading } from "@/components/common/States";
 import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
-import { StageCard, StageEmpty, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
+import { shortPlace } from "@/wonderworks/find/place";
+import { CARD_TARGET, ResultCard } from "@/wonderworks/find/parts";
+import { Badge } from "@/components/common/Badge";
+import { relativeTime } from "@/lib/format";
+import { StageEmpty, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
 import { priceLabel, STAGE_OF, STATUS_LABEL, type ThreadStatus } from "../domain";
 import { marketplaceManifest } from "../manifest";
 import type { ThreadView } from "../threads";
@@ -14,12 +19,50 @@ import { useMarketplaceStore } from "../store";
 export const itemHref = (id: string) => `/app/m/marketplace/pipeline/${encodeURIComponent(id)}`;
 export const TONE: Record<ThreadStatus, Tone> = { messaged: "info", offer: "brand", visit: "brand", done: "success", declined: "neutral", closed: "neutral" };
 
-/** One line for where a deal stands, from the person's side. */
-export const lineOf = (t: Pick<ThreadView, "side" | "price" | "offers" | "counterpart" | "status">) => {
+const who = (t: Pick<ThreadView, "side" | "counterpart">) => (/^The /.test(t.counterpart) ? t.counterpart : `${t.side === "buyer" ? "Seller" : "Buyer"} ${t.counterpart}`);
+
+/** One line for where a deal stands, from the person's side (the conversation page's head). */
+export const lineOf = (t: Pick<ThreadView, "side" | "price" | "offers" | "counterpart" | "status">) => `${who(t)} · asking ${priceLabel(t.price)}${offerNote(t)}`;
+
+/** The offer's part of that line: waiting, or agreed. */
+const offerNote = (t: Pick<ThreadView, "offers">) => {
   const o = t.offers.at(-1);
-  const who = t.side === "buyer" ? `Seller ${t.counterpart}` : `Buyer ${t.counterpart}`;
-  return `${who} · asking ${priceLabel(t.price)}${o && o.status === "pending" ? ` · offer ${priceLabel(o.amount)} waiting` : o && o.status === "accepted" ? ` · agreed ${priceLabel(o.amount)}` : ""}`;
+  return o && o.status === "pending" ? ` · offer ${priceLabel(o.amount)} waiting` : o && o.status === "accepted" ? ` · agreed ${priceLabel(o.amount)}` : "";
 };
+
+/**
+ * One deal as the item's own listing card (the one Find shows): its photo, title, price, condition, area and category, with
+ * where the deal stands and who is on the other side. Opens the conversation.
+ */
+function DealCard({ t }: { t: ThreadView }) {
+  const i = t.item;
+  return (
+    <ResultCard
+      aside={<Thumb listingId={t.listingId} photo={i.photo} size={44} />}
+      title={
+        <Link href={itemHref(t.id)} className={CARD_TARGET}>
+          {t.title}
+        </Link>
+      }
+      facts={[
+        <span key="p" className="font-semibold text-ink">
+          {priceLabel(t.price)}
+          {i.negotiable ? " · negotiable" : ""}
+        </span>,
+        <span key="c">{i.condition}</span>,
+        <span key="a" title={i.area}>{shortPlace(i.area)}</span>,
+        <span key="k">{i.category}</span>,
+      ]}
+      status={
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={TONE[t.status]}>{STATUS_LABEL[t.status]}</Badge>
+          <Badge tone="neutral">{t.side === "buyer" ? "Buying" : "Selling"}</Badge>
+        </span>
+      }
+      footnote={`${who(t)}${offerNote(t)} · ${relativeTime(t.updatedAt)}`}
+    />
+  );
+}
 
 /** The person's conversations (as buyer or seller), fetched once on open (nothing else runs). */
 export function useMyThreads() {
@@ -68,7 +111,7 @@ export function MarketplacePipeline() {
             <StageList label={label}>
               {shown.map((t) => (
                 <li key={t.id}>
-                  <StageCard href={itemHref(t.id)} logo={{ name: t.counterpart }} company={t.side === "buyer" ? "Buying" : "Selling"} title={t.title} line={lineOf(t)} tags={[]} badge={{ label: STATUS_LABEL[t.status], tone: TONE[t.status] }} when="" />
+                  <DealCard t={t} />
                 </li>
               ))}
             </StageList>
