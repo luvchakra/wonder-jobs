@@ -21,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.132.1",
     "@pdf-lib/fontkit": "^1.1.1",
     "@supabase/supabase-js": "^2.117.3",
+    "@wonder/data-gateway": "*",
     "clsx": "^2.1.1",
     "lucide-react": "^1.53.0",
     "next": "16.4.2",
