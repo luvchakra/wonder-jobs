@@ -585,3 +585,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Share sends the listing's full details as they are at that moment, and its link opens a public page with a real preview card instead of a sign-in screen (WJ-458)
 - ✅ Buy, Sell & Rent: menu subtitle reads "Handicrafts & Pre-loved items", with a Handicrafts & art category (WJ-456)
 - ✅ The landing page is two pages — Home and Features — and covers all eight kinds, each stated plainly (WJ-459)
+- ✅ A shared listing's page reads as the app does, drops repeated text and has one clear action (WJ-460)

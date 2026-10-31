@@ -58,10 +58,35 @@ export function excerpt(text: string | undefined, max = 600): string {
 
 const present = (list: Maybe[] | undefined) => (list ?? []).filter((x): x is string => !!x);
 
+const plain = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * A description without what it only repeats: sentences that say the title again, or one already said. A listing whose
+ * description is its title ("Counselling for work related stress." twice) reads as the one line, not a stutter; one that
+ * says nothing more than its title leaves nothing.
+ */
+export function distinctText(title: string, text: string | undefined): string {
+  const seen = new Set([plain(title)]);
+  const out: string[] = [];
+  for (const para of (text ?? "").split(/\n{2,}/)) {
+    const kept = para
+      .split(/(?<=[.!?])\s+|\n/)
+      .map((s) => s.trim())
+      .filter((s) => {
+        const k = plain(s);
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    if (kept.length) out.push(kept.join(" "));
+  }
+  return out.join("\n\n");
+}
+
 export function listingShareMessage(input: ListingShareInput, url: string): ShareMessage {
   const facts = present(input.facts).join(" · ");
   const lines = present(input.lines);
-  const about = excerpt(input.details);
+  const about = excerpt(distinctText(input.title, input.details));
   const head = input.title;
   const body = [...(facts ? [facts] : []), ...(lines.length ? ["", ...lines] : []), ...(about ? ["", about] : [])];
   return {
