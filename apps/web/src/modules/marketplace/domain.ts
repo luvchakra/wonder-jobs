@@ -12,7 +12,7 @@
  */
 export const MARKETPLACE = "marketplace" as const;
 
-export const CATEGORIES = ["Electronics", "Furniture", "Home & kitchen", "Vehicles", "Fashion", "Books & study", "Sports & fitness", "Baby & kids", "Hobbies & games", "Tools & garden", "Other"] as const;
+export const CATEGORIES = ["Electronics", "Furniture", "Home & kitchen", "Vehicles", "Fashion", "Books & study", "Sports & fitness", "Baby & kids", "Hobbies & games", "Tools & garden", "Handicrafts & art", "Other"] as const;
 export const CONDITIONS = ["New", "Like new", "Used"] as const;
 export type Condition = (typeof CONDITIONS)[number];
 

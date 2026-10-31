@@ -556,7 +556,7 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "marketplace",
     title: "Buy, Sell & Rent",
-    summary: "Find pre-used items near you, message the seller and make an offer; list your own to sell.",
+    summary: "Find handicrafts and pre-loved items near you, message the seller and make an offer; list your own to sell.",
     keywords: ["buy", "sell", "rent", "marketplace", "listing", "listings", "offer", "offers", "deal", "deals", "photos", "scam", "report", "block", "advance", "payment", "seller", "buyer", "second hand"],
     updated: "2026-10-31",
     body: [

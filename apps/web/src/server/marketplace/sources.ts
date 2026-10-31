@@ -25,7 +25,7 @@ export const MARKETPLACE_SOURCES: SourceRecord[] = [
     provider: "WonderWorks",
     category: "portal",
     geography: ["global"],
-    description: "Pre-used items people list for sale on WonderWorks, with photos, price, condition and area.",
+    description: "Handicrafts and pre-loved items people list for sale on WonderWorks, with photos, price, condition and area.",
     status: "active",
     roleFamilies: [],
     config: { kind: "builtin" },
