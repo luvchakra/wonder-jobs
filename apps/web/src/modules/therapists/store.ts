@@ -3,8 +3,8 @@ import { moduleStore } from "@/wonderworks/store";
 import type { ClientProfile, TherapistListing } from "./domain";
 
 /**
- * Therapists' own saves and details (wj.m.therapists), separate from every other module's stores. Its searches are
- * never stored (wonderworks/store.ts::PRIVATE_SEARCH_MODULES).
+ * Therapists' own saves and details (wj.m.therapists), separate from every other module's stores. Like every module,
+ * it keeps the last search and its results.
  */
 export const useTherapistsStore = moduleStore("therapists");
 

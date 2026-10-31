@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactModuleState, findListing, MODULE_CATALOG_CAP, MODULE_RECENT_CAP, MODULE_SAVED_CAP, moduleStore, STORED_DESCRIPTION, storedListing } from "./store";
+import { compactModuleState, findListing, PRIVATE_SEARCH_MODULES, MODULE_CATALOG_CAP, MODULE_RECENT_CAP, MODULE_SAVED_CAP, moduleStore, STORED_DESCRIPTION, storedListing } from "./store";
 
 describe("module-scoped stores", () => {
   it("one store per module, never shared with another module", () => {
@@ -10,9 +10,10 @@ describe("module-scoped stores", () => {
     expect(moduleStore("events").getState().saved.l1).toBeUndefined();
   });
 
-  it("Therapists' searches and results are never persisted (they can say why someone is looking); saves still are, and other modules keep theirs", () => {
+  it("a module on the private-search list persists saves but never searches or results; Therapists is off it (owner, 2026-10-31), so it keeps its last search like every module", () => {
     const run = { query: "anxiety", places: [], results: [{ id: "r1" }], sources: [], at: "2026-10-30T00:00:00.000Z" } as never;
-    for (const [id, kept] of [["therapists", false], ["marketplace", true]] as const) {
+    expect(PRIVATE_SEARCH_MODULES.size).toBe(0);
+    for (const [id, kept] of [["therapists", true], ["marketplace", true]] as const) {
       const st = moduleStore(id);
       st.setState({ lastRun: run, recentSearches: ["anxiety"], recentSavedSearches: ["anxiety"] });
       st.getState().toggleSaved("l1");
