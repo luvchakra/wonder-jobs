@@ -8,6 +8,7 @@ import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { Textarea } from "@/components/common/Input";
 import { EmptyState, PageLoading } from "@/components/common/States";
+import { toast } from "@/components/feedback/Toast";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { call } from "@/wonderworks/api";
 import { Act } from "@/wonderworks/pipeline/Act";
@@ -15,7 +16,7 @@ import { ReportBlock } from "@/wonderworks/pipeline/ReportBlock";
 import { findListing } from "@/wonderworks/store";
 import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
-import { MAX_MESSAGE, priceLabel, type MarketListing } from "../domain";
+import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
 import { photoSrc } from "../manifest";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
@@ -30,18 +31,32 @@ const SETTINGS = { href: "/app/m/marketplace/you/profile#settings", label: "Buy,
  * Details and Safety folds. The aside is how to reach the seller: a first message here, never a phone number or email (the
  * seller shares those themselves once they choose). Shown from what the person saw: their saves, else their last search.
  */
+type Mine = MarketListing & { state: ListingState };
+
 export function MarketPage({ id }: { id: string }) {
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const l = useMarketplaceStore((s) => findListing(s, id)) as MarketListing | undefined;
-  if (!mounted) return <PageLoading rows={3} />;
-  if (!l)
-    return (
-      <div className="mx-auto max-w-3xl">
-        <PageHeader back={FIND} title="Listing not found" />
-        <EmptyState title="This listing isn't in your results" body="It may have left your last search. Search again to find it." action={{ label: "Back to Buy, Sell & Rent", href: FIND.href }} />
-      </div>
-    );
-  return <Page l={l} />;
+  // Not among the person's results or saves: it may be one of their own listings (My listings opens it here).
+  const [mine, setMine] = useState<Mine | null | undefined>(undefined);
+  useEffect(() => {
+    if (!mounted || l) return;
+    let live = true;
+    call<{ listings: Mine[] }>("/api/m/marketplace/listings")
+      .then((r) => live && setMine(r.listings.find((x) => x.id === id || x.listingId === id) ?? null))
+      .catch(() => live && setMine(null));
+    return () => {
+      live = false;
+    };
+  }, [mounted, l, id]);
+  if (!mounted || (!l && mine === undefined)) return <PageLoading rows={3} />;
+  if (l) return <Page l={l} />;
+  if (mine) return <Page l={mine} owner={mine.state} />;
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader back={FIND} title="Listing not found" />
+      <EmptyState title="This listing isn't in your results" body="It may have left your last search. Search again to find it." action={{ label: "Back to Buy, Sell & Rent", href: FIND.href }} />
+    </div>
+  );
 }
 
 function Photos({ l }: { l: MarketListing }) {
@@ -99,7 +114,65 @@ function Contact({ l }: { l: MarketListing }) {
   );
 }
 
-function Page({ l }: { l: MarketListing }) {
+const STATE_TONE: Record<ListingState, "neutral" | "success" | "brand" | "danger"> = { draft: "neutral", open: "success", sold: "brand", hidden: "danger", closed: "neutral" };
+const STATE_TEXT: Record<ListingState, string> = { draft: "Draft: only you can see it", open: "Live in Find", sold: "Sold", hidden: "Hidden after reports", closed: "Taken down" };
+
+/** The seller's side of their own listing: where it stands, what they can do, and who has messaged about it. */
+function OwnerPanel({ l, state }: { l: MarketListing; state: ListingState }) {
+  const [threads, setThreads] = useState<ThreadView[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    call<{ threads: ThreadView[] }>("/api/m/marketplace/threads")
+      .then((r) => live && setThreads(r.threads.filter((t) => t.listingId === l.listingId && t.side === "seller")))
+      .catch(() => live && setThreads([]));
+    return () => {
+      live = false;
+    };
+  }, [l.listingId]);
+  const patch = (body: Record<string, unknown>) => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body });
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Badge tone={STATE_TONE[state]}>{state === "open" ? "Live" : state === "hidden" ? "Hidden" : state[0].toUpperCase() + state.slice(1)}</Badge>
+        <span className="text-[13px] text-ink-3">{STATE_TEXT[state]}</span>
+      </div>
+      {(state === "draft" || state === "open" || state === "closed") && (
+        <Link href={`/app/m/marketplace/company?edit=${encodeURIComponent(l.listingId)}`} className="inline-flex h-10 items-center justify-center rounded-full border border-line bg-surface px-4 text-[14px] font-semibold text-ink hover:bg-bg-soft">
+          Edit listing and photos
+        </Link>
+      )}
+      {(state === "draft" || state === "closed") && (
+        <Act capability="marketplace.publish" label="Publish" full settings={SETTINGS} review={<>“{l.title}” goes into Find at {priceLabel(l.terms.price)}, with your first name and area. Contact details stay private.</>} run={async (confirmed) => (await patch({ action: "publish", confirmed }), window.location.reload())} done="Published" />
+      )}
+      {state === "open" && (
+        <Button full variant="outline" onClick={() => patch({ action: "state", state: "closed" }).then(() => window.location.reload()).catch((e: Error) => toast.error("Couldn't do that", e.message))}>
+          Take down
+        </Button>
+      )}
+      <div className="border-t border-line pt-3">
+        <h2 className="text-[14px] font-semibold text-ink">Conversations</h2>
+        {!threads ? (
+          <p className="mt-1 text-[13px] text-ink-3">Loading…</p>
+        ) : threads.length === 0 ? (
+          <p className="mt-1 text-[13px] text-ink-3">{state === "open" ? "No one has messaged yet." : "Buyers can message you once it's live."}</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {threads.map((t) => (
+              <li key={t.id}>
+                <Link href={`/app/m/marketplace/pipeline/${encodeURIComponent(t.id)}`} className="flex items-center justify-between gap-2 rounded-[12px] border border-line px-3 py-2 text-[14px] hover:bg-bg-soft">
+                  <span className="truncate font-medium text-ink">{t.counterpart}</span>
+                  <Badge tone="info">{STATUS_LABEL[t.status]}</Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
   const router = useRouter();
   const saved = useMarketplaceStore((s) => !!s.saved[l.id]);
   const toggle = useMarketplaceStore((s) => s.toggleSaved);
@@ -114,26 +187,28 @@ function Page({ l }: { l: MarketListing }) {
   ];
   return (
     <ListingPage
-      back={FIND}
+      back={owner ? { href: "/app/m/marketplace/company", label: "My listings" } : FIND}
       title={l.title}
       actions={
-        <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => toggle(l.id, l)}>
-          {saved ? "Saved" : "Save"}
-        </Button>
+        owner ? undefined : (
+          <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => toggle(l.id, l)}>
+            {saved ? "Saved" : "Save"}
+          </Button>
+        )
       }
     >
       <ListingMain>
         <Photos l={l} />
         <ListingHead
-          company={l.seller}
-          name={l.seller}
+          company={owner ? "You" : l.seller}
+          name={owner ? "You" : l.seller}
           facts={[
             <span key="p" className="font-semibold text-ink">{priceLabel(t.price)}</span>,
             <span key="c" className="inline-flex items-center gap-1"><Tag className="size-3.5" aria-hidden /> {t.condition}</span>,
             <span key="a" className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {l.area}</span>,
           ]}
         />
-        {l.sellerVerified && <Badge tone="success">Verified seller</Badge>}
+        {l.sellerVerified && !owner && <Badge tone="success">Verified seller</Badge>}
         <h2 className="mt-4 text-[15px] font-semibold text-ink">From the seller</h2>
         <ClampedText text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
@@ -149,14 +224,14 @@ function Page({ l }: { l: MarketListing }) {
               </dl>
               <p className="mt-3 text-[12px] text-ink-4">As {l.seller} listed it on WonderWorks{l.postedAt ? `, updated ${relativeTime(l.postedAt)}` : ""}. Prices are in rupees. Contact details stay private until the seller shares them.</p>
             </Fold>
-            <Fold title="Stay safe" hint="Report or block">
+            {!owner && <Fold title="Stay safe" hint="Report or block">
               <ReportBlock noun={l.seller} onBlock={() => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "block" } })} onReport={(reason) => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "report", reason } })} onBlocked={() => router.push(FIND.href)} />
-            </Fold>
+            </Fold>}
           </div>
         )}
       </ListingMain>
       <ListingAside>
-        <Contact l={l} />
+        {owner ? <OwnerPanel l={l} state={owner} /> : <Contact l={l} />}
         <ScamWarning className="mt-3" />
       </ListingAside>
     </ListingPage>

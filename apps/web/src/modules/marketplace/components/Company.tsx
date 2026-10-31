@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { Badge, type Tone } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -10,7 +12,7 @@ import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Act } from "@/wonderworks/pipeline/Act";
 import { CATEGORIES, CONDITIONS, MAX_PHOTOS, priceLabel, type Condition, type ListingState, type MarketListing } from "../domain";
-import { photoSrc } from "../manifest";
+import { listingHref, photoSrc } from "../manifest";
 import { preparePhoto } from "../photo";
 import { Thumb } from "./Listing";
 import { ScamWarning } from "./ScamWarning";
@@ -30,12 +32,21 @@ export function MarketplaceCompany() {
   const [list, setList] = useState<Mine[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Mine | "new" | null>(null);
+  const edit = useSearchParams().get("edit");
   const load = () =>
     call<{ listings: Mine[] }>("/api/m/marketplace/listings")
       .then((r) => setList(r.listings))
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
-    void load();
+    // Edit on a listing's page comes here with ?edit=<id>: open that listing's editor once the list is in.
+    call<{ listings: Mine[] }>("/api/m/marketplace/listings")
+      .then((r) => {
+        setList(r.listings);
+        const m = edit ? r.listings.find((x) => x.listingId === edit) : undefined;
+        if (m) setEditing(m);
+      })
+      .catch((e: Error) => setError(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (error) return <ErrorState title="Couldn't load your listings" body={error} actions={[{ label: "Try again", onClick: () => (setError(null), void load()) }]} />;
   if (!list) return <PageLoading rows={3} />;
@@ -63,14 +74,14 @@ export function MarketplaceCompany() {
             <ul className="mt-3 flex flex-col gap-2" aria-label="My listings">
               {list.map((l) => (
                 <li key={l.listingId} className="wj-card flex flex-col gap-2 p-3">
-                  <div className="flex items-start gap-3">
+                  <Link href={listingHref(`mk_${l.listingId}`)} aria-label={`Open ${l.title}`} className="flex items-start gap-3 rounded-[12px] hover:bg-bg-soft/60">
                     <Thumb l={l} size={64} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-ink">{l.title}</p>
                       <p className="text-[13px] text-ink-3">{priceLabel(l.terms.price)} · {l.terms.condition} · {l.area} · {l.terms.photos.length} photo{l.terms.photos.length === 1 ? "" : "s"}</p>
                     </div>
                     <Badge tone={STATE[l.state].tone}>{STATE[l.state].label}</Badge>
-                  </div>
+                  </Link>
                   <div className="flex flex-wrap gap-2">
                     {(l.state === "draft" || l.state === "open" || l.state === "closed") && (
                       <Button size="sm" variant="outline" onClick={() => setEditing(l)}>
