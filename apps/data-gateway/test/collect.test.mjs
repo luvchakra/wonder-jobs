@@ -40,3 +40,9 @@ test("robots rules honour * and $ and never block more than they say", () => {
   assert.equal(robotsAllowed("User-agent: *\nDisallow: /a\nAllow: /a", "/a"), true, "equally specific: Allow wins");
   assert.ok(robotsPattern("/a.b").test("/a.b") && !robotsPattern("/a.b").test("/axb"), "dots are literal");
 });
+import { pinnedLookup } from "../src/collect.mjs";
+test("the pinned lookup answers in the shape the caller asked for", () => {
+  const pin = { address: "93.184.216.34", family: 4 };
+  pinnedLookup(pin)("example.org", { all: true }, (err, list) => { assert.equal(err, null); assert.deepEqual(list, [{ address: pin.address, family: 4 }]); });
+  pinnedLookup(pin)("example.org", {}, (err, address, family) => { assert.equal(err, null); assert.equal(address, pin.address); assert.equal(family, 4); });
+});

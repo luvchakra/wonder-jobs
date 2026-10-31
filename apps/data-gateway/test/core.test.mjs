@@ -117,3 +117,23 @@ test("the API description covers every module and the keyed routes", () => {
   assert.deepEqual(OPENAPI.components.schemas.Listing.properties.module.enum, MODULES);
   for (const path of ["/v1/search", "/v1/listings/{id}", "/v1/workslake/{module}/listings", "/v1/admin/keys/{id}/rotate", "/v1/admin/sources/{id}/activate"]) assert.ok(OPENAPI.paths[path], path);
 });
+import { plainText } from "../src/core.mjs";
+test("source text is stored as plain text, even markup that arrived escaped", () => {
+  assert.equal(plainText("&lt;p&gt;Hello &lt;strong&gt;team&lt;/strong&gt;&lt;/p&gt;"), "Hello team");
+  assert.equal(plainText('<p>Hi</p><script>alert(1)</script><style>p{}</style> there &amp; you'), "Hi there & you");
+  assert.equal(plainText("&amp;lt;b&amp;gt;x&amp;lt;/b&amp;gt;"), "x", "double-escaped markup too");
+  assert.equal(plainText(null), "");
+  const src = validateSource(permitted());
+  const got = normalize(src, posting({ description: "&lt;img src=x onerror=alert(1)&gt;Great role", title: "<b>Engineer</b>" }), "jobs");
+  assert.equal(got.description, "Great role");
+  assert.equal(got.title, "Engineer");
+});
+test("a feed that names the company only as 'Company: Title' is read when the source says so", () => {
+  const base = { url: "https://example.org/feed.rss", kind: "rss", modules: ["jobs"], permission: "terms_permit", permissionEvidence: "Feed page invites reuse with attribution", termsReviewed: true, redistributionAllowed: true };
+  const raw = { id: "g1", title: "Dropbox: Backend Engineer", canonicalUrl: "https://example.org/j/1", publishedAt: "2026-10-30", location: "Anywhere" };
+  assert.equal(normalize(validateSource(base), raw, "jobs"), null, "without the option there is no company, so no listing");
+  const got = normalize(validateSource({ ...base, titleCompanyPrefix: true, allRemote: true }), raw, "jobs");
+  assert.equal(got.organization, "Dropbox");
+  assert.equal(got.title, "Backend Engineer");
+  assert.equal(got.remote, true);
+});

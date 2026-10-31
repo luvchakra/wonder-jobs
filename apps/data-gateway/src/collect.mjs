@@ -23,6 +23,13 @@ function publicAddress(ip) {
   }
   return false;
 }
+/**
+ * A `lookup` that always answers with the address already checked, so the connection cannot be sent elsewhere by a
+ * second DNS answer. Node's HTTPS client asks with `all: true` and needs a list back; older callers want one address.
+ */
+export function pinnedLookup(selected) {
+  return (_host, options, callback) => (options?.all ? callback(null, [{ address: selected.address, family: selected.family }]) : callback(null, selected.address, selected.family));
+}
 export function checkPublicUrl(input) {
   let url;
   try { url = new URL(input); } catch { throw new ApiError(400, "UNSAFE_URL", "Invalid destination"); }
@@ -40,7 +47,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
       method: "GET",
       timeout: 12000,
       headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
-      lookup(_host, _options, callback) { callback(null, selected.address, selected.family); },
+      lookup: pinnedLookup(selected),
     }, (res) => {
       const chunks = []; let bytes = 0;
       res.on("data", (chunk) => { bytes += chunk.length; if (bytes > maxBytes) { req.destroy(new ApiError(413, "TOO_LARGE", "Source response exceeds size limit")); return; } chunks.push(chunk); });
@@ -115,7 +122,7 @@ const tag = (s, key) => { const m = s.match(new RegExp("<(?:[\\w]+:)?" + key + "
 export function parseFeed(xml) {
   return [...xml.matchAll(/<(item|entry)\b[^>]*>[\s\S]*?<\/\1>/gi)].slice(0, 500).map(([block]) => {
     const atom = block.match(/<link\b[^>]*\bhref=["']([^"']+)["']/i)?.[1];
-    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: tag(block, "description") || tag(block, "summary") || tag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
+    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: tag(block, "description") || tag(block, "summary") || tag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
   });
 }
 export function parseStructured(html) {

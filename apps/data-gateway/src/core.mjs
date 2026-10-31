@@ -116,7 +116,20 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+}
+/** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
+export function plainText(value) {
+  let t = String(value ?? "");
+  for (let i = 0; i < 3; i++) {
+    t = t.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ").replace(/<\/?[a-z!][^>]*>/gi, " ");
+    t = t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_m, e) => {
+      const named = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+      if (e[0] === "#") { const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1)); return Number.isInteger(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ""; }
+      return named[e.toLowerCase()] ?? "";
+    });
+  }
+  return t.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
 }
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
@@ -127,8 +140,13 @@ export function normalize(source, raw, module, observedAt = iso()) {
     return ["string", "number", "boolean"].includes(typeof found) ? found : undefined;
   };
   const field = (name) => source.kind === "json_api" ? value(source.mapping[name]) : raw && ["string", "number", "boolean"].includes(typeof raw[name]) ? raw[name] : undefined;
-  const title = String(field("title") ?? "").trim().slice(0, 240);
-  const organization = String(field("organization") ?? field("employer") ?? "").trim().slice(0, 200);
+  let title = plainText(field("title")).slice(0, 240);
+  let organization = plainText(field("organization") ?? field("employer")).slice(0, 200);
+  // A feed that names the company only as "Company: Title" says so in its own format; the source opts in to reading it.
+  if (!organization && source.titleCompanyPrefix) {
+    const at = title.indexOf(": ");
+    if (at > 0 && at < 80 && title.length > at + 2) { organization = title.slice(0, at).trim(); title = title.slice(at + 2).trim(); }
+  }
   const canonicalUrl = String(field("canonicalUrl") ?? field("applyUrl") ?? field("url") ?? "").trim();
   let parsed;
   try { parsed = new URL(canonicalUrl); } catch { return null; }
@@ -137,7 +155,7 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const publishedRaw = field("publishedAt") ?? field("postedAt");
   const publishedAt = publishedRaw && Number.isFinite(Date.parse(String(publishedRaw))) ? new Date(String(publishedRaw)).toISOString() : null;
   const unique = createHash("sha256").update(module + "|" + source.id + "|" + originalId).digest("hex").slice(0, 24);
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: String(field("location") ?? "").slice(0, 180), description: String(field("description") ?? "").slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: {}, status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: {}, status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
