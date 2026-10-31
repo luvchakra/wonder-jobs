@@ -571,3 +571,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Co-founders: people and teams of founders find each other; each profile shows only the fields its owner chose; connect, ask to join or invite, mutual before names and messages, share your email only when you press it, block and report; Connections tab (WJ-444)
 - ✅ Events & Social (part 1): seats, RSVP, waitlist and cancel with locked, exactly-once promotion, its own WorksLake dataset, organiser attendance; screens next (WJ-446)
 - ✅ Therapists keeps its last search and results when you reload, like every other kind (WJ-445)
+- ✅ Events & Social goes live: Find, event page, RSVP and waitlist, My events with Calendar and reminders, You, Host an event; help updated (WJ-447)

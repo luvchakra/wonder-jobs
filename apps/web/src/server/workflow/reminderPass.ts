@@ -9,11 +9,14 @@ import { listTenantsWithDueReminders } from "./dueTenants";
 import { raiseDueReminders } from "./reminders";
 import { reminderLeads } from "@/domain/notifications/admin";
 import { loadNotifyAdmin } from "@/server/notifications/admin";
+import { runEventReminders } from "@/server/events/calendar";
 
 export interface ReminderPassReport {
   tenants: number;
   raised: number;
   failures: { tenantId: string; error: string }[];
+  /** Events & Social: reminders for events starting within a day, once per RSVP. */
+  events?: { raised: number; failures: number };
 }
 
 export async function runReminderPass(now: Date, maxTenants: number, deadline: number): Promise<ReminderPassReport> {
@@ -34,5 +37,7 @@ export async function runReminderPass(now: Date, maxTenants: number, deadline: n
       report.failures.push({ tenantId, error: e instanceof Error ? e.message : String(e) });
     }
   }
+  // Events & Social has its own reminder, a day before an event you're going to (server/events/calendar.ts).
+  if (Date.now() < deadline) report.events = await runEventReminders(now, deadline).catch(() => ({ raised: 0, failures: 1 }));
   return report;
 }

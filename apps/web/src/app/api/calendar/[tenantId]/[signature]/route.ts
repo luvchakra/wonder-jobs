@@ -3,6 +3,7 @@ import { verifyTenantCalendarSignature } from "@/server/calendarToken";
 import { readClientState } from "@/server/clientState";
 import { buildIcsCalendar, type IcsEvent } from "@/server/ics";
 import { rateLimit } from "@/server/rateLimit";
+import { goingEvents } from "@/server/events/calendar";
 import type { Application } from "@/domain/applications/types";
 import type { CanonicalJob } from "@/domain/jobs/types";
 import type { WorkflowSchedule } from "@/domain/workflow/types";
@@ -66,6 +67,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ tenantId
       url: `${origin}/app/automation/scheduled/${s.id}`,
     });
   }
+
+  // Events & Social: the events this person is going to (their own RSVPs only).
+  events.push(...(await goingEvents(tenantId, origin).catch(() => [])));
 
   const ics = buildIcsCalendar("WonderWorks", events);
   return new NextResponse(ics, {

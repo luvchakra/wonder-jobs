@@ -15,7 +15,7 @@ import { HiringError, requirePermission } from "../hiring";
 import { recordServerAudit } from "../audit";
 import { deliver, type Notice } from "../notifications/deliver";
 import { capabilityDecision, listings, newId, orgs, record, responses as allResponses, type ResponseRow } from "../modules/responses";
-import { attendeeMay, EVENTS, hasStarted, organiserMay, readTerms, STATUS_LABEL, waitlistPlace, whenLabel, type RsvpStatus } from "@/modules/events/domain";
+import { attendeeMay, EVENTS, type Attendee, type MyRsvp, hasStarted, organiserMay, readTerms, STATUS_LABEL, waitlistPlace, whenLabel, type RsvpStatus } from "@/modules/events/domain";
 import { leaveSeat, takeSeat } from "./seats";
 
 type Row = ResponseRow<RsvpStatus, Record<string, never>>;
@@ -87,20 +87,6 @@ async function mineKey(id: string, tenantId: string) {
   return { createdAt: r.created_at, id: r.id };
 }
 
-export interface MyRsvp {
-  id: string;
-  listingId: string;
-  title: string;
-  organiser: string;
-  status: RsvpStatus;
-  startsAt: string;
-  location: string;
-  online: boolean;
-  /** Waitlist place, 1 = next. */
-  place?: number;
-  updatedAt: string;
-}
-
 /** The person's own RSVPs, soonest event first. */
 export async function myRsvps(s: Session): Promise<MyRsvp[]> {
   const rows = await responses().find({ responder_tenant: s.tenantId, module: EVENTS }, { order: "updated_at", desc: true, limit: 300 });
@@ -137,15 +123,6 @@ export async function cancelMyRsvp(s: Session, id: string, confirmed = false): P
 }
 
 // ---- organiser side --------------------------------------------------------------------------------------------------
-
-export interface Attendee {
-  id: string;
-  listingId: string;
-  name: string;
-  email: string;
-  status: RsvpStatus;
-  createdAt: string;
-}
 
 /** The workspace's RSVPs (applications.view): the organiser sees who is going, to check them in. */
 export async function orgRsvps(s: Session, orgId: string, listingId?: string): Promise<Attendee[]> {
