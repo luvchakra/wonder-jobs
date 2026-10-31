@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact", "events.rsvp", "events.cancel", "events.promote"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -105,6 +105,13 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // sends; this only decides whether that press sends at once or shows what goes first. Ask me by default: a request to
   // a therapist is more personal than a job application, so the client sees exactly what goes (owner plan, 2026-10-30).
   "therapists.book": { key: "therapists.book", label: "Send session requests in one tap", description: "When you press Request a session on a practitioner's WonderWorks listing, send it to them at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
+  // Events & Social: the person's own press of RSVP, Cancel or Join the waitlist is what acts; these only decide whether
+  // the press acts at once or shows what goes first. A free RSVP is low risk, so Automatic by default. events.promote is
+  // the person's consent to be given a seat automatically when one opens: it is read when they join a waitlist (a refused
+  // or unconfirmed consent keeps them off it), so a promotion never happens to someone who didn't agree.
+  "events.rsvp": { key: "events.rsvp", label: "RSVP to events in one tap", description: "When you press RSVP on an event, take a seat (or a place on the waitlist) at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  "events.cancel": { key: "events.cancel", label: "Cancel an RSVP in one tap", description: "When you press Cancel on an event you're going to or waiting for, give the seat back at once. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "automatic" },
+  "events.promote": { key: "events.promote", label: "Take a seat automatically from a waitlist", description: "When a full event's waitlist moves up, give you the seat at once and tell you. Ask me shows it before you join the waitlist; Off keeps you off waitlists.", risk: "low", external: true, default: "automatic" },
   // Co-founders: these involve other people, so the ones that reach someone first (connect, join, invite) and the one that
   // gives out contact details ask first by default and show what goes. A message is typed and sent by the person's own
   // press, so it sends at once. Nothing here runs without the person's own press, at any automation level.

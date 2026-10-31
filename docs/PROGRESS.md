@@ -569,4 +569,5 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Therapists: a pro-listed directory with no clinical data — practitioners list themselves (languages, focus areas, fee, online or in person), clients find them by language, way of meeting and fee; searches are never stored; licence checks, health-data handling and crisis resources wait for legal review (WJ-442)
 - ✅ Therapists: Request a session (way of meeting, day, time of day), the practitioner confirms a time or declines, either cancels, held; Sessions tab; Ask me by default; no notes kept and discreet notifications (WJ-443)
 - ✅ Co-founders: people and teams of founders find each other; each profile shows only the fields its owner chose; connect, ask to join or invite, mutual before names and messages, share your email only when you press it, block and report; Connections tab (WJ-444)
+- ✅ Events & Social (part 1): seats, RSVP, waitlist and cancel with locked, exactly-once promotion, its own WorksLake dataset, organiser attendance; screens next (WJ-446)
 - ✅ Therapists keeps its last search and results when you reload, like every other kind (WJ-445)
