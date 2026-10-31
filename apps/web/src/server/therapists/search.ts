@@ -2,8 +2,8 @@
  * Therapists Find: one search of WorksLake's Therapists dataset (module = 'therapists'), turned into practitioner
  * listings with their terms, and the per-source provenance the client sees ("searched X across Y").
  *
- * The client's words are used for this search and are not stored: nothing here logs or keeps them, and the client's
- * own store keeps no search history (wonderworks/store.ts::PRIVATE_SEARCH_MODULES).
+ * The client's words are used for this search and the server does not store them: nothing here logs or keeps them. The
+ * client's own module store keeps the last search in their own account, as every module's does.
  */
 import { search } from "@/server/jobslake/core";
 import { THERAPISTS, type TherapistListing } from "@/modules/therapists/domain";

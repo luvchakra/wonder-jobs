@@ -20,7 +20,7 @@ const search = (query: string, places: string[]) => call<FindRun<TherapistListin
 /**
  * Therapists Find: Jobs' Find with this module's own fields. The client's words (a name, language or way of working)
  * and place, searched across the module's own sources (WonderWorks practitioners). Opening the page searches nothing.
- * Searches are never stored (wonderworks/store.ts::PRIVATE_SEARCH_MODULES). Refine: online or in person, language,
+ * The last search and its results are kept in the client's own account, so a reload shows them again, as in every module. Refine: online or in person, language,
  * focus and a fee ceiling.
  */
 export function TherapistsFind() {
@@ -43,7 +43,7 @@ export function TherapistsFind() {
       search={search}
       refine={refineTherapists}
       Card={TherapistCard}
-      idle={{ title: "Find a practitioner", body: "Type a language, a way of working or a name, add a city under Refine for in-person sessions, and press Search. WonderWorks doesn't keep your searches." }}
+      idle={{ title: "Find a practitioner", body: "Type a language, a way of working or a name, add a city under Refine for in-person sessions, and press Search." }}
       needWords="Type a language, a way of working or a name."
       dictateHint="Listening — say a language or approach, e.g. “Hindi, CBT”."
     />

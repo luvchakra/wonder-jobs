@@ -74,12 +74,12 @@ export interface ModuleState {
 export const findListing = (s: Pick<ModuleState, "items" | "lastRun">, id: string): unknown => s.items[id] ?? s.lastRun?.results.find((r) => r.id === id);
 
 /**
- * Modules whose searches are never stored: what a client types or sees in a Therapists search can say why they are
- * looking (health data, docs/WONDERWORKS_PLATFORM.md section 7), so the last search, its results and the recent
- * searches live in memory for the session only and are never written to the account. Saves and the client's own
- * settings still persist.
+ * Modules whose searches are never stored: the last search, its results and the recent searches then live in memory for
+ * the session only and are never written to the account. Saves and the person's own settings still persist. None today:
+ * Therapists was on it, and the owner took it off (2026-10-31) so a reload keeps the last search and its results, as in
+ * every module. They stay in the person's own account (tenant-scoped, never shared); the server still keeps no search.
  */
-export const PRIVATE_SEARCH_MODULES: ReadonlySet<ModuleId> = new Set<ModuleId>(["therapists"]);
+export const PRIVATE_SEARCH_MODULES: ReadonlySet<ModuleId> = new Set<ModuleId>();
 
 /** What a module may set when its store is first made. */
 export interface ModuleStoreOptions {
