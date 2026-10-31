@@ -573,3 +573,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Therapists keeps its last search and results when you reload, like every other kind (WJ-445)
 - ✅ Events & Social goes live: Find, event page, RSVP and waitlist, My events with Calendar and reminders, You, Host an event; help updated (WJ-447)
 - ✅ Buy, Sell & Rent (part 1): listings, photos with metadata stripped, conversations, offers, deals, report/block and anti-scam rules on the server, its own WorksLake dataset; screens next (WJ-448)
+- ✅ Buy, Sell & Rent (part 2): routes and screens (Find, listing page with photos, Deals, conversation with offers, You, My listings, report/block and the payment warning everywhere); live once its migration is applied (WJ-449)
