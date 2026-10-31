@@ -53,22 +53,25 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
           src.lastTest = { at: new Date().toISOString(), ok, discovered: report.discovered, valid: report.valid };
           s.audits.push({ at: new Date().toISOString(), action: "source.tested", target: sourceId, ok });
         });
-        return { ok, discovered: report.discovered, valid: report.valid };
+        return { ok, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
       }
       if (!ok) throw new ApiError(422, "INVALID_SOURCE", "Source quality below 90% or no records found");
       const now = new Date().toISOString();
       await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);
         if (!src?.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source was paused during collection");
-        // Only this source's observations are replaced; every other source's stay as they were.
-        s.listings = s.listings.filter((x) => x.sourceId !== sourceId).concat(report.results);
+        // Only this source's observations change; every other source's stay as they were. A feed replaces what it
+        // had; a crawl reads part of a site per run, so it adds to (and refreshes) what earlier runs found.
+        const fresh = new Set(report.results.map((x) => x.id));
+        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (report.merge && !fresh.has(x.id))).concat(report.results);
+        if (report.crawl) { src.crawlCursor = report.crawl.cursor; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
         src.lastSuccessAt = now;
         src.lastError = null;
         src.nextRunAt = new Date(Date.now() + src.minIntervalMinutes * 60000).toISOString();
         s.audits.push({ at: now, action: "source.collected", target: sourceId, valid: report.valid });
         s.listings = s.listings.filter((x) => Date.parse(x.expiresAt) > Date.now());
       });
-      return { ok: true, discovered: report.discovered, valid: report.valid };
+      return { ok: true, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
     } catch (e) {
       if (!testOnly && e.code !== "SOURCE_PAUSED" && e.code !== "NOT_FOUND") await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);

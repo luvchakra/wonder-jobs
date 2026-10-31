@@ -33,6 +33,10 @@ Every API key has module-specific read permissions and can be revoked or rotated
 - **Standalone:** `npm run gateway:start` (a Node service, JSON file store, one instance).
 - **In the WonderWorks app** (how it is hosted): the same `src/handler.mjs` serves `/v1/...` from the app, state in Supabase (`wonderjobs.gateway_state`), collection by Vercel Cron daily. It answers 503 until `GATEWAY_ADMIN_TOKEN` and `GATEWAY_CURSOR_SECRET` are set in the project.
 
+## The crawler (`kind: "crawl"`)
+
+For a site that publishes listings as pages with schema.org data (JobPosting, Event, Product, Service) **and permits reuse**. Pages are found from a sitemap (`discover: "sitemap"`, nested sitemaps followed on the same host) or an index page's links (`discover: "links"`), only under `pathPrefix`. It never leaves the source's host, never fetches a path robots.txt disallows, waits between pages (robots' Crawl-delay or `crawlDelayMs`, whichever is longer, at least 1 s), reads at most `maxPagesPerRun` (≤ 50) pages per run and stops before 45 s. A big site is covered over several runs: each carries on from the last (`crawlCursor`), and its listings are added to, not replaced. Needs `robotsReviewed: true` and the same documented permission as any source; it starts paused.
+
 ## Reviewed sources
 
 `sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.

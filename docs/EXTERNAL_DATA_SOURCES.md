@@ -369,3 +369,23 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - WorksLake: the eight gateway sources (`works_gateway_<module>`) show in Platform → WorksLake → Sources as **Draft**. Candidates see nothing from the gateway until a platform admin tests and activates one there (Jobs first). That step needs the owner's own sign-in; it cannot be done by a service.
 - Attribution: WorksLake shows the gateway source's name on these listings; each one's link goes to its page on weworkremotely.com, which is what WWR asks for. A per-listing source name needs a mapping field WorksLake does not have yet.
 
+### 13.4 Crawler and the second source sweep (2026-10-31)
+
+**Crawler** (`apps/data-gateway/src/crawl.mjs`, `kind: "crawl"`): for sites that publish schema.org listings **and permit reuse**. Sitemap or index-page discovery, same host and path only, robots.txt rules and Crawl-delay honoured (≥ 1 s between pages), ≤ 50 pages and < 45 s per run, resumes where the last run stopped, adds to earlier finds. No eligible site needs it yet; it is ready for a site that grants permission in writing (`permission: "granted_in_writing"`).
+
+**Sweep:** 18 candidates checked for written reuse permission and robots (owner asked to "populate the sources").
+
+| Source | Module | Result |
+|---|---|---|
+| UK DfE Teaching Vacancies API | Teaching | **Eligible** (Open Government Licence v3; no fee for hiring respondents). Registered `src_25a770183ca8f0cc9d12dbcd`, tested 100/100, **active on the gateway**, 100 listings (newest page). UK schools only, and all school roles, not just teachers. WorksLake's Teaching gateway source is still Draft: activating it is the owner's call. Definition: `sources/uk-teaching-vacancies.json`. |
+| Canada Job Bank open data | Jobs | Eligible (OGL-Canada) but monthly CSV and Canada-only; needs a CSV reader. Not added. |
+| confs.tech conference data | Events | Eligible (MIT) but items have no organiser and no posting date; the gateway needs event fields (start/end date) first. Not added. |
+| Careerjet publisher API (has India) | Jobs | Needs a free publisher key; terms to confirm on sign-up. |
+| Ticketmaster Discovery | Events | Needs a free key; India coverage unconfirmed. |
+| OpenStreetMap | Services/Marketplace | Open licence, but places mapped by others are not providers who opted in. Not for Services. |
+| developers.events | Events | CC-BY-NC (non-commercial): not usable. |
+| Hasgeek, Meetup, Reed API, Puducherry recruitment, Etsy | various | Terms or robots forbid crawling or reproduction. |
+| NCS, data.gov.in NCS, UPSC RSS, AICTE internships, Findwork, Mobilizon, AllEvents | various | No reuse statement, no usable feed, or unreachable. |
+
+**India:** no Indian source with explicit open reuse was found for jobs, internships or teaching. Indian government sites set reuse per site; a school, college or employer that gives written permission can be added with the crawler.
+
