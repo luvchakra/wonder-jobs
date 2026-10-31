@@ -34,8 +34,8 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
 
   it("a module's sources are its own: Jobs never lists another module's, and another module never lists Jobs'", async () => {
     const store = jobsLakeStore();
-    // Marketplace has no sources of its own yet; every other module's built-ins are covered by its own tests.
-    expect(await listSources("marketplace")).toEqual([]);
+    // Marketplace's only built-in is its own WonderWorks listings; every other module's built-ins are covered by its own tests.
+    expect((await listSources("marketplace")).map((s) => s.id)).toEqual(["mkt_wonderworks"]);
     const intern = { ...BUILTIN_SOURCES[0], id: "market_board", builtin: false, module: "marketplace" } as SourceRecord;
     const added = { ...BUILTIN_SOURCES[0], id: "jobs_added", builtin: false } as SourceRecord;
     await store.putSource(intern);
@@ -43,7 +43,7 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
     const jobs = (await listSources()).map((s) => s.id);
     expect(jobs).toContain("jobs_added");
     expect(jobs).not.toContain("market_board");
-    expect((await listSources("marketplace")).map((s) => s.id)).toEqual(["market_board"]);
+    expect((await listSources("marketplace")).map((s) => s.id)).toEqual(["mkt_wonderworks", "market_board"]);
     expect((await listSources("events")).map((s) => s.id)).not.toContain("market_board");
   });
 
@@ -64,15 +64,16 @@ describe("WorksLake per-module datasets (WonderWorks)", () => {
   it("a module's search asks none of Jobs' sources and writes nothing into Jobs' pool; Jobs' search is unchanged", async () => {
     connector.mockResolvedValue({ jobs: [job()], warnings: [] });
     const { response } = await search(req({ module: "marketplace" }), { trigger: "search" });
-    expect(connector).not.toHaveBeenCalled();
-    expect(response.results).toEqual([]);
-    expect(response.sources).toEqual([]);
+    // Only Marketplace's own source is asked (the mock answers it), never one of Jobs'.
+    expect(connector.mock.calls.map((c) => (c[0] as SourceRecord).id)).toEqual(["mkt_wonderworks"]);
+    expect(response.sources.map((s) => s.sourceId)).toEqual(["mkt_wonderworks"]);
     expect(await jobsLakeStore().listOpportunities()).toEqual([]);
+    expect((await jobsLakeStore().listOpportunities({ module: "marketplace" })).length).toBeGreaterThan(0);
+    connector.mockClear();
 
     const jobsRun = await search(req(), { trigger: "search" });
     expect(connector).toHaveBeenCalled();
     expect(jobsRun.response.results.length).toBeGreaterThan(0);
-    expect(await jobsLakeStore().listOpportunities({ module: "marketplace" })).toEqual([]);
   });
 
   it("the API takes a module, defaults to Jobs, and refuses one the registry doesn't know", () => {

@@ -25,6 +25,7 @@ import { runServicesSource, SERVICES_SOURCES, servicesSourceAvailable } from "@/
 import { EVENTS_SOURCES, eventsSourceAvailable, runEventsSource } from "@/server/events/sources";
 import { runTherapistsSource, THERAPISTS_SOURCES, therapistsSourceAvailable } from "@/server/therapists/sources";
 import { COFOUNDERS_SOURCES, cofoundersSourceAvailable, runCofoundersSource } from "@/server/cofounders/sources";
+import { MARKETPLACE_SOURCES, marketplaceSourceAvailable, runMarketplaceSource } from "@/server/marketplace/sources";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
@@ -76,7 +77,7 @@ export async function listSources(module: ModuleId = "jobs"): Promise<SourceReco
   const stored = await jobsLakeStore().listSources(module);
   const byId = new Map(stored.map((s) => [s.id, s]));
   // Another module's own built-in sources (WonderWorks): Internships' in server/internships/sources.ts, Teaching's in server/teaching/sources.ts, Talent & Services' in server/services/sources.ts, Therapists' in server/therapists/sources.ts, Co-founders' in server/cofounders/sources.ts.
-  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES, ...TEACHING_SOURCES, ...SERVICES_SOURCES, ...THERAPISTS_SOURCES, ...EVENTS_SOURCES, ...COFOUNDERS_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
+  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES, ...TEACHING_SOURCES, ...SERVICES_SOURCES, ...THERAPISTS_SOURCES, ...EVENTS_SOURCES, ...COFOUNDERS_SOURCES, ...MARKETPLACE_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
     const o = byId.get(b.id);
     if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
@@ -106,6 +107,7 @@ export async function isAvailable(s: SourceRecord): Promise<boolean> {
       if (sourceModule(s) === "therapists") return therapistsSourceAvailable(s);
       if (sourceModule(s) === "events") return eventsSourceAvailable(s);
       if (sourceModule(s) === "cofounders") return cofoundersSourceAvailable(s);
+      if (sourceModule(s) === "marketplace") return marketplaceSourceAvailable(s);
       if (sourceModule(s) !== "jobs") return internshipSourceAvailable(s);
       return (fixtureJobsOn() && s.id !== "employers") || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
     case "ats_board":
@@ -156,6 +158,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       if (sourceModule(s) === "therapists") return runTherapistsSource(s, c);
       if (sourceModule(s) === "events") return runEventsSource(s, c);
       if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
+      if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c);
       if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
       // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };

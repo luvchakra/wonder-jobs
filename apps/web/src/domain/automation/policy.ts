@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact", "events.rsvp", "events.cancel", "events.promote"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact", "events.rsvp", "events.cancel", "events.promote", "marketplace.publish", "marketplace.message", "marketplace.offer", "marketplace.accept", "marketplace.share_contact"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -120,6 +120,14 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   "cofounders.invite": { key: "cofounders.invite", label: "Invite someone to your team", description: "When you press Invite on someone's profile, ask them to join your team. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
   "cofounders.message": { key: "cofounders.message", label: "Send messages to co-founders", description: "Once interest is mutual, a message you write and send goes to the other person or the team at once. Ask me shows it first; Off turns messaging off.", risk: "low", external: true, default: "automatic" },
   "cofounders.share_contact": { key: "cofounders.share_contact", label: "Share your contact details", description: "When you press Share contact in a mutual connection, your email goes to the other side. Ask me shows it first; Off never shares it.", risk: "medium", external: true, default: "ask" },
+  // Buy, Sell & Rent: payment happens off WonderWorks, so none of these moves money. Publishing and messaging are the
+  // person's own press and go at once; an offer, accepting one and sharing contact details reach someone about money or
+  // give out personal details, so they ask first and show what goes. Never run without the person's own press.
+  "marketplace.publish": { key: "marketplace.publish", label: "Publish listings in one tap", description: "When you press Publish on a listing, put it in Find at once. Ask me shows it first; Off keeps your listings as drafts.", risk: "low", external: true, default: "automatic" },
+  "marketplace.message": { key: "marketplace.message", label: "Send messages to buyers and sellers", description: "A message you write and send goes to the other person at once. Ask me shows it first; Off turns messaging off.", risk: "low", external: true, default: "automatic" },
+  "marketplace.offer": { key: "marketplace.offer", label: "Make offers", description: "When you press Send offer, the seller sees your amount. No money moves through WonderWorks. Ask me shows it first; Off turns offers off.", risk: "medium", external: true, default: "ask" },
+  "marketplace.accept": { key: "marketplace.accept", label: "Accept offers", description: "When you press Accept on a buyer's offer, tell them it's agreed. No money moves through WonderWorks. Ask me shows it first; Off turns accepting off.", risk: "medium", external: true, default: "ask" },
+  "marketplace.share_contact": { key: "marketplace.share_contact", label: "Share your contact details", description: "When you press Share contact in a conversation, your email goes to the other person. Ask me shows it first; Off never shares it.", risk: "medium", external: true, default: "ask" },
   send_email: { key: "send_email", label: "Draft follow-up email", description: "Draft a follow-up or thank-you email for you to send yourself, then mark it sent.", risk: "high", external: true, default: "ask" },
   change_career_dna: { key: "change_career_dna", label: "Change Career Profile", description: "Update your skills, goals or profile based on what Wonder learns.", risk: "high", external: false, default: "ask" },
   change_search_preferences: { key: "change_search_preferences", label: "Change search preferences", description: "Adjust locations, salary range or filters automatically.", risk: "high", external: false, default: "ask" },
