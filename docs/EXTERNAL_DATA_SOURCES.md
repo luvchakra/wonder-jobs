@@ -351,3 +351,13 @@ Run with the gateway's own fetcher and robots check, from the sandbox. Nothing w
 
 Still open from §11: Teaching, Events, Services and the other modules have no eligible source found yet; Events (Ticketmaster) needs a key, Teaching needs a school or recruitment-notice source with written permission.
 
+### 13.2 Gateway hosting: in the app (2026-10-31)
+
+The gateway is served from the WonderWorks app itself, in the same Vercel project and the same Supabase as WorksLake (owner, 2026-10-31: "deploy at the same location as WorksLake"). No second project and no separate host.
+
+- **API:** `https://jobs.wonderapps.biz/v1/...` (`app/v1/[...path]/route.ts`), the same handler code as the standalone service (`apps/data-gateway/src/handler.mjs`). Its own keys and limits; description at `/v1/openapi.json`.
+- **State:** `wonderjobs.gateway_state` (migration 0044), three small rows (core, listings, usage) written with a version check, so concurrent requests never overwrite each other and a search never rewrites the listings row.
+- **Collection:** Vercel Cron `/api/cron/gateway-collect`, daily at 04:30 IST (the project's cron plan allows once a day). It fetches only sources an administrator tested and activated; robots and permission are checked on every fetch.
+- **Off by default:** `/v1` answers 503 and the cron does nothing until `GATEWAY_ADMIN_TOKEN` and `GATEWAY_CURSOR_SECRET` are set. WorksLake reads it only when `WORKSLAKE_GATEWAY_ENABLED=1` (with `WORKSLAKE_GATEWAY_URL` and `WORKSLAKE_GATEWAY_API_KEY`), and each module's gateway source starts as a Draft.
+- **Rate limit** is per instance (in memory), so on several serverless instances the effective limit is higher than the setting; a shared limiter remains a follow-up before any external consumer is given a key.
+
