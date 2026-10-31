@@ -345,7 +345,7 @@ Run with the gateway's own fetcher and robots check, from the sandbox. Nothing w
 
 | Candidate | Module | Robots | Permission found | Result |
 |---|---|---|---|---|
-| We Work Remotely RSS (`/remote-jobs.rss`) | Jobs | Allowed | Written, on its feed page: "Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely." | **Eligible.** Tested end to end on a local gateway: 99 items, 98 valid (company read from its "Company: Title" format, region as location, remote-only), searched, module-isolated (0 in Internships), plain text only. Definition: `sources/we-work-remotely.json`. Not live: the gateway is not deployed, so no production check has been made. Attribution to We Work Remotely must show wherever a listing does. |
+| We Work Remotely RSS (`/remote-jobs.rss`) | Jobs | Allowed | Written, on its feed page: "Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely." | **Eligible.** Tested end to end on a local gateway: 99 items, 98 valid (company read from its "Company: Title" format, region as location, remote-only), searched, module-isolated (0 in Internships), plain text only. Definition: `sources/we-work-remotely.json`. **Live in the gateway since 2026-10-31** (production check: registered paused → test 99 found / 98 valid → activated → collected 98; Jobs search returns them, Internships 0, plain text only). Attribution to We Work Remotely must show wherever a listing does. |
 | Working Nomads API (`/api/exposed_jobs/`) | Jobs | Allowed | None found (no API page; terms bar commercial exploitation of the service) | `do_not_use` until Working Nomads confirms reuse in writing. |
 | Jobspresso RSS (`/feed/?post_type=job_listing`) | Jobs | **Disallows the path** | n/a | `do_not_use`. The gateway refuses it. |
 
@@ -360,4 +360,12 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **Collection:** Vercel Cron `/api/cron/gateway-collect`, daily at 04:30 IST (the project's cron plan allows once a day). It fetches only sources an administrator tested and activated; robots and permission are checked on every fetch.
 - **Off by default:** `/v1` answers 503 and the cron does nothing until `GATEWAY_ADMIN_TOKEN` and `GATEWAY_CURSOR_SECRET` are set. WorksLake reads it only when `WORKSLAKE_GATEWAY_ENABLED=1` (with `WORKSLAKE_GATEWAY_URL` and `WORKSLAKE_GATEWAY_API_KEY`), and each module's gateway source starts as a Draft.
 - **Rate limit** is per instance (in memory), so on several serverless instances the effective limit is higher than the setting; a shared limiter remains a follow-up before any external consumer is given a key.
+
+### 13.3 Production state (2026-10-31, checked from outside)
+
+- `https://jobs.wonderapps.biz/v1/health` → 200, `storage: supabase`. No key / bad key / wrong admin token → 401.
+- Secrets set in Vercel (Production, Sensitive): `GATEWAY_ADMIN_TOKEN`, `GATEWAY_CURSOR_SECRET`, `WORKSLAKE_GATEWAY_API_KEY` (key `key_b0f0dc4475f841c3a3b0e516`, all eight modules; rotate with `/v1/admin/keys/<id>/rotate`). Plain: `WORKSLAKE_GATEWAY_URL=https://jobs.wonderapps.biz`, `WORKSLAKE_GATEWAY_ENABLED=1`.
+- Gateway source `src_c5853af63a0ea4f22734a0c8` (We Work Remotely, Jobs): **active**, 98 listings, collected daily at 04:30 IST.
+- WorksLake: the eight gateway sources (`works_gateway_<module>`) show in Platform → WorksLake → Sources as **Draft**. Candidates see nothing from the gateway until a platform admin tests and activates one there (Jobs first). That step needs the owner's own sign-in; it cannot be done by a service.
+- Attribution: WorksLake shows the gateway source's name on these listings; each one's link goes to its page on weworkremotely.com, which is what WWR asks for. A per-listing source name needs a mapping field WorksLake does not have yet.
 
