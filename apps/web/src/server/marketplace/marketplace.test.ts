@@ -235,3 +235,15 @@ describe("report and block", () => {
     await expect(startThread(buyer, id, "Hi again")).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe("blocking a seller from their listing", () => {
+  it("hides them both ways and ends open conversations", async () => {
+    const { blockSeller } = await import("./safety");
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    await blockSeller(buyer, id);
+    expect((await thread(seller, t)).thread.status).toBe("closed");
+    expect(await openMarketListings(buyer.tenantId)).toHaveLength(0);
+    await expect(blockSeller(seller, id)).rejects.toMatchObject({ status: 409 });
+  });
+});

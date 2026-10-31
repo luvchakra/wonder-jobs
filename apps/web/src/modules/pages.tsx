@@ -35,6 +35,12 @@ import { CofoundersConnection } from "./cofounders/components/Connection";
 import { CofoundersProfile, CofoundersYou } from "./cofounders/components/You";
 import { CofounderPage } from "./cofounders/components/CofounderPage";
 import { CofoundersTeams } from "./cofounders/components/Teams";
+import { MarketplaceFind } from "./marketplace/components/Find";
+import { MarketplacePipeline } from "./marketplace/components/Pipeline";
+import { MarketplaceItem } from "./marketplace/components/Item";
+import { MarketplaceProfile, MarketplaceYou } from "./marketplace/components/You";
+import { MarketPage } from "./marketplace/components/MarketPage";
+import { MarketplaceCompany } from "./marketplace/components/Company";
 import type { ModuleId } from "./registry";
 
 /**
@@ -61,6 +67,7 @@ const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   therapists: { Find: TherapistsFind, Pipeline: TherapistsSessions, You: TherapistsYou, Profile: TherapistsProfile, Listing: TherapistPage, Item: TherapistsSession, Company: TherapistsCompany },
   events: { Find: EventsFind, Pipeline: EventsPipeline, You: EventsYou, Profile: EventsProfile, Listing: EventPage, Item: EventsItem, Company: EventsCompany },
   cofounders: { Find: CofoundersFind, Pipeline: CofoundersPipeline, You: CofoundersYou, Profile: CofoundersProfile, Listing: CofounderPage, Item: CofoundersConnection, Company: CofoundersTeams },
+  marketplace: { Find: MarketplaceFind, Pipeline: MarketplacePipeline, You: MarketplaceYou, Profile: MarketplaceProfile, Listing: MarketPage, Item: MarketplaceItem, Company: MarketplaceCompany },
   teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 

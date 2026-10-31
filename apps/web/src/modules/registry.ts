@@ -4,7 +4,7 @@
  * ships — the shell then shows "Coming soon" and nothing else (CLAUDE.md, real data only). The manifest types live in
  * WonderWorks (`wonderworks/manifest.ts`); each live module's manifest lives in its own folder.
  */
-import { shellRoutes as shell, stagesOf as stages, type ModuleId, type ModuleManifest } from "@/wonderworks/manifest";
+import type { ModuleId, ModuleManifest } from "@/wonderworks/manifest";
 import { jobsManifest } from "./jobs/manifest";
 import { internshipsManifest } from "./internships/manifest";
 import { teachingManifest } from "./teaching/manifest";
@@ -12,6 +12,7 @@ import { servicesManifest } from "./services/manifest";
 import { therapistsManifest } from "./therapists/manifest";
 import { cofoundersManifest } from "./cofounders/manifest";
 import { eventsManifest } from "./events/manifest";
+import { marketplaceManifest } from "./marketplace/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -23,27 +24,7 @@ export const MODULES: readonly ModuleManifest[] = [
   servicesManifest,
   therapistsManifest,
   eventsManifest,
-  {
-    id: "marketplace",
-    label: "Buy, Sell & Rent",
-    hint: "Pre-used items",
-    icon: "Store",
-    accent: "peach",
-    status: "soon",
-    menuId: "buy_sell_rent",
-    routes: shell("marketplace"),
-    persona: [{ key: "area", label: "Area", type: "text" }],
-    listing: [
-      { key: "category", label: "Category", type: "text", facet: true },
-      { key: "price", label: "Price", type: "money", facet: true },
-      { key: "condition", label: "Condition", type: "choice", options: ["New", "Like new", "Used"], facet: true },
-    ],
-    response: { verb: "offer", questions: false, states: ["messaged", "offer", "visit", "done"], capability: "marketplace.offer" },
-    pipeline: { label: "Deals", icon: "Handshake", stages: stages("Messaged", "Offer", "Visit", "Done"), sections: ["My listings"] },
-    ownerSide: { workspace: "person" },
-    trust: { reviews: "off" },
-    compliance: ["payments", "housing"],
-  },
+  marketplaceManifest,
 ];
 
 const BY_ID = new Map(MODULES.map((m) => [m.id, m]));

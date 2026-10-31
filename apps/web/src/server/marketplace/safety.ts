@@ -44,12 +44,23 @@ export async function reportThread(s: Session, threadId: string, reason: unknown
   if (!r.repeated) await audit(s, "thread", t.id, "THREAD_REPORTED");
 }
 
+async function blockTenant(s: Session, them: string, detail: string): Promise<void> {
+  if (them === s.tenantId) throw new HiringError("You can't block yourself.", 409);
+  await blockPerson(MARKETPLACE, s.tenantId, them);
+  await recordServerAudit(s.tenantId, { actionId: `marketplace.block:${them}`, actionType: "marketplace.block", event: "PERSON_BLOCKED", detail });
+  const all = [...(await threads().find({ buyer_tenant: s.tenantId, seller_tenant: them })), ...(await threads().find({ buyer_tenant: them, seller_tenant: s.tenantId }))];
+  for (const x of all) if (["messaged", "offer", "visit"].includes(x.status)) await threads().update({ id: x.id }, { status: "closed", end_reason: "blocked", updated_at: now() });
+}
+
 /** Block the other person in a conversation: it ends, and they are hidden from each other everywhere in this module. */
 export async function blockInThread(s: Session, threadId: string): Promise<void> {
   const { t } = await standIn(s, threadId);
-  const them = s.tenantId === t.buyer_tenant ? t.seller_tenant : t.buyer_tenant;
-  await blockPerson(MARKETPLACE, s.tenantId, them);
-  await recordServerAudit(s.tenantId, { actionId: `marketplace.block:${them}`, actionType: "marketplace.block", event: "PERSON_BLOCKED", detail: t.id });
-  const all = [...(await threads().find({ buyer_tenant: s.tenantId, seller_tenant: them })), ...(await threads().find({ buyer_tenant: them, seller_tenant: s.tenantId }))];
-  for (const x of all) if (["messaged", "offer", "visit"].includes(x.status)) await threads().update({ id: x.id }, { status: "closed", end_reason: "blocked", updated_at: now() });
+  await blockTenant(s, s.tenantId === t.buyer_tenant ? t.seller_tenant : t.buyer_tenant, t.id);
+}
+
+/** Block a listing's seller from the listing itself (anyone signed in but the seller). */
+export async function blockSeller(s: Session, listingId: string): Promise<void> {
+  const l = await listings().one({ id: listingId });
+  if (!l || l.state === "draft") throw gone();
+  await blockTenant(s, l.seller_tenant, listingId);
 }

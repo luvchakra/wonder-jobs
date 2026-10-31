@@ -11,6 +11,8 @@ import { EventCard } from "./events/components/Listing";
 import type { EventListing } from "./events/domain";
 import { CofounderCard } from "./cofounders/components/Listing";
 import type { CofounderListing } from "./cofounders/domain";
+import { MarketCard } from "./marketplace/components/Listing";
+import type { MarketListing } from "./marketplace/domain";
 import { TherapistCard } from "./therapists/components/Listing";
 import type { TherapistListing } from "./therapists/domain";
 
@@ -25,6 +27,7 @@ export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">;
   if (module === "therapists") return <TherapistCard item={item as TherapistListing} onOpen={noop} />;
   if (module === "events") return <EventCard item={item as EventListing} onOpen={noop} />;
   if (module === "cofounders") return <CofounderCard item={item as CofounderListing} onOpen={noop} />;
+  if (module === "marketplace") return <MarketCard item={item as MarketListing} onOpen={noop} />;
   return null;
 }
 
@@ -49,6 +52,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
   if (module === "events") {
     const l = item as EventListing;
     return [l.title, l.company, l.location, ...l.terms.tags].join(" ");
+  }
+  if (module === "marketplace") {
+    const l = item as MarketListing;
+    return [l.title, l.seller, l.area, l.terms.category, l.terms.condition].join(" ");
   }
   if (module === "therapists") {
     const l = item as TherapistListing;
