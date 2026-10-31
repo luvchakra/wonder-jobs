@@ -2,6 +2,7 @@ import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { isIP } from "node:net";
 import { ApiError, normalize } from "./core.mjs";
+import { crawlRecords } from "./crawl.mjs";
 
 function publicAddress(ip) {
   if (isIP(ip) === 4) {
@@ -66,10 +67,14 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
   return response.text;
 }
 
-export function robotsAllowed(robots, path, agent = "WorksLakeGateway") {
+/**
+ * robots.txt as the gateway reads it: the group for our agent (else `*`), its Allow/Disallow rules, and its
+ * Crawl-delay in seconds (null when it sets none).
+ */
+export function parseRobots(robots, agent = "WorksLakeGateway") {
   const groups = [];
-  let agents = [], rules = [], hasRules = false;
-  const flush = () => { if (agents.length) groups.push({ agents, rules }); agents = []; rules = []; hasRules = false; };
+  let agents = [], rules = [], delay = null, hasRules = false;
+  const flush = () => { if (agents.length) groups.push({ agents, rules, delay }); agents = []; rules = []; delay = null; hasRules = false; };
   for (const line of robots.split(/\r?\n/)) {
     const clean = line.split("#")[0].trim();
     const split = clean.indexOf(":");
@@ -78,13 +83,22 @@ export function robotsAllowed(robots, path, agent = "WorksLakeGateway") {
     const value = clean.slice(split + 1).trim();
     if (name === "user-agent") { if (hasRules) flush(); agents.push(value.toLowerCase()); }
     else if ((name === "allow" || name === "disallow") && agents.length) { rules.push({ type: name, path: value }); hasRules = true; }
+    else if (name === "crawl-delay" && agents.length) { const n = Number(value); if (Number.isFinite(n) && n >= 0) delay = n; hasRules = true; }
   }
   flush();
   const exact = groups.filter((g) => g.agents.includes(agent.toLowerCase()));
   const selected = exact.length ? exact : groups.filter((g) => g.agents.includes("*"));
-  // The most specific (longest) matching rule decides; Allow beats Disallow when they are equally specific.
+  const delays = selected.map((g) => g.delay).filter((d) => d !== null);
+  return { rules: selected.flatMap((g) => g.rules), crawlDelay: delays.length ? Math.max(...delays) : null };
+}
+/** Whether robots.txt lets our agent fetch `path` (path plus query). */
+export function robotsAllowed(robots, path, agent = "WorksLakeGateway") {
+  return allowedBy(parseRobots(robots, agent).rules, path);
+}
+/** The most specific (longest) matching rule decides; Allow beats Disallow when they are equally specific. */
+export function allowedBy(rules, path) {
   let best = null;
-  for (const rule of selected.flatMap((g) => g.rules)) {
+  for (const rule of rules) {
     if (!rule.path || !robotsPattern(rule.path).test(path)) continue;
     if (!best || rule.path.length > best.path.length || rule.path.length === best.path.length && rule.type === "allow") best = rule;
   }
@@ -102,10 +116,11 @@ export async function checkRobots(source) {
   try { txt = await safeGet(base.origin + "/robots.txt", { origin: base.hostname, maxBytes: 128000, redirects: 0 }); }
   catch (e) {
     // Robots missing (404) is permitted; any other uncertainty fails closed.
-    if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return;
+    if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return { rules: [], crawlDelay: null };
     throw new ApiError(403, "ROBOTS_UNAVAILABLE", "Cannot verify robots policy");
   }
   if (!robotsAllowed(txt, base.pathname + base.search)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
+  return parseRobots(txt);
 }
 export function decodeEntities(s) {
   return String(s || "").replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_m, entity) => {
@@ -145,8 +160,9 @@ export function parseStructured(html) {
   }
   return out.slice(0, 500);
 }
-export async function fetchRecords(source) {
+export async function fetchRecords(source, deps = {}) {
   if (!source.termsReviewed || !source.redistributionAllowed || !["terms_permit", "granted_in_writing"].includes(source.permission)) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Permission missing");
+  if (source.kind === "crawl") return crawlRecords(source, deps);
   if (source.kind === "structured") await checkRobots(source);
   const body = await safeGet(source.url);
   let items;

@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 
 export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
-const VALID_KINDS = new Set(["json_api", "rss", "structured"]);
+const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
 export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [] });
@@ -109,14 +109,22 @@ export function validateSource(source) {
   if (!VALID_KINDS.has(source.kind)) throw new ApiError(400, "INVALID_REQUEST", "Invalid source method");
   if (!Array.isArray(source.modules) || !source.modules.length || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
   if (!VALID_PERMISSION.has(source.permission) || source.termsReviewed !== true || source.redistributionAllowed !== true || typeof source.permissionEvidence !== "string" || source.permissionEvidence.trim().length < 8) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Documented permission and display rights required");
-  if (source.kind === "structured" && source.robotsReviewed !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Robots review required");
+  if ((source.kind === "structured" || source.kind === "crawl") && source.robotsReviewed !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Robots review required");
+  if (source.kind === "crawl") {
+    if (!["sitemap", "links"].includes(source.discover)) throw new ApiError(400, "INVALID_REQUEST", "A crawl needs discover: sitemap or links");
+    if (source.pathPrefix !== undefined && (typeof source.pathPrefix !== "string" || !source.pathPrefix.startsWith("/") || source.pathPrefix.length > 200)) throw new ApiError(400, "INVALID_REQUEST", "pathPrefix must be a path starting with /");
+    const pages = Number(source.maxPagesPerRun ?? 20);
+    if (!Number.isInteger(pages) || pages < 1 || pages > 50) throw new ApiError(400, "INVALID_REQUEST", "maxPagesPerRun must be 1-50");
+    const delay = Number(source.crawlDelayMs ?? 1000);
+    if (!Number.isInteger(delay) || delay < 1000 || delay > 30000) throw new ApiError(400, "INVALID_REQUEST", "crawlDelayMs must be 1000-30000");
+  }
   if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
   const retentionHours = Number(source.retentionHours ?? 24);
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
