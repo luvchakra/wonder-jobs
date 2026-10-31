@@ -26,7 +26,7 @@ export function SourceLogoStrip() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <ScrollReveal>
           <p id="sources-title" className="wj-eyebrow text-center">
-            Live jobs from employers&apos; own boards, SmartRecruiters, The Muse, Adzuna India and open remote feeds. De-duplicated, the source named on every listing.
+            Live jobs and internships from employers&apos; own boards, SmartRecruiters, The Muse, Adzuna India and open remote feeds, plus what people and organisations post on WonderWorks. De-duplicated, the source named on every listing.
           </p>
           <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4" aria-label="Connected job sources">
             {sources.map((name) => (
@@ -491,14 +491,13 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
     title: "Product",
     links: [
       { label: "How it works", href: "/#how-it-works" },
-      { label: "Ask Wonder", href: "/#ask-wonder" },
-      { label: "You stay in control", href: "/#control" },
-      { label: "Features", href: "/#features" },
-      { label: "Screens", href: "/#screens" },
-      { label: "Who it's for", href: "/#personas" },
-      { label: "Your AI, your keys", href: "/#ai" },
-      { label: "Résumé templates", href: "/#templates" },
-      { label: "Apply with Wonder", href: "/#extension" },
+      { label: "The eight kinds", href: "/#kinds" },
+      { label: "All features", href: "/features" },
+      { label: "You stay in control", href: "/features#control" },
+      { label: "Screens", href: "/features#screens" },
+      { label: "Your AI, your keys", href: "/features#ai" },
+      { label: "Résumé templates", href: "/features#templates" },
+      { label: "Apply with Wonder", href: "/features#extension" },
       { label: "Browser helper", href: "/extension" },
       { label: "Pricing", href: "/#pricing" },
     ],
@@ -519,7 +518,7 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Careers", href: "/careers" },
       { label: "Press", href: "/#contact" },
       { label: "Security", href: "/security" },
-      { label: "Trust & compliance", href: "/#trust" },
+      { label: "Trust & compliance", href: "/features#trust" },
       { label: "Report a vulnerability", href: "/security#report" },
     ],
   },
