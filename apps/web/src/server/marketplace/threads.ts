@@ -190,6 +190,7 @@ async function view(s: Session, t: ThreadRow, l: ListingRow): Promise<ThreadView
     listingId: l.id,
     title: l.title,
     price: terms.price,
+    item: { ...(terms.photos[0] ? { photo: terms.photos[0] } : {}), condition: terms.condition, area: l.area, category: terms.category, negotiable: terms.negotiable },
     side,
     counterpart: side === "buyer" ? (l.seller_name.trim().split(/\s+/)[0] || "The seller") : t.buyer_name || "The buyer",
     status: t.status,
