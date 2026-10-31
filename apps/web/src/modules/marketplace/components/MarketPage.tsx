@@ -17,9 +17,9 @@ import { findListing } from "@/wonderworks/store";
 import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
-import { photoSrc } from "../manifest";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
+import { Gallery } from "./Gallery";
 import { ScamWarning } from "./ScamWarning";
 
 const noop = () => () => undefined;
@@ -55,28 +55,6 @@ export function MarketPage({ id }: { id: string }) {
     <div className="mx-auto max-w-3xl">
       <PageHeader back={FIND} title="Listing not found" />
       <EmptyState title="This listing isn't in your results" body="It may have left your last search. Search again to find it." action={{ label: "Back to Buy, Sell & Rent", href: FIND.href }} />
-    </div>
-  );
-}
-
-function Photos({ l }: { l: MarketListing }) {
-  const [i, setI] = useState(0);
-  const photos = l.terms.photos;
-  if (!photos.length) return null;
-  return (
-    <div className="mb-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photoSrc(l.listingId, photos[i])} alt={`${l.title}, photo ${i + 1} of ${photos.length}`} className="max-h-[420px] w-full rounded-[16px] border border-line bg-bg-soft object-contain" />
-      {photos.length > 1 && (
-        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Photos">
-          {photos.map((p, n) => (
-            <button key={p} type="button" aria-label={`Photo ${n + 1}`} aria-pressed={n === i} onClick={() => setI(n)} className={`overflow-hidden rounded-[10px] border-2 ${n === i ? "border-brand-500" : "border-transparent"}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoSrc(l.listingId, p)} alt="" width={56} height={56} loading="lazy" className="size-14 object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -198,7 +176,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
       }
     >
       <ListingMain>
-        <Photos l={l} />
+        <Gallery listingId={l.listingId} photos={l.terms.photos} title={l.title} />
         <ListingHead
           company={owner ? "You" : l.seller}
           name={owner ? "You" : l.seller}

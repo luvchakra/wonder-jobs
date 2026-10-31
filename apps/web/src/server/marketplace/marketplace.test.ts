@@ -244,6 +244,27 @@ describe("report and block", () => {
   });
 });
 
+describe("photos after the sale", () => {
+  it("stay readable by the seller and by buyers with a conversation on the listing, and by no one else", async () => {
+    const { id, t } = await dealt();
+    await arrangeVisit(buyer, t);
+    await markDone(buyer, t);
+    await markDone(seller, t);
+    expect((await listings().one({ id }))!.state).toBe("sold");
+    const photoId = ((await listings().one({ id }))!.attrs.photos as string[])[0];
+    expect(await readPhoto(buyer, id, photoId)).not.toBeNull();
+    expect(await readPhoto(seller, id, photoId)).not.toBeNull();
+    expect(await readPhoto(stranger, id, photoId)).toBeNull();
+  });
+  it("show the item's description and every photo in a conversation", async () => {
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    const v = (await thread(buyer, t)).thread;
+    expect(v.item.description).toBe(L.description);
+    expect(v.item.photos).toHaveLength(1);
+  });
+});
+
 describe("blocking a seller from their listing", () => {
   it("hides them both ways and ends open conversations", async () => {
     const { blockSeller } = await import("./safety");

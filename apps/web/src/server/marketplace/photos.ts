@@ -4,14 +4,14 @@
  * like résumé files (server/resume/files.ts) and read back only through the listing's own route, never by a public URL.
  *
  * Tenant isolation: only the listing's seller adds, orders or removes photos (seller_tenant filter). Anyone signed in may read
- * a photo of an open, unhidden listing; anyone else gets the seller's own draft only if they are the seller.
+ * a photo of an open, unhidden listing; after it is sold or taken down only the seller and buyers with a conversation on it may.
  */
 import { HiringError } from "../hiring";
 import { decryptFile, encryptFile } from "../resume/files";
 import type { Session } from "../auth";
 import { newId } from "@/lib/ids";
 import { MAX_PHOTOS, MAX_PHOTO_BYTES, PHOTO_TYPES, readTerms } from "@/modules/marketplace/domain";
-import { listings, now, photos } from "./store";
+import { listings, now, photos, threads } from "./store";
 
 type PhotoType = (typeof PHOTO_TYPES)[number];
 
@@ -117,7 +117,9 @@ export async function removePhoto(s: Session, listingId: string, photoId: string
 /** A photo's bytes, for the listing's own route: the seller always, anyone signed in only while the listing is open. */
 export async function readPhoto(s: Session, listingId: string, photoId: string): Promise<{ mime: string; bytes: Buffer } | null> {
   const l = await listings().one({ id: listingId });
-  if (!l || (l.state !== "open" && l.seller_tenant !== s.tenantId)) return null;
+  if (!l) return null;
+  // Open listings are public to anyone signed in; otherwise only the seller, and a buyer who has a conversation on it.
+  if (l.state !== "open" && l.seller_tenant !== s.tenantId && !(await threads().one({ listing_id: listingId, buyer_tenant: s.tenantId }))) return null;
   const p = await photos().one({ id: photoId, listing_id: listingId });
   return p ? { mime: p.mime, bytes: decryptFile(key(listingId), p.id, p.ciphertext) } : null;
 }
