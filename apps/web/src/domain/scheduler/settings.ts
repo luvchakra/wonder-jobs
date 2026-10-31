@@ -89,7 +89,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
 
 /** One cron invocation, as the admin page lists it. */
 export interface CronRun {
-  job: "scheduled-runs" | "jobslake-companies" | "jobslake-ratings" | "application-reminders" | "reminders";
+  job: "scheduled-runs" | "jobslake-companies" | "jobslake-ratings" | "application-reminders" | "gateway-collect" | "reminders";
   trigger: "cron" | "admin";
   startedAt: string;
   finishedAt: string;
@@ -106,6 +106,7 @@ export const CRON_JOBS = [
   { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "WorksLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
   { id: "jobslake-ratings", runner: "vercel", path: "/api/cron/jobslake-ratings", schedule: "50 1 * * *", label: "Company ratings", description: "Looks up employee-review ratings from Explorium for companies never looked up (or not for 90 days), on the frequency set in Company ratings. Emails the owner when no API key is left." },
   { id: "application-reminders", runner: "vercel", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
+  { id: "gateway-collect", runner: "vercel", path: "/api/cron/gateway-collect", schedule: "0 23 * * *", label: "Gateway collection", description: "Fetches the external sources an administrator has tested and activated in the WorksLake gateway (robots and permission checked again each time), for the modules each is approved for. Does nothing until the gateway is configured." },
   // Called by GitHub Actions (.github/workflows/reminders.yml): Vercel's plan runs its own crons once a day.
   { id: "reminders", runner: "github", path: "/api/cron/reminders", schedule: "17 * * * *", label: "Reminders", description: "Interview and follow-up reminders between daily runs, so one due this evening isn't raised tomorrow morning. Called by GitHub Actions; the daily run raises them too." },
 ] as const satisfies readonly { id: CronRun["job"]; runner: "vercel" | "github"; path: string; schedule: string; label: string; description: string }[];
