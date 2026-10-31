@@ -14,7 +14,7 @@ export const photoSrc = (listingId: string, photoId: string) => `/api/m/marketpl
 export const marketplaceManifest: ModuleManifest = {
   id: "marketplace",
   label: "Buy, Sell & Rent",
-  hint: "Pre-used items",
+  hint: "Handicrafts & Pre-loved items",
   icon: "Store",
   accent: "peach",
   status: "live",

@@ -43,7 +43,7 @@ describe("WonderWorks module registry", () => {
       { id: "talent_services", label: "Talent & Services", hint: "Hire or offer a skill" },
       { id: "therapists", label: "Therapists", hint: "Counsellors near you or online" },
       { id: "events_social", label: "Events & Social", hint: "Meetups and things to do" },
-      { id: "buy_sell_rent", label: "Buy, Sell & Rent", hint: "Pre-used items" },
+      { id: "buy_sell_rent", label: "Buy, Sell & Rent", hint: "Handicrafts & Pre-loved items" },
     ]);
   });
 });

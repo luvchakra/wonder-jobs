@@ -43,7 +43,7 @@ export function MarketplaceFind() {
       search={search}
       refine={refineListings}
       Card={MarketCard}
-      idle={{ title: "Find something pre-used", body: "Type what you're looking for, add your area under Refine, and press Search." }}
+      idle={{ title: "Find handicrafts and pre-loved items", body: "Type what you're looking for, add your area under Refine, and press Search." }}
       needWords="Type what you're looking for — for example study table, bicycle or guitar."
       dictateHint="Listening — say what you want, e.g. “study table”."
     />
