@@ -328,3 +328,13 @@ To verify: authorise the Vercel team once (`authorize_team_access`), then read t
 - Hacker News hiring threads via Algolia (third-party notes): <https://apify.com/obsidian937/hacker-news-intel>
 
 Several of these are vendor pages or third-party summaries, not the provider's own terms. Treat each as a lead to confirm, not as a licence.
+
+---
+
+## 13. Proposed additional gateway source (not active, 2026-10-31)
+
+PR #438 adds a separate Node.js gateway package at apps/data-gateway and an opt-in gateway source registration per module at apps/web/src/server/jobslake/gatewaySources.ts. Existing feeds, client APIs and app results remain unchanged unless the operator explicitly sets WORKSLAKE_GATEWAY_ENABLED=1, a verified public HTTPS WORKSLAKE_GATEWAY_URL, and server-only WORKSLAKE_GATEWAY_API_KEY, then runs the existing source test and activates each module separately.
+
+All eight module datasets have an optional gateway definition (jobs, internships, teaching, services, therapists, cofounders, events and marketplace), but **none has a new approved or live upstream provider from this PR**. The gateway stores only actual permitted material, preserves provenance, and only admits sources with recorded permission, retention and redistribution rights. Therapists/cofounders/services/marketplace additionally require consent verification. WorksLake does not scrape portals itself and its existing source restrictions remain unchanged.
+
+Gateway endpoints are versioned separately from WorksLake Protocol v1 and present a compatibility JSON response using WorksLake's existing field mapper. The gateway runs out of band. Until production-grade persistence, queueing, rate limiting and rights review are complete this should be considered staging-ready MVP only. Details: [WORKSLAKE_EXTERNAL_DATA_GATEWAY.md](WORKSLAKE_EXTERNAL_DATA_GATEWAY.md) and [gateway README](../apps/data-gateway/README.md).
