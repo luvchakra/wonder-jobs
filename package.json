@@ -15,12 +15,14 @@
     "start": "npm run start -w @wonder/web",
     "lint": "npm run lint -w @wonder/web",
     "typecheck": "npm run typecheck -w @wonder/web && npm run typecheck -w @wonder/browser-worker",
-    "test": "npm run test -w @wonder/web && npm run test -w @wonder/browser-worker",
+    "test": "npm run test -w @wonder/web && npm run test -w @wonder/browser-worker && npm run test -w @wonder/data-gateway",
     "worker:dev": "npm run dev -w @wonder/browser-worker",
     "check": "npm run check -w @wonder/web",
     "e2e": "npm run e2e -w @wonder/web",
     "verify": "npm run verify -w @wonder/web",
     "db:migrate": "npm run db:migrate -w @wonder/web",
-    "pack:extension": "node scripts/pack-extension.mjs"
+    "pack:extension": "node scripts/pack-extension.mjs",
+    "gateway:start": "npm run start -w @wonder/data-gateway",
+    "gateway:check": "npm run check -w @wonder/data-gateway"
   }
 }

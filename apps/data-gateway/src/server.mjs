@@ -50,8 +50,6 @@ async function collectOne(sourceId, testOnly = false) {
       const src = s.sources.find((x) => x.id === sourceId);
       if (!src?.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source was paused during collection");
       // Only overwrite the observations belonging to this source; leave every other source untouched.
-      const replacements = new Map(report.results.map((x) => [x.id, x]));
-      s.listings = s.listings.filter((x) => x.sourceId !== sourceId || replacements.has(x.id)).filter((x) => x.sourceId !== sourceId || replacements.delete(x.id) === false);
       // Refresh all observations; expired/missing records for this source are not kept alive.
       s.listings = s.listings.filter((x) => x.sourceId !== sourceId).concat(report.results);
       src.lastSuccessAt = now;
