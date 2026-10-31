@@ -103,8 +103,14 @@ export function validateSource(source) {
   return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 export function normalize(source, raw, module, observedAt = iso()) {
-  const value = (path) => path.split(".").filter(Boolean).reduce((acc, part) => acc && typeof acc === "object" ? acc[part] : undefined, raw);
-  const field = (name) => source.kind === "json_api" ? value(source.mapping[name] || "") : raw[name];
+  // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
+  const value = (path) => {
+    const parts = String(path || "").split(".").filter(Boolean);
+    if (!parts.length) return undefined;
+    const found = parts.reduce((acc, part) => acc && typeof acc === "object" ? acc[part] : undefined, raw);
+    return ["string", "number", "boolean"].includes(typeof found) ? found : undefined;
+  };
+  const field = (name) => source.kind === "json_api" ? value(source.mapping[name]) : raw && ["string", "number", "boolean"].includes(typeof raw[name]) ? raw[name] : undefined;
   const title = String(field("title") ?? "").trim().slice(0, 240);
   const organization = String(field("organization") ?? field("employer") ?? "").trim().slice(0, 200);
   const canonicalUrl = String(field("canonicalUrl") ?? field("applyUrl") ?? field("url") ?? "").trim();

@@ -6,7 +6,7 @@ import { fetchRecords } from "./collect.mjs";
 const env = process.env;
 const adminToken = env.GATEWAY_ADMIN_TOKEN;
 const cursorSecret = env.GATEWAY_CURSOR_SECRET;
-if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
+if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32 || adminToken === cursorSecret) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
 const store = await new JsonStore(resolve(env.GATEWAY_DATA_FILE || "./.data/gateway.json")).init();
 const activeCrawls = new Set();
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };

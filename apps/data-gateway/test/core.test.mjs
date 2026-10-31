@@ -82,3 +82,11 @@ test("API keys are one-time generated, scoped, revocable, and not stored in plai
     assert.equal(reopened.data.keys[0].revokedAt !== null, true);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+test("an unmapped or non-text field is left out, never the whole record", () => {
+  const src = validateSource(permitted({ mapping: { id: "id", title: "title", employer: "employer", applyUrl: "url" } }));
+  const got = normalize(src, posting({ location: { city: "Pune" } }), "jobs");
+  assert.equal(got.description, "");
+  assert.equal(got.location, "");
+  assert.equal(got.organization, "Example");
+  assert.equal(normalize(src, posting({ employer: { name: "x" } }), "jobs"), null);
+});

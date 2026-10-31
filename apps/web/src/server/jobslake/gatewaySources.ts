@@ -21,8 +21,8 @@ function enabled() {
 
 export function gatewayModuleForSource(id: string): ModuleId | undefined {
   if (!enabled() || !id.startsWith(prefix)) return undefined;
-  const module = id.slice(prefix.length);
-  return MODULE_IDS.find((m) => m === module);
+  const selected = id.slice(prefix.length);
+  return MODULE_IDS.find((m) => m === selected);
 }
 
 const FIELDS = {
