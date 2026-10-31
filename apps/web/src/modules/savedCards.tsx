@@ -7,6 +7,8 @@ import { TeachingCard } from "./teaching/components/Listing";
 import type { TeachingListing } from "./teaching/domain";
 import { ServiceCard } from "./services/components/Listing";
 import type { ServiceListing } from "./services/domain";
+import { EventCard } from "./events/components/Listing";
+import type { EventListing } from "./events/domain";
 import { CofounderCard } from "./cofounders/components/Listing";
 import type { CofounderListing } from "./cofounders/domain";
 import { TherapistCard } from "./therapists/components/Listing";
@@ -21,6 +23,7 @@ export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">;
   if (module === "teaching") return <TeachingCard item={item as TeachingListing} onOpen={noop} />;
   if (module === "services") return <ServiceCard item={item as ServiceListing} onOpen={noop} />;
   if (module === "therapists") return <TherapistCard item={item as TherapistListing} onOpen={noop} />;
+  if (module === "events") return <EventCard item={item as EventListing} onOpen={noop} />;
   if (module === "cofounders") return <CofounderCard item={item as CofounderListing} onOpen={noop} />;
   return null;
 }
@@ -42,6 +45,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
   if (module === "cofounders") {
     const l = item as CofounderListing;
     return [l.title, l.company, l.location, l.terms.role ?? "", ...(l.terms.skills ?? []), ...(l.terms.openRoles ?? []).flatMap((o) => [o.role, ...o.skills])].join(" ");
+  }
+  if (module === "events") {
+    const l = item as EventListing;
+    return [l.title, l.company, l.location, ...l.terms.tags].join(" ");
   }
   if (module === "therapists") {
     const l = item as TherapistListing;

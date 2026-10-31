@@ -33,7 +33,7 @@ describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §
   it("a page's module: a live module's pages, Jobs' four places, or none for shared pages", () => {
     expect(moduleFromPath("/app/m/internships/saved")).toBe("internships");
     expect(moduleFromPath("/app/m/teaching/pipeline")).toBe("teaching");
-    expect(moduleFromPath("/app/m/events")).toBeNull(); // not live yet
+    expect(moduleFromPath("/app/m/marketplace")).toBeNull(); // not live yet
     expect(moduleFromPath("/app/jobs")).toBe("jobs");
     expect(moduleFromPath("/app/jobs/abc")).toBe("jobs");
     expect(moduleFromPath("/app/saved")).toBe("jobs");

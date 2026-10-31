@@ -11,6 +11,7 @@ import { teachingManifest } from "./teaching/manifest";
 import { servicesManifest } from "./services/manifest";
 import { therapistsManifest } from "./therapists/manifest";
 import { cofoundersManifest } from "./cofounders/manifest";
+import { eventsManifest } from "./events/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -21,31 +22,7 @@ export const MODULES: readonly ModuleManifest[] = [
   cofoundersManifest,
   servicesManifest,
   therapistsManifest,
-  {
-    id: "events",
-    label: "Events & Social",
-    hint: "Meetups and things to do",
-    icon: "CalendarDays",
-    accent: "pink",
-    status: "soon",
-    menuId: "events_social",
-    routes: shell("events"),
-    persona: [
-      { key: "interests", label: "Interests", type: "list" },
-      { key: "city", label: "City", type: "text" },
-    ],
-    listing: [
-      { key: "startsAt", label: "When", type: "date", facet: true },
-      { key: "place", label: "Where", type: "text", facet: true },
-      { key: "capacity", label: "Capacity", type: "number" },
-      { key: "price", label: "Price", type: "money", facet: true },
-    ],
-    response: { verb: "rsvp", questions: false, states: ["going", "waitlist", "attended", "no_show"], capability: "events.rsvp" },
-    pipeline: { label: "My events", icon: "CalendarHeart", stages: stages("Going", "Waitlist", "Attended"), sections: ["Calendar"] },
-    ownerSide: { workspace: "person" },
-    trust: { reviews: "off" },
-    compliance: ["minors"],
-  },
+  eventsManifest,
   {
     id: "marketplace",
     label: "Buy, Sell & Rent",

@@ -4,8 +4,9 @@ import { liveModule, useUIStore } from "./ui";
 describe("the active WonderWorks module", () => {
   it("only a live module comes back from storage", () => {
     expect(liveModule("internships")).toBe("internships");
+    expect(liveModule("events")).toBe("events");
     expect(liveModule("jobs")).toBe("jobs");
-    expect(liveModule("events")).toBeUndefined();
+    expect(liveModule("marketplace")).toBeUndefined();
     expect(liveModule("nope")).toBeUndefined();
     expect(liveModule(42)).toBeUndefined();
   });
@@ -16,7 +17,7 @@ describe("the active WonderWorks module", () => {
     expect(opts.partialize!(useUIStore.getState())).toMatchObject({ activeModule: "internships" });
     useUIStore.getState().setActiveModule("jobs");
     expect(opts.partialize!(useUIStore.getState())).not.toHaveProperty("activeModule");
-    const merged = opts.merge!({ activeModule: "events" }, useUIStore.getState()) as { activeModule?: string };
+    const merged = opts.merge!({ activeModule: "marketplace" }, useUIStore.getState()) as { activeModule?: string };
     expect(merged.activeModule).toBe("jobs");
   });
 });

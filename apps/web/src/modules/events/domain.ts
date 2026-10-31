@@ -221,3 +221,38 @@ export function cleanEventPosting(i: EventPostingInput, now = Date.now()): { val
   const terms: EventTerms = { startsAt, ...(endsAt ? { endsAt } : {}), ...(capacity ? { capacity } : {}), online, ...(ageMin ? { ageMin } : {}), tags: words(i.tags, MAX_TAGS, 30) };
   return { value: { title, description, location, workMode: online ? "remote" : "onsite", terms } };
 }
+
+/* ------------------------------------------------------------------ India time in a form */
+
+/** An instant as the value of a datetime-local box, in India time ("2026-11-08T18:00"). */
+export const toIstInput = (iso: string) => new Date(Date.parse(iso) + 330 * 60_000).toISOString().slice(0, 16);
+/** A datetime-local value, read as India time, as an instant; undefined when it isn't a date and time. */
+export const fromIstInput = (v: string) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}:00+05:30`)) ? new Date(`${v}:00+05:30`).toISOString() : undefined);
+
+/* ------------------------------------------------------------------ what the screens read back */
+
+/** One of the person's own RSVPs, with its event. */
+export interface MyRsvp {
+  id: string;
+  listingId: string;
+  title: string;
+  organiser: string;
+  status: RsvpStatus;
+  startsAt: string;
+  location: string;
+  online: boolean;
+  /** Waitlist place, 1 = next. */
+  place?: number;
+  updatedAt: string;
+}
+
+/** An RSVP as the organiser sees it (to check people in). */
+export interface Attendee {
+  id: string;
+  listingId: string;
+  name: string;
+  email: string;
+  status: RsvpStatus;
+  createdAt: string;
+}
+
