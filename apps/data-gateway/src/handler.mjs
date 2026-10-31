@@ -1,4 +1,4 @@
-import { ApiError, MODULES, RateLimiter, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, search, recordUsage, checkScope } from "./core.mjs";
+import { ApiError, MODULES, RateLimiter, logRun, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, search, recordUsage, checkScope } from "./core.mjs";
 import { fetchRecords } from "./collect.mjs";
 import { OPENAPI } from "./openapi.mjs";
 
@@ -41,17 +41,21 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   async function collectOne(sourceId, testOnly = false) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
     activeCrawls.add(sourceId);
+    const startedAt = Date.now();
     try {
       const source = await store.read((s) => s.sources.find((src) => src.id === sourceId));
       if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
       const report = await fetchRecords(source);
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
+      const ms = Date.now() - startedAt;
+      const progress = report.crawl ? { read: report.crawl.read, failed: report.crawl.failed, pages: report.crawl.pages } : {};
       if (testOnly) {
         await store.change((s) => {
           const src = s.sources.find((x) => x.id === sourceId);
           src.lastTest = { at: new Date().toISOString(), ok, discovered: report.discovered, valid: report.valid };
           s.audits.push({ at: new Date().toISOString(), action: "source.tested", target: sourceId, ok });
+          logRun(s, { at: new Date().toISOString(), sourceId, trigger: "test", ok, discovered: report.discovered, valid: report.valid, ms, ...progress });
         });
         return { ok, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
       }
@@ -70,13 +74,15 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         src.nextRunAt = new Date(Date.now() + src.minIntervalMinutes * 60000).toISOString();
         s.audits.push({ at: now, action: "source.collected", target: sourceId, valid: report.valid });
         s.listings = s.listings.filter((x) => Date.parse(x.expiresAt) > Date.now());
+        logRun(s, { at: now, sourceId, trigger: "collect", ok: true, discovered: report.discovered, valid: report.valid, kept: s.listings.filter((x) => x.sourceId === sourceId).length, ms, ...progress });
       });
       return { ok: true, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
     } catch (e) {
-      if (!testOnly && e.code !== "SOURCE_PAUSED" && e.code !== "NOT_FOUND") await store.change((s) => {
+      if (e.code !== "SOURCE_PAUSED" && e.code !== "NOT_FOUND") await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);
-        if (src) { src.lastError = e.code || "SOURCE_UNAVAILABLE"; src.nextRunAt = new Date(Date.now() + Math.max(15, src.minIntervalMinutes) * 60000).toISOString(); }
-      });
+        if (src && !testOnly) { src.lastError = e.code || "SOURCE_UNAVAILABLE"; src.nextRunAt = new Date(Date.now() + Math.max(15, src.minIntervalMinutes) * 60000).toISOString(); }
+        logRun(s, { at: new Date().toISOString(), sourceId, trigger: testOnly ? "test" : "collect", ok: false, code: e.code || "SOURCE_UNAVAILABLE", ms: Date.now() - startedAt });
+      }).catch(() => undefined);
       throw e;
     } finally { activeCrawls.delete(sourceId); }
   }

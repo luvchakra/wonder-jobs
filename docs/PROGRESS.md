@@ -4,3 +4,4 @@
 - ✅ The WorksLake gateway is hosted in the app (same project and Supabase), off until configured (WJ-463)
 - ✅ WorksLake gateway on in production: We Work Remotely active (98 listings); WorksLake shows the gateway sources as Draft for the owner to activate (WJ-464)
 - ✅ Gateway crawler for permitted sites; UK Teaching Vacancies active on the gateway (100 listings); 18 sources checked (WJ-465)
+- ✅ Gateway covers all locations, collects hourly, reads paged feeds in full; new admin page Platform → WorksLake → Gateway (WJ-466)

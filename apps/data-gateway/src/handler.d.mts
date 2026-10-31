@@ -11,5 +11,7 @@ export interface CollectOutcome { sourceId: string; ok: boolean; code?: string; 
 export interface Gateway {
   handle(request: Request): Promise<Response>;
   collectDue(): Promise<CollectOutcome[]>;
+  /** Collects one active source now (or only tests it). Throws with a `code` when it can't. */
+  collectOne(sourceId: string, testOnly?: boolean): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
 }
 export function createGateway(options: { store: GatewayStore; env?: Record<string, string | undefined>; storage?: string }): Gateway;
