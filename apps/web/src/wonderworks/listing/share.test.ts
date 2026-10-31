@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, emailHref, excerpt, listingShareMessage, publicPath, whatsappHref } from "./share";
+import { absoluteUrl, distinctText, emailHref, excerpt, listingShareMessage, publicPath, whatsappHref } from "./share";
 
 describe("sharing a listing", () => {
   it("a message carries the title, the public facts and the link, last and alone on WhatsApp", () => {
@@ -54,5 +54,14 @@ describe("sharing a listing", () => {
 
   it("a listing's public page is /s/<module>/<id>, encoded", () => {
     expect(publicPath("events", "ws_a b")).toBe("/s/events/ws_a%20b");
+  });
+});
+
+describe("distinctText", () => {
+  it("drops a description that only repeats its title", () => {
+    expect(distinctText("Counselling for work related stress", "Counselling for work related stress. Counselling for work related stress")).toBe("");
+  });
+  it("keeps what adds something, once", () => {
+    expect(distinctText("Yoga", "Yoga. Weekend batches. Weekend batches.")).toBe("Weekend batches.");
   });
 });
