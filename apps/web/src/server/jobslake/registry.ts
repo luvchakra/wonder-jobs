@@ -27,6 +27,7 @@ import { runTherapistsSource, THERAPISTS_SOURCES, therapistsSourceAvailable } fr
 import { COFOUNDERS_SOURCES, cofoundersSourceAvailable, runCofoundersSource } from "@/server/cofounders/sources";
 import { MARKETPLACE_SOURCES, marketplaceSourceAvailable, runMarketplaceSource } from "@/server/marketplace/sources";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
+import { GATEWAY_SOURCES, gatewayModuleForSource } from "./gatewaySources";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
 const ATS_CAPS = ["Search", "Job details", "Freshness", "Employer identity", "Apply URL"];
@@ -77,7 +78,7 @@ export async function listSources(module: ModuleId = "jobs"): Promise<SourceReco
   const stored = await jobsLakeStore().listSources(module);
   const byId = new Map(stored.map((s) => [s.id, s]));
   // Another module's own built-in sources (WonderWorks): Internships' in server/internships/sources.ts, Teaching's in server/teaching/sources.ts, Talent & Services' in server/services/sources.ts, Therapists' in server/therapists/sources.ts, Co-founders' in server/cofounders/sources.ts.
-  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES, ...TEACHING_SOURCES, ...SERVICES_SOURCES, ...THERAPISTS_SOURCES, ...EVENTS_SOURCES, ...COFOUNDERS_SOURCES, ...MARKETPLACE_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
+  const builtins = [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES, ...TEACHING_SOURCES, ...SERVICES_SOURCES, ...THERAPISTS_SOURCES, ...EVENTS_SOURCES, ...COFOUNDERS_SOURCES, ...MARKETPLACE_SOURCES, ...GATEWAY_SOURCES].filter((b) => sourceModule(b) === module).map((b) => {
     const o = byId.get(b.id);
     if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
@@ -95,7 +96,8 @@ export async function listSources(module: ModuleId = "jobs"): Promise<SourceReco
 }
 
 export async function getSource(id: string): Promise<SourceRecord | undefined> {
-  return (await listSources()).find((s) => s.id === id);
+  // The gateway has one opt-in source per module; existing source lookup semantics stay unchanged.
+  return (await listSources(gatewayModuleForSource(id) ?? "jobs")).find((s) => s.id === id);
 }
 
 /** Whether this deployment can actually query the source right now (credentials present, connector exists). */

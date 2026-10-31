@@ -25,6 +25,7 @@ const ENV_REFS: Record<string, { present: (env: Record<string, string | undefine
   "env:ADZUNA": { present: (e) => !!e.ADZUNA_APP_ID && !!e.ADZUNA_APP_KEY, label: () => "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
   "env:USAJOBS": { present: (e) => !!e.USAJOBS_API_KEY && !!e.USAJOBS_EMAIL, label: () => "USAJOBS_API_KEY + USAJOBS_EMAIL" },
   "env:JOOBLE": { present: (e) => !!e.JOOBLE_API_KEY, label: () => "JOOBLE_API_KEY" },
+  "env:WORKSLAKE_GATEWAY_API_KEY": { present: (e) => !!e.WORKSLAKE_GATEWAY_API_KEY, label: () => "WORKSLAKE_GATEWAY_API_KEY" },
   // Either variable may hold the keys; only how many are set is ever shown.
   "env:THEIRSTACK": {
     present: (e) => theirStackKeys(e).length > 0,
@@ -53,6 +54,7 @@ export async function saveCredential(secret: string, replaceRef?: string): Promi
 
 /** Plaintext, for a connector call only. */
 export async function readCredential(ref: string | undefined): Promise<string | undefined> {
+  if (ref === "env:WORKSLAKE_GATEWAY_API_KEY") return process.env.WORKSLAKE_GATEWAY_API_KEY || undefined;
   if (!ref || ref.startsWith("env:")) return undefined;
   const c = await jobsLakeStore().getCredential(ref);
   return c ? decrypt(c.ciphertext) : undefined;
