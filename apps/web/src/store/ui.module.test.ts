@@ -6,7 +6,7 @@ describe("the active WonderWorks module", () => {
     expect(liveModule("internships")).toBe("internships");
     expect(liveModule("events")).toBe("events");
     expect(liveModule("jobs")).toBe("jobs");
-    expect(liveModule("marketplace")).toBeUndefined();
+    expect(liveModule("marketplace")).toBe("marketplace");
     expect(liveModule("nope")).toBeUndefined();
     expect(liveModule(42)).toBeUndefined();
   });
@@ -17,7 +17,7 @@ describe("the active WonderWorks module", () => {
     expect(opts.partialize!(useUIStore.getState())).toMatchObject({ activeModule: "internships" });
     useUIStore.getState().setActiveModule("jobs");
     expect(opts.partialize!(useUIStore.getState())).not.toHaveProperty("activeModule");
-    const merged = opts.merge!({ activeModule: "marketplace" }, useUIStore.getState()) as { activeModule?: string };
+    const merged = opts.merge!({ activeModule: "nope" }, useUIStore.getState()) as { activeModule?: string };
     expect(merged.activeModule).toBe("jobs");
   });
 });
