@@ -63,6 +63,15 @@ describe("Freelancer.com experts", () => {
     expect(t).toMatchObject({ lane: "remote", category: "Development", priceKind: "hourly", priceMin: 25, currency: "USD", rating: 4.99, reviews: 101, completed: 115, onTimePct: 100, country: "Pakistan" });
   });
 
+  it("a pro is not a dated posting: the account's age never makes it \"too old\" (every pro was dropped for it before)", async () => {
+    const raw = rawFromFreelancerUser(pro)!;
+    expect(raw.postedAt).toBeNull();
+    const { postingTooOld } = await import("@/domain/jobs/age");
+    // A profile made in 2017 (the sample's registration_date) is not judged for age; a dated 2017 posting would be.
+    expect(postingTooOld(undefined)).toBe(false);
+    expect(postingTooOld(new Date(pro.registration_date! * 1000).toISOString())).toBe(true);
+  });
+
   it("skips closed accounts, clients, hidden profiles and pros with nothing to show", () => {
     expect(rawFromFreelancerUser({ ...pro, closed: true })).toBeNull();
     expect(rawFromFreelancerUser({ ...pro, role: "employer" })).toBeNull();

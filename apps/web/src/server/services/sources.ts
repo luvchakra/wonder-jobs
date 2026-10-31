@@ -87,7 +87,9 @@ export function rawFromFreelancerUser(u: FreelancerUser): RawPosting | null {
       ...(pct(h?.on_time) !== undefined ? { onTimePct: pct(h?.on_time) } : {}),
       ...(country ? { country } : {}),
     }),
-    postedAt: u.registration_date ? u.registration_date * 1000 : null,
+    // A directory profile is not a dated posting: its only date is when the account was made, which WorksLake's two-week
+    // age rule (domain/jobs/age.ts) read as "too old" and dropped every pro. No date, so it isn't judged for age.
+    postedAt: null,
     applyUrl: `https://www.freelancer.com/u/${encodeURIComponent(u.username)}`,
     employerSite: false,
   };
