@@ -575,3 +575,4 @@ _Last updated: 2026-10-03 — Navigation (WJ-182): four places (Jobs, Applicatio
 - ✅ Buy, Sell & Rent (part 1): listings, photos with metadata stripped, conversations, offers, deals, report/block and anti-scam rules on the server, its own WorksLake dataset; screens next (WJ-448)
 - ✅ Buy, Sell & Rent (part 2): routes and screens (Find, listing page with photos, Deals, conversation with offers, You, My listings, report/block and the payment warning everywhere); live once its migration is applied (WJ-449)
 - ✅ Buy, Sell & Rent goes live: Find, listing page, Deals, My listings, report/block and anti-scam rules; Help added (WJ-450)
+- ✅ Buy, Sell & Rent: adding a photo works with phone-sized photos (shrunk on your device first) (WJ-451)
