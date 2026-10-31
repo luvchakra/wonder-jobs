@@ -1,0 +1,23 @@
+{
+  "url": "https://teaching-vacancies.service.gov.uk/api/v1/jobs.json",
+  "kind": "json_api",
+  "modules": ["teaching"],
+  "permission": "terms_permit",
+  "permissionEvidence": "teaching-vacancies.service.gov.uk/pages/terms-and-conditions (read 2026-10-31): \"You are free to reuse job listing data under the terms of the Open Government Licence for public sector information\" — except: no fee or commission for contacting, interviewing or hiring a respondent. API info.license: Open Government License v3.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Teaching Vacancies (DfE, UK) — contains public sector information licensed under the Open Government Licence v3.0",
+  "itemsPath": "data",
+  "mapping": {
+    "id": "url",
+    "title": "title",
+    "employer": "hiringOrganization.name",
+    "location": "jobLocation.address.addressLocality",
+    "description": "description",
+    "applyUrl": "url",
+    "postedAt": "datePosted"
+  },
+  "retentionHours": 48,
+  "minIntervalMinutes": 720
+}
