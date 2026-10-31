@@ -92,13 +92,17 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
 export interface ListingShareProps extends ListingShareInput {
   module: string;
   className?: string;
+  /** For the public page only: where the listing came from, and its original posting when it came from outside. */
+  source?: string;
+  originalUrl?: string;
 }
 
 /**
  * The Share button on a module's listing card and listing page: `ListingShareInput` says what is shared, and the
  * message is made here, the same in every module.
  */
-export function ListingShare({ module, className, ...input }: ListingShareProps) {
+export function ListingShare({ module, className, noun, title, facts, lines, details, url }: ListingShareProps) {
+  const input = { noun, title, facts, lines, details, url };
   return (
     <ShareButton
       label={`Share ${input.title}`}

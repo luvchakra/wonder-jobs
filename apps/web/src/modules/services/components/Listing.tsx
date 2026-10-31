@@ -11,7 +11,7 @@ import { LANE_LABEL, materialsLabel, matchService, priceLabel, ratingLabel, turn
 import { listingHref } from "../manifest";
 import { selectProfile, useServicesStore } from "../store";
 import { isOpen } from "./Request";
-import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
+import { shareOf } from "../share";
 
 export function useMatch(l: ServiceListing): ServiceMatch {
   return matchService(l, useServicesStore(selectProfile));
@@ -95,13 +95,4 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="pro" />}
     />
   );
-});
-
-/** What Share sends about a pro's service: its public facts, linking to the original page when it came from outside. */
-export const shareOf = (l: ServiceListing): ListingShareProps => ({
-  module: "services",
-  noun: "service",
-  title: l.title,
-  facts: [l.company, priceLabel(l.terms)],
-  url: (l.origin === "outside" && l.applyUrl) || "/app/m/services",
 });

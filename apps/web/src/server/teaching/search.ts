@@ -49,6 +49,11 @@ export function outside(o: CanonicalOpportunity): TeachingListing {
   };
 }
 
+/** A WonderWorks school's open opening as Find and its public page list it: with the terms the school gave. */
+export function wonderworksTeaching({ posting, org }: Awaited<ReturnType<typeof openTeachingPosts>>[number], sourceName: string): TeachingListing {
+  return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_TEACHING, sourceName };
+}
+
 /** Search teaching openings for these words and places. The words are the teacher's own; there is no default. */
 export async function searchTeaching(input: { query: string; places: string[]; refresh?: boolean }): Promise<TeachingSearchResult> {
   const query = input.query.trim().slice(0, 120);
@@ -65,8 +70,7 @@ export async function searchTeaching(input: { query: string; places: string[]; r
       // Only an opening that is still open is listed — with its school's own terms.
       const p = byPosting.get(ws.sourceJobId);
       if (!p) continue;
-      const { posting, org } = p;
-      results.push({ id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_TEACHING, sourceName: ws.sourceName });
+      results.push(wonderworksTeaching(p, ws.sourceName));
     } else if (isTeachingTitle(o.title)) results.push(outside(o));
   }
   // Every source the dataset has, with what it gave: asked, or why it wasn't.

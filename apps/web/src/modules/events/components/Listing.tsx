@@ -10,7 +10,7 @@ import { ageLabel, matchEvent, seatsLabel, whenLabel, type EventListing, type Ev
 import { listingHref } from "../manifest";
 import { selectPersona, useEventsStore } from "../store";
 import { isLive } from "./Rsvp";
-import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
+import { shareOf } from "../share";
 
 export function useMatch(l: EventListing): EventMatch {
   return matchEvent(l, useEventsStore(selectPersona));
@@ -70,6 +70,3 @@ export const EventCard = memo(function EventCard({ item: l, onOpen }: { item: Ev
     />
   );
 });
-
-/** What Share sends about an event: when, where and who runs it. The link goes to the module. */
-export const shareOf = (l: EventListing): ListingShareProps => ({ module: "events", noun: "event", title: l.title, facts: [whenLabel(l.terms.startsAt), l.terms.online ? "Online" : shortPlace(l.location), l.company], url: "/app/m/events" });

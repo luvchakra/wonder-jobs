@@ -30,7 +30,7 @@ export interface InternshipSearchResult {
 
 const MAX_RESULTS = 200;
 
-function outside(o: CanonicalOpportunity): InternshipListing {
+export function outside(o: CanonicalOpportunity): InternshipListing {
   const rec = o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0];
   const duration = durationFromText(`${o.title} ${o.description.slice(0, 600)}`);
   return {
@@ -51,6 +51,11 @@ function outside(o: CanonicalOpportunity): InternshipListing {
   };
 }
 
+/** A WonderWorks company's open posting as Find and its public page list it: with the terms the company gave. */
+export function wonderworksInternship({ posting, org }: Awaited<ReturnType<typeof openInternships>>[number], sourceName: string): InternshipListing {
+  return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", skills: posting.skills, description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_INTERNSHIPS, sourceName };
+}
+
 /** Search internships for these words and places. The words are the student's own; there is no default. */
 export async function searchInternships(input: { query: string; places: string[]; refresh?: boolean }): Promise<InternshipSearchResult> {
   const query = input.query.trim().slice(0, 120);
@@ -68,8 +73,7 @@ export async function searchInternships(input: { query: string; places: string[]
       // Only a posting that is still open (and before its last day to apply) is listed — with its company's own terms.
       const p = byPosting.get(ws.sourceJobId);
       if (!p || !stillOpen(p.posting.terms)) continue;
-      const { posting, org } = p;
-      results.push({ id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", skills: posting.skills, description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_INTERNSHIPS, sourceName: ws.sourceName });
+      results.push(wonderworksInternship(p, ws.sourceName));
     } else results.push(outside(o));
   }
   // Every source the dataset has, with what it gave: asked, or why it wasn't.

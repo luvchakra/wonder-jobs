@@ -13,8 +13,9 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
-import { FIT, useMatch, shareOf } from "./Listing";
+import { FIT, useMatch } from "./Listing";
 import { RequestSession } from "./Request";
+import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/therapists", label: "Therapists" };
