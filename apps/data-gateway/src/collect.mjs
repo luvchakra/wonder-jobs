@@ -175,12 +175,15 @@ export async function fetchRecords(source, deps = {}) {
   } else if (source.kind === "rss") items = parseFeed(body);
   else items = parseStructured(body);
   const observedAt = new Date().toISOString();
+  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
   const out = [], seen = new Set();
+  let repeats = 0;
   for (const module of source.modules) for (const item of items.slice(0, 500)) {
     const normalized = normalize(source, item, module, observedAt);
-    if (normalized && !seen.has(normalized.id)) { seen.add(normalized.id); out.push(normalized); }
+    if (normalized && seen.has(normalized.id)) repeats++;
+    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
   }
-  return { discovered: items.length * source.modules.length, valid: out.length, results: out };
+  return { discovered: items.length * source.modules.length - repeats, repeats, valid: out.length, results: out };
 }
 
 const dig = (obj, path) => String(path || "").split(".").filter(Boolean).reduce((v, k) => (v && typeof v === "object" ? v[k] : undefined), obj);
@@ -217,10 +220,13 @@ export async function pagedRecords(source, deps = {}) {
     next = typeof n === "string" && n ? new URL(n, url).toString() : null;
   }
   const observedAt = new Date(now()).toISOString();
+  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
   const out = [], seen = new Set();
+  let repeats = 0;
   for (const module of source.modules) for (const item of items) {
     const normalized = normalize(source, item, module, observedAt);
-    if (normalized && !seen.has(normalized.id)) { seen.add(normalized.id); out.push(normalized); }
+    if (normalized && seen.has(normalized.id)) repeats++;
+    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
   }
-  return { discovered: items.length * source.modules.length, valid: out.length, results: out, merge: true, crawl: { pages: null, read, failed, cursor: next } };
+  return { discovered: items.length * source.modules.length - repeats, repeats, valid: out.length, results: out, merge: true, crawl: { pages: null, read, failed, cursor: next } };
 }

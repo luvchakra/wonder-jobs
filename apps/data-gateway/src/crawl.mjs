@@ -99,13 +99,16 @@ export async function crawlRecords(source, deps = {}) {
   }
 
   const observedAt = new Date(now()).toISOString();
+  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
   const out = [], seen = new Set();
+  let repeats = 0;
   for (const module of source.modules) for (const item of items) {
     const normalized = normalize(source, item, module, observedAt);
-    if (normalized && !seen.has(normalized.id)) { seen.add(normalized.id); out.push(normalized); }
+    if (normalized && seen.has(normalized.id)) repeats++;
+    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
   }
   return {
-    discovered: items.length * source.modules.length,
+    discovered: items.length * source.modules.length - repeats, repeats,
     valid: out.length,
     results: out,
     // Crawled sources add to what earlier runs found instead of replacing it.

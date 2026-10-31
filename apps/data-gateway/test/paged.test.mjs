@@ -37,3 +37,15 @@ test("the run log keeps only its newest entries", () => {
   assert.equal(s.runs.length, MAX_RUNS);
   assert.equal(s.runs[0].at, "25");
 });
+
+test("a record repeated across pages is one record, not a failed one", async () => {
+  const dup = {
+    "https://api.example.org/jobs.json": JSON.stringify({ data: [{ url: "https://api.example.org/j/1", title: "Teacher 1", org: "School 1", date: "2026-10-30" }, { url: "https://api.example.org/j/2", title: "Teacher 2", org: "School 2", date: "2026-10-30" }], links: { next: "https://api.example.org/jobs.json?page=2" } }),
+    "https://api.example.org/jobs.json?page=2": JSON.stringify({ data: [{ url: "https://api.example.org/j/2", title: "Teacher 2", org: "School 2", date: "2026-10-30" }], links: { next: null } }),
+  };
+  const r = await pagedRecords(src, { get: async (u) => dup[u], sleep: async () => {}, now: () => 0 });
+  assert.equal(r.valid, 2);
+  assert.equal(r.repeats, 1);
+  assert.equal(r.discovered, 2, "the repeat isn't counted against the source's quality");
+  assert.ok(r.valid / r.discovered >= 0.9);
+});
