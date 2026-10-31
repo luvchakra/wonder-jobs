@@ -338,3 +338,16 @@ PR #438 adds a separate Node.js gateway package at apps/data-gateway and an opt-
 All eight module datasets have an optional gateway definition (jobs, internships, teaching, services, therapists, cofounders, events and marketplace), but **none has a new approved or live upstream provider from this PR**. The gateway stores only actual permitted material, preserves provenance, and only admits sources with recorded permission, retention and redistribution rights. Therapists/cofounders/services/marketplace additionally require consent verification. WorksLake does not scrape portals itself and its existing source restrictions remain unchanged.
 
 Gateway endpoints are versioned separately from WorksLake Protocol v1 and present a compatibility JSON response using WorksLake's existing field mapper. The gateway runs out of band. Until production-grade persistence, queueing, rate limiting and rights review are complete this should be considered staging-ready MVP only. Details: [WORKSLAKE_EXTERNAL_DATA_GATEWAY.md](WORKSLAKE_EXTERNAL_DATA_GATEWAY.md) and [gateway README](../apps/data-gateway/README.md).
+
+### 13.1 Gateway pilot: first source checks (2026-10-31)
+
+Run with the gateway's own fetcher and robots check, from the sandbox. Nothing was stored from the two ineligible sources. Permission evidence is what each site says itself; it is recorded on the source (`apps/data-gateway/sources/*.json`) and is the admin's to confirm before activation.
+
+| Candidate | Module | Robots | Permission found | Result |
+|---|---|---|---|---|
+| We Work Remotely RSS (`/remote-jobs.rss`) | Jobs | Allowed | Written, on its feed page: "Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely." | **Eligible.** Tested end to end on a local gateway: 99 items, 98 valid (company read from its "Company: Title" format, region as location, remote-only), searched, module-isolated (0 in Internships), plain text only. Definition: `sources/we-work-remotely.json`. Not live: the gateway is not deployed, so no production check has been made. Attribution to We Work Remotely must show wherever a listing does. |
+| Working Nomads API (`/api/exposed_jobs/`) | Jobs | Allowed | None found (no API page; terms bar commercial exploitation of the service) | `do_not_use` until Working Nomads confirms reuse in writing. |
+| Jobspresso RSS (`/feed/?post_type=job_listing`) | Jobs | **Disallows the path** | n/a | `do_not_use`. The gateway refuses it. |
+
+Still open from §11: Teaching, Events, Services and the other modules have no eligible source found yet; Events (Ticketmaster) needs a key, Teaching needs a school or recruitment-notice source with written permission.
+

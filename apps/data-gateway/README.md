@@ -28,6 +28,10 @@ Every API key has module-specific read permissions and can be revoked or rotated
 - Existing platform partner portal Do not use entries remain unchanged.
 - Tests: npm run gateway:check (Node syntax and unit suites). Existing root npm test now runs gateway tests.
 
+## Reviewed sources
+
+`sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.
+
 ## Behaviour worth knowing
 
 - **Rate limit:** each API key gets GATEWAY_RATE_LIMIT_PER_MINUTE calls a minute (default 120). Over it, the answer is 429 with `Retry-After`. Counted in memory, per process.
