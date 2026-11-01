@@ -206,7 +206,8 @@ function readCursor(cursor, secret) {
   if (parts.length !== 2 || !secureEqual(parts[1], createHmac("sha256", secret).update(parts[0]).digest("base64url"))) throw new ApiError(400, "INVALID_CURSOR", "Invalid cursor");
   try { return JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")); } catch { throw new ApiError(400, "INVALID_CURSOR", "Invalid cursor"); }
 }
-export function search(state, consumer, payload, secret) {
+/** What a search may see and how it pages: the module (scope-checked), words, places, page and the sources it may read. */
+export function searchPlan(state, consumer, payload, secret) {
   const module = payload?.module;
   checkScope(consumer, module);
   const limit = Math.min(MAX_PAGE, Math.max(1, Number.isInteger(payload.limit) ? payload.limit : 50));
@@ -215,12 +216,49 @@ export function search(state, consumer, payload, secret) {
   const fingerprint = createHash("sha256").update(JSON.stringify({ module, query, locations })).digest("hex");
   const cursor = readCursor(payload.cursor, secret);
   if (cursor && (cursor.f !== fingerprint || !Number.isInteger(cursor.offset) || cursor.offset < 0 || cursor.offset > 100000)) throw new ApiError(400, "INVALID_CURSOR", "Cursor does not match search");
-  const now = Date.now();
-  const allowedSources = new Set(state.sources.filter((s) => s.enabled && s.modules.includes(module) && s.redistributionAllowed).filter((s) => consumer.consumerId === "workslake" || s.externalRedistributionAllowed).map((s) => s.id));
-  const results = state.listings.filter((x) => x.module === module && allowedSources.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && (!query || (x.title + " " + x.description + " " + x.organization).toLowerCase().includes(query)) && (!locations.length || locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
-  const start = cursor?.offset ?? 0;
-  const page = results.slice(start, start + limit);
-  return { requestId: id("req"), module, results: page, nextCursor: start + limit < results.length ? signCursor({ f: fingerprint, offset: start + limit }, secret) : null, metadata: { totalReturned: page.length, matched: results.length, sourceCount: allowedSources.size, cacheStatus: "indexed", asOf: iso() } };
+  const sourceIds = state.sources.filter((s) => s.enabled && s.modules.includes(module) && s.redistributionAllowed).filter((s) => consumer.consumerId === "workslake" || s.externalRedistributionAllowed).map((s) => s.id);
+  return { module, query, locations, limit, offset: cursor?.offset ?? 0, fingerprint, sourceIds };
+}
+/** One page of a search from the rows that matched (`matched` in all). */
+export function searchResponse(plan, rows, matched, secret) {
+  const next = plan.offset + plan.limit < matched ? signCursor({ f: plan.fingerprint, offset: plan.offset + plan.limit }, secret) : null;
+  return { requestId: id("req"), module: plan.module, results: rows, nextCursor: next, metadata: { totalReturned: rows.length, matched, sourceCount: plan.sourceIds.length, cacheStatus: "indexed", asOf: iso() } };
+}
+/** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
+export function filterListings(listings, plan, now = Date.now()) {
+  const allowed = new Set(plan.sourceIds);
+  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && (!plan.query || (x.title + " " + x.description + " " + x.organization).toLowerCase().includes(plan.query)) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
+  return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
+}
+export function search(state, consumer, payload, secret) {
+  const plan = searchPlan(state, consumer, payload, secret);
+  const { rows, matched } = filterListings(state.listings, plan);
+  return searchResponse(plan, rows, matched, secret);
+}
+/**
+ * Listings kept in the state document itself (the standalone service's file store). A database store gives its own
+ * `listings` with the same four calls, so the listings never sit in one big document there.
+ */
+export function stateListings(store) {
+  return {
+    async search(plan) { return store.read((s) => filterListings(s.listings, plan)); },
+    async get(id) { return store.read((s) => s.listings.find((x) => x.id === id)); },
+    async replace(sourceId, results, merge) {
+      const fresh = new Set(results.map((x) => x.id));
+      return store.change((s) => {
+        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (merge && !fresh.has(x.id))).concat(results).filter((x) => Date.parse(x.expiresAt) > Date.now());
+        return s.listings.filter((x) => x.sourceId === sourceId).length;
+      });
+    },
+    async counts() {
+      return store.read((s) => {
+        const now = Date.now();
+        const bySource = {}, byModule = {};
+        for (const l of s.listings) if (Date.parse(l.expiresAt) > now) { bySource[l.sourceId] = (bySource[l.sourceId] ?? 0) + 1; byModule[l.module] = (byModule[l.module] ?? 0) + 1; }
+        return { bySource, byModule };
+      });
+    },
+  };
 }
 export function recordUsage(state, consumer, route, module, results = 0) {
   const day = iso().slice(0, 10);
@@ -276,4 +314,11 @@ export function normalizeAll(source, items, observedAt, now = Date.now()) {
     else if (n) { seen.add(n.id); out.push(n); }
   }
   return { results: out, valid: out.length, repeats, past, discovered: items.length * source.modules.length - repeats - past };
+}
+
+/** Keeps the audit trail to its newest entries, so the state document stays small. */
+export const MAX_AUDITS = 1000;
+export function pushAudit(state, entry) {
+  state.audits.push(entry);
+  if (state.audits.length > MAX_AUDITS) state.audits.splice(0, state.audits.length - MAX_AUDITS);
 }

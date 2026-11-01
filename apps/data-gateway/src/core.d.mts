@@ -44,3 +44,6 @@ export function search(
   secret: string,
 ): GatewaySearchResult;
 export const MODULES: readonly string[];
+
+export interface SearchPlan { module: string; query: string; locations: string[]; limit: number; offset: number; fingerprint: string; sourceIds: string[] }
+export function searchPlan(state: GatewayState, consumer: { id: string; consumerId: string; scopes: string[] }, payload: { module: string; query?: string; locations?: string[]; limit?: number; cursor?: string }, secret: string): SearchPlan;

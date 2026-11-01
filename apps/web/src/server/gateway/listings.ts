@@ -1,4 +1,4 @@
-import { MODULES, search, type GatewayListing } from "../../../../data-gateway/src/core.mjs";
+import { MODULES, searchPlan, type GatewayListing } from "../../../../data-gateway/src/core.mjs";
 import { hostedGateway } from "./index";
 
 /**
@@ -11,7 +11,8 @@ export async function gatewayListings(module: string, input: { query?: string; p
   const secret = process.env.GATEWAY_CURSOR_SECRET;
   if (!hosted || !secret || !MODULES.includes(module)) return { configured: !!hosted, results: [], sources: [] };
   const internal = { id: "in-app", consumerId: "workslake", scopes: [`read:${module}`] };
-  const r = await hosted.store.read((s) => search(s, internal, { module, query: input.query ?? "", locations: input.places ?? [], limit: Math.min(100, input.limit ?? 50) }, secret));
+  const plan = await hosted.store.read((s) => searchPlan(s, internal, { module, query: input.query ?? "", locations: input.places ?? [], limit: Math.min(100, input.limit ?? 50) }, secret));
+  const r = { results: (await hosted.store.listings.search(plan)).rows };
   const counts = new Map<string, { id: string; name: string; count: number }>();
   for (const l of r.results) {
     const c = counts.get(l.sourceId) ?? { id: l.sourceId, name: l.sourceName, count: 0 };

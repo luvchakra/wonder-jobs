@@ -34,14 +34,11 @@ const numOr = (v: unknown, d: number) => (typeof v === "number" && Number.isFini
 export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview> {
   const hosted = hostedGateway();
   if (!hosted) return { configured: false, sources: [], runs: [], byModule: [], last24h: { runs: 0, ok: 0, failed: 0, collected: 0 }, usageToday: [] };
+  const sources0 = await hosted.store.read((s) => (s.sources as Rec[]).map((x) => ({ sourceId: String(x.id), modules: ((x.modules as string[]) ?? []) })));
+  const { bySource, byModule } = await hosted.store.listings.counts(sources0);
   return hosted.store.read((s) => {
-    const counts = new Map<string, number>();
-    const perModule = new Map<string, number>();
-    for (const l of s.listings as Rec[]) {
-      if (Date.parse(String(l.expiresAt)) <= now) continue;
-      counts.set(String(l.sourceId), (counts.get(String(l.sourceId)) ?? 0) + 1);
-      perModule.set(String(l.module), (perModule.get(String(l.module)) ?? 0) + 1);
-    }
+    const counts = new Map(Object.entries(bySource));
+    const perModule = new Map(Object.entries(byModule));
     const names = new Map((s.sources as Rec[]).map((x) => [String(x.id), String(x.attribution ?? x.id)]));
     const sources: GatewaySourceRow[] = (s.sources as Rec[]).map((x) => {
       const crawlish = x.kind === "crawl" || typeof x.nextPath === "string";
