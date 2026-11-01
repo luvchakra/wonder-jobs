@@ -15,6 +15,7 @@ import { healthBySource } from "./core";
 import { isAvailable, listSources } from "./registry";
 import { MODULES, MODULE_IDS, type ModuleId } from "@/modules/registry";
 import { jobsLakeStore } from "./store";
+import { loadSafeguards, usageLevel } from "./safeguards";
 import type { SourceRecord } from "./types";
 
 export interface SourceView extends Omit<SourceRecord, "secretRef"> {
@@ -187,13 +188,23 @@ export async function qualityView(days = 7, module: ModuleId = "jobs"): Promise<
   return qualityFrom(opps, health, new Map(sources.map((s) => [s.id, s.name])));
 }
 
+/** The database past the storage safeguards' alert line (Settings → Storage), from the last daily measure. */
+async function storageAlert(): Promise<Alert | null> {
+  const { settings, lastRun } = await loadSafeguards();
+  if (!lastRun?.dbBytes) return null;
+  const { percent, alert } = usageLevel(lastRun.dbBytes, settings);
+  if (!alert) return null;
+  return { id: "storage", sourceId: "storage", kind: "storage", severity: percent >= 90 ? "critical" : "warning", title: `Database ${percent}% full`, detail: `${Math.round(lastRun.dbBytes / 1048576)} MB of ${settings.limitMb} MB. Tighten Settings → Storage or upgrade the database plan.`, since: lastRun.at };
+}
+
 export async function alertsView(): Promise<Alert[]> {
   // Every module's sources (the admin caters to all modules equally, owner 2026-11-01).
   const [sources, runs] = await Promise.all([everyModuleSource(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - 7 * 86_400_000).toISOString(), limit: 5000 })]);
   // Only sources WorksLake is meant to be reading raise alerts; a paused or do-not-use source is quiet by design.
-  return sources
+  const storage = await storageAlert().catch(() => null);
+  return [...(storage ? [storage] : []), ...sources
     .filter((s) => s.status === "active" || s.status === "degraded")
-    .flatMap((s) => deriveAlerts(s.id, s.name, runs))
+    .flatMap((s) => deriveAlerts(s.id, s.name, runs))]
     .sort((a, b) => (a.severity === b.severity ? b.since.localeCompare(a.since) : a.severity === "critical" ? -1 : 1));
 }
 

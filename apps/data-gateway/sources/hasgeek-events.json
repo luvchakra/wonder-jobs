@@ -1,0 +1,33 @@
+{
+  "url": "https://hasgeek.com/",
+  "kind": "crawl",
+  "discover": "links",
+  "pathPattern": "/*/*",
+  "modules": [
+    "events"
+  ],
+  "geography": [
+    "IN"
+  ],
+  "timezone": "Asia/Kolkata",
+  "permission": "terms_permit",
+  "permissionEvidence": "hasgeek.com/robots.txt (read 2026-11-01) disallows only /account and /login. Hasgeek runs India's developer communities (Rootconf, The Fifth Elephant, Anthill Inside and others); the home page and each community's page link to their current events, and an event's own page (/<community>/<event>) publishes schema.org Event JSON-LD with its dates in India time. Links that are not events carry none and are skipped. Terms pending: the owner confirms Hasgeek's terms for reuse of its event pages.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "robotsReviewed": true,
+  "attribution": "Hasgeek (hasgeek.com)",
+  "organizationOptional": true,
+  "dropPastAfter": "endDate",
+  "maxPagesPerRun": 40,
+  "crawlDelayMs": 1000,
+  "retentionHours": 336,
+  "minIntervalMinutes": 720,
+  "extraUrls": [
+    "https://hasgeek.com/rootconf/",
+    "https://hasgeek.com/fifthelephant/",
+    "https://hasgeek.com/anthillinside/",
+    "https://hasgeek.com/bengalurusystemsmeetup/",
+    "https://hasgeek.com/communitytech/"
+  ]
+}

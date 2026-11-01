@@ -1,0 +1,24 @@
+{
+  "url": "https://apna.co/",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "sitemap": "https://apna.co/api/job-listing-sitemap.xml",
+  "pathPrefix": "/job/",
+  "modules": [
+    "jobs"
+  ],
+  "geography": [
+    "IN"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm apna's terms allow reuse of its job listings. Checked 2026-11-01: robots.txt allows these paths (it disallows only *.infra.apna.co) and lists /api/sitemap-index.xml; its active-job-listings sitemaps link /job/<city>/<title>-<id> pages, each with a schema.org JobPosting (hiringOrganization, datePosted, validThrough). Entry-level and blue-collar jobs across Indian cities (delivery, sales, office, field roles).",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "apna.co",
+  "retentionHours": 168,
+  "minIntervalMinutes": 1440,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 2000
+}

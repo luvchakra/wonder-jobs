@@ -1,12 +1,17 @@
+import apnaInternships from "../../../../data-gateway/sources/apna-internships.json";
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
+import districtEvents from "../../../../data-gateway/sources/district-events.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
 import jobsAcUk from "../../../../data-gateway/sources/jobs-ac-uk.json";
+import cutshortJobs from "../../../../data-gateway/sources/cutshort-jobs.json";
+import apnaJobs from "../../../../data-gateway/sources/apna-jobs.json";
 import wedmegood1 from "../../../../data-gateway/sources/wedmegood-vendors-1.json";
 import wedmegood2 from "../../../../data-gateway/sources/wedmegood-vendors-2.json";
 import wedmegood3 from "../../../../data-gateway/sources/wedmegood-vendors-3.json";
 import wedmegood4 from "../../../../data-gateway/sources/wedmegood-vendors-4.json";
 import hackerearthEvents from "../../../../data-gateway/sources/hackerearth-events.json";
+import hasgeekEvents from "../../../../data-gateway/sources/hasgeek-events.json";
 import helsinkiLinkedEvents from "../../../../data-gateway/sources/helsinki-linkedevents.json";
 import houzzInteriorDesignersAndDecorators from "../../../../data-gateway/sources/houzz-interior-designers-and-decorators.json";
 import houzzArchitects from "../../../../data-gateway/sources/houzz-architects.json";
@@ -22,10 +27,12 @@ import konfhubEvents from "../../../../data-gateway/sources/konfhub-events.json"
 import linuxFoundationEvents from "../../../../data-gateway/sources/linux-foundation-events.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
 import osmServicesEast from "../../../../data-gateway/sources/osm-services-east.json";
+import osmServicesMore from "../../../../data-gateway/sources/osm-services-more.json";
 import osmServicesNorth from "../../../../data-gateway/sources/osm-services-north.json";
 import osmServicesSouth from "../../../../data-gateway/sources/osm-services-south.json";
 import osmServicesWest from "../../../../data-gateway/sources/osm-services-west.json";
 import osmTherapistsEast from "../../../../data-gateway/sources/osm-therapists-east.json";
+import osmTherapistsMore from "../../../../data-gateway/sources/osm-therapists-more.json";
 import osmTherapistsNorth from "../../../../data-gateway/sources/osm-therapists-north.json";
 import osmTherapistsSouth from "../../../../data-gateway/sources/osm-therapists-south.json";
 import osmTherapistsWest from "../../../../data-gateway/sources/osm-therapists-west.json";
@@ -39,15 +46,20 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  * adding it here too (a test checks every file is listed). A source is added paused, then tested and activated as usual.
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
+  "apna-internships.json": apnaInternships as Record<string, unknown>,
   "confs-tech.json": confsTech as Record<string, unknown>,
   "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
+  "district-events.json": districtEvents as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
   "jobs-ac-uk.json": jobsAcUk as Record<string, unknown>,
+  "cutshort-jobs.json": cutshortJobs as Record<string, unknown>,
+  "apna-jobs.json": apnaJobs as Record<string, unknown>,
   "wedmegood-vendors-1.json": wedmegood1 as Record<string, unknown>,
   "wedmegood-vendors-2.json": wedmegood2 as Record<string, unknown>,
   "wedmegood-vendors-3.json": wedmegood3 as Record<string, unknown>,
   "wedmegood-vendors-4.json": wedmegood4 as Record<string, unknown>,
   "hackerearth-events.json": hackerearthEvents as Record<string, unknown>,
+  "hasgeek-events.json": hasgeekEvents as Record<string, unknown>,
   "helsinki-linkedevents.json": helsinkiLinkedEvents as Record<string, unknown>,
   "houzz-interior-designers-and-decorators.json": houzzInteriorDesignersAndDecorators as Record<string, unknown>,
   "houzz-architects.json": houzzArchitects as Record<string, unknown>,
@@ -63,10 +75,12 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "linux-foundation-events.json": linuxFoundationEvents as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
   "osm-services-east.json": osmServicesEast as Record<string, unknown>,
+  "osm-services-more.json": osmServicesMore as Record<string, unknown>,
   "osm-services-north.json": osmServicesNorth as Record<string, unknown>,
   "osm-services-south.json": osmServicesSouth as Record<string, unknown>,
   "osm-services-west.json": osmServicesWest as Record<string, unknown>,
   "osm-therapists-east.json": osmTherapistsEast as Record<string, unknown>,
+  "osm-therapists-more.json": osmTherapistsMore as Record<string, unknown>,
   "osm-therapists-north.json": osmTherapistsNorth as Record<string, unknown>,
   "osm-therapists-south.json": osmTherapistsSouth as Record<string, unknown>,
   "osm-therapists-west.json": osmTherapistsWest as Record<string, unknown>,

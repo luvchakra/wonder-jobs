@@ -7,6 +7,7 @@ import { listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
 import { runReminderPass } from "@/server/workflow/reminderPass";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
 import { runModuleSchedulePass } from "@/server/schedules/run";
+import { runSafeguards, type SafeguardRun } from "@/server/jobslake/safeguards";
 import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 import { sendDigest } from "@/server/digest/send";
 import { stateStore } from "@/server/state";
@@ -122,6 +123,15 @@ export async function GET(req: Request) {
     }
   }
 
+  // Storage safeguards (Admin → Settings → Storage): stale listings out, gateway sources capped, the database measured.
+  let storage: SafeguardRun | null = null;
+  try {
+    storage = await runSafeguards(now);
+    if (storage.error) failures.push({ tenantId: "*", error: `storage safeguards: ${storage.error}` });
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `storage safeguards: ${e instanceof Error ? e.message : String(e)}` });
+  }
+
   // Daily controls: billing reconciliation against the providers, and retention purges.
   let billing: ReconcileReport | null = null;
   let purged: { contactMessages: number } | null = null;
@@ -160,6 +170,7 @@ export async function GET(req: Request) {
     tenantsDue: tenants.length,
     ran: reports.length,
     moduleRuns,
+    storage,
     deferred,
     reminders: { tenants: remindedTenants, raised: reminded },
     digests,
