@@ -523,7 +523,7 @@ async function searchWithJobsLake(ctx: StageContext, sourceIds: string[]): Promi
       throw sig;
     }
     if (e.type === "search_started") {
-      ctx.addEvidence({ label: "Searched with", value: `WorksLake · ${e.plannedSources.length} sources planned`, tone: "info" });
+      ctx.addEvidence({ label: "Searched with", value: req.latest ? "WorksLake · latest stored jobs" : `WorksLake · ${e.plannedSources.length} sources planned`, tone: "info" });
       // Only once WorksLake is searching them: the direct fallback path searches the candidate's words alone.
       const said = phrasingEvidence(phrasings.variants, phrasings.fromAi);
       if (said) ctx.addEvidence(said);
