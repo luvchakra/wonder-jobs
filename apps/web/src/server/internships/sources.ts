@@ -12,6 +12,7 @@
  * - The Muse and Himalayas: their public APIs asked for internships only (level=Internship, employment_type=Intern).
  * - USAJOBS: the US government's Search API, for jobs open to students (Pathways internships) — needs USAJOBS_API_KEY + USAJOBS_EMAIL.
  * - Jooble: its REST API asked for internships — needs JOOBLE_API_KEY.
+ * - Unstop (India) and the Workable job board: public JSON lists, live with "terms pending" (CLAUDE.md, "Finding data sources").
  * Connectors for the internship-only APIs are in ./providers.ts.
  * Not here, on purpose: Internshala and LinkedIn publish no open job-search API (LinkedIn's Job Posting API is partner-only,
  * Internshala has none), and WorksLake never scrapes a site against its terms. AICTE's internship portal and India's NATS publish
@@ -27,7 +28,7 @@ import { fetchAtsBoards } from "@/server/jobslake/ats";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { asIntern, fetchHimalayasInternships, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
+import { asIntern, fetchHimalayasInternships, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
 
 const EPOCH = "2026-10-28T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL", "Job type"];
@@ -41,7 +42,7 @@ export const WONDERSTAR_INTERNSHIPS = "intern_wonderstar";
 export const INTERNSHIP_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_INTERNSHIPS, name: "WonderWorks companies", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Internships companies post in their WonderWorks hiring workspace." }),
   source({ id: "intern_adzuna_in", name: "Adzuna India internships", provider: "Adzuna", category: "aggregator", geography: ["IN"], secretRef: "env:ADZUNA", capabilities: [...FEED_CAPS, "Salary"], description: "Adzuna India's search API, asked for internships." }),
-  source({ id: "intern_careers", name: "Company career sites", provider: "Greenhouse, Lever, Ashby", category: "ats", geography: ["global"], description: "Internships on the Greenhouse, Lever and Ashby career sites WorksLake reads." }),
+  source({ id: "intern_careers", name: "Company career sites", provider: "Greenhouse, Lever, Ashby", category: "ats", geography: ["global"], description: "Internships on the Greenhouse, Lever and Ashby career sites WorksLake reads, and more with intern programmes (Paytm, InMobi, Sarvam AI, Waymo, Jump Trading…)." }),
   source({ id: "intern_smartrecruiters", name: "SmartRecruiters career sites", provider: "SmartRecruiters", category: "ats", geography: ["IN", "global"], description: "Internships on SmartRecruiters career sites (public Posting API)." }),
   source({ id: "intern_remotive", name: "Remotive internships", provider: "Remotive", category: "aggregator", geography: ["remote"], description: "Remote internships from Remotive's public API." }),
   source({ id: "intern_remoteok", name: "Remote OK internships", provider: "Remote OK", category: "aggregator", geography: ["remote"], description: "Remote internships from Remote OK's public API." }),
@@ -50,13 +51,16 @@ export const INTERNSHIP_SOURCES: SourceRecord[] = [
   source({ id: "intern_arbeitnow", name: "Arbeitnow internships", provider: "Arbeitnow", category: "aggregator", geography: ["DE", "remote"], description: "Internships (Praktikum) from Arbeitnow's public job-board API." }),
   source({ id: "intern_jobicy", name: "Jobicy internships", provider: "Jobicy", category: "aggregator", geography: ["remote"], capabilities: [...FEED_CAPS, "Salary"], description: "Remote internships from Jobicy's public API." }),
   source({ id: "intern_usajobs", name: "USAJOBS student internships", provider: "USAJOBS", category: "portal", geography: ["US"], secretRef: "env:USAJOBS", capabilities: [...FEED_CAPS, "Salary"], description: "US federal internships open to students (Pathways) from the USAJOBS Search API." }),
+  source({ id: "intern_unstop", name: "Unstop internships", provider: "Unstop", category: "aggregator", geography: ["IN", "remote"], capabilities: [...FEED_CAPS, "Salary"], statusReason: "terms pending: Unstop's public opportunity list has no published reuse terms and its robots.txt disallows /api/*; confirm with Unstop", description: "Open internships for Indian students from Unstop, with the stipend each states." }),
+  source({ id: "intern_workable", name: "Workable job board internships", provider: "Workable", category: "ats", geography: ["global", "IN"], statusReason: "terms pending: jobs.workable.com's job-search JSON is public and robots.txt doesn't disallow it, but Workable's terms don't state reuse; confirm with Workable", description: "Internships on Workable career sites, from Workable's public job board." }),
   source({ id: "intern_jooble", name: "Jooble internships", provider: "Jooble", category: "aggregator", geography: ["global", "IN"], secretRef: "env:JOOBLE", description: "Internships from Jooble's REST API." }),
 ];
 
 /** Only internships: as the source reported the type, or as the title says it. A posting that says neither isn't one. */
 export const isInternship = (j: Pick<Job, "jobType">) => j.jobType === "internship";
 
-const boards = CAREER_BOARDS.map((b) => ({ platform: b.ats, slug: b.slug, company: b.company, domain: b.domain }));
+// WorksLake's career sites, plus the boards Internships adds for their intern programmes (a board on both is asked once).
+const boards = [...CAREER_BOARDS.map((b) => ({ platform: b.ats, slug: b.slug, company: b.company, domain: b.domain })), ...INTERN_BOARDS].filter((b, i, all) => all.findIndex((x) => x.platform === b.platform && x.slug === b.slug) === i);
 
 /** Whether this deployment can ask the source now (credentials present). */
 export function internshipSourceAvailable(s: SourceRecord): boolean {
@@ -119,6 +123,10 @@ export async function runInternshipSource(s: SourceRecord, c: SearchCriteria, de
     case "intern_usajobs":
       if (!usaJobsAvailable()) throw needsSetup(`${s.name} needs USAJOBS_API_KEY and USAJOBS_EMAIL on this deployment.`);
       return { jobs: (await fetchUsaJobsInternships(c)).filter(isInternship), warnings: [] };
+    case "intern_unstop":
+      return { jobs: (await fetchUnstopInternships(c)).filter(isInternship), warnings: [] };
+    case "intern_workable":
+      return { jobs: (await fetchWorkableInternships(c)).filter(isInternship), warnings: [] };
     case "intern_jooble":
       if (!joobleAvailable()) throw needsSetup(`${s.name} needs JOOBLE_API_KEY on this deployment.`);
       return { jobs: (await fetchJoobleInternships(c)).filter(isInternship), warnings: [] };
