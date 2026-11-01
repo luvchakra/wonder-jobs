@@ -9,6 +9,24 @@ import { DataTypes } from "./DataTypes";
 import { adminFetch, LoadError, Loading, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
 import { toast } from "@/components/feedback/Toast";
 
+const REGION = (() => {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" });
+  } catch {
+    return null;
+  }
+})();
+/** "IN" → "India"; "global" → "Worldwide"; "remote" → "Remote". */
+function countryLabel(c: string): string {
+  if (c === "global") return "Worldwide";
+  if (c === "remote") return "Remote";
+  try {
+    return REGION?.of(c) ?? c;
+  } catch {
+    return c;
+  }
+}
+
 const NEEDS: { value: SetupNeed | "all"; label: string }[] = [
   { value: "all", label: "All" },
   { value: "decision", label: "Your decisions" },
@@ -28,7 +46,16 @@ export default function SetupTodoPage() {
   const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean }>("setup");
   const [need, setNeed] = useState<SetupNeed | "all">("all");
   const [mod, setMod] = useState<string | null>(null);
-  const items = useMemo(() => (data?.items ?? []).filter((i) => (need === "all" || i.need === need) && (!mod || i.module === mod)), [data, need, mod]);
+  const [country, setCountry] = useState<string | null>(null);
+  // A source for the whole world serves every country; one that doesn't say is shown under every country too.
+  const serves = (i: SetupItem, c: string) => !i.countries.length || i.countries.includes(c) || (c !== "global" && c !== "remote" && i.countries.includes("global"));
+  const items = useMemo(() => (data?.items ?? []).filter((i) => (need === "all" || i.need === need) && (!mod || i.module === mod) && (!country || serves(i, country))), [data, need, mod, country]);
+  const countries = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const i of data?.items ?? []) for (const c of i.countries) n.set(c, (n.get(c) ?? 0) + 1);
+    // India first (WonderWorks' home market), then by how many sources serve it.
+    return [...n.entries()].sort((a, b) => (a[0] === "IN" ? -1 : b[0] === "IN" ? 1 : b[1] - a[1]));
+  }, [data]);
   const modulesWithItems = useMemo(() => MODULES.filter((m) => data?.items.some((i) => i.module === m.id)), [data]);
 
   return (
@@ -59,6 +86,16 @@ export default function SetupTodoPage() {
               ))}
             </div>
           )}
+          {countries.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Country">
+              <Chip active={!country} onClick={() => setCountry(null)}>Every country</Chip>
+              {countries.map(([c, n]) => (
+                <Chip key={c} active={country === c} onClick={() => setCountry(c)}>
+                  {countryLabel(c)} <span className="ml-1 tabular-nums opacity-70">{n}</span>
+                </Chip>
+              ))}
+            </div>
+          )}
           {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn&apos;t configured on this deployment, so its sources aren&apos;t listed.</p>}
           <Panel title={items.length ? `${items.length} to fix` : undefined}>
             {items.length ? (
@@ -71,6 +108,7 @@ export default function SetupTodoPage() {
                         <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-ink-2" title={MODULE_DATA[i.module as keyof typeof MODULE_DATA]?.info}>
                           {i.moduleLabel} · {i.dataType}
                         </span>{" "}
+                        {i.countries.length > 0 && <span className="mr-1 text-ink-4">{i.countries.map(countryLabel).join(", ")} ·</span>}
                         {i.detail}
                       </span>
                     </span>

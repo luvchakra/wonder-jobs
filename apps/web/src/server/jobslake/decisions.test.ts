@@ -9,6 +9,7 @@ describe("owner decisions on Setup to-do", () => {
     for (const d of OWNER_DECISIONS) {
       expect(d.module === "all" || MODULES.some((m) => m.id === d.module)).toBe(true);
       expect(d.detail.length).toBeGreaterThan(20);
+      for (const g of d.geography ?? []) expect(g).toMatch(/^([A-Z]{2}|global|remote)$/);
     }
   });
 

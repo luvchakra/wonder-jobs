@@ -5,6 +5,7 @@
   "modules": [
     "services"
   ],
+  "geography": ["IN"],
   "permission": "terms_permit",
   "permissionEvidence": "terms pending: confirm Houzz's terms of use allow automated reading of its public professional profiles (the owner confirms). Checked 2026-11-01: robots.txt (User-agent *) allows /professionals/ listing and profile pages, no Crawl-delay; each profile carries schema.org LocalBusiness data; only that is read, never phone, email or street address.",
   "termsReviewed": true,
