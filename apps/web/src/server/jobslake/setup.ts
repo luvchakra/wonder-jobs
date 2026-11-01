@@ -2,9 +2,10 @@ import { dataTypeOf } from "@/domain/jobslake/moduleData";
 import { MODULES } from "@/modules/registry";
 import { gatewayOverview } from "@/server/gateway/admin";
 import { PLATFORM_KEYS } from "./platformKeys";
+import { decisionsDone, OWNER_DECISIONS } from "./decisions";
 import { listAllSourceViews, type SourceView } from "./views";
 
-export type SetupNeed = "key" | "terms" | "add" | "activate" | "connection" | "other";
+export type SetupNeed = "decision" | "key" | "terms" | "add" | "activate" | "connection" | "other";
 
 /** One thing the admin has to do before a source can bring listings in, and where to do it. */
 export interface SetupItem {
@@ -17,11 +18,13 @@ export interface SetupItem {
   /** What exactly is missing, in a line. */
   detail: string;
   action: { label: string; href: string };
+  /** An owner decision (decisions.ts): marked done on the page instead of fixed elsewhere. */
+  decision?: true;
 }
 
 const LAKE = "/platform/jobs-lake";
 const PLATFORM_NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
-const label = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
+const label = (id: string) => (id === "all" ? "Every module" : (MODULES.find((m) => m.id === id)?.label ?? id));
 const vars = (masked: string) => masked.match(/[A-Z][A-Z0-9_]{3,}/g) ?? [];
 
 /** What a WorksLake source still needs, or null when it is ready (or deliberately off). */
@@ -43,8 +46,12 @@ export function sourceNeed(s: SourceView): Pick<SetupItem, "need" | "detail" | "
 
 /** Everything across every module that needs a key or other setup, sources and gateway together. */
 export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigured: boolean }> {
-  const [sources, gw] = await Promise.all([listAllSourceViews(), gatewayOverview().catch(() => null)]);
+  const [sources, gw, done] = await Promise.all([listAllSourceViews(), gatewayOverview().catch(() => null), decisionsDone().catch(() => ({}) as Record<string, unknown>)]);
   const items: SetupItem[] = [];
+  for (const d of OWNER_DECISIONS) {
+    if (d.id in done) continue;
+    items.push({ id: `decision:${d.id}`, name: d.title, module: d.module, moduleLabel: label(d.module), dataType: d.module === "all" ? "Data sources" : dataTypeOf(d.module).type, need: "decision", detail: d.detail, action: { label: d.href ? "Open" : "Details", href: d.href ?? "/platform/jobs-lake/setup" }, decision: true });
+  }
   for (const s of sources) {
     const n = sourceNeed(s);
     if (!n) continue;
@@ -67,7 +74,7 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
     const mod = g.modules[0] ?? "jobs";
     items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` } });
   }
-  const order: SetupNeed[] = ["key", "terms", "add", "activate", "connection", "other"];
+  const order: SetupNeed[] = ["decision", "key", "terms", "add", "activate", "connection", "other"];
   items.sort((a, b) => order.indexOf(a.need) - order.indexOf(b.need) || a.moduleLabel.localeCompare(b.moduleLabel) || a.name.localeCompare(b.name));
   return { items, gatewayConfigured: !!gw?.configured };
 }

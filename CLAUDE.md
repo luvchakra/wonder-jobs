@@ -58,6 +58,7 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - Genuine means real listings, each traceable to its source URL, dated, fresh and deduplicated. Be polite when fetching: a User-Agent, crawl delays, on the schedule, never per user search.
   - Never collect private individuals' personal profiles (privacy law, not terms). Businesses, practices, organisations and listings people posted for others to see are fine; people modules use opt-in or open-data business listings (Talent & Services, Therapists).
   - A source that needs a key is added as "Needs setup", with a note for the owner: the key's name, the signup link, and whether it's free.
+  - **Everything about data sources that waits on the owner is on Admin → Data → Setup to-do** (owner, 2026-11-01). Keys go in `server/jobslake/platformKeys.ts`; terms pending in the source's `statusReason` or permission evidence; any other call the owner must make (a licence question, a robots exception, a server to pick, legal input) is a line in `server/jobslake/decisions.ts::OWNER_DECISIONS`, added in the same PR. Never leave such an item only in a chat message or a doc.
 - **No defaults in place of intent.**
   - Query, location, threshold and goal come from what the candidate typed or from their Career DNA (`defaultSearchQuery` in `services/jobs/normalize.ts`).
   - If neither gives a value, ask. Never use a placeholder.

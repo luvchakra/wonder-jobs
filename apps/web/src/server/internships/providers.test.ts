@@ -5,10 +5,10 @@ vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant:
 import { normalizePosting } from "@/services/jobs/normalize";
 import { BUILTIN_SOURCES, listSources, PARTNERSHIP_SOURCES } from "@/server/jobslake/registry";
 import { credentialStatus } from "@/server/jobslake/credentials";
-import { fetchHimalayasInternships, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, rawFromJooble, rawFromMuseInternship, rawFromUsaJobs, type UsaJobsItem } from "./providers";
+import { fetchHimalayasInternships, fetchJoobleInternships, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, rawFromUnstopInternship, rawFromWorkable, type UnstopInternship, fetchMuseInternships, fetchUsaJobsInternships, rawFromJooble, rawFromMuseInternship, rawFromUsaJobs, type UsaJobsItem } from "./providers";
 import { INTERNSHIP_SOURCES, internshipSourceAvailable, runInternshipSource } from "./sources";
 
-const NEW_IDS = ["intern_themuse", "intern_himalayas", "intern_arbeitnow", "intern_jobicy", "intern_usajobs", "intern_jooble"];
+const NEW_IDS = ["intern_themuse", "intern_himalayas", "intern_arbeitnow", "intern_jobicy", "intern_usajobs", "intern_jooble", "intern_unstop", "intern_workable"];
 const src = (id: string) => INTERNSHIP_SOURCES.find((s) => s.id === id)!;
 const needsSetup = (m: string) => Object.assign(new Error(m), { name: "NeedsSetupError" });
 
@@ -170,5 +170,79 @@ describe("Arbeitnow and Jobicy internships", () => {
     expect(a.jobs.map((j) => j.title)).toEqual(["Marketing (m/w/d)"]);
     const j = await runInternshipSource(src("intern_jobicy"), { query: "marketing", locations: [] }, "normal", needsSetup);
     expect(j.jobs.map((x) => x.title)).toEqual(["Marketing Assistant"]);
+  });
+});
+
+const unstop = (id: number, over: Partial<UnstopInternship> = {}): UnstopInternship => ({
+  id,
+  title: "Digital Marketing Internship",
+  subtype: "internships",
+  seo_url: `https://unstop.com/internships/digital-marketing-internship-${id}`,
+  details: "<p>Help run campaigns.</p>",
+  status: "LIVE",
+  regn_open: 1,
+  isPaid: false,
+  updated_at: "2026-10-31T13:08:02+05:30",
+  organisation: { name: "Bigreams" },
+  required_skills: [{ skill_name: "SEO" }],
+  jobDetail: { min_salary: 3000, max_salary: 7000, locations: [], type: "wfh", timing: "part_time", paid_unpaid: "paid", pay_in: "monthly", not_disclosed: false },
+  ...over,
+});
+
+describe("Unstop internships (India)", () => {
+  it("reads the stipend a month as pay a year, the cities and remote, and marks each an internship", () => {
+    const job = normalizePosting("intern_unstop", rawFromUnstopInternship(unstop(1))!);
+    expect(job).toMatchObject({ title: "Digital Marketing Internship", company: "Bigreams", jobType: "internship", salaryMin: 36000, salaryMax: 84000, currency: "INR", applyUrl: "https://unstop.com/internships/digital-marketing-internship-1" });
+    const office = rawFromUnstopInternship(unstop(2, { jobDetail: { min_salary: 15000, max_salary: 15000, locations: ["Ajmer", "Dharamsala", "West Delhi", "Baisi"], type: "in_office", paid_unpaid: "paid", pay_in: "monthly" } }))!;
+    expect([office.location, office.remote]).toEqual(["Ajmer · Dharamsala · West Delhi +1, India", false]);
+  });
+
+  it("never states pay an unpaid or undisclosed internship doesn't, and leaves out closed, fee-charging and non-internship listings", () => {
+    const unpaid = rawFromUnstopInternship(unstop(3, { jobDetail: { min_salary: null, max_salary: null, type: "hybrid", paid_unpaid: "unpaid", pay_in: "monthly" } }))!;
+    expect([unpaid.salaryMin, unpaid.salaryMax, unpaid.currency]).toEqual([null, null, null]);
+    expect(unpaid.tags).toContain("Unpaid");
+    const hidden = rawFromUnstopInternship(unstop(4, { jobDetail: { min_salary: 5000, max_salary: 9000, paid_unpaid: "paid", pay_in: "monthly", not_disclosed: true } }))!;
+    expect(hidden.salaryMin).toBeNull();
+    expect(rawFromUnstopInternship(unstop(5, { regn_open: 0 }))).toBeNull();
+    expect(rawFromUnstopInternship(unstop(6, { isPaid: true }))).toBeNull();
+    expect(rawFromUnstopInternship(unstop(7, { status: "EXPIRED" }))).toBeNull();
+    expect(rawFromUnstopInternship(unstop(8, { subtype: "jobs" }))).toBeNull();
+  });
+
+  it("asks Unstop's internships list with the student's words, and is live with its terms pending", async () => {
+    const calls = stubFetch((u) => ({ data: { data: u.includes("page=1") ? [unstop(9, { title: "Content Marketing Internship" })] : [] } }));
+    const jobs = await fetchUnstopInternships({ query: "content marketing", locations: [] });
+    expect(calls[0].url).toContain("opportunity=internships");
+    expect(calls[0].url).toContain("searchTerm=content%20marketing");
+    expect(jobs.map((j) => j.title)).toEqual(["Content Marketing Internship"]);
+    expect(src("intern_unstop")).toMatchObject({ status: "active", statusReason: expect.stringMatching(/^terms pending: /) });
+  });
+});
+
+describe("Workable job board internships", () => {
+  const job = (id: string, title: string, employmentType = "Full-time") => ({ id, title, state: "published", employmentType, url: `https://jobs.workable.com/view/${id}`, locations: ["Bengaluru, Karnataka, India"], location: { city: "Bengaluru", countryName: "India" }, created: "2026-10-31T08:14:55.332Z", company: { title: "Origin", website: "https://www.origin.tech/" }, workplace: "on_site", description: "<p>Build robots.</p>" });
+
+  it("lets an intern title win over Workable's Full-time, and keeps only internships", async () => {
+    expect(normalizePosting("intern_workable", rawFromWorkable(job("w1", "Manufacturing Engineering Intern"))).jobType).toBe("internship");
+    expect(rawFromWorkable(job("w1", "X")).companyDomain).toBe("origin.tech");
+    const calls = stubFetch(() => ({ jobs: [job("w2", "Robotics Intern"), job("w3", "Robotics Engineer")] }));
+    const r = await runInternshipSource(src("intern_workable"), { query: "robotics", locations: ["Bengaluru"] }, "normal", needsSetup);
+    expect(calls.map((c) => new URL(c.url).searchParams.get("query"))).toEqual(["intern", "robotics intern"]);
+    expect(calls.every((c) => c.url.includes("location=Bengaluru"))).toBe(true);
+    expect(r.jobs.map((j) => j.title)).toEqual(["Robotics Intern"]);
+    expect(src("intern_workable").statusReason).toMatch(/^terms pending: /);
+  });
+
+  it("asks each place searched", async () => {
+    const calls = stubFetch(() => ({ jobs: [] }));
+    await fetchWorkableInternships({ query: "design", locations: ["Pune", "Noida"] });
+    expect(calls.map((c) => new URL(c.url).searchParams.get("location"))).toEqual(["Pune", "Pune", "Noida", "Noida"]);
+  });
+});
+
+describe("Internships' own career-site boards", () => {
+  it("adds intern-heavy boards, India first, each once", () => {
+    expect(INTERN_BOARDS.slice(0, 3).map((b) => b.company)).toEqual(["Paytm", "InMobi", "Sarvam AI"]);
+    expect(new Set(INTERN_BOARDS.map((b) => `${b.platform}:${b.slug}`)).size).toBe(INTERN_BOARDS.length);
   });
 });
