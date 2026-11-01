@@ -340,7 +340,7 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     id: "scheduled-runs",
     title: "Scheduled searches",
-    summary: "Keep Wonder looking: daily or weekly searches, quiet unless something is worth your attention.",
+    summary: "Keep Wonder looking, in every module: daily or weekly searches, quiet unless something is worth your attention.",
     keywords: ["schedule", "scheduled", "daily", "weekly", "cron", "automatic run", "builder", "template", "notify", "silent", "keep looking", "every day", "every week", "run now", "duplicate", "pause", "advanced"],
     updated: "2026-11-01",
     body: [
@@ -349,6 +349,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Scheduled searches repeat a search: they find, compare and rank, and never prepare or hand off an application. Each schedule has a condition such as 'strong matches found' or 'new jobs found': if the condition is not met the run finishes quietly and you are not notified. Silence is a valid outcome. A duplicate starts paused until you switch it on.",
       "When WonderWorks is open, a scheduled search runs on the minute. When it's closed, searches run at the server's daily check, between 7:30 and 8:30 am India time: one due within the hour after that check runs then — up to an hour early — and one set for later in the day runs at the next morning's check.",
       "The builder lets you set trigger, frequency, conditions, actions, AI provider and model, or start from a template.",
+      "Other modules: under your job searches, Search another module on a schedule sets one up for Internships, Teaching, Events, Talent & Services, Therapists, Co-founders, Buy, Sell & Rent or Scholarships & Projects — the module, what to search for (empty: its latest listings), a place, Every day, Every weekday or Every week, and the hour. It runs that module's own search on WonderWorks' servers, at the server's daily check when the app is closed. The first run only learns what's already listed; after that you're told (as a Search result, by bell, push or email as you chose) only when it finds listings that weren't there before. Each row shows when it last ran and what it found, its switch pauses it, and × removes it. Up to 10.",
       "- Turn on notifications under Notifications (avatar menu) to get a nudge on your phone or desktop when a scheduled search finds strong matches. It's per browser, permission is only asked when you press the button, and everything still appears in the app either way.",
       "- Schedules fire on Wonder's servers as well as in your browser, so a run still happens while you're away — with the app open they fire at exactly their time, and when it's closed the server picks them up on its next sweep. Either way the results are waiting when you next sign in, and a schedule never runs twice for the same occurrence.",
       "- Stages that need you — preparing materials, your review, the hand-off to an employer — are never done without you. A scheduled run finds, scores and shortlists; you decide what to do with it.",
