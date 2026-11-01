@@ -56,6 +56,8 @@ export interface TeachingListing {
   title: string;
   /** The school, college, coaching centre or parent hiring. */
   company: string;
+  /** The school's own website domain, where the source or its WonderWorks workspace gives one: its logo is found from it. */
+  companyDomain?: string;
   companyVerified?: boolean;
   location: string;
   workMode?: WorkMode;
@@ -460,6 +462,8 @@ export interface MyTeachingApplication {
   postingId: string;
   title: string;
   company: string;
+  /** The school's website domain, from its WonderWorks workspace (for its logo). */
+  companyDomain?: string;
   status: TeachingStatus;
   terms: TeachingTerms;
   appliedAt: string;

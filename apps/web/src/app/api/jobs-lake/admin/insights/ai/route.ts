@@ -1,3 +1,4 @@
+import { adminModule } from "@/server/jobslake/adminModule";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/jobslake/access";
 import { json, send } from "@/server/jobslake/http";
@@ -15,5 +16,5 @@ export async function GET(req: Request) {
   if (a instanceof NextResponse) return a;
   if (!rateLimit(`jl:insights-ai:${a.actor}`, { capacity: 6, refillPerSec: 0.05 }).ok) return send(err(429, "RATE_LIMITED", "Too many AI requests. Try again shortly."));
   const days = Math.min(30, Math.max(1, Number(new URL(req.url).searchParams.get("days")) || 7));
-  return json({ suggestions: await aiInsightSuggestions(await insightsView(days)) });
+  return json({ suggestions: await aiInsightSuggestions(await insightsView(days, adminModule(req))) });
 }

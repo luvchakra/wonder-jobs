@@ -20,6 +20,7 @@ is extracted from it step by step (§8).
 | **Therapists** | Client | Licensed counsellor | Book a session | Session held |
 | **Events & Social** | Attendee | Organiser / group | RSVP (or ticket) | Attended |
 | **Buy, Sell & Rent** | Buyer / tenant | Seller / owner | Message, make an offer, book a visit | Sold / rented |
+| **Scholarships & Projects** (owner, 2026-11-01) | Student (school, college or university) | Scholarship provider (government, foundation, company CSR, university) or project host (company, professor, lab, NGO) | Apply: on the provider's own portal, or through WonderWorks for one posted here | Awarded / project completed (with a certificate) |
 
 ### What the leading products in each space do (research summary)
 
@@ -48,6 +49,18 @@ is extracted from it step by step (§8).
 - **Buy, Sell & Rent** — OLX/Facebook Marketplace/NoBroker: photos, price, condition, location, chat in-app, offers,
   site visits for rentals, and heavy anti-scam measures (no payment outside, verified phone, report and block).
 
+- **Scholarships & Projects** (owner, 2026-11-01: "students, school or college, can come and look for published
+  scholarships and projects"). Scholarship finders (Buddy4Study and India's National Scholarship Portal; Fastweb and
+  Scholarships.com in the US) all list the same core: **provider and type** (government, private, university, CSR),
+  **award** (amount, one-time or per year, renewal), **eligibility** (level — class 9–12, UG, PG, PhD — field, minimum
+  marks, family income limit, gender or category, region or state), **deadline**, **documents required** and the
+  **official application link**. Matching is profile-based ("you may be eligible"), with filters by deadline, amount and
+  level, a watchlist and deadline reminders. Government schemes are applied for only on the official portal (NSP), so a
+  listing links there. Project boards (Riipen, Qollabb, university capstone marketplaces) list a **host**, **domain and
+  skills**, **duration**, **stipend or unpaid**, **remote or on-site**, **team size**, **deliverable**, **mentor**
+  and a **certificate** on completion. Scam warnings from financial-aid offices are consistent: a real scholarship
+  never charges a fee, never guarantees a win, and never asks for bank or card details.
+
 Sources consulted: [Greenhouse vs Lever vs Ashby (OutSail)](https://www.outsail.co/post/greenhouse-vs-lever-vs-ashby),
 [How recruiters sort candidates (ATS Verification)](https://atsverification.com/blog/how-recruiters-sort-candidates-ats-2026/),
 [Ashby ATS guide (JobMentis)](https://www.jobmentis.com/en/guide/ashby-ats),
@@ -56,7 +69,14 @@ Sources consulted: [Greenhouse vs Lever vs Ashby (OutSail)](https://www.outsail.
 [YC: co-founder matching](https://www.ycombinator.com/blog/co-founder-matching/),
 [YC: what people want in a co-founder](https://www.ycombinator.com/blog/what-do-people-want-in-a-co-founder),
 [NIAAA: finding a therapist](https://alcoholtreatment.niaaa.nih.gov/sites/default/files/TipstoHelpSrchAdctTherpsts-508.pdf),
-[Internshala internship report (CXOToday)](https://cxotoday.com/media-coverage/200-rise-in-internship-opportunities-in-past-5-years/).
+[Internshala internship report (CXOToday)](https://cxotoday.com/media-coverage/200-rise-in-internship-opportunities-in-past-5-years/),
+[Buddy4Study: NSP centrally funded scholarships](https://www.buddy4study.com/article/nsp-centrally-funded-scholarships),
+[Buddy4Study: central sector scheme](https://www.buddy4study.com/article/central-sector-scholarship),
+[Fastweb features (Gerald guide)](https://joingerald.com/learn/saving--investing/fastweb-scholarships),
+[Grants.gov API guide](https://grants.gov/api/api-guide), [Grants.gov API terms](https://grants.gov/api/terms-conditions),
+[Riipen](https://learn.riipen.com/), [Qollabb for colleges](https://qollabb.com/college-university),
+[Scholarship scam warning signs (UNM)](https://scholarships.unm.edu/Resources/scams.html),
+[Scholarship scams (Clark College)](https://www.clark.edu/enroll/paying-for-college/scholarships/scams.php).
 Several of these are secondary sources; field lists were taken as patterns, not specs.
 
 ---
@@ -117,7 +137,7 @@ A module is a **manifest** plus, only where needed, its own components. The mani
 ```ts
 // src/modules/<id>/manifest.ts — the shape every module fills in (sketch)
 export interface ModuleManifest {
-  id: "jobs" | "internships" | "teaching" | "cofounders" | "services" | "therapists" | "events" | "marketplace";
+  id: "jobs" | "internships" | "teaching" | "cofounders" | "services" | "therapists" | "events" | "marketplace" | "scholarships";
   label: string;              // "Internships"
   hint: string;               // "Student roles and co-ops" (the Find dropdown's subtitle, today's UPCOMING_KINDS)
   icon: IconName;
@@ -162,6 +182,21 @@ export interface ModuleManifest {
 | **Therapists** | Concerns, preferences (language, gender, mode), budget | Licence (number, body, expiry), specialties, modalities, fee, languages, online/in-person | Book · requested → confirmed → held / cancelled | Individual practitioner or clinic workspace | Licence verification + re-check on expiry; `health_data`; crisis resources on every page; no public outcome ratings |
 | **Events & Social** | Interests, city | Time, place/online, capacity, price (free/paid), group | RSVP · going / waitlist → attended / no-show | Organiser or group workspace | Report/block, venue safety, age limits |
 | **Buy, Sell & Rent** | Area, phone verified | Category, price, condition, photos, rent terms (deposit, availability) | Message → offer → visit (booking) → sold / rented | Individual seller; brokers flagged | Anti-scam rules (no off-platform payment), phone verification, `housing` for rentals |
+| **Scholarships & Projects** | Level (class 9–12, UG, PG, PhD), course or field, institution, state and country, marks; optional and opt-in only: family income band, gender, category (used only to match, never inferred, never sent to a provider without the student's consent) | Kind (scholarship / project); scholarship: provider and type, award (amount, currency, one-time / per year, renewable), eligibility (levels, fields, minimum marks, income limit, gender / category, region), deadline, documents, official link; project: host, domain, skills, duration, stipend or unpaid, remote / on-site, team size, deliverable, mentor, certificate | Apply · Saved → Preparing → Applied → Shortlisted → Awarded / Selected → Completed, or Not selected; past-deadline listings leave Find | Provider or host workspace (reuse Hiring: verified organisation, screening questions, review) | No fee to apply, ever (a listing asking one is refused); official source link required; "you may be eligible", never a guarantee; scam warning; `minors` (school students); income and category are sensitive data; AI only drafts (essays, statements) and never submits |
+
+### Scholarships & Projects: where real listings come from (2026-11-01)
+
+Real data only, so nothing is listed until it comes from one of these:
+- **Posted on WonderWorks** by a verified organisation (a foundation, company, university or college) through the shared
+  Hiring workspace, with its screening questions. Applying to these is the WonderWorks path (the student's own press).
+- **WorksLake sources with documented reuse rights**, as a WorksLake dataset of its own (`scholarships`):
+  - [Grants.gov](https://grants.gov/api/api-guide)'s public API (`search2` and `fetchOpportunity` need no key; terms
+    allow display with the notice "uses the Grants.gov API but is not endorsed or certified by HHS"). It is mostly
+    US funding; only opportunities open to individuals or students are kept.
+  - Partner uploads through the WorksLake gateway (§13.7 of `EXTERNAL_DATA_SOURCES.md`): a college, foundation or CSR
+    team with written permission uploads its list.
+- **Government portals without an API** (India's National Scholarship Portal) are never scraped. A listing found
+  through a permitted source links to the official portal, and applying happens there.
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
@@ -205,6 +240,7 @@ The Pipeline tab per module:
 | **Therapists** | Sessions | Requested · Confirmed · Upcoming · Held / Cancelled | Crisis resources (always shown); no ratings |
 | **Events & Social** | My events | Going · Waitlist · Attended | Calendar |
 | **Buy, Sell & Rent** | Deals | Messaged · Offer · Visit · Done | My listings (selling side) |
+| **Scholarships & Projects** | Applications | Saved · Preparing · Applied · Shortlisted · Awarded / Selected · Completed | Deadlines (calendar of what closes when) |
 
 Rules: the tab keeps one place in the bar and the label is the module's; it opens on the stage with something to do;
 the owner side (company, practitioner, organiser) stays in a workspace under You, as Hiring is today. The bar shows

@@ -18,7 +18,7 @@ const noop = () => () => undefined;
 /** An application's own page (components/Application.tsx). */
 const itemHref = (id: string) => `/app/m/teaching/pipeline/${encodeURIComponent(id)}`;
 
-type Item = { id: string; title: string; company: string; stage: string; status: string; tone: Tone; at: string; line: string; tags?: string[]; app?: MyTeachingApplication; outside?: boolean };
+type Item = { id: string; title: string; company: string; domain?: string; stage: string; status: string; tone: Tone; at: string; line: string; tags?: string[]; app?: MyTeachingApplication; outside?: boolean };
 
 /**
  * Teaching's Pipeline, in Jobs' Pipeline layout (wonderworks/pipeline/parts.tsx): Preparing · Applied · In Process ·
@@ -35,12 +35,12 @@ export function TeachingPipeline() {
   const [tab, setTab] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [apps, setApps] = useState<MyTeachingApplication[] | null>(null);
-  const [demos, setDemos] = useState<(DemoBooking & { title: string; school: string })[]>([]);
+  const [demos, setDemos] = useState<(DemoBooking & { title: string; school: string; schoolDomain?: string })[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = () =>
-    Promise.all([call<{ applications: MyTeachingApplication[] }>("/api/m/teaching/applications"), call<{ bookings: (DemoBooking & { title: string; school: string })[] }>("/api/m/teaching/bookings")])
+    Promise.all([call<{ applications: MyTeachingApplication[] }>("/api/m/teaching/applications"), call<{ bookings: (DemoBooking & { title: string; school: string; schoolDomain?: string })[] }>("/api/m/teaching/bookings")])
       .then(([r, b]) => {
         setApps(r.applications);
         setDemos(b.bookings);
@@ -51,13 +51,13 @@ export function TeachingPipeline() {
   }, []);
 
   const list: Item[] = useMemo(() => {
-    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, stage: stageOf(a.status), status: STATUS_LABEL[a.status], tone: TONE[a.status], at: a.updatedAt, line: [a.terms.subject, a.terms.grades?.length ? gradesLabel(a.terms.grades) : null].filter(Boolean).join(" · "), app: a }));
+    const out: Item[] = (apps ?? []).map((a) => ({ id: a.id, title: a.title, company: a.company, domain: a.companyDomain, stage: stageOf(a.status), status: STATUS_LABEL[a.status], tone: TONE[a.status], at: a.updatedAt, line: [a.terms.subject, a.terms.grades?.length ? gradesLabel(a.terms.grades) : null].filter(Boolean).join(" · "), app: a }));
     if (mounted)
       for (const [id, r] of Object.entries(responses)) {
         const l = items[id] as TeachingListing | undefined;
         const st = outsideStatus(r);
         // Outside ones as the teacher marked them; a WonderWorks one only while it's being prepared (the server has it once sent).
-        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", at: r.at, line: l.location, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: true });
+        if (l && st && (l.origin === "outside" || st === "preparing")) out.push({ id, title: l.title, company: l.company, domain: l.companyDomain, stage: OUTSIDE_STAGE[st], status: OUTSIDE_LABEL[st], tone: st === "applied" ? "info" : "neutral", at: r.at, line: l.location, tags: st === "preparing" ? (r.marks ?? []).map((m) => MARK_LABEL[m] ?? m) : undefined, outside: true });
       }
     return out.sort((a, b) => b.at.localeCompare(a.at));
   }, [apps, responses, items, mounted]);
@@ -103,12 +103,12 @@ export function TeachingPipeline() {
           <StageList label="Demo-class bookings">
             {toPick.map((d) => (
               <li key={`pick:${d.responseId}`}>
-                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school }} company={d.school} title={d.title} badge={{ label: "Pick a time", tone: "warning" }} when="" />
+                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school, domain: d.schoolDomain }} company={d.school} title={d.title} badge={{ label: "Pick a time", tone: "warning" }} when="" />
               </li>
             ))}
             {booked.map((d) => (
               <li key={d.id}>
-                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school }} company={d.school} title={d.title} line={slotLabel(d)} badge={{ label: BOOKING_LABEL[d.status], tone: d.status === "confirmed" ? "success" : "brand" }} when="" />
+                <StageCard href={itemHref(d.responseId)} logo={{ name: d.school, domain: d.schoolDomain }} company={d.school} title={d.title} line={slotLabel(d)} badge={{ label: BOOKING_LABEL[d.status], tone: d.status === "confirmed" ? "success" : "brand" }} when="" />
               </li>
             ))}
           </StageList>
@@ -138,7 +138,7 @@ export function TeachingPipeline() {
                   const canGo = !!i.app && canWithdraw(i.app.status);
                   return (
                     <li key={i.id} className="relative">
-                      <StageCard href={i.stage === "preparing" ? listingHref(i.id) : itemHref(i.id)} logo={{ name: i.company }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={canGo} className={i.outside ? "pr-11" : undefined} />
+                      <StageCard href={i.stage === "preparing" ? listingHref(i.id) : itemHref(i.id)} logo={{ name: i.company, domain: i.domain }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={canGo} className={i.outside ? "pr-11" : undefined} />
                       {canGo && (
                         <Button size="sm" variant="ghost" className="absolute bottom-3 right-3" loading={busy === i.id} onClick={() => void withdraw(i.id)} aria-label={`Withdraw your application to ${i.company}`}>
                           Withdraw

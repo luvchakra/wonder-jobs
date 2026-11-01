@@ -3,7 +3,7 @@ import { memo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink, Upload, Zap } from "lucide-react";
 import { Button } from "@/components/common/Button";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge } from "@/components/common/Badge";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
@@ -55,7 +55,7 @@ export const TeachingCard = memo(function TeachingCard({ item: l, onOpen }: { it
       share={shareOf(l)}
       aside={
         <>
-          <CompanyLogo name={l.company} logo size={44} />
+          <CompanyLogo name={l.company} domain={l.companyDomain} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.word} bottom="fit" srText={fit.title} />}
           <ApplyButton listing={l} card />
         </>

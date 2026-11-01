@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanDomain, companyKey, employerDomainOf } from "@/domain/jobslake/companies";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { __MemoryCompanies, __setCompanyStore, companiesFrom, companyLogo, LOGO_TTL_MS, recordCompanies } from "./companies";
+import { __MemoryCompanies, __setCompanyStore, adminLogo, companiesFrom, companyLogo, LOGO_TTL_MS, recordCompanies } from "./companies";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, ...new Array(400).fill(1)]);
 const opp = (name: string, domain: string | undefined, applyUrl: string, employerSite = true, sourceId = "greenhouse") =>
@@ -49,7 +49,7 @@ describe("logos — fetched once, cached, only for known companies", () => {
     const first = await companyLogo({ name: "IBM Corporation" }, Date.now(), fetcher as unknown as typeof fetch);
     expect(first?.type).toBe("image/png");
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(String((fetcher.mock.calls[0] as unknown[])[0])).toContain("domain=ibm.com");
+    expect(String((fetcher.mock.calls[0] as unknown[])[0])).toContain(encodeURIComponent("https://ibm.com"));
     await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await companyLogo({ domain: "ibm.com" }, Date.now() + LOGO_TTL_MS + 1, fetcher as unknown as typeof fetch);
@@ -70,7 +70,8 @@ describe("logos — fetched once, cached, only for known companies", () => {
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
     expect(store.rows.get("acme.com")?.logo).toBeNull();
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
-    expect(fetcher).toHaveBeenCalledTimes(3); // both places and the home page, once
+    // Every place once (Google ×2, DuckDuckGo, four site files, the home page), and nothing on the second ask.
+    expect(fetcher).toHaveBeenCalledTimes(8);
   });
 });
 
@@ -79,5 +80,100 @@ describe("icons a home page declares", () => {
     const { iconLinks } = await import("./companies");
     const html = `<link rel="icon" href="/f.png" sizes="32x32"><link rel="apple-touch-icon" href="/t.png" sizes="180x180"><link rel="icon" href="https://evil.example/x.png"><link rel="icon" href="http://169.254.169.254/x.png"><link rel="stylesheet" href="/a.css">`;
     expect(iconLinks(html, "https://www.acme.com/", "acme.com")).toEqual(["https://www.acme.com/t.png", "https://www.acme.com/f.png"]);
+  });
+});
+
+describe("logos served to every module's cards", () => {
+  it("reads only the logo columns, then serves a page of cards from memory, and forgets a logo an admin changes", async () => {
+    await recordCompanies([opp("IBM", "ibm.com", "https://x", false)]);
+    const fetcher = vi.fn(async () => new Response(PNG, { status: 200 }));
+    await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch);
+    const reads = vi.spyOn(store, "logoFor");
+    const full = vi.spyOn(store, "byDomain");
+    for (let i = 0; i < 20; i++) expect((await companyLogo({ domain: "https://www.ibm.com/careers", name: "IBM" }, Date.now(), fetcher as unknown as typeof fetch))?.type).toBe("image/png");
+    expect(reads).not.toHaveBeenCalled();
+    expect(full).not.toHaveBeenCalled();
+    await adminLogo("ibm.com", { kind: "clear" }, Date.now(), fetcher as unknown as typeof fetch, store);
+    expect(await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
+    expect(reads).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("where logos are looked for", () => {
+  it("finds a site only on www, skips a host that didn't answer, and uses the company's Commons logo last", async () => {
+    const { fetchLogo } = await import("./companies");
+    const png = new Response(PNG, { status: 200 });
+    const calls: string[] = [];
+    // Google and DuckDuckGo have none; the bare host doesn't answer; www has /favicon.ico.
+    const fetcher = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.startsWith("https://acme.org/")) throw new Error("ENOTFOUND");
+      if (url === "https://www.acme.org/favicon.ico") return png;
+      return new Response(null, { status: 404 });
+    });
+    expect((await fetchLogo("acme.org", fetcher as unknown as typeof fetch))?.from).toBe("www.acme.org");
+    expect(calls.filter((u) => u.startsWith("https://acme.org/"))).toHaveLength(1);
+
+    const wiki = vi.fn(async (url: string) =>
+      url.includes("wikidata.org") ? Response.json({ claims: { P154: [{ mainsnak: { datavalue: { value: "Acme logo.svg" } } }] } }) : url.includes("commons.wikimedia.org") ? new Response(PNG, { status: 200 }) : new Response(null, { status: 404 }),
+    );
+    const logo = await fetchLogo("acme.com", wiki as unknown as typeof fetch, { wikidataId: "Q42" });
+    expect(logo?.type).toBe("image/png");
+    expect(String(wiki.mock.calls.at(-1)?.[0])).toContain("Special:FilePath/Acme%20logo.svg?width=128");
+    // A malformed id is never sent anywhere.
+    const none = vi.fn(async () => new Response(null, { status: 404 }));
+    expect(await fetchLogo("acme.net", none as unknown as typeof fetch, { wikidataId: "Q1&x=y" })).toBeNull();
+    expect(none.mock.calls.some((c) => String((c as unknown[])[0]).includes("wikidata"))).toBe(false);
+  });
+
+  it("never records a job board's domain as an employer's", async () => {
+    const { companyDomain } = await import("@/domain/jobslake/companies");
+    expect(companyDomain("seek.com")).toBeUndefined();
+    expect(companyDomain("https://www.seek.com.au/job/1")).toBeUndefined();
+    expect(companyDomain("tiaa.org")).toBe("tiaa.org");
+  });
+});
+
+describe("banning a company", () => {
+  it("bans by domain with a reason, leaves its listings out, and lifts the ban", async () => {
+    const { adminBan, bannedCompanies, isBannedListing, companyDirectory } = await import("./companies");
+    await recordCompanies([opp("Scam Co", "scam.example.org", "https://x", false), opp("Acme", "acme.com", "https://y", false), opp("Scam Co", "scam-co.com", "https://z", false)]);
+    expect((await adminBan("acme.com", { ban: true, reason: "" }, "admin@x")).ok).toBe(false);
+    expect((await adminBan("nobody.com", { ban: true, reason: "fake listings" }, "admin@x")).ok).toBe(false);
+    expect((await adminBan("https://www.scam-co.com/jobs", { ban: true, reason: "fake listings" }, "admin@x")).ok).toBe(true);
+    const banned = await bannedCompanies();
+    // By domain when the listing names one; a same-named company on another domain is untouched.
+    expect(isBannedListing(opp("Scam Co", "scam-co.com", "https://z", false), banned)).toBe(true);
+    expect(isBannedListing(opp("Scam Co", "other-scam.com", "https://q", false), banned)).toBe(false);
+    // By name only when the listing names no domain.
+    expect(isBannedListing(opp("Scam Co Ltd", undefined, "https://board.example.net/1", false), banned)).toBe(true);
+    expect(isBannedListing(opp("Acme", "acme.com", "https://y", false), banned)).toBe(false);
+    const d = await companyDirectory("", 10, 0, store, { banned: true });
+    expect(d.banned).toBe(1);
+    expect(d.companies[0]).toMatchObject({ domain: "scam-co.com", ban: { reason: "fake listings", by: "admin@x" } });
+    expect((await adminBan("scam-co.com", { ban: false }, "admin@x")).ok).toBe(true);
+    expect(isBannedListing(opp("Scam Co", "scam-co.com", "https://z", false), await bannedCompanies())).toBe(false);
+  });
+
+  it("never records reserved test domains as companies", async () => {
+    const { companyDomain } = await import("@/domain/jobslake/companies");
+    for (const d of ["wonderhome.example", "acme.test", "example.com", "jobs.example.org"]) expect(companyDomain(d)).toBeUndefined();
+    expect(companyDomain("examples.com")).toBe("examples.com");
+    expect(companiesFrom([opp("wj-e2e Hiring", "wonderhome.example", "https://wonderhome.example/x")])).toEqual([]);
+  });
+});
+
+describe("schools listed on a government job board", () => {
+  it("never take the board's or a suffix's domain, so they don't all share gov.uk's crown", async () => {
+    const { companyDomain, employerDomainOf } = await import("@/domain/jobslake/companies");
+    const { companyLogoSrc } = await import("@/wonderworks/brand/CompanyLogo");
+    // The apply link is Teaching Vacancies, not the school's site.
+    expect(employerDomainOf("https://teaching-vacancies.service.gov.uk/jobs/maths-teacher-4d31", true)).toBeUndefined();
+    for (const d of ["gov.uk", "co.uk", "edu.in", "service.gov.uk", "civilservicejobs.service.gov.uk"]) expect(companyDomain(d)).toBeUndefined();
+    expect(companyDomain("outwood.com")).toBe("outwood.com");
+    expect(companyDomain("www.hmrc.gov.uk")).toBe("hmrc.gov.uk");
+    // A card already stored with gov.uk asks by the school's name instead.
+    expect(companyLogoSrc({ name: "Outwood Academy Hemsworth", domain: "gov.uk" })).toContain("?n=");
+    expect(companiesFrom([opp("Outwood Academy Ormesby", "gov.uk", "https://teaching-vacancies.service.gov.uk/jobs/1")])).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
-import { ApiError, MODULES, RateLimiter, logRun, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, search, recordUsage, checkScope } from "./core.mjs";
+import { ApiError, MODULES, RateLimiter, logRun, pushAudit, searchPlan, searchResponse, stateListings, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, recordUsage, checkScope } from "./core.mjs";
 import { fetchRecords } from "./collect.mjs";
+import { uploadListings } from "./upload.mjs";
 import { OPENAPI } from "./openapi.mjs";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
@@ -7,9 +8,9 @@ const MAX_BODY = 65536;
 
 const reply = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...extra } });
 
-async function readBody(request) {
+async function readBody(request, max = MAX_BODY) {
   const text = await request.text();
-  if (text.length > MAX_BODY) throw new ApiError(413, "TOO_LARGE", "Request too large");
+  if (text.length > max) throw new ApiError(413, "TOO_LARGE", "Request too large");
   try { return JSON.parse(text); } catch { throw new ApiError(400, "BAD_JSON", "Valid JSON body required"); }
 }
 function publicListing(x) {
@@ -17,7 +18,9 @@ function publicListing(x) {
   return { ...safe, source: { id: x.sourceId, name: x.sourceName, method: x.sourceMethod } };
 }
 function workslakeItem(x) {
-  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId };
+  // An event (its dates in attributes, often no organiser) goes as kind "event"; WorksLake keeps the attributes as given.
+  const event = x.module === "events" || (x.attributes && "startDate" in x.attributes);
+  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {}, employerDomain: x.organizationDomain ?? "" };
 }
 function sourcePublic(s) {
   return { id: s.id, attribution: s.attribution, kind: s.kind, modules: s.modules, enabled: s.enabled, lastSuccessAt: s.lastSuccessAt, lastError: s.lastError };
@@ -37,6 +40,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   const rate = limiter ?? new RateLimiter(perMinute);
   const allowExternal = env.GATEWAY_ALLOW_EXTERNAL_CONSUMERS === "1";
   const activeCrawls = new Set();
+  // Where listings live: the store's own table when it has one, else the state document.
+  const listings = store.listings ?? stateListings(store);
 
   async function collectOne(sourceId, testOnly = false) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
@@ -45,6 +50,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     try {
       const source = await store.read((s) => s.sources.find((src) => src.id === sourceId));
       if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+      if (source.kind === "upload") throw new ApiError(409, "UPLOAD_SOURCE", "This source is filled by uploading the partner's file");
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
       const report = await fetchRecords(source);
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
@@ -54,27 +60,27 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         await store.change((s) => {
           const src = s.sources.find((x) => x.id === sourceId);
           src.lastTest = { at: new Date().toISOString(), ok, discovered: report.discovered, valid: report.valid };
-          s.audits.push({ at: new Date().toISOString(), action: "source.tested", target: sourceId, ok });
+          pushAudit(s, { at: new Date().toISOString(), action: "source.tested", target: sourceId, ok });
           logRun(s, { at: new Date().toISOString(), sourceId, trigger: "test", ok, discovered: report.discovered, valid: report.valid, ms, ...progress });
         });
         return { ok, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
       }
       if (!ok) throw new ApiError(422, "INVALID_SOURCE", "Source quality below 90% or no records found");
       const now = new Date().toISOString();
+      const still = await store.read((s) => s.sources.find((x) => x.id === sourceId)?.enabled);
+      if (!still) throw new ApiError(409, "SOURCE_PAUSED", "Source was paused during collection");
+      // Only this source's listings change. A feed replaces what it had; a crawl or paged feed reads part of a source per
+      // run, so it adds to (and refreshes) what earlier runs found. Expired ones go.
+      const kept = await listings.replace(sourceId, report.results, !!report.merge);
       await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);
-        if (!src?.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source was paused during collection");
-        // Only this source's observations change; every other source's stay as they were. A feed replaces what it
-        // had; a crawl reads part of a site per run, so it adds to (and refreshes) what earlier runs found.
-        const fresh = new Set(report.results.map((x) => x.id));
-        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (report.merge && !fresh.has(x.id))).concat(report.results);
+        if (!src) return;
         if (report.crawl) { src.crawlCursor = report.crawl.cursor; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
         src.lastSuccessAt = now;
         src.lastError = null;
         src.nextRunAt = new Date(Date.now() + src.minIntervalMinutes * 60000).toISOString();
-        s.audits.push({ at: now, action: "source.collected", target: sourceId, valid: report.valid });
-        s.listings = s.listings.filter((x) => Date.parse(x.expiresAt) > Date.now());
-        logRun(s, { at: now, sourceId, trigger: "collect", ok: true, discovered: report.discovered, valid: report.valid, kept: s.listings.filter((x) => x.sourceId === sourceId).length, ms, ...progress });
+        pushAudit(s, { at: now, action: "source.collected", target: sourceId, valid: report.valid });
+        logRun(s, { at: now, sourceId, trigger: "collect", ok: true, discovered: report.discovered, valid: report.valid, kept, ms, ...progress });
       });
       return { ok: true, discovered: report.discovered, valid: report.valid, ...(report.crawl ? { crawl: report.crawl } : {}) };
     } catch (e) {
@@ -88,10 +94,13 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   }
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
-  async function collectDue() {
-    const due = await store.read((s) => s.sources.filter((x) => x.enabled && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
+  async function collectDue(budgetMs = 35000) {
+    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
     const outcomes = [];
+    const started = Date.now();
     for (const sourceId of due) {
+      // One pass fits one serverless call: a source not started by now waits for the next pass (still due).
+      if (Date.now() - started > budgetMs) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
       try { outcomes.push({ sourceId, ...(await collectOne(sourceId)) }); }
       catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
     }
@@ -127,12 +136,51 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         if (method === "GET" && is("sources")) return reply(200, { sources: await store.read((s) => s.sources) });
         if (method === "POST" && is("sources")) {
           const created = validateSource(await readBody(request));
-          await store.change((s) => { s.sources.push(created); s.audits.push({ at: new Date().toISOString(), action: "source.created", target: created.id }); });
+          await store.change((s) => { s.sources.push(created); pushAudit(s, { at: new Date().toISOString(), action: "source.created", target: created.id }); });
           return reply(201, created);
         }
         if (method === "POST" && p[2] === "sources" && p.length === 5) {
           const id = p[3], action = p[4];
           if (action === "test" || action === "refresh") return reply(200, await collectOne(id, action === "test"));
+          if (action === "upload") {
+            // A partner's list, uploaded by an admin: checked like any source's records, then it replaces the partner's
+            // listings. The check counts as the source's test (so it can be activated after a good upload).
+            const { format, content } = await readBody(request, 2_200_000) ?? {};
+            const source = await store.read((s) => s.sources.find((x) => x.id === id));
+            if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+            if (source.kind !== "upload") throw new ApiError(409, "NOT_AN_UPLOAD_SOURCE", "Only a partner upload source takes a file");
+            const startedAt = Date.now();
+            const report = uploadListings(source, format, content);
+            const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
+            // A failed upload changes nothing the partner already has; only a good one replaces it.
+            const kept = ok ? await listings.replace(id, report.results, false) : null;
+            const at = new Date().toISOString();
+            await store.change((s) => {
+              const src = s.sources.find((x) => x.id === id);
+              if (!src) return;
+              src.lastTest = { at, ok, discovered: report.discovered, valid: report.valid };
+              if (ok) src.lastSuccessAt = at;
+              src.lastError = ok ? null : "UPLOAD_QUALITY";
+              pushAudit(s, { at, action: "source.uploaded", target: id, rows: report.rows, valid: report.valid });
+              logRun(s, { at, sourceId: id, trigger: "upload", ok, discovered: report.discovered, valid: report.valid, kept, ms: Date.now() - startedAt });
+            });
+            return reply(200, { ok, rows: report.rows, valid: report.valid, discovered: report.discovered, repeats: report.repeats, kept, columns: report.columns, problems: report.problems });
+          }
+          if (action === "update") {
+            // Changes how an existing source is read (its mapping, attribution, pages per run) and keeps its id, so its
+            // listings keep theirs. Everything is validated again, as when it was registered.
+            const patch = await readBody(request);
+            const allowed = ["mapping", "attribution", "maxPagesPerRun", "requestDelayMs", "retentionHours", "minIntervalMinutes"];
+            if (!patch || typeof patch !== "object" || Object.keys(patch).some((k) => !allowed.includes(k))) throw new ApiError(400, "INVALID_REQUEST", "Only " + allowed.join(", ") + " can be updated");
+            return reply(200, await store.change((s) => {
+              const source = s.sources.find((x) => x.id === id);
+              if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+              const checked = validateSource({ ...source, ...patch });
+              for (const k of Object.keys(patch)) source[k] = checked[k];
+              pushAudit(s, { at: new Date().toISOString(), action: "source.updated", target: id, fields: Object.keys(patch) });
+              return sourcePublic(source);
+            }));
+          }
           if (action === "activate" || action === "pause") {
             return reply(200, await store.change((s) => {
               const source = s.sources.find((x) => x.id === id);
@@ -140,7 +188,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
               if (action === "activate" && (!source.lastTest?.ok || Date.now() - Date.parse(source.lastTest.at) > 86400000)) throw new ApiError(409, "VALIDATION_REQUIRED", "Passing source test within 24h required");
               source.enabled = action === "activate";
               source.nextRunAt = source.enabled ? new Date().toISOString() : null;
-              s.audits.push({ at: new Date().toISOString(), action: "source." + action, target: id });
+              pushAudit(s, { at: new Date().toISOString(), action: "source." + action, target: id });
               return sourcePublic(source);
             }));
           }
@@ -162,21 +210,25 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       if (method === "GET" && p[1] === "usage" && p.length === 2) return reply(200, { usage: await store.read((s) => s.usage.filter((u) => u.consumerId === caller.consumerId)) });
       if (method === "POST" && p[1] === "search" && p.length === 2) {
         const payload = await readBody(request);
-        const result = await store.read((s) => search(s, caller, payload, cursorSecret));
-        result.results = result.results.map(publicListing);
+        const plan = await store.read((s) => searchPlan(s, caller, payload, cursorSecret));
+        const found = await listings.search(plan);
+        const result = searchResponse(plan, found.rows.map(publicListing), found.matched, cursorSecret);
         store.lazy((s) => recordUsage(s, caller, "/v1/search", payload.module, result.results.length));
         return reply(200, result);
       }
       if (method === "GET" && p[1] === "workslake" && p[3] === "listings" && p.length === 4) {
         checkScope(caller, module);
-        const result = await store.read((s) => search(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
-        // WorksLake Protocol v1 requires genuine published dates; undated profiles are left out, never given a made-up date.
-        const items = result.results.filter((x) => x.publishedAt).map(workslakeItem);
+        const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
+        const result = { results: (await listings.search(plan)).rows };
+        // Undated items go too: WorksLake records when it first saw them and says so (postedAtFrom "first_seen"), never
+        // presenting that as a posting date.
+        const items = result.results.map(workslakeItem);
         store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
         return reply(200, { items });
       }
       if (method === "GET" && p[1] === "listings" && p.length === 3) {
-        const entry = await store.read((s) => s.listings.find((x) => x.id === p[2] && x.status === "active" && Date.parse(x.expiresAt) > Date.now()));
+        const found = await listings.get(p[2]);
+        const entry = found && found.status === "active" && Date.parse(found.expiresAt) > Date.now() ? found : null;
         if (!entry) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
         checkScope(caller, entry.module);
         const allowed = await store.read((s) => s.sources.some((x) => x.id === entry.sourceId && x.enabled && x.redistributionAllowed && (caller.consumerId === "workslake" || x.externalRedistributionAllowed)));
@@ -192,5 +244,5 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     }
   }
 
-  return { handle, collectDue, collectOne };
+  return { handle, collectDue, collectOne, listings };
 }

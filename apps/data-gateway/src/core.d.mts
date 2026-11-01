@@ -10,3 +10,43 @@ export interface GatewayState {
   runs: Record<string, unknown>[];
 }
 export function initial(): GatewayState;
+
+/** A gateway listing as search returns it (attributes hold a source's extra fields, e.g. an event's dates). */
+export interface GatewayListing {
+  id: string;
+  module: string;
+  sourceId: string;
+  sourceName: string;
+  sourceMethod: string;
+  title: string;
+  organization: string;
+  location: string;
+  description: string;
+  canonicalUrl: string;
+  publishedAt: string | null;
+  observedAt: string;
+  expiresAt: string;
+  remote: boolean;
+  attributes: Record<string, string | number | boolean>;
+  status: string;
+}
+export interface GatewaySearchResult {
+  requestId: string;
+  module: string;
+  results: GatewayListing[];
+  nextCursor: string | null;
+  metadata: { totalReturned: number; matched: number; sourceCount: number; cacheStatus: string; asOf: string };
+}
+export function search(
+  state: GatewayState,
+  consumer: { id: string; consumerId: string; scopes: string[] },
+  payload: { module: string; query?: string; locations?: string[]; limit?: number; cursor?: string },
+  secret: string,
+): GatewaySearchResult;
+export const MODULES: readonly string[];
+
+export interface SearchPlan { module: string; query: string; locations: string[]; limit: number; offset: number; fingerprint: string; sourceIds: string[] }
+export function searchPlan(state: GatewayState, consumer: { id: string; consumerId: string; scopes: string[] }, payload: { module: string; query?: string; locations?: string[]; limit?: number; cursor?: string }, secret: string): SearchPlan;
+
+export function queryWords(query: string): string[];
+export function matchesWords(text: string, query: string): boolean;

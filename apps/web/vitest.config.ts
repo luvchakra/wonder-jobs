@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
+    // Strips every credential from the test process first, so no unit test can reach a real database or service.
+    setupFiles: ["src/testing/isolate.ts"],
   },
 });

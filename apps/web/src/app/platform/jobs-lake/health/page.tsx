@@ -10,7 +10,7 @@ export default function HealthPage() {
   const count = (st: string) => live.filter((s) => (s.health?.state ?? "no_data") === st).length;
   return (
     <>
-      <PageTitle title="Health" subtitle="Computed from the last 7 days of runs. Down = the last two runs failed; degraded = success under 90% or median latency over 4 s." />
+      <PageTitle title="Source health" subtitle="Computed from the last 7 days of runs. Down = the last two runs failed; degraded = success under 90% or median latency over 4 s." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

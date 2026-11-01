@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
 import type { CompanyBrief } from "@/domain/jobslake/companies";
 import { track } from "@/lib/analytics";
 import { formatSalaryRange, relativeTime } from "@/lib/format";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge, type Tone } from "@/components/common/Badge";
 import { cardReasons } from "@/domain/jobs/cardReasons";
 import { ShareJobButton } from "./ShareJobButton";

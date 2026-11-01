@@ -3,7 +3,7 @@ import { memo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink, Upload, Zap } from "lucide-react";
 import { Button } from "@/components/common/Button";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge } from "@/components/common/Badge";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";

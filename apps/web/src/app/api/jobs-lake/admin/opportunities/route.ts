@@ -1,3 +1,4 @@
+import { adminModule } from "@/server/jobslake/adminModule";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/jobslake/access";
 import { json } from "@/server/jobslake/http";
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   const type = u.searchParams.get("type") ?? "";
   const limit = Math.min(200, Math.max(1, Number(u.searchParams.get("limit")) || 50));
   const offset = Math.max(0, Number(u.searchParams.get("offset")) || 0);
-  const all = await jobsLakeStore().listOpportunities({ limit: 5000 });
+  const all = await jobsLakeStore().listOpportunities({ limit: 5000, module: adminModule(req) });
   const typeOf = (o: (typeof all)[number]) => jobTypeOf(o) ?? "unstated";
   const matched = all.filter((o) => (!q || `${o.title} ${o.employer.name} ${o.locations.join(" ")}`.toLowerCase().includes(q)) && (!sourceId || o.sourceRecords.some((r) => r.sourceId === sourceId)) && (!type || typeOf(o) === type));
   // How many stored jobs are of each type — counted over the whole pool, before the type filter.

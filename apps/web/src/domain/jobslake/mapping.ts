@@ -28,6 +28,12 @@ export interface ResponseMapping {
   fields: Partial<Record<MappableField, string>>;
   /** Used when the source has no employer field (a single company's feed). */
   defaultEmployer?: string;
+  /** Path to an object of the source's own extra fields per item (an event's dates…), kept as given. */
+  attributesPath?: string;
+  /** Path to the item's kind ("job" or "event"); absent means job. */
+  kindPath?: string;
+  /** Path to the employer's (or an event's) own website domain, for its logo. */
+  domainPath?: string;
 }
 
 /** Reads `a.b[0].c` / `a.b.0.c` from a JSON value. Never evaluates code. */
@@ -53,6 +59,9 @@ export interface MappedItem {
   salaryMax?: number;
   currency?: string;
   remote?: boolean;
+  kind?: "job" | "event";
+  attributes?: Record<string, unknown>;
+  companyDomain?: string;
 }
 
 const str = (v: unknown) => (v == null ? "" : typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : Array.isArray(v) ? v.map((x) => (typeof x === "object" && x ? String((x as Record<string, unknown>).name ?? (x as Record<string, unknown>).label ?? "") : String(x))).filter(Boolean).join(", ") : "");
@@ -88,6 +97,9 @@ export function applyMapping(response: unknown, mapping: ResponseMapping): Mappi
       salaryMax: num(read("salaryMax")),
       currency: str(read("currency")).trim() || undefined,
       remote: mapping.fields.remote ? Boolean(read("remote")) : undefined,
+      ...(mapping.kindPath && getPath(raw, mapping.kindPath) === "event" ? { kind: "event" as const } : {}),
+      ...(mapping.domainPath && typeof getPath(raw, mapping.domainPath) === "string" && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(getPath(raw, mapping.domainPath))) ? { companyDomain: String(getPath(raw, mapping.domainPath)).toLowerCase() } : {}),
+      ...(mapping.attributesPath && getPath(raw, mapping.attributesPath) && typeof getPath(raw, mapping.attributesPath) === "object" ? { attributes: getPath(raw, mapping.attributesPath) as Record<string, unknown> } : {}),
     };
     for (const f of MAPPABLE_FIELDS) {
       const v = item[f.field as keyof MappedItem];
@@ -118,14 +130,17 @@ export function validateMapping(mapping: ResponseMapping, result: MappingResult)
   const missing = REQUIRED_FIELDS.filter((f) => !mapping.fields[f] && !(f === "employer" && mapping.defaultEmployer?.trim()));
   const pct = (f: MappableField) => (n ? result.coverage[f] / n : 0);
   const urlOk = result.items.filter((i) => /^https?:\/\//i.test(i.applyUrl)).length;
-  const dateOk = result.items.filter((i) => toIsoDate(i.postedAt) !== null).length;
+  // An event needs no employer and has no posting date (its own dates are in its attributes): those two checks are for jobs.
+  const jobs = result.items.filter((i) => i.kind !== "event");
+  const employerOk = jobs.filter((i) => i.employer).length;
+  const dateOk = jobs.filter((i) => toIsoDate(i.postedAt) !== null).length;
   const checks = [
     { label: "Jobs found in the response", ok: n > 0, detail: n ? `${n} items` : result.issues[0] ?? "No items" },
     { label: "Required fields mapped", ok: missing.length === 0, detail: missing.length ? `Missing: ${missing.join(", ")}` : undefined },
     { label: "Every job has a title", ok: n > 0 && pct("title") === 1, detail: n ? `${result.coverage.title}/${n}` : undefined },
-    { label: "Employer identity available", ok: n > 0 && pct("employer") === 1, detail: n ? `${result.coverage.employer}/${n}` : undefined },
+    { label: "Employer identity available", ok: n > 0 && employerOk === jobs.length, detail: jobs.length ? `${employerOk}/${jobs.length}` : n ? "Events only: no employer needed" : undefined },
     { label: "Apply URLs valid", ok: n > 0 && urlOk === n, detail: n ? `${urlOk}/${n} valid` : undefined },
-    { label: "Posted dates readable", ok: n > 0 && dateOk === n, detail: n ? `${dateOk}/${n} readable` : undefined },
+    { label: "Posted dates readable", ok: n > 0 && dateOk === jobs.length, detail: jobs.length ? `${dateOk}/${jobs.length} readable` : n ? "Events only: dated by their own start and end" : undefined },
   ];
   return { ok: checks.every((c) => c.ok), checks };
 }

@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const { data, error, reload } = useAdmin<Settings>("settings");
   return (
     <>
-      <PageTitle title="Settings" subtitle="Read-only: every switch is an environment variable, so each change is a deploy-time decision and is reversible without code." />
+      <PageTitle title="Feature switches" subtitle="Read-only: every switch is an environment variable, so each change is a deploy-time decision and is reversible without code." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

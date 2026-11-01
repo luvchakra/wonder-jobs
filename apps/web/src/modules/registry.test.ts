@@ -6,7 +6,7 @@ import { PRIMARY_NAV } from "@/modules/jobs/nav";
 describe("WonderWorks module registry", () => {
   it("has one manifest per module, in the registry's order", () => {
     expect(MODULES.map((m) => m.id)).toEqual([...MODULE_IDS]);
-    expect(MODULE_IDS).toEqual(["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace"]);
+    expect(MODULE_IDS).toEqual(["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace", "scholarships"]);
     expect(isModuleId("jobs")).toBe(true);
     expect(isModuleId("dating")).toBe(false);
     expect(moduleById("nope")).toBeUndefined();
@@ -27,6 +27,7 @@ describe("WonderWorks module registry", () => {
     expect(moduleById("cofounders")!.status).toBe("live");
     expect(moduleById("events")!.status).toBe("live");
     expect(moduleById("marketplace")!.status).toBe("live");
+    expect(moduleById("scholarships")!.status).toBe("soon");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
       expect(m.routes.find).toBe(`/app/m/${m.id}`);
       expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);
@@ -44,6 +45,7 @@ describe("WonderWorks module registry", () => {
       { id: "therapists", label: "Therapists", hint: "Counsellors near you or online" },
       { id: "events_social", label: "Events & Social", hint: "Meetups and things to do" },
       { id: "buy_sell_rent", label: "Buy, Sell & Rent", hint: "Handicrafts & Pre-loved items" },
+      { id: "scholarships", label: "Scholarships & Projects", hint: "Scholarships and student projects" },
     ]);
   });
 });

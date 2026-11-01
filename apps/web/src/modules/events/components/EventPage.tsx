@@ -2,7 +2,7 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Clock, MapPin, Users } from "lucide-react";
+import { Bookmark, Clock, ExternalLink, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
@@ -11,7 +11,7 @@ import { findListing } from "@/wonderworks/store";
 import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { ageLabel, seatsLabel, whenLabel, type EventListing } from "../domain";
+import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, whenOf, type EventListing } from "../domain";
 import { useEventsStore } from "../store";
 import { fitOf, useMatch } from "./Listing";
 import { Cover } from "./Cover";
@@ -49,7 +49,16 @@ function Page({ l }: { l: EventListing }) {
   const long = isLongText(l.description);
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
-  const rows: [string, string][] = [
+  const out = l.outside;
+  const rows: [string, string][] = out
+    ? [
+        ["Dates", whenOf(l)],
+        ["Where", outsidePlace(l)],
+        ...(l.company ? ([["Organiser", l.company]] as [string, string][]) : []),
+        ...(out.cfpUrl ? ([["Call for papers", out.cfpEndDate ? `Open until ${dateRangeLabel(out.cfpEndDate)}` : "Open"]] as [string, string][]) : []),
+        ["Source", l.sourceName],
+      ]
+    : [
     ["When", `${whenLabel(t.startsAt)} (IST)`],
     ...(t.endsAt ? ([["Ends", `${whenLabel(t.endsAt)} (IST)`]] as [string, string][]) : []),
     ["Where", t.online ? "Online" : l.location],
@@ -57,7 +66,7 @@ function Page({ l }: { l: EventListing }) {
     ["Price", "Free"],
     ["Minimum age", ageLabel(t) ?? "None stated"],
     ["Kind", t.tags.length ? t.tags.join(", ") : "Not stated"],
-  ];
+      ];
   return (
     <ListingPage
       share={shareOf(l)}
@@ -70,21 +79,24 @@ function Page({ l }: { l: EventListing }) {
       }
     >
       <ListingMain>
-        <Cover postingId={l.postingId} cover={t.cover} place="page" alt={`Cover photo for ${l.title}`} />
+        {!out && <Cover postingId={l.postingId} cover={t.cover} place="page" alt={`Cover photo for ${l.title}`} />}
         <ListingHead
-          company={l.company}
-          name={l.company}
+          company={l.company || l.title}
+          domain={l.companyDomain}
+          name={l.company || l.sourceName}
           facts={[
             <span key="w" className="inline-flex items-center gap-1">
-              <Clock className="size-3.5" aria-hidden /> {whenLabel(t.startsAt)}
+              <Clock className="size-3.5" aria-hidden /> {out ? whenOf(l) : whenLabel(t.startsAt)}
             </span>,
             <span key="l" className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" aria-hidden /> {t.online ? "Online" : l.location}
+              <MapPin className="size-3.5" aria-hidden /> {out ? outsidePlace(l) : t.online ? "Online" : l.location}
             </span>,
-            <span key="s" className="inline-flex items-center gap-1">
-              <Users className="size-3.5" aria-hidden /> {seatsLabel(l)}
-            </span>,
-            <span key="$">Free</span>,
+            !out && (
+              <span key="s" className="inline-flex items-center gap-1">
+                <Users className="size-3.5" aria-hidden /> {seatsLabel(l)}
+              </span>
+            ),
+            !out && <span key="$">Free</span>,
           ]}
         />
         {fit && (
@@ -94,8 +106,8 @@ function Page({ l }: { l: EventListing }) {
             </span>
           </div>
         )}
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">From the organiser</h2>
-        <ClampedText text={l.description || "The organiser shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <h2 className="mt-4 text-[15px] font-semibold text-ink">{out ? "From the source" : "From the organiser"}</h2>
+        <ClampedText text={l.description || (out ? "The source gives no description." : "The organiser shares no description.")} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length === 0 && (
@@ -103,7 +115,7 @@ function Page({ l }: { l: EventListing }) {
                 Save your interests and city in <Link href="/app/m/events/you/profile" className="font-medium text-brand-600 hover:underline">Events → You</Link> to see how it compares.
               </p>
             )}
-            <Fold title="Details" hint={[whenLabel(t.startsAt), seatsLabel(l)].join(" · ")}>
+            <Fold title="Details" hint={out ? whenOf(l) : [whenLabel(t.startsAt), seatsLabel(l)].join(" · ")}>
               <dl className="grid grid-cols-2 gap-3 text-[13px]">
                 {rows.map(([k, v]) => (
                   <div key={k}>
@@ -112,16 +124,29 @@ function Page({ l }: { l: EventListing }) {
                   </div>
                 ))}
               </dl>
-              <p className="mt-3 text-[12px] text-ink-4">As {l.company} posted it on WonderWorks. Times are India time. You see how many seats are left, never who is going.</p>
+              <p className="mt-3 text-[12px] text-ink-4">
+                {out ? `As ${l.sourceName} states them. WonderWorks adds nothing to them and doesn't organise this event.` : `As ${l.company} posted it on WonderWorks. Times are India time. You see how many seats are left, never who is going.`}
+              </p>
             </Fold>
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
-              <p className="text-[13px] text-ink-2">Posted on WonderWorks by {l.company}.{l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}</p>
+              <p className="text-[13px] text-ink-2">
+                {out ? `Listed from ${l.sourceName}, an outside source. Its own page for the event is where anything further happens; there is no RSVP here.` : `Posted on WonderWorks by ${l.company}.${l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}`}
+              </p>
             </Fold>
           </div>
         )}
       </ListingMain>
       <ListingAside>
-        <Rsvp listing={l} start={params.get("rsvp") === "1"} />
+        {out ? (
+          <>
+            <a href={out.url} target="_blank" rel="noopener noreferrer" className="wj-gradient-bg wj-press inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-[14px] font-semibold text-white">
+              <ExternalLink className="size-4" aria-hidden /> Event page
+            </a>
+            <p className="text-center text-[12px] text-ink-3">Opens {l.sourceName}&apos;s page for this event. RSVP and seats are only for events posted on WonderWorks.</p>
+          </>
+        ) : (
+          <Rsvp listing={l} start={params.get("rsvp") === "1"} />
+        )}
       </ListingAside>
     </ListingPage>
   );

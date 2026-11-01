@@ -397,3 +397,17 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **Admin page:** Platform → WorksLake → Sources → **Gateway** (`/platform/jobs-lake/gateway`): listings held per module, active sources, runs and records collected in the last 24 h, each source's status, listings, last/next run and crawl progress, the newest 100 runs (tests, collections, failures with their code), WorksLake's calls today, and **Collect now** per active source (audited).
 - **Still not added:** Canada Job Bank (monthly CSV well over the 2 MB fetch limit; needs a streaming CSV reader) and confs.tech (no organiser field; needs event fields). Careerjet and Ticketmaster need free keys.
 
+### 13.6 Events through the gateway (2026-11-01)
+
+- **Event support:** mapping keys `attr.<name>` keep a source's own extra fields (an event's start/end date, city, country, online, call-for-papers) as stated; `organizationOptional` lets a source give no organiser rather than have one invented; `dropPastAfter: "endDate"` leaves out events that are over (not counted against quality); `extraUrls` (≤ 60, same host) make one source of a dataset split into files; `requestDelayMs` (250–5000) sets the pause between them. An event's date is never used as a posting date.
+- **confs.tech** (MIT, `sources/confs-tech.json`): 52 topic files for 2026–2027. Dry run 2026-11-01: 52 read in 20 s, **157 upcoming conferences**, 100% valid (468 past and 70 cross-listed repeats dropped); 8 in India, 13 online-only. Collected daily.
+- **For modules:** `server/gateway/listings.ts::gatewayListings(module, { query, places })` gives a module its active, unexpired gateway listings with their attributes and source names, in process. The Events module (its own session) decides how to show them.
+- A collection pass stops starting new sources after 35 s; the rest stay due for the next pass.
+
+### 13.7 Partner uploads (2026-11-01)
+
+- **Who:** a partner that gave written permission (an association, a cooperative, a placement cell). Admin → Platform → WorksLake → Gateway → **Add a partner**: name, https website, module, the permission and where it's kept. People modules (Therapists, Co-founders, Services, Marketplace) also need the partner's confirmation that every person opted in.
+- **The file:** CSV or JSON (array or `{ items }`), ≤2 MB, ≤5,000 rows, one template (**Download the template**): `id, title, organization, url, town, region, country, description, posted_at, organization_url`, plus any `attr_<name>` column kept as the listing's own field (e.g. `attr_starts_at` for an event). `title` and `url` (https) are required; `id` defaults to the url.
+- **Upload:** **Upload list** on the partner's row in Sources. Rows are checked like any source's records; only an upload where ≥90% of rows read well replaces the partner's listings (repeats and past items aside). Otherwise nothing changes and the first five problems are shown. A partner refreshes its list by uploading again.
+- **Serving:** registered paused; **Activate** after a good upload. Its listings flow into its module through the module's WorksLake gateway source like any other gateway listing. The scheduler never fetches an upload source.
+

@@ -14,7 +14,7 @@ const permitted = (overrides = {}) => ({
 const posting = (overrides = {}) => ({ id: "1", title: "Engineer", employer: "Example", location: "Mumbai", description: "Platform role", url: "https://example.org/jobs/1", postedAt: "2026-10-30T10:00:00Z", ...overrides });
 const caller = { id: "key", consumerId: "workslake", scopes: MODULES.map((x) => "read:" + x) };
 
-test("eight module ids are supported", () => assert.deepEqual(MODULES, ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace"]));
+test("nine module ids are supported", () => assert.deepEqual(MODULES, ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]));
 test("source registration fails closed on missing permission and sensitive consent", () => {
   assert.throws(() => validateSource(permitted({ permission: "denied" })), /Documented permission/);
   assert.throws(() => validateSource(permitted({ termsReviewed: false })), /Documented permission/);
@@ -136,4 +136,23 @@ test("a feed that names the company only as 'Company: Title' is read when the so
   assert.equal(got.organization, "Dropbox");
   assert.equal(got.title, "Backend Engineer");
   assert.equal(got.remote, true);
+});
+import { matchesWords, queryWords } from "../src/core.mjs";
+test("a query's words each match on their own, in any order", () => {
+  assert.deepEqual(queryWords("Tech  Conference, India!"), ["tech", "conference", "india"]);
+  assert.deepEqual(queryWords("C++ and node.js"), ["c++", "and", "node.js"]);
+  assert.equal(matchesWords("WeAreDevelopers Conference India — the tech event", "tech conference"), true);
+  assert.equal(matchesWords("WeAreDevelopers Conference India", "tech conference"), false, "every word must appear");
+  assert.equal(matchesWords("anything", ""), true);
+});
+import { countryName } from "../src/core.mjs";
+test("a place can combine town, region and country; a country code reads as its name", () => {
+  assert.equal(countryName("GB"), "United Kingdom");
+  assert.equal(countryName("IN"), "India");
+  assert.equal(countryName("East Midlands"), "East Midlands");
+  const src = validateSource(permitted({ mapping: { id: "id", title: "title", employer: "employer", applyUrl: "url", location: ["loc.town", "loc.region", "loc.country"] } }));
+  const got = normalize(src, posting({ loc: { town: "Countesthorpe", region: "East Midlands", country: "GB" } }), "jobs");
+  assert.equal(got.location, "Countesthorpe, East Midlands, United Kingdom");
+  assert.equal(normalize(src, posting({ loc: { town: "London", region: "London", country: "GB" } }), "jobs").location, "London, United Kingdom", "a repeated part shows once");
+  assert.throws(() => validateSource(permitted({ mapping: { title: ["a", "b", "c", "d", "e", "f"] } })), /up to 5/);
 });

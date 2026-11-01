@@ -12,7 +12,7 @@ import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError, requirePermission } from "../hiring";
 import { deliver, type Notice } from "../notifications/deliver";
-import { capabilityDecision, emailTeam, listings, newId, now, orgs, record, responses as allResponses } from "../modules/responses";
+import { capabilityDecision, emailTeam, listings, newId, now, orgDomain, orgs, record, responses as allResponses } from "../modules/responses";
 import { cleanSlots, demoKey, isOpenApplication, readTerms, SCHOOL_MAY, slotLabel, TEACHER_MAY, TEACHING, type BookingStatus, type DemoBooking, type DemoMode, type SlotInput, type TeacherProfile, type TeachingStatus } from "@/modules/teaching/domain";
 
 type BookingRow = { id: string; module: string; response_id: string; org_id: string; responder_tenant: string; starts_at: string; duration_min: number; mode: DemoMode; location: string; note: string; status: BookingStatus; created_by: string; created_at: string; updated_at: string; idempotency_key?: string | null };
@@ -103,14 +103,15 @@ export async function answerDemo(s: Session, orgId: string, bookingId: string, t
 // ---- teacher side ----------------------------------------------------------------------------------------------------
 
 /** The teacher's own demo classes, newest first, with the opening and school each is for. */
-export async function myBookings(s: Session): Promise<(DemoBooking & { title: string; school: string })[]> {
+export async function myBookings(s: Session): Promise<(DemoBooking & { title: string; school: string; schoolDomain?: string })[]> {
   const rows = await bookings().find({ responder_tenant: s.tenantId, module: TEACHING }, { order: "starts_at", limit: 300 });
   const rs = new Map((await responses().findIn("id", [...new Set(rows.map((b) => b.response_id))], { responder_tenant: s.tenantId, module: TEACHING })).map((r) => [r.id, r]));
   const posts = new Map((await listings().findIn("id", [...new Set([...rs.values()].map((r) => r.listing_id))], { module: TEACHING })).map((p) => [p.id, p.title]));
-  const names = new Map((await orgs().findIn("id", [...new Set(rows.map((b) => b.org_id))])).map((o) => [o.id, o.name]));
+  const schools = new Map((await orgs().findIn("id", [...new Set(rows.map((b) => b.org_id))])).map((o) => [o.id, o]));
   return rows.flatMap((b) => {
     const r = rs.get(b.response_id);
-    return r ? [{ ...toBooking(b), title: posts.get(r.listing_id) ?? "Teaching job", school: names.get(b.org_id) ?? "The school" }] : [];
+    const school = schools.get(b.org_id);
+    return r ? [{ ...toBooking(b), title: posts.get(r.listing_id) ?? "Teaching job", school: school?.name ?? "The school", ...(school ? { schoolDomain: orgDomain(school).domain } : {}) }] : [];
   });
 }
 

@@ -136,6 +136,24 @@ describe("Applying (teacher side): teaching.apply through resolveCapability, on 
   });
 });
 
+describe("A school's logo is found from its workspace's website", () => {
+  it("on its open listing, and on the teacher's own applications; a school with no website has none", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Sunrise School", website: "https://www.sunriseschool.in/about" });
+    const p = await T.saveOpening(owner, org.id, OPENING);
+    await T.setOpeningStatus(owner, org.id, p.id, "open");
+    expect((await openTeachingPosts())[0].org).toMatchObject({ name: "Sunrise School", domain: "sunriseschool.in" });
+    const cv = await files.save(teacher.tenantId, { filename: "CV.pdf", mime: "application/pdf", bytes: Buffer.from("%PDF") });
+    await policy(teacher.tenantId, "automatic");
+    const { id } = await apply(p.id, cv.id);
+    expect((await T.myApplications(teacher))[0]).toMatchObject({ company: "Sunrise School", companyDomain: "sunriseschool.in" });
+    expect((await T.myApplication(teacher, id)).companyDomain).toBe("sunriseschool.in");
+    // No website: no domain (the card falls back to the school's name).
+    const bare = await openOpening();
+    const other2 = await openTeachingPosts();
+    expect(other2.find((x) => x.posting.id === bare.postingId)!.org.domain).toBeUndefined();
+  });
+});
+
 describe("The school shortlists an application", () => {
   it("moves it to Shortlisted (In Process), the teacher is told, and it can still be withdrawn, appointed or closed", async () => {
     const { orgId, postingId, cvId } = await openOpening();

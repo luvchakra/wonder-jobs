@@ -113,7 +113,7 @@ export default function RatingsPage() {
   const waiting = data?.coverage.waiting ?? 0;
   return (
     <>
-      <PageTitle title="Company ratings" subtitle="Employee-review ratings (out of 5) from Explorium, looked up by each company's website. The job spends the keys below one after another." />
+      <PageTitle title="Employee ratings" subtitle="Employee-review ratings (out of 5) from Explorium, looked up by each company's website. The job spends the keys below one after another." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

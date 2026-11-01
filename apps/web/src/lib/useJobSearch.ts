@@ -138,7 +138,8 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     (opts: SearchOptions = {}) => {
       const query = (opts.query ?? readiness.query).trim();
       // Typed words and roles carry their own role, so only a profile search waits on the profile's blockers.
-      if (!query || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
+      // The profile's search may have no words (no role wanted): it brings the latest listings. Typed words never run empty.
+      if ((!query && (opts.origin ?? "profile") !== "profile") || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
       // Refine's places, work modes and pay first; the Career Profile's only for what Refine leaves open.
       const { locations, workModes, minSalary } = searchScope(useJobsStore.getState().filters, { locations: readiness.locations, workModes: dna.workModes, minSalary: dna.minSalary }, opts);
       // Job types asked for (words like "part time", or the pills under the search box): the sources that list them go first.

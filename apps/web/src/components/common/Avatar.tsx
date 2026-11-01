@@ -27,31 +27,3 @@ export function Avatar({ name, size = 36, className, self = false }: { name: str
     </span>
   );
 }
-
-/**
- * Company tile: the company's logo from WorksLake's cache when it has one (`logo`: signed-in pages only), else
- * its initial on the company's color. A logo that isn't there just leaves the initial — never a guess.
- */
-/** Bumped when WorksLake finds logos for more companies (2: names resolved through Wikidata, 2026-10-24). */
-const LOGO_VERSION = 2;
-
-export function CompanyLogo({ name, color, size = 40, className, logo, domain }: { name: string; color?: string; size?: number; className?: string; logo?: boolean; domain?: string }) {
-  const [failed, setFailed] = useState(false);
-  const known = name.trim() && name !== "?" && name !== "Unknown company";
-  // `v` changes when how logos are found changes, so a browser's cached "no logo" answer from before is not reused.
-  const ready = useHydration((h) => h.hydrated);
-  const src = logo && known && ready && !failed && getClientMode().mode === "user" ? `/api/company-logo?n=${encodeURIComponent(name.trim())}${domain ? `&d=${encodeURIComponent(domain)}` : ""}&v=${LOGO_VERSION}` : null;
-  return (
-    <span
-      className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-line bg-surface font-bold", className)}
-      style={{ width: size, height: size, color: color ?? "var(--wj-brand-600)", fontSize: Math.max(12, size * 0.42) }}
-      aria-hidden="true"
-    >
-      {name.trim()[0]?.toUpperCase()}
-      {src && (
-        // eslint-disable-next-line @next/next/no-img-element -- a small cached icon from our own API; next/image adds nothing here
-        <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} className="absolute inset-0 size-full bg-surface object-contain p-[12%]" />
-      )}
-    </span>
-  );
-}

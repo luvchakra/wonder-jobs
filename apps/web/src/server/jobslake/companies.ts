@@ -5,7 +5,7 @@
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
-import { cleanDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
@@ -16,11 +16,19 @@ export interface CompanyStore {
   upsert(records: CompanyRecord[]): Promise<void>;
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
+  /** Only what serving a logo needs (domain, logo, when it was looked for): by domain, else by name key. Never the facts. */
+  logoFor(q: { domain?: string; nameKey?: string }): Promise<Pick<CompanyRecord, "domain" | "logo" | "logoCheckedAt"> | undefined>;
   /** The directory, most open roles first: a page of companies matching `q` (name or domain), and how many match. No logo bytes. */
-  list(q: string, limit: number, offset: number): Promise<{ total: number; rows: CompanyRecord[] }>;
+  list(q: string, limit: number, offset: number, opts?: { missingLogo?: boolean; banned?: boolean }): Promise<{ total: number; rows: CompanyRecord[] }>;
   /** The companies with any of these domains or name keys — facts only, no logos. */
   facts(domains: string[], nameKeys: string[]): Promise<CompanyRecord[]>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
+  /** An admin's ban (or, with null, lifting it). False when there's no such company. */
+  setBan(domain: string, ban: CompanyBan | null): Promise<boolean>;
+  /** Every banned company's domain and name key. */
+  bannedList(): Promise<{ domain: string; nameKey: string }[]>;
+  /** An admin's choice: replaces (or, with null, clears) a company's logo even when one is stored. */
+  replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<boolean>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
   /** Companies whose Wikidata facts were never looked for, or not since `staleBefore` — oldest first. */
@@ -66,14 +74,33 @@ class MemoryCompanies implements CompanyStore {
   async byDomain(domain: string) {
     return this.rows.get(domain);
   }
-  async list(q: string, limit: number, offset: number) {
+  async setBan(domain: string, ban: CompanyBan | null) {
+    const r = this.rows.get(domain);
+    if (!r) return false;
+    this.rows.set(domain, { ...r, ban });
+    return true;
+  }
+  async bannedList() {
+    return [...this.rows.values()].filter((r) => r.ban).map((r) => ({ domain: r.domain, nameKey: r.nameKey }));
+  }
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean; banned?: boolean } = {}) {
     const k = q.trim().toLowerCase();
-    const all = [...this.rows.values()].filter((r) => !k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k));
+    const all = [...this.rows.values()].filter((r) => (!k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k)) && (!opts.missingLogo || !r.logo) && (!opts.banned || !!r.ban));
     all.sort((a, b) => (b.openJobs ?? -1) - (a.openJobs ?? -1) || a.name.localeCompare(b.name));
-    return { total: all.length, rows: all.slice(offset, offset + limit) };
+    return { total: all.length, rows: all.slice(offset, offset + limit).map((r) => ({ ...r, hasLogo: !!r.logo })) };
+  }
+  async replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
+    const r = this.rows.get(domain);
+    if (!r) return false;
+    this.rows.set(domain, { ...r, logo, logoCheckedAt: checkedAt });
+    return true;
   }
   async facts(domains: string[], nameKeys: string[]) {
     return [...this.rows.values()].filter((r) => domains.includes(r.domain) || nameKeys.includes(r.nameKey));
+  }
+  async logoFor(q: { domain?: string; nameKey?: string }) {
+    const r = (q.domain ? this.rows.get(q.domain) : undefined) ?? (q.nameKey ? await this.byName(q.nameKey) : undefined);
+    return r ? { domain: r.domain, logo: r.logo, logoCheckedAt: r.logoCheckedAt } : undefined;
   }
   async byName(nameKey: string) {
     return [...this.rows.values()].filter((r) => r.nameKey === nameKey).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))[0];
@@ -128,8 +155,8 @@ class MemoryCompanies implements CompanyStore {
   }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; wikidata?: unknown; wikidata_at?: string | null; ratings?: CompanyRatings | null; ratings_at?: string | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}), ...(r.ratings_at ? { ratings: r.ratings ?? null, ratingsAt: r.ratings_at } : {}) });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; wikidata?: unknown; wikidata_at?: string | null; ratings?: CompanyRatings | null; ratings_at?: string | null; banned_at?: string | null; ban_reason?: string | null; banned_by?: string | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}), ...(r.ratings_at ? { ratings: r.ratings ?? null, ratingsAt: r.ratings_at } : {}), ...(r.banned_at ? { ban: { at: r.banned_at, reason: r.ban_reason ?? "", by: r.banned_by ?? "" } } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -153,15 +180,42 @@ class SupabaseCompanies implements CompanyStore {
     if (error) throw new Error(error.message);
     return data ? fromRow(data as Row) : undefined;
   }
-  async list(q: string, limit: number, offset: number) {
-    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
+  async setBan(domain: string, ban: CompanyBan | null) {
+    const { data, error } = await this.sb().update({ banned_at: ban?.at ?? null, ban_reason: ban?.reason ?? null, banned_by: ban?.by ?? null }).eq("domain", domain).select("domain");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
+  }
+  async bannedList() {
+    const { data, error } = await this.sb().select("domain, name_key").not("banned_at", "is", null).limit(5000);
+    // Before migration 0046, nothing can be banned.
+    if (error?.code === "42703") return [];
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => ({ domain: String(r.domain), nameKey: String(r.name_key) }));
+  }
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean; banned?: boolean } = {}) {
+    const base = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_type, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
     // Only the characters a name or domain has go into the filter (it is a PostgREST expression).
     const k = q.trim().toLowerCase().replace(/[^a-z0-9 .\-&']/g, "").slice(0, 80);
-    let query = this.sb().select(cols, { count: "exact" });
-    if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
-    const { data, error, count } = await query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
+    const run = (withBans: boolean) => {
+      let query = this.sb().select(withBans ? `${base}, banned_at, ban_reason, banned_by` : base, { count: "exact" });
+      if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
+      if (opts.missingLogo) query = query.is("logo_type", null);
+      if (opts.banned && withBans) query = query.not("banned_at", "is", null);
+      return query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
+    };
+    let { data, error, count } = await run(true);
+    // Before migration 0046 adds the ban columns, the directory still lists (with nothing banned).
+    if (error?.code === "42703") {
+      if (opts.banned) return { total: 0, rows: [] };
+      ({ data, error, count } = await run(false));
+    }
     if (error) throw new Error(error.message);
-    return { total: count ?? 0, rows: (data ?? []).map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row)) };
+    return { total: count ?? 0, rows: (data ?? []).map((r) => ({ ...fromRow({ logo: null, logo_from: null, ...(r as object), logo_type: null } as Row), hasLogo: !!(r as { logo_type?: string | null }).logo_type })) };
+  }
+  async replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
+    const { data, error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain).select("domain");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   }
   async facts(domains: string[], nameKeys: string[]) {
     const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, facts, wikidata, wikidata_at, ratings, ratings_at";
@@ -171,6 +225,19 @@ class SupabaseCompanies implements CompanyStore {
     ]);
     if (a.error || b.error) throw new Error((a.error ?? b.error)!.message);
     return [...(a.data ?? []), ...(b.data ?? [])].map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row));
+  }
+  async logoFor(q: { domain?: string; nameKey?: string }) {
+    const cols = "domain, logo, logo_type, logo_from, logo_checked_at";
+    const pick = (r: Partial<Row> | null | undefined) => (r ? fromRow({ name: "", name_key: "", sources: [], first_seen_at: "", last_seen_at: "", ...r } as Row) : undefined);
+    if (q.domain) {
+      const { data, error } = await this.sb().select(cols).eq("domain", q.domain).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (data) return pick(data as Partial<Row>);
+    }
+    if (!q.nameKey) return undefined;
+    const { data, error } = await this.sb().select(cols).eq("name_key", q.nameKey).order("last_seen_at", { ascending: false }).limit(1);
+    if (error) throw new Error(error.message);
+    return pick(data?.[0] as Partial<Row> | undefined);
   }
   async byName(nameKey: string) {
     const { data, error } = await this.sb().select("*").eq("name_key", nameKey).order("last_seen_at", { ascending: false }).limit(1);
@@ -258,6 +325,7 @@ export function companyStore(): CompanyStore {
 /** Tests only. */
 export function __setCompanyStore(s: CompanyStore | undefined) {
   g.__companyStore = s;
+  LOGO_CACHE.clear();
 }
 export { MemoryCompanies as __MemoryCompanies };
 
@@ -265,12 +333,14 @@ export { MemoryCompanies as __MemoryCompanies };
 export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toISOString()): CompanyRecord[] {
   const out = new Map<string, CompanyRecord>();
   for (const o of opps) {
-    const domain = cleanDomain(o.employer.domain) ?? employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified);
-    const nameKey = companyKey(o.employer.name);
+    const domain = companyDomain(o.employer.domain) ?? companyDomain(employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified));
+    // An event with no organiser named is its own poster: it is recorded under its own site and title.
+    const name = o.employer.name?.trim() || (o.kind === "event" ? o.title : "");
+    const nameKey = companyKey(name);
     if (!domain || !nameKey) continue;
     const sources = o.sourceRecords.map((r) => r.sourceId);
     const prev = out.get(domain);
-    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
+    out.set(domain, { domain, name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
   }
   return [...out.values()];
 }
@@ -283,7 +353,7 @@ export async function recordCompanyFacts(items: { domain: string; name: string; 
   const now = new Date().toISOString();
   const by = new Map<string, CompanyRecord>();
   for (const i of items) {
-    const domain = cleanDomain(i.domain);
+    const domain = companyDomain(i.domain);
     const nameKey = companyKey(i.name);
     if (domain && nameKey) by.set(domain, { domain, name: i.name, nameKey, sources: [i.source], firstSeenAt: now, lastSeenAt: now, facts: i.facts, factsAt: now });
   }
@@ -305,8 +375,41 @@ function imageType(bytes: Uint8Array): string | undefined {
   return undefined;
 }
 
-/** Where a logo is looked for, best first: a 128px icon from Google's favicon service (404 when it has none), then the site's own touch icon. */
-export const logoUrls = (domain: string) => [`https://www.google.com/s2/favicons?domain=${domain}&sz=128`, `https://${domain}/apple-touch-icon.png`];
+/**
+ * Where a logo is looked for, best first (researched 2026-11-01 against real misses):
+ * 1. Google's favicon service by the site's URL (`faviconV2`): it follows the site to its real host (tiaa.org →
+ *    www.tiaa.org), which the older `s2/favicons?domain=` endpoint doesn't (404 for tiaa.org); 404 when it has none.
+ * 2. The older endpoint for the www host, for sites only indexed there.
+ * 3. DuckDuckGo's icon service (404 when it has none).
+ * Then the site's own files (`fetchLogo`), then the company's logo on Wikimedia Commons via Wikidata.
+ */
+export const logoUrls = (domain: string) => [
+  `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(`https://${domain}`)}&size=128`,
+  `https://www.google.com/s2/favicons?domain=www.${domain}&sz=128`,
+  `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+];
+
+/** The site's own icon files, on the bare host and on www (many sites answer only on one of them). */
+export const siteIconUrls = (domain: string) => [`https://${domain}`, `https://www.${domain}`].flatMap((h) => [`${h}/apple-touch-icon.png`, `${h}/favicon.ico`]);
+
+const UA = "WorksLake/1.0 (+https://jobs.wonderapps.biz)";
+
+/**
+ * The company's logo on Wikimedia Commons, from its Wikidata item's logo (P154), as a 128-px-wide PNG Commons renders
+ * (an SVG logo is never served as SVG). Only for a company whose Wikidata item WorksLake matched by its website.
+ */
+export async function wikidataLogo(qid: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"] | undefined> {
+  if (!/^Q\d{1,12}$/.test(qid)) return undefined;
+  try {
+    const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=P154&format=json`, { signal: AbortSignal.timeout(4000), headers: { "user-agent": UA, accept: "application/json" } });
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as { claims?: { P154?: { mainsnak?: { datavalue?: { value?: unknown } } }[] } };
+    const file = body.claims?.P154?.map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string" && v.length < 250);
+    return file ? await imageFrom(`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=128`, fetcher) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
 export function iconLinks(html: string, pageUrl: string, domain: string): string[] {
@@ -328,9 +431,11 @@ export function iconLinks(html: string, pageUrl: string, domain: string): string
   return out.sort((a, b) => Number(b.touch) - Number(a.touch) || b.size - a.size).map((x) => x.url);
 }
 
-async function imageFrom(url: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"] | undefined> {
+async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>): Promise<CompanyRecord["logo"] | undefined> {
+  const host = new URL(url).hostname;
+  if (dead?.has(host)) return undefined;
   try {
-    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8" } });
+    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
     if (!res.ok) return undefined;
     const bytes = new Uint8Array(await res.arrayBuffer());
     // Tiny files are placeholders; huge ones aren't icons.
@@ -338,49 +443,92 @@ async function imageFrom(url: string, fetcher: typeof fetch): Promise<CompanyRec
     const type = imageType(bytes);
     return type ? { data: Buffer.from(bytes).toString("base64"), type, from: new URL(url).hostname } : undefined;
   } catch {
-    // Unreachable or too slow: try the next place.
+    // Unreachable or too slow: try the next place, and don't wait on this host again for this company.
+    dead?.add(host);
     return undefined;
   }
 }
 
-export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"]> {
-  for (const url of logoUrls(domain)) {
-    const logo = await imageFrom(url, fetcher);
+export async function fetchLogo(domain: string, fetcher: typeof fetch, opts: { wikidataId?: string } = {}): Promise<CompanyRecord["logo"]> {
+  // A host that didn't answer once (no DNS, a timeout) isn't asked again for this company, so a dead site costs one wait.
+  const dead = new Set<string>();
+  for (const url of [...logoUrls(domain), ...siteIconUrls(domain)]) {
+    const logo = await imageFrom(url, fetcher, dead);
     if (logo) return logo;
   }
-  // Last: the icons the company's own home page declares (many sites serve none at the standard paths).
-  try {
-    const page = `https://${domain}/`;
-    const res = await fetcher(page, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "text/html" } });
-    if (res.ok) {
+  // The icons the company's own home page declares (many sites serve none at the standard paths), bare host then www.
+  for (const page of [`https://${domain}/`, `https://www.${domain}/`]) {
+    if (dead.has(new URL(page).hostname)) continue;
+    try {
+      const res = await fetcher(page, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "text/html", "user-agent": UA } });
+      if (!res.ok) continue;
       const html = (await res.text()).slice(0, 200_000);
       for (const url of iconLinks(html, res.url || page, domain).slice(0, 3)) {
-        const logo = await imageFrom(url, fetcher);
+        const logo = await imageFrom(url, fetcher, dead);
         if (logo) return logo;
       }
+      break;
+    } catch {
+      // No answer on this host: try the other.
     }
-  } catch {
-    // No home page: no logo.
   }
-  return null;
+  // Last: the company's own logo on Wikimedia Commons, when WorksLake knows its Wikidata item.
+  return (opts.wikidataId ? await wikidataLogo(opts.wikidataId, fetcher) : undefined) ?? null;
 }
 
 /**
- * The cached logo for a company WorksLake knows — by its domain, else by its name — fetched and stored the
- * first time it's asked for (and again after LOGO_TTL_MS). Undefined when WorksLake doesn't know the
- * company; null when it has no logo.
+ * Logos already served, kept in this instance's memory so a page of cards doesn't read the directory once per card: a
+ * company logo is public and shared by every module, never tenant data. Bounded (entries and bytes) and short-lived,
+ * and dropped the moment an admin changes that company's logo.
+ */
+const LOGO_CACHE = new Map<string, { at: number; domain: string; logo: { data: Buffer; type: string } }>();
+const LOGO_CACHE_MS = 10 * 60_000;
+const LOGO_CACHE_MAX = 500;
+const LOGO_CACHE_BYTES = 12_000_000;
+let logoCacheBytes = 0;
+function cacheLogo(keys: string[], domain: string, logo: { data: Buffer; type: string }, now: number) {
+  for (const k of keys) {
+    const old = LOGO_CACHE.get(k);
+    if (old) logoCacheBytes -= old.logo.data.length;
+    LOGO_CACHE.set(k, { at: now, domain, logo });
+    logoCacheBytes += logo.data.length;
+  }
+  for (const [k, v] of LOGO_CACHE) {
+    if (LOGO_CACHE.size <= LOGO_CACHE_MAX && logoCacheBytes <= LOGO_CACHE_BYTES) break;
+    LOGO_CACHE.delete(k);
+    logoCacheBytes -= v.logo.data.length;
+  }
+}
+function forgetLogo(domain: string) {
+  for (const [k, v] of LOGO_CACHE) if (v.domain === domain) { LOGO_CACHE.delete(k); logoCacheBytes -= v.logo.data.length; }
+}
+
+/**
+ * The cached logo for a company WorksLake knows — by its domain, else by its name — from the one company directory every
+ * module shares, so a company is stored and fetched once however many modules show it. Looked for the first time it's
+ * asked for (and again after LOGO_TTL_MS) when the directory refresh hasn't already. Undefined when WorksLake doesn't
+ * know the company; null when it has no logo.
  */
 export async function companyLogo(q: { domain?: string; name?: string }, now = Date.now(), fetcher: typeof fetch = fetch): Promise<{ data: Buffer; type: string } | null | undefined> {
+  const domain = companyDomain(q.domain);
+  const nameKey = q.name ? companyKey(q.name) : "";
+  const keys = [...(domain ? [`d:${domain}`] : []), ...(nameKey ? [`n:${nameKey}`] : [])];
+  for (const k of keys) {
+    const hit = LOGO_CACHE.get(k);
+    if (hit && now - hit.at < LOGO_CACHE_MS) return hit.logo;
+  }
   const store = companyStore();
-  const domain = cleanDomain(q.domain);
-  const company = (domain ? await store.byDomain(domain) : undefined) ?? (q.name ? await store.byName(companyKey(q.name)) : undefined);
+  const company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
   if (!company) return undefined;
   let logo = company.logo;
   if (!logo && (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS)) {
     logo = await fetchLogo(company.domain, fetcher);
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
-  return logo ? { data: Buffer.from(logo.data, "base64"), type: logo.type } : null;
+  if (!logo) return null;
+  const served = { data: Buffer.from(logo.data, "base64"), type: logo.type };
+  cacheLogo([...keys, `d:${company.domain}`], company.domain, served, now);
+  return served;
 }
 
 /** A company's profile by the domain a source reported, else by its exact (normalized) name; undefined when WorksLake knows nothing. */
@@ -430,6 +578,8 @@ export interface DirectoryCompany {
   firstSeenAt: string;
   lastSeenAt: string;
   logoChecked: boolean;
+  /** Whether a logo is stored for it. */
+  hasLogo: boolean;
   openJobs?: number;
   newJobs7d?: number;
   countedAt?: string;
@@ -440,21 +590,28 @@ export interface DirectoryCompany {
   ratings?: CompanyRatings | null;
   ratingsAt?: string;
   h1b?: H1bRecord;
+  /** An admin's ban: its listings are left out of every module's searches. */
+  ban?: CompanyBan;
 }
 
 /** The admin Companies page: one page of the directory, each company with its H-1B totals read from their own table. */
-export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore()): Promise<{ total: number; companies: DirectoryCompany[] }> {
-  const { total, rows } = await store.list(q, limit, offset);
+export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore(), opts: { missingLogo?: boolean; banned?: boolean } = {}): Promise<{ total: number; missingLogos: number; banned: number; companies: DirectoryCompany[] }> {
+  const { total, rows } = await store.list(q, limit, offset, opts);
+  const [missingLogos, banned] = await Promise.all([opts.missingLogo && !opts.banned ? total : store.list(q, 1, 0, { missingLogo: true }).then((x) => x.total), opts.banned && !opts.missingLogo ? total : store.list(q, 1, 0, { banned: true }).then((x) => x.total)]);
   const h1b = await store.h1bFor([...new Set(rows.map((r) => r.nameKey))]);
   return {
     total,
+    missingLogos,
+    banned,
     companies: rows.map((r) => ({
+      ...(r.ban ? { ban: r.ban } : {}),
       domain: r.domain,
       name: r.name,
       sources: r.sources,
       firstSeenAt: r.firstSeenAt,
       lastSeenAt: r.lastSeenAt,
       logoChecked: !!r.logoCheckedAt,
+      hasLogo: !!r.hasLogo,
       ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
       ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
       ...(r.facts ? { facts: r.facts, factsAt: r.factsAt } : {}),
@@ -465,3 +622,111 @@ export async function companyDirectory(q: string, limit: number, offset: number,
   };
 }
 
+
+/** Logo files an admin may upload, by what their first bytes say they are (the declared type must agree). */
+const LOGO_MAGIC: [string, (b: Buffer) => boolean][] = [
+  ["image/png", (b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47],
+  ["image/jpeg", (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ["image/gif", (b) => b.length > 6 && b.toString("ascii", 0, 3) === "GIF"],
+  ["image/webp", (b) => b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP"],
+  ["image/x-icon", (b) => b.length > 4 && b[0] === 0 && b[1] === 0 && b[2] === 1 && b[3] === 0],
+];
+const MAX_UPLOAD_BYTES = 256 * 1024;
+
+/**
+ * An admin's logo change for one company or event poster: fetch it again from its site, upload a file (PNG, JPEG, GIF,
+ * WebP or ICO, at most 256 KB, checked by its own bytes; never SVG), or remove a wrong one. Returns what happened.
+ */
+export async function adminLogo(
+  domain: string,
+  action: { kind: "refetch" } | { kind: "upload"; type: string; base64: string } | { kind: "clear" },
+  now = Date.now(),
+  fetcher: typeof fetch = fetch,
+  store: CompanyStore = companyStore(),
+): Promise<{ ok: boolean; message: string }> {
+  const d = cleanDomain(domain);
+  const record = d ? await store.byDomain(d) : undefined;
+  if (!d || !record) return { ok: false, message: "No such company in the directory." };
+  const at = new Date(now).toISOString();
+  forgetLogo(d);
+  if (action.kind === "clear") {
+    await store.replaceLogo(d, null, at);
+    return { ok: true, message: "Logo removed. Cards show the initial until a new one is set." };
+  }
+  if (action.kind === "refetch") {
+    const logo = await fetchLogo(d, fetcher, { wikidataId: record.wikidata?.sourceId });
+    if (!logo) return { ok: false, message: `No logo found for ${d} (Google, DuckDuckGo, its own site${record.wikidata?.sourceId ? ", Wikidata" : ""}). Upload one instead.` };
+    await store.replaceLogo(d, logo, at);
+    return { ok: true, message: `Logo fetched from ${d}.` };
+  }
+  const bytes = Buffer.from(action.base64, "base64");
+  if (!bytes.length || bytes.length > MAX_UPLOAD_BYTES) return { ok: false, message: "The file must be under 256 KB." };
+  const kind = LOGO_MAGIC.find(([, test]) => test(bytes))?.[0];
+  if (!kind || kind !== action.type) return { ok: false, message: "Upload a PNG, JPEG, GIF, WebP or ICO image (its contents must match its type)." };
+  await store.replaceLogo(d, { data: bytes.toString("base64"), type: kind, from: "admin upload" }, at);
+  return { ok: true, message: "Logo uploaded." };
+}
+
+/**
+ * An admin's "Fetch all missing logos": looks again for every company or event poster still without a logo, however
+ * recently it was last looked for, within a time budget. Each pass skips the ones already looked for since `since`
+ * (the moment the admin pressed), so the page can call it again until nothing is left to try. Returns how many were
+ * looked for and found in this pass, how many are left to try, and how many still have no logo.
+ */
+export async function fetchMissingLogos(
+  since: string,
+  opts: { budgetMs?: number; concurrency?: number; limit?: number; fetcher?: typeof fetch; store?: CompanyStore } = {},
+): Promise<{ checked: number; found: number; remaining: number; missing: number }> {
+  const store = opts.store ?? companyStore();
+  const startedAt = Date.now();
+  const budget = opts.budgetMs ?? 40_000;
+  const queue = await store.needingLogo(opts.limit ?? 120, since);
+  const qids = new Map((await store.facts(queue, [])).flatMap((r) => (r.wikidata?.sourceId ? [[r.domain, r.wikidata.sourceId] as const] : [])));
+  let checked = 0;
+  let found = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(opts.concurrency ?? 8, queue.length) }, async () => {
+      for (let d = queue.shift(); d; d = queue.shift()) {
+        if (Date.now() - startedAt > budget) return;
+        const logo = await fetchLogo(d, opts.fetcher ?? fetch, { wikidataId: qids.get(d) });
+        await store.setLogo(d, logo, new Date().toISOString());
+        checked++;
+        if (logo) found++;
+      }
+    }),
+  );
+  const [left, all] = await Promise.all([store.needingLogo(500, since), store.list("", 1, 0, { missingLogo: true })]);
+  return { checked, found, remaining: left.length, missing: all.total };
+}
+
+/**
+ * Banned companies, for search to leave out (owner, 2026-11-01): by domain, and by name key for listings that name no
+ * domain. Read at most once a minute per instance (bans are rare; a ban made here clears it at once).
+ */
+let bannedCache: { at: number; domains: Set<string>; names: Set<string> } | null = null;
+export async function bannedCompanies(now = Date.now(), store: CompanyStore = companyStore()): Promise<{ domains: Set<string>; names: Set<string> }> {
+  if (bannedCache && now - bannedCache.at < 60_000) return bannedCache;
+  const list = await store.bannedList();
+  bannedCache = { at: now, domains: new Set(list.map((b) => b.domain)), names: new Set(list.map((b) => b.nameKey).filter(Boolean)) };
+  return bannedCache;
+}
+
+/** Whether a listing is a banned company's: by its domain when it names one, else by its exact (normalized) name. */
+export function isBannedListing(o: CanonicalOpportunity, banned: { domains: Set<string>; names: Set<string> }): boolean {
+  if (!banned.domains.size && !banned.names.size) return false;
+  const domain = companyDomain(o.employer.domain) ?? companyDomain(employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified));
+  if (domain) return banned.domains.has(domain);
+  const key = companyKey(o.employer.name ?? "");
+  return !!key && banned.names.has(key);
+}
+
+/** An admin bans a company (with a reason) or lifts the ban. Returns what happened, in words. */
+export async function adminBan(domain: string, action: { ban: true; reason: string } | { ban: false }, actor: string, now = Date.now(), store: CompanyStore = companyStore()): Promise<{ ok: boolean; message: string }> {
+  const d = cleanDomain(domain);
+  if (!d) return { ok: false, message: "No such company in the directory." };
+  if (action.ban && action.reason.trim().length < 3) return { ok: false, message: "Say why it's banned (at least a few words)." };
+  const ok = await store.setBan(d, action.ban ? { at: new Date(now).toISOString(), reason: action.reason.trim().slice(0, 300), by: actor.slice(0, 200) } : null);
+  bannedCache = null;
+  if (!ok) return { ok: false, message: "No such company in the directory." };
+  return { ok: true, message: action.ban ? `${d} is banned: its listings are left out of every module's searches.` : `${d} is no longer banned.` };
+}

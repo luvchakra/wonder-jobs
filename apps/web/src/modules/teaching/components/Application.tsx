@@ -81,7 +81,7 @@ export function TeachingApplication({ id }: { id: string }) {
       <ItemPage back={BACK} title={`${l.title} · ${l.company}`} badge={<Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge>}>
         <ItemMain>
           <Card>
-            <ItemHead company={l.company} lines={termLines(l.terms, l.location, l.workMode)}>
+            <ItemHead company={l.company} domain={l.companyDomain} lines={termLines(l.terms, l.location, l.workMode)}>
               {l.applyUrl && (
                 <a href={l.applyUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-brand-600 hover:underline">
                   Original posting <ExternalLink className="size-3.5" aria-hidden />
@@ -151,7 +151,7 @@ export function TeachingApplication({ id }: { id: string }) {
     <ItemPage back={BACK} title={`${app.title} · ${app.company}`} badge={<Badge tone={TONE[app.status]}>{STATUS_LABEL[app.status]}</Badge>}>
       <ItemMain>
         <Card>
-          <ItemHead company={app.company} lines={termLines(app.terms, app.location, app.workMode)} />
+          <ItemHead company={app.company} domain={app.companyDomain} lines={termLines(app.terms, app.location, app.workMode)} />
           <p className="mt-3 text-[13px] text-ink-3">Applied {formatDate(app.appliedAt)} on WonderWorks</p>
           {app.description && (
             <Fold title="About the role" className="mt-3">

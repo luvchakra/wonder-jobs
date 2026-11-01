@@ -1,7 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { isIP } from "node:net";
-import { ApiError, normalize } from "./core.mjs";
+import { ApiError, normalizeAll } from "./core.mjs";
 import { crawlRecords } from "./crawl.mjs";
 
 function publicAddress(ip) {
@@ -165,25 +165,32 @@ export async function fetchRecords(source, deps = {}) {
   if (source.kind === "crawl") return crawlRecords(source, deps);
   if (source.kind === "json_api" && source.nextPath) return pagedRecords(source, deps);
   if (source.kind === "structured") await checkRobots(source);
-  const body = await safeGet(source.url);
+  const get = deps.get ?? safeGet;
+  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const now = deps.now ?? (() => Date.now());
   let items;
+  let read = 0, failed = 0;
   if (source.kind === "json_api") {
-    let parsed;
-    try { parsed = JSON.parse(body); } catch { throw new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); }
-    items = source.itemsPath.split(".").filter(Boolean).reduce((v, k) => v?.[k], parsed);
-    if (!Array.isArray(items)) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array");
-  } else if (source.kind === "rss") items = parseFeed(body);
-  else items = parseStructured(body);
-  const observedAt = new Date().toISOString();
-  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
-  const out = [], seen = new Set();
-  let repeats = 0;
-  for (const module of source.modules) for (const item of items.slice(0, 500)) {
-    const normalized = normalize(source, item, module, observedAt);
-    if (normalized && seen.has(normalized.id)) repeats++;
-    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
+    // The source URL, then any further files on the same host (a dataset split by topic or year), a second apart.
+    const urls = [source.url, ...(source.extraUrls ?? [])];
+    const started = now();
+    items = [];
+    for (const [i, u] of urls.entries()) {
+      if (i > 0) { if (now() - started > 40000) break; await sleep(source.requestDelayMs ?? 1000); }
+      read++;
+      let parsed;
+      try { parsed = JSON.parse(await get(u, i > 0 ? { origin: new URL(source.url).hostname } : undefined)); }
+      catch (e) { if (i === 0) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); failed++; continue; }
+      const list = source.itemsPath.split(".").filter(Boolean).reduce((v, k) => v?.[k], parsed);
+      if (!Array.isArray(list)) { if (i === 0) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); failed++; continue; }
+      items.push(...list.slice(0, 500));
+    }
+  } else {
+    const body = await get(source.url);
+    items = source.kind === "rss" ? parseFeed(body) : parseStructured(body);
   }
-  return { discovered: items.length * source.modules.length - repeats, repeats, valid: out.length, results: out };
+  const n = normalizeAll(source, items, new Date(now()).toISOString(), now());
+  return { ...n, ...(source.extraUrls?.length ? { crawl: { pages: source.extraUrls.length + 1, read, failed, cursor: null } } : {}) };
 }
 
 const dig = (obj, path) => String(path || "").split(".").filter(Boolean).reduce((v, k) => (v && typeof v === "object" ? v[k] : undefined), obj);
@@ -205,7 +212,7 @@ export async function pagedRecords(source, deps = {}) {
   const items = [];
   let read = 0, failed = 0;
   while (next && read < perRun) {
-    if (read > 0) { if (now() - started > 40000) break; await sleep(1000); }
+    if (read > 0) { if (now() - started > 40000) break; await sleep(source.requestDelayMs ?? 1000); }
     let url;
     try { url = new URL(next); } catch { next = null; break; }
     if (url.hostname !== host || url.protocol !== "https:") { next = null; break; }
@@ -220,13 +227,7 @@ export async function pagedRecords(source, deps = {}) {
     next = typeof n === "string" && n ? new URL(n, url).toString() : null;
   }
   const observedAt = new Date(now()).toISOString();
-  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
-  const out = [], seen = new Set();
-  let repeats = 0;
-  for (const module of source.modules) for (const item of items) {
-    const normalized = normalize(source, item, module, observedAt);
-    if (normalized && seen.has(normalized.id)) repeats++;
-    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
-  }
-  return { discovered: items.length * source.modules.length - repeats, repeats, valid: out.length, results: out, merge: true, crawl: { pages: null, read, failed, cursor: next } };
+  const n = normalizeAll(source, items, observedAt, now());
+
+  return { ...n, merge: true, crawl: { pages: null, read, failed, cursor: next } };
 }

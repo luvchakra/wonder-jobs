@@ -13,6 +13,7 @@ import { therapistsManifest } from "./therapists/manifest";
 import { cofoundersManifest } from "./cofounders/manifest";
 import { eventsManifest } from "./events/manifest";
 import { marketplaceManifest } from "./marketplace/manifest";
+import { scholarshipsManifest } from "./scholarships/manifest";
 
 export * from "@/wonderworks/manifest";
 
@@ -25,6 +26,7 @@ export const MODULES: readonly ModuleManifest[] = [
   therapistsManifest,
   eventsManifest,
   marketplaceManifest,
+  scholarshipsManifest,
 ];
 
 const BY_ID = new Map(MODULES.map((m) => [m.id, m]));

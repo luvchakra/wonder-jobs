@@ -3,6 +3,8 @@ import { useState } from "react";
 import type { GatewayOverview, GatewayRunRow, GatewaySourceRow } from "@/server/gateway/admin";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
+import { Fold } from "@/components/common/Fold";
+import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { adminFetch, LoadError, Loading, ms, Note, num, PageTitle, Panel, ResponsiveTable, Stat, useAdmin } from "@/components/jobslake/ui";
 
 const when = (iso: string | null | undefined) => (iso ? relativeTime(iso) : "—");
@@ -16,7 +18,7 @@ export default function GatewayPage() {
   const { data, error, reload } = useAdmin<GatewayOverview>("gateway");
   return (
     <>
-      <PageTitle title="Gateway" subtitle="The external-data gateway's sources and crawler: what each holds, how its runs went, and how far a crawl has got. Collected every hour; each source runs on its own interval." />
+      <PageTitle title="Partners & gateway" subtitle="The external-data gateway's sources and crawler: what each holds, how its runs went, and how far a crawl has got. Collected every hour; each source runs on its own interval." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && !data.configured && <Note tone="warning">The gateway is not configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET).</Note>}
@@ -63,6 +65,7 @@ function Overview({ data, reload }: { data: GatewayOverview; reload: () => void 
           )}
         />
       </Panel>
+      <AddPartner onDone={reload} />
       <Panel title="Runs" action={<span className="text-[12px] text-ink-3">Newest 100</span>}>
         <ResponsiveTable<GatewayRunRow>
           rows={data.runs}
@@ -110,7 +113,7 @@ function SourceName({ s }: { s: GatewaySourceRow }) {
     <span className="flex flex-col">
       <span className="font-medium text-ink">{s.name}</span>
       <span className="text-[12px] text-ink-3">
-        {s.host} · {s.kind === "crawl" ? "crawler" : s.kind === "json_api" ? "API" : s.kind === "rss" ? "RSS" : "page"} · {s.modules.join(", ")}
+        {s.host} · {s.kind === "crawl" ? "crawler" : s.kind === "json_api" ? "API" : s.kind === "rss" ? "RSS" : s.kind === "upload" ? "partner upload" : "page"} · {s.modules.join(", ")}
       </span>
     </span>
   );
@@ -144,6 +147,7 @@ function RunResult({ r }: { r: GatewayRunRow }) {
 function CollectNow({ s, onDone }: { s: GatewaySourceRow; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  if (s.kind === "upload") return <PartnerActions s={s} onDone={onDone} />;
   if (!s.enabled) return null;
   return (
     <span className="flex items-center gap-2">
@@ -163,6 +167,167 @@ function CollectNow({ s, onDone }: { s: GatewaySourceRow; onDone: () => void }) 
         Collect now
       </Button>
       {msg && <span className="text-[12px] text-ink-3">{msg}</span>}
+    </span>
+  );
+}
+
+const MODULES = [
+  ["jobs", "Jobs"],
+  ["internships", "Internships"],
+  ["teaching", "Teaching"],
+  ["services", "Services"],
+  ["therapists", "Therapists"],
+  ["cofounders", "Co-founders"],
+  ["events", "Events"],
+  ["marketplace", "Marketplace"],
+  ["scholarships", "Scholarships & Projects"],
+] as const;
+/** Modules whose listings are about people or their work: the partner must confirm each person opted in. */
+const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
+
+/** The upload template: one header line and one example row (an event's start date as an `attr_` column). */
+const TEMPLATE = [
+  "id,title,organization,url,town,region,country,description,posted_at,organization_url,attr_starts_at",
+  'p-001,"Example listing title",Example Organisation,https://example.org/listing/1,Pune,Maharashtra,India,"What it is, in a sentence or two.",2026-11-01,https://example.org,',
+].join("\n");
+
+function downloadTemplate() {
+  const url = URL.createObjectURL(new Blob([TEMPLATE + "\n"], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "workslake-partner-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * A partner who gave written permission (an association, a cooperative, a placement cell…): registered once against
+ * one module, then its list is uploaded on its row in Sources. Registered paused; activate it once an upload reads well.
+ */
+function AddPartner({ onDone }: { onDone: () => void }) {
+  const [f, setF] = useState({ name: "", website: "", module: "", permissionEvidence: "", consentVerified: false });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const sensitive = SENSITIVE.has(f.module);
+  const ready = f.name.trim() && /^https:\/\//i.test(f.website.trim()) && f.module && f.permissionEvidence.trim().length >= 8 && (!sensitive || f.consentVerified);
+  return (
+    <Fold title="Add a partner" hint="For a partner who gave written permission to list its entries. Upload its list on its row in Sources.">
+      <form
+        className="flex flex-col gap-3 pb-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setMsg(null);
+          const r = await adminFetch<{ id?: string }>("gateway", { method: "POST", body: JSON.stringify({ action: "register", ...f }) });
+          setBusy(false);
+          if (!r.ok) return setMsg(r.error.message);
+          setMsg("Added (paused). Upload its list on its row in Sources.");
+          setF({ name: "", website: "", module: "", permissionEvidence: "", consentVerified: false });
+          onDone();
+        }}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="Partner" htmlFor="gp-name" required>
+            <Input id="gp-name" value={f.name} maxLength={120} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          </Field>
+          <Field label="Website" htmlFor="gp-site" required>
+            <Input id="gp-site" type="url" placeholder="https://" value={f.website} maxLength={300} onChange={(e) => setF({ ...f, website: e.target.value })} />
+          </Field>
+          <Field label="Module" htmlFor="gp-module" required>
+            <Select id="gp-module" value={f.module} onChange={(e) => setF({ ...f, module: e.target.value, consentVerified: false })}>
+              <option value="">Choose…</option>
+              {MODULES.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Permission given" htmlFor="gp-perm" hint="Who agreed, when, and where it's kept (e.g. “Email from the secretary, 1 Nov 2026, in Drive › Partners”)." required>
+          <Textarea id="gp-perm" rows={2} maxLength={500} value={f.permissionEvidence} onChange={(e) => setF({ ...f, permissionEvidence: e.target.value })} />
+        </Field>
+        {sensitive && (
+          <label className="flex items-start gap-2 text-[13px] text-ink-2">
+            <input type="checkbox" className="mt-1" checked={f.consentVerified} onChange={(e) => setF({ ...f, consentVerified: e.target.checked })} />
+            The partner confirms every person in its list agreed to be listed.
+          </label>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" size="sm" loading={busy} disabled={!ready}>
+            Add partner
+          </Button>
+          <button type="button" className="text-[13px] font-medium text-primary-600 hover:underline" onClick={downloadTemplate}>
+            Download the template
+          </button>
+          {msg && <span className="text-[12px] text-ink-3">{msg}</span>}
+        </div>
+      </form>
+    </Fold>
+  );
+}
+
+interface UploadReport { ok?: boolean; rows?: number; valid?: number; discovered?: number; repeats?: number; kept?: number | null; problems?: string[] }
+
+/** A partner's row: upload its list (CSV or JSON, under 2 MB), then activate or pause it. */
+function PartnerActions({ s, onDone }: { s: GatewaySourceRow; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [problems, setProblems] = useState<string[]>([]);
+  const fileId = `gp-file-${s.id}`;
+  async function upload(file: File) {
+    setMsg(null);
+    setProblems([]);
+    const format = /\.json$/i.test(file.name) ? "json" : /\.csv$/i.test(file.name) ? "csv" : null;
+    if (!format) return setMsg("Choose a .csv or .json file.");
+    if (file.size > 2_000_000) return setMsg("The file must be under 2 MB.");
+    setBusy(true);
+    const r = await adminFetch<UploadReport>("gateway", { method: "POST", body: JSON.stringify({ action: "upload", sourceId: s.id, format, content: await file.text() }) });
+    setBusy(false);
+    if (!r.ok) return setMsg(r.error.message);
+    const d = r.data;
+    setProblems(d.problems ?? []);
+    setMsg(d.ok ? `${num(d.kept ?? d.valid)} listings kept from ${num(d.rows)} rows` : `Not kept: only ${num(d.valid)} of ${num(d.discovered)} rows read well (90% needed)`);
+    onDone();
+  }
+  async function toggle() {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch("gateway", { method: "POST", body: JSON.stringify({ action: s.enabled ? "pause" : "activate", sourceId: s.id }) });
+    setBusy(false);
+    if (!r.ok) setMsg(r.error.message);
+    onDone();
+  }
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-2">
+        <label htmlFor={fileId} className="cursor-pointer rounded-full border border-line px-3 py-1 text-[13px] font-medium text-ink hover:bg-bg-soft">
+          Upload list
+        </label>
+        <input
+          id={fileId}
+          type="file"
+          accept=".csv,.json,text/csv,application/json"
+          className="sr-only"
+          disabled={busy}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void upload(file);
+          }}
+        />
+        {(s.enabled || s.listings > 0) && (
+          <Button size="sm" variant="outline" loading={busy} onClick={toggle}>
+            {s.enabled ? "Pause" : "Activate"}
+          </Button>
+        )}
+      </span>
+      {msg && <span className="text-[12px] text-ink-3">{msg}</span>}
+      {problems.map((p) => (
+        <span key={p} className="text-[12px] text-danger-600">
+          {p}
+        </span>
+      ))}
     </span>
   );
 }

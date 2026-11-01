@@ -34,14 +34,11 @@ const numOr = (v: unknown, d: number) => (typeof v === "number" && Number.isFini
 export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview> {
   const hosted = hostedGateway();
   if (!hosted) return { configured: false, sources: [], runs: [], byModule: [], last24h: { runs: 0, ok: 0, failed: 0, collected: 0 }, usageToday: [] };
+  const sources0 = await hosted.store.read((s) => (s.sources as Rec[]).map((x) => ({ sourceId: String(x.id), modules: ((x.modules as string[]) ?? []) })));
+  const { bySource, byModule } = await hosted.store.listings.counts(sources0);
   return hosted.store.read((s) => {
-    const counts = new Map<string, number>();
-    const perModule = new Map<string, number>();
-    for (const l of s.listings as Rec[]) {
-      if (Date.parse(String(l.expiresAt)) <= now) continue;
-      counts.set(String(l.sourceId), (counts.get(String(l.sourceId)) ?? 0) + 1);
-      perModule.set(String(l.module), (perModule.get(String(l.module)) ?? 0) + 1);
-    }
+    const counts = new Map(Object.entries(bySource));
+    const perModule = new Map(Object.entries(byModule));
     const names = new Map((s.sources as Rec[]).map((x) => [String(x.id), String(x.attribution ?? x.id)]));
     const sources: GatewaySourceRow[] = (s.sources as Rec[]).map((x) => {
       const crawlish = x.kind === "crawl" || typeof x.nextPath === "string";
@@ -94,4 +91,46 @@ export async function collectGatewaySource(sourceId: string) {
   } catch (e) {
     return { ok: false as const, code: (e as { code?: string }).code ?? "SOURCE_UNAVAILABLE" };
   }
+}
+
+/** The gateway's own admin call, made in process with the deployment's admin token (never sent to a browser). */
+async function adminCall(path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+  const hosted = hostedGateway();
+  const token = process.env.GATEWAY_ADMIN_TOKEN;
+  if (!hosted || !token) return { status: 503, body: { error: { code: "NOT_CONFIGURED", message: "The gateway is not configured on this deployment" } } };
+  const r = await hosted.gateway.handle(new Request("https://gateway.internal" + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body ?? {}) }));
+  return { status: r.status, body: (await r.json()) as Record<string, unknown> };
+}
+
+export interface PartnerInput { name: string; website: string; module: string; permissionEvidence: string; consentVerified: boolean }
+
+/**
+ * Registers a partner who gave written permission for its list (it starts paused): the partner's name is shown as the
+ * listings' source, its website is where they link from, and the permission is recorded with it.
+ */
+export function registerPartner(p: PartnerInput) {
+  return adminCall("/v1/admin/sources", {
+    url: p.website,
+    kind: "upload",
+    modules: [p.module],
+    permission: "granted_in_writing",
+    permissionEvidence: p.permissionEvidence,
+    termsReviewed: true,
+    redistributionAllowed: true,
+    externalRedistributionAllowed: false,
+    consentVerified: p.consentVerified,
+    attribution: p.name,
+    // An event's organiser can be the event itself; every other listing names who offers it.
+    organizationOptional: p.module === "events",
+  });
+}
+
+/** A partner's list, checked and (when good) replacing what it had. */
+export function uploadPartnerList(sourceId: string, format: "csv" | "json", content: string) {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/upload`, { format, content });
+}
+
+/** Start or stop serving a source (activation needs a passing test or upload in the last day). */
+export function setGatewaySource(sourceId: string, action: "activate" | "pause") {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/${action}`, {});
 }

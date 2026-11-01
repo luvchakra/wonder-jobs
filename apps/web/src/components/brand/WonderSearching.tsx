@@ -2,24 +2,42 @@ import { useId } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The Wonder mark as a "dressing for the interview" loop, shown while a search runs: the two wings
- * settle like a shirt collar, a knot appears where they meet, and the middle piece drops in and swings
- * like a tie, then it all resets. Pure SVG + CSS (`wj-collar-*` in globals.css); with reduced motion
- * it's the still mark. Decorative — the text beside it says what's happening.
+ * The WonderWorks mark at work, shown while a search runs (owner, 2026-11-01: "the star at the middle should blink and
+ * the left and right wings should open up nicely"): the two wings open out from where they meet, hold, and fold back;
+ * the four-point star twinkles above them. The same paths as `wonderworks/brand/Logo.tsx`; pure SVG + CSS
+ * (`wj-ww-*` in globals.css). With reduced motion it's the still mark. Decorative — the text beside it says what's
+ * happening.
  */
+const INNER = "translate(1.4 9.8) scale(0.11) translate(-233 -137)";
+
 export function WonderSearching({ size = 64, className }: { size?: number; className?: string }) {
   const id = useId().replace(/:/g, "");
   return (
-    <svg viewBox="0 10 540 480" width={(size * 540) / 480} height={size} aria-hidden className={cn("shrink-0 overflow-visible", className)}>
+    <svg viewBox="0 0 120 100" width={(size * 120) / 100} height={size} aria-hidden className={cn("shrink-0 overflow-visible", className)}>
       <defs>
-        <linearGradient id={`${id}l`} x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stopColor="#4a2ae0" /><stop offset="1" stopColor="#5d3ef2" /></linearGradient>
-        <linearGradient id={`${id}r`} x1="1" y1="0" x2="0.3" y2="1"><stop offset="0" stopColor="#b47ef6" /><stop offset="1" stopColor="#6440ee" /></linearGradient>
-        <linearGradient id={`${id}t`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5f6ff4" /><stop offset="1" stopColor="#aaa0f6" /></linearGradient>
+        <linearGradient id={`${id}l`} x1="0.1" y1="0" x2="0.7" y2="1"><stop offset="0" stopColor="#3730FF" /><stop offset="0.45" stopColor="#5B78FF" /><stop offset="1" stopColor="#C9A2F9" /></linearGradient>
+        <linearGradient id={`${id}lf`} x1="0" y1="0" x2="1" y2="0.6"><stop offset="0" stopColor="#8F7BFF" stopOpacity="0.5" /><stop offset="1" stopColor="#4C0FF5" /></linearGradient>
+        <linearGradient id={`${id}r`} x1="0.1" y1="1" x2="0.8" y2="0"><stop offset="0" stopColor="#5312FF" /><stop offset="0.5" stopColor="#A43FF7" /><stop offset="1" stopColor="#F563E0" /></linearGradient>
+        <linearGradient id={`${id}rf`} x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0" stopColor="#8A3FFF" /><stop offset="0.6" stopColor="#E24DF2" /><stop offset="1" stopColor="#FF7EBF" /></linearGradient>
+        <linearGradient id={`${id}s`} x1="0" y1="0" x2="1" y2="0"><stop offset="0.2" stopColor="#3D33FF" /><stop offset="0.55" stopColor="#B444FF" /><stop offset="0.85" stopColor="#FF5CCF" /></linearGradient>
       </defs>
-      <path className="wj-collar-left" d="M277.0 217.0 L37.6 50.5 Q8.0 30.0 17.5 64.7 L104.1 380.9 Q111.0 406.0 128.2 386.5 Z" fill={`url(#${id}l)`} />
-      <path className="wj-collar-right" d="M283.0 217.0 L501.3 51.7 Q530.0 30.0 521.4 64.9 L443.2 380.8 Q437.0 406.0 420.6 385.8 Z" fill={`url(#${id}r)`} />
-      <path className="wj-collar-tie" d="M277.8 241.6 Q280.0 236.0 282.2 241.6 L367.9 457.6 Q376.0 478.0 357.5 466.1 L283.4 418.2 Q280.0 416.0 276.6 418.2 L202.5 466.1 Q184.0 478.0 192.1 457.6 Z" fill={`url(#${id}t)`} />
-      <path className="wj-collar-knot" d="M246 196 Q280 184 314 196 L297 264 Q280 273 263 264 Z" fill="#4a2ae0" />
+      <g className="wj-ww-wing-l">
+        <g transform={INNER}>
+          <path d="M240 374A66 66 0 0 1 326 284L588 400Q630 418 652 456L763 645L640 815A97 97 0 0 1 458 832Z" fill={`url(#${id}l)`} />
+          <path d="M588 400Q630 418 652 456L763 645L640 815Q652 780 622 715Q562 590 562 500Q562 430 588 400Z" fill={`url(#${id}lf)`} />
+        </g>
+      </g>
+      <g className="wj-ww-wing-r">
+        <g transform={INNER}>
+          <path d="M763 645L880 460Q905 422 948 403L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill={`url(#${id}r)`} />
+          <path d="M878 815Q868 785 892 735Q990 510 1112 342L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill={`url(#${id}rf)`} opacity="0.85" />
+        </g>
+      </g>
+      <g className="wj-ww-star">
+        <g transform={INNER}>
+          <path d="M766 138C772 236 790 288 920 298C790 310 772 362 766 462C760 362 742 310 612 298C742 288 760 236 766 138Z" fill={`url(#${id}s)`} />
+        </g>
+      </g>
     </svg>
   );
 }

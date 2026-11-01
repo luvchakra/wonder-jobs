@@ -13,7 +13,7 @@ import type { Session } from "../auth";
 import { HiringError, requirePermission } from "../hiring";
 import { deliver, type Notice } from "../notifications/deliver";
 import { resumeFileStore } from "../resume/files";
-import { capabilityDecision, emailTeam, events, files, keepResume, listings, newId, now, orgs, readResume, record, responses as allResponses, type ListingRow, type ResponseRow as Row } from "../modules/responses";
+import { capabilityDecision, emailTeam, events, files, keepResume, listings, newId, now, orgDomain, orgs, readResume, record, responses as allResponses, type ListingRow, type ResponseRow as Row } from "../modules/responses";
 import { canWithdraw, cleanPosting, cleanProfile, COMPANY_NEXT, gradesLabel, STATUS_LABEL, TEACHING, readTerms, type MyTeachingApplication, type MyTeachingApplicationDetail, type PostingInput, type TeacherProfile, type TeachingApplicationView, type TeachingPosting, type TeachingStatus } from "@/modules/teaching/domain";
 import { toPosting } from "./listings";
 
@@ -123,10 +123,11 @@ export async function withdrawApplication(s: Session, responseId: string): Promi
 export async function myApplications(s: Session): Promise<MyTeachingApplication[]> {
   const rows = await responses().find({ responder_tenant: s.tenantId, module: TEACHING }, { order: "created_at", desc: true, limit: 300 });
   const posts = new Map((await listings().findIn("id", [...new Set(rows.map((r) => r.listing_id))], { module: TEACHING })).map((p) => [p.id, p]));
-  const names = new Map((await orgs().findIn("id", [...new Set(rows.map((r) => r.org_id))])).map((o) => [o.id, o.name]));
+  const schools = new Map((await orgs().findIn("id", [...new Set(rows.map((r) => r.org_id))])).map((o) => [o.id, o]));
   return rows.map((r) => {
     const p = posts.get(r.listing_id);
-    return { id: r.id, postingId: r.listing_id, title: p?.title ?? "Teaching job", company: names.get(r.org_id) ?? "The school", status: r.status, terms: readTerms(p?.attrs), appliedAt: r.created_at, updatedAt: r.updated_at };
+    const school = schools.get(r.org_id);
+    return { id: r.id, postingId: r.listing_id, title: p?.title ?? "Teaching job", company: school?.name ?? "The school", ...(school ? { companyDomain: orgDomain(school).domain } : {}), status: r.status, terms: readTerms(p?.attrs), appliedAt: r.created_at, updatedAt: r.updated_at };
   });
 }
 
@@ -143,6 +144,7 @@ export async function myApplication(s: Session, responseId: string): Promise<MyT
     postingId: r.listing_id,
     title: p?.title ?? "Teaching job",
     company: org?.name ?? "The school",
+    ...(org ? { companyDomain: orgDomain(org).domain } : {}),
     status: r.status,
     terms: readTerms(p?.attrs),
     appliedAt: r.created_at,

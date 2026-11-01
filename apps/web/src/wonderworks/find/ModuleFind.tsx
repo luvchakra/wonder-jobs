@@ -53,23 +53,41 @@ export interface ModuleFindProps<L extends { id: string }> {
   Sheet?: React.ComponentType<{ item: L | null; onClose: () => void }>;
   /** Before the first search, and when the words are missing. */
   idle: { title: string; body: string };
-  needWords: string;
+  /** No longer shown: a search without words shows the module's latest listings (owner, 2026-11-01). */
+  needWords?: string;
   dictateHint: string;
 }
 
 const PAGE = 24;
+/** Seconds since the search started, ticking once a second while it runs (it unmounts when the search ends). */
+function SearchClock() {
+  const [s, setS] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setS((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <span className="tabular-nums">{s} s</span>;
+}
+
+/** What a run was for, in words: its query, or the latest listings when it had none. */
+const forWhat = (query: string, start = false) => (query ? `${start ? "For" : "for"} “${query}”` : start ? "Latest listings" : "· latest");
 const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceState, string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
 const set = (v: FacetValues) => Object.values(v).filter((x) => x !== undefined && x !== "").length;
 
-export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, needWords, dictateHint }: ModuleFindProps<L>) {
+export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint }: ModuleFindProps<L>) {
   const store = moduleStore(module);
   const recent = store((s) => s.recentSearches);
   const forget = store((s) => s.forgetSearch);
   // Persisted values exist only in the browser: read them after mount, so the first render matches the server's.
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const [typed, setTyped] = useState<string | null>(null);
-  const draft = typed ?? (mounted ? (recent[0] ?? startWords ?? "") : "");
+  // The last search, as stored: opening Find shows it again and searches nothing.
+  const stored = useStore(store, (s) => s.lastRun);
+  const run = mounted ? (stored as FindRun<L> | null) : null;
+  // The box shows the words the shown results were searched for: empty after a search without words (cleared with ×),
+  // so a reload never brings back an older search. Before any search, the module's starting words (or the last ones).
+  const draft = typed ?? (mounted ? (run ? run.searched.query : (recent[0] ?? startWords ?? "")) : "");
   const [boxFocused, setBoxFocused] = useState(false);
   const dictation = useDictation({ textAtStart: () => draft, onText: setTyped });
   const [places, setPlaces] = useState<string[]>([]);
@@ -77,12 +95,8 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const [values, setValues] = useState<FacetValues>({});
   const [editing, setEditing] = useState<FacetValues>({});
   const [sort, setSort] = useState(Object.keys(sorts)[0]);
-  // The last search, as stored: opening Find shows it again and searches nothing.
-  const stored = useStore(store, (s) => s.lastRun);
-  const run = mounted ? (stored as FindRun<L> | null) : null;
   const [busy, setBusy] = useState<{ query: string; places: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [needWordsFor, setNeedWordsFor] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
@@ -108,17 +122,13 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   }, [more, section]);
 
   const go = async (text = draft) => {
+    // No words: the module's latest listings (owner, 2026-11-01), not an error.
     const q = text.trim();
-    if (!q) {
-      setNeedWordsFor("");
-      return;
-    }
-    setNeedWordsFor(null);
     setError(null);
     setBusy({ query: q, places });
     try {
       const r = await search(q, places);
-      store.getState().rememberSearch(q);
+      if (q) store.getState().rememberSearch(q);
       store.getState().setLastRun(r);
       setLimit(PAGE);
       setShowSources(false);
@@ -169,9 +179,16 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
       {busy && (
         <SearchingBanner aside={<WonderSearching size={32} />}>
           <div className="min-w-0 flex-1 space-y-0.5 pt-1">
-            <p className="text-[15px] font-semibold leading-5 text-ink">Searching…</p>
+            <p className="text-[15px] font-semibold leading-5 text-ink">Searching {noun.many}…</p>
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
-              For “{busy.query}”{busy.places.length ? ` in ${busy.places.join(", ")}` : ""}
+              {busy.query ? `For “${busy.query}”` : `The latest ${noun.many}`}
+              {busy.places.length ? ` in ${busy.places.join(", ")}` : " · anywhere"}
+            </p>
+            {/* What it's doing, in numbers it knows: how many sources it asks (the last search's count for this
+                module), and how long it has taken so far. */}
+            <p className="text-[12px] leading-4 text-ink-3">
+              {run?.sources.length ? `Asking all ${run.sources.length} ${run.sources.length === 1 ? "source" : "sources"}` : "Asking every source"}
+              {busy.query ? ", removing repeats" : ", newest first"} · <SearchClock />
             </p>
           </div>
         </SearchingBanner>
@@ -213,11 +230,6 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
             <SearchSubmit label="Search" />
           </div>
         </form>
-        {needWordsFor !== null && needWordsFor === draft.trim() && (
-          <p role="alert" className="-mt-1 text-[12px] text-danger-600">
-            {needWords}
-          </p>
-        )}
         <DictationNotes dictation={dictation} hint={dictateHint} />
         {more && (
           <RefinePanel
@@ -250,7 +262,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
       ) : kept.length === 0 ? (
         <EmptyState
           icon={<Search className="size-5" aria-hidden />}
-          title={`Nothing found for “${run.searched.query}”`}
+          title={run.searched.query ? `Nothing found for “${run.searched.query}”` : `No ${noun.many} yet`}
           body={
             hidden
               ? `${hidden} found, all hidden by Refine. Loosen it to see them.`
@@ -264,7 +276,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
         <>
           <h2 className="wj-sr-only">Results</h2>
           <ResultsLine
-            summary={`Showing ${kept.length.toLocaleString("en-IN")} ${kept.length === 1 ? noun.one : noun.many} for “${run.searched.query}”${where === " anywhere" ? "" : where} from ${answered} ${answered === 1 ? "source" : "sources"}${hidden ? ` · ${hidden} hidden by Refine` : ""}`}
+            summary={`Showing ${kept.length.toLocaleString("en-IN")} ${kept.length === 1 ? noun.one : noun.many} ${forWhat(run.searched.query)}${where === " anywhere" ? "" : where} from ${answered} ${answered === 1 ? "source" : "sources"}${hidden ? ` · ${hidden} hidden by Refine` : ""}`}
             sort={Object.keys(sorts).length > 1 && <SortSelect value={sort} labels={sorts} onChange={setSort} />}
           />
           <ResultsGrid label={`${noun.one[0].toUpperCase()}${noun.one.slice(1)} results`}>
@@ -281,7 +293,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
         <div className="mb-4 mt-6 text-[13px]">
           <p className="flex items-center gap-1.5 text-ink-3">
             <button type="button" onClick={() => setShowSources((v) => !v)} aria-expanded={showSources} className="min-w-0 text-left underline-offset-2 hover:underline">
-              Searched {answered} of {run.sources.length} {run.sources.length === 1 ? "source" : "sources"} for “{run.searched.query}”{run.searched.places.length ? ` in ${run.searched.places.join(", ")}` : ""}
+              Searched {answered} of {run.sources.length} {run.sources.length === 1 ? "source" : "sources"} {forWhat(run.searched.query)}{run.searched.places.length ? ` in ${run.searched.places.join(", ")}` : ""}
             </button>
             <button type="button" onClick={() => void go(run.searched.query)} aria-label="Search again" title="Search again" className="-my-1 shrink-0 rounded-full p-2 text-brand-600 hover:bg-brand-50">
               <RefreshCw className="size-3.5" aria-hidden />

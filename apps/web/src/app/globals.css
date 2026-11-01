@@ -328,40 +328,28 @@
   .wj-float { animation: wj-float 6s ease-in-out infinite; }
   .wj-float-slow { animation: wj-float 9s ease-in-out infinite; }
   .wj-sun-breathe { animation: wj-sun-breathe 7s ease-in-out infinite; transform-origin: center; }
-  /* WonderSearching: the mark dresses up — collar settles, knot ties, tie drops and swings (2.8s loop). */
-  .wj-collar-left, .wj-collar-right, .wj-collar-tie, .wj-collar-knot { transform-box: view-box; }
-  .wj-collar-left { transform-origin: 277px 217px; animation: wj-collar-left 2.8s var(--wj-ease) infinite; }
-  .wj-collar-right { transform-origin: 283px 217px; animation: wj-collar-right 2.8s var(--wj-ease) infinite; }
-  .wj-collar-knot { transform-origin: 280px 230px; animation: wj-collar-knot 2.8s var(--wj-ease) infinite; }
-  .wj-collar-tie { transform-origin: 280px 236px; animation: wj-collar-tie 2.8s ease-in-out infinite; }
-  @keyframes wj-collar-left {
-    0% { transform: rotate(-16deg) scaleY(0.88); opacity: 0.55; }
-    18% { transform: rotate(2deg); opacity: 1; }
-    26%, 88% { transform: none; opacity: 1; }
-    100% { transform: rotate(-16deg) scaleY(0.88); opacity: 0.55; }
+  /* WonderSearching: the WonderWorks mark at work — the wings open out from where they meet (59.7, 65.7 in the mark's
+     120×100 box), hold, and fold back; the star above twinkles (2.6s and 1.3s loops). */
+  .wj-ww-wing-l, .wj-ww-wing-r, .wj-ww-star { transform-box: view-box; }
+  .wj-ww-wing-l { transform-origin: 59.7px 65.7px; animation: wj-ww-wing-l 2.6s var(--wj-ease) infinite; }
+  .wj-ww-wing-r { transform-origin: 59.7px 65.7px; animation: wj-ww-wing-r 2.6s var(--wj-ease) infinite; }
+  .wj-ww-star { transform-origin: 60px 27.5px; animation: wj-ww-star 1.3s ease-in-out infinite; }
+  @keyframes wj-ww-wing-l {
+    0% { transform: rotate(34deg) scale(0.72); opacity: 0.55; }
+    30% { transform: rotate(-4deg) scale(1.03); opacity: 1; }
+    40%, 78% { transform: none; opacity: 1; }
+    100% { transform: rotate(34deg) scale(0.72); opacity: 0.55; }
   }
-  @keyframes wj-collar-right {
-    0% { transform: rotate(16deg) scaleY(0.88); opacity: 0.55; }
-    18% { transform: rotate(-2deg); opacity: 1; }
-    26%, 88% { transform: none; opacity: 1; }
-    100% { transform: rotate(16deg) scaleY(0.88); opacity: 0.55; }
+  @keyframes wj-ww-wing-r {
+    0% { transform: rotate(-34deg) scale(0.72); opacity: 0.55; }
+    30% { transform: rotate(4deg) scale(1.03); opacity: 1; }
+    40%, 78% { transform: none; opacity: 1; }
+    100% { transform: rotate(-34deg) scale(0.72); opacity: 0.55; }
   }
-  @keyframes wj-collar-knot {
-    0%, 24% { transform: scale(0); opacity: 0; }
-    32% { transform: scale(1.15); opacity: 1; }
-    38%, 88% { transform: none; opacity: 1; }
-    100% { transform: scale(0); opacity: 0; }
-  }
-  @keyframes wj-collar-tie {
-    0%, 26% { transform: translateY(-70px) scaleY(0.4); opacity: 0; }
-    38% { transform: translateY(0) scaleY(1.05); opacity: 1; }
-    44% { transform: none; }
-    52% { transform: rotate(10deg); }
-    61% { transform: rotate(-7deg); }
-    69% { transform: rotate(4deg); }
-    76% { transform: rotate(-1.5deg); }
-    82%, 90% { transform: none; opacity: 1; }
-    100% { transform: translateY(-30px) scaleY(0.6); opacity: 0; }
+  @keyframes wj-ww-star {
+    0%, 100% { transform: scale(0.55) rotate(0deg); opacity: 0.35; }
+    45% { transform: scale(1.18) rotate(45deg); opacity: 1; }
+    60% { transform: scale(1) rotate(45deg); opacity: 1; }
   }
   .wj-skeleton {
     background: linear-gradient(90deg, var(--wj-bg-soft) 25%, #fff 50%, var(--wj-bg-soft) 75%);
@@ -372,8 +360,7 @@
   @media (prefers-reduced-motion: reduce) {
     .wj-reveal { opacity: 1; transform: none; transition: none; }
     .wj-animate-pulse-dot, .wj-skeleton, .wj-float, .wj-float-slow, .wj-sun-breathe,
-    .wj-collar-left, .wj-collar-right, .wj-collar-tie, .wj-collar-knot { animation: none; }
-    .wj-collar-knot { opacity: 0; }
+    .wj-ww-wing-l, .wj-ww-wing-r, .wj-ww-star { animation: none; }
     .wj-hero-in { animation: none; opacity: 1; }
     .wj-install-banner { animation: none; }
     .wj-sweep { animation: none; transform: none; width: 100%; opacity: 0.5; }

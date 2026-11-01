@@ -84,7 +84,7 @@ export default function AddSourcePage() {
 
   return (
     <>
-      <PageTitle title="Add a job source" subtitle="A source serves candidates only after a real, validated connection — detection alone never activates anything." />
+      <PageTitle title="Add a source" subtitle="A source serves candidates only after a real, validated connection — detection alone never activates anything." />
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <Card padding="sm" className="h-fit min-w-0">
           <ol className="flex gap-2 overflow-x-auto lg:flex-col" aria-label="Steps">

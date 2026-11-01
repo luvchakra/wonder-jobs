@@ -1802,4 +1802,48 @@ revoke all on wonderjobs.gateway_state from anon, authenticated;
 grant all on wonderjobs.gateway_state to service_role;
 `,
   },
+  {
+    name: "0045_gateway_listings.sql",
+    sql: `-- WorksLake gateway listings, one row per listing (the single 'listings' document in gateway_state outgrew one write).
+--   doc          the listing as the gateway serves it (title, organisation, place, description, link, dates, attributes)
+--   search_text  lower-case title + organisation + description, for the word filter
+--   sort_at      the source's posting date, else when it was seen: newest first
+-- Read and written only through server/gateway/store.ts, inside the gateway's own admin/consumer checks. No candidate's
+-- data and nothing tenant-scoped: these are public listings from sources with documented reuse rights. RLS on with no
+-- policies, service role only. Additive only.
+create table if not exists wonderjobs.gateway_listings (
+  id text primary key,
+  source_id text not null,
+  module text not null,
+  location text not null default '',
+  search_text text not null default '',
+  sort_at timestamptz not null,
+  observed_at timestamptz not null,
+  expires_at timestamptz not null,
+  doc jsonb not null,
+  updated_at timestamptz not null default now()
+);
+create index if not exists gateway_listings_module_sort_idx on wonderjobs.gateway_listings (module, sort_at desc, id);
+create index if not exists gateway_listings_source_idx on wonderjobs.gateway_listings (source_id, observed_at);
+create index if not exists gateway_listings_expires_idx on wonderjobs.gateway_listings (expires_at);
+
+alter table wonderjobs.gateway_listings enable row level security;
+revoke all on wonderjobs.gateway_listings from anon, authenticated;
+grant all on wonderjobs.gateway_listings to service_role;
+`,
+  },
+  {
+    name: "0046_company_bans.sql",
+    sql: `-- Company bans (owner, 2026-11-01: "give option to ban companies"). A platform admin can ban a company in WorksLake's
+-- company directory; its listings are then left out of every module's search results. Platform-wide data, no tenant:
+--   banned_at  when it was banned (null: not banned)
+--   ban_reason the admin's reason, shown in the directory
+--   banned_by  the admin who banned it (also in the audit log)
+-- Additive only; the partial index keeps the "banned" list and search's check cheap.
+alter table wonderjobs.jobslake_companies add column if not exists banned_at timestamptz;
+alter table wonderjobs.jobslake_companies add column if not exists ban_reason text;
+alter table wonderjobs.jobslake_companies add column if not exists banned_by text;
+create index if not exists jobslake_companies_banned_idx on wonderjobs.jobslake_companies (banned_at) where banned_at is not null;
+`,
+  },
 ];

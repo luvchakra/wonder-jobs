@@ -41,7 +41,7 @@ export default function CompaniesAdminPage() {
 
   return (
     <>
-      <PageTitle title="Companies" subtitle="Before verifying, check the website is the company's own, it's a registered business (MCA, GST or similar), and an Owner works there. Verifying emails the Owners." />
+      <PageTitle title="Verify employers" subtitle="Before verifying, check the website is the company's own, it's a registered business (MCA, GST or similar), and an Owner works there. Verifying emails the Owners." />
       {error && <p className="text-[13px] text-danger-600">{error}</p>}
       {!list && !error && <p className="text-[13px] text-ink-3">Loading…</p>}
       {list && list.length === 0 && <p className="text-[13px] text-ink-3">No hiring workspaces yet.</p>}
