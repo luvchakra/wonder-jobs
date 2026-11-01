@@ -419,6 +419,12 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "lever", slug: "mindtickle", company: "Mindtickle", domain: "mindtickle.com" },
   { ats: "ashby", slug: "sarvam", company: "Sarvam AI", domain: "sarvam.ai" },
   { ats: "ashby", slug: "posthog", company: "PostHog", domain: "posthog.com" },
+  // India pass (WJ-546), checked live 2026-11-01: each the named company, most of its open roles in India.
+  { ats: "greenhouse", slug: "toast", company: "Toast", domain: "toasttab.com" },
+  { ats: "lever", slug: "hevodata", company: "Hevo Data", domain: "hevodata.com" },
+  { ats: "lever", slug: "fampay", company: "Fam", domain: "famapp.in" },
+  { ats: "ashby", slug: "spotdraft", company: "SpotDraft", domain: "spotdraft.com" },
+  { ats: "ashby", slug: "bureau", company: "Bureau", domain: "bureau.id" },
 ];
 
 export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[]; metadata?: { name?: string; value?: unknown }[] | null }

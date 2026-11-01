@@ -4,6 +4,8 @@ import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackat
 import districtEvents from "../../../../data-gateway/sources/district-events.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
 import jobsAcUk from "../../../../data-gateway/sources/jobs-ac-uk.json";
+import cutshortJobs from "../../../../data-gateway/sources/cutshort-jobs.json";
+import apnaJobs from "../../../../data-gateway/sources/apna-jobs.json";
 import wedmegood1 from "../../../../data-gateway/sources/wedmegood-vendors-1.json";
 import wedmegood2 from "../../../../data-gateway/sources/wedmegood-vendors-2.json";
 import wedmegood3 from "../../../../data-gateway/sources/wedmegood-vendors-3.json";
@@ -50,6 +52,8 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "district-events.json": districtEvents as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
   "jobs-ac-uk.json": jobsAcUk as Record<string, unknown>,
+  "cutshort-jobs.json": cutshortJobs as Record<string, unknown>,
+  "apna-jobs.json": apnaJobs as Record<string, unknown>,
   "wedmegood-vendors-1.json": wedmegood1 as Record<string, unknown>,
   "wedmegood-vendors-2.json": wedmegood2 as Record<string, unknown>,
   "wedmegood-vendors-3.json": wedmegood3 as Record<string, unknown>,

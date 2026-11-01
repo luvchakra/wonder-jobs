@@ -1,0 +1,24 @@
+{
+  "url": "https://cutshort.io/",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "sitemap": "https://cutshort.io/sitemap_jobs.xml",
+  "pathPrefix": "/job/",
+  "modules": [
+    "jobs"
+  ],
+  "geography": [
+    "IN"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Cutshort's terms allow reuse of its job listings (an Indian tech-jobs platform). Checked 2026-11-01: robots.txt disallows /profile/, /view/, /apply/ and some query strings, not /job/, and lists /sitemap_jobs.xml; each /job/<slug> page carries a schema.org JobPosting (hiringOrganization, datePosted, jobLocation). Mostly Indian startups and tech roles.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Cutshort",
+  "retentionHours": 168,
+  "minIntervalMinutes": 1440,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 2000
+}
