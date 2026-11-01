@@ -106,10 +106,11 @@ export default function CompaniesPage() {
         </Button>
       </form>
       {data && (
-        <div className="mb-3">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <Chip active={missing} onClick={() => (setOffset(0), setMissing((m) => !m))}>
             Missing logos {num(data.missingLogos)}
           </Chip>
+          {missing && data.missingLogos > 0 && <FetchMissing onDone={reload} />}
         </div>
       )}
       {error && <LoadError error={error} onRetry={reload} />}
@@ -173,5 +174,49 @@ export default function CompaniesPage() {
         </Panel>
       )}
     </>
+  );
+}
+
+/**
+ * Looks again for every missing logo, a pass at a time (each within the server's time limit), until none is left to
+ * try, and says how many it found. Ones with no logo on their site stay for Upload.
+ */
+function FetchMissing({ onDone }: { onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          const since = new Date().toISOString();
+          let checked = 0;
+          let found = 0;
+          for (let pass = 0; pass < 50; pass++) {
+            const r = await adminFetch<{ checked: number; found: number; remaining: number; missing: number }>("companies", { method: "POST", body: JSON.stringify({ action: "fetch_missing", since }) });
+            if (!r.ok) {
+              setMsg(r.error.message);
+              break;
+            }
+            checked += r.data.checked;
+            found += r.data.found;
+            setMsg(`Looked for ${num(checked)}, found ${num(found)}${r.data.remaining ? ` · ${num(r.data.remaining)} to go…` : ""}`);
+            if (!r.data.remaining || !r.data.checked) {
+              setMsg(`Found ${num(found)} of ${num(checked)} logos. ${r.data.missing ? `${num(r.data.missing)} have none on their site; upload those.` : "None missing now."}`);
+              break;
+            }
+          }
+          setBusy(false);
+          onDone();
+        }}
+      >
+        Fetch all missing
+      </Button>
+      {msg && <span className="text-[12px] text-ink-3">{msg}</span>}
+    </span>
   );
 }
