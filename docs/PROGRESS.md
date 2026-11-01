@@ -56,3 +56,4 @@
 - ✅ Events: India pass — District and Hasgeek event pages in the gateway catalogue, India time, terms pending (WJ-574)
 - ✅ Therapists: India pass over data sources — government hospital directories are static and general, so nothing new added; one owner decision on Setup to-do (WJ-601)
 - ✅ WonderWorks: OpenStreetMap collection covers 31 Indian cities for Talent & Services and Therapists (WJ-511)
+- ✅ WorksLake gateway: sitemap indexes can point at child sitemaps on the same site's other hosts (WJ-512)
