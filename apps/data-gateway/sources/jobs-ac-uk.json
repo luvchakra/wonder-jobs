@@ -4,6 +4,7 @@
   "discover": "sitemap",
   "pathPrefix": "/job/",
   "modules": ["teaching"],
+  "geography": ["GB"],
   "permission": "terms_permit",
   "permissionEvidence": "terms pending: confirm jobs.ac.uk's terms allow reuse of its postings (a commercial board for UK and international higher education; asking for written permission may be better). Checked 2026-11-01: robots.txt disallows only /job/feedback/ and /enhanced/fp/ and lists /sitemapindex.xml; each /job/<id>/<slug> page carries a schema.org JobPosting (hiringOrganization, datePosted, validThrough). Lecturers, professors and teaching fellows at universities and colleges.",
   "termsReviewed": true,

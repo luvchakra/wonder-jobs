@@ -16,11 +16,13 @@ export interface OwnerDecision {
   detail: string;
   /** Where to read more or act, when there is a place. */
   href?: string;
+  /** The countries it concerns; every country when not given. */
+  geography?: string[];
 }
 
 export const OWNER_DECISIONS: OwnerDecision[] = [
-  { id: "osm-overpass-server", module: "services", title: "Where OpenStreetMap collection runs", detail: "Talent & Services and Therapists collect OpenStreetMap businesses weekly through Overpass. The public overpass-api.de asks commercial users to run their own or a paid server. Pick one (self-hosted, a paid provider, or the public server for now).", href: "/platform/jobs-lake/gateway" },
-  { id: "ticketmaster-cache", module: "events", title: "Ticketmaster: is a 24-hour search cache acceptable?", detail: "Ticketmaster's terms allow keeping content only “for reasonable periods”. WorksLake caches a search for up to 24 hours. Confirm, or ask for no caching." },
+  { id: "osm-overpass-server", geography: ["IN"], module: "services", title: "Where OpenStreetMap collection runs", detail: "Talent & Services and Therapists collect OpenStreetMap businesses weekly through Overpass. The public overpass-api.de asks commercial users to run their own or a paid server. Pick one (self-hosted, a paid provider, or the public server for now).", href: "/platform/jobs-lake/gateway" },
+  { id: "ticketmaster-cache", geography: ["global"], module: "events", title: "Ticketmaster: is a 24-hour search cache acceptable?", detail: "Ticketmaster's terms allow keeping content only “for reasonable periods”. WorksLake caches a search for up to 24 hours. Confirm, or ask for no caching." },
   { id: "developers-events-nc", module: "events", title: "developers.events: CC BY-NC licence", detail: "Its README licenses the data for non-commercial use only. It stays paused: decide WonderWorks' use is allowed, or ask the maintainers (scraly/developers-conferences-agenda) for permission." },
   { id: "gdg-cncf-robots", module: "events", title: "GDG and CNCF community events (Bevy API)", detail: "About 900 live developer community events, but their robots.txt disallows /api/, and WorksLake honours robots.txt. Keep it off, or ask Bevy or Google for permission." },
   { id: "freelancer-terms", module: "services", title: "Freelancer.com: caching and ratings", detail: "Its API terms limit caching to 24 hours and reserve its ratings. The source is live meanwhile. Confirm with Freelancer, or stop showing its ratings." },
@@ -30,6 +32,10 @@ export const OWNER_DECISIONS: OwnerDecision[] = [
   { id: "unstop-robots", module: "internships", title: "Unstop: robots.txt disallows /api/", detail: "Internships and Scholarships read Unstop's /api/ paths, which its robots.txt disallows, and it states no reuse terms. Both sources are live meanwhile. Ask Unstop for permission, or pause both." },
   { id: "wedmegood-content-signal", module: "services", title: "WedMeGood: content signal", detail: "WedMeGood's robots.txt allows crawling and signals search=yes, ai-train=no. WonderWorks only indexes and links (no model training), so this fits; confirm, then add, test and activate its four sources.", href: "/platform/jobs-lake/gateway" },
   { id: "udyam-list-api", module: "services", title: "Udyam MSME list: request the data.gov.in API?", detail: "data.gov.in publishes district-wise Udyam counts, and a \"List of MSME Registered Units under UDYAM\" resource whose API \"does not exist yet\"; the portal has a Request API button. Request it (Talent & Services and Therapists could then read registered service businesses, no personal details), or leave government listings out.", href: "https://data.gov.in/resource/list-msme-registered-units-under-udyam" },
+  { id: "teachaway-permission", geography: ["global"], module: "teaching", title: "TeachAway: written permission", detail: "TeachAway is a recruiter; its listings are in the gateway catalogue, paused. Its terms may need written permission rather than public reuse." },
+  { id: "helsinki-crowding", geography: ["FI"], module: "events", title: "Helsinki Linked Events: add it?", detail: "About 3,700 Finnish events (CC BY 4.0) are ready in the gateway catalogue. Until Find narrows by the person's place, they would crowd broad words such as “music”. Activate it, or leave it paused.", href: "/platform/jobs-lake/gateway" },
+  { id: "unstop-robots", geography: ["IN"], module: "internships", title: "Unstop: robots.txt disallows /api/", detail: "Internships and Scholarships read Unstop's /api/ paths, which its robots.txt disallows, and it states no reuse terms. Both sources are live meanwhile. Ask Unstop for permission, or pause both." },
+  { id: "wedmegood-content-signal", geography: ["IN"], module: "services", title: "WedMeGood: content signal", detail: "WedMeGood's robots.txt allows crawling and signals search=yes, ai-train=no. WonderWorks only indexes and links (no model training), so this fits; confirm, then add, test and activate its four sources.", href: "/platform/jobs-lake/gateway" },
   { id: "scheduler-settings", module: "all", title: "Check the Scheduler settings", detail: "Unit tests overwrote wj.scheduler earlier (before tests were isolated). Check the collection schedules and limits are what you want.", href: "/platform/jobs-lake/scheduler" },
 ];
 
