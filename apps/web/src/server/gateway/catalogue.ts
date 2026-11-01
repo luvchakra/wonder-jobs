@@ -1,5 +1,15 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
+import houzzInteriorDesignersAndDecorators from "../../../../data-gateway/sources/houzz-interior-designers-and-decorators.json";
+import houzzArchitects from "../../../../data-gateway/sources/houzz-architects.json";
+import houzzDesignBuildFirms from "../../../../data-gateway/sources/houzz-design-build-firms.json";
+import houzzCivilEngineersAndContractors from "../../../../data-gateway/sources/houzz-civil-engineers-and-contractors.json";
+import houzzConstruction from "../../../../data-gateway/sources/houzz-construction.json";
+import houzzSpecialtyContractors from "../../../../data-gateway/sources/houzz-specialty-contractors.json";
+import houzzKitchenAndBathDesigners from "../../../../data-gateway/sources/houzz-kitchen-and-bath-designers.json";
+import houzzFlooringAndCarpet from "../../../../data-gateway/sources/houzz-flooring-and-carpet.json";
+import houzzTileStoneAndCountertops from "../../../../data-gateway/sources/houzz-tile-stone-and-countertops.json";
+import houzzLandscapeArchitectsAndContractors from "../../../../data-gateway/sources/houzz-landscape-architects-and-contractors.json";
 import konfhubEvents from "../../../../data-gateway/sources/konfhub-events.json";
 import linuxFoundationEvents from "../../../../data-gateway/sources/linux-foundation-events.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
@@ -19,6 +29,16 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
+  "houzz-interior-designers-and-decorators.json": houzzInteriorDesignersAndDecorators as Record<string, unknown>,
+  "houzz-architects.json": houzzArchitects as Record<string, unknown>,
+  "houzz-design-build-firms.json": houzzDesignBuildFirms as Record<string, unknown>,
+  "houzz-civil-engineers-and-contractors.json": houzzCivilEngineersAndContractors as Record<string, unknown>,
+  "houzz-construction.json": houzzConstruction as Record<string, unknown>,
+  "houzz-specialty-contractors.json": houzzSpecialtyContractors as Record<string, unknown>,
+  "houzz-kitchen-and-bath-designers.json": houzzKitchenAndBathDesigners as Record<string, unknown>,
+  "houzz-flooring-and-carpet.json": houzzFlooringAndCarpet as Record<string, unknown>,
+  "houzz-tile-stone-and-countertops.json": houzzTileStoneAndCountertops as Record<string, unknown>,
+  "houzz-landscape-architects-and-contractors.json": houzzLandscapeArchitectsAndContractors as Record<string, unknown>,
   "konfhub-events.json": konfhubEvents as Record<string, unknown>,
   "linux-foundation-events.json": linuxFoundationEvents as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
