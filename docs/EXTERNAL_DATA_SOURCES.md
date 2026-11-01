@@ -121,7 +121,9 @@ Dataset `internships`. Source of truth: `server/internships/sources.ts`, `provid
 | Source | Access | Status | Notes |
 |---|---|---|---|
 | WonderWorks companies | own | **Live** | Postings in Internships → Company |
-| Company career sites (Greenhouse, Lever, Ashby) | public API | **Live** · responds | Internship-titled roles only |
+| Unstop internships | public JSON list | **Live** · responds · terms pending | India's largest open internship list, with stated stipends (74 for "marketing" on 2026-11-01). **terms pending:** no published reuse terms, and robots.txt disallows `/api/*`; confirm with Unstop |
+| Workable job board | public JSON | **Live** · responds · terms pending | Workable career sites worldwide, strong in India (Bengaluru, Pune, Noida). **terms pending:** robots.txt doesn't disallow it, but Workable's terms don't state reuse; confirm with Workable |
+| Company career sites (Greenhouse, Lever, Ashby) | public API | **Live** · responds | Internship-titled roles only. Internships also asks 15 intern-heavy boards (WJ-580): Paytm, InMobi, Sarvam AI, Waymo, Jump Trading, Lyft, Point72, IMC, Pinterest, Samsara, Verkada, Sigma Computing, Scale AI, Akuna Capital, Roblox |
 | SmartRecruiters career sites | public API | **Live** · responds | |
 | Remotive | public API | **Live** · responds | |
 | Remote OK | public API | **Live** · responds | |
@@ -133,12 +135,12 @@ Dataset `internships`. Source of truth: `server/internships/sources.ts`, `provid
 | Jooble | free key | **Needs key** | `JOOBLE_API_KEY` |
 | USAJOBS student internships | free key | **Needs key** | `USAJOBS_API_KEY`, `USAJOBS_EMAIL`; US only |
 
-**Not available (no open API):** Internshala, LinkedIn, the AICTE and NATS internship portals. Their stipend and duration cannot be read.
+**Not added:** Internshala (no API or feed; its terms forbid automated access and robots.txt disallows its search and detail pages), LinkedIn (blocks automated access: a technical barrier), the AICTE and NATS internship portals (no API or feed). **Looked at, not added (WJ-580):** Sweden's JobTech "praktik" ads (open CC0 data, but few internships and Swedish-only titles), UK Find an apprenticeship API (free key; its v2 response format couldn't be checked without one, so a parser would be untested), SimplifyJobs' GitHub internship lists (no licence), Naukri (refuses automated requests: 403).
 
 **Open issues**
 1. **Detection.** "Is this an internship?" relies on the source's flag or the title; sources that don't flag it miss roles and some include false matches.
 2. **Stipend and duration are often not stated** by outside postings; the app says "not stated" rather than guessing.
-3. **India coverage** rests on Adzuna and Jooble, both key-gated and unverified in production.
+3. **India coverage**: Unstop and Workable now add key-less India internships; Adzuna and Jooble (key-gated) add more.
 4. **AICTE/NATS** could be approached as partners if the owner wants them.
 
 ---

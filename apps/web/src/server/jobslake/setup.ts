@@ -35,6 +35,8 @@ export function sourceNeed(s: SourceView): Pick<SetupItem, "need" | "detail" | "
     return { need: "key", detail: names.length ? `Needs ${names.join(" + ")}` : "Needs its credential", action: onPlatform ? { label: "Set key", href: `${LAKE}/keys` } : { label: "Add credential", href: `${LAKE}/credentials` } };
   }
   if (s.status === "paused" && /terms/i.test(s.statusReason ?? "")) return { need: "terms", detail: s.statusReason!, action: page };
+  // A live source whose terms the owner still has to confirm (CLAUDE.md, "Finding data sources"): listed until confirmed.
+  if ((s.status === "active" || s.status === "degraded") && /^terms pending/i.test(s.statusReason ?? "")) return { need: "terms", detail: s.statusReason!, action: page };
   if ((s.status === "active" || s.status === "degraded") && !s.available) return { need: "other", detail: s.statusReason || "Active, but can't be asked on this deployment", action: page };
   if (s.status === "draft" || s.status === "testing") return { need: "activate", detail: s.status === "draft" ? "Draft: test it, then activate" : "Tested: activate it", action: page };
   return null;

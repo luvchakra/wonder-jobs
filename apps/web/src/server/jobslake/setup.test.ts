@@ -16,4 +16,9 @@ describe("Setup to-do — what each source still needs", () => {
     expect(sourceNeed({ ...base, status: "do_not_use" } as SourceView)).toBeNull();
     expect(sourceNeed({ ...base, status: "paused", statusReason: "Paused by an admin" } as SourceView)).toBeNull();
   });
+
+  it("lists live sources kept live with terms pending (CLAUDE.md), until the owner confirms them", () => {
+    expect(sourceNeed({ ...base, available: true, statusReason: "terms pending: confirm with Unstop" })).toMatchObject({ need: "terms", detail: "terms pending: confirm with Unstop" });
+    expect(sourceNeed({ ...base, available: true, statusReason: "Activated after a passing test" })).toBeNull();
+  });
 });
