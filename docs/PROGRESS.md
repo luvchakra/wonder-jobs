@@ -9,3 +9,4 @@
 - ✅ Admin data pages for every module, company bans, and an empty search shows a module's latest listings (WJ-479)
 - ✅ WorksLake: schools on Teaching Vacancies no longer all show the gov.uk crown (WJ-480)
 - ✅ Scholarships & Projects: module foundations, registered as Coming soon (WJ-485)
+- ✅ WonderWorks: the searching banner says what, where, how many sources and how long, with the WonderWorks mark animating (wings open, star twinkles)
