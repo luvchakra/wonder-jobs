@@ -1,5 +1,7 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
+import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
+import hackerearthEvents from "../../../../data-gateway/sources/hackerearth-events.json";
 import houzzInteriorDesignersAndDecorators from "../../../../data-gateway/sources/houzz-interior-designers-and-decorators.json";
 import houzzArchitects from "../../../../data-gateway/sources/houzz-architects.json";
 import houzzDesignBuildFirms from "../../../../data-gateway/sources/houzz-design-build-firms.json";
@@ -32,7 +34,9 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
+  "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
+  "hackerearth-events.json": hackerearthEvents as Record<string, unknown>,
   "houzz-interior-designers-and-decorators.json": houzzInteriorDesignersAndDecorators as Record<string, unknown>,
   "houzz-architects.json": houzzArchitects as Record<string, unknown>,
   "houzz-design-build-firms.json": houzzDesignBuildFirms as Record<string, unknown>,
