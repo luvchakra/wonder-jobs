@@ -4,3 +4,4 @@
 - ✅ WorksLake: partner uploads for every module — register a permitted partner, upload its CSV/JSON list, activate (WJ-474)
 - ✅ WonderWorks: one shared company-logo feature for every module — directory-stored, CDN-cached, one copy per company; schools under edu.in/ac.in etc. no longer merged (WJ-475)
 - ✅ WorksLake admin: "Fetch all missing" on Company directory → Missing logos looks again for every missing logo in passes (WJ-472)
+- ✅ WorksLake: logo lookups find more (Google by URL, DuckDuckGo, favicon.ico, www, Wikidata logos), Fetch again shows its reason, job-board domains refused; unit tests can no longer reach production (WJ-477)

@@ -71,7 +71,7 @@ export function hostOf(url: string): string | null {
  * Second-level labels countries register names under (sunrise.edu.in, school.sch.uk, uni.ac.jp): under a two-letter
  * country domain they're part of the suffix, so one school or company is never merged with every other under it.
  */
-const COUNTRY_SECOND_LEVEL = new Set(["com", "co", "org", "net", "edu", "gov", "govt", "ac", "sch", "nic", "res", "or", "ne", "go", "mil", "ltd", "plc", "me", "gen", "firm", "ind", "nhs", "info", "biz", "nom", "asn", "id", "lg", "ernet", "police"]);
+const COUNTRY_SECOND_LEVEL = new Set(["gc", "com", "co", "org", "net", "edu", "gov", "govt", "ac", "sch", "nic", "res", "or", "ne", "go", "mil", "ltd", "plc", "me", "gen", "firm", "ind", "nhs", "info", "biz", "nom", "asn", "id", "lg", "ernet", "police"]);
 
 export function registrableDomain(host: string): string {
   const labels = host.toLowerCase().replace(/\.$/, "").split(".");

@@ -131,6 +131,7 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - Before merging, check: no conflict and no open blocking review. A red E2E nightly never holds a merge (owner, 2026-10-29); it is still fixed first, in its own PR.
   - Never wait for a go-ahead: always merge once CI is green.
   - Then confirm the production deploy and send one `PushNotification` per finished task (or one when blocked on the owner).
+- **Unit tests never touch real services:** `src/testing/isolate.ts` (vitest `setupFiles`) strips every credential from the test process, because tests run in a shell with production keys once wrote to production (2026-11-01). Keep it; a test that needs a variable stubs its own.
 - **Before pushing, run only:**
   - `npx tsc --noEmit -p apps/web`
   - lint on the changed files

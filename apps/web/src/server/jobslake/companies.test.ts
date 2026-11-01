@@ -49,7 +49,7 @@ describe("logos — fetched once, cached, only for known companies", () => {
     const first = await companyLogo({ name: "IBM Corporation" }, Date.now(), fetcher as unknown as typeof fetch);
     expect(first?.type).toBe("image/png");
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(String((fetcher.mock.calls[0] as unknown[])[0])).toContain("domain=ibm.com");
+    expect(String((fetcher.mock.calls[0] as unknown[])[0])).toContain(encodeURIComponent("https://ibm.com"));
     await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await companyLogo({ domain: "ibm.com" }, Date.now() + LOGO_TTL_MS + 1, fetcher as unknown as typeof fetch);
@@ -70,7 +70,8 @@ describe("logos — fetched once, cached, only for known companies", () => {
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
     expect(store.rows.get("acme.com")?.logo).toBeNull();
     expect(await companyLogo({ domain: "acme.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
-    expect(fetcher).toHaveBeenCalledTimes(3); // both places and the home page, once
+    // Every place once (Google ×2, DuckDuckGo, four site files, the home page), and nothing on the second ask.
+    expect(fetcher).toHaveBeenCalledTimes(8);
   });
 });
 
@@ -95,5 +96,40 @@ describe("logos served to every module's cards", () => {
     await adminLogo("ibm.com", { kind: "clear" }, Date.now(), fetcher as unknown as typeof fetch, store);
     expect(await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
     expect(reads).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("where logos are looked for", () => {
+  it("finds a site only on www, skips a host that didn't answer, and uses the company's Commons logo last", async () => {
+    const { fetchLogo } = await import("./companies");
+    const png = new Response(PNG, { status: 200 });
+    const calls: string[] = [];
+    // Google and DuckDuckGo have none; the bare host doesn't answer; www has /favicon.ico.
+    const fetcher = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.startsWith("https://acme.org/")) throw new Error("ENOTFOUND");
+      if (url === "https://www.acme.org/favicon.ico") return png;
+      return new Response(null, { status: 404 });
+    });
+    expect((await fetchLogo("acme.org", fetcher as unknown as typeof fetch))?.from).toBe("www.acme.org");
+    expect(calls.filter((u) => u.startsWith("https://acme.org/"))).toHaveLength(1);
+
+    const wiki = vi.fn(async (url: string) =>
+      url.includes("wikidata.org") ? Response.json({ claims: { P154: [{ mainsnak: { datavalue: { value: "Acme logo.svg" } } }] } }) : url.includes("commons.wikimedia.org") ? new Response(PNG, { status: 200 }) : new Response(null, { status: 404 }),
+    );
+    const logo = await fetchLogo("acme.com", wiki as unknown as typeof fetch, { wikidataId: "Q42" });
+    expect(logo?.type).toBe("image/png");
+    expect(String(wiki.mock.calls.at(-1)?.[0])).toContain("Special:FilePath/Acme%20logo.svg?width=128");
+    // A malformed id is never sent anywhere.
+    const none = vi.fn(async () => new Response(null, { status: 404 }));
+    expect(await fetchLogo("acme.net", none as unknown as typeof fetch, { wikidataId: "Q1&x=y" })).toBeNull();
+    expect(none.mock.calls.some((c) => String((c as unknown[])[0]).includes("wikidata"))).toBe(false);
+  });
+
+  it("never records a job board's domain as an employer's", async () => {
+    const { companyDomain } = await import("@/domain/jobslake/companies");
+    expect(companyDomain("seek.com")).toBeUndefined();
+    expect(companyDomain("https://www.seek.com.au/job/1")).toBeUndefined();
+    expect(companyDomain("tiaa.org")).toBe("tiaa.org");
   });
 });
