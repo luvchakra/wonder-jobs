@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { dbGuard } from "./dbGuard";
 
 /**
  * Server-only Supabase client using the service role (or new secret key).
@@ -15,8 +16,9 @@ export function getSupabaseAdmin(): AdminClient | null {
   if (client !== undefined) return client;
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
+  // Every request goes through the database guard (dbGuard.ts): capped concurrency, deadlines, back-off when failing.
   // All WonderJobs tables live in their own schema so the project can host other products too.
-  client = url && key ? createClient(url, key, { db: { schema: "wonderjobs" }, auth: { persistSession: false, autoRefreshToken: false } }) : null;
+  client = url && key ? createClient(url, key, { db: { schema: "wonderjobs" }, auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: dbGuard.fetch } }) : null;
   return client;
 }
 
