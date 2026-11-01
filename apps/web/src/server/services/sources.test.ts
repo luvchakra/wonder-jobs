@@ -46,9 +46,9 @@ describe("Talent & Services' sources are its own dataset", () => {
     for (const s of [...BUILTIN_SOURCES, ...PARTNERSHIP_SOURCES, ...INTERNSHIP_SOURCES, ...TEACHING_SOURCES]) expect(mine).not.toContain(s.id);
   });
 
-  it("needs no credential, uses only official APIs, and never scrapes", () => {
+  it("needs no credential (OpenStreetMap needs the data gateway), uses only official APIs, and never scrapes", () => {
     for (const s of SERVICES_SOURCES) {
-      expect(servicesSourceAvailable(s)).toBe(true);
+      expect(servicesSourceAvailable(s), s.id).toBe(s.id !== "svc_osm");
       expect(s.accessStrategy).toBe("official_api");
     }
   });
