@@ -14,7 +14,7 @@ export const scholarshipsManifest: ModuleManifest = {
   hint: "Scholarships and student projects",
   icon: "Award",
   accent: "mint",
-  status: "soon",
+  status: "live",
   menuId: "scholarships",
   routes: shellRoutes("scholarships"),
   persona: [
