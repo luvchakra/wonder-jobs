@@ -9,6 +9,8 @@ export interface GatewaySourceRow {
   modules: string[];
   host: string;
   enabled: boolean;
+  /** Its permission evidence says its terms are still to be confirmed by the owner. */
+  termsPending: boolean;
   listings: number;
   lastSuccessAt: string | null;
   lastError: string | null;
@@ -54,6 +56,7 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
         modules: (x.modules as string[]) ?? [],
         host: (() => { try { return new URL(String(x.url)).hostname; } catch { return ""; } })(),
         enabled: x.enabled === true,
+        termsPending: /terms pending/i.test(String(x.permissionEvidence ?? "")),
         listings: counts.get(String(x.id)) ?? 0,
         lastSuccessAt: str(x.lastSuccessAt),
         lastError: str(x.lastError),

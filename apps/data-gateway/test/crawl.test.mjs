@@ -124,3 +124,35 @@ test("pathMatcher: * is one segment, ** is anything", async () => {
   assert.ok(!pathMatcher("/*/").test("/kubecon/program/"));
   assert.ok(pathMatcher("/e/**").test("/e/a/b"));
 });
+
+const pro = (n) => `<html><script type="application/ld+json">{"@context":"https://schema.org","@type":"HomeAndConstructionBusiness","@id":"https://www.houzz.in/professionals/interior-designers/studio-${n}-pf~${n}","name":"Studio ${n}","url":"https://www.houzz.in/professionals/interior-designers/studio-${n}-pf~${n}","description":"Interiors for homes","telephone":"+91 98000 00000","email":"a@b.in","image":"https://x/y.jpg","address":{"streetAddress":"12 MG Road","addressLocality":"Pune","addressRegion":"Maharashtra","postalCode":"411001","addressCountry":"IN"},"aggregateRating":{"ratingValue":"4.8","reviewCount":"23"},"geo":{"latitude":"18.52","longitude":"73.85"},"areaServed":{"name":"Pune"},"hasOfferCatalog":{"name":"3D Rendering, Bathroom Design"},"sameAs":["http://old.example","https://studio${n}.in/?utm_source=houzz&x=1"]}</script></html>`;
+
+test("a business page keeps what it says about itself, never its phone, email, street or postcode", async () => {
+  const { businessRecord, parseStructured } = await import("../src/collect.mjs");
+  const [r] = parseStructured(pro(7));
+  assert.equal(r.title, "Studio 7");
+  assert.equal(r.organization, "Studio 7");
+  assert.equal(r.location, "Pune, Maharashtra");
+  assert.deepEqual(r.attributes, { lat: 18.52, lon: 73.85, rating: 4.8, reviews: 23, areaServed: "Pune", services: "3D Rendering, Bathroom Design", website: "https://studio7.in/?x=1" });
+  const all = JSON.stringify(r);
+  for (const leak of ["98000", "a@b.in", "MG Road", "411001", "y.jpg"]) assert.ok(!all.includes(leak), leak);
+  assert.equal(businessRecord({ name: "X", url: "https://x.in", geo: { latitude: "999", longitude: "1" } }).attributes.lat, undefined, "impossible coordinates dropped");
+});
+
+test("a links crawl pools the links of its extra index pages, same host and robots only", async () => {
+  const dir = "https://www.houzz.in/professionals/interior-designers/probr0-bo~t_1";
+  const src = { url: dir, kind: "crawl", discover: "links", pathPrefix: "/professionals/interior-designers/", extraUrls: [dir + "?fi=15", "https://evil.example/x"], modules: ["services"], permission: "terms_permit", permissionEvidence: "Terms pending: Houzz terms of use", termsReviewed: true, redistributionAllowed: true, robotsReviewed: true, publicBusinesses: true, maxPagesPerRun: 5 };
+  assert.throws(() => validateSource(src), /HTTPS on the source's own host/);
+  const ok = validateSource({ ...src, extraUrls: [dir + "?fi=15"] });
+  const link = (n) => `<a href="/professionals/interior-designers/studio-${n}-pf~${n}">x</a>`;
+  const calls = [];
+  const r = await crawlRecords(ok, {
+    robots: async () => parseRobots("User-agent: *\nDisallow: /professionals/s/"),
+    get: async (url) => { calls.push(url); if (url === dir) return link(1) + link(2); if (url === dir + "?fi=15") return link(3); return pro(url.split("~").pop()); },
+    sleep: async () => {},
+    now: () => 0,
+  });
+  assert.equal(r.crawl.pages, 3, "links from both index pages");
+  assert.deepEqual(r.results.map((x) => x.title).sort(), ["Studio 1", "Studio 2", "Studio 3"]);
+  assert.ok(calls.includes(dir + "?fi=15"));
+});

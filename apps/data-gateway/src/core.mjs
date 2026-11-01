@@ -139,7 +139,9 @@ export function validateSource(source) {
     if (!Number.isInteger(pages) || pages < 1 || pages > 50) throw new ApiError(400, "INVALID_REQUEST", "maxPagesPerRun must be 1-50");
   }
   if (source.extraUrls !== undefined) {
-    if (source.kind !== "json_api" || source.nextPath || !Array.isArray(source.extraUrls) || source.extraUrls.length > 60) throw new ApiError(400, "INVALID_REQUEST", "extraUrls: up to 60, for a JSON source that isn't paged");
+    const jsonOk = source.kind === "json_api" && !source.nextPath;
+    const linksOk = source.kind === "crawl" && source.discover === "links";
+    if (!(jsonOk || linksOk) || !Array.isArray(source.extraUrls) || source.extraUrls.length > 60) throw new ApiError(400, "INVALID_REQUEST", "extraUrls: up to 60, for a JSON source that isn't paged or a links crawl");
     for (const u of source.extraUrls) {
       let x;
       try { x = new URL(u); } catch { throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be URLs"); }

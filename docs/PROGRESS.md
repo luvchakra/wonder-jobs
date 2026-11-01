@@ -36,4 +36,7 @@
 - ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
 - ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
 - ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)
-- ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable, listed in Admin's setup to-do (WJ-580)
+- ✅ Admin: Setup to-do also lists live sources whose terms are still to confirm (WJ-506)
+- ✅ WorksLake gateway: the crawler reads business pages (LocalBusiness, no contact details) and pooled directory pages (WJ-507)
+- ✅ Scholarships & Projects: Opportunity Desk and Scholars4Dev scholarship feeds as live sources (WJ-525)
+- ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable (WJ-580)
