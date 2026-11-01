@@ -110,10 +110,10 @@ describe("trades, cities and the definition files", () => {
     expect(CITY_RADIUS_KM).toBe(25);
   });
 
-  it("the four definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", async () => {
+  it("the definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", async () => {
     const dir = join(__dirname, "../../../../data-gateway/sources");
     const files = readdirSync(dir).filter((f) => /^osm-services-.+\.json$/.test(f));
-    expect(files.sort()).toEqual(["osm-services-east.json", "osm-services-north.json", "osm-services-south.json", "osm-services-west.json"]);
+    expect(files.sort()).toEqual(["osm-services-east.json", "osm-services-more.json", "osm-services-north.json", "osm-services-south.json", "osm-services-west.json"]);
     const asked: string[] = [];
     for (const f of files) {
       const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
@@ -142,3 +142,31 @@ describe("trades, cities and the definition files", () => {
     expect(asked.sort()).toEqual(CITIES.map((c) => c.name).sort());
   });
 });
+
+describe("more trades from OpenStreetMap", () => {
+  it("maps tiling, roofing, glazing, plastering, masonry, photography and catering onto this module's own trades", () => {
+    for (const [craft, trade] of [["tiler", "Design, build & renovation"], ["roofer", "Design, build & renovation"], ["glaziery", "Design, build & renovation"], ["plasterer", "Design, build & renovation"], ["stonemason", "Design, build & renovation"], ["photographer", "Wedding & events"], ["caterer", "Wedding & events"]]) {
+      const raw = rawFromOsm(listing(`node/${craft}`, `A ${craft}`, { craft, lat: PUNE.lat, lon: PUNE.lon }))!;
+      expect(termsFromPro(readProTags(raw.tags!)), craft).toMatchObject({ lane: "local", category: trade, areas: ["Pune"] });
+    }
+    expect(rawFromOsm(listing("node/g", "Gupta Ji", { craft: "gardener" }))).toBeNull();
+  });
+
+  it("finds them from a client's words", () => {
+    expect(craftsFor("wedding photographer")).toEqual(["photographer"]);
+    expect(craftsFor("caterer for 200 guests")).toEqual(["caterer"]);
+    expect(craftsFor("bathroom tiles")).toEqual(["plumber", "tiler"]);
+    expect(craftsFor("roof waterproofing")).toEqual(["roofer"]);
+  });
+
+  it("are asked in every definition's queries, which stay India-only and carry the country", () => {
+    const dir = join(__dirname, "../../../../data-gateway/sources");
+    for (const f of readdirSync(dir).filter((x) => /^(osm-services|houzz|wedmegood)-.+\.json$/.test(x))) {
+      const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
+      expect(d.geography, f).toEqual(["IN"]);
+      if (!f.startsWith("osm-")) continue;
+      for (const u of [d.url, ...d.extraUrls]) expect(decodeURIComponent(new URL(u).search.slice(6)), f).toContain("tiler|roofer|glaziery|plasterer|stonemason|photographer|caterer");
+    }
+  });
+});
+

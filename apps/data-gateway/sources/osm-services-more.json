@@ -1,0 +1,50 @@
+{
+  "url": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C26.9124%2C75.7873%29%3Bout%20center%20tags%20600%3B",
+  "kind": "json_api",
+  "modules": [
+    "services"
+  ],
+  "geography": [
+    "IN"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"© OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "publicBusinesses": true,
+  "attribution": "OpenStreetMap contributors (ODbL)",
+  "extraUrls": [
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C19.9975%2C73.7898%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C22.3039%2C70.8022%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C12.2958%2C76.6394%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C9.9252%2C78.1198%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C16.5062%2C80.648%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C20.2961%2C85.8245%29%3Bout%20center%20tags%20600%3B"
+  ],
+  "requestDelayMs": 1000,
+  "itemsPath": "elements",
+  "organizationOptional": true,
+  "mapping": {
+    "id": "{type}/{id}",
+    "title": "tags.name",
+    "organization": "tags.name",
+    "applyUrl": "https://www.openstreetmap.org/{type}/{id}",
+    "location": [
+      "tags.addr:suburb",
+      "tags.addr:city"
+    ],
+    "description": "tags.craft",
+    "attr.craft": "tags.craft",
+    "attr.website": "tags.website",
+    "attr.lat": "lat",
+    "attr.lon": "lon",
+    "attr.clat": "center.lat",
+    "attr.clon": "center.lon",
+    "attr.suburb": "tags.addr:suburb",
+    "attr.city": "tags.addr:city",
+    "attr.postcode": "tags.addr:postcode"
+  },
+  "retentionHours": 504,
+  "minIntervalMinutes": 10080
+}
