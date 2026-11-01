@@ -74,7 +74,11 @@ async function measure(c: AdminClient, probeTable: string): Promise<{ usage: { d
   const probe = await c.from(probeTable).select("*", { count: "exact", head: true }).limit(1);
   const ms = probe.error ? null : Date.now() - t0;
   const [u, h] = await Promise.all([c.rpc("db_usage"), c.rpc("db_health")]);
-  const error = probe.error?.message ?? u.error?.message ?? (h.error ? `Performance figures unavailable: ${h.error.message}` : undefined);
+  // A data database set up before db_health() existed (the setup script gained it with the Databases page): say how to
+  // add it, not the database's own words.
+  const missing = (e: { message: string } | null) => !!e && /schema cache|does not exist|PGRST202/i.test(e.message);
+  const rerun = "Run the setup script again in the data database (Data database → Copy script → its SQL editor → Run; safe to re-run).";
+  const error = probe.error?.message ?? (missing(u.error) ? `Size unavailable. ${rerun}` : u.error?.message) ?? (h.error ? (missing(h.error) ? `Performance figures unavailable. ${rerun}` : `Performance figures unavailable: ${h.error.message}`) : undefined);
   return { usage: (u.data as { db_bytes: number; tables?: DbReport["tables"] } | null) ?? null, raw: (h.data as Raw | null) ?? null, ms, error };
 }
 

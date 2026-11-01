@@ -72,3 +72,4 @@
 - ✅ Setup to-do: 'Open' on partner decisions goes to Gateway, not a missing page; links tested (WJ-519)
 - ✅ Optional separate WorksLake data database: Admin → Settings → Data database (save, setup script, test, copy, switch on, free main) (WJ-630)
 - ✅ Admin → Databases: ADB and DDB size, headroom, limit and performance side by side (WJ-631)
+- ✅ Databases: clear fix for a data database set up before the performance function; Test flags an old setup script (WJ-632)
