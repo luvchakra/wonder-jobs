@@ -46,7 +46,7 @@ export default function InsightsPage() {
   return (
     <>
       <PageTitle
-        title="Insights"
+        title="Source insights"
         subtitle="What each source is worth to candidates, from stored runs, the job pool and candidates' own matching. Suggestions show the numbers they rest on; none changes a source."
         actions={<Segmented value={days} onChange={setDays} label="Period" size="sm" options={[{ value: "1", label: "24 h" }, { value: "7", label: "7 days" }, { value: "30", label: "30 days" }]} />}
       />

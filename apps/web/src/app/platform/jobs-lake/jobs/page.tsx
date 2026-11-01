@@ -20,7 +20,7 @@ export default function JobsPage() {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <>
-      <PageTitle title="Jobs" subtitle="Canonical opportunities in the warm pool — every one retrieved from a source, with the records it was merged from." />
+      <PageTitle title="Job listings" subtitle="Canonical opportunities in the warm pool — every one retrieved from a source, with the records it was merged from." />
       <form
         className="mb-3 flex gap-2"
         onSubmit={(e) => {

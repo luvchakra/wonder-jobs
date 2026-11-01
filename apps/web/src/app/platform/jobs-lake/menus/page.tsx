@@ -14,7 +14,7 @@ export default function MenusPage() {
   const { data, error, reload } = useAdmin<{ menus: Menu[] }>("menus");
   return (
     <>
-      <PageTitle title="Menus" subtitle="The order and items every user sees. Saving applies to everyone within a minute." />
+      <PageTitle title="App menus" subtitle="The order and items every user sees. Saving applies to everyone within a minute." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
