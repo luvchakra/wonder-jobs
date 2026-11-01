@@ -110,10 +110,10 @@ describe("trades, cities and the definition files", () => {
     expect(CITY_RADIUS_KM).toBe(25);
   });
 
-  it("the four definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", async () => {
+  it("the definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", async () => {
     const dir = join(__dirname, "../../../../data-gateway/sources");
     const files = readdirSync(dir).filter((f) => /^osm-services-.+\.json$/.test(f));
-    expect(files.sort()).toEqual(["osm-services-east.json", "osm-services-north.json", "osm-services-south.json", "osm-services-west.json"]);
+    expect(files.sort()).toEqual(["osm-services-east.json", "osm-services-more.json", "osm-services-north.json", "osm-services-south.json", "osm-services-west.json"]);
     const asked: string[] = [];
     for (const f of files) {
       const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
