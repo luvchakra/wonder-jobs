@@ -1,7 +1,7 @@
 "use client";
 import { memo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ExternalLink, Zap } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Modal } from "@/components/common/Modal";
@@ -15,6 +15,7 @@ import { resolveCapability } from "@/domain/automation/policy";
 import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
+import { useAIService } from "@/lib/useAIService";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { deadlineLabel, daysLeft, KIND_LABEL, LEVEL_LABEL, LEVELS, levelsLabel, matchScholarship, missingProfile, outsideStatus, valueLabel, WORK_MODE_LABEL, type Level, type ScholarshipListing, type ScholarshipMatch, type StudentProfile } from "../domain";
@@ -192,12 +193,58 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
   );
 }
 
+/**
+ * "Draft with AI": a first draft of an answer or statement, for the student to edit — never sent on its own. Gated by
+ * resolveCapability("scholarships.draft"): Off turns it off; the student's own press is the "ask". Grounded only in
+ * their Career Profile and the listing (the server's `form_answer` instructions); the draft is labelled AI-generated.
+ */
+type DraftTarget = Parameters<ReturnType<ReturnType<typeof useAIService>>["answerApplicationQuestion"]>[0]["job"];
+
+function useDraft(l: ScholarshipListing) {
+  const ai = useAIService();
+  const dna = useCareerStore((s) => s.dna);
+  const policy = useAutomationStore((s) => s.policy);
+  const level = useAutomationStore((s) => s.defaultLevel);
+  return async (question: string) => {
+    if (resolveCapability("scholarships.draft", policy, level) === "skip") throw new Error("Drafting is off in Scholarships & Projects → You.");
+    // The listing as the role the answer is for: only what it states.
+    const target = { title: l.title, company: l.company, location: l.location, workMode: l.workMode ?? "remote", industry: KIND_LABEL[l.terms.kind], skills: l.terms.fields ?? l.skills, requirements: [levelsLabel(l.terms), ...(l.terms.documents ?? [])], description: l.description } as unknown as DraftTarget;
+    return ai().answerApplicationQuestion({ job: target, dna, question });
+  };
+}
+
+function DraftButton({ draft, question, onText }: { draft: (q: string) => Promise<string>; question: string; onText: (text: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      className="mt-1 inline-flex min-h-8 items-center gap-1 text-[12px] font-medium text-brand-600 hover:underline disabled:opacity-60"
+      onClick={async () => {
+        setBusy(true);
+        try {
+          onText(await draft(question));
+        } catch (e) {
+          toast.error("Couldn't draft it", (e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <Sparkles className="size-3.5" aria-hidden /> {busy ? "Drafting…" : "Draft with AI"}
+    </button>
+  );
+}
+
 /** What goes to the organisation, shown before it goes: the profile, answers to its questions, an optional statement and résumé. */
 function ApplySheet({ listing: l, sheet, onClose, onSend }: { listing: ScholarshipListing; sheet: Sheet; onClose: () => void; onSend: (s: Sheet) => Promise<void> }) {
   const [s, setS] = useState(sheet);
   const [busy, setBusy] = useState(false);
+  const [drafted, setDrafted] = useState<Set<string>>(new Set());
+  const draft = useDraft(l);
   const files = useResumeFilesStore((x) => x.files);
   const p = s.profile;
+  const aiNote = (key: string) => drafted.has(key) && <p className="text-[11.5px] text-ink-4">AI-generated draft — check and edit it before sending.</p>;
   const missing = missingProfile(p);
   const questions = l.questions ?? [];
   const unanswered = questions.filter((q) => q.required && !s.answers[q.id]?.trim());
@@ -249,10 +296,14 @@ function ApplySheet({ listing: l, sheet, onClose, onSend }: { listing: Scholarsh
         {questions.map((q) => (
           <Field key={q.id} label={q.text} htmlFor={`sa-q-${q.id}`} required={q.required}>
             <Textarea id={`sa-q-${q.id}`} rows={2} value={s.answers[q.id] ?? ""} onChange={(e) => setS((x) => ({ ...x, answers: { ...x.answers, [q.id]: e.target.value } }))} />
+            {aiNote(q.id)}
+            <DraftButton draft={draft} question={q.text} onText={(text) => (setS((x) => ({ ...x, answers: { ...x.answers, [q.id]: text } })), setDrafted((d) => new Set(d).add(q.id)))} />
           </Field>
         ))}
         <Field label="Statement (optional)" htmlFor="sa-statement">
           <Textarea id="sa-statement" rows={3} value={s.statement} onChange={(e) => setS((x) => ({ ...x, statement: e.target.value }))} />
+          {aiNote("statement")}
+          <DraftButton draft={draft} question={`A short personal statement for ${l.title}: why I'm applying and what I'd do with it.`} onText={(text) => (setS((x) => ({ ...x, statement: text })), setDrafted((d) => new Set(d).add("statement")))} />
         </Field>
         {files.length > 0 && (
           <Field label="Résumé (optional)" htmlFor="sa-file">
