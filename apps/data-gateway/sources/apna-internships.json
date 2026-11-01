@@ -1,0 +1,20 @@
+{
+  "url": "https://apna.co/api/job-listing-sitemap.xml",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "pathPrefix": "/job/",
+  "pathPattern": "/job/*/*intern*",
+  "modules": ["internships"],
+  "geography": ["IN"],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Apna's terms of use allow reuse of its job postings (an Indian job platform). Checked 2026-11-01: robots.txt disallows only *.infra.apna.co and lists /api/sitemap-index.xml; its job-listing sitemaps hold about 30,000 active jobs (about 1 in 110 an internship by its path), and each /job/<city>/<slug> page carries a schema.org JobPosting (hiringOrganization, datePosted, validThrough, baseSalary in INR).",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "apna.co",
+  "retentionHours": 168,
+  "minIntervalMinutes": 1440,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 2000
+}
