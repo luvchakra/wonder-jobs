@@ -259,7 +259,7 @@ Still not built: any register or directory of individuals; licence checks; crisi
 | Tele-MANAS (14416) cells | A helpline network, not a directory of practices; 42 to 53 cells reported inconsistently; no official per-cell list. | It is a **crisis resource**: its wording and placement wait on legal review, not built. |
 | Clinic and practice sites with schema.org JSON-LD | No Indian chain of clinics with open `MedicalClinic` or `LocalBusiness` markup and permissive robots.txt was identified; the well-known directories (Practo, Psychology Today, Amaha-style listings of individuals) are individuals or forbid it. | Nothing to crawl yet. If a specific practice chain is named, the gateway's crawler can take it (practices only). |
 | More OpenStreetMap cities | The cities table is shared with Talent & Services; a business is given its nearest city, so adding cities changes both modules. | Not done in a module PR: the shared-layer session owns the table. |
-| `geography` on gateway definitions | Not yet read by the gateway or Setup to-do on `main`. | The osm-therapists files get `"geography": ["IN"]` once the field is supported. |
+| `geography` on gateway definitions | Now read by the gateway and Setup to-do (WJ-510); the shared-layer session added `["IN"]` to the osm-therapists files. | Done. |
 
 **Researched**
 
