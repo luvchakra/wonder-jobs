@@ -71,3 +71,4 @@
 - ✅ Setup to-do: 'Add & activate' / 'Test & activate' do the gateway steps in one press (WJ-518)
 - ✅ Setup to-do: 'Open' on partner decisions goes to Gateway, not a missing page; links tested (WJ-519)
 - ✅ Optional separate WorksLake data database: Admin → Settings → Data database (save, setup script, test, copy, switch on, free main) (WJ-630)
+- ✅ Admin → Databases: ADB and DDB size, headroom, limit and performance side by side (WJ-631)
