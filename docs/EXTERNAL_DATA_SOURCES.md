@@ -435,3 +435,7 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **Upload:** **Upload list** on the partner's row in Sources. Rows are checked like any source's records; only an upload where ≥90% of rows read well replaces the partner's listings (repeats and past items aside). Otherwise nothing changes and the first five problems are shown. A partner refreshes its list by uploading again.
 - **Serving:** registered paused; **Activate** after a good upload. Its listings flow into its module through the module's WorksLake gateway source like any other gateway listing. The scheduler never fetches an upload source.
 
+
+### 13.8 Adding a reviewed source from the catalogue (2026-11-01)
+
+The reviewed source files in `apps/data-gateway/sources/*.json` (confs.tech, OpenStreetMap Calendar, UK Teaching Vacancies, We Work Remotely) are listed on Platform → Sources → Partners & gateway → **Add from catalogue**. **Add** registers one paused (as `register.mjs` would, without handling the admin token); **Test & activate** on its row in Sources runs the gateway's test and turns it on when it passes. A module session that adds a source file also adds it to `server/gateway/catalogue.ts` (a test checks every file is listed). OpenStreetMap Calendar (osmcal.org) documents an integration API and robots allows it, but states no data licence: the owner confirms before activating.

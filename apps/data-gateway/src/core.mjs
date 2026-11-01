@@ -4,6 +4,8 @@ import { dirname } from "node:path";
 
 export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
+/** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. */
+const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
@@ -118,7 +120,11 @@ export function validateSource(source) {
     const delay = Number(source.crawlDelayMs ?? 1000);
     if (!Number.isInteger(delay) || delay < 1000 || delay > 30000) throw new ApiError(400, "INVALID_REQUEST", "crawlDelayMs must be 1000-30000");
   }
-  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights");
+  // People modules need every person's opt-in, or (owner, 2026-11-01) public business listings from an open-data
+  // source — Talent & Services and Therapists only, never people's profiles (Co-founders) or private sellers.
+  const publicBusinesses = source.publicBusinesses === true && source.modules.every((m) => PUBLIC_BUSINESS_MODULES.has(m));
+  if (source.publicBusinesses === true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public business listings are allowed only for services and therapists");
+  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists)");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
   if (source.kind === "json_api" && source.nextPath !== undefined) {
     if (typeof source.nextPath !== "string" || !/^[\w.]{1,100}$/.test(source.nextPath)) throw new ApiError(400, "INVALID_REQUEST", "nextPath must be a dot path like links.next");
@@ -142,7 +148,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -181,6 +187,17 @@ export function countryName(v) {
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
   const one = (path) => {
+    // A template ("https://www.openstreetmap.org/{type}/{id}") is filled from the record's paths; any missing one leaves
+    // the field unset, so no half-made link is ever stored.
+    if (typeof path === "string" && path.includes("{")) {
+      let missing = false;
+      const filled = path.replace(/\{([\w.]{1,80})\}/g, (_, p) => {
+        const v = one(p);
+        if (v === undefined || v === "") missing = true;
+        return encodeURIComponent(String(v ?? ""));
+      });
+      return missing ? undefined : filled;
+    }
     const parts = String(path || "").split(".").filter(Boolean);
     if (!parts.length) return undefined;
     const found = parts.reduce((acc, part) => acc && typeof acc === "object" ? acc[part] : undefined, raw);

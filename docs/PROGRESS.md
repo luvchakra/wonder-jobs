@@ -22,3 +22,4 @@
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
 - ✅ Teaching: two paused crawl sources, EdJoin and TeachAway, waiting on the owner's terms check (WJ-561)
+- ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
