@@ -123,10 +123,10 @@ describe("what Share does with a mapped practice, and the definition files", () 
     expect(ws.url).toBe("/s/therapists/ws_1");
   });
 
-  it("the four definition files ask for exactly the cities this table knows, practices only, with the credit and a weekly interval", async () => {
+  it("the definition files ask for exactly the cities this table knows, practices only, with the credit and a weekly interval", async () => {
     const dir = join(__dirname, "../../../../data-gateway/sources");
     const files = readdirSync(dir).filter((f) => /^osm-therapists-.+\.json$/.test(f));
-    expect(files.sort()).toEqual(["osm-therapists-east.json", "osm-therapists-north.json", "osm-therapists-south.json", "osm-therapists-west.json"]);
+    expect(files.sort()).toEqual(["osm-therapists-east.json", "osm-therapists-more.json", "osm-therapists-north.json", "osm-therapists-south.json", "osm-therapists-west.json"]);
     const asked: string[] = [];
     for (const f of files) {
       const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
