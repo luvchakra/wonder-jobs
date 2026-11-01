@@ -20,7 +20,8 @@ export async function GET(req: Request) {
   return new NextResponse(new Uint8Array(logo.data), {
     headers: {
       "content-type": logo.type,
-      "cache-control": "private, max-age=2592000, stale-while-revalidate=604800",
+      // A day, then the browser asks again: a logo an admin replaces reaches cards the next day.
+      "cache-control": "private, max-age=86400, stale-while-revalidate=2592000",
       // An image, never a document: no sniffing, nothing runs if it's opened directly.
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; sandbox",

@@ -8,6 +8,7 @@
  * It also gives stored postings saved before job types existed the type their title states
  * ("Part-time …", "Freelance …"), marked as read from the title; a title that says none stays without one.
  */
+import { MODULE_IDS } from "@/wonderworks/manifest";
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { LOGO_TTL_MS, companiesFrom, companyStore, fetchLogo, type CompanyStore } from "./companies";
 import { jobsLakeStore } from "./store";
@@ -46,7 +47,11 @@ export async function refreshCompanies(
   const budget = opts.budgetMs ?? 45_000;
   const store = opts.store ?? companyStore();
   const since = new Date(now - MAX_POSTING_AGE_DAYS * 86_400_000).toISOString();
-  const opps = await (opts.postings ?? (() => jobsLakeStore().listOpportunities({ sinceIso: since, limit: MAX_POSTINGS })))();
+  // Every module's postings (owner, 2026-11-01: no company or event poster left without its logo), not just Jobs'.
+  // Jobs' postings are also re-typed below and saved back to Jobs' pool, so they are kept apart from the rest.
+  const jobsOpps = await (opts.postings ?? (() => jobsLakeStore().listOpportunities({ sinceIso: since, limit: MAX_POSTINGS })))();
+  const otherOpps = opts.postings ? [] : (await Promise.all(MODULE_IDS.filter((m) => m !== "jobs").map((module) => jobsLakeStore().listOpportunities({ sinceIso: since, limit: MAX_POSTINGS, module })))).flat();
+  const opps = [...jobsOpps, ...otherOpps];
 
   // One record per company domain, with the number of its postings in this window.
   const at = new Date(now).toISOString();
@@ -66,7 +71,7 @@ export async function refreshCompanies(
 
   // Postings stored without a job type, or with a source's "Full-time" their title contradicts ("Intern - Sales"):
   // the one their title states.
-  const typed = opps.flatMap((o) => {
+  const typed = jobsOpps.flatMap((o) => {
     const t = retypeFromTitle({ ...o, title: o.title ?? "" });
     return t ? [{ ...o, jobType: t, jobTypeFrom: "title" as const }] : [];
   });

@@ -32,6 +32,8 @@ export interface ResponseMapping {
   attributesPath?: string;
   /** Path to the item's kind ("job" or "event"); absent means job. */
   kindPath?: string;
+  /** Path to the employer's (or an event's) own website domain, for its logo. */
+  domainPath?: string;
 }
 
 /** Reads `a.b[0].c` / `a.b.0.c` from a JSON value. Never evaluates code. */
@@ -59,6 +61,7 @@ export interface MappedItem {
   remote?: boolean;
   kind?: "job" | "event";
   attributes?: Record<string, unknown>;
+  companyDomain?: string;
 }
 
 const str = (v: unknown) => (v == null ? "" : typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : Array.isArray(v) ? v.map((x) => (typeof x === "object" && x ? String((x as Record<string, unknown>).name ?? (x as Record<string, unknown>).label ?? "") : String(x))).filter(Boolean).join(", ") : "");
@@ -95,6 +98,7 @@ export function applyMapping(response: unknown, mapping: ResponseMapping): Mappi
       currency: str(read("currency")).trim() || undefined,
       remote: mapping.fields.remote ? Boolean(read("remote")) : undefined,
       ...(mapping.kindPath && getPath(raw, mapping.kindPath) === "event" ? { kind: "event" as const } : {}),
+      ...(mapping.domainPath && typeof getPath(raw, mapping.domainPath) === "string" && /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(String(getPath(raw, mapping.domainPath))) ? { companyDomain: String(getPath(raw, mapping.domainPath)).toLowerCase() } : {}),
       ...(mapping.attributesPath && getPath(raw, mapping.attributesPath) && typeof getPath(raw, mapping.attributesPath) === "object" ? { attributes: getPath(raw, mapping.attributesPath) as Record<string, unknown> } : {}),
     };
     for (const f of MAPPABLE_FIELDS) {

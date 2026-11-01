@@ -207,6 +207,7 @@ function fromMapped(result: MappingResult): RawPosting[] {
       currency: i.currency ?? null,
       employerSite: isEmployerUrl(i.applyUrl),
       ...(i.kind ? { kind: i.kind } : {}),
+      ...(i.companyDomain ? { companyDomain: i.companyDomain } : {}),
       ...(i.attributes ? { attributes: i.attributes } : {}),
     }));
 }
