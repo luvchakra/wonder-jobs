@@ -10,6 +10,9 @@ import wedmegood1 from "../../../../data-gateway/sources/wedmegood-vendors-1.jso
 import wedmegood2 from "../../../../data-gateway/sources/wedmegood-vendors-2.json";
 import wedmegood3 from "../../../../data-gateway/sources/wedmegood-vendors-3.json";
 import wedmegood4 from "../../../../data-gateway/sources/wedmegood-vendors-4.json";
+import chumbakProducts from "../../../../data-gateway/sources/chumbak-products.json";
+import okhaiProducts from "../../../../data-gateway/sources/okhai-products.json";
+import tjoriProducts from "../../../../data-gateway/sources/tjori-products.json";
 import hackerearthEvents from "../../../../data-gateway/sources/hackerearth-events.json";
 import hasgeekEvents from "../../../../data-gateway/sources/hasgeek-events.json";
 import helsinkiLinkedEvents from "../../../../data-gateway/sources/helsinki-linkedevents.json";
@@ -58,6 +61,9 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "wedmegood-vendors-2.json": wedmegood2 as Record<string, unknown>,
   "wedmegood-vendors-3.json": wedmegood3 as Record<string, unknown>,
   "wedmegood-vendors-4.json": wedmegood4 as Record<string, unknown>,
+  "chumbak-products.json": chumbakProducts as Record<string, unknown>,
+  "okhai-products.json": okhaiProducts as Record<string, unknown>,
+  "tjori-products.json": tjoriProducts as Record<string, unknown>,
   "hackerearth-events.json": hackerearthEvents as Record<string, unknown>,
   "hasgeek-events.json": hasgeekEvents as Record<string, unknown>,
   "helsinki-linkedevents.json": helsinkiLinkedEvents as Record<string, unknown>,
