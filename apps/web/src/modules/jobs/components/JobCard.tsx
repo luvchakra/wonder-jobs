@@ -3,7 +3,7 @@ import { shortPlace } from "@/wonderworks/find/place";
 import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ThumbsDown, Zap } from "lucide-react";
-import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
+import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton, shortSourceNames } from "@/wonderworks/find/parts";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
@@ -28,9 +28,13 @@ import type { JobDecision as Decision } from "@/domain/jobs/decision";
  */
 const SOURCE_NAME = new Map(JOB_SOURCES.map((s) => [s.id, s.name]));
 
-/** Where the listing was found — the first source's name, "+1" when it was seen on more. */
-export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">): string {
-  const names = job.lake?.sightings.length ? job.lake.sightings.map((x) => x.sourceName) : job.sourceIds.map((id) => SOURCE_NAME.get(id) ?? id);
+/**
+ * Where the listing was found — the first source's name, "+1" when it was seen on more. `short` names the WorksLake
+ * Data Gateway "WWDG" (the card; the full name is its tooltip). Shortened per name, so the "+1" is kept.
+ */
+export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">, short = false): string {
+  const full = job.lake?.sightings.length ? job.lake.sightings.map((x) => x.sourceName) : job.sourceIds.map((id) => SOURCE_NAME.get(id) ?? id);
+  const names = short ? full.map(shortSourceNames) : full;
   const unique = [...new Set(names)];
   return unique.length ? `${unique[0]}${unique.length > 1 ? ` +${unique.length - 1}` : ""}` : "";
 }
@@ -124,7 +128,8 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       status={status && <Badge tone={statusTone}>{status}</Badge>}
       footnote={
         <>
-          {sourceLine(job) ? `${origin ? `${origin} ` : ""}via ${sourceLine(job)} · ` : ""}
+          {/* "via WWDG", not "via WorksLake Data Gateway · Jobs"; the full name on hover (owner, 2026-11-01). */}
+          {sourceLine(job) ? <span title={sourceLine(job, true) !== sourceLine(job) ? sourceLine(job) : undefined}>{`${origin ? `${origin} ` : ""}via ${sourceLine(job, true)} · `}</span> : ""}
           {relativeTime(job.postedAt)}
           {brief?.size && ` · ${brief.size}`}
           {brief?.h1b ? <span title="Certified H-1B applications in the US Department of Labor's latest disclosure file">{` · H-1B ${brief.h1b.toLocaleString("en-US")}`}</span> : null}
