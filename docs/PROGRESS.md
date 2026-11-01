@@ -13,3 +13,4 @@
 - ✅ WonderWorks: the searching banner says what, where, how many sources and how long, with the WonderWorks mark animating (wings open, star twinkles)
 - ✅ Scholarships & Projects: Find, sources (WonderWorks, Grants.gov, gateway), listing page, organisation posting and applying (WJ-521)
 - ✅ Scholarships & Projects is live: Applications with Deadlines, application page, AI drafts for answers and statements (WJ-522)
+- ✅ Teaching: three more real sources — Adzuna (UK, US, Canada, Australia, NZ, South Africa, Singapore), USAJOBS and Sweden's JobTech; two need keys (WJ-560)
