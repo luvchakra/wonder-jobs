@@ -73,6 +73,17 @@ export function hostOf(url: string): string | null {
  */
 const COUNTRY_SECOND_LEVEL = new Set(["gc", "com", "co", "org", "net", "edu", "gov", "govt", "ac", "sch", "nic", "res", "or", "ne", "go", "mil", "ltd", "plc", "me", "gen", "firm", "ind", "nhs", "info", "biz", "nom", "asn", "id", "lg", "ernet", "police"]);
 
+/**
+ * Whether a name is only a suffix that others register under (gov.uk, co.uk, edu.in, com.au), never an organisation's
+ * own domain: so `gov.uk` is never taken for a school or a company.
+ */
+export function isPublicSuffix(domain: string): boolean {
+  const labels = domain.toLowerCase().replace(/\.$/, "").split(".");
+  if (labels.length === 1) return true;
+  if (labels.length !== 2) return false;
+  return SECOND_LEVEL.has(labels.join(".")) || (/^[a-z]{2}$/.test(labels[1]) && COUNTRY_SECOND_LEVEL.has(labels[0]));
+}
+
 export function registrableDomain(host: string): string {
   const labels = host.toLowerCase().replace(/\.$/, "").split(".");
   if (labels.length <= 2) return labels.join(".");

@@ -4,12 +4,12 @@
  * gives no domain is matched to one by its exact (normalized) company name, as WorksLake saw it elsewhere.
  */
 import { ratingMonth, type CompanyRatings } from "./ratings";
-import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/destination";
+import { detectProvider, hostOf, isPublicSuffix, registrableDomain } from "@/domain/jobs-apply/destination";
 
 /** Hiring platforms and boards: their host is the platform's, not the employer's. */
 const NOT_EMPLOYER = [
   "linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "iimjobs.com", "hirist.tech", "hirist.com", "timesjobs.com", "shine.com", "remoteok.com", "jobicy.com", "weworkremotely.com", "himalayas.app", "arbeitnow.com", "themuse.com", "simplyhired.com", "careerbuilder.com", "jooble.org",
-  "seek.com", "seek.com.au", "seek.co.nz", "jobstreet.com", "jobsdb.com", "reed.co.uk", "totaljobs.com", "cv-library.co.uk", "stepstone.de", "stepstone.com", "xing.com", "dice.com", "bayt.com", "gulftalent.com", "naukrigulf.com", "internshala.com", "apna.co", "workindia.in", "cutshort.io", "builtin.com", "hired.com", "joinhandshake.com", "jobindex.dk", "infojobs.net", "computrabajo.com", "careerjet.com", "talent.com", "jora.com", "learn4good.com", "teachingvacancies.service.gov.uk",
+  "seek.com", "seek.com.au", "seek.co.nz", "jobstreet.com", "jobsdb.com", "reed.co.uk", "totaljobs.com", "cv-library.co.uk", "stepstone.de", "stepstone.com", "xing.com", "dice.com", "bayt.com", "gulftalent.com", "naukrigulf.com", "internshala.com", "apna.co", "workindia.in", "cutshort.io", "builtin.com", "hired.com", "joinhandshake.com", "jobindex.dk", "infojobs.net", "computrabajo.com", "careerjet.com", "talent.com", "jora.com", "learn4good.com", "service.gov.uk", "jobs.ac.uk", "tes.com", "eteach.com", "civilservicejobs.service.gov.uk",
   "icims.com", "taleo.net", "successfactors.com", "successfactors.eu", "jobvite.com", "bamboohr.com", "breezy.hr", "applytojob.com", "zohorecruit.com", "zohorecruit.in", "freshteam.com", "darwinbox.in", "darwinbox.com", "keka.com", "oraclecloud.com", "ultipro.com", "paylocity.com", "adp.com", "recruiterbox.com", "eightfold.ai", "phenompeople.com", "avature.net", "pinpointhq.com", "rippling.com", "dover.com", "jobs.ashbyhq.com", "workforcenow.adp.com",
 ];
 
@@ -29,8 +29,18 @@ export function cleanDomain(raw: string | undefined | null): string | undefined 
  * logo and merge every employer posting there into one company).
  */
 export function companyDomain(raw: string | undefined | null): string | undefined {
+  const d = organisationDomain(raw);
+  return d && !RESERVED.test(d) ? d : undefined;
+}
+
+/**
+ * A domain that can be an organisation's own: cleaned, never a job board's or hiring platform's, never a bare suffix
+ * (gov.uk, co.uk). Unlike `companyDomain`, test names (`.example`) pass, so a listing keeps what its source said; the
+ * company directory and logos use `companyDomain`, which refuses those too.
+ */
+export function organisationDomain(raw: string | undefined | null): string | undefined {
   const d = cleanDomain(raw);
-  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) && !RESERVED.test(d) ? d : undefined;
+  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) && !isPublicSuffix(d) ? d : undefined;
 }
 
 /** Names that are never a real organisation's (RFC 2606/6761): test data such as `wonderhome.example`. */
@@ -41,7 +51,7 @@ export function employerDomainOf(applyUrl: string | undefined, onEmployerSite: b
   if (!applyUrl || !onEmployerSite || detectProvider(applyUrl)) return undefined;
   const host = hostOf(applyUrl);
   if (!host || NOT_EMPLOYER.some((d) => host === d || host.endsWith(`.${d}`))) return undefined;
-  return cleanDomain(host);
+  return companyDomain(host);
 }
 
 const SUFFIXES = /\b(inc|incorporated|llc|llp|ltd|limited|pvt|private|plc|corp|corporation|co|company|gmbh|ag|sa|bv|pte|pty|the)\b/g;

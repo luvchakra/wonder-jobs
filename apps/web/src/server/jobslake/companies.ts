@@ -510,7 +510,7 @@ function forgetLogo(domain: string) {
  * know the company; null when it has no logo.
  */
 export async function companyLogo(q: { domain?: string; name?: string }, now = Date.now(), fetcher: typeof fetch = fetch): Promise<{ data: Buffer; type: string } | null | undefined> {
-  const domain = cleanDomain(q.domain);
+  const domain = companyDomain(q.domain);
   const nameKey = q.name ? companyKey(q.name) : "";
   const keys = [...(domain ? [`d:${domain}`] : []), ...(nameKey ? [`n:${nameKey}`] : [])];
   for (const k of keys) {
