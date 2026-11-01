@@ -1,0 +1,39 @@
+{
+  "url": "https://www.houzz.in/professionals/construction/probr0-bo~t_26732",
+  "kind": "crawl",
+  "discover": "links",
+  "modules": [
+    "services"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Houzz's terms of use allow automated reading of its public professional profiles (the owner confirms). Checked 2026-11-01: robots.txt (User-agent *) allows /professionals/ listing and profile pages, no Crawl-delay; each profile carries schema.org LocalBusiness data; only that is read, never phone, email or street address.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "publicBusinesses": true,
+  "attribution": "Houzz (houzz.in)",
+  "pathPrefix": "/professionals/",
+  "pathPattern": "/professionals/*/*-pf~*",
+  "extraUrls": [
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=15",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=30",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=45",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=60",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=75",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=90",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=105",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=120",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=135",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=150",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=165",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=180",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=195",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=210",
+    "https://www.houzz.in/professionals/construction/probr0-bo~t_26732?fi=225"
+  ],
+  "maxPagesPerRun": 40,
+  "crawlDelayMs": 2000,
+  "retentionHours": 720,
+  "minIntervalMinutes": 1440
+}

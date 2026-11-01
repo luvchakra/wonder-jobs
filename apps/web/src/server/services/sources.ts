@@ -18,7 +18,7 @@ import { matchesLocations, normalizePosting, type RawPosting } from "@/services/
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { CRAFT_CATEGORY, craftsFor, proTags } from "@/modules/services/domain";
+import { CRAFT_CATEGORY, craftsFor, houzzCategoryOf, proTags } from "@/modules/services/domain";
 import { nearestCity } from "@/wonderworks/find/cities";
 import { OSM_GATEWAY_NAME } from "@/wonderworks/find/osm";
 import { gatewayListings } from "@/server/gateway/listings";
@@ -34,6 +34,9 @@ function source(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | 
 export const WONDERSTAR_SERVICES = "svc_wonderstar";
 export const FREELANCER_EXPERTS = "svc_freelancer";
 export const OPENSTREETMAP = "svc_osm";
+export const HOUZZ = "svc_houzz";
+/** The name the gateway's Houzz sources carry (their `attribution`): how this source recognises its own listings. */
+export const HOUZZ_GATEWAY_NAME = "Houzz (houzz.in)";
 export { OSM_GATEWAY_NAME };
 
 export const SERVICES_SOURCES: SourceRecord[] = [
@@ -47,10 +50,19 @@ export const SERVICES_SOURCES: SourceRecord[] = [
     geography: ["IN"],
     description: "Local trade businesses mapped in OpenStreetMap (open data, ODbL): plumbers, electricians, AC, carpenters, painters and repair shops. Collected weekly by the data gateway, never asked per search. Businesses only; no phone or email is copied.",
   }),
+  source({
+    id: HOUZZ,
+    name: "Houzz professionals",
+    provider: "Houzz",
+    category: "aggregator",
+    geography: ["IN"],
+    capabilities: [...FEED_CAPS, "Rating"],
+    description: "Interior designers, architects, contractors and renovation firms listed on Houzz India, as their public profiles state them: name, city, rating and review count, services listed, own website. Collected by the data gateway from the public profile pages, politely and on a schedule, never per search. No phone or email is copied. Terms pending: Houzz's terms on automated access.",
+  }),
 ];
 
 /** Whether this deployment can ask the source now. The first two need no credential; OpenStreetMap needs the data gateway. */
-export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
+export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP || s.id === HOUZZ ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
 
 /** One user of Freelancer.com's directory, only the fields asked for. */
 export interface FreelancerUser {
@@ -165,32 +177,76 @@ export function rawFromOsm(l: GatewayListing): (RawPosting & { city?: string }) 
 }
 
 /**
- * OpenStreetMap businesses for a client's words and places, read from what the data gateway already collected (weekly,
- * bounded, with an identifying User-Agent). Nothing here calls Overpass. The trade comes from the client's words; the
- * place is the nearest city of each business, so a business with no address still answers "Pune".
+ * What the data gateway collected for Services from one source (recognised by its `attribution`), as postings: the gateway
+ * answers a hundred at a time, so a few pages cover a search; a business shows once; the client's places are answered by
+ * each business's own city. Nothing here fetches from the outside: collection is the gateway's, weekly or hourly, bounded.
  */
-export async function fetchOsmBusinesses(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
-  const crafts = craftsFor(c.query);
-  const places = c.locations.map((p) => p.trim().toLowerCase()).filter(Boolean);
+async function readGateway(sourceId: string, gatewayName: string, name: string, queries: string[], places: string[], map: (l: GatewayListing) => (RawPosting & { city?: string }) | null, needsSetup: (m: string) => Error): Promise<Job[]> {
   const out: Job[] = [];
   const seen = new Set<string>();
-  // The gateway answers a hundred at a time; a few pages cover a trade across the cities collected.
-  for (const craft of crafts.length ? crafts : [""]) {
+  for (const query of queries) {
     for (let offset = 0; offset < 500; offset += 100) {
-      const g = await gatewayListings("services", { query: craft || c.query, limit: 100, offset });
-      if (!g.configured) throw needsSetup("OpenStreetMap businesses come from the data gateway, which isn't set up on this deployment.");
+      const g = await gatewayListings("services", { query, limit: 100, offset });
+      if (!g.configured) throw needsSetup(`${name} listings come from the data gateway, which isn't set up on this deployment.`);
       for (const l of g.results) {
-        if (l.sourceName !== OSM_GATEWAY_NAME) continue;
-        const raw = rawFromOsm(l);
+        if (l.sourceName !== gatewayName) continue;
+        const raw = map(l);
         if (!raw || seen.has(raw.externalId)) continue;
         if (places.length && !(raw.city && places.some((p) => raw.city!.toLowerCase().includes(p) || p.includes(raw.city!.toLowerCase())))) continue;
         seen.add(raw.externalId);
-        out.push(normalizePosting(OPENSTREETMAP, raw));
+        out.push(normalizePosting(sourceId, raw));
       }
       if (g.results.length < 100) break;
     }
   }
   return out;
+}
+
+const placesOf = (c: SearchCriteria) => c.locations.map((p) => p.trim().toLowerCase()).filter(Boolean);
+
+/**
+ * OpenStreetMap businesses for a client's words and places. The trade comes from the client's words; the place is the
+ * nearest city of each business, so a business with no address still answers "Pune".
+ */
+export function fetchOsmBusinesses(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
+  const crafts = craftsFor(c.query);
+  return readGateway(OPENSTREETMAP, OSM_GATEWAY_NAME, "OpenStreetMap businesses", crafts.length ? crafts : [c.query], placesOf(c), rawFromOsm, needsSetup);
+}
+
+/**
+ * A Houzz professional the gateway collected, as a posting: what their own public profile states — name, the city of
+ * their address (never the street or postcode), their description, the rating and review count Houzz shows, the
+ * services they list and their own website. No phone or email. `null` for a record that isn't one of Houzz's service
+ * categories (photographers, furniture and bedding shops are left out) or has no name.
+ */
+export function rawFromHouzz(l: GatewayListing): (RawPosting & { city?: string }) | null {
+  const a = l.attributes;
+  const name = str(l.title);
+  const category = houzzCategoryOf(l.canonicalUrl);
+  if (!name || !category) return null;
+  const city = str(l.location).split(",")[0].trim() || undefined;
+  const rating = num(a.rating);
+  const reviews = num(a.reviews);
+  const web = /^https:\/\/[^\s]+$/i.test(str(a.website)) ? str(a.website) : undefined;
+  const services = str(a.services).split(",").map((x) => x.trim()).filter(Boolean).slice(0, 8);
+  return {
+    externalId: l.id,
+    title: name,
+    company: name,
+    location: city ?? "India",
+    city,
+    description: str(l.description) || `${category}${city ? ` in ${city}` : ""}. Listed on Houzz.`,
+    tags: proTags({ cat: category, ...(city ? { city } : {}), ...(web ? { web } : {}), ...(services.length ? { skills: services } : {}), ...(rating !== undefined && rating > 0 && rating <= 5 ? { rating } : {}), ...(reviews !== undefined && reviews >= 0 ? { reviews } : {}) }),
+    postedAt: null,
+    // The business's Houzz profile; its own website (as it states it) is carried as a fact.
+    applyUrl: l.canonicalUrl,
+    employerSite: false,
+  };
+}
+
+/** Houzz professionals for a client's words and places (design, build and renovation work). */
+export function fetchHouzzProfessionals(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
+  return readGateway(HOUZZ, HOUZZ_GATEWAY_NAME, "Houzz professionals", [c.query], placesOf(c), rawFromHouzz, needsSetup);
 }
 
 /**
@@ -223,6 +279,8 @@ export async function runServicesSource(s: SourceRecord, c: SearchCriteria, need
       return { jobs: await fetchFreelancerExperts(c), warnings: [] };
     case OPENSTREETMAP:
       return { jobs: await fetchOsmBusinesses(c, needsSetup), warnings: [] };
+    case HOUZZ:
+      return { jobs: await fetchHouzzProfessionals(c, needsSetup), warnings: [] };
     default:
       throw new Error("No connector");
   }
