@@ -68,8 +68,10 @@ test("public business listings from open data: services and therapists only, and
   assert.throws(() => validateSource({ ...base, modules: ["services"] }), /opt-in/);
   assert.equal(validateSource({ ...base, modules: ["services"], publicBusinesses: true }).publicBusinesses, true);
   assert.ok(validateSource({ ...base, modules: ["therapists"], publicBusinesses: true }));
-  assert.throws(() => validateSource({ ...base, modules: ["cofounders"], publicBusinesses: true }), /only for services and therapists/);
-  assert.throws(() => validateSource({ ...base, modules: ["marketplace"], publicBusinesses: true }), /only for services and therapists/);
+  assert.throws(() => validateSource({ ...base, modules: ["cofounders"], publicBusinesses: true }), /only for services, therapists and marketplace/);
+  // A shop's or dealer's own public catalogue may feed Buy, Sell & Rent; a private seller never (that needs verified consent).
+  assert.ok(validateSource({ ...base, modules: ["marketplace"], publicBusinesses: true }));
+  assert.throws(() => validateSource({ ...base, modules: ["marketplace"] }), /Sensitive modules require/);
   const src = validateSource({ ...base, modules: ["services"], publicBusinesses: true, organizationOptional: true });
   const ok = normalize(src, { type: "node", id: 42, tags: { name: "Sharma Electricals" } }, new Date().toISOString());
   assert.equal(ok.canonicalUrl ?? ok.url ?? ok.applyUrl, "https://www.openstreetmap.org/node/42");

@@ -58,8 +58,8 @@ export const MarketCard = memo(function MarketCard({ item: l, onOpen }: { item: 
         <span key="k">{t.category}</span>,
       ]}
       summary={l.description.slice(0, 240)}
-      summaryTitle="From the seller"
-      status={l.sellerVerified && <Badge tone="success">Verified seller</Badge>}
+      summaryTitle={l.outside ? `From ${l.outside.business}` : "From the seller"}
+      status={l.outside ? <Badge tone="neutral">{`From ${l.outside.business}`}</Badge> : l.sellerVerified && <Badge tone="success">Verified seller</Badge>}
       footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="listing" />}
     />

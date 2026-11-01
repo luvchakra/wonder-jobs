@@ -132,9 +132,14 @@ export const priceLabel = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 export type ListingState = "draft" | "open" | "sold" | "hidden" | "closed";
 
 export interface MarketListing {
-  /** `mk_<listingId>`. */
+  /** `mk_<listingId>`; an outside listing's is `mk_out_<id>`. */
   id: string;
   listingId: string;
+  /**
+   * An item a shop or dealer lists on its own website, read from a WorksLake outside source: WonderWorks shows it and links to
+   * the shop. It is never messaged about, offered on or paid for here, and carries no seller's personal details.
+   */
+  outside?: { url: string; business: string };
   title: string;
   description: string;
   area: string;
@@ -146,6 +151,16 @@ export interface MarketListing {
   postedAt?: string;
   sourceId: string;
   sourceName: string;
+}
+
+/** Which of our browse categories a shop's own product type belongs to; anything it doesn't name is "Other". */
+export function categoryOfProductType(text: string): (typeof CATEGORIES)[number] {
+  const t = text.toLowerCase();
+  if (/handicraft|handloom|handmade|artisan|craft|\bart\b|painting|pottery|terracotta|brass|wood(en)? (carving|toy)|\bdhokra|madhubani|warli/.test(t)) return "Handicrafts & art";
+  if (/cushion|bed|dining|kitchen|home|decor|candle|vase|bowl|plate|mug|cookware|towel|bath|throw|rug|lamp|storage|basket|box|gift/.test(t)) return "Home & kitchen";
+  if (/apparel|dress|kurta|saree|dupatta|shawl|blouse|top|bottom|pant|skirt|jewel|earring|necklace|bangle|bracelet|anklet|bag|footwear|shoe|ballerina|scarf|stole|accessor/.test(t)) return "Fashion";
+  if (/toy|kid|baby|bib/.test(t)) return "Baby & kids";
+  return "Other";
 }
 
 /** Whether a listing may be shown, given what's known: open, not hidden by reports, not sold. */
