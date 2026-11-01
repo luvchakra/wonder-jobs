@@ -22,10 +22,12 @@ import konfhubEvents from "../../../../data-gateway/sources/konfhub-events.json"
 import linuxFoundationEvents from "../../../../data-gateway/sources/linux-foundation-events.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
 import osmServicesEast from "../../../../data-gateway/sources/osm-services-east.json";
+import osmServicesMore from "../../../../data-gateway/sources/osm-services-more.json";
 import osmServicesNorth from "../../../../data-gateway/sources/osm-services-north.json";
 import osmServicesSouth from "../../../../data-gateway/sources/osm-services-south.json";
 import osmServicesWest from "../../../../data-gateway/sources/osm-services-west.json";
 import osmTherapistsEast from "../../../../data-gateway/sources/osm-therapists-east.json";
+import osmTherapistsMore from "../../../../data-gateway/sources/osm-therapists-more.json";
 import osmTherapistsNorth from "../../../../data-gateway/sources/osm-therapists-north.json";
 import osmTherapistsSouth from "../../../../data-gateway/sources/osm-therapists-south.json";
 import osmTherapistsWest from "../../../../data-gateway/sources/osm-therapists-west.json";
@@ -63,10 +65,12 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "linux-foundation-events.json": linuxFoundationEvents as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
   "osm-services-east.json": osmServicesEast as Record<string, unknown>,
+  "osm-services-more.json": osmServicesMore as Record<string, unknown>,
   "osm-services-north.json": osmServicesNorth as Record<string, unknown>,
   "osm-services-south.json": osmServicesSouth as Record<string, unknown>,
   "osm-services-west.json": osmServicesWest as Record<string, unknown>,
   "osm-therapists-east.json": osmTherapistsEast as Record<string, unknown>,
+  "osm-therapists-more.json": osmTherapistsMore as Record<string, unknown>,
   "osm-therapists-north.json": osmTherapistsNorth as Record<string, unknown>,
   "osm-therapists-south.json": osmTherapistsSouth as Record<string, unknown>,
   "osm-therapists-west.json": osmTherapistsWest as Record<string, unknown>,

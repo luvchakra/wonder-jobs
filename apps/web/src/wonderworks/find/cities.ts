@@ -1,5 +1,5 @@
 // Shared by Talent & Services and Therapists. Generated with the definition files (apps/data-gateway/sources/osm-services-*.json and osm-therapists-*.json): the same cities, so a business or practice is given the nearest one.
-export interface City { name: string; lat: number; lon: number; region: "north" | "west" | "south" | "east" }
+export interface City { name: string; lat: number; lon: number; region: "north" | "west" | "south" | "east" | "more" }
 export const CITIES: City[] = [
   { name: "Delhi", lat: 28.6139, lon: 77.209, region: "north" },
   { name: "Ghaziabad", lat: 28.6692, lon: 77.4538, region: "north" },
@@ -25,6 +25,13 @@ export const CITIES: City[] = [
   { name: "Guwahati", lat: 26.1445, lon: 91.7362, region: "east" },
   { name: "Nagpur", lat: 21.1458, lon: 79.0882, region: "east" },
   { name: "Bhopal", lat: 23.2599, lon: 77.4126, region: "east" },
+  { name: "Jaipur", lat: 26.9124, lon: 75.7873, region: "more" },
+  { name: "Nashik", lat: 19.9975, lon: 73.7898, region: "more" },
+  { name: "Rajkot", lat: 22.3039, lon: 70.8022, region: "more" },
+  { name: "Mysuru", lat: 12.2958, lon: 76.6394, region: "more" },
+  { name: "Madurai", lat: 9.9252, lon: 78.1198, region: "more" },
+  { name: "Vijayawada", lat: 16.5062, lon: 80.648, region: "more" },
+  { name: "Bhubaneswar", lat: 20.2961, lon: 85.8245, region: "more" },
 ];
 
 const RAD = Math.PI / 180;

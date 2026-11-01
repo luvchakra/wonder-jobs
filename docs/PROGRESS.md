@@ -54,3 +54,4 @@
 - 2026-11-01 Talent & Services: India pass 2 — more OpenStreetMap trades, geography on gateway definitions, researched directories and government lists (WJ-594)
 - ✅ Admin: Setup to-do filters by the country each source serves (WJ-510)
 - ✅ Therapists: India pass over data sources — government hospital directories are static and general, so nothing new added; one owner decision on Setup to-do (WJ-601)
+- ✅ WonderWorks: OpenStreetMap collection covers 31 Indian cities for Talent & Services and Therapists (WJ-511)
