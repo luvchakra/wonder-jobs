@@ -224,10 +224,19 @@ export function searchResponse(plan, rows, matched, secret) {
   const next = plan.offset + plan.limit < matched ? signCursor({ f: plan.fingerprint, offset: plan.offset + plan.limit }, secret) : null;
   return { requestId: id("req"), module: plan.module, results: rows, nextCursor: next, metadata: { totalReturned: rows.length, matched, sourceCount: plan.sourceIds.length, cacheStatus: "indexed", asOf: iso() } };
 }
+/** The words of a query, each matched on its own (lower-case, at most 8, punctuation dropped). */
+export function queryWords(query) {
+  return String(query ?? "").toLowerCase().split(/[^\p{L}\p{N}+#.]+/u).map((w) => w.replace(/^\.+|\.+$/g, "")).filter(Boolean).slice(0, 8);
+}
+/** Every word of the query appears somewhere in the text (an empty query matches everything). */
+export function matchesWords(text, query) {
+  const t = String(text ?? "").toLowerCase();
+  return queryWords(query).every((w) => t.includes(w));
+}
 /** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
 export function filterListings(listings, plan, now = Date.now()) {
   const allowed = new Set(plan.sourceIds);
-  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && (!plan.query || (x.title + " " + x.description + " " + x.organization).toLowerCase().includes(plan.query)) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
+  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(x.title + " " + x.description + " " + x.organization, plan.query) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
   return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
 }
 export function search(state, consumer, payload, secret) {
