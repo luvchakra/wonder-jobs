@@ -180,3 +180,11 @@ test("a sitemap source reads a big sitemap (up to 12 MB) while pages keep the de
   assert.deepEqual(asked[0], ["https://site.in/sitemaps/profiles.xml", 12_000_000]);
   assert.equal(asked[1]?.[1], undefined, "a page is read with the default cap");
 });
+
+test("a sitemap index may list child sitemaps on another host of the same site; http children are read over https", async () => {
+  const { childSitemaps, siteOf } = await import("../src/crawl.mjs");
+  assert.equal(siteOf("crawlsitemap-v2.workindia.in"), "workindia.in");
+  assert.equal(siteOf("www.bbc.co.uk"), "bbc.co.uk");
+  const got = childSitemaps(["http://crawlsitemap-v2.workindia.in/jobs-1.xml", "https://crawlsitemap-v2.workindia.in/jobs-1.xml", "https://evil.example.com/s.xml", "http://crawlsitemap.workindia.in:8080/x.xml"], "https://crawlsitemap.workindia.in/sitemap.xml", "www.workindia.in", []);
+  assert.deepEqual(got, ["https://crawlsitemap-v2.workindia.in/jobs-1.xml"]);
+});
