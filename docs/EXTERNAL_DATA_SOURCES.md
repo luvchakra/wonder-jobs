@@ -153,6 +153,9 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 | Adzuna India teaching jobs | free key | **Needs key** | |
 | Jooble teaching jobs | free key | **Needs key** | |
 | Himalayas teaching jobs | public API | **Live** | Remote and online tutoring |
+| Adzuna teaching jobs — UK, US, Canada, Australia, NZ, South Africa, Singapore (`teach_adzuna_world`) | free key (same as India) | **Needs key** | Adzuna API terms; a salary is shown only when the ad states it (Adzuna's `salary_is_predicted` is never shown). A place in a search asks only its country. |
+| USAJOBS teaching and education jobs (`teach_usajobs`) | free key + registered email | **Needs key** | US federal, public domain data (e.g. Bureau of Indian Education, DoD schools). Only titles that say teacher/teaching. |
+| Arbetsförmedlingen JobTech, Sweden (`teach_jobtech`) | public API, no key | **Live** | CC0 (Platsbanken ads via JobSearch, occupation field Pedagogik). Contact emails and phone numbers are removed from ad text; each ad links to its own Platsbanken page. Asked only when a search names no place or a Swedish one. |
 
 **Researched, not built**
 
@@ -160,6 +163,14 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 |---|---|---|
 | UDISE+ teacher counts (data.gov.in, AIKosh; Open Government Licence – India) | Open, downloads only | Context, not listings: teachers and vacancies by district. Newest sets found are 2019-20; one Rajya Sabha annexure cites 2024-25 state totals. |
 | State teacher-recruitment boards | Open pages, no API | Would be per-state scraping; terms unverified. Not recommended without permission. |
+| Germany BA Jobsuche | Unofficial, undocumented terms | Not built: no documented reuse rights. |
+| France Travail "Offres d'emploi" | Key + signed licence, attribution | Deferred: needs the owner to accept the licence. |
+| jobs.ac.uk (higher education) | Feeds exist, no explicit reuse permission | Not built; ask them for written permission. |
+| Careerjet | Key; terms to confirm | Deferred until the partner terms are read. |
+| Canada Job Bank open data | Monthly CSV (OGL – Canada) | For the gateway (shared-layer session), not a live API. |
+| NZ Education Gazette, Australian state boards, TES | No feed or API | Not built (would be scraping). |
+| Greenhouse boards of school operators, Jobicy education | Open APIs | Tried: no teaching posts (Jobicy's are not teaching). |
+| India | No open source | Best route is gateway partner uploads from schools and recruiters (shared-layer session). |
 | Careers360-style vacancy estimates (~3.57 lakh vacant posts, 2025) | News analysis | Not a feed. |
 
 **Open issues**
@@ -289,9 +300,9 @@ Dataset `marketplace`. WonderWorks listings only (`server/marketplace/sources.ts
 
 | Env var | Source(s) | Free? | Status on production |
 |---|---|---|---|
-| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna India (Jobs, part-time, Internships, Teaching) | Free tier | **Unverified** |
+| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna India (Jobs, part-time, Internships, Teaching) and Adzuna's 7 English-speaking countries (Teaching) | Free tier | **Unverified** |
 | `JOOBLE_API_KEY` | Jooble (Internships, Teaching) | Free key | **Unverified** |
-| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS (Internships) | Free key | **Unverified** |
+| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS (Internships, Teaching) | Free key | **Unverified** |
 | `THEMUSE_API_KEY` | The Muse | Key optional? | **Unverified** |
 | `THEIRSTACK` | TheirStack (Jobs) | **Paid** | **Unverified** |
 | `TICKETMASTER_API_KEY` | Ticketmaster (Events) | Free key | **Not set** (source shows Needs setup) |
