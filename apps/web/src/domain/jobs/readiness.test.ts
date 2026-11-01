@@ -22,13 +22,14 @@ describe("the readiness ladder: the one thing between the candidate and relevant
     expect(jobsReadiness(input({ dna: EMPTY_DNA, resumeFileIds: ["rf_1"] })).blocker).toEqual({ kind: "profile", hasResume: true, resumeFileId: "rf_1" });
   });
 
-  it("a profile with no readable role asks for one, suggesting their own latest title — never a canned one", () => {
+  it("a profile with no role wanted searches without words — the latest listings, ranked by fit — instead of asking (owner, 2026-11-01)", () => {
     const dna: CareerDNA = { ...EMPTY_DNA, skills: [{ name: "SQL", level: 4 }], history: { experience: [{ id: "e", employer: "Acme", title: "Data Analyst", startDate: "2021-01", current: true, bullets: [], provenance: "USER_PROVIDED" }] } } as unknown as CareerDNA;
-    expect(jobsReadiness(input({ dna })).blocker).toEqual({ kind: "role", suggested: "Data Analyst" });
-    expect(jobsReadiness(input({ dna: { ...EMPTY_DNA, skills: [{ name: "SQL", level: 4 }] } })).blocker).toEqual({ kind: "role", suggested: undefined });
-    // Only a level ("Senior Director") isn't a role: it would match every field.
-    expect(jobsReadiness(input({ dna: { ...EMPTY_DNA, headline: "Senior Director" } })).blocker?.kind).toBe("role");
+    expect(jobsReadiness(input({ dna })).blocker).toBeUndefined();
+    expect(jobsReadiness(input({ dna })).query).toBe("");
+    expect(jobsReadiness(input({ dna: { ...EMPTY_DNA, headline: "Senior Director" } })).blocker).toBeUndefined();
     expect(jobsReadiness(input({ dna: { ...EMPTY_DNA, headline: "Senior Director" } })).query).toBe("");
+    // No profile at all still asks for one.
+    expect(jobsReadiness(input({ dna: EMPTY_DNA })).blocker?.kind).toBe("profile");
   });
 
   it("searches the role the candidate wants, not the role they hold — the reported case: “Role you want” set to “director” still searched the headline “iam sme practice lead”", () => {
@@ -38,8 +39,8 @@ describe("the readiness ladder: the one thing between the candidate and relevant
     const levelOnly = jobsReadiness(input({ dna: { ...dna, careerGoal: "director" } }));
     expect(levelOnly.blocker).toBeUndefined();
     expect(levelOnly.query).toBe("director");
-    // Nothing wanted yet: the current role is searched, as before.
-    expect(jobsReadiness(input({ dna: { ...dna, careerGoal: "" } })).query).toBe("iam sme practice lead");
+    // Nothing wanted: no words (the latest listings), never the role held today.
+    expect(jobsReadiness(input({ dna: { ...dna, careerGoal: "" } })).query).toBe("");
   });
 
   it("no searchable source says which need setup and which are off", () => {

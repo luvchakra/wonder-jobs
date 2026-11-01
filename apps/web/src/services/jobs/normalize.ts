@@ -544,7 +544,9 @@ export function defaultSearchQuery(dna: { headline: string; careerGoal: string }
 export function profileSearchQuery(dna: { headline: string; careerGoal: string }): string {
   const terms = (s: string) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t));
   const goal = terms(stripSelfReference(stripHeadlineLabel(dna.careerGoal)));
-  if (!goal.length) return defaultSearchQuery(dna);
+  // No role wanted: no words (owner, 2026-11-01: "if the search term is empty … it should just search for latest top
+  // 100 matching"). The search then brings the latest listings, ranked by fit with the profile — never the role held
+  // today put in as words.
   return goal.slice(0, 4).join(" ");
 }
 

@@ -8,3 +8,4 @@
 - ✅ WonderWorks admin redesigned: sectioned menu with module-neutral names, Overview and Alerts across every module (WJ-478)
 - ✅ Admin data pages for every module, company bans, and an empty search shows a module's latest listings (WJ-479)
 - ✅ WorksLake: schools on Teaching Vacancies no longer all show the gov.uk crown (WJ-480)
+- ✅ Jobs: Full Time with no role searches the latest 100 jobs ranked by fit, instead of the role held today (WJ-481)

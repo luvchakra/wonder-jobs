@@ -142,8 +142,9 @@ describe("profileSearchQuery — the Career Profile searches “Role you want”
     expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "director" })).toBe("director");
   });
 
-  it("falls back to the role held today only when no role is wanted", () => {
-    expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "" })).toBe("iam sme practice lead");
+  it("with no role wanted searches no words (the latest listings), never the role held today (owner, 2026-11-01)", () => {
+    expect(profileSearchQuery({ headline: "IAM SME, Practice Lead, Cyber Risk Service Professional", careerGoal: "" })).toBe("");
+    expect(profileSearchQuery({ headline: "Senior Director, SVP IAM", careerGoal: "" })).toBe("");
     expect(profileSearchQuery({ headline: "", careerGoal: "" })).toBe("");
   });
 });
