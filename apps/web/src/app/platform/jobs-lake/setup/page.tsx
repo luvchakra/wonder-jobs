@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { SetupItem, SetupNeed } from "@/server/jobslake/setup";
 import { MODULE_DATA } from "@/domain/jobslake/moduleData";
@@ -94,6 +95,31 @@ function RunButton({ item, onDone }: { item: SetupItem; onDone: () => void }) {
   );
 }
 
+/**
+ * One item, collapsed to its name and module (owner, 2026-11-01: "make the cards collapsed with chevron option"):
+ * the chevron opens what it needs and why.
+ */
+function ItemSummary({ item: i }: { item: SetupItem }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="min-w-0 flex-1">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-start gap-1.5 text-left">
+        <ChevronDown className={`mt-0.5 size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        <span className="min-w-0">
+          <span className="font-medium text-ink">{i.name}</span>
+          <span className="mt-0.5 block text-[12px] text-ink-3">
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-ink-2" title={MODULE_DATA[i.module as keyof typeof MODULE_DATA]?.info}>
+              {i.moduleLabel} · {i.dataType}
+            </span>
+            {i.countries.length > 0 && <span className="ml-1 text-ink-4">{i.countries.map(countryLabel).join(", ")}</span>}
+          </span>
+        </span>
+      </button>
+      {open && <span className="mt-1.5 block pl-[22px] text-[12px] text-ink-3">{i.detail}</span>}
+    </span>
+  );
+}
+
 /** Every shown gateway step in one press, one after another (owner, 2026-11-01: "less clicks"). */
 function RunAll({ items, onDone }: { items: SetupItem[]; onDone: () => void }) {
   const [step, setStep] = useState<string | null>(null);
@@ -185,16 +211,7 @@ export default function SetupTodoPage() {
               <ul className="flex flex-col divide-y divide-line">
                 {items.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-3 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <span className="font-medium text-ink">{i.name}</span>
-                      <span className="mt-0.5 block text-[12px] text-ink-3">
-                        <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-ink-2" title={MODULE_DATA[i.module as keyof typeof MODULE_DATA]?.info}>
-                          {i.moduleLabel} · {i.dataType}
-                        </span>{" "}
-                        {i.countries.length > 0 && <span className="mr-1 text-ink-4">{i.countries.map(countryLabel).join(", ")} ·</span>}
-                        {i.detail}
-                      </span>
-                    </span>
+                    <ItemSummary item={i} />
                     {i.decision ? (
                       <span className="flex shrink-0 items-center gap-2">
                         {i.action.href !== "/platform/jobs-lake/setup" && (
