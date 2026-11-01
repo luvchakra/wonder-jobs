@@ -4,6 +4,7 @@
   "modules": [
     "therapists"
   ],
+  "geography": ["IN"],
   "permission": "terms_permit",
   "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"\u00a9 OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Practices and clinics only: named features, no phone or email copied. Terms pending: owner confirms the endpoint.",
   "termsReviewed": true,

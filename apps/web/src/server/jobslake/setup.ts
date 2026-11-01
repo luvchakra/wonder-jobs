@@ -18,6 +18,8 @@ export interface SetupItem {
   /** What exactly is missing, in a line. */
   detail: string;
   action: { label: string; href: string };
+  /** The countries the source serves (two-letter codes, "global", "remote"); empty when it doesn't say. */
+  countries: string[];
   /** An owner decision (decisions.ts): marked done on the page instead of fixed elsewhere. */
   decision?: true;
 }
@@ -50,29 +52,29 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
   const items: SetupItem[] = [];
   for (const d of OWNER_DECISIONS) {
     if (d.id in done) continue;
-    items.push({ id: `decision:${d.id}`, name: d.title, module: d.module, moduleLabel: label(d.module), dataType: d.module === "all" ? "Data sources" : dataTypeOf(d.module).type, need: "decision", detail: d.detail, action: { label: d.href ? "Open" : "Details", href: d.href ?? "/platform/jobs-lake/setup" }, decision: true });
+    items.push({ id: `decision:${d.id}`, name: d.title, module: d.module, moduleLabel: label(d.module), dataType: d.module === "all" ? "Data sources" : dataTypeOf(d.module).type, need: "decision", countries: d.geography ?? [], detail: d.detail, action: { label: d.href ? "Open" : "Details", href: d.href ?? "/platform/jobs-lake/setup" }, decision: true });
   }
   for (const s of sources) {
     const n = sourceNeed(s);
     if (!n) continue;
     const mod = s.module ?? "jobs";
-    items.push({ id: s.id, name: s.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, ...n });
+    items.push({ id: s.id, name: s.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: s.geography ?? [], ...n });
   }
   for (const c of gw?.catalogue ?? []) {
     if (c.added) continue;
     const mod = c.modules[0] ?? "jobs";
-    items.push({ id: `catalogue:${c.file}`, name: c.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, need: "add", detail: `Gateway catalogue (${c.kind}, ${c.host}): not added yet${c.termsPending ? " · terms pending" : ""}`, action: { label: "Add from catalogue", href: `${LAKE}/gateway` } });
+    items.push({ id: `catalogue:${c.file}`, name: c.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: c.geography, need: "add", detail: `Gateway catalogue (${c.kind}, ${c.host}): not added yet${c.termsPending ? " · terms pending" : ""}`, action: { label: "Add from catalogue", href: `${LAKE}/gateway` } });
   }
   for (const g of gw?.sources ?? []) {
     if (g.enabled) {
       if (g.termsPending) {
         const mod = g.modules[0] ?? "jobs";
-        items.push({ id: `gateway-terms:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, need: "terms", detail: "Gateway, live · terms pending: confirm its reuse terms", action: { label: "Open gateway", href: `${LAKE}/gateway` } });
+        items.push({ id: `gateway-terms:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: g.geography, need: "terms", detail: "Gateway, live · terms pending: confirm its reuse terms", action: { label: "Open gateway", href: `${LAKE}/gateway` } });
       }
       continue;
     }
     const mod = g.modules[0] ?? "jobs";
-    items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` } });
+    items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: g.geography, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` } });
   }
   const order: SetupNeed[] = ["decision", "key", "terms", "add", "activate", "connection", "other"];
   items.sort((a, b) => order.indexOf(a.need) - order.indexOf(b.need) || a.moduleLabel.localeCompare(b.moduleLabel) || a.name.localeCompare(b.name));
