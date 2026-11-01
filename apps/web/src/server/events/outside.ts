@@ -17,6 +17,14 @@ import { WONDERWORKS_EVENTS } from "./sources";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDay = (v: unknown): v is string => typeof v === "string" && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+/**
+ * The calendar day a source states: "2026-11-14", or a date and time ("2026-11-14T17:00:00+05:30"), whose date part is the day
+ * where the event is. Anything else is not a date (no day is made up).
+ */
+const dayOf = (v: unknown): string | undefined => {
+  const d = typeof v === "string" ? /^(\d{4}-\d{2}-\d{2})(?:[T ]|$)/.exec(v.trim())?.[1] : undefined;
+  return d && isDay(d) ? d : undefined;
+};
 const isWeb = (v: unknown): v is string => typeof v === "string" && /^https?:\/\//i.test(v);
 /** A bare host name ("devopsdays.org"), as WorksLake's employer.domain gives it; anything else is dropped, never guessed. */
 const host = (v: unknown) => {
@@ -32,15 +40,18 @@ export const isOutsideEvent = (o: Pick<CanonicalOpportunity, "kind" | "sourceRec
 export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): EventListing | null {
   const a = o.attributes ?? {};
   const source = o.sourceRecords[0];
-  const startDate = a.startDate;
-  if (!source || !isDay(startDate) || !isWeb(o.canonicalApplyUrl)) return null;
-  const endDate = isDay(a.endDate) && a.endDate >= startDate ? a.endDate : undefined;
+  const startDate = dayOf(a.startDate);
+  // A source that says an event is cancelled is not offering it.
+  if (!source || !startDate || a.cancelled === true || !isWeb(o.canonicalApplyUrl)) return null;
+  const end = dayOf(a.endDate);
+  const endDate = end && end >= startDate ? end : undefined;
   // Only events that haven't ended (the source may keep one a day past its end).
   if ((endDate ?? startDate) < today) return null;
   const online = a.online === true;
-  const city = text(a.city, 120) || text(o.locations[0], 120);
+  // The place as the source gives it (a venue, city and country where it does), else just its city.
+  const city = text(o.locations[0], 120) || text(a.city, 120);
   const cfpUrl = isWeb(a.cfpUrl) ? a.cfpUrl : undefined;
-  const cfpEndDate = cfpUrl && isDay(a.cfpEndDate) ? a.cfpEndDate : undefined;
+  const cfpEndDate = cfpUrl ? dayOf(a.cfpEndDate) : undefined;
   return {
     id: `ow_${o.id}`,
     postingId: o.id,

@@ -234,22 +234,32 @@ Dataset `cofounders`. WonderWorks founders only (`server/cofounders/sources.ts`)
 
 ## 9. Events & Social
 
-Dataset `events`. WonderWorks events only (`server/events/sources.ts`).
+Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), and Ticketmaster (below). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
 
-**Researched**
+**In the code**
+
+| Source | Status | Notes |
+|---|---|---|
+| WonderWorks events | **Live** | Organisers' own events, with seats and RSVP. |
+| confs.tech (via the gateway, `apps/data-gateway/sources/confs-tech.json`) | **Live** once the owner activates `works_gateway_events` | MIT. About 157 upcoming tech conferences worldwide, 8 in India. |
+| **Ticketmaster Discovery API** (`evt_ticketmaster`, `server/events/ticketmaster.ts`) | **Needs key** | Env `TICKETMASTER_API_KEY`, free at developer.ticketmaster.com (5,000 calls a day, 5 a second). Concerts, sport, theatre and family events in the countries Ticketmaster sells in; India coverage is thin. Terms read 2026-11-01: one call per person's search (never crawled in the background); content kept only "for reasonable periods" and removed within 24 hours on the owner's request; each event links to its own Ticketmaster page. The owner should confirm WorksLake's search-cache period (up to 24 hours) is a "reasonable period" before turning it on. |
+| **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`) | **Defined, not registered** | Public JSON API at `osmcal.org/api/v2/events/`, no key. 117 upcoming mapping events worldwide, 6 in India; dry run through the gateway's own validator and normalizer read all 117. The site documents the API and invites sites to integrate it, and robots.txt allows it, but **no data licence is stated**, so the owner confirms before activating. A cancelled event is left out. |
+
+**Researched, not built**
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| Ticketmaster Discovery API | Free key: 5,000 calls/day, 5/second; more by request | **The one practical feed.** Concerts, sports, theatre. India coverage not checked; attribution and branding rules apply. |
-| Eventbrite | Public event search reportedly removed in 2019 (vendor claim) | Confirm against Eventbrite's own docs before ruling out. |
-| Meetup | API needs a Pro account (from background knowledge; unverified) | Check before relying on it. |
-| OpenStreetMap / Overpass (venues) | Open, ODbL, attribution and share-alike | Venues, not events. Useful for "where" data only. |
-| Wikidata events | Open, CC0 (unverified) | Sparse for local events. |
-| Vihaya, AllEvents and similar ticketing platforms | Their own products | Not data sources. |
+| developers.events (`all-events.json`) | The maintainers publish the JSON; no licence file | 792 upcoming developer conferences, 23 in India, but no stated reuse right. Ask the maintainer (scraly/developers-conferences-agenda) for written permission, then add it as a gateway source or a partner upload. |
+| Paris "Que faire à Paris" (ODbL), Brisbane City Council "What's On" (CC BY 4.0), Melbourne events (open data) | Open licences, no key | Not reachable from the build environment (connections reset), so their payloads could not be read or the mapping tested. Worth testing from the gateway's admin (it runs from Vercel). |
+| NYC Parks events (Socrata) | Open | Stale: the newest event is from 2019. Rejected. |
+| Wikidata events | CC0 | Thin (about 6 upcoming conferences). Not worth a source. |
+| Skiddle (UK), Eventfinda (NZ), SeatGeek (US) | Free keys, terms not read | Regional; no India value. Not built. |
+| Eventbrite, Meetup | No public search (Eventbrite) / Pro only (Meetup) | Not used. |
+| Vihaya, AllEvents, Insider and similar | Their own products | Not data sources; scraping them is not allowed. |
 
 **Open issues**
-1. **No India-strong open events feed.**
-2. **Imported events would carry capacity and price we can't control**: RSVP would have to link out, not seat people.
+1. **No India-strong open events feed** beyond confs.tech and OSM Calendar's few.
+2. **Imported events carry no capacity or price we control**: RSVP is only for events posted on WonderWorks; outside ones link out.
 3. **Minors:** the platform doc marks Events as sensitive for minors; age rules must come from the source.
 
 ---
@@ -282,6 +292,7 @@ Dataset `marketplace`. WonderWorks listings only (`server/marketplace/sources.ts
 | `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS (Internships) | Free key | **Unverified** |
 | `THEMUSE_API_KEY` | The Muse | Key optional? | **Unverified** |
 | `THEIRSTACK` | TheirStack (Jobs) | **Paid** | **Unverified** |
+| `TICKETMASTER_API_KEY` | Ticketmaster (Events) | Free key | **Not set** (source shows Needs setup) |
 | `JOBSLAKE_ADMIN_EMAILS` | Admin portal access | — | **Unverified** |
 
 To verify: authorise the Vercel team once (`authorize_team_access`), then read the variable *names* on the `wonderjobs` project (never the values).
