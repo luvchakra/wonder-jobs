@@ -29,7 +29,7 @@ export default function SourcesPage() {
   const rows = useMemo(() => {
     const f = FILTERS.find((x) => x.value === filter)!;
     const t = q.trim().toLowerCase();
-    return (data?.sources ?? []).filter((s) => f.test(s) && (!t || `${s.name} ${s.provider} ${s.accessLabel}`.toLowerCase().includes(t)));
+    return (data?.sources ?? []).filter((s) => f.test(s) && (!t || `${s.name} ${s.provider} ${s.accessLabel} ${s.moduleLabel ?? ""}`.toLowerCase().includes(t)));
   }, [data, filter, q]);
 
   return (
@@ -67,7 +67,7 @@ export default function SourcesPage() {
                 cell: (r) => (
                   <Link href={`/platform/jobs-lake/sources/${r.id}`} className="font-medium text-ink hover:underline">
                     {r.name}
-                    <span className="block text-[11px] font-normal text-ink-4">{r.provider}</span>
+                    <span className="block text-[11px] font-normal text-ink-4">{r.moduleLabel ? `${r.moduleLabel} · ` : ""}{r.provider}</span>
                   </Link>
                 ),
               },
@@ -89,7 +89,7 @@ export default function SourcesPage() {
                   <SourceStatusChip status={r.status} label={statusLabel(r)} />
                 </span>
                 <span className="text-[12px] text-ink-3">
-                  {r.categoryLabel} · {num(r.health?.retrieved ?? null)} retrieved (7 d) · {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)}
+                  {r.moduleLabel ? `${r.moduleLabel} · ` : ""}{r.categoryLabel} · {num(r.health?.retrieved ?? null)} retrieved (7 d) · {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)}
                 </span>
               </Link>
             )}

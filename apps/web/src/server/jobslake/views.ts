@@ -13,10 +13,13 @@ import { partnerPreset, partnerReadiness, type PartnerPreset, type PartnerReadin
 import { credentialStatus, type CredentialStatus } from "./credentials";
 import { healthBySource } from "./core";
 import { isAvailable, listSources } from "./registry";
+import { MODULES, MODULE_IDS } from "@/modules/registry";
 import { jobsLakeStore } from "./store";
 import type { SourceRecord } from "./types";
 
 export interface SourceView extends Omit<SourceRecord, "secretRef"> {
+  /** The module whose searches use this source (each module has its own dataset). */
+  moduleLabel?: string;
   statusLabel: string;
   accessLabel: string;
   categoryLabel: string;
@@ -48,6 +51,17 @@ export async function sourceView(s: SourceRecord, health: Record<string, SourceH
 export async function listSourceViews(): Promise<SourceView[]> {
   const [sources, health] = await Promise.all([listSources(), healthBySource()]);
   return Promise.all(sources.map((s) => sourceView(s, health)));
+}
+
+/**
+ * Every module's sources for the admin Sources list (owner, 2026-11-01: every module reads through WorksLake), each
+ * labelled with its module. The developer API and the overview keep Jobs' list (`listSourceViews`).
+ */
+export async function listAllSourceViews(): Promise<SourceView[]> {
+  const [lists, health] = await Promise.all([Promise.all(MODULE_IDS.map((m) => listSources(m))), healthBySource()]);
+  const seen = new Set<string>();
+  const sources = lists.flat().filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)));
+  return Promise.all(sources.map(async (s) => ({ ...(await sourceView(s, health)), moduleLabel: MODULES.find((m) => m.id === (s.module ?? "jobs"))?.label ?? "Jobs" })));
 }
 
 /* -------------------------------------------------------------- coverage */
