@@ -24,10 +24,10 @@ export interface PlatformKeySpec {
 export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "ADZUNA_APP_ID", label: "Adzuna app ID", usedBy: "Jobs (India), Internships, Teaching (India + UK, US, Canada, Australia, New Zealand, South Africa, Singapore)", signup: "https://developer.adzuna.com/signup", free: true },
   { name: "ADZUNA_APP_KEY", label: "Adzuna app key", usedBy: "With the Adzuna app ID", signup: "https://developer.adzuna.com/signup", free: true },
-  { name: "USAJOBS_API_KEY", label: "USAJOBS API key", usedBy: "Teaching and Internships: US government roles", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
+  { name: "USAJOBS_API_KEY", label: "USAJOBS API key", usedBy: "Jobs, Teaching and Internships: US government roles", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
-  { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
+  { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
   { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "KAGGLE_KEY", label: "Kaggle API key", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Create New Token)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
