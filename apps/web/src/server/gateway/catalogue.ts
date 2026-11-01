@@ -89,6 +89,8 @@ export interface CatalogueEntry {
   added: boolean;
   /** Its permission evidence says its terms are still to be confirmed by the owner. */
   termsPending: boolean;
+  /** The countries it covers, as its definition states. */
+  geography: string[];
 }
 
 export function catalogueEntries(registeredUrls: Set<string>): CatalogueEntry[] {
@@ -105,6 +107,7 @@ export function catalogueEntries(registeredUrls: Set<string>): CatalogueEntry[] 
       }
     })(),
     added: registeredUrls.has(String(s.url)),
+    geography: Array.isArray(s.geography) ? (s.geography as string[]) : [],
     termsPending: /terms (pending|to confirm)|confirms? (the|its|before)/i.test(String(s.permissionEvidence ?? "")),
   }));
 }

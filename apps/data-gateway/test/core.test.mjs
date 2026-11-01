@@ -156,3 +156,11 @@ test("a place can combine town, region and country; a country code reads as its 
   assert.equal(normalize(src, posting({ loc: { town: "London", region: "London", country: "GB" } }), "jobs").location, "London, United Kingdom", "a repeated part shows once");
   assert.throws(() => validateSource(permitted({ mapping: { title: ["a", "b", "c", "d", "e", "f"] } })), /up to 5/);
 });
+
+test("a source keeps the countries it covers; anything but country codes, global or remote is refused", async () => {
+  const { validateSource } = await import("../src/core.mjs");
+  const def = { url: "https://example.in/feed.json", kind: "json_api", modules: ["jobs"], permission: "terms_permit", permissionEvidence: "Terms pending: reuse terms", termsReviewed: true, redistributionAllowed: true, itemsPath: "", mapping: { id: "id", title: "t", organization: "o", applyUrl: "u" } };
+  assert.deepEqual(validateSource({ ...def, geography: ["IN", "IN", "global"] }).geography, ["IN", "global"]);
+  assert.equal(validateSource(def).geography, undefined);
+  assert.throws(() => validateSource({ ...def, geography: ["india"] }), /geography/);
+});

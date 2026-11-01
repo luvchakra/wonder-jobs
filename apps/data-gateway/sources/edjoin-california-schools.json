@@ -4,6 +4,7 @@
   "discover": "sitemap",
   "pathPrefix": "/Home/JobPosting/",
   "modules": ["teaching"],
+  "geography": ["US"],
   "permission": "terms_permit",
   "permissionEvidence": "terms pending: confirm EdJoin's terms of use allow reuse of its job postings. Checked 2026-11-01: robots.txt is \"User-agent: * Allow: /\" and lists /sitemap.xml; each /Home/JobPosting/<id> page carries a schema.org JobPosting (title, hiringOrganization, datePosted, validThrough). California public school districts and county offices of education post here. Owner confirms before activating.",
   "termsReviewed": true,

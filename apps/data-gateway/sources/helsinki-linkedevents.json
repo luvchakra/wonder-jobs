@@ -2,6 +2,7 @@
   "url": "https://api.hel.fi/linkedevents/v1/event/?format=json&start=today&language=en&super_event_type=none&max_duration=14d&include=location&sort=start_time&page_size=100",
   "kind": "json_api",
   "modules": ["events"],
+  "geography": ["FI"],
   "permission": "terms_permit",
   "permissionEvidence": "Helsinki's Linked Events API (api.hel.fi/linkedevents), the City of Helsinki's open events data: its developer portal (dev.hel.fi/apis/linkedevents) and the Finnish open-data catalogues (hri.fi, avoindata.suomi.fi) license the event data CC BY 4.0 (images carry stricter licences and are not used). Terms pending: the owner confirms the licence page itself (read second-hand on 2026-11-01) and that api.hel.fi's robots.txt (not readable from the build environment) allows it. Only events with an English name, no series, no longer than 14 days.",
   "termsReviewed": true,
