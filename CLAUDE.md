@@ -32,6 +32,16 @@ The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then Won
 - **Brand:** the brand identity (logo with the WonderWorks wordmark, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
 - **Sessions:** Each module has its own Claude session. All work for a module happens in that one session, never in another module's session, and never across several sessions for the same module. WonderWorks shared-layer work has its own session too.
 
+## Merging across sessions (owner, 2026-11-01: "coordinate the merges across the sessions properly, avoid any conflicts")
+
+Several sessions merge into `main` at once. Every session follows this so their PRs don't collide:
+- **Merge `main` in right before each push** (`git fetch origin main && git merge origin/main`), and again whenever GitHub says the PR conflicts. Run the checks after the merge, not before.
+- **Shared logs are append-only; keep both sides of a conflict.** `docs/PROGRESS.md` (lines at the end) and `docs/IMPLEMENTATION_TRACKER.md` (rows at the top): never drop or reorder another session's line.
+- **Tracker ids come from your session's own range**, so two sessions never take the same number: shared layer WJ-500–519, Scholarships WJ-520–539, Jobs WJ-540–559, Teaching WJ-560–569, Events WJ-570–579, Internships WJ-580–589, Talent & Services WJ-590–599, Therapists WJ-600–609, Co-founders WJ-610–619, Buy, Sell & Rent WJ-620–629. A session at the end of its range asks the shared-layer session for the next block.
+- **Who edits what:** a module edits only its own folders, plus its own lines in the composition root (`modules/registry.ts`, `nav.ts`, `chrome.tsx`, `savedCards.tsx`, routes) and its own section of `src/content/help.ts`. WonderWorks (`src/wonderworks/`), WorksLake core (`server/jobslake/core.ts`, `views.ts`, `companies.ts`), the gateway (`apps/data-gateway`, `server/gateway`), the admin (`app/platform`, `components/admin`), `globals.css` and `CLAUDE.md` belong to the shared-layer session. A module that needs a change there messages that session, or makes a small generic change and says so in its PR.
+- **One open PR per session at a time.** Get it green and merged (auto-merge, squash) before opening the next; a red PR is fixed first.
+- **Lockfile changes** (`package-lock.json`, Dependabot) merge alone, when no other PR is in CI.
+
 ## Real data only
 
 Never show a candidate anything WonderWorks didn't actually find, compute or receive.
