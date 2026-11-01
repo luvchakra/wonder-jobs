@@ -21,3 +21,4 @@
 - ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
+- ✅ Jobs: job cards say "via WWDG" for the WorksLake Data Gateway, with the full name on hover (WJ-542)
