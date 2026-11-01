@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { moduleOverview, type SourceView } from "./views";
 import { MODULES } from "@/modules/registry";
 
@@ -19,5 +19,20 @@ describe("the admin Overview's module rows", () => {
     expect(rows.find((r) => r.label === "Teaching")).toMatchObject({ live: 1, down: 1, runs24h: 2, failed24h: 1, retrieved24h: 12 });
     expect(rows.find((r) => r.label === "Events & Social")).toMatchObject({ live: 1, needsSetup: 1, runs24h: 0 });
     expect(rows.find((r) => r.label === "Internships")).toMatchObject({ live: 0, runs24h: 0, retrieved24h: 0 });
+  });
+});
+
+describe("the admin Overview's pool count", () => {
+  it("counts the stored listings without reading them (reading 8,000+ timed out and left the page loading)", async () => {
+    const { __MemoryStore, __setJobsLakeStore } = await import("./store");
+    const { overviewView } = await import("./views");
+    const store = new __MemoryStore();
+    __setJobsLakeStore(store);
+    const list = vi.spyOn(store, "listOpportunities");
+    const count = vi.spyOn(store, "countOpportunities").mockResolvedValue(8147);
+    const o = await overviewView();
+    expect(o.pool).toEqual({ opportunities: 8147, employerVerified: null, multiSource: null });
+    expect(count).toHaveBeenCalledWith(expect.objectContaining({ module: "jobs" }));
+    expect(list).not.toHaveBeenCalled();
   });
 });

@@ -37,7 +37,7 @@ function QualityPageInner() {
     <>
       <PageTitle
         title="Data quality"
-        subtitle="Measured on the listings WorksLake stored for this module, and on each source's recorded runs."
+        subtitle="Measured on the newest 1,000 listings WorksLake stored for this module, and on each source's recorded runs."
         actions={
           <span className="flex flex-wrap items-center gap-2">
             <ModulePicker value={mod.module} onChange={mod.setModule} />

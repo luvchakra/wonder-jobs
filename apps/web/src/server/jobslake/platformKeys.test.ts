@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, loadPlatformKeys, platformKey, platformKeyStatus, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, setPlatformKey } from "./platformKeys";
 
 describe("platform API keys — set on the platform, not the hosting dashboard", () => {
   beforeEach(() => {
@@ -29,6 +29,16 @@ describe("platform API keys — set on the platform, not the hosting dashboard",
     expect(platformKey("ADZUNA_APP_KEY")).toBeUndefined();
     expect((await setPlatformKey("SUPABASE_SERVICE_ROLE_KEY", "abcdef123456")).ok).toBe(false);
     expect((await setPlatformKey("ADZUNA_APP_KEY", "ab")).ok).toBe(false);
+  });
+
+  it("shares one read between callers that arrive together (a page resolving every source at once)", async () => {
+    const store = new __MemoryStore();
+    __setJobsLakeStore(store);
+    const spy = vi.spyOn(store, "getCredential");
+    await Promise.all(Array.from({ length: 50 }, () => loadPlatformKeys()));
+    const keys = spy.mock.calls.length;
+    expect(keys).toBeGreaterThan(0);
+    expect(keys).toBe(PLATFORM_KEYS.length); // one read of each key, not fifty
   });
 
   it("lets a deployment variable of the same name win", async () => {

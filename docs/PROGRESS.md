@@ -65,3 +65,4 @@
 - ✅ Co-founders: India pass — Indian startup portals and programmes checked, no lawful open source found, partner-upload template and copy ready, decision on Setup to-do (WJ-610)
 - ✅ Buy, Sell & Rent: India pass — Chumbak, Okhai and TJORI product feeds as paused gateway sources, shown as link-outs; shops' terms, photos and pre-loved dealers on Setup to-do (WJ-620)
 - ✅ WonderWorks: signed image proxy (/api/img) for outside product images; Buy, Sell & Rent shop items show the shop's photo (WJ-514)
+- ✅ Admin Overview loads again: pool counted in the database, not read; one shared platform-key read (WJ-515)
