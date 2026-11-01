@@ -37,4 +37,5 @@
 - ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
 - ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)
 - ✅ Admin: Setup to-do also lists live sources whose terms are still to confirm (WJ-506)
+- ✅ WorksLake gateway: the crawler reads business pages (LocalBusiness, no contact details) and pooled directory pages (WJ-507)
 - ✅ Scholarships & Projects: Opportunity Desk and Scholars4Dev scholarship feeds as live sources (WJ-525)
