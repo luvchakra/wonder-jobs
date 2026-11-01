@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -54,11 +54,11 @@ afterEach(() => __setJobsLakeStore(undefined));
 describe("its own WorksLake dataset", () => {
   it("every built-in source is the Scholarships module's, never Jobs'", () => {
     expect(new Set(SCHOLARSHIP_SOURCES.map((s) => s.module))).toEqual(new Set(["scholarships"]));
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_kaggle"]);
+    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio", "schol_kaggle"]);
   });
 
   it("sources whose terms aren't confirmed say what's pending; Kaggle needs its key", () => {
-    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
+    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
     expect(scholarshipSourceAvailable(SCHOLARSHIP_SOURCES.find((s) => s.id === "schol_kaggle")!)).toBe(false);
   });
 
@@ -131,6 +131,12 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
     const item = (title: string) => `<item><title>${title}</title><link>https://opportunitydesk.org/2026/10/30/x/</link><pubDate>Thu, 30 Oct 2026 10:00:00 +0000</pubDate><description><![CDATA[Deadline: December 14, 2026 Applications are open.]]></description></item>`;
     expect(rawFromFeedItem(item("Mastercard Foundation Scholars Program at Sciences Po 2027 (Fully-funded)"), { name: "Opportunity Desk" })).toMatchObject({ company: "Sciences Po", applyUrl: "https://opportunitydesk.org/2026/10/30/x/", attributes: { kind: "scholarship", deadline: "2026-12-14" } });
     for (const t of ["10+ Scholarships in Canada for International Students", "Top 20 Excellence Scholarships", "Fully Funded Scholarships for International Students"]) expect(rawFromFeedItem(item(t), { name: "Feed" }), t).toBeNull();
+  });
+
+  it("Devfolio: an open Indian hackathon is a project, closing when registration ends; a private one is left out", () => {
+    const h = { name: "DevNexus 2.0", slug: "devnexus2", city: "Kolkata", country: "India", is_online: false, starts_at: "2026-11-27T18:30:00+00:00", ends_at: "2026-11-28T18:30:00+00:00", themes: [{ name: "Web3" }], hackathon_setting: { reg_ends_at: "2026-11-20T18:30:00+00:00", subdomain: "devnexus2" } };
+    expect(rawFromDevfolio(h)).toMatchObject({ location: "Kolkata, India", applyUrl: "https://devnexus2.devfolio.co/", attributes: { kind: "project", deadline: "2026-11-20", region: "India" } });
+    expect(rawFromDevfolio({ ...h, private: true })).toBeNull();
   });
 
   it("Kaggle: a competition is an online project with its deadline", () => {
