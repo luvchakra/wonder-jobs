@@ -140,6 +140,21 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         if (method === "POST" && p[2] === "sources" && p.length === 5) {
           const id = p[3], action = p[4];
           if (action === "test" || action === "refresh") return reply(200, await collectOne(id, action === "test"));
+          if (action === "update") {
+            // Changes how an existing source is read (its mapping, attribution, pages per run) and keeps its id, so its
+            // listings keep theirs. Everything is validated again, as when it was registered.
+            const patch = await readBody(request);
+            const allowed = ["mapping", "attribution", "maxPagesPerRun", "requestDelayMs", "retentionHours", "minIntervalMinutes"];
+            if (!patch || typeof patch !== "object" || Object.keys(patch).some((k) => !allowed.includes(k))) throw new ApiError(400, "INVALID_REQUEST", "Only " + allowed.join(", ") + " can be updated");
+            return reply(200, await store.change((s) => {
+              const source = s.sources.find((x) => x.id === id);
+              if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+              const checked = validateSource({ ...source, ...patch });
+              for (const k of Object.keys(patch)) source[k] = checked[k];
+              pushAudit(s, { at: new Date().toISOString(), action: "source.updated", target: id, fields: Object.keys(patch) });
+              return sourcePublic(source);
+            }));
+          }
           if (action === "activate" || action === "pause") {
             return reply(200, await store.change((s) => {
               const source = s.sources.find((x) => x.id === id);

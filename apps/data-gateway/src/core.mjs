@@ -134,7 +134,7 @@ export function validateSource(source) {
     }
   }
   if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !source.mapping?.["attr." + source.dropPastAfter])) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
-  if (source.mapping && Object.values(source.mapping).some((v) => typeof v !== "string" || v.length > 100)) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings");
+  if (source.mapping && Object.values(source.mapping).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
   if (source.requestDelayMs !== undefined && (!Number.isInteger(source.requestDelayMs) || source.requestDelayMs < 250 || source.requestDelayMs > 5000)) throw new ApiError(400, "INVALID_REQUEST", "requestDelayMs must be 250-5000");
   const retentionHours = Number(source.retentionHours ?? 24);
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
@@ -170,13 +170,27 @@ function attributesOf(source, value) {
   }
   return out;
 }
+const regionNames = (() => { try { return new Intl.DisplayNames(["en"], { type: "region" }); } catch { return null; } })();
+/** "GB" → "United Kingdom"; anything that isn't a two-letter code is returned as it is. */
+export function countryName(v) {
+  if (!/^[A-Z]{2}$/.test(v) || !regionNames) return v;
+  try { const n = regionNames.of(v); return n && n !== v ? n : v; } catch { return v; }
+}
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
-  const value = (path) => {
+  const one = (path) => {
     const parts = String(path || "").split(".").filter(Boolean);
     if (!parts.length) return undefined;
     const found = parts.reduce((acc, part) => acc && typeof acc === "object" ? acc[part] : undefined, raw);
     return ["string", "number", "boolean"].includes(typeof found) ? found : undefined;
+  };
+  // A mapping may list several paths (town, region, country): their values, as given, joined in order, empty ones and
+  // repeats left out, a two-letter country code shown as the country's name.
+  const value = (path) => {
+    if (!Array.isArray(path)) return one(path);
+    const seen = new Set();
+    const parts = path.map((p) => one(p)).filter((v) => v !== undefined && String(v).trim()).map((v) => countryName(String(v).trim())).filter((v) => !seen.has(v.toLowerCase()) && seen.add(v.toLowerCase()));
+    return parts.length ? parts.join(", ") : undefined;
   };
   const field = (name) => source.kind === "json_api" ? value(source.mapping[name]) : raw && ["string", "number", "boolean"].includes(typeof raw[name]) ? raw[name] : undefined;
   let title = plainText(field("title")).slice(0, 240);
