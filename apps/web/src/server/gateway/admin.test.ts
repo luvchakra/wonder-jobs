@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async () => undefined }));
 
 import { resetTablesForTests } from "@/server/db/table";
+import { resetGatewayListingsForTests } from "./store";
 import { hostedGateway } from "./index";
 import { collectGatewaySource, gatewayOverview } from "./admin";
 
 beforeEach(() => {
   resetTablesForTests();
+  resetGatewayListingsForTests();
   delete (globalThis as { __wlGateway?: unknown }).__wlGateway;
   vi.unstubAllEnvs();
 });
@@ -26,9 +28,9 @@ describe("the gateway admin overview", () => {
     const earlier = new Date(Date.now() - 3_600_000).toISOString();
     await store.change((s) => {
       s.sources.push({ id: "src_a", attribution: "Feed A", kind: "json_api", modules: ["teaching"], url: "https://a.example.org/x.json", enabled: true, minIntervalMinutes: 60, nextPath: "links.next", maxPagesPerRun: 5, crawlCursor: "https://a.example.org/x.json?page=3", lastCrawl: { read: 5, failed: 0 } });
-      s.listings.push({ id: "t1", sourceId: "src_a", module: "teaching", expiresAt: later }, { id: "t2", sourceId: "src_a", module: "teaching", expiresAt: earlier });
       s.runs.push({ at: earlier, sourceId: "src_a", trigger: "collect", ok: true, valid: 5, discovered: 5 }, { at: new Date().toISOString(), sourceId: "src_a", trigger: "collect", ok: false, code: "SOURCE_TIMEOUT" });
     });
+    await store.listings.upsert([{ id: "t1", sourceId: "src_a", module: "teaching", expiresAt: later }, { id: "t2", sourceId: "src_a", module: "teaching", expiresAt: earlier }].map((x) => ({ ...x, title: "T", organization: "", location: "", description: "", canonicalUrl: "https://a.example.org/" + x.id, publishedAt: null, observedAt: earlier, remote: false, attributes: {}, status: "active", sourceName: "Feed A", sourceMethod: "json_api" })));
     const o = await gatewayOverview();
     expect(o.configured).toBe(true);
     expect(o.sources[0]).toMatchObject({ name: "Feed A", host: "a.example.org", listings: 1, enabled: true });
