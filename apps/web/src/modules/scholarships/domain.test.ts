@@ -57,8 +57,8 @@ const project = {
 const listing = (terms: ScholarshipListing["terms"], extra: Partial<ScholarshipListing> = {}): ScholarshipListing => ({ id: "x", origin: "outside", title: "Engineering scholarship", company: "Foundation", location: "India", terms, termsFrom: "posting", skills: [], description: "", sourceId: "s", sourceName: "S", ...extra });
 
 describe("Scholarships & Projects manifest", () => {
-  it("is its own module with Applications and the doc's stages, coming soon until it has data", () => {
-    expect(scholarshipsManifest).toMatchObject({ id: "scholarships", label: "Scholarships & Projects", status: "soon", menuId: "scholarships", routes: { find: "/app/m/scholarships" }, compliance: ["minors"] });
+  it("is its own live module with Applications and the doc's stages", () => {
+    expect(scholarshipsManifest).toMatchObject({ id: "scholarships", label: "Scholarships & Projects", status: "live", menuId: "scholarships", routes: { find: "/app/m/scholarships" }, compliance: ["minors"] });
     expect(scholarshipsManifest.pipeline.label).toBe("Applications");
     expect(scholarshipsManifest.pipeline.stages.map((s) => s.label)).toEqual(["Saved", "Preparing", "Applied", "Shortlisted", "Awarded / Selected", "Completed"]);
     expect(scholarshipsManifest.pipeline.stages.map((s) => s.id)).toEqual(["saved", "preparing", "applied", "shortlisted", "awarded_selected", "completed"]);
