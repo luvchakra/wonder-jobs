@@ -8,15 +8,20 @@
  * - Grants.gov: its public search API (`search2`, no key), only opportunities open to individuals (eligibility 21)
  *   that read as being for students (scholarship, fellowship, student, education, training, research). Its terms ask
  *   for the notice `GRANTS_GOV_NOTICE` next to its listings.
+ * - Devpost: its public hackathon list (open hackathons only), as projects with their submission deadline and prizes.
+ * - Unstop: its public opportunity list (scholarships, hackathons, competitions for Indian students); paid ones are left out.
+ * - EU Funding & Tenders: the portal's search API (public key SEDIA), open fellowship calls only (MSCA, ERA).
+ * - Kaggle: its API's open competitions — needs KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
+ * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
+ * owner confirms their terms later; `statusReason` says what to confirm.
  * - Partner uploads arrive through the WorksLake gateway's own source (`works_gateway_scholarships`,
  *   server/jobslake/gatewaySources.ts), activated by an admin.
- * Not here, on purpose: India's National Scholarship Portal, Buddy4Study, Fastweb and Scholarships.com publish no open
- * API, and WorksLake never scrapes a site without documented reuse rights; a listing found elsewhere links to the
- * official portal.
+ * Looked at, not added (2026-11-01): India's National Scholarship Portal, Buddy4Study, Fastweb and Scholarships.com
+ * publish no open API or feed (see docs/EXTERNAL_DATA_SOURCES.md); Google Summer of Code's API has no current programme.
  */
 import type { Job } from "@/domain/jobs/types";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
-import { finish, type SearchCriteria } from "@/server/jobs/providers";
+import { finish, getJson, type SearchCriteria } from "@/server/jobs/providers";
 import type { RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
@@ -31,6 +36,12 @@ function source(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | 
 
 export const WONDERSTAR_SCHOLARSHIPS = "schol_wonderstar";
 export const GRANTS_GOV = "schol_grants_gov";
+export const DEVPOST = "schol_devpost";
+export const UNSTOP = "schol_unstop";
+export const EU_FELLOWSHIPS = "schol_eu_msca";
+export const KAGGLE = "schol_kaggle";
+
+const kaggleAvailable = () => !!(process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY);
 
 /** Required by Grants.gov's API terms next to its data. */
 export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
@@ -38,10 +49,15 @@ export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is no
 export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_SCHOLARSHIPS, name: "WonderWorks organisations", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Scholarships and projects organisations post on WonderWorks." }),
   source({ id: GRANTS_GOV, name: "Grants.gov (open to individuals)", provider: "Grants.gov", category: "portal", geography: ["global"], description: "US federal funding opportunities open to individuals, from Grants.gov's public search API." }),
+  source({ id: DEVPOST, name: "Devpost hackathons", provider: "Devpost", category: "aggregator", geography: ["global", "remote"], statusReason: "terms pending: Devpost's public hackathon JSON is unauthenticated but its terms don't state reuse; confirm with Devpost", description: "Open hackathons (student-friendly projects with prizes) from Devpost's public hackathon list." }),
+  source({ id: UNSTOP, name: "Unstop scholarships and competitions", provider: "Unstop", category: "aggregator", geography: ["IN"], statusReason: "terms pending: Unstop's public opportunity API has no published reuse terms; confirm with Unstop", description: "Open scholarships, hackathons and competitions for Indian students from Unstop's public opportunity list; paid ones are left out." }),
+  source({ id: EU_FELLOWSHIPS, name: "EU Funding & Tenders: MSCA fellowships", provider: "European Commission", category: "portal", geography: ["global", "EU"], statusReason: "terms pending: the Funding & Tenders search API (public key SEDIA) is open, reuse under the Commission's reuse policy (CC BY 4.0) to confirm for this endpoint", description: "Open Marie Skłodowska-Curie fellowships for researchers from the EU Funding & Tenders portal's search API." }),
+  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token)." }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
   if (fixtureJobsOn()) return true;
+  if (s.id === KAGGLE) return kaggleAvailable();
   return SCHOLARSHIP_SOURCES.some((x) => x.id === s.id);
 }
 
@@ -95,8 +111,206 @@ export async function fetchGrantsGov(c: SearchCriteria): Promise<Job[]> {
   return finish(GRANTS_GOV, (body.data?.oppHits ?? []).flatMap((h) => rawFromGrants(h) ?? []), c);
 }
 
+const day = (iso: string | undefined | null) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : undefined);
+const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
+
+// ---- Devpost --------------------------------------------------------------------------------------------------
+
+interface DevpostHackathon {
+  id: number;
+  title: string;
+  url: string;
+  organization_name?: string;
+  submission_period_dates?: string;
+  prize_amount?: string;
+  themes?: { name: string }[];
+  displayed_location?: { location?: string };
+  open_state?: string;
+}
+
+/** "Oct 01 - Nov 12, 2026" or "Dec 15, 2026 - Jan 10, 2027" → the end date, "2026-11-12". */
+export function devpostEnd(dates: string | undefined): string | undefined {
+  const end = (dates ?? "").split(" - ").pop()?.trim();
+  if (!end || !/\d{4}$/.test(end)) return undefined;
+  const t = Date.parse(`${end} 00:00:00 UTC`);
+  return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : undefined;
+}
+
+export function rawFromDevpost(h: DevpostHackathon): RawPosting | null {
+  if (h.open_state && h.open_state !== "open") return null;
+  const deadline = devpostEnd(h.submission_period_dates);
+  const prize = plain(h.prize_amount ?? "");
+  const online = /online/i.test(h.displayed_location?.location ?? "");
+  const themes = (h.themes ?? []).map((t) => t.name).filter(Boolean);
+  return {
+    externalId: String(h.id),
+    title: h.title,
+    company: h.organization_name || "Devpost",
+    location: online ? "Online" : (h.displayed_location?.location ?? ""),
+    remote: online,
+    description: [`Hackathon on Devpost${themes.length ? ` (${themes.join(", ")})` : ""}.`, prize && prize !== "$0" ? `Prizes: ${prize}.` : "", h.submission_period_dates ? `Submissions: ${h.submission_period_dates}.` : ""].filter(Boolean).join(" "),
+    tags: themes,
+    applyUrl: h.url,
+    employerSite: true,
+    attributes: { kind: "project", ...(deadline ? { deadline } : {}), officialUrl: h.url, fields: themes.join("; "), currency: "USD" },
+  };
+}
+
+export async function fetchDevpost(c: SearchCriteria): Promise<Job[]> {
+  const q = c.query.trim() ? `&search=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
+  const pages = await Promise.all([1, 2, 3, 4, 5].map((p, i) => getJson<{ hackathons: DevpostHackathon[] }>(`https://devpost.com/api/hackathons?status[]=open&page=${p}${q}`).catch((e) => (i === 0 ? Promise.reject(e) : { hackathons: [] }))));
+  return finish(DEVPOST, pages.flatMap((p) => p.hackathons ?? []).flatMap((h) => rawFromDevpost(h) ?? []), c);
+}
+
+// ---- Unstop ---------------------------------------------------------------------------------------------------
+
+interface UnstopOpportunity {
+  id: number;
+  title: string;
+  type: string;
+  seo_url: string;
+  details?: string;
+  region?: string;
+  isPaid?: boolean;
+  status?: string;
+  regn_open?: number;
+  end_date?: string;
+  updated_at?: string;
+  organisation?: { name?: string };
+  filters?: { name: string; type: string }[];
+  required_skills?: { skill_name?: string; skill?: string }[];
+  regnRequirements?: { end_regn_dt?: string };
+}
+
+/** Unstop's "eligible" filters ("College Students", "School Students"…) as the levels they name. */
+export function unstopLevels(filters: UnstopOpportunity["filters"]): string {
+  const names = (filters ?? []).filter((f) => f.type === "eligible").map((f) => f.name.toLowerCase());
+  const out = new Set<string>();
+  for (const n of names) {
+    if (/school/.test(n)) out.add("school");
+    if (/undergrad|college|engineering students|graduate students/.test(n) && !/post/.test(n)) out.add("ug");
+    if (/post ?grad|mba|master/.test(n)) out.add("pg");
+    if (/ph\.?d|research/.test(n)) out.add("phd");
+  }
+  return ["school", "ug", "pg", "phd"].filter((l) => out.has(l)).join(";");
+}
+
+/** An open Unstop listing as a posting; a paid one (it charges to take part) or one closed for registration is left out. */
+export function rawFromUnstop(o: UnstopOpportunity): RawPosting | null {
+  if (o.isPaid || o.regn_open === 0 || (o.status && o.status !== "LIVE")) return null;
+  const deadline = day(o.regnRequirements?.end_regn_dt) ?? day(o.end_date);
+  const online = o.region === "online";
+  const skills = (o.required_skills ?? []).map((s) => s.skill_name ?? s.skill ?? "").filter(Boolean).slice(0, 10);
+  const levels = unstopLevels(o.filters);
+  return {
+    externalId: String(o.id),
+    title: o.title,
+    company: o.organisation?.name || "Unstop",
+    location: online ? "Online" : "India",
+    remote: online,
+    description: o.details ?? "",
+    tags: skills,
+    ...(day(o.updated_at) ? { postedAt: `${day(o.updated_at)}T00:00:00.000Z` } : {}),
+    applyUrl: o.seo_url,
+    employerSite: false,
+    attributes: { kind: o.type === "scholarships" ? "scholarship" : "project", ...(deadline ? { deadline } : {}), officialUrl: o.seo_url, ...(levels ? { levels } : {}), region: "India", currency: "INR" },
+  };
+}
+
+export async function fetchUnstop(c: SearchCriteria): Promise<Job[]> {
+  const kinds = ["scholarships", "hackathons", "competitions"];
+  const q = c.query.trim() ? `&searchTerm=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
+  const lists = await Promise.all(kinds.map((k, i) => getJson<{ data: { data: UnstopOpportunity[] } }>(`https://unstop.com/api/public/opportunity/search-result?opportunity=${k}&page=1&per_page=60&oppstatus=open${q}`).catch((e) => (i === 0 ? Promise.reject(e) : { data: { data: [] } }))));
+  return finish(UNSTOP, lists.flatMap((l) => l.data?.data ?? []).flatMap((o) => rawFromUnstop(o) ?? []), c);
+}
+
+// ---- EU Funding & Tenders: MSCA fellowships -------------------------------------------------------------------
+
+interface SediaResult {
+  url: string;
+  metadata?: Record<string, string[] | undefined>;
+}
+
+/** An open MSCA fellowship call as a posting: individuals (researchers) apply; deadline from the call itself. */
+export function rawFromSedia(r: SediaResult): RawPosting | null {
+  const m = r.metadata ?? {};
+  const title = m.title?.[0] ?? m.callTitle?.[0] ?? "";
+  const id = m.identifier?.[0] ?? "";
+  if (!id || !/fellowship/i.test(title)) return null;
+  const deadline = day(m.deadlineDate?.[0]);
+  const url = `https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/${encodeURIComponent(id)}`;
+  return {
+    externalId: id,
+    title,
+    company: "European Commission",
+    location: "Europe",
+    remote: false,
+    description: `${title} (${id}), a call on the EU Funding & Tenders portal. Eligibility, award and documents are in the call's official page.`,
+    tags: ["Research"],
+    applyUrl: url,
+    employerSite: true,
+    attributes: { kind: "scholarship", ...(deadline ? { deadline } : {}), officialUrl: url, levels: /postdoc/i.test(title) ? "phd" : "pg;phd", currency: "EUR" },
+  };
+}
+
+export async function fetchEuFellowships(c: SearchCriteria): Promise<Job[]> {
+  const form = new FormData();
+  form.append("query", new Blob([JSON.stringify({ bool: { must: [{ terms: { type: ["1", "2", "8"] } }, { terms: { status: ["31094501", "31094502"] } }] } })], { type: "application/json" }));
+  form.append("languages", new Blob([JSON.stringify(["en"])], { type: "application/json" }));
+  const res = await fetch("https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=MSCA%20fellowships&pageSize=50&pageNumber=1", { method: "POST", body: form, headers: { accept: "application/json", "user-agent": "WonderWorksBot/1.0 (+https://wonderjobs.app)" }, signal: AbortSignal.timeout(15_000) });
+  if (!res.ok) throw new Error(`api.tech.ec.europa.eu responded ${res.status}`);
+  const body = (await res.json()) as { results?: SediaResult[] };
+  const seen = new Set<string>();
+  const raws = (body.results ?? []).flatMap((r) => {
+    const raw = rawFromSedia(r);
+    if (!raw || seen.has(raw.externalId)) return [];
+    seen.add(raw.externalId);
+    return [raw];
+  });
+  return finish(EU_FELLOWSHIPS, raws, c);
+}
+
+// ---- Kaggle (needs a key) --------------------------------------------------------------------------------------
+
+interface KaggleCompetition {
+  id: number;
+  ref: string;
+  title: string;
+  description?: string;
+  url?: string;
+  deadline?: string;
+  category?: string;
+  reward?: string;
+  organizationName?: string;
+  tags?: { name?: string }[];
+}
+
+export function rawFromKaggle(k: KaggleCompetition): RawPosting | null {
+  const url = k.url || `https://www.kaggle.com/competitions/${encodeURIComponent(k.ref)}`;
+  const deadline = day(k.deadline);
+  return {
+    externalId: String(k.id),
+    title: k.title,
+    company: k.organizationName || "Kaggle",
+    location: "Online",
+    remote: true,
+    description: [k.description ?? "", k.reward ? `Reward: ${k.reward}.` : "", k.category ? `Category: ${k.category}.` : ""].filter(Boolean).join(" "),
+    tags: (k.tags ?? []).map((t) => t.name ?? "").filter(Boolean),
+    applyUrl: url,
+    employerSite: true,
+    attributes: { kind: "project", ...(deadline ? { deadline } : {}), officialUrl: url, fields: "Data science", currency: "USD" },
+  };
+}
+
+export async function fetchKaggle(c: SearchCriteria): Promise<Job[]> {
+  const auth = Buffer.from(`${process.env.KAGGLE_USERNAME}:${process.env.KAGGLE_KEY}`).toString("base64");
+  const q = c.query.trim() ? `&search=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
+  const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: `Basic ${auth}` } });
+  return finish(KAGGLE, (Array.isArray(list) ? list : []).flatMap((k) => rawFromKaggle(k) ?? []), c);
+}
+
 /** Fetch one Scholarships source. Under the E2E fixture only the WonderWorks source is real; outside sources answer nothing. */
-export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria): Promise<{ jobs: Job[]; warnings: string[] }> {
+export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (fixtureJobsOn() && s.id !== WONDERSTAR_SCHOLARSHIPS) return { jobs: [], warnings: [] };
   switch (s.id) {
     case WONDERSTAR_SCHOLARSHIPS: {
@@ -119,6 +333,15 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria): 
     }
     case GRANTS_GOV:
       return { jobs: await fetchGrantsGov(c), warnings: [] };
+    case DEVPOST:
+      return { jobs: await fetchDevpost(c), warnings: [] };
+    case UNSTOP:
+      return { jobs: await fetchUnstop(c), warnings: [] };
+    case EU_FELLOWSHIPS:
+      return { jobs: await fetchEuFellowships(c), warnings: [] };
+    case KAGGLE:
+      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY on this deployment (free: kaggle.com → Settings → API → Create New Token).`);
+      return { jobs: await fetchKaggle(c), warnings: [] };
     default:
       throw new Error("No connector");
   }

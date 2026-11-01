@@ -286,6 +286,22 @@ Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the 
 2. **Imported events carry no capacity or price we control**: RSVP is only for events posted on WonderWorks; outside ones link out.
 3. **Minors:** the platform doc marks Events as sensitive for minors; age rules must come from the source.
 
+## 9a. Scholarships & Projects (2026-11-01)
+
+A dataset of its own (`module = 'scholarships'`), always searched worldwide. Built-in connectors in `server/scholarships/sources.ts`; every listing past its deadline, without an https official link, or asking a fee to apply is dropped (`server/scholarships/search.ts::outside`).
+
+| Source | Status | What it gives |
+| --- | --- | --- |
+| **WonderWorks organisations** (`schol_wonderstar`) | Live | Scholarships and projects organisations post in a Hiring workspace, applied to on WonderWorks. |
+| **Grants.gov** (`schol_grants_gov`) | Live, no key | `search2` (public, no key), eligibility "Individuals" only, titles that read as for students. Terms allow display with the notice "This product uses the Grants.gov API but is not endorsed or certified by HHS", shown on its listings. Few hits (3 on 2026-11-01). |
+| **Unstop** (`schol_unstop`) | **Live, terms pending**, no key | `unstop.com/api/public/opportunity/search-result` (public JSON) for scholarships, hackathons and competitions open to students in India; 86 open on 2026-11-01. Listings it marks `isPaid` or closed for registration are left out. Terms to confirm: no published reuse terms for the API (ask Unstop). |
+| **Devpost** (`schol_devpost`) | **Live, terms pending**, no key | `devpost.com/api/hackathons?status[]=open` (public JSON), open hackathons as projects with their submission deadline and prizes; 44 open on 2026-11-01. Terms to confirm: the hackathon list is public JSON but its terms don't state reuse (ask Devpost). |
+| **EU Funding & Tenders: fellowships** (`schol_eu_msca`) | **Live, terms pending**, no key | The portal's search API (`api.tech.ec.europa.eu/search-api`, public key `SEDIA`), open fellowship calls only (MSCA Postdoctoral Fellowships, ERA Fellowships), each linked to its call page. Terms to confirm: Commission reuse policy (CC BY 4.0) for this endpoint. |
+| **Kaggle competitions** (`schol_kaggle`) | **Needs setup** | Kaggle's API (`/api/v1/competitions/list`). Owner: set `KAGGLE_USERNAME` and `KAGGLE_KEY` (free: kaggle.com → Settings → API → Create New Token). |
+| **Partner uploads** (`works_gateway_scholarships`) | Draft until activated | A college, foundation or CSR team's list, uploaded through the gateway (§13.7). |
+
+Looked at, not added: India's **National Scholarship Portal** (no API or feed; listings link to it), **Buddy4Study**, **Fastweb** and **Scholarships.com** (no open API or feed), **Google Summer of Code** (its API returned no current programme on 2026-11-01; re-check when the 2027 programme opens), **Outreachy** (no public JSON), **DAAD** scholarship database (search only through its page; a gateway crawl candidate), **EURAXESS** (job offers, mostly positions; a gateway candidate for fellowships).
+
 ---
 
 ## 10. Buy, Sell & Rent

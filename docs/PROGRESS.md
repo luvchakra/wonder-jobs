@@ -26,3 +26,4 @@
 - ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)
 - ✅ Jobs: job cards say "via WWDG" for the WorksLake Data Gateway, with the full name on hover (WJ-542)
 - ✅ Jobs: Part Time with an empty search box shows the latest part-time jobs instead of asking for words (WJ-543)
+- ✅ Scholarships & Projects: Unstop, Devpost hackathons and EU fellowships as live sources, Kaggle as Needs setup (WJ-524)

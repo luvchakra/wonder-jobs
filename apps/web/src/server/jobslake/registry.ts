@@ -172,7 +172,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       if (sourceModule(s) === "events") return runEventsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
       if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c);
-      if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c);
+      if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
       // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
