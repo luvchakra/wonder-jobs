@@ -59,7 +59,7 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
         <ChevronDown className={cn("size-3.5 shrink-0 text-ink-3 transition-transform md:size-4", open && "rotate-180")} strokeWidth={2.5} aria-hidden />
       </button>
       {open && (
-        <div role="menu" aria-label={label} className="absolute left-1/2 top-11 z-40 -translate-x-1/2 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[17rem] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+        <div role="menu" aria-label={label} className="absolute left-1/2 top-11 z-40 -translate-x-1/2 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[19.5rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
           {choices.map((m) => {
             const on = m.on;
             const I = m.icon;

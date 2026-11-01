@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,7 +9,7 @@ import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
@@ -99,8 +100,7 @@ function Page({ l }: { l: TherapistListing }) {
         <p className="mt-3 rounded-[12px] bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
           Everything here is what {l.company} wrote about themselves. WonderWorks has not checked their licence, qualifications or claims, and shows no rating.
         </p>
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">In their words</h2>
-        <ClampedText text={l.description || "The practitioner shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={"In their words"} text={l.description || "The practitioner shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length > 0 && (

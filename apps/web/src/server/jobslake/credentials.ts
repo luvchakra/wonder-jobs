@@ -60,8 +60,14 @@ export async function readCredential(ref: string | undefined): Promise<string | 
   return c ? decrypt(c.ciphertext) : undefined;
 }
 
-export async function credentialStatus(ref: string | undefined, envVars: Record<string, string | undefined> = process.env): Promise<CredentialStatus | null> {
+export async function credentialStatus(ref: string | undefined, envVars?: Record<string, string | undefined>): Promise<CredentialStatus | null> {
   if (!ref) return null;
+  // A key the admin set on the platform counts as set, like the deployment's own variable.
+  if (!envVars) {
+    const { loadPlatformKeys, platformKey, PLATFORM_KEYS } = await import("./platformKeys");
+    await loadPlatformKeys();
+    envVars = { ...process.env, ...Object.fromEntries(PLATFORM_KEYS.map((k) => [k.name, platformKey(k.name)])) };
+  }
   const env = ENV_REFS[ref];
   if (env) {
     const present = env.present(envVars);

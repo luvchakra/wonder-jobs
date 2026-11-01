@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,7 +15,7 @@ import { call } from "@/wonderworks/api";
 import { Act } from "@/wonderworks/pipeline/Act";
 import { ReportBlock } from "@/wonderworks/pipeline/ReportBlock";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
 import type { ThreadView } from "../threads";
@@ -189,8 +190,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
           ]}
         />
         {l.sellerVerified && !owner && <Badge tone="success">Verified seller</Badge>}
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">From the seller</h2>
-        <ClampedText text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={"From the seller"} text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             <Fold title="Details" hint={[priceLabel(t.price), t.condition].join(" · ")}>

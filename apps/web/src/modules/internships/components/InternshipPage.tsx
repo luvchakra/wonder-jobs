@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Bookmark, CalendarDays, Clock, ExternalLink, Hourglass, MapPin, Wallet } from "lucide-react";
@@ -9,7 +10,7 @@ import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
 import { OutcomeButtons } from "@/wonderworks/listing/OutcomeButtons";
 import { ResumeButton } from "@/wonderworks/listing/ResumeButton";
@@ -143,8 +144,7 @@ function Page({ l }: { l: InternshipListing }) {
             </p>
           )}
         </Fold>
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">About the internship</h2>
-        <ClampedText text={l.description || "The posting shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={"About the internship"} text={l.description || "The posting shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {/* With the whole description open: terms, skills, the company and where it's from, then the posting. */}
         {(expanded || !long) && (
           <>

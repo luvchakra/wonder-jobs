@@ -591,7 +591,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "wonderstar-modules",
     title: "WonderWorks modules",
     summary: "Jobs, Internships, Teaching, Co-founders, Talent & Services, Therapists, Events & Social, Buy, Sell & Rent and Scholarships & Projects.",
-    keywords: ["wonderstar", "module", "modules", "coming soon", "soon", "teaching", "co-founders", "cofounders", "talent", "services", "therapists", "events", "social", "buy", "sell", "rent", "marketplace", "internships", "explore", "latest", "empty search", "browse", "scholarships", "scholarship", "projects"],
+    keywords: ["wonderstar", "module", "modules", "coming soon", "soon", "teaching", "co-founders", "cofounders", "talent", "services", "therapists", "events", "social", "buy", "sell", "rent", "marketplace", "internships", "explore", "latest", "empty search", "browse", "scholarships", "scholarship", "translate", "language", "stop", "projects"],
     updated: "2026-11-01",
     body: [
       "WonderWorks is one account for finding jobs, internships, teaching work, co-founders, services, therapists, events, things to buy, sell or rent, and scholarships and student projects. Jobs, Internships, Teaching, Co-founders, Talent & Services, Therapists, Events & Social, Buy, Sell & Rent and Scholarships & Projects are open now.",
@@ -599,6 +599,8 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Share: every listing has a Share button — in its card beside Save, and at the top of its page. It opens WhatsApp, email, Copy link or your phone's own share sheet. The message carries everything the listing shows at the moment you share it (title, price or pay, place, dates, terms, skills, who it's from and its description), never what Wonder thinks of it for you, and the link opens a page showing the same listing, with a preview card, that anyone can read without signing in; they sign in only to save, apply, message or book. A listing from an outside source also has a button to the original posting. If the listing has closed by the time it is opened, the page says so. Marketplace shares never include the seller's name or contact details or the photos. Co-founder profiles share their details in the message too, but their link opens Co-founders and needs a sign-in: a person's profile is shown to other WonderWorks users, not the open web.",
       "Kinds not open yet are listed under Coming soon in Find's menu. There is no separate search page for WonderWorks: every kind searches from its own Find, which works like Jobs' Find. Nothing is listed under a kind until a company posts there or a real source brings listings in.",
       "Press Search with the box empty to see a kind's latest listings — up to 100, newest first, from what its sources have already brought in (nothing new is fetched). Your Refine places still apply.",
+      "While a search runs, its banner shows the mark with Stop under it; Stop ends the search at once and the list stays as it was before.",
+      "Translate: on every listing's page, the Translate menu beside the description's heading puts the listing's title and description into English, Hindi, Spanish, French, German, Portuguese, Chinese or Arabic. Your AI writes it, shown as AI-translated with Show original beside it; Original goes back. It needs an AI model connected, and it can be turned off under Automation → Translate job descriptions. The listing itself is never changed.",
     ],
   },
   releaseNotesSection,

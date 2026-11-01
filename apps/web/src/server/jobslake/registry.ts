@@ -30,6 +30,7 @@ import { runScholarshipSource, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable }
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 import { GATEWAY_SOURCES, gatewayModuleForSource } from "./gatewaySources";
 import { MODULE_IDS } from "@/wonderworks/manifest";
+import { loadPlatformKeys } from "./platformKeys";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
 const ATS_CAPS = ["Search", "Job details", "Freshness", "Employer identity", "Apply URL"];
@@ -112,6 +113,8 @@ export async function getSource(id: string): Promise<SourceRecord | undefined> {
 
 /** Whether this deployment can actually query the source right now (credentials present, connector exists). */
 export async function isAvailable(s: SourceRecord): Promise<boolean> {
+  // Keys the admin set on the platform (Settings → API keys) count as much as the deployment's own variables.
+  await loadPlatformKeys();
   switch (s.config.kind) {
     case "builtin":
       if (sourceModule(s) === "teaching") return teachingSourceAvailable(s);
