@@ -1,7 +1,7 @@
 /**
  * A public JSON feed read politely for Events: one request with a User-Agent that names us, the answer cut down to what
  * Events keeps and held in this process for a while (so many searches make one request), and a failed read never kept. Shared
- * by the sources that read a feed directly (developers.events, OpenStreetMap Calendar); a feed that needs a key or a
+ * by sources that read a public feed directly (developers.events today); a feed that needs a key or a
  * licence has its own file.
  */
 const kept = new Map<string, { at: number; value: unknown }>();

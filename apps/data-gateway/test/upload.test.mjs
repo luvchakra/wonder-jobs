@@ -61,3 +61,16 @@ test("register → upload (bad then good) → activate → served only in its mo
     assert.equal((await call("/v1/search", { module: "jobs" }, key)).body.metadata.matched, 0, "never in another module");
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+test("public business listings from open data: services and therapists only, and URL templates fill from the record", async () => {
+  const { validateSource, normalize } = await import("../src/core.mjs");
+  const base = { url: "https://overpass.example.org/api/interpreter", kind: "json_api", permission: "terms_permit", permissionEvidence: "OpenStreetMap, ODbL 1.0 — © OpenStreetMap contributors", termsReviewed: true, redistributionAllowed: true, itemsPath: "elements", mapping: { id: "id", title: "tags.name", employer: "tags.name", applyUrl: "https://www.openstreetmap.org/{type}/{id}" } };
+  assert.throws(() => validateSource({ ...base, modules: ["services"] }), /opt-in/);
+  assert.equal(validateSource({ ...base, modules: ["services"], publicBusinesses: true }).publicBusinesses, true);
+  assert.ok(validateSource({ ...base, modules: ["therapists"], publicBusinesses: true }));
+  assert.throws(() => validateSource({ ...base, modules: ["cofounders"], publicBusinesses: true }), /only for services and therapists/);
+  assert.throws(() => validateSource({ ...base, modules: ["marketplace"], publicBusinesses: true }), /only for services and therapists/);
+  const src = validateSource({ ...base, modules: ["services"], publicBusinesses: true, organizationOptional: true });
+  const ok = normalize(src, { type: "node", id: 42, tags: { name: "Sharma Electricals" } }, new Date().toISOString());
+  assert.equal(ok.canonicalUrl ?? ok.url ?? ok.applyUrl, "https://www.openstreetmap.org/node/42");
+});

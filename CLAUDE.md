@@ -51,6 +51,12 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - Matches, signals, insights and counts are computed from those postings and the candidate's Career DNA.
   - Nothing is seeded, sampled or hardcoded for a real account.
   - There is no demo mode and no sample data in the product (removed 2026-10-25). The sample candidate and postings live in `src/testing/sample/` and `apps/web/e2e/fixtures/sample.ts`, for tests only; the one server hook is `WJ_E2E_FIXTURE_JOBS` (`server/jobslake/e2eFixture.ts`), set only by `playwright.config.ts`, never on Vercel. Never import them from product code.
+- **Finding data sources (owner, 2026-11-01): look for every possible genuine source; terms are handled later.**
+  - Search widely: APIs, public feeds, sitemaps, schema.org JSON-LD on public pages, open data, OpenStreetMap, partner uploads. Don't rule a source out over its terms of service or robots.txt while gathering; the owner gets the confirmations.
+  - A source whose terms or robots.txt aren't confirmed is built and added **paused** (Draft), with "terms pending: <what to confirm>" in its permission evidence and its row in `docs/EXTERNAL_DATA_SOURCES.md`. It runs only after the owner confirms and activates it.
+  - Genuine means real listings, each traceable to its source URL, dated, fresh and deduplicated. Be polite when fetching: a User-Agent, crawl delays, on the schedule, never per user search.
+  - Never collect private individuals' personal profiles (privacy law, not terms). Businesses, practices, organisations and listings people posted for others to see are fine; people modules use opt-in or open-data business listings (Talent & Services, Therapists).
+  - A source that needs a key is added as "Needs setup", with a note for the owner: the key's name, the signup link, and whether it's free.
 - **No defaults in place of intent.**
   - Query, location, threshold and goal come from what the candidate typed or from their Career DNA (`defaultSearchQuery` in `services/jobs/normalize.ts`).
   - If neither gives a value, ask. Never use a placeholder.
