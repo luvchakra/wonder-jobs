@@ -75,12 +75,18 @@ export interface ServiceListing {
   terms: ServiceTerms;
   termsFrom: "company" | "posting";
   description: string;
-  /** An outside pro's own page. */
+  /** An outside pro's own page: their website when the source gives one, else where the source lists them. */
   applyUrl?: string;
+  /** Open data needs its credit shown on every listing it gave (OpenStreetMap: "© OpenStreetMap contributors", ODbL). */
+  attribution?: string;
   postedAt?: string;
   sourceId: string;
   sourceName: string;
 }
+
+/** The credit OpenStreetMap's licence (ODbL) asks for wherever its data is shown, and where the licence is explained. */
+export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
+export const OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright";
 
 /* ------------------------------------------------------------------ reading an outside listing */
 
@@ -96,6 +102,29 @@ export interface ProFacts {
   completed?: number;
   onTimePct?: number;
   country?: string;
+  /** A business mapped in OpenStreetMap: its `craft` tag, the nearest city (derived from its position) and its own website. */
+  craft?: string;
+  city?: string;
+  web?: string;
+}
+
+/** The trades OpenStreetMap's `craft` tag names that this module offers, as this module's own services. */
+export const CRAFT_CATEGORY: Record<string, Category> = { plumber: "Plumbing", electrician: "Electrician", hvac: "AC service & repair", carpenter: "Carpentry", painter: "Painting", electronics_repair: "Appliance repair" };
+
+/**
+ * The OpenStreetMap trades a client's words ask for ("ac repair" → hvac, "plumber" → plumber), so a search reads the
+ * collected businesses by trade, not by whatever words a mapper put in a name. No match: nothing to narrow by.
+ */
+export function craftsFor(query: string): string[] {
+  const q = query.toLowerCase();
+  const out: string[] = [];
+  if (/\b(plumb|pipe|tap|leak|drain|bathroom)/.test(q)) out.push("plumber");
+  if (/\b(electric|wiring|wireman|switch|inverter)/.test(q)) out.push("electrician");
+  if (/\b(ac|a\.c|hvac|air.?condition|cooling|refrigerat|fridge)/.test(q)) out.push("hvac");
+  if (/\b(carpent|furniture|woodwork|wardrobe)/.test(q)) out.push("carpenter");
+  if (/\b(paint|distemper|whitewash)/.test(q)) out.push("painter");
+  if (/\b(appliance|washing machine|tv|television|microwave|geyser|repair)/.test(q) && !out.length) out.push("electronics_repair");
+  return out;
 }
 
 export function proTags(f: ProFacts): string[] {
@@ -107,6 +136,9 @@ export function proTags(f: ProFacts): string[] {
     ...(f.completed !== undefined ? [`done:${f.completed}`] : []),
     ...(f.onTimePct !== undefined ? [`ontime:${f.onTimePct}`] : []),
     ...(f.country ? [`country:${f.country}`] : []),
+    ...(f.craft ? [`craft:${f.craft}`] : []),
+    ...(f.city ? [`city:${f.city}`] : []),
+    ...(f.web ? [`web:${f.web}`] : []),
   ];
 }
 
@@ -131,6 +163,9 @@ export function readProTags(tags: string[]): ProFacts {
     else if (k === "done") out.completed = num(v);
     else if (k === "ontime") out.onTimePct = num(v);
     else if (k === "country" && v) out.country = v;
+    else if (k === "craft" && v) out.craft = v;
+    else if (k === "city" && v) out.city = v;
+    else if (k === "web" && v) out.web = v;
   }
   if (skills.length) out.skills = skills;
   return out;
@@ -156,6 +191,12 @@ export function fieldFromSkills(skills: string[]): Category | undefined {
 
 /** An outside pro's terms: only what the source reported. Outside pros are remote work, quoted by the hour. */
 export function termsFromPro(f: ProFacts): ServiceTerms {
+  // A business mapped in OpenStreetMap: a trade at someone's place, in the city it's near. No price, rating or warranty is
+  // stated, so none is shown.
+  if (f.craft) {
+    const trade = CRAFT_CATEGORY[f.craft];
+    return { lane: "local", currency: "INR", ...(trade ? { category: trade } : {}), ...(f.city ? { areas: [f.city] } : {}) };
+  }
   const category = f.skills ? fieldFromSkills(f.skills) : undefined;
   return {
     lane: "remote",

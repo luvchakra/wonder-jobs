@@ -62,7 +62,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
-| **Talent & Services** | 1 | Yes | none | Nothing else is open; supply must come from WonderWorks pros |
+| **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
 | **Therapists** | 0 | — | — | Deliberately none: licence verification and health-data rules first |
 | **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
@@ -187,17 +187,28 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 | Source | Access | Status | Notes |
 |---|---|---|---|
 | WonderWorks pros | own | **Live** | Local, visit-based work and remote projects |
-| Freelancer.com experts | public directory API | **Live** · responds | Remote freelancers; public profiles only |
+| Freelancer.com experts | public directory API | **Live** · responds | Remote freelancers; public profiles only. **Terms concern, see Open issues 4** |
+| OpenStreetMap businesses | open data (ODbL) via the data gateway | **Built** (2026-11-01, WJ-591); an admin registers the four definitions, tests and activates them | Local trades: plumber, electrician, AC (`hvac`), carpenter, painter, electronics repair. Four gateway definitions (`apps/data-gateway/sources/osm-services-{north,west,south,east}.json`), 24 cities, one Overpass query per city (15 km around the centre, named businesses with a `craft` tag only), collected **weekly**, read in-process by `server/services/sources.ts` and never per user search. Shows name, trade, nearest city, own website if tagged, a link to the OSM page and "© OpenStreetMap contributors" on the card and the page; **no phone or email is copied**. Owner decision 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists". |
 
 **Researched**
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| Upwork | Partner-only (per a data vendor; RSS closed 2024) | Rejected unless a partnership is agreed. |
+| Upwork | GraphQL API; talent search needs the "Freelancer Profile - Read And Write Access" permission and an approved API key (support.upwork.com "Request an API key"); the developer pages returned 403 to our fetch, so its terms were not read in full. A search result says its documentation limits storing data to 24 hours and that its terms need results attributed to Upwork | Rejected unless a partnership is agreed and its terms are read: WorksLake stores what it collects. |
+| Foursquare Places | Free sandbox, then pay per call (the pricing page's two free figures disagree: 10,000 calls vs 500 at $0). Rating and tip fields are Premium | **Rejected for WorksLake**: its usage guidelines allow caching only of the place id; "Pay as You Go and Sandbox customers get no caching permitted"; Enterprise only 24 hours on the device. WorksLake keeps what it collects. |
+| Google Places | Not read in this pass | Rejected on the same ground as Foursquare until its caching terms are read; its terms are known to restrict storing results. |
+| Geoapify Places (OSM-based) | Free 3,000 credits a day; its Places FAQ says results may be cached, stored and redistributed with attribution to OpenStreetMap (and to Geoapify on the free plan); the pricing page says the free plan may be used commercially, its terms say "with some limitations in production" | Possible: needs a free key and a call to confirm the production limit. Its trade categories (plumber, electrician) were **not** verified; the page lists `service` generally. Not built. |
+| Overture Maps Places | Bulk GeoParquet on S3/Azure, no query API; per-source licences (CDLA Permissive 2.0, Apache 2.0, CC0); the Places theme names no single licence; India coverage unverified | Not built: needs a bulk-file pipeline, not an API. Worth a spike if OpenStreetMap proves thin. |
+| Guru.com | Returned 403 to our fetch | Not checked. |
+| PeoplePerHour | Site returned an empty page; no developer API found | Not checked. |
 | Fiverr, Toptal | No public API found | Rejected. |
 | Scraping services for freelancer sites (Apify and similar) | Paid per result | Rejected: terms-of-service risk, and our rule is no scraping. |
 
 **Open issues**
+4. **Freelancer.com's terms (read 2026-11-01).** Its API Terms (21 Dec 2017) say cached Data "should" be refreshed "at least every 24 hours", "for performance reasons only", and that "You may not copy or store any Data ... except to the extent permitted"; its User Agreement says "Our feedback ratings belong to us and may not be used for any purpose other than facilitating the provision of Seller Services via the Website". The directory endpoint itself is not in the documentation we could read. Today a search keeps these pros in WorksLake's warm pool and **shows their rating**. **Owner decision 2026-11-01: keep it live, terms to be confirmed by the owner later (terms pending: caching beyond 24 hours; showing ratings).**
+5. **Personal data (§12.6).** Freelancer.com pros are individuals who did not opt in on WonderWorks. OpenStreetMap is businesses only, with no phone or email.
+6. **Overpass.** Its wiki (read 2026-11-01) says the main instance is overloaded, that regular use should stay under 100 queries and 10 MB a day (the weekly collection is well inside that), and that "commercial use should use self-hosted or paid Overpass servers". The definitions use `overpass-api.de`; the owner picks the endpoint before activating, and the gateway source starts paused.
+7. **The gateway's consent gate** is passed by `publicBusinesses: true` (services and therapists, WJ-500, #480): no `consentVerified` is claimed for OpenStreetMap.
 1. **Was returning nothing at all** — fixed 2026-10-31 (see §0). It now returns the Freelancer.com pros for a search. **Nothing else is open**, so supply for local services must come from pros listing on WonderWorks.
 2. **Freelancer.com data is remote work only.** Client details need OAuth and are not used.
 3. **Ratings:** the Freelancer.com feed carries its own rating where it gives one; WonderWorks' reviews are separate and are not mixed with it.
@@ -245,7 +256,7 @@ Dataset `cofounders`. WonderWorks founders only (`server/cofounders/sources.ts`)
 
 ## 9. Events & Social
 
-Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), and Ticketmaster (below). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
+Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), developers.events, OpenStreetMap Calendar (gateway), and Ticketmaster (below). The same event from two sources is listed once (title and start day). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
 
 **In the code**
 
@@ -254,13 +265,15 @@ Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the 
 | WonderWorks events | **Live** | Organisers' own events, with seats and RSVP. |
 | confs.tech (via the gateway, `apps/data-gateway/sources/confs-tech.json`) | **Live** once the owner activates `works_gateway_events` | MIT. About 157 upcoming tech conferences worldwide, 8 in India. |
 | **Ticketmaster Discovery API** (`evt_ticketmaster`, `server/events/ticketmaster.ts`) | **Needs key** | Env `TICKETMASTER_API_KEY`, free at developer.ticketmaster.com (5,000 calls a day, 5 a second). Concerts, sport, theatre and family events in the countries Ticketmaster sells in; India coverage is thin. Terms read 2026-11-01: one call per person's search (never crawled in the background); content kept only "for reasonable periods" and removed within 24 hours on the owner's request; each event links to its own Ticketmaster page. The owner should confirm WorksLake's search-cache period (up to 24 hours) is a "reasonable period" before turning it on. |
-| **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`) | **Defined, not registered** | Public JSON API at `osmcal.org/api/v2/events/`, no key. 117 upcoming mapping events worldwide, 6 in India; dry run through the gateway's own validator and normalizer read all 117. The site documents the API and invites sites to integrate it, and robots.txt allows it, but **no data licence is stated**, so the owner confirms before activating. A cancelled event is left out. |
+| **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`, listed in the admin catalogue) | **Defined, not added**: the owner adds it from the catalogue after confirming the terms | Public JSON API at `osmcal.org/api/v2/events/`, no key (the site documents it for sites that show its events; robots.txt allows it). 116 upcoming mapping events worldwide on 2026-11-01 (6 in India); a cancelled event is left out. **Terms to confirm:** no data licence is stated. |
+| **developers.events** (`evt_developers_events`, `server/events/developersEvents.ts`) | **Paused: terms pending**, no key | The maintainers' public `all-events.json` (README: "all the data … available publicly in JSON"; robots.txt allows it). Read directly, once every 12 hours (3.6 MB, mostly past events, dropped before it is kept; over the gateway's 2 MB limit). 797 upcoming developer conferences on 2026-11-01, 23 in India, 41 online, with each event's own page and call for papers. Only entries it marks open or virtualized are shown; cancelled, postponed and delayed ones are not. Terms to confirm: the list is published as public JSON but has no licence file (ask the maintainers, scraly/developers-conferences-agenda). |
 
-**Researched, not built**
+**Researched, not built** (owner, 2026-11-01: any genuine public feed or page is fine unless its robots.txt or terms forbid automated access; never harvest private people's profiles)
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| developers.events (`all-events.json`) | The maintainers publish the JSON; no licence file | 792 upcoming developer conferences, 23 in India, but no stated reuse right. Ask the maintainer (scraly/developers-conferences-agenda) for written permission, then add it as a gateway source or a partner upload. |
+| KonfHub (konfhub.com) and the Linux Foundation events site | robots.txt allows crawling; each event page carries schema.org Event JSON-LD | **Worth adding once the gateway's `crawl` kind keeps an Event's start/end/online/cancelled fields as attributes** (today only JSON sources keep them) and can be limited to event pages. KonfHub is India-heavy. Not built: needs a gateway change. |
+| Devpost hackathons (`devpost.com/api/hackathons`) | Public JSON, robots allows all | Dates are display text ("Dec 19, 2026 - Jan 18, 2027") and its terms were not read. Not built. |
 | Paris "Que faire à Paris" (ODbL), Brisbane City Council "What's On" (CC BY 4.0), Melbourne events (open data) | Open licences, no key | Not reachable from the build environment (connections reset), so their payloads could not be read or the mapping tested. Worth testing from the gateway's admin (it runs from Vercel). |
 | NYC Parks events (Socrata) | Open | Stale: the newest event is from 2019. Rejected. |
 | Wikidata events | CC0 | Thin (about 6 upcoming conferences). Not worth a source. |
@@ -404,7 +417,7 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 | confs.tech conference data | Events | Eligible (MIT) but items have no organiser and no posting date; the gateway needs event fields (start/end date) first. Not added. |
 | Careerjet publisher API (has India) | Jobs | Needs a free publisher key; terms to confirm on sign-up. |
 | Ticketmaster Discovery | Events | Needs a free key; India coverage unconfirmed. |
-| OpenStreetMap | Services/Marketplace | Open licence, but places mapped by others are not providers who opted in. Not for Services. |
+| OpenStreetMap | Services/Marketplace | **Superseded 2026-11-01:** the owner allowed OpenStreetMap business listings for Services (and Therapists): businesses only, with the credit, weekly collection, no phone or email. See §6. Marketplace stays out. |
 | developers.events | Events | CC-BY-NC (non-commercial): not usable. |
 | Hasgeek, Meetup, Reed API, Puducherry recruitment, Etsy | various | Terms or robots forbid crawling or reproduction. |
 | NCS, data.gov.in NCS, UPSC RSS, AICTE internships, Findwork, Mobilizon, AllEvents | various | No reuse statement, no usable feed, or unreachable. |
