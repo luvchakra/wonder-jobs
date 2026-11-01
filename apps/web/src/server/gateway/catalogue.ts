@@ -1,3 +1,4 @@
+import apnaInternships from "../../../../data-gateway/sources/apna-internships.json";
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
 import districtEvents from "../../../../data-gateway/sources/district-events.json";
@@ -45,6 +46,7 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  * adding it here too (a test checks every file is listed). A source is added paused, then tested and activated as usual.
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
+  "apna-internships.json": apnaInternships as Record<string, unknown>,
   "confs-tech.json": confsTech as Record<string, unknown>,
   "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
   "district-events.json": districtEvents as Record<string, unknown>,

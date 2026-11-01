@@ -57,4 +57,5 @@
 - ✅ Therapists: India pass over data sources — government hospital directories are static and general, so nothing new added; one owner decision on Setup to-do (WJ-601)
 - ✅ WonderWorks: OpenStreetMap collection covers 31 Indian cities for Talent & Services and Therapists (WJ-511)
 - ✅ WorksLake gateway: sitemap indexes can point at child sitemaps on the same site's other hosts (WJ-512)
+- ✅ Internships, India: Apna internships as a gateway crawl (paused until activated), FamPay and Hevo Data career boards, and owner decisions for government portals and Internshala on the Setup to-do (WJ-581)
 - ✅ Jobs: Indian job boards Cutshort and apna through the gateway, five more Indian employers' career boards, and owner decisions for NCS and blocked boards (WJ-546)
