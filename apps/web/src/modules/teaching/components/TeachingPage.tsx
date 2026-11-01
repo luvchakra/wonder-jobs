@@ -76,6 +76,7 @@ function Page({ l }: { l: TeachingListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
+          domain={l.companyDomain}
           name={
             <>
               {l.company}
@@ -162,7 +163,7 @@ function Page({ l }: { l: TeachingListing }) {
                 </dl>
                 <p className="mt-3 text-[12px] text-ink-4">{l.termsFrom === "company" ? `Terms as ${l.company} posted them on WonderWorks.` : `Only what the posting itself states, from ${l.sourceName}.`}</p>
               </Fold>
-              <CompanyFold job={{ company: l.company }} />
+              <CompanyFold job={{ company: l.company, companyDomain: l.companyDomain }} />
               <Fold title="Source" hint={`Via ${l.sourceName}`}>
                 <p className="text-[13px] text-ink-2">
                   {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}.`}
