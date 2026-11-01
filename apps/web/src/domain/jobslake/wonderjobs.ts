@@ -14,7 +14,8 @@ import { ACCESS_LABEL, type CanonicalOpportunity, type SearchMetadata, type Sear
 
 export function searchRequestFor(criteria: { query: string; locations: string[]; variants?: string[]; jobTypes?: JobType[] }, sourceIds: string[], searchMode: SearchMode = "balanced", limit = 300): SearchRequest {
   // Only what WorksLake needs to search (spec §57): terms, broader phrasings of them, job types asked for, places and which sources — nothing about the candidate.
-  return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}), ...(criteria.jobTypes?.length ? { jobTypes: criteria.jobTypes } : {}) }, sourceIds, searchMode, limit };
+  // No words (no role wanted): the latest listings, asked for explicitly.
+  return { query: { text: criteria.query, locations: criteria.locations, ...(criteria.variants?.length ? { variants: criteria.variants } : {}), ...(criteria.jobTypes?.length ? { jobTypes: criteria.jobTypes } : {}) }, sourceIds, searchMode, limit, ...(criteria.query.trim() ? {} : { latest: true }) };
 }
 
 /** Evidence for the phrasings a smart search ran alongside the candidate's own words. */

@@ -324,7 +324,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
               <p className="text-[13px] leading-[18px] text-brand-700">{foundSoFar(found, answered)}</p>
             ) : null}
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
-              For “{active.config.searchCriteria.query}”{where.length ? ` in ${where.join(", ")}` : ""}
+              {active.config.searchCriteria.query.trim() ? `For “${active.config.searchCriteria.query}”` : "Latest jobs"}{where.length ? ` in ${where.join(", ")}` : ""}
               {searchedAs(active.config) && <span className="font-medium text-brand-700"> · as {searchedAs(active.config)}</span>}
             </p>
           </Link>

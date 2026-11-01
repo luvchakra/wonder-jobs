@@ -266,6 +266,15 @@ describe("v1 search (WJ-JL-031..034)", () => {
     expect((await r.json()).error.code).toBe("INVALID_REQUEST");
   });
 
+  it("searches without words only when asked for the latest listings (latest: true), and asks no source", async () => {
+    asCandidate();
+    const r = await search(post("/v1/search", { query: { locations: [] }, latest: true }));
+    expect(r.status).toBe(200);
+    const body = await r.json();
+    expect(Array.isArray(body.results)).toBe(true);
+    expect(body.metadata.sourcesPlanned).toBe(0);
+  });
+
   it("returns canonical opportunities; a candidate sees category-level source messages only", async () => {
     asCandidate();
     connector.mockImplementation(async (src: { id: string }) => {

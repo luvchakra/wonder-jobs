@@ -462,6 +462,8 @@ export function seedCachesFromCatalog(runId: string) {
  * against their own vocabulary on the server, or the rules alone when that doesn't answer.
  */
 async function smartPhrasings(query: string): Promise<{ variants: string[]; fromAi: string[] }> {
+  // No words, no phrasings: the search brings the latest listings.
+  if (!query.trim()) return { variants: [], fromAi: [] };
   const dna = useCareerStore.getState().dna;
   const profile = { roleWanted: dna.careerGoal.slice(0, 200), headline: dna.headline.slice(0, 200), titles: historyOf(dna).experience.slice(0, 10).map((e) => e.title.slice(0, 120)), skills: dna.skills.slice(0, 25).map((k) => k.name.slice(0, 80)) };
   try {

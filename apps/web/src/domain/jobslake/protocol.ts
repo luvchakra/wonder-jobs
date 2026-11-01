@@ -197,6 +197,8 @@ export interface SearchRequest {
   cache?: "use" | "refresh";
   /** The WonderWorks module's dataset to search (sources and warm pool). Default "jobs". */
   module?: ModuleId;
+  /** No words on purpose: the latest stored listings. */
+  latest?: boolean;
 }
 
 export type SourceOutcome = "ok" | "empty" | "needs_setup" | "timeout" | "unavailable" | "skipped";
