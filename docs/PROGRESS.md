@@ -20,3 +20,4 @@
 - ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
+- ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
