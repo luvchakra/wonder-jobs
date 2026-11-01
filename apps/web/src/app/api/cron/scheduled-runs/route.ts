@@ -6,6 +6,7 @@ import { purgeExpired } from "@/server/privacy/retention";
 import { listTenantsWithDueSchedules } from "@/server/workflow/dueTenants";
 import { runReminderPass } from "@/server/workflow/reminderPass";
 import { runDueSchedules, type ScheduledRunReport } from "@/server/workflow/scheduledRun";
+import { runModuleSchedulePass } from "@/server/schedules/run";
 import { cronEarlyWindowMs } from "@/server/workflow/cronCadence";
 import { sendDigest } from "@/server/digest/send";
 import { stateStore } from "@/server/state";
@@ -74,6 +75,17 @@ export async function GET(req: Request) {
     }
   }
 
+  // Every other module's scheduled searches (wj.m.schedules): each due one runs its module's own search, and the person
+  // hears only about listings that weren't there before.
+  let moduleRuns = { tenants: 0, ran: 0, notified: 0 };
+  try {
+    const m = await runModuleSchedulePass(now, MAX_TENANTS, startedAt + INVOCATION_BUDGET_MS, earlyMs);
+    moduleRuns = { tenants: m.tenants, ran: m.ran, notified: m.notified };
+    failures.push(...m.failures);
+  } catch (e) {
+    failures.push({ tenantId: "*", error: `module schedules: ${e instanceof Error ? e.message : String(e)}` });
+  }
+
   // Reminders are cheap (a read, and a write only when there is something to say), so they run even
   // when the schedule pass used most of the budget — a missed interview reminder is worse than a late run.
   let reminded = 0;
@@ -137,7 +149,7 @@ export async function GET(req: Request) {
     startedAt: now.toISOString(),
     finishedAt: new Date().toISOString(),
     outcome: failures.length && !reports.length ? "failed" : "ok",
-    summary: [`${tenants.length} with schedules due`, `${reports.length} ran`, deferred && `${deferred} deferred`, settings.reminders ? `${reminded} reminders` : "reminders off", settings.digests ? `${digests.sent} digests` : "digests off", failures.length && `${failures.length} failures`].filter(Boolean).join(" · "),
+    summary: [`${tenants.length} with schedules due`, `${reports.length} ran`, moduleRuns.ran && `${moduleRuns.ran} module searches (${moduleRuns.notified} with news)`, deferred && `${deferred} deferred`, settings.reminders ? `${reminded} reminders` : "reminders off", settings.digests ? `${digests.sent} digests` : "digests off", failures.length && `${failures.length} failures`].filter(Boolean).join(" · "),
   });
   return NextResponse.json({
     ok: true,
@@ -147,6 +159,7 @@ export async function GET(req: Request) {
     at: now.toISOString(),
     tenantsDue: tenants.length,
     ran: reports.length,
+    moduleRuns,
     deferred,
     reminders: { tenants: remindedTenants, raised: reminded },
     digests,

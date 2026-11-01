@@ -19,6 +19,8 @@ import { recordServerAudit } from "@/server/audit";
 import { ProviderError, describeProviderError, stripeCall } from "@/server/billing/stripe";
 import { apiStore, type ApiBillingRecord } from "./apiStore";
 import { apiSourceIds } from "./developer";
+import { BUILTIN_SOURCES } from "./registry";
+import { jobsLakeFlags } from "./flags";
 import { currentApiPlan } from "./apiPlanSettings";
 
 export interface ApiBillingConfig {
@@ -92,6 +94,8 @@ export interface ApiAccountStatus {
   usedThisMonth: number;
   freeMonthly: number;
   sources: string[];
+  /** What a key actually reaches, as the Account page lists it: those sources by name, and whether MCP is on. */
+  offer: { sourceNames: string[]; mcp: boolean };
   billing: { state: "active"; enabledAt?: string; price: ApiPrice | null } | { state: "available"; price: ApiPrice } | { state: "unavailable"; reason: string };
 }
 
@@ -112,7 +116,9 @@ export async function apiAccountStatus(ownerId: string, now = new Date()): Promi
     }
   }
   const { freeMonthly } = await currentApiPlan();
-  const base = { month: today.slice(0, 7), usedThisMonth, freeMonthly, sources: apiSourceIds() };
+  const sources = apiSourceIds();
+  const names = new Map(BUILTIN_SOURCES.map((s) => [s.id, s.name]));
+  const base = { month: today.slice(0, 7), usedThisMonth, freeMonthly, sources, offer: { sourceNames: sources.map((id) => names.get(id) ?? id), mcp: jobsLakeFlags().jobsLakeMcpEnabled } };
   let active = billing?.status === "active";
   // Cancelled in Stripe's portal since the last daily check: turn it off now. (A failed read here is
   // left to the daily report, which treats it as not active.)

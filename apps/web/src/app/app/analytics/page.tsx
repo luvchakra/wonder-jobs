@@ -10,6 +10,9 @@ import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { EmptyState } from "@/components/common/States";
 import { Segmented } from "@/components/common/Input";
+import { MODULES } from "@/modules/registry";
+import { shellRoutes } from "@/wonderworks/manifest";
+import { ModuleActivity, type ActivityModule } from "@/wonderworks/you/ModuleActivity";
 
 const SOURCE_NAME = new Map(JOB_SOURCES.map((s) => [s.id, s.name]));
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
@@ -21,6 +24,8 @@ const RANGES = [
   { value: "26", label: "6 months" },
   { value: "all", label: "All time" },
 ];
+/** Every live module but Jobs, for the "Across WonderWorks" card (Jobs has the rest of the page). */
+const OTHER_MODULES: ActivityModule[] = MODULES.filter((m) => m.id !== "jobs" && m.status === "live").map((m) => ({ id: m.id as ActivityModule["id"], label: m.label, pipelineLabel: m.pipeline.label, stages: m.pipeline.stages, href: shellRoutes(m.id).pipeline }));
 const FIT_LABEL = { strong: "Strong", worth_considering: "Worth considering", stretch: "Stretch", low_fit: "Low fit", unknown: "Not scored" } as const;
 
 /** A headline number with what it counts. */
@@ -147,11 +152,22 @@ export default function AnalyticsPage() {
   );
 
   const anything = Object.keys(applications).length || Object.keys(runs).length;
+  // The range for every module's own numbers: the same weeks, counted back from now.
+  const [now] = useState(() => Date.now());
+  const since = range === "all" ? null : now - weeks * 7 * 86_400_000;
+  const across = OTHER_MODULES.length > 0 && (
+    <Card className="mt-6">
+      <h2 className="mb-1 text-[14px] font-semibold text-ink">Across WonderWorks</h2>
+      <p className="mb-2 text-[12px] text-ink-3">Each module&apos;s saves and its Pipeline, in this range. Tap one to open it.</p>
+      <ModuleActivity modules={OTHER_MODULES} since={since} />
+    </Card>
+  );
   if (!anything) {
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader title="Analytics" description="Your search, in numbers." />
-        <EmptyState title="Nothing to count yet" body="Search for jobs and start an application — your numbers appear here as you go." action={{ label: "Find jobs", href: "/app/jobs" }} />
+        <PageHeader title="Analytics" description="Your activity across WonderWorks, in numbers." />
+        <EmptyState title="No job applications to count yet" body="Search for jobs and start an application — your Jobs numbers appear here as you go." action={{ label: "Find jobs", href: "/app/jobs" }} />
+        {across}
       </div>
     );
   }
@@ -159,10 +175,11 @@ export default function AnalyticsPage() {
   const stageHref = ["all", "prepared", "submitted", "interview", "offer"];
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Analytics" description="Your search, in numbers — from your own applications and searches." />
+      <PageHeader title="Analytics" description="Your activity across WonderWorks, in numbers — from your own applications, saves and searches." />
       <div className="mb-4 overflow-x-auto">
         <Segmented label="Date range" size="sm" value={range} onChange={setRange} options={RANGES} className="[&>button]:shrink-0 [&>button]:whitespace-nowrap max-sm:[&>button]:px-2.5" />
       </div>
+      <h2 className="mb-2 text-[14px] font-semibold text-ink">Jobs</h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Applications" value={String(r.totals.applications)} hint={`${r.totals.saved} jobs saved`} />
         <Stat label="Submitted" value={String(r.totals.submitted)} />
@@ -171,7 +188,9 @@ export default function AnalyticsPage() {
         <Stat className="col-span-2 md:col-span-1" label="Days to a reply" value={r.medianDaysToResponse === null ? "—" : String(r.medianDaysToResponse)} hint={r.medianDaysToResponse === null ? "No replies yet" : "median"} />
       </div>
 
-      <h2 className="mb-2 mt-6 text-[14px] font-semibold text-ink">Week by week</h2>
+      {across}
+
+      <h2 className="mb-2 mt-6 text-[14px] font-semibold text-ink">Jobs, week by week</h2>
       <div className="grid gap-3 md:grid-cols-3">
         <WeeklyBars title="Applications started" weeks={r.weeks} pick={(w) => w.started} />
         <WeeklyBars title="Applications submitted" weeks={r.weeks} pick={(w) => w.submitted} />

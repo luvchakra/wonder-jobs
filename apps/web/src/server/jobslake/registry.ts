@@ -30,6 +30,7 @@ import { runScholarshipSource, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable }
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 import { GATEWAY_SOURCES, gatewayModuleForSource } from "./gatewaySources";
 import { MODULE_IDS } from "@/wonderworks/manifest";
+import { loadPlatformKeys } from "./platformKeys";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
 const ATS_CAPS = ["Search", "Job details", "Freshness", "Employer identity", "Apply URL"];
@@ -112,6 +113,8 @@ export async function getSource(id: string): Promise<SourceRecord | undefined> {
 
 /** Whether this deployment can actually query the source right now (credentials present, connector exists). */
 export async function isAvailable(s: SourceRecord): Promise<boolean> {
+  // Keys the admin set on the platform (Settings → API keys) count as much as the deployment's own variables.
+  await loadPlatformKeys();
   switch (s.config.kind) {
     case "builtin":
       if (sourceModule(s) === "teaching") return teachingSourceAvailable(s);
@@ -167,12 +170,12 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
   switch (cfg.kind) {
     case "builtin": {
       if (sourceModule(s) === "teaching") return runTeachingSource(s, c, (m) => new NeedsSetupError(m));
-      if (sourceModule(s) === "services") return runServicesSource(s, c);
+      if (sourceModule(s) === "services") return runServicesSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "therapists") return runTherapistsSource(s, c);
       if (sourceModule(s) === "events") return runEventsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
       if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c);
-      if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c);
+      if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
       // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };

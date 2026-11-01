@@ -18,7 +18,10 @@ import { matchesLocations, normalizePosting, type RawPosting } from "@/services/
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { proTags } from "@/modules/services/domain";
+import { CRAFT_CATEGORY, craftsFor, proTags } from "@/modules/services/domain";
+import { nearestCity } from "@/modules/services/cities";
+import { gatewayListings } from "@/server/gateway/listings";
+import type { GatewayListing } from "../../../../data-gateway/src/core.mjs";
 
 const EPOCH = "2026-10-30T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
@@ -29,14 +32,25 @@ function source(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | 
 
 export const WONDERSTAR_SERVICES = "svc_wonderstar";
 export const FREELANCER_EXPERTS = "svc_freelancer";
+export const OPENSTREETMAP = "svc_osm";
+/** The name the gateway's OpenStreetMap sources carry (their `attribution`): how this source recognises its own listings. */
+export const OSM_GATEWAY_NAME = "OpenStreetMap contributors (ODbL)";
 
 export const SERVICES_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_SERVICES, name: "WonderWorks pros", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Services pros post on WonderWorks: local, visit-based work and remote projects." }),
   source({ id: FREELANCER_EXPERTS, name: "Freelancer.com experts", provider: "Freelancer.com", category: "aggregator", geography: ["remote"], capabilities: [...FEED_CAPS, "Rating"], description: "Remote freelancers from Freelancer.com's public user directory." }),
+  source({
+    id: OPENSTREETMAP,
+    name: "OpenStreetMap",
+    provider: "OpenStreetMap contributors",
+    category: "aggregator",
+    geography: ["IN"],
+    description: "Local trade businesses mapped in OpenStreetMap (open data, ODbL): plumbers, electricians, AC, carpenters, painters and repair shops. Collected weekly by the data gateway, never asked per search. Businesses only; no phone or email is copied.",
+  }),
 ];
 
-/** Whether this deployment can ask the source now. Both need no credential. */
-export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || SERVICES_SOURCES.some((x) => x.id === s.id);
+/** Whether this deployment can ask the source now. The first two need no credential; OpenStreetMap needs the data gateway. */
+export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
 
 /** One user of Freelancer.com's directory, only the fields asked for. */
 export interface FreelancerUser {
@@ -116,11 +130,74 @@ export async function fetchFreelancerExperts(c: SearchCriteria): Promise<Job[]> 
   return out;
 }
 
+const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
+/**
+ * An OpenStreetMap business the gateway collected, as a posting: its name, trade, the nearest city (from its position,
+ * within 25 km of a city centre) and its own website if it has an https one. Only what OSM has: no price, rating, phone
+ * or email (a sole trader's phone is personal data, and the owner asked for business listings). `null` for a record that
+ * isn't a named business with a known trade.
+ */
+export function rawFromOsm(l: GatewayListing): (RawPosting & { city?: string }) | null {
+  const a = l.attributes;
+  const craft = str(a.craft);
+  const name = str(l.title);
+  if (!name || !CRAFT_CATEGORY[craft]) return null;
+  const lat = num(a.lat) ?? num(a.clat);
+  const lon = num(a.lon) ?? num(a.clon);
+  const city = lat !== undefined && lon !== undefined ? nearestCity(lat, lon)?.name : str(a.city) || undefined;
+  const web = /^https:\/\/[^\s]+$/i.test(str(a.website)) ? str(a.website) : undefined;
+  const area = [str(a.suburb), city].filter(Boolean).join(", ");
+  return {
+    externalId: l.id,
+    title: name,
+    company: name,
+    location: city ?? "India",
+    city,
+    description: `${CRAFT_CATEGORY[craft]}${area ? ` in ${area}` : ""}. Listed on OpenStreetMap.`,
+    tags: proTags({ craft, ...(city ? { city } : {}), ...(web ? { web } : {}) }),
+    postedAt: null,
+    // Where OpenStreetMap lists it; the business's own website (tagged by its mappers) is carried as a fact.
+    applyUrl: l.canonicalUrl,
+    employerSite: false,
+  };
+}
+
+/**
+ * OpenStreetMap businesses for a client's words and places, read from what the data gateway already collected (weekly,
+ * bounded, with an identifying User-Agent). Nothing here calls Overpass. The trade comes from the client's words; the
+ * place is the nearest city of each business, so a business with no address still answers "Pune".
+ */
+export async function fetchOsmBusinesses(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
+  const crafts = craftsFor(c.query);
+  const places = c.locations.map((p) => p.trim().toLowerCase()).filter(Boolean);
+  const out: Job[] = [];
+  const seen = new Set<string>();
+  // The gateway answers a hundred at a time; a few pages cover a trade across the cities collected.
+  for (const craft of crafts.length ? crafts : [""]) {
+    for (let offset = 0; offset < 500; offset += 100) {
+      const g = await gatewayListings("services", { query: craft || c.query, limit: 100, offset });
+      if (!g.configured) throw needsSetup("OpenStreetMap businesses come from the data gateway, which isn't set up on this deployment.");
+      for (const l of g.results) {
+        if (l.sourceName !== OSM_GATEWAY_NAME) continue;
+        const raw = rawFromOsm(l);
+        if (!raw || seen.has(raw.externalId)) continue;
+        if (places.length && !(raw.city && places.some((p) => raw.city!.toLowerCase().includes(p) || p.includes(raw.city!.toLowerCase())))) continue;
+        seen.add(raw.externalId);
+        out.push(normalizePosting(OPENSTREETMAP, raw));
+      }
+      if (g.results.length < 100) break;
+    }
+  }
+  return out;
+}
+
 /**
  * Fetch one Talent & Services source. Under the E2E fixture only the WonderWorks pros source is real (the test's own
  * listings); outside sources answer nothing.
  */
-export async function runServicesSource(s: SourceRecord, c: SearchCriteria): Promise<{ jobs: Job[]; warnings: string[] }> {
+export async function runServicesSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (fixtureJobsOn() && s.id !== WONDERSTAR_SERVICES) return { jobs: [], warnings: [] };
   switch (s.id) {
     case WONDERSTAR_SERVICES: {
@@ -144,6 +221,8 @@ export async function runServicesSource(s: SourceRecord, c: SearchCriteria): Pro
     }
     case FREELANCER_EXPERTS:
       return { jobs: await fetchFreelancerExperts(c), warnings: [] };
+    case OPENSTREETMAP:
+      return { jobs: await fetchOsmBusinesses(c, needsSetup), warnings: [] };
     default:
       throw new Error("No connector");
   }

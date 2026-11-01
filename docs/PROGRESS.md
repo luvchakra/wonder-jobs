@@ -24,3 +24,14 @@
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
 - ✅ Teaching: two paused crawl sources, EdJoin and TeachAway, waiting on the owner's terms check (WJ-561)
 - ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
+- ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)
+- ✅ Jobs: job cards say "via WWDG" for the WorksLake Data Gateway, with the full name on hover (WJ-542)
+- ✅ Jobs: Part Time with an empty search box shows the latest part-time jobs instead of asking for words (WJ-543)
+- ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
+- ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page
+- ✅ WorksLake gateway: the crawler reads event pages (dates, online, cancelled), only the pages a source wants, and a sitemap listed in the site's robots.txt; KonfHub and Linux Foundation Events ready to add from the catalogue (WJ-502)
+- ✅ Scholarships & Projects: Unstop, Devpost hackathons and EU fellowships as live sources, Kaggle as Needs setup (WJ-524)
+- ✅ Admin: Setup to-do lists every source that needs a key or setup, by need and module; sources show the module and data type they fetch (WJ-503)
+- ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
+- ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
+- ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)

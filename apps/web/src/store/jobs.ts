@@ -1,5 +1,6 @@
 "use client";
 import { create } from "zustand";
+import { wordsQuery } from "@/domain/jobs/latest";
 import { persist } from "zustand/middleware";
 import { createRemoteStorage } from "./remoteStorage";
 import { bestIds, lastEntries, memoOnInputs, pick, readHistory as readHistoryOf, recentEntries, remembered, shortened, trimAside as trimAsideOf } from "@/wonderworks/catalog";
@@ -197,7 +198,7 @@ export const useJobsStore = create<JobsState>()(
         const { jobs, order, loaded, aiFits } = get();
         if (!loaded) return;
         const { dna, learnedSignals } = useCareerStore.getState();
-        const searchQuery = get().searchedFor || undefined;
+        const searchQuery = wordsQuery(get().searchedFor);
         const profile = profileKey(dna);
         const matches: Record<string, JobMatch> = {};
         const scope = matchScope(get().filters, dna);
@@ -208,7 +209,7 @@ export const useJobsStore = create<JobsState>()(
         const { jobs, matches, aiFits } = get();
         if (!jobs[id] || matches[id]) return;
         const { dna, learnedSignals } = useCareerStore.getState();
-        const m = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery: get().searchedFor || undefined, ...matchScope(get().filters, dna) }), aiFits[id], profileKey(dna));
+        const m = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery: wordsQuery(get().searchedFor), ...matchScope(get().filters, dna) }), aiFits[id], profileKey(dna));
         set((s) => ({ matches: { ...s.matches, [id]: m } }));
       },
       replaceCatalog: (list, searchedFor = "") =>

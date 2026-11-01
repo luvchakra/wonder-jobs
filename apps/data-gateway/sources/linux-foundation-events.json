@@ -1,0 +1,20 @@
+{
+  "url": "https://events.linuxfoundation.org/sitemap.xml",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "pathPattern": "/*/",
+  "modules": ["events"],
+  "permission": "terms_permit",
+  "permissionEvidence": "events.linuxfoundation.org/robots.txt (read 2026-11-01) allows every path but /wp/wp-admin/, lists this sitemap and signals search=yes, ai-input=yes, ai-train=no (nothing here trains a model); each event's own page (one path segment deep) publishes schema.org Event JSON-LD. Terms pending: the owner confirms before activating.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "robotsReviewed": true,
+  "attribution": "Linux Foundation Events",
+  "organizationOptional": true,
+  "dropPastAfter": "endDate",
+  "maxPagesPerRun": 40,
+  "crawlDelayMs": 1000,
+  "retentionHours": 720,
+  "minIntervalMinutes": 360
+}

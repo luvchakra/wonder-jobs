@@ -115,6 +115,13 @@ export function validateSource(source) {
   if (source.kind === "crawl") {
     if (!["sitemap", "links"].includes(source.discover)) throw new ApiError(400, "INVALID_REQUEST", "A crawl needs discover: sitemap or links");
     if (source.pathPrefix !== undefined && (typeof source.pathPrefix !== "string" || !source.pathPrefix.startsWith("/") || source.pathPrefix.length > 200)) throw new ApiError(400, "INVALID_REQUEST", "pathPrefix must be a path starting with /");
+    if (source.pathPattern !== undefined && (typeof source.pathPattern !== "string" || !source.pathPattern.startsWith("/") || source.pathPattern.length > 200)) throw new ApiError(400, "INVALID_REQUEST", "pathPattern must be a path pattern starting with /");
+    if (source.sitemap !== undefined) {
+      let sm;
+      try { sm = new URL(source.sitemap); } catch { throw new ApiError(400, "INVALID_REQUEST", "sitemap must be a public HTTPS URL"); }
+      if (sm.protocol !== "https:" || sm.port || sm.username || sm.password || !/^[a-z0-9.-]+$/i.test(sm.hostname)) throw new ApiError(400, "INVALID_REQUEST", "sitemap must be a public HTTPS URL");
+      if (source.discover !== "sitemap") throw new ApiError(400, "INVALID_REQUEST", "A sitemap URL needs discover: sitemap");
+    }
     const pages = Number(source.maxPagesPerRun ?? 20);
     if (!Number.isInteger(pages) || pages < 1 || pages > 50) throw new ApiError(400, "INVALID_REQUEST", "maxPagesPerRun must be 1-50");
     const delay = Number(source.crawlDelayMs ?? 1000);
@@ -139,7 +146,7 @@ export function validateSource(source) {
       if (x.protocol !== "https:" || x.hostname !== url.hostname || x.username || x.password || x.port) throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be HTTPS on the source's own host");
     }
   }
-  if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !source.mapping?.["attr." + source.dropPastAfter])) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
+  if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !(source.mapping?.["attr." + source.dropPastAfter] || ((source.kind === "crawl" || source.kind === "structured") && ["startDate", "endDate"].includes(source.dropPastAfter))))) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
   if (source.mapping && Object.values(source.mapping).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
   if (source.requestDelayMs !== undefined && (!Number.isInteger(source.requestDelayMs) || source.requestDelayMs < 250 || source.requestDelayMs > 5000)) throw new ApiError(400, "INVALID_REQUEST", "requestDelayMs must be 250-5000");
   // A partner's own list needs its written permission, not just open terms; it is kept until the partner sends a new one.
@@ -148,7 +155,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -167,9 +174,18 @@ export function plainText(value) {
  * A source's extra fields (mapping keys `attr.<name>`, e.g. `attr.startDate` for an event), kept as they are stated:
  * text cut to 300 characters, numbers and true/false as they are. Nothing is derived or guessed.
  */
-function attributesOf(source, value) {
+function attributesOf(source, value, raw) {
   const out = {};
-  if (source.kind !== "json_api" || !source.mapping) return out;
+  // A page's structured data (an Event's dates and state, read by parseStructured): the same names, the same limits.
+  if (source.kind !== "json_api") {
+    const given = raw && typeof raw.attributes === "object" && !Array.isArray(raw.attributes) ? raw.attributes : {};
+    for (const [key, v] of Object.entries(given).slice(0, 20)) {
+      if (!/^[A-Za-z][\w]{0,40}$/.test(key) || !["string", "number", "boolean"].includes(typeof v)) continue;
+      out[key] = typeof v === "string" ? plainText(v).slice(0, 300) : v;
+    }
+    return out;
+  }
+  if (!source.mapping) return out;
   for (const [key, path] of Object.entries(source.mapping)) {
     if (!key.startsWith("attr.")) continue;
     const v = value(path);
@@ -232,7 +248,7 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const orgUrl = String(field("organizationUrl") ?? "").trim();
   const domainOf = (u) => { try { const h = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.toLowerCase().replace(/^www\./, ""); return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) ? h : ""; } catch { return ""; } };
   const organizationDomain = domainOf(orgUrl) || (source.organizationOptional ? domainOf(parsed.toString()) : "");
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: attributesOf(source, value), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: attributesOf(source, value, raw), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");

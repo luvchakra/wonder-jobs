@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { resolveCapability } from "@/domain/automation/policy";
-import { TRANSLATE_LANGUAGES, textsToTranslate, translationKey, type JobTexts, type TranslateLanguageId } from "@/domain/jobs/translate";
+import { TRANSLATE_LANGUAGES, textsToTranslate, translationKey, type JobTexts, type TranslateLanguageId } from "@/domain/translate/translate";
 import { useAutomationStore } from "@/store/automation";
 import { useAIService } from "@/lib/useAIService";
 
@@ -20,7 +20,7 @@ export type TranslationState = { language: TranslateLanguageId; status: "loading
  * `pick(null)` goes back to the original. A reply that arrives after another pick is dropped. `state` is null while
  * the original is showing.
  */
-export function useJobTranslation(job: { id: string } & JobTexts) {
+export function useListingTranslation(job: { id: string } & JobTexts) {
   const policy = useAutomationStore((s) => s.policy);
   const level = useAutomationStore((s) => s.defaultLevel);
   const service = useAIService();
@@ -54,3 +54,6 @@ export function useJobTranslation(job: { id: string } & JobTexts) {
   };
   return { allowed, state, pick };
 }
+
+/** Jobs' name for the same hook. */
+export const useJobTranslation = useListingTranslation;

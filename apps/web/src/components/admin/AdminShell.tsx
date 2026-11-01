@@ -54,6 +54,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
     label: "Sources",
     icon: Database,
     links: [
+      { href: `${LAKE}/setup`, label: "Setup to-do" },
       { href: `${LAKE}/sources`, label: "All sources" },
       { href: `${LAKE}/add`, label: "Add a source" },
       { href: `${LAKE}/gateway`, label: "Partners & gateway" },
@@ -129,6 +130,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
     links: [
       { href: `${LAKE}/menus`, label: "App menus" },
       { href: `${LAKE}/notifications`, label: "Notifications" },
+      { href: `${LAKE}/keys`, label: "API keys" },
       { href: `${LAKE}/settings`, label: "Feature switches" },
       { href: `${LAKE}/protocols`, label: "WorksLake protocol" },
     ],

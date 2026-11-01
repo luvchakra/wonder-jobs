@@ -60,9 +60,16 @@ export async function readCredential(ref: string | undefined): Promise<string | 
   return c ? decrypt(c.ciphertext) : undefined;
 }
 
-export async function credentialStatus(ref: string | undefined, envVars: Record<string, string | undefined> = process.env): Promise<CredentialStatus | null> {
+export async function credentialStatus(ref: string | undefined, envVars?: Record<string, string | undefined>): Promise<CredentialStatus | null> {
   if (!ref) return null;
-  const env = ENV_REFS[ref];
+  // A key the admin set on the platform counts as set, like the deployment's own variable.
+  if (!envVars) {
+    const { loadPlatformKeys, platformKey, PLATFORM_KEYS } = await import("./platformKeys");
+    await loadPlatformKeys();
+    envVars = { ...process.env, ...Object.fromEntries(PLATFORM_KEYS.map((k) => [k.name, platformKey(k.name)])) };
+  }
+  // Any other "env:NAME" is one variable of that name (Ticketmaster's, The Muse's).
+  const env = ENV_REFS[ref] ?? (/^env:[A-Z][A-Z0-9_]{2,63}$/.test(ref) ? { present: (e: Record<string, string | undefined>) => !!e[ref.slice(4)], label: () => ref.slice(4) } : undefined);
   if (env) {
     const present = env.present(envVars);
     return { ref, masked: present ? `Set in the deployment (${env.label(envVars)})` : `Not set (${env.label(envVars)})`, managedBy: "environment", present };
