@@ -1,6 +1,7 @@
 "use client";
 import { memo } from "react";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { Badge } from "@/components/common/Badge";
@@ -26,22 +27,31 @@ export const FIT: Record<Exclude<TherapistMatch["fit"], "unknown">, { top: strin
  * One practitioner in the results, on the card Jobs' Find uses (wonderworks/find/parts.tsx): the logo with whether they
  * fit your preferences; the headline; practitioner · place · how they meet · fee; focus areas; what they wrote about
  * themselves, labelled as theirs; where it was found, and Save. No rating and no "verified" mark: neither exists yet.
+ * A practice an open-data source maps (OpenStreetMap) shows only what the map has, with its credit, and links out to the
+ * practice's own page: it can't be booked here and has no public share page.
  */
 export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { item: TherapistListing; onOpen: (id: string) => void }) {
   const saved = useTherapistsStore((s) => !!s.saved[l.id]);
   const toggle = useTherapistsStore((s) => s.toggleSaved);
   const requested = useTherapistsStore((s) => isOpen(s, l.id));
+  const outside = l.origin === "outside";
   const m = useMatch(l);
   const fit = m.fit === "unknown" ? null : FIT[m.fit];
   const t = l.terms;
   return (
     <ResultCard
-      share={shareOf(l)}
+      share={outside ? null : shareOf(l)}
       aside={
         <>
           <CompanyLogo name={l.company} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
-          {!requested && (
+          {outside && l.applyUrl && (
+            <a href={l.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.company}'s page on ${l.sourceName} (opens in a new tab)`} title={`Open their page on ${l.sourceName}`} className={APPLY_BTN}>
+              View
+              <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
+            </a>
+          )}
+          {!outside && !requested && (
             <Link href={`${listingHref(l.id)}?book=1`} onClick={() => onOpen(l.id)} aria-label={`Request a session with ${l.company}`} title="Request a session" className={APPLY_BTN}>
               Book
             </Link>
@@ -59,18 +69,20 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
         </span>,
         t.modes?.includes("in_person") && <span key="p" title={l.location}>{shortPlace(l.location)}</span>,
         modesLabel(t.modes) && <span key="m">{modesLabel(t.modes)}</span>,
-        <span key="$" className="font-medium text-ink-2">
-          {feeLabel(t)}
-        </span>,
+        !outside && (
+          <span key="$" className="font-medium text-ink-2">
+            {feeLabel(t)}
+          </span>
+        ),
         lengthLabel(t.sessionMinutes) && <span key="len">{lengthLabel(t.sessionMinutes)}</span>,
         t.languages?.length && <span key="lang">{t.languages.slice(0, 3).join(", ")}</span>,
       ]}
       tags={(t.focus ?? []).slice(0, 3)}
       reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
       summary={l.description.slice(0, 240)}
-      summaryTitle="In their words"
-      status={requested && <Badge tone="brand">Session requested</Badge>}
-      footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
+      summaryTitle={outside ? "From OpenStreetMap" : "In their words"}
+      status={!outside && requested && <Badge tone="brand">Session requested</Badge>}
+      footnote={`via ${l.sourceName}${l.attribution ? ` · ${l.attribution}` : ""}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="practitioner" />}
     />
   );

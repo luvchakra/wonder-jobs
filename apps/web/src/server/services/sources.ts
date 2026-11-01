@@ -19,7 +19,8 @@ import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
 import { CRAFT_CATEGORY, craftsFor, proTags } from "@/modules/services/domain";
-import { nearestCity } from "@/modules/services/cities";
+import { nearestCity } from "@/wonderworks/find/cities";
+import { OSM_GATEWAY_NAME } from "@/wonderworks/find/osm";
 import { gatewayListings } from "@/server/gateway/listings";
 import type { GatewayListing } from "../../../../data-gateway/src/core.mjs";
 
@@ -33,8 +34,7 @@ function source(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" | 
 export const WONDERSTAR_SERVICES = "svc_wonderstar";
 export const FREELANCER_EXPERTS = "svc_freelancer";
 export const OPENSTREETMAP = "svc_osm";
-/** The name the gateway's OpenStreetMap sources carry (their `attribution`): how this source recognises its own listings. */
-export const OSM_GATEWAY_NAME = "OpenStreetMap contributors (ODbL)";
+export { OSM_GATEWAY_NAME };
 
 export const SERVICES_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_SERVICES, name: "WonderWorks pros", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Services pros post on WonderWorks: local, visit-based work and remote projects." }),

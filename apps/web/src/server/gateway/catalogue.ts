@@ -7,6 +7,10 @@ import osmServicesEast from "../../../../data-gateway/sources/osm-services-east.
 import osmServicesNorth from "../../../../data-gateway/sources/osm-services-north.json";
 import osmServicesSouth from "../../../../data-gateway/sources/osm-services-south.json";
 import osmServicesWest from "../../../../data-gateway/sources/osm-services-west.json";
+import osmTherapistsEast from "../../../../data-gateway/sources/osm-therapists-east.json";
+import osmTherapistsNorth from "../../../../data-gateway/sources/osm-therapists-north.json";
+import osmTherapistsSouth from "../../../../data-gateway/sources/osm-therapists-south.json";
+import osmTherapistsWest from "../../../../data-gateway/sources/osm-therapists-west.json";
 import teachaway from "../../../../data-gateway/sources/teachaway-international.json";
 import ukTeachingVacancies from "../../../../data-gateway/sources/uk-teaching-vacancies.json";
 import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.json";
@@ -26,6 +30,10 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "osm-services-north.json": osmServicesNorth as Record<string, unknown>,
   "osm-services-south.json": osmServicesSouth as Record<string, unknown>,
   "osm-services-west.json": osmServicesWest as Record<string, unknown>,
+  "osm-therapists-east.json": osmTherapistsEast as Record<string, unknown>,
+  "osm-therapists-north.json": osmTherapistsNorth as Record<string, unknown>,
+  "osm-therapists-south.json": osmTherapistsSouth as Record<string, unknown>,
+  "osm-therapists-west.json": osmTherapistsWest as Record<string, unknown>,
   "teachaway-international.json": teachaway as Record<string, unknown>,
   "uk-teaching-vacancies.json": ukTeachingVacancies as Record<string, unknown>,
   "we-work-remotely.json": weWorkRemotely as Record<string, unknown>,
