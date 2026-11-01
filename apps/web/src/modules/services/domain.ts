@@ -20,7 +20,7 @@ export type Lane = "local" | "remote";
 export const LANE_LABEL: Record<Lane, string> = { local: "At your place", remote: "Remote project" };
 
 /** The home-service trades people book by visit. */
-export const LOCAL_TRADES = ["AC service & repair", "Plumbing", "Electrician", "Home cleaning", "Carpentry", "Painting", "Appliance repair", "Pest control"] as const;
+export const LOCAL_TRADES = ["AC service & repair", "Plumbing", "Electrician", "Home cleaning", "Carpentry", "Painting", "Appliance repair", "Pest control", "Design, build & renovation"] as const;
 /** The kinds of remote project work. */
 export const REMOTE_FIELDS = ["Design", "Development", "Writing", "Marketing", "Video", "Data", "Translation", "Accounting & tax"] as const;
 export const CATEGORIES = [...LOCAL_TRADES, ...REMOTE_FIELDS] as const;
@@ -104,6 +104,20 @@ export interface ProFacts {
   craft?: string;
   city?: string;
   web?: string;
+  /** A business listed on Houzz: one of this module's own categories, read from the profile's path. */
+  cat?: string;
+}
+
+/**
+ * Houzz's professional categories that are service businesses (a client hires them for work at their home), all one
+ * trade here: "Design, build & renovation". Its photographers and its furniture and bedding shops are not.
+ */
+export const HOUZZ_CATEGORIES = ["interior-designers-and-decorators", "architects-and-building-designers", "architects", "design-build-firms", "civil-engineers-and-contractors", "construction", "specialty-contractors", "kitchen-and-bath-designers", "flooring-and-carpet", "tile-stone-and-countertops", "landscape-architects-and-contractors"] as const;
+
+/** A Houzz profile's category, from its own address (https://www.houzz.in/professionals/<category>/<name>-pf~<id>). */
+export function houzzCategoryOf(url: string): Category | undefined {
+  const m = /^https:\/\/www\.houzz\.in\/professionals\/([a-z-]+)\/[^/?#]+-pf~\d+/.exec(url);
+  return m && (HOUZZ_CATEGORIES as readonly string[]).includes(m[1]) ? "Design, build & renovation" : undefined;
 }
 
 /** The trades OpenStreetMap's `craft` tag names that this module offers, as this module's own services. */
@@ -135,6 +149,7 @@ export function proTags(f: ProFacts): string[] {
     ...(f.onTimePct !== undefined ? [`ontime:${f.onTimePct}`] : []),
     ...(f.country ? [`country:${f.country}`] : []),
     ...(f.craft ? [`craft:${f.craft}`] : []),
+    ...(f.cat ? [`cat:${f.cat}`] : []),
     ...(f.city ? [`city:${f.city}`] : []),
     ...(f.web ? [`web:${f.web}`] : []),
   ];
@@ -162,6 +177,7 @@ export function readProTags(tags: string[]): ProFacts {
     else if (k === "ontime") out.onTimePct = num(v);
     else if (k === "country" && v) out.country = v;
     else if (k === "craft" && v) out.craft = v;
+    else if (k === "cat" && v) out.cat = v;
     else if (k === "city" && v) out.city = v;
     else if (k === "web" && v) out.web = v;
   }
@@ -194,6 +210,19 @@ export function termsFromPro(f: ProFacts): ServiceTerms {
   if (f.craft) {
     const trade = CRAFT_CATEGORY[f.craft];
     return { lane: "local", currency: "INR", ...(trade ? { category: trade } : {}), ...(f.city ? { areas: [f.city] } : {}) };
+  }
+  // A business listed on Houzz: work at the client's place, in its city, with the rating and review count Houzz shows and the
+  // services it lists. No price, warranty or contact is stated, so none is shown.
+  if (f.cat && (CATEGORIES as readonly string[]).includes(f.cat)) {
+    return {
+      lane: "local",
+      currency: "INR",
+      category: f.cat as Category,
+      ...(f.city ? { areas: [f.city] } : {}),
+      ...(f.skills?.length ? { skills: f.skills.slice(0, 8) } : {}),
+      ...(f.rating !== undefined ? { rating: f.rating } : {}),
+      ...(f.reviews !== undefined ? { reviews: f.reviews } : {}),
+    };
   }
   const category = f.skills ? fieldFromSkills(f.skills) : undefined;
   return {
