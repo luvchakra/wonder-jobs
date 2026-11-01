@@ -105,6 +105,12 @@ describe("an outside event, as its source states it", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "2026-10-30 10:00:00+05:30", timezone: "Asia/Kolkata" } }), "2026-10-01")!.outside).toMatchObject({ startDate: "2026-10-30" });
   });
 
+  it("reads a schema.org event status: cancelled and postponed are left out, scheduled and rescheduled are shown", () => {
+    const at = (eventStatus: string) => toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", eventStatus } }), TODAY);
+    for (const s of ["EventCancelled", "EventPostponed", "https://schema.org/EventCancelled"]) expect(at(s)).toBeNull();
+    for (const s of ["EventScheduled", "EventRescheduled", ""]) expect(at(s)).not.toBeNull();
+  });
+
   it("leaves out a postponed event: its date is no longer firm", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: true } }), TODAY)).toBeNull();
     expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: false } }), TODAY)).not.toBeNull();

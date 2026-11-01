@@ -47,3 +47,4 @@
 - ✅ WorksLake gateway: a source can state its time zone, kept on every record (WJ-508)
 - ✅ Admin: Setup to-do lists every data-source decision waiting on the owner, with Done (WJ-509)
 - ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable (WJ-580)
+- ✅ Events: Helsinki Linked Events (open data) in the gateway catalogue; a source's cancelled or postponed status is honoured (WJ-573)
