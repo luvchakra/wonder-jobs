@@ -34,7 +34,7 @@ export function completedRunNotice(run: WorkflowRun, away: boolean): RunNotice |
 export function failedRunNotice(run: WorkflowRun, message: string, away: boolean): RunNotice | null {
   if (foundNothing(run)) {
     const tell = run.trigger === "schedule" ? run.config.notify === "always" && !run.silent : away;
-    return tell ? { category: "workflow_completed", title: `Nothing found for “${run.config.searchCriteria.query}”`, body: "No source listed a matching job. Try other words, or fewer of them.", href: `/app/runs/${run.id}` } : null;
+    return tell ? { category: "workflow_completed", title: run.config.searchCriteria.query.trim() ? `Nothing found for “${run.config.searchCriteria.query}”` : "No latest jobs found", body: "No source listed a matching job. Try other words, or fewer of them.", href: `/app/runs/${run.id}` } : null;
   }
   return { category: run.error?.source && run.error.source !== "wonderjobs" ? "provider_issue" : "scheduled_run_failed", title: "Run needs attention", body: message, href: `/app/runs/${run.id}` };
 }

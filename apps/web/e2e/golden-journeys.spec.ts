@@ -467,7 +467,7 @@ test.describe("Golden journey — search", () => {
     // The menu sits in the top bar.
     await expect(page.locator("header[data-top-bar]").getByRole("button", { name: /^Kind of jobs/ })).toBeVisible();
 
-    // Full Time: Looking for with Change, then Refine · Work mode · Salary and the round search; no search box.
+    // Full Time: Looking for with Change, then Refine · Location · Salary and the round search; no search box.
     // The views and job types are in Refine, not on the page.
     const main = page.locator("#main");
     await expect(main.getByText(/^Looking for/)).toBeVisible();
@@ -489,20 +489,20 @@ test.describe("Golden journey — search", () => {
     await expect(main.getByRole("button", { name: "Save", exact: true })).toBeVisible();
     await expect(main.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
     await main.getByRole("button", { name: "Save", exact: true }).click();
-    // Work mode and Salary open Refine at their own section; what's picked there shows on the pill.
-    await main.getByRole("button", { name: "Work mode: All modes" }).click();
-    await expect(main.getByRole("group", { name: "Work mode" })).toBeFocused();
-    await main.getByRole("group", { name: "Work mode" }).getByRole("button", { name: "Remote", exact: true }).click();
+    // Location and Salary open Refine at their own section; what's picked there shows on the pill.
+    // Work mode stays in Refine, not on the row.
+    await expect(main.getByRole("button", { name: /^Work mode:/ })).toHaveCount(0);
+    await main.getByRole("button", { name: /^Location: / }).click();
+    await expect(main.getByRole("group", { name: "Location" })).toBeFocused();
+    await expect(main.getByRole("group", { name: "Work mode" })).toBeVisible();
     await main.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(main.getByRole("button", { name: "Work mode: Remote" })).toBeVisible();
     await main.getByRole("button", { name: "Salary: Any salary" }).click();
     await expect(main.getByRole("group", { name: "Salary" })).toBeFocused();
     await main.getByRole("group", { name: "Salary" }).getByRole("button", { name: "₹20L+", exact: true }).click();
     await main.getByRole("button", { name: "Save", exact: true }).click();
     await expect(main.getByRole("button", { name: "Salary: ₹20L+" })).toBeVisible();
     // Back as they were, so the list below is the whole one.
-    await main.getByRole("button", { name: "Work mode: Remote" }).click();
-    await main.getByRole("group", { name: "Work mode" }).getByRole("button", { name: "Remote", exact: true }).click();
+    await main.getByRole("button", { name: "Salary: ₹20L+" }).click();
     await main.getByRole("group", { name: "Salary" }).getByRole("button", { name: "Any", exact: true }).click();
     await main.getByRole("button", { name: "Save", exact: true }).click();
     // Opening Refine at a section scrolled to it: back to the top, where the top bar is.
