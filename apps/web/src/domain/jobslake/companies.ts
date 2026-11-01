@@ -29,8 +29,18 @@ export function cleanDomain(raw: string | undefined | null): string | undefined 
  * logo and merge every employer posting there into one company).
  */
 export function companyDomain(raw: string | undefined | null): string | undefined {
+  const d = organisationDomain(raw);
+  return d && !RESERVED.test(d) ? d : undefined;
+}
+
+/**
+ * A domain that can be an organisation's own: cleaned, never a job board's or hiring platform's, never a bare suffix
+ * (gov.uk, co.uk). Unlike `companyDomain`, test names (`.example`) pass, so a listing keeps what its source said; the
+ * company directory and logos use `companyDomain`, which refuses those too.
+ */
+export function organisationDomain(raw: string | undefined | null): string | undefined {
   const d = cleanDomain(raw);
-  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) && !RESERVED.test(d) && !isPublicSuffix(d) ? d : undefined;
+  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) && !isPublicSuffix(d) ? d : undefined;
 }
 
 /** Names that are never a real organisation's (RFC 2606/6761): test data such as `wonderhome.example`. */

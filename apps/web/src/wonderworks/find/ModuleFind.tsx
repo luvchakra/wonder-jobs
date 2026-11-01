@@ -72,7 +72,12 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   // Persisted values exist only in the browser: read them after mount, so the first render matches the server's.
   const mounted = useSyncExternalStore(noop, () => true, () => false);
   const [typed, setTyped] = useState<string | null>(null);
-  const draft = typed ?? (mounted ? (recent[0] ?? startWords ?? "") : "");
+  // The last search, as stored: opening Find shows it again and searches nothing.
+  const stored = useStore(store, (s) => s.lastRun);
+  const run = mounted ? (stored as FindRun<L> | null) : null;
+  // The box shows the words the shown results were searched for: empty after a search without words (cleared with ×),
+  // so a reload never brings back an older search. Before any search, the module's starting words (or the last ones).
+  const draft = typed ?? (mounted ? (run ? run.searched.query : (recent[0] ?? startWords ?? "")) : "");
   const [boxFocused, setBoxFocused] = useState(false);
   const dictation = useDictation({ textAtStart: () => draft, onText: setTyped });
   const [places, setPlaces] = useState<string[]>([]);
@@ -80,9 +85,6 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const [values, setValues] = useState<FacetValues>({});
   const [editing, setEditing] = useState<FacetValues>({});
   const [sort, setSort] = useState(Object.keys(sorts)[0]);
-  // The last search, as stored: opening Find shows it again and searches nothing.
-  const stored = useStore(store, (s) => s.lastRun);
-  const run = mounted ? (stored as FindRun<L> | null) : null;
   const [busy, setBusy] = useState<{ query: string; places: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE);

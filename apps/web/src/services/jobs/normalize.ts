@@ -8,7 +8,7 @@ import { stripHeadlineLabel, stripSelfReference } from "@/wonderworks/you/headli
 import { resolveJobType } from "@/domain/jobs/jobType";
 import type { Job, WorkMode } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
-import { companyDomain, employerDomainOf } from "@/domain/jobslake/companies";
+import { employerDomainOf, organisationDomain } from "@/domain/jobslake/companies";
 
 export interface RawPosting {
   externalId: string;
@@ -273,7 +273,7 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     company: raw.company.trim() || (raw.kind === "event" ? "" : "Unknown company"),
     // A domain the source reported, else the employer's own site the apply link is on — never guessed from the name.
     // A source's domain only when it's an organisation's own (never a job board's or a bare suffix such as gov.uk).
-    companyDomain: companyDomain(raw.companyDomain) ?? employerDomainOf(raw.applyUrl, raw.employerSite),
+    companyDomain: organisationDomain(raw.companyDomain) ?? employerDomainOf(raw.applyUrl, raw.employerSite),
     location,
     country,
     workMode,
