@@ -9,7 +9,8 @@ import { siteUrl } from "@/lib/siteUrl";
 export const metadata: Metadata = { title: "WorksLake API reference", description: "Search live job sources from your own code: API keys, endpoints, request and response fields, streaming events, MCP tools, limits and errors." };
 
 /** Re-read every few minutes: the free allowance and the sources a key reaches are set in billing admin. */
-export const revalidate = 300;
+// Regenerated at most this often: each regeneration is server CPU and an ISR write (owner, 2026-11-01: cut Vercel usage).
+export const revalidate = 3600;
 
 const Code = ({ children }: { children: string }) => <pre className="mt-3 overflow-x-auto rounded-[12px] bg-[#0e1030] p-4 text-[12.5px] leading-relaxed text-white/90">{children}</pre>;
 const Table = ({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) => (

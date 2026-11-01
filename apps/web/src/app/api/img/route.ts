@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     if (r.status !== 200 || !IMAGE_TYPES.has(type)) return new NextResponse(null, { status: 404, headers: NONE });
     return new NextResponse(new Uint8Array(r.bytes), {
       status: 200,
-      headers: { "content-type": type, "cache-control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'" },
+      headers: { "content-type": type, "cache-control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=2592000", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'" },
     });
   } catch {
     return new NextResponse(null, { status: 404, headers: NONE });

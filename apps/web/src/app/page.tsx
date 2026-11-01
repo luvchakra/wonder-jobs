@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 /** Prices come from the billing configuration; re-read every few minutes. */
-export const revalidate = 300;
+// Regenerated at most this often: each regeneration is server CPU and an ISR write (owner, 2026-11-01: cut Vercel usage).
+export const revalidate = 3600;
 
 /** Page one of two: what WonderWorks is, the eight kinds, how a search becomes an application, the price. Page two is /features. */
 export default async function LandingPage() {

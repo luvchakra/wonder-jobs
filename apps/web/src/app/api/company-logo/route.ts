@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     headers: {
       "content-type": logo.type,
       // A day in the browser and the CDN, then served stale while it's checked: a logo an admin replaces shows the next day.
-      "cache-control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800",
+      "cache-control": "public, max-age=604800, s-maxage=2592000, stale-while-revalidate=2592000",
       // An image, never a document: no sniffing, nothing runs if it's opened directly.
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'; sandbox",
