@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { useHydration } from "@/store/hydration";
-import { cleanDomain, companyKey } from "@/domain/jobslake/companies";
+import { companyDomain, companyKey } from "@/domain/jobslake/companies";
 
 /**
  * Company logos, for every WonderWorks module (owner, 2026-11-01): an employer, a school, an event's organiser or the
@@ -19,7 +19,8 @@ const LOGO_VERSION = 3;
  * there's nothing to ask by.
  */
 export function companyLogoSrc(q: { name?: string; domain?: string; website?: string }): string | null {
-  const domain = cleanDomain(q.domain) ?? cleanDomain(q.website);
+  // Never a job board's, a shared host's or a bare suffix (gov.uk): those would give every listing the same logo.
+  const domain = companyDomain(q.domain) ?? companyDomain(q.website);
   if (domain) return `/api/company-logo?d=${encodeURIComponent(domain)}&v=${LOGO_VERSION}`;
   const key = companyKey(q.name ?? "");
   return key ? `/api/company-logo?n=${encodeURIComponent(key)}&v=${LOGO_VERSION}` : null;

@@ -162,3 +162,18 @@ describe("banning a company", () => {
     expect(companiesFrom([opp("wj-e2e Hiring", "wonderhome.example", "https://wonderhome.example/x")])).toEqual([]);
   });
 });
+
+describe("schools listed on a government job board", () => {
+  it("never take the board's or a suffix's domain, so they don't all share gov.uk's crown", async () => {
+    const { companyDomain, employerDomainOf } = await import("@/domain/jobslake/companies");
+    const { companyLogoSrc } = await import("@/wonderworks/brand/CompanyLogo");
+    // The apply link is Teaching Vacancies, not the school's site.
+    expect(employerDomainOf("https://teaching-vacancies.service.gov.uk/jobs/maths-teacher-4d31", true)).toBeUndefined();
+    for (const d of ["gov.uk", "co.uk", "edu.in", "service.gov.uk", "civilservicejobs.service.gov.uk"]) expect(companyDomain(d)).toBeUndefined();
+    expect(companyDomain("outwood.com")).toBe("outwood.com");
+    expect(companyDomain("www.hmrc.gov.uk")).toBe("hmrc.gov.uk");
+    // A card already stored with gov.uk asks by the school's name instead.
+    expect(companyLogoSrc({ name: "Outwood Academy Hemsworth", domain: "gov.uk" })).toContain("?n=");
+    expect(companiesFrom([opp("Outwood Academy Ormesby", "gov.uk", "https://teaching-vacancies.service.gov.uk/jobs/1")])).toEqual([]);
+  });
+});
