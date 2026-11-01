@@ -1,7 +1,7 @@
 "use client";
 import { CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/common/Card";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { cn } from "@/lib/cn";
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { companyLines, type CompanyProfile } from "@/domain/jobslake/companies";
 import { getClientMode } from "@/lib/mode";
 import { Fold } from "@/components/common/Fold";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { RatingStars } from "./RatingStars";
 
 /**

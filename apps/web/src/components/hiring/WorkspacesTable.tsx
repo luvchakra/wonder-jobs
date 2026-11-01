@@ -3,7 +3,7 @@ import { BadgeCheck, Briefcase, ChevronRight, Inbox, MoreHorizontal, Pencil, Tra
 import { can } from "@/domain/org/permissions";
 import { ORG_ROLE_LABEL } from "@/domain/org/types";
 import type { Workspace } from "@/services/hiring/client";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 
 const domainOf = (website?: string | null) => website?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || undefined;
 

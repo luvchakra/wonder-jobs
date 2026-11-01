@@ -11,7 +11,7 @@ import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { Fold } from "@/components/common/Fold";
 import { Modal } from "@/components/common/Modal";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 
 /** The posting as its source published it — what the public page needs, nothing from any account. */
 export type SharedJob = Pick<CanonicalJob, "id" | "title" | "company" | "companyDomain" | "location" | "workMode" | "salaryMin" | "salaryMax" | "currency" | "jobType" | "jobTypeFrom" | "postedAt" | "description" | "requirements" | "niceToHave" | "skills" | "industry" | "applyUrl"> & { sources: string[] };

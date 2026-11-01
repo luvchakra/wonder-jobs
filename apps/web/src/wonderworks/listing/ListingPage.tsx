@@ -1,6 +1,6 @@
 "use client";
 import { Card } from "@/components/common/Card";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { ListingShare, type ListingShareProps } from "./ShareButton";
 import { cn } from "@/lib/cn";
