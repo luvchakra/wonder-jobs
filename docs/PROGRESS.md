@@ -37,6 +37,7 @@
 - ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
 - ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
 - ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)
+- ✅ Events: more sources — Devpost hackathons (live, terms pending), Devfolio and HackerEarth in the gateway catalogue; an event given in UTC shows the day where it happens (WJ-572)
 - ✅ Admin: Setup to-do also lists live sources whose terms are still to confirm (WJ-506)
 - ✅ WorksLake gateway: the crawler reads business pages (LocalBusiness, no contact details) and pooled directory pages (WJ-507)
 - 2026-11-01 Talent & Services: Houzz professionals source (ten gateway definitions, Design, build & renovation trade; terms pending) (WJ-592)

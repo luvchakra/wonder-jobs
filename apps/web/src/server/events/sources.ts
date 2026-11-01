@@ -14,6 +14,7 @@ import type { RawPosting } from "@/services/jobs/normalize";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
 import { DEVELOPERS_EVENTS, developersEventsSearch } from "./developersEvents";
+import { DEVPOST_EVENTS, devpostSearch } from "./devpost";
 import { TICKETMASTER, TICKETMASTER_KEY, ticketmasterAvailable, ticketmasterSearch } from "./ticketmaster";
 
 const EPOCH = "2026-10-31T00:00:00.000Z";
@@ -49,12 +50,34 @@ export const EVENTS_SOURCES: SourceRecord[] = [
     category: "aggregator",
     geography: ["global", "IN"],
     description: "Developer conferences worldwide with their dates, place, own page and call for papers, from the public list its maintainers publish (developers.events). No key.",
-    // Paused until the owner confirms the terms (CLAUDE.md "Finding data sources"); then Activate in the admin.
+    // Paused, not live: unlike an unconfirmed-terms source, its README states a licence that limits use (CC-BY-NC, non-commercial).
+    // The owner decides (CLAUDE.md "Finding data sources"); then Activate in the admin.
     status: "paused",
-    statusReason: "Terms pending: developers.events publishes its list as public JSON but states no licence; confirm its reuse (or ask the maintainers) before activating.",
+    statusReason: "terms pending: the developers.events README licenses its data CC-BY-NC (non-commercial); confirm WonderWorks may use it, or ask the maintainers for permission, before activating",
     roleFamilies: [],
     config: { kind: "builtin" },
     limits: { ...DEFAULT_LIMITS, timeoutMs: 25_000, maxResults: 150, refreshMinutes: 720 },
+    builtin: true,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    accessStrategy: "official_feed",
+    capabilities: ["Search", "Freshness", "Apply URL"],
+    jobTypes: [],
+    module: "events",
+  },
+  {
+    protocolVersion: PROTOCOL_VERSION,
+    id: DEVPOST_EVENTS,
+    name: "Devpost hackathons",
+    provider: "Devpost",
+    category: "aggregator",
+    geography: ["global", "remote"],
+    description: "Open hackathons from Devpost's public list, with their dates, organiser, themes, prizes and own page. No key.",
+    status: "active",
+    statusReason: "terms pending: Devpost's hackathon list is public JSON but its terms don't state reuse; confirm with Devpost",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 25_000, maxResults: 100, refreshMinutes: 720 },
     builtin: true,
     createdAt: "2026-11-01T00:00:00.000Z",
     updatedAt: "2026-11-01T00:00:00.000Z",
@@ -94,6 +117,7 @@ export const eventsSourceAvailable = (s: SourceRecord) => (s.id === TICKETMASTER
 export async function runEventsSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (s.id === TICKETMASTER) return { jobs: await ticketmasterSearch(s, c, needsSetup), warnings: [] };
   if (s.id === DEVELOPERS_EVENTS) return { jobs: await developersEventsSearch(s, c), warnings: [] };
+  if (s.id === DEVPOST_EVENTS) return { jobs: await devpostSearch(s, c), warnings: [] };
   if (s.id !== WONDERWORKS_EVENTS) throw new Error("No connector");
   const { openEventPosts } = await import("./listings");
   // The person's words and places narrow the events, as every source's postings (finish).
