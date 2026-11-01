@@ -135,7 +135,12 @@ export function wedmegoodVendorOf(trail: string): { trade: string; city?: string
 }
 
 /** The trades OpenStreetMap's `craft` tag names that this module offers, as this module's own services. */
-export const CRAFT_CATEGORY: Record<string, Category> = { plumber: "Plumbing", electrician: "Electrician", hvac: "AC service & repair", carpenter: "Carpentry", painter: "Painting", electronics_repair: "Appliance repair" };
+export const CRAFT_CATEGORY: Record<string, Category> = {
+  plumber: "Plumbing", electrician: "Electrician", hvac: "AC service & repair", carpenter: "Carpentry", painter: "Painting", electronics_repair: "Appliance repair",
+  // Building finishes and weddings: trades a client books for work at their place or their event.
+  tiler: "Design, build & renovation", roofer: "Design, build & renovation", glaziery: "Design, build & renovation", plasterer: "Design, build & renovation", stonemason: "Design, build & renovation",
+  photographer: "Wedding & events", caterer: "Wedding & events",
+};
 
 /**
  * The OpenStreetMap trades a client's words ask for ("ac repair" → hvac, "plumber" → plumber), so a search reads the
@@ -149,6 +154,13 @@ export function craftsFor(query: string): string[] {
   if (/\b(ac|a\.c|hvac|air.?condition|cooling|refrigerat|fridge)/.test(q)) out.push("hvac");
   if (/\b(carpent|furniture|woodwork|wardrobe)/.test(q)) out.push("carpenter");
   if (/\b(paint|distemper|whitewash)/.test(q)) out.push("painter");
+  if (/\b(tile|tiler|tiling|flooring)/.test(q)) out.push("tiler");
+  if (/\b(roof|waterproof)/.test(q)) out.push("roofer");
+  if (/\b(glass|glazing|window)/.test(q)) out.push("glaziery");
+  if (/\b(plaster|pop|false ceiling)/.test(q)) out.push("plasterer");
+  if (/\b(mason|stone|marble|granite)/.test(q)) out.push("stonemason");
+  if (/\b(photograph|videograph|wedding shoot)/.test(q)) out.push("photographer");
+  if (/\b(cater|wedding food|tiffin)/.test(q)) out.push("caterer");
   if (/\b(appliance|washing machine|tv|television|microwave|geyser|repair)/.test(q) && !out.length) out.push("electronics_repair");
   return out;
 }
