@@ -173,6 +173,11 @@ export async function testDataDb(): Promise<StoredDataDb["lastTest"]> {
     }
     tables[t] = count ?? 0;
   }
+  // The script's functions (size and performance, for Admin → Databases): an older script lacks db_health().
+  if (ok) {
+    const { error: fe } = await c.rpc("db_health");
+    if (fe) message = "Connected; every table is there. The setup script is out of date (no performance figures): run it again, it's safe to re-run.";
+  }
   const lastTest = { at: new Date().toISOString(), ok, message, tables };
   await (await state()).put(PLATFORM_TENANT, DOC, { ...s, lastTest });
   return lastTest;
