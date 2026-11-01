@@ -13,7 +13,7 @@ export default function NotificationSettingsPage() {
   const signedIn = useAuthStore((s) => s.mode) === "user";
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Notifications" description="Choose what you're told, and how." back={{ href: "/app/notifications", label: "Notification center" }} />
+      <PageHeader title="Notifications" description="Choose what WonderWorks tells you, in every module, and how." back={{ href: "/app/notifications", label: "Notification center" }} />
       {signedIn ? (
         <>
           <PushNotifications />

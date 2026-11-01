@@ -32,3 +32,4 @@
 - ✅ Scholarships & Projects: Unstop, Devpost hackathons and EU fellowships as live sources, Kaggle as Needs setup (WJ-524)
 - ✅ Admin: Setup to-do lists every source that needs a key or setup, by need and module; sources show the module and data type they fetch (WJ-503)
 - ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
+- ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
