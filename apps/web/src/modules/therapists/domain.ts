@@ -39,11 +39,13 @@ export interface TherapistTerms {
   sessionMinutes?: number;
 }
 
-/** One practitioner as Find shows them. */
+/** One practitioner as Find shows them: listed on WonderWorks by the practitioner, or a practice an open-data source maps. */
 export interface TherapistListing {
-  /** `ws_<postingId>`. */
+  /** `ws_<postingId>` for a WonderWorks practitioner; the WorksLake opportunity id otherwise. */
   id: string;
-  postingId: string;
+  origin: "wonderworks" | "outside";
+  /** A WonderWorks listing's own id: what a session request goes to. An outside practice has none. */
+  postingId?: string;
   /** The practitioner's headline. */
   title: string;
   /** The practitioner or clinic (their workspace's name). */
@@ -55,6 +57,66 @@ export interface TherapistListing {
   postedAt?: string;
   sourceId: string;
   sourceName: string;
+  /** An outside practice's own website when it has one, else the page its source lists it on. */
+  applyUrl?: string;
+  /** Open data needs its credit shown on every listing it gave (OpenStreetMap: "© OpenStreetMap contributors", ODbL). */
+  attribution?: string;
+}
+
+/* ------------------------------------------------------------------ practices mapped in OpenStreetMap */
+
+/**
+ * What an OpenStreetMap practice carries through WorksLake's tags (`key:value`, written by the source, read back here):
+ * the `healthcare` or `amenity` tag that made it a practice, its stated speciality, the nearest city (derived from its
+ * position, never an address) and its own website if it has an https one. A fact the map doesn't have isn't written.
+ */
+export interface OsmFacts {
+  healthcare?: string;
+  amenity?: string;
+  speciality?: string;
+  city?: string;
+  web?: string;
+}
+
+export function osmTags(f: OsmFacts): string[] {
+  return [...(f.healthcare ? [`hc:${f.healthcare}`] : []), ...(f.amenity ? [`amenity:${f.amenity}`] : []), ...(f.speciality ? [`spec:${f.speciality}`] : []), ...(f.city ? [`city:${f.city}`] : []), ...(f.web ? [`web:${f.web}`] : [])];
+}
+
+export function readOsmTags(tags: string[]): OsmFacts {
+  const out: OsmFacts = {};
+  for (const t of tags) {
+    const i = t.indexOf(":");
+    const k = t.slice(0, i);
+    const v = t.slice(i + 1);
+    if (!v) continue;
+    if (k === "hc") out.healthcare = v;
+    else if (k === "amenity") out.amenity = v;
+    else if (k === "spec") out.speciality = v;
+    else if (k === "city") out.city = v;
+    else if (k === "web") out.web = v;
+  }
+  return out;
+}
+
+/** What kind of practice the map says it is, in words a client reads. */
+export function practiceKind(f: OsmFacts): string {
+  if (f.healthcare === "psychotherapist") return "Psychotherapy practice";
+  if (f.healthcare === "counselling") return "Counselling practice";
+  if (f.healthcare === "psychologist") return "Psychology practice";
+  return f.amenity === "doctors" ? "Medical practice" : "Clinic";
+}
+
+/**
+ * Practices and clinics only, never a private individual: the map names many sole practitioners by their own name
+ * ("Dr. Anita Sharma"), which WonderWorks must not list. A mapped name is a practice only if it carries a word for one.
+ * This leaves out some real practices named after their founder, on purpose; a practitioner can list themselves.
+ */
+const PRACTICE_WORDS = /\b(clinic|clinics|centre|center|hospital|counsel+ing|counsel+ors|therapy|psycholog\w*|psychiatr\w*|psychotherap\w*|wellness|wellbeing|well-being|mind|minds|mental|health|healthcare|care|institute|foundation|associates|trust|society|services|studio|hub|lab|academy|rehab\w*|de-?addiction|nursing|polyclinic|medical|consultancy|consultants|practice)\b/i;
+export const isPracticeName = (name: string) => PRACTICE_WORDS.test(name.trim());
+
+/** An outside practice's terms: only what the map says. In person, in the city it's near; no fee, language or focus is stated, so none is shown. */
+export function termsFromOsm(): TherapistTerms {
+  return { currency: "INR", modes: ["in_person"] };
 }
 
 /* ------------------------------------------------------------------ display */

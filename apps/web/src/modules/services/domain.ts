@@ -84,9 +84,7 @@ export interface ServiceListing {
   sourceName: string;
 }
 
-/** The credit OpenStreetMap's licence (ODbL) asks for wherever its data is shown, and where the licence is explained. */
-export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
-export const OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright";
+export { OSM_ATTRIBUTION, OSM_COPYRIGHT } from "@/wonderworks/find/osm";
 
 /* ------------------------------------------------------------------ reading an outside listing */
 

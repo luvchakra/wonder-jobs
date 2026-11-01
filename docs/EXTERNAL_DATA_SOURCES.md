@@ -29,7 +29,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | Internships · "software", Pune | 3 results (Himalayas) | Same: the India-strong sources are the ones without keys. |
 | Teaching · "english teacher" | 15 results (Himalayas only) | **Adzuna and Jooble: Needs setup.** WonderWorks schools: 0 (no school has posted a match). |
 | **Talent & Services · "designer"** | **0 results** | **A bug, now fixed (below).** Freelancer.com returned 39 pros; WorksLake dropped all 39 as "too old". |
-| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners exist; no outside source by design. |
+| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners until an admin registers the OpenStreetMap practices (WJ-600). |
 | Events · "music" | 1 result | Only WonderWorks' own events; no outside source yet. |
 
 **The Talent & Services bug.** A directory profile has no posting date, so its "posted" date was the day the freelancer made their account (often years ago). WorksLake serves only postings from the last two weeks (`domain/jobs/age.ts`), so every pro was removed (`tooOld: 39` in the search metadata). Fixed in `server/services/sources.ts`: a pro is not a dated posting, so it carries no date and isn't judged for age. After the fix the same search returns 39. This source has never returned a result before.
@@ -59,11 +59,11 @@ Each module's real search was run against the live feeds (no mocks). What came b
 
 | Module | Outside sources in code | Free/open | Paid or agreement | Biggest open issue |
 |---|---|---|---|---|
-| **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
+| **Jobs** | 20 outside (19 free, 1 paid; 4 need a free key) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
-| **Therapists** | 0 | — | — | Deliberately none: licence verification and health-data rules first |
+| **Therapists** | 1 (+ OpenStreetMap practices built, an admin registers it) | — | none | No register or directory is open; practices only, nothing verified |
 | **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
 | **Buy, Sell & Rent** | 0 | none found | eBay (partner contract) | No open data; scrapers carry terms risk |
@@ -82,7 +82,7 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Greenhouse | ATS | official public API | **Live** · responds | Public boards of companies WorksLake knows |
 | Lever | ATS | official public API | **Live** · responds | Same |
 | Ashby | ATS | official public API | **Live** | Same |
-| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero |
+| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero, LinkedIn, ServiceNow (last two added 2026-11-01, WJ-544) |
 | JazzHR career sites | ATS | public feeds | **Live** | HackerEarth, Ebizon, ProcDNA and more |
 | The Muse | aggregator | public API | **Live** · responds | Key env `THEMUSE_API_KEY` is read; check whether it is required or only raises limits |
 | Jobicy | aggregator | public API | **Live** · responds | Salary where disclosed |
@@ -90,10 +90,14 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Himalayas | aggregator | public API | **Live** · responds | Newest postings scanned |
 | Himalayas part-time | aggregator | public API | **Live** | Part Time mode |
 | Freelancer.com gigs | aggregator | public API | **Live** · responds | Gig mode; client not named publicly |
+| Working Nomads | aggregator | public JSON (`/api/exposed_jobs/`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). ~35 newest remote jobs, no search. Confirm with Working Nomads that reuse of the feed's listings is allowed |
+| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Confirm with We Work Remotely that showing the RSS listings in another product is allowed |
 | Remotive | aggregator | public API | **Off by default** · responds | Public feed exposes only a handful of listings |
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
+| Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
+| USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
 | LinkedIn, Indeed, Naukri, foundit, TimesJobs | portals | partner API | **Do not use** | None has an open search API; see `docs/PARTNER_INTEGRATIONS.md` for who to contact and what to ask |
 
@@ -102,8 +106,13 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Option | Open/paid | Verdict |
 |---|---|---|
 | Hacker News "Who is hiring" via Algolia API | Open | Researched. Free, no key; posts hold contact emails (personal data) and terms are unclear. Low value for India. |
-| USAJOBS (all federal jobs) | Open, key | Already used for Internships only; Jobs would add US federal roles. |
-| Jooble | Free key | Already used for Internships and Teaching; not in Jobs. Worth adding for India coverage if terms allow (check). |
+| Bundesagentur für Arbeit Jobsuche API (German federal job board, open data via bund.dev) | Open, public client id | Researched 2026-11-01. Answered 403 from our servers (a block, not a terms question): not built. Retry from the deployment before deciding. |
+| Findwork.dev | Free key | Researched 2026-11-01. Tech jobs API, answers 401 without a key. Worth adding as "Needs setup" (`FINDWORK_API_KEY`, signup findwork.dev) if tech coverage is thin. |
+| Reed.co.uk | Free key | Researched 2026-11-01. UK jobs API, 401 without a key. Low value for India; worth it only for UK searches. |
+| Careerjet partner API | Free affiliate id | Researched 2026-11-01. Global aggregator incl. India; needs an affiliate id and the user's IP/user agent per call. Candidate for a later pass. |
+| More company boards | Open | Ongoing. 2026-11-01 (WJ-544) added Razorpay, InMobi, HackerRank, Observe.AI (Greenhouse), Paytm, Zeta, Mindtickle (Lever), Sarvam AI, PostHog (Ashby); probed ~90 India-strong slugs, kept only boards that answered with the named company's jobs. Phonepe, Swiggy, Flipkart, Zomato, Dream11, Postman, BrowserStack and others aren't on these public APIs. |
+| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/usajobs.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
+| Jooble | Free key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/jooble.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
 | Coresignal job/people data | Paid | Researched (vendor). Priced by volume; only if TheirStack is not enough. |
 
 ### Open issues
@@ -220,7 +229,21 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 
 ## 7. Therapists
 
-Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources.ts`).
+Dataset `therapists`. WonderWorks practitioners (`server/therapists/sources.ts`) and, once an admin registers it, OpenStreetMap practices (below).
+
+**Built (2026-11-01, WJ-600): OpenStreetMap practices and clinics**
+
+| Item | Detail |
+|---|---|
+| Source | OpenStreetMap, open data (ODbL), through the data gateway. Four definitions, `apps/data-gateway/sources/osm-therapists-{north,west,south,east}.json`, the same 24 cities as Talent & Services, one Overpass query per city (15 km around the centre), collected **weekly**, read in-process by `server/therapists/sources.ts`, never per user search. They start paused; an admin adds them from Platform → Sources → Partners & gateway → Add from catalogue, then Test & activate. |
+| What it asks for | Named features tagged `healthcare=psychotherapist\|counselling\|psychologist`, or `amenity=clinic\|doctors` with a `healthcare:speciality` of psychiatry, psychotherapy, psychology or clinical psychology. |
+| Practices only | The gateway admits it as `publicBusinesses` (WJ-500), claiming no opt-in. A mapped name is kept only if it carries a word for a practice (clinic, centre, counselling, psychology, wellness, foundation…); a name that is only a person's ("Dr. Anita Sharma") is left out (`isPracticeName`). This drops some real practices named after their founder, on purpose; a practitioner can list themselves. |
+| Shown | Name, kind of practice, the nearest city (derived from its position, never an address), its own https website if tagged, a link to its OpenStreetMap page, and "© OpenStreetMap contributors" with the licence link on the card and the page. "Listed on OpenStreetMap". |
+| Never shown or copied | Phone, email, address, fee, languages, focus, licence, qualifications, rating, "verified" or any claim. It can't be booked in WonderWorks and has no public share page. |
+| Needs the owner | Terms pending: the licence (ODbL) is clear; **confirm where the weekly collection runs**. The public `overpass-api.de` says regular use should stay under 100 queries and 10 MB a day (the weekly collection is well inside that) and that commercial use should use its own or a paid server. The definitions use `overpass-api.de`; pick the endpoint before pressing Test & activate. No key. |
+| Owner decisions | 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists"; data-source terms are confirmed later (CLAUDE.md, "Finding data sources"). |
+
+Still not built: any register or directory of individuals; licence checks; crisis resources (legal wording first).
 
 **Researched**
 
@@ -231,7 +254,7 @@ Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources
 | Commercial directories (TherapyRoute: about 1,200 India listings) | Private | Rejected: unverified, not licensed. |
 
 **Open issues**
-1. **By design, no outside listings.** Importing health professionals needs licence verification, consent and the health-data compliance the platform doc requires.
+1. **No outside individuals.** OpenStreetMap practices only; importing individual practitioners needs licence verification, consent and the health-data compliance the platform doc requires.
 2. **Searches are now kept** in the client's own account (WJ-445); consider a Clear option or expiry.
 
 ---
