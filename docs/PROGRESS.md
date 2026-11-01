@@ -30,3 +30,5 @@
 - ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page
 - ✅ WorksLake gateway: the crawler reads event pages (dates, online, cancelled), only the pages a source wants, and a sitemap listed in the site's robots.txt; KonfHub and Linux Foundation Events ready to add from the catalogue (WJ-502)
 - ✅ Scholarships & Projects: Unstop, Devpost hackathons and EU fellowships as live sources, Kaggle as Needs setup (WJ-524)
+- ✅ Admin: Setup to-do lists every source that needs a key or setup, by need and module; sources show the module and data type they fetch (WJ-503)
+- ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
