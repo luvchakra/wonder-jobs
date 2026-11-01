@@ -110,7 +110,7 @@ describe("trades, cities and the definition files", () => {
     expect(CITY_RADIUS_KM).toBe(25);
   });
 
-  it("the four definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", () => {
+  it("the four definition files ask for exactly the cities this table knows, businesses only, with the credit and a weekly interval", async () => {
     const dir = join(__dirname, "../../../../data-gateway/sources");
     const files = readdirSync(dir).filter((f) => /^osm-services-.+\.json$/.test(f));
     expect(files.sort()).toEqual(["osm-services-east.json", "osm-services-north.json", "osm-services-south.json", "osm-services-west.json"]);
@@ -119,6 +119,11 @@ describe("trades, cities and the definition files", () => {
       const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
       expect(d).toMatchObject({ kind: "json_api", modules: ["services"], itemsPath: "elements", attribution: OSM_GATEWAY_NAME, publicBusinesses: true, externalRedistributionAllowed: false, minIntervalMinutes: 10080 });
       expect(d.consentVerified).toBeUndefined();
+      // The gateway's own check accepts it as public business listings (no opt-in is claimed), and keeps its evidence whole.
+      const { validateSource } = (await import("../../../../data-gateway/src/core.mjs")) as unknown as { validateSource: (s: unknown) => { permissionEvidence: string } };
+      const accepted = validateSource(d);
+      expect(accepted.permissionEvidence).toBe(d.permissionEvidence);
+      expect(d.permissionEvidence.length).toBeLessThan(500);
       expect(d.extraUrls.length + 1).toBeLessThanOrEqual(7);
       // No contact details are mapped.
       expect(JSON.stringify(d.mapping)).not.toMatch(/phone|email|contact/i);

@@ -5,7 +5,7 @@
     "services"
   ],
   "permission": "terms_permit",
-  "permissionEvidence": "OpenStreetMap data is open data under the Open Database Licence 1.0 (openstreetmap.org/copyright; opendatacommons.org/licenses/odbl): free to use and show with the attribution \"© OpenStreetMap contributors\" and the licence made clear. Read 2026-11-01: the OSM Foundation's licence FAQ says internal use of a database needs no sharing, and a produced work such as a website needs the attribution; the Overpass wiki asks for a User-Agent that identifies the app, no parallel scripts, caching, and says commercial use should use a self-hosted or paid Overpass server, so the owner picks the endpoint before activating. Businesses only: the query returns features that have a name and a craft tag.",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"© OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
   "termsReviewed": true,
   "redistributionAllowed": true,
   "externalRedistributionAllowed": false,

@@ -62,7 +62,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
-| **Talent & Services** | 2 (+ OpenStreetMap built, waiting on the gateway) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
+| **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
 | **Therapists** | 0 | — | — | Deliberately none: licence verification and health-data rules first |
 | **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
@@ -153,6 +153,9 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 | Adzuna India teaching jobs | free key | **Needs key** | |
 | Jooble teaching jobs | free key | **Needs key** | |
 | Himalayas teaching jobs | public API | **Live** | Remote and online tutoring |
+| Adzuna teaching jobs — UK, US, Canada, Australia, NZ, South Africa, Singapore (`teach_adzuna_world`) | free key (same as India) | **Needs key** | Adzuna API terms; a salary is shown only when the ad states it (Adzuna's `salary_is_predicted` is never shown). A place in a search asks only its country. |
+| USAJOBS teaching and education jobs (`teach_usajobs`) | free key + registered email | **Needs key** | US federal, public domain data (e.g. Bureau of Indian Education, DoD schools). Only titles that say teacher/teaching. |
+| Arbetsförmedlingen JobTech, Sweden (`teach_jobtech`) | public API, no key | **Live** | CC0 (Platsbanken ads via JobSearch, occupation field Pedagogik). Contact emails and phone numbers are removed from ad text; each ad links to its own Platsbanken page. Asked only when a search names no place or a Swedish one. |
 
 **Researched, not built**
 
@@ -160,6 +163,14 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 |---|---|---|
 | UDISE+ teacher counts (data.gov.in, AIKosh; Open Government Licence – India) | Open, downloads only | Context, not listings: teachers and vacancies by district. Newest sets found are 2019-20; one Rajya Sabha annexure cites 2024-25 state totals. |
 | State teacher-recruitment boards | Open pages, no API | Would be per-state scraping; terms unverified. Not recommended without permission. |
+| Germany BA Jobsuche | Unofficial, undocumented terms | Not built: no documented reuse rights. |
+| France Travail "Offres d'emploi" | Key + signed licence, attribution | Deferred: needs the owner to accept the licence. |
+| jobs.ac.uk (higher education) | Feeds exist, no explicit reuse permission | Not built; ask them for written permission. |
+| Careerjet | Key; terms to confirm | Deferred until the partner terms are read. |
+| Canada Job Bank open data | Monthly CSV (OGL – Canada) | For the gateway (shared-layer session), not a live API. |
+| NZ Education Gazette, Australian state boards, TES | No feed or API | Not built (would be scraping). |
+| Greenhouse boards of school operators, Jobicy education | Open APIs | Tried: no teaching posts (Jobicy's are not teaching). |
+| India | No open source | Best route is gateway partner uploads from schools and recruiters (shared-layer session). |
 | Careers360-style vacancy estimates (~3.57 lakh vacant posts, 2025) | News analysis | Not a feed. |
 
 **Open issues**
@@ -177,7 +188,7 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 |---|---|---|---|
 | WonderWorks pros | own | **Live** | Local, visit-based work and remote projects |
 | Freelancer.com experts | public directory API | **Live** · responds | Remote freelancers; public profiles only. **Terms concern, see Open issues 4** |
-| OpenStreetMap businesses | open data (ODbL) via the data gateway | **Built, waiting on the gateway** (2026-11-01, WJ-591) | Local trades: plumber, electrician, AC (`hvac`), carpenter, painter, electronics repair. Four gateway definitions (`apps/data-gateway/sources/osm-services-{north,west,south,east}.json`), 24 cities, one Overpass query per city (15 km around the centre, named businesses with a `craft` tag only), collected **weekly**, read in-process by `server/services/sources.ts` and never per user search. Shows name, trade, nearest city, own website if tagged, a link to the OSM page and "© OpenStreetMap contributors" on the card and the page; **no phone or email is copied**. Owner decision 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists". |
+| OpenStreetMap businesses | open data (ODbL) via the data gateway | **Built** (2026-11-01, WJ-591); an admin registers the four definitions, tests and activates them | Local trades: plumber, electrician, AC (`hvac`), carpenter, painter, electronics repair. Four gateway definitions (`apps/data-gateway/sources/osm-services-{north,west,south,east}.json`), 24 cities, one Overpass query per city (15 km around the centre, named businesses with a `craft` tag only), collected **weekly**, read in-process by `server/services/sources.ts` and never per user search. Shows name, trade, nearest city, own website if tagged, a link to the OSM page and "© OpenStreetMap contributors" on the card and the page; **no phone or email is copied**. Owner decision 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists". |
 
 **Researched**
 
@@ -197,7 +208,7 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 4. **Freelancer.com's terms (read 2026-11-01).** Its API Terms (21 Dec 2017) say cached Data "should" be refreshed "at least every 24 hours", "for performance reasons only", and that "You may not copy or store any Data ... except to the extent permitted"; its User Agreement says "Our feedback ratings belong to us and may not be used for any purpose other than facilitating the provision of Seller Services via the Website". The directory endpoint itself is not in the documentation we could read. Today a search keeps these pros in WorksLake's warm pool and **shows their rating**. The owner decides: keep as is, drop the rating and show only what is not feedback, or pause the source.
 5. **Personal data (§12.6).** Freelancer.com pros are individuals who did not opt in on WonderWorks. OpenStreetMap is businesses only, with no phone or email.
 6. **Overpass.** Its wiki (read 2026-11-01) says the main instance is overloaded, that regular use should stay under 100 queries and 10 MB a day (the weekly collection is well inside that), and that "commercial use should use self-hosted or paid Overpass servers". The definitions use `overpass-api.de`; the owner picks the endpoint before activating, and the gateway source starts paused.
-7. **The gateway's consent gate.** `services` is a sensitive module, so the gateway refuses any source without `consentVerified` ("every person opted in"), which cannot be said of OpenStreetMap. The definitions carry `publicBusinesses: true` instead; the gateway accepts that for businesses from an open licence only once the shared-layer session adds it.
+7. **The gateway's consent gate** is passed by `publicBusinesses: true` (services and therapists, WJ-500, #480): no `consentVerified` is claimed for OpenStreetMap.
 1. **Was returning nothing at all** — fixed 2026-10-31 (see §0). It now returns the Freelancer.com pros for a search. **Nothing else is open**, so supply for local services must come from pros listing on WonderWorks.
 2. **Freelancer.com data is remote work only.** Client details need OAuth and are not used.
 3. **Ratings:** the Freelancer.com feed carries its own rating where it gives one; WonderWorks' reviews are separate and are not mixed with it.
@@ -298,9 +309,9 @@ Dataset `marketplace`. WonderWorks listings only (`server/marketplace/sources.ts
 
 | Env var | Source(s) | Free? | Status on production |
 |---|---|---|---|
-| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna India (Jobs, part-time, Internships, Teaching) | Free tier | **Unverified** |
+| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna India (Jobs, part-time, Internships, Teaching) and Adzuna's 7 English-speaking countries (Teaching) | Free tier | **Unverified** |
 | `JOOBLE_API_KEY` | Jooble (Internships, Teaching) | Free key | **Unverified** |
-| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS (Internships) | Free key | **Unverified** |
+| `USAJOBS_API_KEY`, `USAJOBS_EMAIL` | USAJOBS (Internships, Teaching) | Free key | **Unverified** |
 | `THEMUSE_API_KEY` | The Muse | Key optional? | **Unverified** |
 | `THEIRSTACK` | TheirStack (Jobs) | **Paid** | **Unverified** |
 | `TICKETMASTER_API_KEY` | Ticketmaster (Events) | Free key | **Not set** (source shows Needs setup) |
@@ -433,3 +444,7 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **Upload:** **Upload list** on the partner's row in Sources. Rows are checked like any source's records; only an upload where ≥90% of rows read well replaces the partner's listings (repeats and past items aside). Otherwise nothing changes and the first five problems are shown. A partner refreshes its list by uploading again.
 - **Serving:** registered paused; **Activate** after a good upload. Its listings flow into its module through the module's WorksLake gateway source like any other gateway listing. The scheduler never fetches an upload source.
 
+
+### 13.8 Adding a reviewed source from the catalogue (2026-11-01)
+
+The reviewed source files in `apps/data-gateway/sources/*.json` (confs.tech, OpenStreetMap Calendar, UK Teaching Vacancies, We Work Remotely) are listed on Platform → Sources → Partners & gateway → **Add from catalogue**. **Add** registers one paused (as `register.mjs` would, without handling the admin token); **Test & activate** on its row in Sources runs the gateway's test and turns it on when it passes. A module session that adds a source file also adds it to `server/gateway/catalogue.ts` (a test checks every file is listed). OpenStreetMap Calendar (osmcal.org) documents an integration API and robots allows it, but states no data licence: the owner confirms before activating.

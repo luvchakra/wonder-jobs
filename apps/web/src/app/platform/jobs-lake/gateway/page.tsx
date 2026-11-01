@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { GatewayOverview, GatewayRunRow, GatewaySourceRow } from "@/server/gateway/admin";
+import type { CatalogueEntry } from "@/server/gateway/catalogue";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
@@ -66,6 +67,7 @@ function Overview({ data, reload }: { data: GatewayOverview; reload: () => void 
         />
       </Panel>
       <AddPartner onDone={reload} />
+      <Catalogue entries={data.catalogue ?? []} onDone={reload} />
       <Panel title="Runs" action={<span className="text-[12px] text-ink-3">Newest 100</span>}>
         <ResponsiveTable<GatewayRunRow>
           rows={data.runs}
@@ -148,7 +150,7 @@ function CollectNow({ s, onDone }: { s: GatewaySourceRow; onDone: () => void }) 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   if (s.kind === "upload") return <PartnerActions s={s} onDone={onDone} />;
-  if (!s.enabled) return null;
+  if (!s.enabled) return <TestActivate s={s} onDone={onDone} />;
   return (
     <span className="flex items-center gap-2">
       <Button
@@ -328,6 +330,90 @@ function PartnerActions({ s, onDone }: { s: GatewaySourceRow; onDone: () => void
           {p}
         </span>
       ))}
+    </span>
+  );
+}
+
+/**
+ * The reviewed sources that ship with the gateway: add one with a tap (it arrives paused in Sources, where Test &
+ * activate turns it on). Each says where its data comes from and which module it feeds.
+ */
+function Catalogue({ entries, onDone }: { entries: CatalogueEntry[]; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  if (!entries.length) return null;
+  const waiting = entries.filter((e) => !e.added).length;
+  return (
+    <Fold title="Add from catalogue" hint={waiting ? `${waiting} reviewed ${waiting === 1 ? "source" : "sources"} ready to add` : "Every reviewed source is added"}>
+      <ul className="flex flex-col gap-2 pb-4">
+        {entries.map((e) => (
+          <li key={e.file} className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-line px-3 py-2 text-[13px]">
+            <span className="min-w-0">
+              <span className="block font-medium text-ink">{e.name}</span>
+              <span className="block text-[12px] text-ink-3">
+                {e.host} · {e.modules.join(", ")}
+              </span>
+            </span>
+            {e.added ? (
+              <span className="text-[12px] text-ink-4">Added</span>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                loading={busy === e.file}
+                onClick={async () => {
+                  setBusy(e.file);
+                  setMsg(null);
+                  const r = await adminFetch("gateway", { method: "POST", body: JSON.stringify({ action: "add_catalogue", file: e.file }) });
+                  setBusy(null);
+                  setMsg(r.ok ? `${e.name} added (paused). Use Test & activate on its row in Sources.` : r.error.message);
+                  onDone();
+                }}
+              >
+                Add
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {msg && <p className="-mt-2 pb-4 text-[12px] text-ink-3">{msg}</p>}
+    </Fold>
+  );
+}
+
+/** A paused source: test it now and, when the test passes, switch it on. */
+function TestActivate({ s, onDone }: { s: GatewaySourceRow; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <span className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          const t = await adminFetch<{ ok?: boolean; valid?: number; discovered?: number }>("gateway", { method: "POST", body: JSON.stringify({ action: "test", sourceId: s.id }) });
+          if (!t.ok) {
+            setBusy(false);
+            setMsg(t.error.message);
+            return onDone();
+          }
+          if (t.data.ok === false) {
+            setBusy(false);
+            setMsg(`Test didn't pass: ${num(t.data.valid)} of ${num(t.data.discovered)} records read well`);
+            return onDone();
+          }
+          const a = await adminFetch("gateway", { method: "POST", body: JSON.stringify({ action: "activate", sourceId: s.id }) });
+          setBusy(false);
+          setMsg(a.ok ? `Active · ${num(t.data.valid)} records read well` : a.error.message);
+          onDone();
+        }}
+      >
+        Test & activate
+      </Button>
+      {msg && <span className="text-[12px] text-ink-3">{msg}</span>}
     </span>
   );
 }

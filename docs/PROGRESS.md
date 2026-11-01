@@ -13,6 +13,7 @@
 - ✅ WonderWorks: the searching banner says what, where, how many sources and how long, with the WonderWorks mark animating (wings open, star twinkles)
 - ✅ Scholarships & Projects: Find, sources (WonderWorks, Grants.gov, gateway), listing page, organisation posting and applying (WJ-521)
 - ✅ Scholarships & Projects is live: Applications with Deadlines, application page, AI drafts for answers and statements (WJ-522)
+- ✅ Teaching: three more real sources — Adzuna (UK, US, Canada, Australia, NZ, South Africa, Singapore), USAJOBS and Sweden's JobTech; two need keys (WJ-560)
 - ✅ Talent & Services: pros state their GSTIN, and GST and TDS on a quote (their rate, SAC and section); an invoice summary for both sides to print once a job is booked (WJ-590)
 - ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)
 - ✅ Jobs: Find's row shows Location (your places, or Anywhere) instead of All modes; Work mode is in Refine (WJ-540)
@@ -20,4 +21,5 @@
 - ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
+- ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
 - ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)
