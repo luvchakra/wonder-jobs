@@ -56,6 +56,8 @@ export interface ModuleFindProps<L extends { id: string }> {
   /** No longer shown: a search without words shows the module's latest listings (owner, 2026-11-01). */
   needWords?: string;
   dictateHint: string;
+  /** Worldwide only: Refine offers no Location and every search is anywhere (e.g. Scholarships & Projects). */
+  global?: boolean;
 }
 
 const PAGE = 24;
@@ -75,7 +77,7 @@ const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceState, string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
 const set = (v: FacetValues) => Object.values(v).filter((x) => x !== undefined && x !== "").length;
 
-export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint }: ModuleFindProps<L>) {
+export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint, global = false }: ModuleFindProps<L>) {
   const store = moduleStore(module);
   const recent = store((s) => s.recentSearches);
   const forget = store((s) => s.forgetSearch);
@@ -250,7 +252,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
             }
           >
             {facets.map(field)}
-            <RefinePlaces places={places} onChange={setPlaces} />
+            {!global && <RefinePlaces places={places} onChange={setPlaces} />}
           </RefinePanel>
         )}
       </div>
