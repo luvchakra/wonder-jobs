@@ -9,6 +9,7 @@ import type { CareerRole } from "@/domain/career/roles";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
 import { historyOf } from "@/domain/career/history";
+import { catalogKey } from "@/domain/jobs/latest";
 import { corePhrase, defaultSearchQuery, hasTermOrSynonym, profileSearchQuery, queryTerms, SENIORITY_WORDS } from "@/services/jobs/normalize";
 import { fieldTerms, GENERIC_SKILLS } from "@/services/jobs/matching";
 
@@ -118,7 +119,7 @@ export function catalogSearchRun(runs: WorkflowRun[], searchedFor: string): Work
   // A search the candidate stopped put its list back as it was: it isn't behind what's shown.
   const latest = latestSearchRun(runs.filter((r) => r.status !== "STOPPED" && r.status !== "STOPPING")) ?? latestSearchRun(runs);
   if (!latest || (latest.status !== "COMPLETED" && latest.status !== "COMPLETED_WITH_WARNINGS")) return latest;
-  const typed = (r: WorkflowRun) => (r.config.origin === "words" && !r.config.role ? r.config.searchCriteria.query.trim() : "");
+  const typed = (r: WorkflowRun) => catalogKey(r.config);
   const want = searchedFor.trim();
   if (typed(latest) === want) return latest;
   return latestSearchRun(runs.filter((r) => typed(r) === want)) ?? latest;

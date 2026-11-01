@@ -4,6 +4,7 @@
  * engine context — the UI only ever renders engine state.
  */
 import { RestartSignal, StopSignal, type StageContext, type StageExecutor } from "@/domain/workflow/engine";
+import { catalogKey } from "@/domain/jobs/latest";
 import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
@@ -210,7 +211,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const jobsStore = useJobsStore.getState();
       // A search run as one of the candidate's roles labels what it found, so Apply can offer that role's résumé.
       const role = ctx.run.config.role;
-      jobsStore.replaceCatalog(role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs, typedQuery(ctx.run.config) ?? "");
+      jobsStore.replaceCatalog(role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs, catalogKey(ctx.run.config));
       jobsStore.setMatches(matches);
       jobsStore.setQuality(quality);
       let saved = 0;
@@ -486,7 +487,7 @@ function showArriving(ctx: StageContext, jobs: CanonicalJob[], first: boolean) {
   const role = ctx.run.config.role;
   const list = role ? jobs.map((j) => ({ ...j, foundAs: { id: role.id, title: role.title } })) : jobs;
   const store = useJobsStore.getState();
-  if (first) store.replaceCatalog(list, typedQuery(ctx.run.config) ?? "");
+  if (first) store.replaceCatalog(list, catalogKey(ctx.run.config));
   else store.appendCatalog(list);
   const { dna, learnedSignals } = useCareerStore.getState();
   const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config) };

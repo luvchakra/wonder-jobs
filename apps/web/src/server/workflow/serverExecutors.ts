@@ -10,6 +10,7 @@
  * is waiting when they next open the app.
  */
 import type { StageExecutor, StageResult } from "@/domain/workflow/engine";
+import { catalogKey } from "@/domain/jobs/latest";
 import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
@@ -195,7 +196,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const role = ctx.run.config.role;
       snapshot.jobs.jobs = Object.fromEntries(canonical.map((j) => [j.id, role ? { ...j, foundAs: { id: role.id, title: role.title } } : j]));
       snapshot.jobs.order = canonical.map((j) => j.id);
-      snapshot.jobs.searchedFor = ctx.run.config.origin === "words" && !role ? ctx.run.config.searchCriteria.query : "";
+      snapshot.jobs.searchedFor = catalogKey(ctx.run.config);
       for (const m of matches) snapshot.jobs.matches[m.jobId] = m;
       for (const q of quality) snapshot.jobs.quality[q.jobId] = q;
       let saved = 0;
