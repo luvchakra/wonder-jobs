@@ -21,10 +21,15 @@ const automatic = () => writeClientState(guest.tenantId, "wj.automation", POLICY
 const soon = () => new Date(Date.now() + 3 * 86_400_000).toISOString();
 
 beforeEach(() => {
+  // No real service: outside sources (developers.events) answer with nothing.
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("[]", { status: 200, headers: { "content-type": "application/json" } })));
   resetTablesForTests();
   __setJobsLakeStore(new __MemoryStore());
 });
-afterEach(() => __setJobsLakeStore(undefined));
+afterEach(() => {
+  vi.unstubAllGlobals();
+  __setJobsLakeStore(undefined);
+});
 
 async function post(title: string, capacity?: number) {
   const { org } = await H.createWorkspace(host, { name: "Pune Games" });
@@ -48,7 +53,7 @@ describe("the Events WorksLake dataset", () => {
     const r = await searchEvents({ query: "board games", places: [] });
     expect(r.results).toHaveLength(1);
     expect(r.results[0]).toMatchObject({ title: "Sunday board games", seatsLeft: 1, waitlisted: 0 });
-    expect(r.sources[0]).toMatchObject({ name: "WonderWorks events", state: "ok", count: 1 });
+    expect(r.sources.find((x) => x.name === "WonderWorks events")).toMatchObject({ state: "ok", count: 1 });
   });
 
   it("seats left follow the RSVPs, and a closed event isn't found", async () => {

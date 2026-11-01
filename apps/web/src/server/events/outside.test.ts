@@ -14,7 +14,7 @@ import * as H from "@/server/hiring";
 import { applyFacets, dateRangeLabel, EMPTY_FACETS, outsidePlace, whenOf } from "@/modules/events/domain";
 import { shareOf } from "@/modules/events/share";
 import { saveEvent, setEventStatus } from "./listings";
-import { isOutsideEvent, toOutsideEvent } from "./outside";
+import { dedupeOutside, isOutsideEvent, toOutsideEvent } from "./outside";
 import { searchEvents } from "./search";
 import { WONDERWORKS_EVENTS } from "./sources";
 
@@ -154,5 +154,16 @@ describe("what Refine and Share do with an outside event", () => {
     expect(s.url).toBe("https://devopsdays.example/pune");
     expect(JSON.stringify(s)).toContain("confs.tech");
     expect(JSON.stringify(s)).not.toMatch(/Free|seats|RSVP/i);
+  });
+});
+
+describe("one event from two sources", () => {
+  it("is listed once: the same title (ignoring case, punctuation and the year) on the same start day", () => {
+    const a = toOutsideEvent(conf({ id: "a", title: "DevOpsDays Pune 2026", attributes: { startDate: "2026-11-12" } }), TODAY)!;
+    const b = toOutsideEvent(conf({ id: "b", title: "devopsdays pune", attributes: { startDate: "2026-11-12" }, sourceRecords: [{ sourceId: "evt_developers_events", sourceName: "developers.events", sourceJobId: "x", observedAt: "2026-11-01T00:00:00Z" }] as never }), TODAY)!;
+    const other = toOutsideEvent(conf({ id: "c", title: "DevOpsDays Pune", attributes: { startDate: "2026-12-12" } }), TODAY)!;
+    const out = dedupeOutside([a, b, other]);
+    expect(out.map((e) => e.sourceName)).toEqual(["confs.tech", "confs.tech"]);
+    expect(out).toHaveLength(2);
   });
 });
