@@ -28,6 +28,8 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
+  { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key)", signup: "https://www.kaggle.com/settings/account", free: true },
+  { name: "KAGGLE_KEY", label: "Kaggle API key", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Create New Token)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
 ];
 

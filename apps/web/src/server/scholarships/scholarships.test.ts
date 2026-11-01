@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { GRANTS_GOV_NOTICE, rawFromGrants, SCHOLARSHIP_SOURCES, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -53,8 +53,13 @@ afterEach(() => __setJobsLakeStore(undefined));
 
 describe("its own WorksLake dataset", () => {
   it("every built-in source is the Scholarships module's, never Jobs'", () => {
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.module)).toEqual(["scholarships", "scholarships"]);
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov"]);
+    expect(new Set(SCHOLARSHIP_SOURCES.map((s) => s.module))).toEqual(new Set(["scholarships"]));
+    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_kaggle"]);
+  });
+
+  it("sources whose terms aren't confirmed say what's pending; Kaggle needs its key", () => {
+    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
+    expect(scholarshipSourceAvailable(SCHOLARSHIP_SOURCES.find((s) => s.id === "schol_kaggle")!)).toBe(false);
   });
 
   it("searches with module 'scholarships', and an empty query is allowed", async () => {
@@ -89,6 +94,36 @@ describe("outside listings", () => {
     const hit = { id: "362034", number: "NOAA-1", title: "Marine Education and Training Mini-Grant Program", agency: "NOAA", openDate: "10/01/2026", closeDate: "05/01/2028", oppStatus: "posted" };
     expect(rawFromGrants(hit)).toMatchObject({ applyUrl: "https://www.grants.gov/search-results-detail/362034", attributes: { deadline: "2028-05-01", notice: GRANTS_GOV_NOTICE, currency: "USD" } });
     expect(rawFromGrants({ ...hit, title: "Annual Program Statement for Fiscal Year 2025" })).toBeNull();
+  });
+});
+
+describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", () => {
+  it("Devpost: an open hackathon is a project, ending on its submission deadline", () => {
+    expect(devpostEnd("Oct 01 - Nov 12, 2026")).toBe("2026-11-12");
+    expect(devpostEnd("Dec 15, 2026 - Jan 10, 2027")).toBe("2027-01-10");
+    expect(devpostEnd("Ongoing")).toBeUndefined();
+    const raw = rawFromDevpost({ id: 1, title: "AI Hackathon", url: "https://ai.devpost.com/", organization_name: "PayPal", submission_period_dates: "Oct 01 - Nov 12, 2026", prize_amount: "$<span>67,500</span>", themes: [{ name: "Web" }], displayed_location: { location: "Online" }, open_state: "open" });
+    expect(raw).toMatchObject({ company: "PayPal", remote: true, applyUrl: "https://ai.devpost.com/", attributes: { kind: "project", deadline: "2026-11-12", officialUrl: "https://ai.devpost.com/" } });
+    expect(raw!.description).toContain("Prizes: $67,500.");
+    expect(rawFromDevpost({ id: 2, title: "Old", url: "https://x.devpost.com/", open_state: "ended" })).toBeNull();
+  });
+
+  it("Unstop: paid or closed listings are left out; its eligibility filters give the levels", () => {
+    const o = { id: 9, title: "Merit scholarship", type: "scholarships", seo_url: "https://unstop.com/scholarships/merit-9", isPaid: false, status: "LIVE", regn_open: 1, region: "online", organisation: { name: "Trust" }, filters: [{ name: "College Students", type: "eligible" }, { name: "School Students", type: "eligible" }], regnRequirements: { end_regn_dt: "2026-11-13T18:00:00+05:30" } };
+    expect(rawFromUnstop(o)).toMatchObject({ company: "Trust", attributes: { kind: "scholarship", deadline: "2026-11-13", levels: "school;ug", region: "India" } });
+    expect(rawFromUnstop({ ...o, isPaid: true })).toBeNull();
+    expect(rawFromUnstop({ ...o, regn_open: 0 })).toBeNull();
+    expect(rawFromUnstop({ ...o, type: "hackathons" })!.attributes).toMatchObject({ kind: "project" });
+    expect(unstopLevels([{ name: "Postgraduate", type: "eligible" }, { name: "PhD Scholars", type: "eligible" }])).toBe("pg;phd");
+  });
+
+  it("EU: only fellowship calls, linked to the call's official page", () => {
+    expect(rawFromSedia({ url: "x", metadata: { title: ["MSCA Postdoctoral Fellowships 2027"], identifier: ["HORIZON-MSCA-2027-PF-01-01"], deadlineDate: ["2027-09-08T00:00:00.000+0000"] } })).toMatchObject({ applyUrl: "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/HORIZON-MSCA-2027-PF-01-01", attributes: { deadline: "2027-09-08", levels: "phd" } });
+    expect(rawFromSedia({ url: "x", metadata: { title: ["Doctoral Networks 2027"], identifier: ["HORIZON-MSCA-2027-DN-01-01"] } })).toBeNull();
+  });
+
+  it("Kaggle: a competition is an online project with its deadline", () => {
+    expect(rawFromKaggle({ id: 3, ref: "titanic", title: "Titanic", deadline: "2030-01-07T23:59:00Z", reward: "Knowledge" })).toMatchObject({ applyUrl: "https://www.kaggle.com/competitions/titanic", remote: true, attributes: { kind: "project", deadline: "2030-01-07" } });
   });
 });
 
