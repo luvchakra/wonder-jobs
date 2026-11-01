@@ -76,7 +76,7 @@ function Page({ l }: { l: ServiceListing }) {
     ["Areas served", t.areas?.length ? t.areas.join(", ") : "Not stated"],
     ["Turnaround", turnaroundLabel(t.turnaroundDays) ?? "Not stated"],
     ["Skills", t.skills?.length ? t.skills.join(", ") : "Not stated"],
-    ...(l.origin === "wonderstar" ? [["GST", t.gst ? "The pro says they're GST-registered; their invoice carries GST" : "Not stated"] as [string, string]] : []),
+    ...(l.origin === "wonderstar" ? [["GST", t.gstin ? `GSTIN ${t.gstin}, as the pro states it` : t.gst ? "The pro says they're GST-registered" : "Not stated"] as [string, string]] : []),
   ];
   return (
     <ListingPage

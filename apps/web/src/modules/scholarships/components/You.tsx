@@ -107,7 +107,7 @@ function ProfileForm({ initial }: { initial: StudentProfile }) {
           <Field label="School or college" htmlFor="sp-inst" required>
             <Input id="sp-inst" value={p.institution} onChange={(e) => set({ institution: e.target.value })} />
           </Field>
-          <Field label="State and country" htmlFor="sp-region" required>
+          <Field label="State and country (optional)" htmlFor="sp-region">
             <Input id="sp-region" value={p.region} onChange={(e) => set({ region: e.target.value })} />
           </Field>
           <Field label="Latest marks % (optional)" htmlFor="sp-marks">

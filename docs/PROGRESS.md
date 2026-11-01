@@ -14,3 +14,7 @@
 - ✅ Scholarships & Projects: Find, sources (WonderWorks, Grants.gov, gateway), listing page, organisation posting and applying (WJ-521)
 - ✅ Scholarships & Projects is live: Applications with Deadlines, application page, AI drafts for answers and statements (WJ-522)
 - ✅ Teaching: three more real sources — Adzuna (UK, US, Canada, Australia, NZ, South Africa, Singapore), USAJOBS and Sweden's JobTech; two need keys (WJ-560)
+- ✅ Talent & Services: pros state their GSTIN, and GST and TDS on a quote (their rate, SAC and section); an invoice summary for both sides to print once a job is booked (WJ-590)
+- ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)
+- ✅ Jobs: Find's row shows Location (your places, or Anywhere) instead of All modes; Work mode is in Refine (WJ-540)
+- ✅ Jobs: Full Time with no role shows the latest jobs ranked by fit, instead of "No jobs yet" (WJ-541)

@@ -163,7 +163,9 @@ export const LATEST_LIMIT = 100;
  * filters, never a banned company's, a closed one's or one older than two weeks. Every live source is listed with how
  * many of the shown listings came from it.
  */
-async function latestListings(req: SearchRequest, dataset: ModuleId, sources: SourceRecord[], banned: { domains: Set<string>; names: Set<string> }, requestId: string): Promise<{ response: SearchResponse; plan: SearchPlan }> {
+async function latestListings(req: SearchRequest, dataset: ModuleId, sources: SourceRecord[], banned: { domains: Set<string>; names: Set<string> }, requestId: string, emit: (e: SearchEvent) => void): Promise<{ response: SearchResponse; plan: SearchPlan }> {
+  // Streamed like any search: started (no source is asked) and completed, so a stream never ends without its answer.
+  emit({ type: "search_started", requestId, plannedSources: [], searchMode: req.searchMode });
   const now = Date.now();
   const pool = await jobsLakeStore().listOpportunities({ module: dataset, limit: 2000 });
   let results = pool.filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now) && !isBannedListing(o, banned));
@@ -182,6 +184,7 @@ async function latestListings(req: SearchRequest, dataset: ModuleId, sources: So
     sources: statuses,
     metadata: { retrieved: 0, normalized: 0, duplicates: 0, unique: results.length, sourcesPlanned: 0, sourcesSucceeded: statuses.length, sourcesFailed: 0, warm: results.length, live: 0 },
   };
+  emit({ type: "search_completed", response });
   return { response, plan: { mode: req.searchMode, depth: "shallow", useWarmPool: true, waves: [], skipped: [] } };
 }
 
@@ -204,7 +207,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   });
   // No words (owner, 2026-11-01: "just show top 100 entries if no search term is entered"): the module's latest stored
   // listings, newest first. Nothing is fetched and nothing guessed; the place filter and every exclusion still apply.
-  if (!req.query.text?.trim() && !req.query.titles?.length) return latestListings(req, dataset, sources, banned, requestId);
+  if (!req.query.text?.trim() && !req.query.titles?.length) return latestListings(req, dataset, sources, banned, requestId, emit);
   // Restricted: the planner only ever sees the allowed sources, so an empty list plans nothing.
   const plannable = await Promise.all(sources.filter((s) => !only || allowed!.includes(s.id)).map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s), geography: s.geography, paid: s.paid, jobTypes: s.jobTypes })));
   const plan = planSearch({ ...req, sourceIds: allowed }, plannable, health);

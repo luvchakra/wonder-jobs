@@ -12,7 +12,7 @@ import { runServicesSource, SERVICES_SOURCES, WONDERSTAR_SERVICES } from "./sour
 const owner: Session = { userId: "u-pro", tenantId: "u-pro", email: "ravi@coolfix.test", name: "Ravi" };
 const recruiter: Session = { userId: "u-rec", tenantId: "u-rec", email: "rec@coolfix.test" };
 const other: Session = { userId: "u-other", tenantId: "u-other", email: "someone@example.com" };
-const AC = { title: "Split AC service and gas refill", description: "Wet service of indoor and outdoor units, gas pressure check and refill, and a test run.", lane: "local", category: "AC service & repair", location: "Pune", areas: ["Kothrud", "411038"], priceKind: "visit", priceMin: 599, visitCharge: 199, materials: "extra", warrantyDays: 30, gst: true };
+const AC = { title: "Split AC service and gas refill", description: "Wet service of indoor and outdoor units, gas pressure check and refill, and a test run.", lane: "local", category: "AC service & repair", location: "Pune", areas: ["Kothrud", "411038"], priceKind: "visit", priceMin: 599, visitCharge: 199, materials: "extra", warrantyDays: 30, gstin: "27ABCDE1234F1Z5" };
 
 beforeEach(() => resetTablesForTests());
 
@@ -25,7 +25,7 @@ describe("a pro's service listings (pro side)", () => {
   it("are module-keyed rows in the workspace, saved as the pro stated them, a draft until opened", async () => {
     const orgId = await workspace();
     const p = await saveService(owner, orgId, AC);
-    expect(p).toMatchObject({ status: "draft", location: "Pune", workMode: "onsite", terms: { lane: "local", category: "AC service & repair", priceKind: "visit", priceMin: 599, visitCharge: 199, materials: "extra", warrantyDays: 30, areas: ["Kothrud", "411038"], gst: true, currency: "INR" } });
+    expect(p).toMatchObject({ status: "draft", location: "Pune", workMode: "onsite", terms: { lane: "local", category: "AC service & repair", priceKind: "visit", priceMin: 599, visitCharge: 199, materials: "extra", warrantyDays: 30, areas: ["Kothrud", "411038"], gst: true, gstin: "27ABCDE1234F1Z5", currency: "INR" } });
     expect(await table<{ id: string; module: string; org_id: string }>("listings").find({ org_id: orgId })).toEqual([expect.objectContaining({ id: p.id, module: "services" })]);
     // A draft is not in clients' searches; an open one is; a closed one leaves them.
     expect(await openServicePosts()).toEqual([]);

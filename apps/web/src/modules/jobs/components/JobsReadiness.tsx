@@ -340,8 +340,8 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
       {widened && <p className="mb-1 text-ink-2">{widened}</p>}
       <p className={cn("flex items-center gap-1.5", failed ? "text-danger-600" : "text-ink-3")} role={failed ? "alert" : undefined}>
         {/* The line itself opens the search's details; one icon searches again. */}
-        <Link href={`/app/runs/${last.id}?from=find`} aria-label={`Details — ${failed ? "the last search didn't finish" : `searched ${n} sources for ${c.query}`}`} className="min-w-0 underline-offset-2 hover:underline">
-          {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"} for “${c.query}”${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}${monitoring ? " · checks again on schedule" : ""}`}
+        <Link href={`/app/runs/${last.id}?from=find`} aria-label={`Details — ${failed ? "the last search didn't finish" : `searched ${n} sources ${c.query.trim() ? `for ${c.query}` : "for the latest jobs"}`}`} className="min-w-0 underline-offset-2 hover:underline">
+          {failed ? `The last search didn't finish: ${last.error?.message ?? "a source failed"}` : `Searched ${n} source${n === 1 ? "" : "s"}${c.query.trim() ? ` for “${c.query}”` : " · latest jobs"}${c.locations.length ? ` in ${c.locations.join(", ")}` : ""} · ${relativeTime(last.completedAt ?? last.createdAt)}${monitoring ? " · checks again on schedule" : ""}`}
         </Link>
         <button type="button" onClick={() => void search.searchNow(last.config.origin === "words" || last.config.role ? { query: c.query, locations: c.locations, workModes: c.workModes, careerGoal: last.config.careerGoal, origin: "words", role: last.config.role } : undefined)} aria-label={failed ? "Try again" : "Search again"} title={failed ? "Try again" : "Search again"} className="-my-1 shrink-0 rounded-full p-2 text-brand-600 hover:bg-brand-50">
           <RefreshCw className="size-3.5" aria-hidden />
@@ -358,7 +358,7 @@ export function SearchingPanel({ search }: { search: JobSearch }) {
   return (
     <div role="status" className="flex flex-col items-center justify-center gap-3 rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center">
       <WonderSearching size={88} />
-      <p className="text-base font-semibold text-ink">Searching for “{c.query}”{c.locations.length ? ` in ${c.locations.join(", ")}` : ""}</p>
+      <p className="text-base font-semibold text-ink">{c.query.trim() ? `Searching for “${c.query}”` : "Finding the latest jobs"}{c.locations.length ? ` in ${c.locations.join(", ")}` : ""}</p>
       <p className="text-[13px] text-ink-3">Finding roles worth dressing up for…</p>
     </div>
   );
