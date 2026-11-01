@@ -87,7 +87,7 @@ export function summarizeHealth(sourceId: string, runs: SourceRun[]): SourceHeal
 
 /* ---------------------------------------------------------------- alerts */
 
-export type AlertKind = "source_unavailable" | "authentication" | "repeated_failures" | "yield_dropped" | "latency" | "duplicate_rate";
+export type AlertKind = "source_unavailable" | "authentication" | "repeated_failures" | "yield_dropped" | "latency" | "duplicate_rate" | "storage";
 
 export interface Alert {
   id: string;

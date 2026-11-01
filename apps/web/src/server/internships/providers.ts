@@ -69,13 +69,15 @@ export async function fetchJoobleInternships(c: SearchCriteria): Promise<Job[]> 
 /* ---------- More company career sites with internships (Internships' own list) ---------- */
 /**
  * Boards that list internships often, on top of the career sites WorksLake reads for Jobs (`CAREER_BOARDS`). Each was
- * checked live on 2026-11-01 and had open intern roles: India first (Paytm, InMobi, Sarvam AI), then companies with large
+ * checked live on 2026-11-01 and had open intern roles: India first (Paytm, InMobi, Sarvam AI, FamPay, Hevo Data), then companies with large
  * intern programmes worldwide. Asked only by Internships' "Company career sites" source.
  */
 export const INTERN_BOARDS: { platform: "greenhouse" | "lever" | "ashby"; slug: string; company: string; domain: string }[] = [
   { platform: "lever", slug: "paytm", company: "Paytm", domain: "paytm.com" },
   { platform: "greenhouse", slug: "inmobi", company: "InMobi", domain: "inmobi.com" },
   { platform: "ashby", slug: "sarvam", company: "Sarvam AI", domain: "sarvam.ai" },
+  { platform: "lever", slug: "fampay", company: "FamPay", domain: "famapp.in" },
+  { platform: "lever", slug: "hevodata", company: "Hevo Data", domain: "hevodata.com" },
   { platform: "greenhouse", slug: "waymo", company: "Waymo", domain: "waymo.com" },
   { platform: "greenhouse", slug: "jumptrading", company: "Jump Trading", domain: "jumptrading.com" },
   { platform: "greenhouse", slug: "lyft", company: "Lyft", domain: "lyft.com" },
