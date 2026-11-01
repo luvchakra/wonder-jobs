@@ -163,6 +163,8 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 |---|---|---|
 | UDISE+ teacher counts (data.gov.in, AIKosh; Open Government Licence – India) | Open, downloads only | Context, not listings: teachers and vacancies by district. Newest sets found are 2019-20; one Rajya Sabha annexure cites 2024-25 state totals. |
 | State teacher-recruitment boards | Open pages, no API | Would be per-state scraping; terms unverified. Not recommended without permission. |
+| EdJoin, California school jobs (`apps/data-gateway/sources/edjoin-california-schools.json`) | Gateway crawl of public JobPosting pages | **Paused — terms pending** | Confirm EdJoin's terms allow reuse. robots.txt allows everything and lists its sitemap; pages carry JobPosting JSON-LD. Register, /test, then the owner activates. |
+| TeachAway, international and ESL teaching (`.../teachaway-international.json`) | Gateway crawl of public JobPosting pages | **Paused — terms pending** | Confirm TeachAway's terms allow reuse (a recruiter: written permission may be better). robots.txt allows `/teaching-jobs-abroad/`. |
 | Germany BA Jobsuche | Unofficial, undocumented terms | Not built: no documented reuse rights. |
 | France Travail "Offres d'emploi" | Key + signed licence, attribution | Deferred: needs the owner to accept the licence. |
 | jobs.ac.uk (higher education) | Feeds exist, no explicit reuse permission | Not built; ask them for written permission. |
