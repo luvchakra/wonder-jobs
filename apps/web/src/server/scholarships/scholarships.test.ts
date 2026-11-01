@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -54,11 +54,11 @@ afterEach(() => __setJobsLakeStore(undefined));
 describe("its own WorksLake dataset", () => {
   it("every built-in source is the Scholarships module's, never Jobs'", () => {
     expect(new Set(SCHOLARSHIP_SOURCES.map((s) => s.module))).toEqual(new Set(["scholarships"]));
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_kaggle"]);
+    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_kaggle"]);
   });
 
   it("sources whose terms aren't confirmed say what's pending; Kaggle needs its key", () => {
-    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
+    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
     expect(scholarshipSourceAvailable(SCHOLARSHIP_SOURCES.find((s) => s.id === "schol_kaggle")!)).toBe(false);
   });
 
@@ -120,6 +120,17 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
   it("EU: only fellowship calls, linked to the call's official page", () => {
     expect(rawFromSedia({ url: "x", metadata: { title: ["MSCA Postdoctoral Fellowships 2027"], identifier: ["HORIZON-MSCA-2027-PF-01-01"], deadlineDate: ["2027-09-08T00:00:00.000+0000"] } })).toMatchObject({ applyUrl: "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/HORIZON-MSCA-2027-PF-01-01", attributes: { deadline: "2027-09-08", levels: "phd" } });
     expect(rawFromSedia({ url: "x", metadata: { title: ["Doctoral Networks 2027"], identifier: ["HORIZON-MSCA-2027-DN-01-01"] } })).toBeNull();
+  });
+
+  it("scholarship blogs' RSS: one post, one opportunity, its stated deadline; round-ups are left out", () => {
+    expect(statedDeadline("Deadline: December 14, 2026 Applications are open")).toBe("2026-12-14");
+    expect(statedDeadline("Deadline:  15 Jan 2027 (annual)")).toBe("2027-01-15");
+    expect(statedDeadline("Deadline: Unspecified")).toBeUndefined();
+    expect(providerFromTitle("Mastercard Foundation Scholars Program at American University of Cairo (AUC) Spring 2027", "Feed")).toBe("American University of Cairo (AUC)");
+    expect(providerFromTitle("SMART Scholarship-for-Service Program 2027", "Feed")).toBe("Feed");
+    const item = (title: string) => `<item><title>${title}</title><link>https://opportunitydesk.org/2026/10/30/x/</link><pubDate>Thu, 30 Oct 2026 10:00:00 +0000</pubDate><description><![CDATA[Deadline: December 14, 2026 Applications are open.]]></description></item>`;
+    expect(rawFromFeedItem(item("Mastercard Foundation Scholars Program at Sciences Po 2027 (Fully-funded)"), { name: "Opportunity Desk" })).toMatchObject({ company: "Sciences Po", applyUrl: "https://opportunitydesk.org/2026/10/30/x/", attributes: { kind: "scholarship", deadline: "2026-12-14" } });
+    for (const t of ["10+ Scholarships in Canada for International Students", "Top 20 Excellence Scholarships", "Fully Funded Scholarships for International Students"]) expect(rawFromFeedItem(item(t), { name: "Feed" }), t).toBeNull();
   });
 
   it("Kaggle: a competition is an online project with its deadline", () => {

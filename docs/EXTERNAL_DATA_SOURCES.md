@@ -59,7 +59,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 
 | Module | Outside sources in code | Free/open | Paid or agreement | Biggest open issue |
 |---|---|---|---|---|
-| **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
+| **Jobs** | 20 outside (19 free, 1 paid; 4 need a free key) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
@@ -82,7 +82,7 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Greenhouse | ATS | official public API | **Live** · responds | Public boards of companies WorksLake knows |
 | Lever | ATS | official public API | **Live** · responds | Same |
 | Ashby | ATS | official public API | **Live** | Same |
-| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero |
+| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero, LinkedIn, ServiceNow (last two added 2026-11-01, WJ-544) |
 | JazzHR career sites | ATS | public feeds | **Live** | HackerEarth, Ebizon, ProcDNA and more |
 | The Muse | aggregator | public API | **Live** · responds | Key env `THEMUSE_API_KEY` is read; check whether it is required or only raises limits |
 | Jobicy | aggregator | public API | **Live** · responds | Salary where disclosed |
@@ -90,10 +90,14 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Himalayas | aggregator | public API | **Live** · responds | Newest postings scanned |
 | Himalayas part-time | aggregator | public API | **Live** | Part Time mode |
 | Freelancer.com gigs | aggregator | public API | **Live** · responds | Gig mode; client not named publicly |
+| Working Nomads | aggregator | public JSON (`/api/exposed_jobs/`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). ~35 newest remote jobs, no search. Confirm with Working Nomads that reuse of the feed's listings is allowed |
+| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Confirm with We Work Remotely that showing the RSS listings in another product is allowed |
 | Remotive | aggregator | public API | **Off by default** · responds | Public feed exposes only a handful of listings |
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
+| Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
+| USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
 | LinkedIn, Indeed, Naukri, foundit, TimesJobs | portals | partner API | **Do not use** | None has an open search API; see `docs/PARTNER_INTEGRATIONS.md` for who to contact and what to ask |
 
@@ -102,8 +106,13 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Option | Open/paid | Verdict |
 |---|---|---|
 | Hacker News "Who is hiring" via Algolia API | Open | Researched. Free, no key; posts hold contact emails (personal data) and terms are unclear. Low value for India. |
-| USAJOBS (all federal jobs) | Open, key | Already used for Internships only; Jobs would add US federal roles. |
-| Jooble | Free key | Already used for Internships and Teaching; not in Jobs. Worth adding for India coverage if terms allow (check). |
+| Bundesagentur für Arbeit Jobsuche API (German federal job board, open data via bund.dev) | Open, public client id | Researched 2026-11-01. Answered 403 from our servers (a block, not a terms question): not built. Retry from the deployment before deciding. |
+| Findwork.dev | Free key | Researched 2026-11-01. Tech jobs API, answers 401 without a key. Worth adding as "Needs setup" (`FINDWORK_API_KEY`, signup findwork.dev) if tech coverage is thin. |
+| Reed.co.uk | Free key | Researched 2026-11-01. UK jobs API, 401 without a key. Low value for India; worth it only for UK searches. |
+| Careerjet partner API | Free affiliate id | Researched 2026-11-01. Global aggregator incl. India; needs an affiliate id and the user's IP/user agent per call. Candidate for a later pass. |
+| More company boards | Open | Ongoing. 2026-11-01 (WJ-544) added Razorpay, InMobi, HackerRank, Observe.AI (Greenhouse), Paytm, Zeta, Mindtickle (Lever), Sarvam AI, PostHog (Ashby); probed ~90 India-strong slugs, kept only boards that answered with the named company's jobs. Phonepe, Swiggy, Flipkart, Zomato, Dream11, Postman, BrowserStack and others aren't on these public APIs. |
+| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/usajobs.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
+| Jooble | Free key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/jooble.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
 | Coresignal job/people data | Paid | Researched (vendor). Priced by volume; only if TheirStack is not enough. |
 
 ### Open issues
@@ -300,8 +309,12 @@ A dataset of its own (`module = 'scholarships'`), always searched worldwide. Bui
 | **Unstop** (`schol_unstop`) | **Live, terms pending**, no key | `unstop.com/api/public/opportunity/search-result` (public JSON) for scholarships, hackathons and competitions open to students in India; 86 open on 2026-11-01. Listings it marks `isPaid` or closed for registration are left out. Terms to confirm: no published reuse terms for the API (ask Unstop). |
 | **Devpost** (`schol_devpost`) | **Live, terms pending**, no key | `devpost.com/api/hackathons?status[]=open` (public JSON), open hackathons as projects with their submission deadline and prizes; 44 open on 2026-11-01. Terms to confirm: the hackathon list is public JSON but its terms don't state reuse (ask Devpost). |
 | **EU Funding & Tenders: fellowships** (`schol_eu_msca`) | **Live, terms pending**, no key | The portal's search API (`api.tech.ec.europa.eu/search-api`, public key `SEDIA`), open fellowship calls only (MSCA Postdoctoral Fellowships, ERA Fellowships), each linked to its call page. Terms to confirm: Commission reuse policy (CC BY 4.0) for this endpoint. |
+| **Opportunity Desk** (`schol_opportunity_desk`) | **Live, terms pending**, no key | The site's public WordPress RSS feed for scholarships and fellowships (pages 1–3): one post per opportunity, with the deadline its post states ("Deadline: December 14, 2026"); round-up posts are left out. 25 on 2026-11-01. Links go to the post, which links to the provider. Terms to confirm: reuse of post summaries (ask the site). |
+| **Scholars4Dev** (`schol_scholars4dev`) | **Live, terms pending**, no key | The same for Scholars4Dev's feed (international scholarships). 20 on 2026-11-01. Terms to confirm: reuse of post summaries. |
 | **Kaggle competitions** (`schol_kaggle`) | **Needs setup** | Kaggle's API (`/api/v1/competitions/list`). Owner: set `KAGGLE_USERNAME` and `KAGGLE_KEY` in Admin → Settings → API (free: kaggle.com → Settings → API → Create New Token). |
 | **Partner uploads** (`works_gateway_scholarships`) | Draft until activated | A college, foundation or CSR team's list, uploaded through the gateway (§13.7). |
+
+Looked at on the second pass (2026-11-01), not added: **LFX Mentorship** (its API answered "being upgraded", 503; re-check), **MLH** events (Cloudflare redirect on the events page; not bypassed), **NSF** program announcements RSS (programmes for institutions, not students), **DAAD** (results load through its page only), Indian state scholarship portals (no feed or API found; listings link to them).
 
 Looked at, not added: India's **National Scholarship Portal** (no API or feed; listings link to it), **Buddy4Study**, **Fastweb** and **Scholarships.com** (no open API or feed), **Google Summer of Code** (its API returned no current programme on 2026-11-01; re-check when the 2027 programme opens), **Outreachy** (no public JSON), **DAAD** scholarship database (search only through its page; a gateway crawl candidate), **EURAXESS** (job offers, mostly positions; a gateway candidate for fellowships).
 
