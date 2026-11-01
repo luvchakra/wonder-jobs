@@ -43,6 +43,8 @@ export interface CatalogueEntry {
   host: string;
   /** Already registered (a source with the same URL exists). */
   added: boolean;
+  /** Its permission evidence says its terms are still to be confirmed by the owner. */
+  termsPending: boolean;
 }
 
 export function catalogueEntries(registeredUrls: Set<string>): CatalogueEntry[] {
@@ -59,5 +61,6 @@ export function catalogueEntries(registeredUrls: Set<string>): CatalogueEntry[] 
       }
     })(),
     added: registeredUrls.has(String(s.url)),
+    termsPending: /terms (pending|to confirm)|confirms? (the|its|before)/i.test(String(s.permissionEvidence ?? "")),
   }));
 }

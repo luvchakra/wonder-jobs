@@ -160,6 +160,31 @@ export function eventAttributes(o) {
   if (/Postponed/i.test(status)) out.postponed = true;
   return out;
 }
+/**
+ * A business as its own page describes it (schema.org LocalBusiness and its trades): its name, page, description, town
+ * and region, and what it says about itself — coordinates, rating, area served, services, its own website. Never its
+ * telephone, email, street address, postcode, images, awards or credentials (businesses only, no contact copied).
+ */
+export function businessRecord(o) {
+  const a = typeof o.address === "object" && o.address ? o.address : {};
+  const location = [a.addressLocality, a.addressRegion].filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim()).join(", ");
+  const num = (v) => { const n = typeof v === "number" ? v : Number.parseFloat(String(v ?? "")); return Number.isFinite(n) ? n : undefined; };
+  const attributes = {};
+  const lat = num(o.geo?.latitude), lon = num(o.geo?.longitude);
+  if (lat !== undefined && lon !== undefined && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) { attributes.lat = lat; attributes.lon = lon; }
+  const rating = num(o.aggregateRating?.ratingValue), reviews = num(o.aggregateRating?.reviewCount);
+  if (rating !== undefined && rating >= 0 && rating <= 5) attributes.rating = rating;
+  if (reviews !== undefined && reviews >= 0) attributes.reviews = Math.round(reviews);
+  const area = [o.areaServed].flat().map((x) => (typeof x === "string" ? x : x?.name)).filter((x) => typeof x === "string" && x.trim());
+  if (area.length) attributes.areaServed = area.join(", ");
+  const services = typeof o.hasOfferCatalog?.name === "string" ? o.hasOfferCatalog.name : undefined;
+  if (services) attributes.services = services;
+  const site = [o.sameAs].flat().find((x) => typeof x === "string" && /^https:\/\//i.test(x));
+  if (site) {
+    try { const u = new URL(site); for (const k of [...u.searchParams.keys()]) if (/^utm_/i.test(k)) u.searchParams.delete(k); attributes.website = u.toString(); } catch { /* not a URL */ }
+  }
+  return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: strip(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
+}
 export function parseStructured(html) {
   const out = [];
   for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
@@ -170,13 +195,15 @@ export function parseStructured(html) {
       if (!o || typeof o !== "object") return;
       if (o["@graph"]) walk(o["@graph"]);
       const kinds = [o["@type"]].flat().filter(Boolean);
-      if (!kinds.some((k) => /JobPosting|Event|Product|Service/i.test(String(k)))) return;
+      if (!kinds.some((k) => /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
       const first = (v) => (Array.isArray(v) ? v[0] : v);
       const org = first(o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher);
       // An event's place may be a list (a venue and its stream): the first one with an address, else the first.
       const places = [o.jobLocation || o.location || o.availableAtOrFrom].flat().filter(Boolean);
       const place = places.find((x) => typeof x === "string" || x?.address) ?? places[0];
       const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
+      const business = !event && kinds.some((k) => /LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber|ProfessionalService/i.test(String(k)));
+      if (business) { out.push(businessRecord(o)); return; }
       out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
