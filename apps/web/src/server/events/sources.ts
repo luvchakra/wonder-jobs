@@ -13,6 +13,8 @@ import { finish, type SearchCriteria } from "@/server/jobs/providers";
 import type { RawPosting } from "@/services/jobs/normalize";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
+import { DEVELOPERS_EVENTS, developersEventsSearch } from "./developersEvents";
+import { OSM_CALENDAR, osmCalendarSearch } from "./osmCalendar";
 import { TICKETMASTER, TICKETMASTER_KEY, ticketmasterAvailable, ticketmasterSearch } from "./ticketmaster";
 
 const EPOCH = "2026-10-31T00:00:00.000Z";
@@ -37,6 +39,46 @@ export const EVENTS_SOURCES: SourceRecord[] = [
     updatedAt: EPOCH,
     accessStrategy: "official_api",
     capabilities: ["Search", "Freshness"],
+    jobTypes: [],
+    module: "events",
+  },
+  {
+    protocolVersion: PROTOCOL_VERSION,
+    id: DEVELOPERS_EVENTS,
+    name: "developers.events",
+    provider: "developers.events",
+    category: "aggregator",
+    geography: ["global", "IN"],
+    description: "Developer conferences worldwide with their dates, place, own page and call for papers, from the public list its maintainers publish (developers.events). No key.",
+    status: "active",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 25_000, maxResults: 150, refreshMinutes: 720 },
+    builtin: true,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    accessStrategy: "official_feed",
+    capabilities: ["Search", "Freshness", "Apply URL"],
+    jobTypes: [],
+    module: "events",
+  },
+  {
+    protocolVersion: PROTOCOL_VERSION,
+    id: OSM_CALENDAR,
+    name: "OpenStreetMap Calendar",
+    provider: "OpenStreetMap community",
+    category: "aggregator",
+    geography: ["global", "IN"],
+    description: "Mapathons, meetups and State of the Map events from the OpenStreetMap community's calendar (osmcal.org), with each event's own page. No key.",
+    status: "active",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 15_000, maxResults: 150, refreshMinutes: 360 },
+    builtin: true,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    accessStrategy: "official_feed",
+    capabilities: ["Search", "Freshness", "Apply URL"],
     jobTypes: [],
     module: "events",
   },
@@ -70,6 +112,8 @@ export const eventsSourceAvailable = (s: SourceRecord) => (s.id === TICKETMASTER
 /** Fetch one Events source. */
 export async function runEventsSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (s.id === TICKETMASTER) return { jobs: await ticketmasterSearch(s, c, needsSetup), warnings: [] };
+  if (s.id === DEVELOPERS_EVENTS) return { jobs: await developersEventsSearch(s, c), warnings: [] };
+  if (s.id === OSM_CALENDAR) return { jobs: await osmCalendarSearch(s, c), warnings: [] };
   if (s.id !== WONDERWORKS_EVENTS) throw new Error("No connector");
   const { openEventPosts } = await import("./listings");
   // The person's words and places narrow the events, as every source's postings (finish).
