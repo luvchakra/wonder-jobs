@@ -12,7 +12,7 @@ import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { LANE_LABEL, materialsLabel, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
+import { LANE_LABEL, materialsLabel, OSM_COPYRIGHT, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
 import { useServicesStore } from "../store";
 import { call } from "@/wonderworks/api";
 import { shortDate } from "@/wonderworks/listing/terms";
@@ -192,9 +192,18 @@ function Page({ l }: { l: ServiceListing }) {
             )}
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
               <p className="text-[13px] text-ink-2">
-                {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}. Work and payment with this pro happen there, on their terms.`}
+                {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : l.attribution ? `Mapped on ${l.sourceName}, not listed by the business itself and not verified by WonderWorks. Contact and pay them directly.` : `Found on ${l.sourceName}. Work and payment with this pro happen there, on their terms.`}
                 {l.postedAt ? ` Listed ${relativeTime(l.postedAt)}.` : ""}
               </p>
+              {l.attribution && (
+                <p className="mt-2 text-[12px] text-ink-4">
+                  {l.attribution}, under the{" "}
+                  <a href={OSM_COPYRIGHT} target="_blank" rel="noopener noreferrer" className="underline">
+                    Open Database Licence
+                  </a>
+                  . Only what OpenStreetMap has: its trade, name, area and website if it has one.
+                </p>
+              )}
             </Fold>
           </div>
         )}

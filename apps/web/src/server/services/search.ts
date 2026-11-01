@@ -7,10 +7,10 @@
  */
 import { search } from "@/server/jobslake/core";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { readProTags, SERVICES, termsFromPro, type ServiceListing } from "@/modules/services/domain";
+import { OSM_ATTRIBUTION, readProTags, SERVICES, termsFromPro, type ServiceListing } from "@/modules/services/domain";
 import { openServicePosts } from "./listings";
 import { listingReviews } from "./requests";
-import { WONDERSTAR_SERVICES } from "./sources";
+import { OPENSTREETMAP, WONDERSTAR_SERVICES } from "./sources";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
 
@@ -32,6 +32,8 @@ const MAX_RESULTS = 200;
 
 export function outside(o: CanonicalOpportunity): ServiceListing {
   const rec = o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0];
+  const facts = readProTags(o.enrichment.tags);
+  const osm = rec?.sourceId === OPENSTREETMAP;
   return {
     id: o.id,
     origin: "outside",
@@ -42,7 +44,9 @@ export function outside(o: CanonicalOpportunity): ServiceListing {
     terms: termsFromPro(readProTags(o.enrichment.tags)),
     termsFrom: "posting",
     description: o.description.slice(0, 1200),
-    applyUrl: o.canonicalApplyUrl,
+    // A mapped business's own website when it has one, else the page OpenStreetMap lists it on.
+    applyUrl: osm && facts.web ? facts.web : o.canonicalApplyUrl,
+    ...(osm ? { attribution: OSM_ATTRIBUTION } : {}),
     // A directory profile has no listing date (the source's date is when the account was made), so none is shown.
     sourceId: rec?.sourceId ?? "",
     sourceName: rec?.sourceName ?? "",

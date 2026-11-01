@@ -23,5 +23,7 @@
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
 - ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
+- ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)
+- ✅ Jobs: job cards say "via WWDG" for the WorksLake Data Gateway, with the full name on hover (WJ-542)
 - ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
 - ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page

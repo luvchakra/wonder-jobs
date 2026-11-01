@@ -91,7 +91,7 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
       summary={l.description.slice(0, 240)}
       summaryTitle="From their profile"
       status={requested && <Badge tone="brand">Quote requested</Badge>}
-      footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
+      footnote={`via ${l.sourceName}${l.attribution ? ` · ${l.attribution}` : ""}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="pro" />}
     />
   );
