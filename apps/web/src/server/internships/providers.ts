@@ -11,6 +11,7 @@ import type { Job } from "@/domain/jobs/types";
 import { finish, getJson, museLocation, placesToSearch, rawFromHimalayas, rawFromMuse, type HimalayasJob, type MuseJob, type SearchCriteria } from "@/server/jobs/providers";
 import { corePhrase, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import { fetchJooble } from "@/server/jobslake/jooble";
+import { fetchUsaJobs } from "@/server/jobslake/usajobs";
 
 /** A student's words, asked of a general job source as an internship search ("marketing" → "marketing intern"). */
 export const asIntern = (c: SearchCriteria): SearchCriteria => ({ ...c, query: /\b(intern|internship|trainee)\b/i.test(c.query) ? c.query : `${c.query} intern`.trim() });
@@ -52,60 +53,9 @@ export async function fetchHimalayasInternships(c: SearchCriteria): Promise<Job[
 }
 
 /* ---------- USAJOBS (students / Pathways) ---------- */
-export interface UsaJobsItem {
-  MatchedObjectId: string;
-  MatchedObjectDescriptor: {
-    PositionTitle: string;
-    PositionURI: string;
-    ApplyURI?: string[];
-    PositionLocationDisplay?: string;
-    OrganizationName?: string;
-    DepartmentName?: string;
-    PositionSchedule?: { Name: string }[];
-    PositionOfferingType?: { Name: string }[];
-    QualificationSummary?: string;
-    PositionRemuneration?: { MinimumRange?: string; MaximumRange?: string; RateIntervalCode?: string }[];
-    PublicationStartDate?: string;
-    UserArea?: { Details?: { JobSummary?: string; MajorDuties?: string[] } };
-  };
-}
+export { rawFromUsaJobs, usaJobsAvailable, type UsaJobsItem } from "@/server/jobslake/usajobs";
 
-export const usaJobsAvailable = () => !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL);
-
-export function rawFromUsaJobs(item: UsaJobsItem): RawPosting {
-  const d = item.MatchedObjectDescriptor;
-  const offering = (d.PositionOfferingType ?? []).map((o) => o.Name);
-  // Pay only when USAJOBS states it per year ("PA"): WorksLake keeps pay per year, and an hourly rate isn't one.
-  const pay = (d.PositionRemuneration ?? []).find((r) => r.RateIntervalCode === "PA");
-  const location = d.PositionLocationDisplay ?? "";
-  return {
-    externalId: `usajobs:${item.MatchedObjectId}`,
-    title: d.PositionTitle,
-    company: [d.OrganizationName, d.DepartmentName].filter((x, i, a) => x && a.indexOf(x) === i).join(" · "),
-    location,
-    remote: /anywhere in the u\.?s\.?|remote/i.test(location),
-    description: [d.UserArea?.Details?.JobSummary, ...(d.UserArea?.Details?.MajorDuties ?? []), d.QualificationSummary].filter(Boolean).join("\n\n"),
-    tags: [...offering, ...(d.PositionSchedule ?? []).map((s) => s.Name)],
-    postedAt: d.PublicationStartDate,
-    applyUrl: d.ApplyURI?.[0] || d.PositionURI,
-    salaryMin: Number(pay?.MinimumRange) || null,
-    salaryMax: Number(pay?.MaximumRange) || null,
-    currency: pay ? "USD" : null,
-    employerSite: true,
-    applyPath: "employer_site" as const,
-    // USAJOBS' own offering type ("Internships"); otherwise the title decides (normalize), and a posting that says neither isn't one.
-    jobType: offering.some((o) => /intern/i.test(o)) ? "internship" : offering,
-  };
-}
-
-export async function fetchUsaJobsInternships(c: SearchCriteria): Promise<Job[]> {
-  const headers = { "Authorization-Key": process.env.USAJOBS_API_KEY ?? "", "User-Agent": process.env.USAJOBS_EMAIL ?? "" };
-  const q = corePhrase(c.query);
-  const places = placesToSearch(c);
-  const urls = (places.length ? places : [""]).map((p) => `https://data.usajobs.gov/api/search?HiringPath=student&ResultsPerPage=250${q ? `&Keyword=${encodeURIComponent(q)}` : ""}${p ? `&LocationName=${encodeURIComponent(p)}` : ""}`);
-  const pages = await Promise.all(urls.map((u) => getJson<{ SearchResult?: { SearchResultItems?: UsaJobsItem[] } }>(u, { headers })));
-  return finish("intern_usajobs", pages.flatMap((p) => p.SearchResult?.SearchResultItems ?? []).map(rawFromUsaJobs), c);
-}
+export const fetchUsaJobsInternships = (c: SearchCriteria): Promise<Job[]> => fetchUsaJobs("intern_usajobs", c, "HiringPath=student");
 
 /* ---------- Jooble ---------- */
 export { joobleAvailable, rawFromJooble, type JoobleJob } from "@/server/jobslake/jooble";

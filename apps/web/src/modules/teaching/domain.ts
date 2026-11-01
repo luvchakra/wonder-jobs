@@ -150,7 +150,7 @@ export function requiresFromText(s: string): string[] {
 }
 
 /** Whether a posting is a teaching post at all: it says so in its title. */
-export const isTeachingTitle = (title: string) => /\b(teacher|teaching|tutor|tuition|lecturer|professor|faculty|educator|instructor|PRT|TGT|PGT|trainer|coach|mentor)\b/i.test(title) && !/\b(sales|business development|counsel+or|admissions?)\b/i.test(title);
+export const isTeachingTitle = (title: string) => /\b(teacher|teaching|tutor|tuition|lecturer|professor|faculty|educator|instructor|PRT|TGT|PGT|trainer|coach|mentor|lektor)\b|\b[a-zåäö]*l[aä]rare\b/i.test(title) && !/\b(sales|business development|counsel+or|admissions?)\b/i.test(title);
 
 /** "Tuition" for a tutor's post; else the hours the source reports. */
 export function hoursOf(title: string, jobType: string | undefined): Hours | undefined {
