@@ -250,6 +250,17 @@ Dataset `therapists`. WonderWorks practitioners (`server/therapists/sources.ts`)
 
 Still not built: any register or directory of individuals; licence checks; crisis resources (legal wording first).
 
+**India pass (2026-11-01, WJ-601): researched, nothing new built**
+
+| Candidate | Finding | Verdict |
+|---|---|---|
+| National Hospital Directory, All India Health Centres Directory, Hospital Directory 2015 (data.gov.in, on AIKOSH) | Open under GODL (Government Open Data Licence – India). General hospitals and health centres (names, address, geo-code, ownership, specialisations), **not mental-health specific**; the AIKOSH page for the National Hospital Directory says frequency **Static**, file dated **2017** (9.9 MB); the health-centres directory is a 2016 snapshot (page updated 2019). `data.gov.in` itself refused connections from our build network, so its API (a free key, per its developer pages) was not tried. | Not built: stale and general; listing a 2017 hospital as a counselling option would not be genuine. Owner decision recorded on Setup to-do. |
+| District Mental Health Programme (DMHP) districts | MoHFW publishes "List of Approved DMHP Districts" as a PDF by state; no per-clinic directory, no contact data, figures differ by source (743, 767 or 780 districts). | Not a source of practices. |
+| Tele-MANAS (14416) cells | A helpline network, not a directory of practices; 42 to 53 cells reported inconsistently; no official per-cell list. | It is a **crisis resource**: its wording and placement wait on legal review, not built. |
+| Clinic and practice sites with schema.org JSON-LD | No Indian chain of clinics with open `MedicalClinic` or `LocalBusiness` markup and permissive robots.txt was identified; the well-known directories (Practo, Psychology Today, Amaha-style listings of individuals) are individuals or forbid it. | Nothing to crawl yet. If a specific practice chain is named, the gateway's crawler can take it (practices only). |
+| More OpenStreetMap cities | The cities table is shared with Talent & Services; a business is given its nearest city, so adding cities changes both modules. | Not done in a module PR: the shared-layer session owns the table. |
+| `geography` on gateway definitions | Now read by the gateway and Setup to-do (WJ-510); the shared-layer session added `["IN"]` to the osm-therapists files. | Done. |
+
 **Researched**
 
 | Option | Open/paid | Verdict |
