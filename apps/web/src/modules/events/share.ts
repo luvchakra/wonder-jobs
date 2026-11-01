@@ -1,7 +1,7 @@
 import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { publicPath } from "@/wonderworks/listing/share";
 import { shortPlace } from "@/wonderworks/find/place";
-import { ageLabel, seatsLabel, whenLabel, type EventListing } from "./domain";
+import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, type EventListing } from "./domain";
 
 /**
  * What Share sends about an event, everything the listing shows as it reads now: when it starts and ends, where (or
@@ -10,6 +10,20 @@ import { ageLabel, seatsLabel, whenLabel, type EventListing } from "./domain";
  */
 export const shareOf = (l: EventListing): ListingShareProps => {
   const t = l.terms;
+  const out = l.outside;
+  // An event from an outside source is shared with its dates, place and source, and its own page as the link (it has no
+  // public page here): nothing is said that its source didn't.
+  if (out)
+    return {
+      module: "events",
+      noun: "event",
+      title: l.title,
+      facts: [dateRangeLabel(out.startDate, out.endDate), outsidePlace(l), l.company],
+      lines: [`Source: ${l.sourceName}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
+      details: l.description,
+      url: out.url,
+      source: l.sourceName,
+    };
   return {
     module: "events",
     noun: "event",

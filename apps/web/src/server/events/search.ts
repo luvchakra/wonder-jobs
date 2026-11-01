@@ -5,6 +5,7 @@
 import { search } from "@/server/jobslake/core";
 import { EVENTS, seatsLeft, type EventListing } from "@/modules/events/domain";
 import { openEventPosts, seatCounts } from "./listings";
+import { outsideEvents } from "./outside";
 import { WONDERWORKS_EVENTS } from "./sources";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
@@ -55,6 +56,13 @@ export async function searchEvents(input: { query: string; places: string[]; ref
     count: results.filter((r) => r.sourceId === s.sourceId).length,
     ...(s.message ? { message: s.message } : {}),
   }));
+  // Outside events (the gateway), beside the ones organised here. Absent where no gateway is set up; "Unavailable" when it can't answer.
+  const outside = await outsideEvents({ query, places, limit: 100 });
+  if (outside.configured) {
+    if (outside.failed) lines.push({ id: "gateway", name: "Outside events", state: "unavailable", count: 0, message: "Unavailable" });
+    for (const s of outside.sources) lines.push({ id: s.id, name: s.name, state: s.count ? "ok" : "empty", count: s.count });
+    results.push(...outside.results.slice(0, Math.max(0, MAX_RESULTS - results.length)));
+  }
   for (const sk of plan.skipped) if (!lines.some((l) => l.id === sk.id)) lines.push({ id: sk.id, name: sk.name, state: /credential/i.test(sk.reason) ? "needs_setup" : "skipped", count: 0, message: /credential/i.test(sk.reason) ? "Needs setup" : sk.reason });
   return { searched: { query, places }, results, sources: lines };
 }
