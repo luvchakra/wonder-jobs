@@ -312,6 +312,27 @@ describe("v1 search (WJ-JL-031..034)", () => {
     expect(events.filter((e) => e.type === "source_completed").length).toBe(events[0].plannedSources.length);
     expect(events.at(-1).response.results).toHaveLength(1);
   });
+
+  // Owner, 2026-11-01: Full Time with no role showed "No jobs" while the pool had thousands. The stream for a search
+  // without words (latest: true) ended without search_completed, so the client took it as "ended early".
+  it("streams a search without words (latest: true) to its end, with the stored listings", async () => {
+    asCandidate(2);
+    connector.mockImplementation(async (src: { id: string }) => {
+      if (src.id === "greenhouse") return { jobs: [job()], warnings: [] };
+      throw new NeedsSetupError("Needs credentials");
+    });
+    // A search with words stores what it found.
+    await stream(post("/v1/search/stream", SEARCH)).then((r) => r.text());
+    const calls = connector.mock.calls.length;
+    const r = await stream(post("/v1/search/stream", { query: { locations: [] }, latest: true }));
+    const events = (await r.text()).trim().split("\n").map((l) => JSON.parse(l));
+    expect(events[0].type).toBe("search_started");
+    expect(events[0].plannedSources).toEqual([]);
+    expect(events.at(-1).type).toBe("search_completed");
+    expect(events.at(-1).response.results).toHaveLength(1);
+    // Nothing is fetched for it.
+    expect(connector.mock.calls.length).toBe(calls);
+  });
 });
 
 describe("MCP adapter (WJ-JL-029)", () => {
