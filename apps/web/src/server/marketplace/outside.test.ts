@@ -39,6 +39,12 @@ describe("a shop's own catalogue item as a link-out listing", () => {
     expect(outsideListing(opp({}, { available: false }))).toBeNull();
     expect(outsideListing(opp({}, { available: "false" }))).toBeNull();
   });
+  it("shows the shop's photo only through the signed image proxy, and only an https one", () => {
+    const img = outsideListing(opp({}, { image: "https://cdn.shopify.com/s/files/1/cushion.jpg" }))!.outside!.image!;
+    expect(img).toMatch(/^\/api\/img\?u=https%3A%2F%2Fcdn\.shopify\.com%2F.+&s=[\w-]{32}$/);
+    expect(outsideListing(opp({}, { image: "http://cdn.example/x.jpg" }))!.outside!.image).toBeUndefined();
+    expect(outsideListing(opp())!.outside!.image).toBeUndefined();
+  });
   it("never carries a seller's personal details", () => {
     const l = outsideListing(opp({}, { phone: "9845012345", email: "a@b.in" }))!;
     expect(JSON.stringify(l)).not.toMatch(/9845012345|a@b\.in/);

@@ -64,3 +64,4 @@
 - ✅ Scholarships & Projects: Devfolio hackathons (India) as a live source; Buddy4Study and NSP in Setup to-do (WJ-526)
 - ✅ Co-founders: India pass — Indian startup portals and programmes checked, no lawful open source found, partner-upload template and copy ready, decision on Setup to-do (WJ-610)
 - ✅ Buy, Sell & Rent: India pass — Chumbak, Okhai and TJORI product feeds as paused gateway sources, shown as link-outs; shops' terms, photos and pre-loved dealers on Setup to-do (WJ-620)
+- ✅ WonderWorks: signed image proxy (/api/img) for outside product images; Buy, Sell & Rent shop items show the shop's photo (WJ-514)
