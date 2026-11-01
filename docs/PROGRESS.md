@@ -52,4 +52,5 @@
 - ✅ Events: Helsinki Linked Events (open data) in the gateway catalogue; a source's cancelled or postponed status is honoured (WJ-573)
 - ✅ Admin: Setup to-do decisions add Helsinki crowding, Unstop's robots.txt and WedMeGood's content signal (WJ-509)
 - ✅ Admin: Setup to-do filters by the country each source serves (WJ-510)
+- ✅ Therapists: India pass over data sources — government hospital directories are static and general, so nothing new added; one owner decision on Setup to-do (WJ-601)
 - ✅ Internships, India: Apna internships as a gateway crawl (paused until activated), FamPay and Hevo Data career boards, and owner decisions for government portals and Internshala on the Setup to-do (WJ-581)
