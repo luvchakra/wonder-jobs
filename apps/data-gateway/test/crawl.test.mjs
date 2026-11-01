@@ -180,3 +180,26 @@ test("a sitemap source reads a big sitemap (up to 12 MB) while pages keep the de
   assert.deepEqual(asked[0], ["https://site.in/sitemaps/profiles.xml", 12_000_000]);
   assert.equal(asked[1]?.[1], undefined, "a page is read with the default cap");
 });
+
+test("a sitemap index may list child sitemaps on another host of the same site; http children are read over https", async () => {
+  const { childSitemaps, siteOf } = await import("../src/crawl.mjs");
+  assert.equal(siteOf("crawlsitemap-v2.workindia.in"), "workindia.in");
+  assert.equal(siteOf("www.bbc.co.uk"), "bbc.co.uk");
+  const got = childSitemaps(["http://crawlsitemap-v2.workindia.in/jobs-1.xml", "https://crawlsitemap-v2.workindia.in/jobs-1.xml", "https://evil.example.com/s.xml", "http://crawlsitemap.workindia.in:8080/x.xml"], "https://crawlsitemap.workindia.in/sitemap.xml", "www.workindia.in", []);
+  assert.deepEqual(got, ["https://crawlsitemap-v2.workindia.in/jobs-1.xml"]);
+});
+
+test("sitemapOrder newest reads the last children of a sitemap index (dated sitemaps), newest first", async () => {
+  const dated = Array.from({ length: 9 }, (_, i) => `https://events.example.org/sitemap-2026-10-2${i}.xml`);
+  const index = `<sitemapindex>${dated.map((u) => `<sitemap><loc>${u}</loc></sitemap>`).join("")}</sitemapindex>`;
+  const src = { url: "https://events.example.org/sitemap.xml", kind: "crawl", discover: "sitemap", sitemapOrder: "newest", pathPrefix: "/e/", modules: ["events"], permission: "terms_permit", permissionEvidence: "Terms pending: reuse terms", termsReviewed: true, redistributionAllowed: true, robotsReviewed: true, organizationOptional: true, maxPagesPerRun: 1 };
+  assert.throws(() => validateSource({ ...src, sitemapOrder: "random" }), /sitemapOrder/);
+  const read = [];
+  await crawlRecords(validateSource(src), {
+    robots: async () => parseRobots("User-agent: *\nAllow: /"),
+    get: async (url) => { read.push(url); if (url === src.url) return index; if (url.includes("sitemap-")) return `<urlset><url><loc>https://events.example.org/e/${url.slice(-6, -4)}</loc></url></urlset>`; return "<html></html>"; },
+    sleep: async () => {},
+    now: () => 0,
+  });
+  assert.deepEqual(read.filter((u) => u.includes("sitemap-")), dated.slice(-5).reverse());
+});

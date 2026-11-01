@@ -70,6 +70,38 @@ export function crawlTargets(urls, source, rules) {
   return out.sort();
 }
 
+/** The site a host belongs to: its last two labels, or three under a country's second level ("workindia.in", "bbc.co.uk"). */
+export function siteOf(hostname) {
+  const parts = hostname.toLowerCase().split(".");
+  const n = parts.length >= 3 && parts.at(-1).length === 2 && /^(co|ac|gov|org|net|edu|nic|res|com)$/.test(parts.at(-2)) ? 3 : 2;
+  return parts.slice(-n).join(".");
+}
+
+/**
+ * A sitemap index's children: on the sitemap's own host, or on another host of the same site (WorkIndia lists
+ * crawlsitemap-v2.workindia.in under crawlsitemap.workindia.in). An http child is read over https (never the other
+ * way). Pages found in them still have to be on the source's own host (crawlTargets).
+ */
+export function childSitemaps(urls, mapUrl, siteHost, rules) {
+  const mapHost = new URL(mapUrl).hostname;
+  const out = [];
+  const seen = new Set();
+  for (const raw of urls) {
+    let u;
+    try { u = new URL(raw); } catch { continue; }
+    if (u.protocol === "http:") u.protocol = "https:";
+    u.hash = "";
+    if (u.protocol !== "https:" || u.username || u.password || u.port) continue;
+    if (u.hostname !== mapHost && siteOf(u.hostname) !== siteOf(siteHost)) continue;
+    if (u.hostname === mapHost && !allowedBy(rules, u.pathname + u.search)) continue;
+    const key = u.toString();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 export async function crawlRecords(source, deps = {}) {
   const get = deps.get ?? safeGet;
   const robots = deps.robots ?? checkRobots;
@@ -97,11 +129,13 @@ export async function crawlRecords(source, deps = {}) {
     const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
     const top = parseSitemap(first, keep);
     if (top.index) {
-      const children = crawlTargets(top.urls, { url: mapUrl, pathPrefix: "/" }, mapHost === host ? policy.rules : []).slice(0, CRAWL_LIMITS.maxSitemaps);
+      // A site whose index lists dated sitemaps (Hasgeek's daily ones) sets sitemapOrder: "newest" to read the last ones.
+      const all = childSitemaps(top.urls, mapUrl, host, mapHost === host ? policy.rules : []);
+      const children = source.sitemapOrder === "newest" ? all.slice(-CRAWL_LIMITS.maxSitemaps).reverse() : all.slice(0, CRAWL_LIMITS.maxSitemaps);
       for (const child of children) {
         if (now() - started > budget / 3) break;
         await sleep(delayMs);
-        try { found.push(...parseSitemap(await get(child, { origin: mapHost, maxBytes: CRAWL_LIMITS.sitemapBytes }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
+        try { found.push(...parseSitemap(await get(child, { origin: new URL(child).hostname, maxBytes: CRAWL_LIMITS.sitemapBytes }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
       }
     } else found = top.urls;
   } else {
