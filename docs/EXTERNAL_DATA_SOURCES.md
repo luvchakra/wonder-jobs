@@ -179,6 +179,8 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 | jobs.ac.uk (university lecturers and teaching posts) (`.../jobs-ac-uk.json`) | Gateway crawl of public JobPosting pages | **Paused until Test & Activate — terms pending** | Confirm jobs.ac.uk's terms allow reuse (written permission may be better). robots.txt disallows only `/job/feedback/` and `/enhanced/fp/`. |
 | K12JobSpot, SchoolSpring, eTeach UK | Open robots.txt | Checked 2026-11-01: sitemaps list no job pages with JobPosting data, so no crawl source. |
 | Academic Positions, SchoolJobs | robots.txt disallows | Not built (a site that refuses us is recorded and skipped). |
+| India pass (2026-11-01): FreeJobAlert RSS, SarkariResult, Jagran Josh | Feeds and articles | Not built | FreeJobAlert's `/feed/` (100 recent government, university and institute notices) names no employer, only free text in the title, so a card would show the aggregator as the employer. The others have no feed or JobPosting data. |
+| India pass: KVS, NVS, UGC, state boards, school and university career pages | Official sites | Not built | kvsangathan.nic.in and navodaya.gov.in did not answer from our servers (connection failed); recorded and moved on. No Indian school group or university careers page checked publishes JobPosting data (Teachmint's does, but its roles are its own staff). Partner uploads are the route: see Setup to-do. |
 | Germany BA Jobsuche | Unofficial, undocumented terms | Not built: no documented reuse rights. |
 | France Travail "Offres d'emploi" | Key + signed licence, attribution | Deferred: needs the owner to accept the licence. |
 | Careerjet | Key; terms to confirm | Deferred until the partner terms are read. |
