@@ -245,7 +245,7 @@ Dataset `cofounders`. WonderWorks founders only (`server/cofounders/sources.ts`)
 
 ## 9. Events & Social
 
-Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), and Ticketmaster (below). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
+Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), developers.events, OpenStreetMap Calendar (gateway), and Ticketmaster (below). The same event from two sources is listed once (title and start day). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
 
 **In the code**
 
@@ -254,13 +254,15 @@ Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the 
 | WonderWorks events | **Live** | Organisers' own events, with seats and RSVP. |
 | confs.tech (via the gateway, `apps/data-gateway/sources/confs-tech.json`) | **Live** once the owner activates `works_gateway_events` | MIT. About 157 upcoming tech conferences worldwide, 8 in India. |
 | **Ticketmaster Discovery API** (`evt_ticketmaster`, `server/events/ticketmaster.ts`) | **Needs key** | Env `TICKETMASTER_API_KEY`, free at developer.ticketmaster.com (5,000 calls a day, 5 a second). Concerts, sport, theatre and family events in the countries Ticketmaster sells in; India coverage is thin. Terms read 2026-11-01: one call per person's search (never crawled in the background); content kept only "for reasonable periods" and removed within 24 hours on the owner's request; each event links to its own Ticketmaster page. The owner should confirm WorksLake's search-cache period (up to 24 hours) is a "reasonable period" before turning it on. |
-| **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`) | **Defined, not registered** | Public JSON API at `osmcal.org/api/v2/events/`, no key. 117 upcoming mapping events worldwide, 6 in India; dry run through the gateway's own validator and normalizer read all 117. The site documents the API and invites sites to integrate it, and robots.txt allows it, but **no data licence is stated**, so the owner confirms before activating. A cancelled event is left out. |
+| **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`, listed in the admin catalogue) | **Defined, not added**: the owner adds it from the catalogue after confirming the terms | Public JSON API at `osmcal.org/api/v2/events/`, no key (the site documents it for sites that show its events; robots.txt allows it). 116 upcoming mapping events worldwide on 2026-11-01 (6 in India); a cancelled event is left out. **Terms to confirm:** no data licence is stated. |
+| **developers.events** (`evt_developers_events`, `server/events/developersEvents.ts`) | **Paused: terms pending**, no key | The maintainers' public `all-events.json` (README: "all the data … available publicly in JSON"; robots.txt allows it). Read directly, once every 12 hours (3.6 MB, mostly past events, dropped before it is kept; over the gateway's 2 MB limit). 797 upcoming developer conferences on 2026-11-01, 23 in India, 41 online, with each event's own page and call for papers. Only entries it marks open or virtualized are shown; cancelled, postponed and delayed ones are not. Terms to confirm: the list is published as public JSON but has no licence file (ask the maintainers, scraly/developers-conferences-agenda). |
 
-**Researched, not built**
+**Researched, not built** (owner, 2026-11-01: any genuine public feed or page is fine unless its robots.txt or terms forbid automated access; never harvest private people's profiles)
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| developers.events (`all-events.json`) | The maintainers publish the JSON; no licence file | 792 upcoming developer conferences, 23 in India, but no stated reuse right. Ask the maintainer (scraly/developers-conferences-agenda) for written permission, then add it as a gateway source or a partner upload. |
+| KonfHub (konfhub.com) and the Linux Foundation events site | robots.txt allows crawling; each event page carries schema.org Event JSON-LD | **Worth adding once the gateway's `crawl` kind keeps an Event's start/end/online/cancelled fields as attributes** (today only JSON sources keep them) and can be limited to event pages. KonfHub is India-heavy. Not built: needs a gateway change. |
+| Devpost hackathons (`devpost.com/api/hackathons`) | Public JSON, robots allows all | Dates are display text ("Dec 19, 2026 - Jan 18, 2027") and its terms were not read. Not built. |
 | Paris "Que faire à Paris" (ODbL), Brisbane City Council "What's On" (CC BY 4.0), Melbourne events (open data) | Open licences, no key | Not reachable from the build environment (connections reset), so their payloads could not be read or the mapping tested. Worth testing from the gateway's admin (it runs from Vercel). |
 | NYC Parks events (Socrata) | Open | Stale: the newest event is from 2019. Rejected. |
 | Wikidata events | CC0 | Thin (about 6 upcoming conferences). Not worth a source. |
@@ -433,3 +435,7 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **Upload:** **Upload list** on the partner's row in Sources. Rows are checked like any source's records; only an upload where ≥90% of rows read well replaces the partner's listings (repeats and past items aside). Otherwise nothing changes and the first five problems are shown. A partner refreshes its list by uploading again.
 - **Serving:** registered paused; **Activate** after a good upload. Its listings flow into its module through the module's WorksLake gateway source like any other gateway listing. The scheduler never fetches an upload source.
 
+
+### 13.8 Adding a reviewed source from the catalogue (2026-11-01)
+
+The reviewed source files in `apps/data-gateway/sources/*.json` (confs.tech, OpenStreetMap Calendar, UK Teaching Vacancies, We Work Remotely) are listed on Platform → Sources → Partners & gateway → **Add from catalogue**. **Add** registers one paused (as `register.mjs` would, without handling the admin token); **Test & activate** on its row in Sources runs the gateway's test and turns it on when it passes. A module session that adds a source file also adds it to `server/gateway/catalogue.ts` (a test checks every file is listed). OpenStreetMap Calendar (osmcal.org) documents an integration API and robots allows it, but states no data licence: the owner confirms before activating.

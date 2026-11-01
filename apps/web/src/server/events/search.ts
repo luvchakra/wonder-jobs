@@ -5,7 +5,7 @@
 import { search } from "@/server/jobslake/core";
 import { EVENTS, seatsLeft, type EventListing } from "@/modules/events/domain";
 import { openEventPosts, seatCounts } from "./listings";
-import { isOutsideEvent, toOutsideEvent } from "./outside";
+import { dedupeOutside, isOutsideEvent, toOutsideEvent } from "./outside";
 import { WONDERWORKS_EVENTS } from "./sources";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
@@ -51,7 +51,9 @@ export async function searchEvents(input: { query: string; places: string[]; ref
   const results: EventListing[] = hits.map(({ ws, ...p }) => wonderworksEvent(p, seats.get(p.posting.id) ?? { going: 0, waiting: 0 }, ws.sourceName));
   // Outside events (WorksLake's other Events sources, e.g. the gateway's conferences), beside the ones organised here. WorksLake's
   // own per-source lines below say what each source gave, or that it needs setup or is unavailable.
-  results.push(...response.results.filter(isOutsideEvent).flatMap((o) => toOutsideEvent(o) ?? []).slice(0, Math.max(0, MAX_RESULTS - results.length)));
+  // The same event can come from two sources (a conference in confs.tech and developers.events): listed once, from the first.
+  const outside = dedupeOutside(response.results.filter(isOutsideEvent).flatMap((o) => toOutsideEvent(o) ?? []));
+  results.push(...outside.slice(0, Math.max(0, MAX_RESULTS - results.length)));
   const lines: EventsSourceLine[] = response.sources.map((s) => ({
     id: s.sourceId,
     name: s.sourceName,

@@ -1,3 +1,4 @@
+import { CATALOGUE, catalogueEntries, type CatalogueEntry } from "./catalogue";
 import { hostedGateway } from "./index";
 
 /** One source as the admin page shows it: what it is, how it is doing, how far a crawl has got. Never a secret. */
@@ -24,6 +25,8 @@ export interface GatewayOverview {
   byModule: { module: string; listings: number }[];
   last24h: { runs: number; ok: number; failed: number; collected: number };
   usageToday: { route: string; module: string; calls: number; results: number }[];
+  /** The reviewed source files shipped with the gateway, and whether each is added. */
+  catalogue: CatalogueEntry[];
 }
 
 type Rec = Record<string, unknown>;
@@ -33,7 +36,7 @@ const numOr = (v: unknown, d: number) => (typeof v === "number" && Number.isFini
 /** The hosted gateway's state for platform admins (the route checks the admin first). */
 export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview> {
   const hosted = hostedGateway();
-  if (!hosted) return { configured: false, sources: [], runs: [], byModule: [], last24h: { runs: 0, ok: 0, failed: 0, collected: 0 }, usageToday: [] };
+  if (!hosted) return { configured: false, sources: [], runs: [], byModule: [], last24h: { runs: 0, ok: 0, failed: 0, collected: 0 }, usageToday: [], catalogue: [] };
   const sources0 = await hosted.store.read((s) => (s.sources as Rec[]).map((x) => ({ sourceId: String(x.id), modules: ((x.modules as string[]) ?? []) })));
   const { bySource, byModule } = await hosted.store.listings.counts(sources0);
   return hosted.store.read((s) => {
@@ -72,6 +75,7 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
     const day = new Date(now).toISOString().slice(0, 10);
     return {
       configured: true,
+      catalogue: catalogueEntries(new Set((s.sources as Rec[]).map((x) => String(x.url)))),
       sources,
       runs,
       byModule: [...perModule].map(([module, listings]) => ({ module, listings })).sort((a, b) => b.listings - a.listings),
@@ -133,4 +137,16 @@ export function uploadPartnerList(sourceId: string, format: "csv" | "json", cont
 /** Start or stop serving a source (activation needs a passing test or upload in the last day). */
 export function setGatewaySource(sourceId: string, action: "activate" | "pause") {
   return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/${action}`, {});
+}
+
+/** Adds a reviewed source from the catalogue (paused, as `register.mjs` would). */
+export function registerFromCatalogue(file: string) {
+  const def = CATALOGUE[file];
+  if (!def) return Promise.resolve({ status: 404, body: { error: { code: "NOT_FOUND", message: "No such source in the catalogue" } } as Record<string, unknown> });
+  return adminCall("/v1/admin/sources", def);
+}
+
+/** Tests a source now (a dry fetch through the gateway's own checks); activation needs a passing test. */
+export function testGatewaySource(sourceId: string) {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/test`, {});
 }

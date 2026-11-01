@@ -70,3 +70,15 @@ export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): Eve
     outside: { url: o.canonicalApplyUrl, startDate, ...(endDate ? { endDate } : {}), online, ...(cfpUrl ? { cfpUrl } : {}), ...(cfpEndDate ? { cfpEndDate } : {}) },
   };
 }
+
+const sameEvent = (e: EventListing) => `${e.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\b(19|20)\d{2}\b/g, "").trim()}|${e.outside?.startDate ?? ""}`;
+/** One entry per event: the same title (ignoring case, punctuation and the year) on the same start day is the same event. */
+export function dedupeOutside(list: EventListing[]): EventListing[] {
+  const seen = new Set<string>();
+  return list.filter((e) => {
+    const k = sameEvent(e);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
