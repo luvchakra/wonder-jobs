@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle, Inbox } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./Button";
+import { WonderSearching } from "@/components/brand/WonderSearching";
 
 export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("wj-skeleton h-4 w-full", className)} aria-hidden />;
@@ -45,13 +46,16 @@ export function ErrorState({ title, body, actions, className }: { title: string;
   );
 }
 
-export function PageLoading({ rows = 4 }: { rows?: number }) {
+/**
+ * Any page still loading, in every module: the WonderWorks mark at work (wings opening, star twinkling — the same as
+ * the searching banner, owner 2026-11-01), centred where the page will appear. `rows` is kept for callers; the height
+ * it implies keeps the page from jumping when the content arrives.
+ */
+export function PageLoading({ rows = 4, label = "Loading…" }: { rows?: number; label?: string }) {
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading">
-      <Skeleton className="h-8 w-1/3" />
-      {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-24" />
-      ))}
+    <div className="flex flex-col items-center justify-center gap-3 text-center" style={{ minHeight: `${Math.min(8 + rows * 6, 32)}rem` }} role="status" aria-busy="true" aria-label={label}>
+      <WonderSearching size={56} />
+      <p className="text-[13px] font-medium text-ink-3">{label}</p>
     </div>
   );
 }

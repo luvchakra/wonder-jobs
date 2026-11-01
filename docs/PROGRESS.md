@@ -11,3 +11,4 @@
 - ✅ Scholarships & Projects: module foundations, registered as Coming soon (WJ-485)
 - ✅ Jobs: Full Time with no role searches the latest 100 jobs ranked by fit, instead of the role held today (WJ-481)
 - ✅ WonderWorks: the searching banner says what, where, how many sources and how long, with the WonderWorks mark animating (wings open, star twinkles)
+- ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
