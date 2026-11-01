@@ -129,7 +129,9 @@ export async function crawlRecords(source, deps = {}) {
     const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
     const top = parseSitemap(first, keep);
     if (top.index) {
-      const children = childSitemaps(top.urls, mapUrl, host, mapHost === host ? policy.rules : []).slice(0, CRAWL_LIMITS.maxSitemaps);
+      // A site whose index lists dated sitemaps (Hasgeek's daily ones) sets sitemapOrder: "newest" to read the last ones.
+      const all = childSitemaps(top.urls, mapUrl, host, mapHost === host ? policy.rules : []);
+      const children = source.sitemapOrder === "newest" ? all.slice(-CRAWL_LIMITS.maxSitemaps).reverse() : all.slice(0, CRAWL_LIMITS.maxSitemaps);
       for (const child of children) {
         if (now() - started > budget / 3) break;
         await sleep(delayMs);
