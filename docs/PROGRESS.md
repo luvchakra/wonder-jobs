@@ -69,3 +69,4 @@
 - ✅ Production build no longer fails when the database is unreachable (/api-reference, home: 3 s bound) (WJ-516)
 - ✅ Database safeguards: capped concurrent requests, deadlines and a circuit breaker on every server-side Supabase call (WJ-517)
 - ✅ Setup to-do: 'Add & activate' / 'Test & activate' do the gateway steps in one press (WJ-518)
+- ✅ Setup to-do: 'Open' on partner decisions goes to Gateway, not a missing page; links tested (WJ-519)
