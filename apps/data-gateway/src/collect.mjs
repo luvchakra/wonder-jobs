@@ -37,6 +37,16 @@ export function checkPublicUrl(input) {
   if (url.protocol !== "https:" || url.port || url.username || url.password || isIP(url.hostname) || !url.hostname.includes(".") || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) throw new ApiError(400, "UNSAFE_URL", "Only public HTTPS hostnames are permitted");
   return url;
 }
+/**
+ * How long to wait for a URL: 12 s, or what an Overpass-style query asks the server to spend on it (its "[timeout:N]")
+ * plus 5 s, capped at 35 s. A query cut off early keeps its server slot busy, so the next ones are refused (429).
+ */
+export function requestTimeoutMs(input) {
+  let q = "";
+  try { q = decodeURIComponent(new URL(input).search); } catch { return 12000; }
+  const m = /\[timeout:(\d{1,3})\]/.exec(q);
+  return m ? Math.min(35000, Math.max(12000, (Number(m[1]) + 5) * 1000)) : 12000;
+}
 export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2 } = {}) {
   const url = checkPublicUrl(input);
   if (origin && url.hostname !== origin) throw new ApiError(403, "UNSAFE_REDIRECT", "Cross-host redirects are not allowed");
@@ -46,7 +56,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
   const response = await new Promise((resolve, reject) => {
     const req = request(url, {
       method: "GET",
-      timeout: 12000,
+      timeout: requestTimeoutMs(input),
       headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
       lookup: pinnedLookup(selected),
     }, (res) => {
