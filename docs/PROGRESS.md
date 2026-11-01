@@ -1,5 +1,5 @@
-- ✅ Teaching: every card, job page, application and Pipeline entry shows the school's logo, found from its website (WJ-476)
 
+- ✅ Events: Ticketmaster as a source (needs a free key) and OpenStreetMap Calendar defined for the gateway; other feeds researched and ruled out with reasons (WJ-570)
 - ✅ Events: outside events show the event's own logo instead of a bare letter (WJ-473)
 - ✅ WorksLake: partner uploads for every module — register a permitted partner, upload its CSV/JSON list, activate (WJ-474)
 - ✅ WonderWorks: one shared company-logo feature for every module — directory-stored, CDN-cached, one copy per company; schools under edu.in/ac.in etc. no longer merged (WJ-475)
@@ -18,3 +18,6 @@
 - ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)
 - ✅ Jobs: Find's row shows Location (your places, or Anywhere) instead of All modes; Work mode is in Refine (WJ-540)
 - ✅ Jobs: Full Time with no role shows the latest jobs ranked by fit, instead of "No jobs yet" (WJ-541)
+- ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
+- ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
+- ✅ WonderWorks: Refine's back button is an arrow alone, in every module

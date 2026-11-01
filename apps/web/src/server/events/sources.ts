@@ -13,6 +13,7 @@ import { finish, type SearchCriteria } from "@/server/jobs/providers";
 import type { RawPosting } from "@/services/jobs/normalize";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
+import { TICKETMASTER, TICKETMASTER_KEY, ticketmasterAvailable, ticketmasterSearch } from "./ticketmaster";
 
 const EPOCH = "2026-10-31T00:00:00.000Z";
 
@@ -39,13 +40,36 @@ export const EVENTS_SOURCES: SourceRecord[] = [
     jobTypes: [],
     module: "events",
   },
+  {
+    protocolVersion: PROTOCOL_VERSION,
+    id: TICKETMASTER,
+    name: "Ticketmaster",
+    provider: "Ticketmaster",
+    category: "aggregator",
+    geography: ["global"],
+    description: "Concerts, sport, theatre and family events from Ticketmaster's Discovery API, with a link to each event's own Ticketmaster page. Needs a free API key.",
+    status: "active",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    // Asked once per search, as Ticketmaster's terms ask (calls follow a person's own action).
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 10_000, maxResults: 50, refreshMinutes: 60 },
+    secretRef: `env:${TICKETMASTER_KEY}`,
+    builtin: true,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    accessStrategy: "official_api",
+    capabilities: ["Search", "Freshness", "Apply URL"],
+    jobTypes: [],
+    module: "events",
+  },
 ];
 
-/** Whether this deployment can ask the source now: it is WonderWorks' own table, so it needs no credential. */
-export const eventsSourceAvailable = (s: SourceRecord) => EVENTS_SOURCES.some((x) => x.id === s.id);
+/** Whether this deployment can ask the source now: WonderWorks' own events need no credential; Ticketmaster needs its key. */
+export const eventsSourceAvailable = (s: SourceRecord) => (s.id === TICKETMASTER ? ticketmasterAvailable() : EVENTS_SOURCES.some((x) => x.id === s.id));
 
 /** Fetch one Events source. */
-export async function runEventsSource(s: SourceRecord, c: SearchCriteria): Promise<{ jobs: Job[]; warnings: string[] }> {
+export async function runEventsSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
+  if (s.id === TICKETMASTER) return { jobs: await ticketmasterSearch(s, c, needsSetup), warnings: [] };
   if (s.id !== WONDERWORKS_EVENTS) throw new Error("No connector");
   const { openEventPosts } = await import("./listings");
   // The person's words and places narrow the events, as every source's postings (finish).
