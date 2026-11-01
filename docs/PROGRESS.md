@@ -1,4 +1,5 @@
 
+- ✅ Events: developers.events (797 upcoming conferences) is added, paused until the owner confirms its terms; the same event from two sources is listed once (WJ-571)
 - ✅ Events: Ticketmaster as a source (needs a free key) and OpenStreetMap Calendar defined for the gateway; other feeds researched and ruled out with reasons (WJ-570)
 - ✅ Events: outside events show the event's own logo instead of a bare letter (WJ-473)
 - ✅ WorksLake: partner uploads for every module — register a permitted partner, upload its CSV/JSON list, activate (WJ-474)
