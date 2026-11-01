@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { SetupItem, SetupNeed } from "@/server/jobslake/setup";
 import { MODULE_DATA } from "@/domain/jobslake/moduleData";
@@ -94,6 +95,62 @@ function RunButton({ item, onDone }: { item: SetupItem; onDone: () => void }) {
   );
 }
 
+/**
+ * One item, collapsed to its name and module (owner, 2026-11-01: "make the cards collapsed with chevron option"):
+ * the chevron opens what it needs and why.
+ */
+function ItemSummary({ item: i }: { item: SetupItem }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="min-w-0 flex-1">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-start gap-1.5 text-left">
+        <ChevronDown className={`mt-0.5 size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        <span className="min-w-0">
+          <span className="font-medium text-ink">{i.name}</span>
+          <span className="mt-0.5 block text-[12px] text-ink-3">
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-ink-2" title={MODULE_DATA[i.module as keyof typeof MODULE_DATA]?.info}>
+              {i.moduleLabel} · {i.dataType}
+            </span>
+            {i.countries.length > 0 && <span className="ml-1 text-ink-4">{i.countries.map(countryLabel).join(", ")}</span>}
+          </span>
+        </span>
+      </button>
+      {open && <span className="mt-1.5 block pl-[22px] text-[12px] text-ink-3">{i.detail}</span>}
+    </span>
+  );
+}
+
+/** Every shown gateway step in one press, one after another (owner, 2026-11-01: "less clicks"). */
+function RunAll({ items, onDone }: { items: SetupItem[]; onDone: () => void }) {
+  const [step, setStep] = useState<string | null>(null);
+  const runnable = items.filter((i) => i.run);
+  if (runnable.length < 2) return null;
+  const kinds = new Set(runnable.map((i) => i.run!.kind));
+  const verb = kinds.size > 1 ? "Set up" : kinds.has("add") ? "Add & activate" : "Test & activate";
+  return (
+    <button
+      type="button"
+      disabled={!!step}
+      onClick={async () => {
+        let live = 0;
+        const failed: string[] = [];
+        for (const [n, i] of runnable.entries()) {
+          const r = await runSetup(i.run!, (s) => setStep(`${n + 1} of ${runnable.length}: ${s}`));
+          if (r.ok) live++;
+          else failed.push(`${i.name} (${r.step})`);
+        }
+        setStep(null);
+        if (live) toast.success(`${live} of ${runnable.length} live`, failed.length ? `Not live: ${failed.join(", ")}` : "Their listings are collected.");
+        else toast.error("None went live", failed.join(", "));
+        onDone();
+      }}
+      className="rounded-full bg-brand-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+    >
+      {step ?? `${verb} all ${runnable.length}`}
+    </button>
+  );
+}
+
 export default function SetupTodoPage() {
   const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean }>("setup");
   const [need, setNeed] = useState<SetupNeed | "all">("all");
@@ -149,21 +206,12 @@ export default function SetupTodoPage() {
             </div>
           )}
           {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn&apos;t configured on this deployment, so its sources aren&apos;t listed.</p>}
-          <Panel title={items.length ? `${items.length} to fix` : undefined}>
+          <Panel title={items.length ? `${items.length} to fix` : undefined} action={<RunAll items={items} onDone={reload} />}>
             {items.length ? (
               <ul className="flex flex-col divide-y divide-line">
                 {items.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-3 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <span className="font-medium text-ink">{i.name}</span>
-                      <span className="mt-0.5 block text-[12px] text-ink-3">
-                        <span className="rounded-full bg-surface-2 px-2 py-0.5 font-medium text-ink-2" title={MODULE_DATA[i.module as keyof typeof MODULE_DATA]?.info}>
-                          {i.moduleLabel} · {i.dataType}
-                        </span>{" "}
-                        {i.countries.length > 0 && <span className="mr-1 text-ink-4">{i.countries.map(countryLabel).join(", ")} ·</span>}
-                        {i.detail}
-                      </span>
-                    </span>
+                    <ItemSummary item={i} />
                     {i.decision ? (
                       <span className="flex shrink-0 items-center gap-2">
                         {i.action.href !== "/platform/jobs-lake/setup" && (
