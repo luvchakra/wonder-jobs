@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: { default: "WonderWorks Admin", templ
 export const dynamic = "force-dynamic";
 
 /**
- * Every platform admin page (WorksLake, JobsApply, Companies, Billing) in one shell. Anyone who isn't a
+ * Every WonderWorks admin page (data, operations, accounts, billing, settings) in one shell. Anyone who isn't a
  * platform admin — signed out, a candidate, or with the admin flag off — gets a 404, so the pages'
  * existence isn't advertised. Every admin API route enforces the same rule on its own.
  */

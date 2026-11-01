@@ -16,7 +16,7 @@ export default function JobsApplyAdminPage() {
   const fetchOverview = useCallback(async (): Promise<{ data?: ApplyOverview; error?: ApiError }> => {
     const res = await fetch("/api/jobs-apply/admin/overview", { cache: "no-store" }).catch(() => null);
     const body = res ? await res.json().catch(() => null) : null;
-    return res?.ok ? { data: body } : { error: body?.error ?? { code: "UNAVAILABLE", message: "Couldn't load JobsApply operations.", retryable: true } };
+    return res?.ok ? { data: body } : { error: body?.error ?? { code: "UNAVAILABLE", message: "Couldn't load the application helper.", retryable: true } };
   }, []);
   const load = useCallback(() => {
     setError(null);
@@ -37,7 +37,7 @@ export default function JobsApplyAdminPage() {
   const entries = (m: Record<string, number> | undefined) => Object.entries(m ?? {}).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
   return (
     <>
-      <PageTitle title="JobsApply" subtitle="Candidate-controlled application help: adapters, domain policies and observed outcomes. Submission is always the candidate's — no adapter can submit." />
+      <PageTitle title="Application helper" subtitle="Candidate-controlled application help: adapters, domain policies and observed outcomes. Submission is always the candidate's — no adapter can submit." />
       {error && <LoadError error={error} onRetry={load} />}
       {!data && !error && <Loading rows={3} />}
       {data && (

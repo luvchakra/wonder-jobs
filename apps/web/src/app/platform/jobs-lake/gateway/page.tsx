@@ -18,7 +18,7 @@ export default function GatewayPage() {
   const { data, error, reload } = useAdmin<GatewayOverview>("gateway");
   return (
     <>
-      <PageTitle title="Gateway" subtitle="The external-data gateway's sources and crawler: what each holds, how its runs went, and how far a crawl has got. Collected every hour; each source runs on its own interval." />
+      <PageTitle title="Partners & gateway" subtitle="The external-data gateway's sources and crawler: what each holds, how its runs went, and how far a crawl has got. Collected every hour; each source runs on its own interval." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && !data.configured && <Note tone="warning">The gateway is not configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET).</Note>}

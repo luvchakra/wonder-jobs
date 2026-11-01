@@ -57,10 +57,15 @@ export async function listSourceViews(): Promise<SourceView[]> {
  * Every module's sources for the admin Sources list (owner, 2026-11-01: every module reads through WorksLake), each
  * labelled with its module. The developer API and the overview keep Jobs' list (`listSourceViews`).
  */
-export async function listAllSourceViews(): Promise<SourceView[]> {
-  const [lists, health] = await Promise.all([Promise.all(MODULE_IDS.map((m) => listSources(m))), healthBySource()]);
+/** Every module's sources, each once (a source shared by modules is listed under the first). */
+export async function everyModuleSource(): Promise<SourceRecord[]> {
+  const lists = await Promise.all(MODULE_IDS.map((m) => listSources(m)));
   const seen = new Set<string>();
-  const sources = lists.flat().filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)));
+  return lists.flat().filter((s) => (seen.has(s.id) ? false : (seen.add(s.id), true)));
+}
+
+export async function listAllSourceViews(): Promise<SourceView[]> {
+  const [sources, health] = await Promise.all([everyModuleSource(), healthBySource()]);
   return Promise.all(sources.map(async (s) => ({ ...(await sourceView(s, health)), moduleLabel: MODULES.find((m) => m.id === (s.module ?? "jobs"))?.label ?? "Jobs" })));
 }
 
@@ -182,7 +187,8 @@ export async function qualityView(days = 7): Promise<QualityView> {
 }
 
 export async function alertsView(): Promise<Alert[]> {
-  const [sources, runs] = await Promise.all([listSources(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - 7 * 86_400_000).toISOString(), limit: 5000 })]);
+  // Every module's sources (the admin caters to all modules equally, owner 2026-11-01).
+  const [sources, runs] = await Promise.all([everyModuleSource(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - 7 * 86_400_000).toISOString(), limit: 5000 })]);
   // Only sources WorksLake is meant to be reading raise alerts; a paused or do-not-use source is quiet by design.
   return sources
     .filter((s) => s.status === "active" || s.status === "degraded")
@@ -197,12 +203,49 @@ export interface OverviewView {
   runs24h: { total: number; failed: number; retrieved: number; valid: number };
   pool: { opportunities: number; employerVerified: number | null; multiSource: number | null };
   alerts: Alert[];
+  /** Each module, in the app's order: its live sources, how they're doing and what they fetched in 24 h. */
+  modules: ModuleOverview[];
   recentRuns: Awaited<ReturnType<ReturnType<typeof jobsLakeStore>["listRuns"]>>;
+}
+
+export interface ModuleOverview {
+  id: string;
+  label: string;
+  live: number;
+  healthy: number;
+  down: number;
+  needsSetup: number;
+  runs24h: number;
+  failed24h: number;
+  retrieved24h: number;
+}
+
+const failedRun = (r: { outcome: string }) => r.outcome === "timeout" || r.outcome === "unavailable" || r.outcome === "needs_setup";
+
+/** Each module's row on the admin Overview, from every module's source views and the last 24 h of runs. */
+export function moduleOverview(views: SourceView[], runs: { sourceId: string; outcome: string; retrieved: number }[]): ModuleOverview[] {
+  const moduleOf = new Map(views.map((v) => [v.id, v.moduleLabel ?? "Jobs"]));
+  return MODULES.map((m) => {
+    const mine = views.filter((v) => (v.moduleLabel ?? "Jobs") === m.label);
+    const live = mine.filter((v) => v.status === "active" || v.status === "degraded");
+    const r = runs.filter((x) => moduleOf.get(x.sourceId) === m.label);
+    return {
+      id: m.id,
+      label: m.label,
+      live: live.length,
+      healthy: live.filter((v) => v.health?.state === "healthy").length,
+      down: live.filter((v) => v.health?.state === "down").length,
+      needsSetup: live.filter((v) => !v.available).length,
+      runs24h: r.length,
+      failed24h: r.filter(failedRun).length,
+      retrieved24h: r.reduce((a, x) => a + x.retrieved, 0),
+    };
+  });
 }
 
 export async function overviewView(): Promise<OverviewView> {
   const store = jobsLakeStore();
-  const [status, views, runs, { opps }, alerts] = await Promise.all([store.status(), listSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), poolSince(7), alertsView()]);
+  const [status, views, runs, { opps }, alerts] = await Promise.all([store.status(), listAllSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), poolSince(7), alertsView()]);
   const q = qualityFrom(opps, {}, new Map());
   const live = views.filter((v) => v.status === "active" || v.status === "degraded");
   return {
@@ -224,12 +267,13 @@ export async function overviewView(): Promise<OverviewView> {
     },
     runs24h: {
       total: runs.length,
-      failed: runs.filter((r) => r.outcome === "timeout" || r.outcome === "unavailable" || r.outcome === "needs_setup").length,
+      failed: runs.filter(failedRun).length,
       retrieved: runs.reduce((a, r) => a + r.retrieved, 0),
       valid: runs.reduce((a, r) => a + r.valid, 0),
     },
     pool: { opportunities: opps.length, employerVerified: q.employerVerified, multiSource: q.multiSource },
     alerts,
+    modules: moduleOverview(views, runs),
     recentRuns: runs.slice(0, 10),
   };
 }

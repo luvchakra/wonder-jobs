@@ -91,7 +91,7 @@ export default function CompaniesPage() {
   const { data, error, reload, loading } = useAdmin<{ total: number; missingLogos: number; companies: DirectoryCompany[] }>(`companies?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}${missing ? "&missing=1" : ""}`);
   return (
     <>
-      <PageTitle title="Company directory" subtitle="Every employer WorksLake recorded from a real posting, by its website domain — with what each source says about it. Most open roles first." />
+      <PageTitle title="Directory & logos" subtitle="Every company, school and organiser WorksLake recorded from a real listing, in every module, by its website domain — with what each source says about it. Most open roles first." />
       <form
         className="mb-3 flex gap-2"
         onSubmit={(e) => {

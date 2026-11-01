@@ -11,7 +11,7 @@ export default function CredentialsPage() {
   const rows = (data?.sources ?? []).filter((s) => s.credential || s.config.kind === "json_api" || s.config.kind === "mcp");
   return (
     <>
-      <PageTitle title="Credentials" subtitle="Encrypted with AES-256-GCM on the server and shown only masked. Set or replace one from its source's Configuration tab." />
+      <PageTitle title="Source credentials" subtitle="Encrypted with AES-256-GCM on the server and shown only masked. Set or replace one from its source's Configuration tab." />
       <div className="mb-4">
         <Note>WorksLake never returns a credential through any API, never logs one, and never puts one in an error message.</Note>
       </div>
