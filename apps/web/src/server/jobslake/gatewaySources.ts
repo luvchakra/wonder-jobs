@@ -3,7 +3,7 @@
  * Sources appear only when WORKSLAKE_GATEWAY_ENABLED=1 and a valid base URL is set.
  * They start in Draft and require the normal live source test + admin activation.
  */
-import type { ModuleId } from "@/modules/registry";
+import { MODULES, type ModuleId } from "@/modules/registry";
 import { MODULE_IDS } from "@/wonderworks/manifest";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { checkDestination } from "@/domain/jobslake/ssrf";
@@ -39,7 +39,8 @@ const FIELDS = {
 export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((module) => ({
   protocolVersion: PROTOCOL_VERSION,
   id: prefix + module,
-  name: "WorksLake External Data Gateway (" + module + ")",
+  // Named with the module's own name; candidates see it in a search's source line. The id never changes.
+  name: "WorksLake Data Gateway · " + (MODULES.find((m) => m.id === module)?.label ?? module),
   provider: "WorksLake Data Gateway",
   category: "aggregator",
   accessStrategy: "official_api",
