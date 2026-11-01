@@ -15,7 +15,7 @@ import { allowedBy, checkRobots, decodeEntities, parseStructured, safeGet } from
  * A site may keep its sitemap on another host (KonfHub's on files.konfhub.com): the source names it as `sitemap`, and it
  * is read only when the site's own robots.txt lists it (or it is on the site's host). Pages still come only from the site.
  */
-export const CRAWL_LIMITS = Object.freeze({ maxPagesPerRun: 50, maxDiscovered: 5000, maxSitemaps: 5, minDelayMs: 1000, maxDelayMs: 30000, budgetMs: 45000 });
+export const CRAWL_LIMITS = Object.freeze({ maxPagesPerRun: 50, maxDiscovered: 5000, maxSitemaps: 5, sitemapBytes: 12_000_000, minDelayMs: 1000, maxDelayMs: 30000, budgetMs: 45000 });
 
 /**
  * The `<loc>` URLs of a sitemap, and whether it is an index of other sitemaps. `keep` filters a page sitemap's URLs before
@@ -91,7 +91,8 @@ export async function crawlRecords(source, deps = {}) {
   if (mapHost !== host && !(policy.sitemaps ?? []).some((s) => { try { return new URL(s).toString() === new URL(mapUrl).toString(); } catch { return false; } })) {
     throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The sitemap is on another host and the site's robots.txt doesn't list it");
   }
-  const first = await get(mapUrl, { origin: mapHost });
+  // A sitemap may be large (WedMeGood's list 50,000 profiles in 6.9 MB); pages keep the 2 MB cap.
+  const first = await get(mapUrl, { origin: mapHost, ...(source.discover === "sitemap" ? { maxBytes: CRAWL_LIMITS.sitemapBytes } : {}) });
   if (source.discover === "sitemap") {
     const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
     const top = parseSitemap(first, keep);
@@ -100,7 +101,7 @@ export async function crawlRecords(source, deps = {}) {
       for (const child of children) {
         if (now() - started > budget / 3) break;
         await sleep(delayMs);
-        try { found.push(...parseSitemap(await get(child, { origin: mapHost }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
+        try { found.push(...parseSitemap(await get(child, { origin: mapHost, maxBytes: CRAWL_LIMITS.sitemapBytes }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
       }
     } else found = top.urls;
   } else {

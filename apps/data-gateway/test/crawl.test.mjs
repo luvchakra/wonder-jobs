@@ -156,3 +156,27 @@ test("a links crawl pools the links of its extra index pages, same host and robo
   assert.deepEqual(r.results.map((x) => x.title).sort(), ["Studio 1", "Studio 2", "Studio 3"]);
   assert.ok(calls.includes(dir + "?fi=15"));
 });
+
+test("a business keeps its page's breadcrumb trail (without Home), not the site's own Organization block", async () => {
+  const { parseStructured } = await import("../src/collect.mjs");
+  const page = `<html>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"The Site","email":"info@site.in","telephone":"+91-1"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","url":"https://site.in/profile/Makeovers-9","name":"The Makeovers","address":{"@type":"PostalAddress","addressLocality":"Bandra, Mumbai","streetAddress":"1 Road"},"aggregateRating":{"ratingValue":"5","reviewCount":4}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home"},{"@type":"ListItem","position":2,"name":"Vendors"},{"@type":"ListItem","position":3,"name":"Bridal Makeup  Artists "},{"@type":"ListItem","position":4,"item":{"name":"Bridal Makeup Artists Mumbai"}}]}</script></html>`;
+  const recs = parseStructured(page);
+  assert.equal(recs.length, 1, "the site's Organization is not a record");
+  assert.equal(recs[0].title, "The Makeovers");
+  assert.equal(recs[0].attributes.breadcrumb, "Vendors > Bridal Makeup Artists > Bridal Makeup Artists Mumbai");
+  const all = JSON.stringify(recs);
+  for (const leak of ["info@site.in", "+91-1", "1 Road"]) assert.ok(!all.includes(leak), leak);
+  assert.equal(parseStructured(page.replace(/BreadcrumbList/, "Thing"))[0].attributes.breadcrumb, undefined, "no trail, no attribute");
+});
+
+test("a sitemap source reads a big sitemap (up to 12 MB) while pages keep the default cap", async () => {
+  const asked = [];
+  const src = validateSource({ url: "https://site.in/", kind: "crawl", discover: "sitemap", sitemap: "https://site.in/sitemaps/profiles.xml", pathPrefix: "/profile/", pathPattern: "/profile/*", modules: ["services"], permission: "terms_permit", permissionEvidence: "terms pending: x", termsReviewed: true, redistributionAllowed: true, robotsReviewed: true, publicBusinesses: true, maxPagesPerRun: 1 });
+  const get = async (u, o) => { asked.push([u, o?.maxBytes]); return u.endsWith(".xml") ? `<urlset><url><loc>https://site.in/profile/A-1</loc></url></urlset>` : `<html></html>`; };
+  await crawlRecords(src, { get, robots: async () => ({ rules: [], crawlDelay: null, sitemaps: [] }), sleep: async () => {}, now: () => 0 }).catch(() => {});
+  assert.deepEqual(asked[0], ["https://site.in/sitemaps/profiles.xml", 12_000_000]);
+  assert.equal(asked[1]?.[1], undefined, "a page is read with the default cap");
+});

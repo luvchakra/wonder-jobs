@@ -18,7 +18,7 @@ import { matchesLocations, normalizePosting, type RawPosting } from "@/services/
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { CRAFT_CATEGORY, craftsFor, houzzCategoryOf, proTags } from "@/modules/services/domain";
+import { CRAFT_CATEGORY, craftsFor, houzzCategoryOf, proTags, wedmegoodVendorOf } from "@/modules/services/domain";
 import { nearestCity } from "@/wonderworks/find/cities";
 import { OSM_GATEWAY_NAME } from "@/wonderworks/find/osm";
 import { gatewayListings } from "@/server/gateway/listings";
@@ -37,6 +37,9 @@ export const OPENSTREETMAP = "svc_osm";
 export const HOUZZ = "svc_houzz";
 /** The name the gateway's Houzz sources carry (their `attribution`): how this source recognises its own listings. */
 export const HOUZZ_GATEWAY_NAME = "Houzz (houzz.in)";
+export const WEDMEGOOD = "svc_wedmegood";
+/** The name the gateway's WedMeGood sources carry (their `attribution`). */
+export const WEDMEGOOD_GATEWAY_NAME = "WedMeGood (wedmegood.com)";
 export { OSM_GATEWAY_NAME };
 
 export const SERVICES_SOURCES: SourceRecord[] = [
@@ -59,10 +62,19 @@ export const SERVICES_SOURCES: SourceRecord[] = [
     capabilities: [...FEED_CAPS, "Rating"],
     description: "Interior designers, architects, contractors and renovation firms listed on Houzz India, as their public profiles state them: name, city, rating and review count, services listed, own website. Collected by the data gateway from the public profile pages, politely and on a schedule, never per search. No phone or email is copied. Terms pending: Houzz's terms on automated access.",
   }),
+  source({
+    id: WEDMEGOOD,
+    name: "WedMeGood vendors",
+    provider: "WedMeGood",
+    category: "aggregator",
+    geography: ["IN"],
+    capabilities: [...FEED_CAPS, "Rating"],
+    description: "Wedding and event vendors listed on WedMeGood (photographers, makeup artists, decorators, caterers, mehendi artists, planners, DJs and more), as their public profiles state them: name, city, rating and review count. Collected by the data gateway from the public profile pages, politely and on a schedule, never per search. No phone, email or street address.",
+  }),
 ];
 
 /** Whether this deployment can ask the source now. The first two need no credential; OpenStreetMap needs the data gateway. */
-export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP || s.id === HOUZZ ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
+export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP || s.id === HOUZZ || s.id === WEDMEGOOD ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
 
 /** One user of Freelancer.com's directory, only the fields asked for. */
 export interface FreelancerUser {
@@ -244,6 +256,39 @@ export function rawFromHouzz(l: GatewayListing): (RawPosting & { city?: string }
   };
 }
 
+/**
+ * A WedMeGood vendor the gateway collected, as a posting: what their own public profile states — name, city, description,
+ * the rating and review count shown. The trade and city come from the page's breadcrumb. No phone, email or street.
+ * `null` for a vendor that isn't a service (wear, jewellery, cards, venues...) or has no name or trail.
+ */
+export function rawFromWedMeGood(l: GatewayListing): (RawPosting & { city?: string }) | null {
+  const a = l.attributes;
+  const name = str(l.title);
+  const v = wedmegoodVendorOf(str(a.breadcrumb));
+  if (!name || !v) return null;
+  const city = v.city || str(l.location).split(",").pop()?.trim() || undefined;
+  const rating = num(a.rating);
+  const reviews = num(a.reviews);
+  return {
+    externalId: l.id,
+    title: name,
+    company: name,
+    location: city ?? "India",
+    city,
+    description: str(l.description) || `${v.trade}${city ? ` in ${city}` : ""}. Listed on WedMeGood.`,
+    tags: proTags({ cat: "Wedding & events", skills: [v.trade], ...(city ? { city } : {}), ...(rating !== undefined && rating > 0 && rating <= 5 ? { rating } : {}), ...(reviews !== undefined && reviews > 0 ? { reviews: Math.round(reviews) } : {}) }),
+    postedAt: null,
+    // The vendor's WedMeGood profile.
+    applyUrl: l.canonicalUrl,
+    employerSite: false,
+  };
+}
+
+/** WedMeGood vendors for a client's words and places (wedding and event services). */
+export function fetchWedMeGoodVendors(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
+  return readGateway(WEDMEGOOD, WEDMEGOOD_GATEWAY_NAME, "WedMeGood vendors", [c.query], placesOf(c), rawFromWedMeGood, needsSetup);
+}
+
 /** Houzz professionals for a client's words and places (design, build and renovation work). */
 export function fetchHouzzProfessionals(c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
   return readGateway(HOUZZ, HOUZZ_GATEWAY_NAME, "Houzz professionals", [c.query], placesOf(c), rawFromHouzz, needsSetup);
@@ -281,6 +326,8 @@ export async function runServicesSource(s: SourceRecord, c: SearchCriteria, need
       return { jobs: await fetchOsmBusinesses(c, needsSetup), warnings: [] };
     case HOUZZ:
       return { jobs: await fetchHouzzProfessionals(c, needsSetup), warnings: [] };
+    case WEDMEGOOD:
+      return { jobs: await fetchWedMeGoodVendors(c, needsSetup), warnings: [] };
     default:
       throw new Error("No connector");
   }

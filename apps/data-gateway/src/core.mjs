@@ -299,7 +299,7 @@ export function matchesWords(text, query) {
 /** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
 export function filterListings(listings, plan, now = Date.now()) {
   const allowed = new Set(plan.sourceIds);
-  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(x.title + " " + x.description + " " + x.organization, plan.query) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
+  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? ""), plan.query) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
   return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
 }
 export function search(state, consumer, payload, secret) {

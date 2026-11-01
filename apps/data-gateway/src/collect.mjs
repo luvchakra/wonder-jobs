@@ -187,6 +187,10 @@ export function businessRecord(o) {
 }
 export function parseStructured(html) {
   const out = [];
+  // A page's breadcrumb trail (schema.org BreadcrumbList) names the category a business sits in, which a LocalBusiness
+  // block alone doesn't: it is kept on that page's business records as `breadcrumb`, without the "Home" crumb.
+  const crumbs = [];
+  const businesses = new Set();
   for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
     let parsed;
     try { parsed = JSON.parse(match[1].trim()); } catch { continue; }
@@ -195,6 +199,13 @@ export function parseStructured(html) {
       if (!o || typeof o !== "object") return;
       if (o["@graph"]) walk(o["@graph"]);
       const kinds = [o["@type"]].flat().filter(Boolean);
+      if (kinds.includes("BreadcrumbList") && !crumbs.length) {
+        for (const i of [o.itemListElement].flat()) {
+          const name = typeof i?.name === "string" ? i.name : i?.item?.name;
+          if (typeof name === "string" && name.trim()) crumbs.push(name.replace(/\s+/g, " ").trim().slice(0, 80));
+        }
+        return;
+      }
       if (!kinds.some((k) => /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
       const first = (v) => (Array.isArray(v) ? v[0] : v);
       const org = first(o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher);
@@ -203,12 +214,14 @@ export function parseStructured(html) {
       const place = places.find((x) => typeof x === "string" || x?.address) ?? places[0];
       const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
       const business = !event && kinds.some((k) => /LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber|ProfessionalService/i.test(String(k)));
-      if (business) { out.push(businessRecord(o)); return; }
+      if (business) { const rec = businessRecord(o); businesses.add(rec); out.push(rec); return; }
       out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
     if (out.length >= 500) break;
   }
+  const trail = crumbs.filter((c) => !/^home$/i.test(c)).slice(0, 6).join(" > ");
+  if (trail) for (const rec of businesses) rec.attributes.breadcrumb = trail;
   return out.slice(0, 500);
 }
 export async function fetchRecords(source, deps = {}) {

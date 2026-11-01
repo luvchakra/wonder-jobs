@@ -44,3 +44,4 @@
 - ✅ Jobs: 11 more company career boards (Razorpay, Paytm, InMobi, LinkedIn, ServiceNow and more) and two remote feeds, Working Nomads and We Work Remotely (WJ-544)
 - ✅ Jobs: searches Jooble (India and worldwide) and USAJOBS (US federal) once their free keys are set (WJ-545)
 - ✅ WorksLake gateway: a source can state its time zone, kept on every record (WJ-508)
+- 2026-11-01 Talent & Services: WedMeGood wedding and event vendors source and Wedding & events trade (WJ-593)

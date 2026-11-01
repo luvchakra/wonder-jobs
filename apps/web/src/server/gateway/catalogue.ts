@@ -1,5 +1,9 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
+import wedmegood1 from "../../../../data-gateway/sources/wedmegood-vendors-1.json";
+import wedmegood2 from "../../../../data-gateway/sources/wedmegood-vendors-2.json";
+import wedmegood3 from "../../../../data-gateway/sources/wedmegood-vendors-3.json";
+import wedmegood4 from "../../../../data-gateway/sources/wedmegood-vendors-4.json";
 import houzzInteriorDesignersAndDecorators from "../../../../data-gateway/sources/houzz-interior-designers-and-decorators.json";
 import houzzArchitects from "../../../../data-gateway/sources/houzz-architects.json";
 import houzzDesignBuildFirms from "../../../../data-gateway/sources/houzz-design-build-firms.json";
@@ -33,6 +37,10 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
+  "wedmegood-vendors-1.json": wedmegood1 as Record<string, unknown>,
+  "wedmegood-vendors-2.json": wedmegood2 as Record<string, unknown>,
+  "wedmegood-vendors-3.json": wedmegood3 as Record<string, unknown>,
+  "wedmegood-vendors-4.json": wedmegood4 as Record<string, unknown>,
   "houzz-interior-designers-and-decorators.json": houzzInteriorDesignersAndDecorators as Record<string, unknown>,
   "houzz-architects.json": houzzArchitects as Record<string, unknown>,
   "houzz-design-build-firms.json": houzzDesignBuildFirms as Record<string, unknown>,
