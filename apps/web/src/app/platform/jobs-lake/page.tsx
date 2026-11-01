@@ -218,7 +218,7 @@ export default function AdminOverview() {
           )}
         </Panel>
         <Panel
-          title="Jobs search pool · 7 days"
+          title="Jobs listings · 7 days"
           action={
             <Link
               href="/platform/jobs-lake/quality"

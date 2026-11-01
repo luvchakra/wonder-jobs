@@ -30,8 +30,11 @@ export function cleanDomain(raw: string | undefined | null): string | undefined 
  */
 export function companyDomain(raw: string | undefined | null): string | undefined {
   const d = cleanDomain(raw);
-  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) ? d : undefined;
+  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) && !RESERVED.test(d) ? d : undefined;
 }
+
+/** Names that are never a real organisation's (RFC 2606/6761): test data such as `wonderhome.example`. */
+const RESERVED = /(^|\.)(example\.(com|net|org)|[^.]+\.(example|test|invalid|localhost|local))$|^example\.(com|net|org)$/;
 
 /** The employer's domain from an apply link on their own site; undefined for any platform or board. */
 export function employerDomainOf(applyUrl: string | undefined, onEmployerSite: boolean | undefined): string | undefined {
@@ -116,6 +119,14 @@ export interface CompanyRecord {
   ratings?: CompanyRatings | null;
   /** When ratings were last looked up (undefined: never). */
   ratingsAt?: string;
+  /** A platform admin's ban: its listings are left out of every module's searches. */
+  ban?: CompanyBan | null;
+}
+
+export interface CompanyBan {
+  at: string;
+  reason: string;
+  by: string;
 }
 
 /** What WorksLake knows about a company, every value from a named source or its own postings; no logo. */

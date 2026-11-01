@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const Body = z.object({ query: z.string().trim().min(1, "Type what you're into — for example board games, running or pottery.").max(120), places: z.array(z.string().max(80)).max(5), refresh: z.boolean().optional() });
+// No words: the module's latest listings (owner, 2026-11-01), so the query may be empty.
+const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.string().max(80)).max(5), refresh: z.boolean().optional() });
 
 /** Events Find: the person's words and places, searched across the Events dataset's sources (never another module's). */
 export async function POST(req: Request) {

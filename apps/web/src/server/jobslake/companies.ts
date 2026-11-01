@@ -5,7 +5,7 @@
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
-import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
@@ -19,10 +19,14 @@ export interface CompanyStore {
   /** Only what serving a logo needs (domain, logo, when it was looked for): by domain, else by name key. Never the facts. */
   logoFor(q: { domain?: string; nameKey?: string }): Promise<Pick<CompanyRecord, "domain" | "logo" | "logoCheckedAt"> | undefined>;
   /** The directory, most open roles first: a page of companies matching `q` (name or domain), and how many match. No logo bytes. */
-  list(q: string, limit: number, offset: number, opts?: { missingLogo?: boolean }): Promise<{ total: number; rows: CompanyRecord[] }>;
+  list(q: string, limit: number, offset: number, opts?: { missingLogo?: boolean; banned?: boolean }): Promise<{ total: number; rows: CompanyRecord[] }>;
   /** The companies with any of these domains or name keys — facts only, no logos. */
   facts(domains: string[], nameKeys: string[]): Promise<CompanyRecord[]>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
+  /** An admin's ban (or, with null, lifting it). False when there's no such company. */
+  setBan(domain: string, ban: CompanyBan | null): Promise<boolean>;
+  /** Every banned company's domain and name key. */
+  bannedList(): Promise<{ domain: string; nameKey: string }[]>;
   /** An admin's choice: replaces (or, with null, clears) a company's logo even when one is stored. */
   replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<boolean>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
@@ -70,9 +74,18 @@ class MemoryCompanies implements CompanyStore {
   async byDomain(domain: string) {
     return this.rows.get(domain);
   }
-  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean } = {}) {
+  async setBan(domain: string, ban: CompanyBan | null) {
+    const r = this.rows.get(domain);
+    if (!r) return false;
+    this.rows.set(domain, { ...r, ban });
+    return true;
+  }
+  async bannedList() {
+    return [...this.rows.values()].filter((r) => r.ban).map((r) => ({ domain: r.domain, nameKey: r.nameKey }));
+  }
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean; banned?: boolean } = {}) {
     const k = q.trim().toLowerCase();
-    const all = [...this.rows.values()].filter((r) => (!k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k)) && (!opts.missingLogo || !r.logo));
+    const all = [...this.rows.values()].filter((r) => (!k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k)) && (!opts.missingLogo || !r.logo) && (!opts.banned || !!r.ban));
     all.sort((a, b) => (b.openJobs ?? -1) - (a.openJobs ?? -1) || a.name.localeCompare(b.name));
     return { total: all.length, rows: all.slice(offset, offset + limit).map((r) => ({ ...r, hasLogo: !!r.logo })) };
   }
@@ -142,8 +155,8 @@ class MemoryCompanies implements CompanyStore {
   }
 }
 
-type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; wikidata?: unknown; wikidata_at?: string | null; ratings?: CompanyRatings | null; ratings_at?: string | null };
-const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}), ...(r.ratings_at ? { ratings: r.ratings ?? null, ratingsAt: r.ratings_at } : {}) });
+type Row = { domain: string; name: string; name_key: string; sources: string[]; first_seen_at: string; last_seen_at: string; logo: string | null; logo_type: string | null; logo_from: string | null; logo_checked_at: string | null; open_jobs?: number | null; counted_at?: string | null; new_jobs_7d?: number | null; facts?: CompanyRecord["facts"] | null; facts_at?: string | null; wikidata?: unknown; wikidata_at?: string | null; ratings?: CompanyRatings | null; ratings_at?: string | null; banned_at?: string | null; ban_reason?: string | null; banned_by?: string | null };
+const fromRow = (r: Row): CompanyRecord => ({ domain: r.domain, name: r.name, nameKey: r.name_key, sources: r.sources ?? [], firstSeenAt: r.first_seen_at, lastSeenAt: r.last_seen_at, logo: r.logo && r.logo_type ? { data: r.logo, type: r.logo_type, from: r.logo_from ?? "" } : r.logo_checked_at ? null : undefined, logoCheckedAt: r.logo_checked_at ?? undefined, ...(r.open_jobs != null ? { openJobs: r.open_jobs, countedAt: r.counted_at ?? undefined } : {}), ...(r.new_jobs_7d != null ? { newJobs7d: r.new_jobs_7d } : {}), ...(r.facts ? { facts: r.facts, factsAt: r.facts_at ?? undefined } : {}), ...(r.wikidata_at ? { wikidata: wikidataOf(r.wikidata), wikidataAt: r.wikidata_at } : {}), ...(r.ratings_at ? { ratings: r.ratings ?? null, ratingsAt: r.ratings_at } : {}), ...(r.banned_at ? { ban: { at: r.banned_at, reason: r.ban_reason ?? "", by: r.banned_by ?? "" } } : {}) });
 
 class SupabaseCompanies implements CompanyStore {
   private sb() {
@@ -167,14 +180,35 @@ class SupabaseCompanies implements CompanyStore {
     if (error) throw new Error(error.message);
     return data ? fromRow(data as Row) : undefined;
   }
-  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean } = {}) {
-    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_type, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
+  async setBan(domain: string, ban: CompanyBan | null) {
+    const { data, error } = await this.sb().update({ banned_at: ban?.at ?? null, ban_reason: ban?.reason ?? null, banned_by: ban?.by ?? null }).eq("domain", domain).select("domain");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
+  }
+  async bannedList() {
+    const { data, error } = await this.sb().select("domain, name_key").not("banned_at", "is", null).limit(5000);
+    // Before migration 0046, nothing can be banned.
+    if (error?.code === "42703") return [];
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => ({ domain: String(r.domain), nameKey: String(r.name_key) }));
+  }
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean; banned?: boolean } = {}) {
+    const base = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_type, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
     // Only the characters a name or domain has go into the filter (it is a PostgREST expression).
     const k = q.trim().toLowerCase().replace(/[^a-z0-9 .\-&']/g, "").slice(0, 80);
-    let query = this.sb().select(cols, { count: "exact" });
-    if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
-    if (opts.missingLogo) query = query.is("logo_type", null);
-    const { data, error, count } = await query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
+    const run = (withBans: boolean) => {
+      let query = this.sb().select(withBans ? `${base}, banned_at, ban_reason, banned_by` : base, { count: "exact" });
+      if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
+      if (opts.missingLogo) query = query.is("logo_type", null);
+      if (opts.banned && withBans) query = query.not("banned_at", "is", null);
+      return query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
+    };
+    let { data, error, count } = await run(true);
+    // Before migration 0046 adds the ban columns, the directory still lists (with nothing banned).
+    if (error?.code === "42703") {
+      if (opts.banned) return { total: 0, rows: [] };
+      ({ data, error, count } = await run(false));
+    }
     if (error) throw new Error(error.message);
     return { total: count ?? 0, rows: (data ?? []).map((r) => ({ ...fromRow({ logo: null, logo_from: null, ...(r as object), logo_type: null } as Row), hasLogo: !!(r as { logo_type?: string | null }).logo_type })) };
   }
@@ -299,7 +333,7 @@ export { MemoryCompanies as __MemoryCompanies };
 export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toISOString()): CompanyRecord[] {
   const out = new Map<string, CompanyRecord>();
   for (const o of opps) {
-    const domain = companyDomain(o.employer.domain) ?? employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified);
+    const domain = companyDomain(o.employer.domain) ?? companyDomain(employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified));
     // An event with no organiser named is its own poster: it is recorded under its own site and title.
     const name = o.employer.name?.trim() || (o.kind === "event" ? o.title : "");
     const nameKey = companyKey(name);
@@ -556,17 +590,21 @@ export interface DirectoryCompany {
   ratings?: CompanyRatings | null;
   ratingsAt?: string;
   h1b?: H1bRecord;
+  /** An admin's ban: its listings are left out of every module's searches. */
+  ban?: CompanyBan;
 }
 
 /** The admin Companies page: one page of the directory, each company with its H-1B totals read from their own table. */
-export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore(), opts: { missingLogo?: boolean } = {}): Promise<{ total: number; missingLogos: number; companies: DirectoryCompany[] }> {
+export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore(), opts: { missingLogo?: boolean; banned?: boolean } = {}): Promise<{ total: number; missingLogos: number; banned: number; companies: DirectoryCompany[] }> {
   const { total, rows } = await store.list(q, limit, offset, opts);
-  const missingLogos = opts.missingLogo ? total : (await store.list(q, 1, 0, { missingLogo: true })).total;
+  const [missingLogos, banned] = await Promise.all([opts.missingLogo && !opts.banned ? total : store.list(q, 1, 0, { missingLogo: true }).then((x) => x.total), opts.banned && !opts.missingLogo ? total : store.list(q, 1, 0, { banned: true }).then((x) => x.total)]);
   const h1b = await store.h1bFor([...new Set(rows.map((r) => r.nameKey))]);
   return {
     total,
     missingLogos,
+    banned,
     companies: rows.map((r) => ({
+      ...(r.ban ? { ban: r.ban } : {}),
       domain: r.domain,
       name: r.name,
       sources: r.sources,
@@ -659,4 +697,36 @@ export async function fetchMissingLogos(
   );
   const [left, all] = await Promise.all([store.needingLogo(500, since), store.list("", 1, 0, { missingLogo: true })]);
   return { checked, found, remaining: left.length, missing: all.total };
+}
+
+/**
+ * Banned companies, for search to leave out (owner, 2026-11-01): by domain, and by name key for listings that name no
+ * domain. Read at most once a minute per instance (bans are rare; a ban made here clears it at once).
+ */
+let bannedCache: { at: number; domains: Set<string>; names: Set<string> } | null = null;
+export async function bannedCompanies(now = Date.now(), store: CompanyStore = companyStore()): Promise<{ domains: Set<string>; names: Set<string> }> {
+  if (bannedCache && now - bannedCache.at < 60_000) return bannedCache;
+  const list = await store.bannedList();
+  bannedCache = { at: now, domains: new Set(list.map((b) => b.domain)), names: new Set(list.map((b) => b.nameKey).filter(Boolean)) };
+  return bannedCache;
+}
+
+/** Whether a listing is a banned company's: by its domain when it names one, else by its exact (normalized) name. */
+export function isBannedListing(o: CanonicalOpportunity, banned: { domains: Set<string>; names: Set<string> }): boolean {
+  if (!banned.domains.size && !banned.names.size) return false;
+  const domain = companyDomain(o.employer.domain) ?? companyDomain(employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified));
+  if (domain) return banned.domains.has(domain);
+  const key = companyKey(o.employer.name ?? "");
+  return !!key && banned.names.has(key);
+}
+
+/** An admin bans a company (with a reason) or lifts the ban. Returns what happened, in words. */
+export async function adminBan(domain: string, action: { ban: true; reason: string } | { ban: false }, actor: string, now = Date.now(), store: CompanyStore = companyStore()): Promise<{ ok: boolean; message: string }> {
+  const d = cleanDomain(domain);
+  if (!d) return { ok: false, message: "No such company in the directory." };
+  if (action.ban && action.reason.trim().length < 3) return { ok: false, message: "Say why it's banned (at least a few words)." };
+  const ok = await store.setBan(d, action.ban ? { at: new Date(now).toISOString(), reason: action.reason.trim().slice(0, 300), by: actor.slice(0, 200) } : null);
+  bannedCache = null;
+  if (!ok) return { ok: false, message: "No such company in the directory." };
+  return { ok: true, message: action.ban ? `${d} is banned: its listings are left out of every module's searches.` : `${d} is no longer banned.` };
 }
