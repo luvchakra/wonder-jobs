@@ -1,0 +1,23 @@
+{
+  "url": "https://www.wedmegood.com/",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "sitemap": "https://www.wedmegood.com/sitemaps/sitemap-vendor-profile-3.xml",
+  "modules": [
+    "services"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: WedMeGood terms of use on automated access (the owner confirms). Checked 2026-11-01: robots.txt allows User-agent * (Content-Signal search=yes, ai-train=no; we only index and link, never train), disallows /profile/*/reviews/*; sitemap lists vendor profiles; each profile has LocalBusiness data. Only that is read: never phone, email or street.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "publicBusinesses": true,
+  "attribution": "WedMeGood (wedmegood.com)",
+  "pathPrefix": "/profile/",
+  "pathPattern": "/profile/*",
+  "maxPagesPerRun": 20,
+  "crawlDelayMs": 2000,
+  "retentionHours": 720,
+  "minIntervalMinutes": 60
+}

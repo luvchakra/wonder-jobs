@@ -20,7 +20,7 @@ export type Lane = "local" | "remote";
 export const LANE_LABEL: Record<Lane, string> = { local: "At your place", remote: "Remote project" };
 
 /** The home-service trades people book by visit. */
-export const LOCAL_TRADES = ["AC service & repair", "Plumbing", "Electrician", "Home cleaning", "Carpentry", "Painting", "Appliance repair", "Pest control", "Design, build & renovation"] as const;
+export const LOCAL_TRADES = ["AC service & repair", "Plumbing", "Electrician", "Home cleaning", "Carpentry", "Painting", "Appliance repair", "Pest control", "Design, build & renovation", "Wedding & events"] as const;
 /** The kinds of remote project work. */
 export const REMOTE_FIELDS = ["Design", "Development", "Writing", "Marketing", "Video", "Data", "Translation", "Accounting & tax"] as const;
 export const CATEGORIES = [...LOCAL_TRADES, ...REMOTE_FIELDS] as const;
@@ -104,7 +104,7 @@ export interface ProFacts {
   craft?: string;
   city?: string;
   web?: string;
-  /** A business listed on Houzz: one of this module's own categories, read from the profile's path. */
+  /** A business listed on Houzz or WedMeGood: one of this module's own categories, read from the profile. */
   cat?: string;
 }
 
@@ -118,6 +118,20 @@ export const HOUZZ_CATEGORIES = ["interior-designers-and-decorators", "architect
 export function houzzCategoryOf(url: string): Category | undefined {
   const m = /^https:\/\/www\.houzz\.in\/professionals\/([a-z-]+)\/[^/?#]+-pf~\d+/.exec(url);
   return m && (HOUZZ_CATEGORIES as readonly string[]).includes(m[1]) ? "Design, build & renovation" : undefined;
+}
+
+/**
+ * A WedMeGood vendor's trade and city, from the breadcrumb trail its page carries ("Vendors > Bridal Makeup Artists >
+ * Bridal Makeup Artists Mumbai"). Only vendors a client hires for a service count (photographers, makeup artists,
+ * decorators, caterers, mehendi artists, planners, DJs, choreographers, priests, bartenders, entertainers, pre-wedding
+ * shoots); shops for wear, jewellery, cards, favours and accessories, venues and cakes are left out.
+ */
+export function wedmegoodVendorOf(trail: string): { trade: string; city?: string } | undefined {
+  const [root, trade, where] = trail.split(">").map((x) => x.replace(/\s+/g, " ").trim());
+  if (root?.toLowerCase() !== "vendors" || !trade) return undefined;
+  if (!/photograph|videograph|make-?up|decorat|cater|mehen?di|choreograph|planner|\bdjs?\b|pandit|priest|bartend|entertain|pre[- ]?wedding shoot|florist|anchor/i.test(trade)) return undefined;
+  const city = where?.toLowerCase().startsWith(trade.toLowerCase()) ? where.slice(trade.length).trim() : "";
+  return { trade, ...(city ? { city } : {}) };
 }
 
 /** The trades OpenStreetMap's `craft` tag names that this module offers, as this module's own services. */
