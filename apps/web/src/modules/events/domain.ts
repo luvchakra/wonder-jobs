@@ -32,6 +32,23 @@ export interface EventTerms {
   cover?: number;
 }
 
+/**
+ * An event an outside source states (the WorksLake gateway, e.g. confs.tech's conference data), not one organised on
+ * WonderWorks: no seats, no RSVP and no organiser here, only what the source says and a link to the event's own page.
+ */
+export interface OutsideEvent {
+  /** The event's own page, where anything further happens. */
+  url: string;
+  /** YYYY-MM-DD, as the source states it (no time of day is made up). */
+  startDate: string;
+  endDate?: string;
+  /** The source says it can be joined online (it may also be in person). */
+  online: boolean;
+  /** The call for papers' own page and its last day, when the source gives them. */
+  cfpUrl?: string;
+  cfpEndDate?: string;
+}
+
 /** One event as Find shows it, with the seats left at search time (never who is going). */
 export interface EventListing {
   /** `ws_<postingId>`. */
@@ -50,7 +67,11 @@ export interface EventListing {
   postedAt?: string;
   sourceId: string;
   sourceName: string;
+  /** Set for an event from an outside source: it has no seats or RSVP here (see OutsideEvent). */
+  outside?: OutsideEvent;
 }
+
+export const isOutside = (l: { outside?: OutsideEvent }): l is { outside: OutsideEvent } => !!l.outside;
 
 /* ------------------------------------------------------------------ seats and statuses */
 
@@ -94,6 +115,21 @@ export const whenLabel = (iso: string) => {
   const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, ...IST }).toLowerCase();
   return `${day} · ${time}`;
 };
+const DAY = (iso: string, opts: Intl.DateTimeFormatOptions) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", ...opts });
+/** An outside event's dates as its source states them: "14 Nov 2026", "12–14 Nov 2026", "30 Nov – 2 Dec 2026". */
+export function dateRangeLabel(startDate: string, endDate?: string): string {
+  if (!endDate || endDate <= startDate) return DAY(startDate, { day: "numeric", month: "short", year: "numeric" });
+  const [sy, sm] = [startDate.slice(0, 4), startDate.slice(5, 7)];
+  const [ey, em] = [endDate.slice(0, 4), endDate.slice(5, 7)];
+  if (sy === ey && sm === em) return `${DAY(startDate, { day: "numeric" })}–${DAY(endDate, { day: "numeric", month: "short", year: "numeric" })}`;
+  if (sy === ey) return `${DAY(startDate, { day: "numeric", month: "short" })} – ${DAY(endDate, { day: "numeric", month: "short", year: "numeric" })}`;
+  return `${DAY(startDate, { day: "numeric", month: "short", year: "numeric" })} – ${DAY(endDate, { day: "numeric", month: "short", year: "numeric" })}`;
+}
+/** When an event is: the time (India time) for one organised here, the dates for an outside one. */
+export const whenOf = (l: Pick<EventListing, "terms" | "outside">) => (l.outside ? dateRangeLabel(l.outside.startDate, l.outside.endDate) : whenLabel(l.terms.startsAt));
+/** Where an outside event is, as its source states it: a city, "Online", or both. */
+export const outsidePlace = (l: Pick<EventListing, "location" | "outside">) => (l.outside?.online ? (l.location ? `${l.location} · also online` : "Online") : l.location || "Place not stated");
+
 export const seatsLabel = (l: Pick<EventListing, "seatsLeft" | "terms">) => (l.terms.capacity === undefined ? "No limit" : l.seatsLeft ? `${l.seatsLeft} of ${l.terms.capacity} seats left` : "Full · join the waitlist");
 export const ageLabel = (t: Pick<EventTerms, "ageMin">) => (t.ageMin ? `${t.ageMin}+` : null);
 
@@ -144,14 +180,16 @@ export interface Facets {
 }
 export const EMPTY_FACETS: Facets = { when: "Any time", where: "", openOnly: false, tag: "" };
 
-export function applyFacets<T extends Pick<EventListing, "terms" | "seatsLeft">>(items: T[], f: Facets, now = Date.now()): { kept: T[]; hidden: number } {
+export function applyFacets<T extends Pick<EventListing, "terms" | "seatsLeft"> & { outside?: OutsideEvent }>(items: T[], f: Facets, now = Date.now()): { kept: T[]; hidden: number } {
   const days = f.when === "Next 7 days" ? 7 : f.when === "Next 30 days" ? 30 : 0;
   const kept = items.filter((l) => {
     const at = Date.parse(l.terms.startsAt);
     if (days && at > now + days * 86_400_000) return false;
-    if (f.where === "online" && !l.terms.online) return false;
+    // An outside event that can also be joined online counts as both.
+    if (f.where === "online" && !l.terms.online && !l.outside?.online) return false;
     if (f.where === "in_person" && l.terms.online) return false;
-    if (f.openOnly && l.terms.capacity !== undefined && !l.seatsLeft) return false;
+    // Outside events have no seats to take, so "only events with seats left" leaves them out.
+    if (f.openOnly && (l.outside || (l.terms.capacity !== undefined && !l.seatsLeft))) return false;
     if (f.tag && !l.terms.tags.some((t) => t.toLowerCase() === f.tag.toLowerCase())) return false;
     return true;
   });
