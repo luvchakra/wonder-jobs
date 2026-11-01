@@ -41,7 +41,9 @@ const Table = ({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) =>
 
 /** The WorksLake Protocol, readable: the same document /api/jobs-lake/v1/protocol serves as JSON. */
 export default async function ApiReferencePage() {
-  await loadApiPlan().catch(() => undefined);
+  // At most 3 s: an unreachable database (2026-11-01: Supabase overloaded, 522) hung this page's static render and failed
+  // the whole production build, so a fix couldn't deploy. Without the stored plan the page shows the built-in prices.
+  await Promise.race([loadApiPlan().catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
   const doc = protocolDocument();
   const origin = siteUrl().origin;
   const base = `${origin}${doc.base}`;
