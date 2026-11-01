@@ -1,5 +1,7 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
+import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
+import teachaway from "../../../../data-gateway/sources/teachaway-international.json";
 import ukTeachingVacancies from "../../../../data-gateway/sources/uk-teaching-vacancies.json";
 import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.json";
 
@@ -10,7 +12,9 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
+  "edjoin-california-schools.json": edjoin as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
+  "teachaway-international.json": teachaway as Record<string, unknown>,
   "uk-teaching-vacancies.json": ukTeachingVacancies as Record<string, unknown>,
   "we-work-remotely.json": weWorkRemotely as Record<string, unknown>,
 };
