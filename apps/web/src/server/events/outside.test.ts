@@ -56,6 +56,13 @@ describe("an outside event, as its source states it", () => {
     expect(toOutsideEvent(conf(), TODAY)!.company).toBe("");
   });
 
+  it("carries the event's own website so its logo can be found, only as a plain host name", () => {
+    expect(toOutsideEvent(conf({ employer: { name: "", domain: "devopsdays.example" } }), TODAY)!.companyDomain).toBe("devopsdays.example");
+    expect(toOutsideEvent(conf({ employer: { name: "", domain: "https://Devopsdays.Example/pune?x=1" } }), TODAY)!.companyDomain).toBe("devopsdays.example");
+    expect(toOutsideEvent(conf({ employer: { name: "", domain: "not a host" } }), TODAY)).not.toHaveProperty("companyDomain");
+    expect(toOutsideEvent(conf(), TODAY)).not.toHaveProperty("companyDomain");
+  });
+
   it("is online-only with no city, or in a city and also online", () => {
     const online = toOutsideEvent(conf({ locations: [], attributes: { online: true, city: "" } }), TODAY)!;
     expect(online.terms.online).toBe(true);

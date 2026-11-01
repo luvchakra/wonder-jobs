@@ -39,7 +39,7 @@ export const EventCard = memo(function EventCard({ item: l, onOpen }: { item: Ev
       share={shareOf(l)}
       aside={
         <>
-          <CompanyLogo name={l.company || l.sourceName} logo size={44} />
+          <CompanyLogo name={l.company || l.title} domain={l.companyDomain} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
           {out && (
             // The event's own page: nothing is RSVPed here, so the one action is going there.

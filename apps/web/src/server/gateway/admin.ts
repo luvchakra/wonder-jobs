@@ -92,3 +92,45 @@ export async function collectGatewaySource(sourceId: string) {
     return { ok: false as const, code: (e as { code?: string }).code ?? "SOURCE_UNAVAILABLE" };
   }
 }
+
+/** The gateway's own admin call, made in process with the deployment's admin token (never sent to a browser). */
+async function adminCall(path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+  const hosted = hostedGateway();
+  const token = process.env.GATEWAY_ADMIN_TOKEN;
+  if (!hosted || !token) return { status: 503, body: { error: { code: "NOT_CONFIGURED", message: "The gateway is not configured on this deployment" } } };
+  const r = await hosted.gateway.handle(new Request("https://gateway.internal" + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body ?? {}) }));
+  return { status: r.status, body: (await r.json()) as Record<string, unknown> };
+}
+
+export interface PartnerInput { name: string; website: string; module: string; permissionEvidence: string; consentVerified: boolean }
+
+/**
+ * Registers a partner who gave written permission for its list (it starts paused): the partner's name is shown as the
+ * listings' source, its website is where they link from, and the permission is recorded with it.
+ */
+export function registerPartner(p: PartnerInput) {
+  return adminCall("/v1/admin/sources", {
+    url: p.website,
+    kind: "upload",
+    modules: [p.module],
+    permission: "granted_in_writing",
+    permissionEvidence: p.permissionEvidence,
+    termsReviewed: true,
+    redistributionAllowed: true,
+    externalRedistributionAllowed: false,
+    consentVerified: p.consentVerified,
+    attribution: p.name,
+    // An event's organiser can be the event itself; every other listing names who offers it.
+    organizationOptional: p.module === "events",
+  });
+}
+
+/** A partner's list, checked and (when good) replacing what it had. */
+export function uploadPartnerList(sourceId: string, format: "csv" | "json", content: string) {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/upload`, { format, content });
+}
+
+/** Start or stop serving a source (activation needs a passing test or upload in the last day). */
+export function setGatewaySource(sourceId: string, action: "activate" | "pause") {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/${action}`, {});
+}
