@@ -1,21 +1,21 @@
 {
-  "url": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C22.5726%2C88.3639%29%3Bout%20center%20tags%20300%3B",
+  "url": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C22.5726%2C88.3639%29%3Bout%20center%20tags%20600%3B",
   "kind": "json_api",
   "modules": [
     "services"
   ],
   "permission": "terms_permit",
-  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"© OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"\u00a9 OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
   "termsReviewed": true,
   "redistributionAllowed": true,
   "externalRedistributionAllowed": false,
   "publicBusinesses": true,
   "attribution": "OpenStreetMap contributors (ODbL)",
   "extraUrls": [
-    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C25.5941%2C85.1376%29%3Bout%20center%20tags%20300%3B",
-    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C26.1445%2C91.7362%29%3Bout%20center%20tags%20300%3B",
-    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C21.1458%2C79.0882%29%3Bout%20center%20tags%20300%3B",
-    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C23.2599%2C77.4126%29%3Bout%20center%20tags%20300%3B"
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C25.5941%2C85.1376%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C26.1445%2C91.7362%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C21.1458%2C79.0882%29%3Bout%20center%20tags%20600%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3Bnwr%5B%22craft%22~%22%5E%28plumber%7Celectrician%7Chvac%7Ccarpenter%7Cpainter%7Celectronics_repair%7Ctiler%7Croofer%7Cglaziery%7Cplasterer%7Cstonemason%7Cphotographer%7Ccaterer%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C23.2599%2C77.4126%29%3Bout%20center%20tags%20600%3B"
   ],
   "requestDelayMs": 1000,
   "itemsPath": "elements",
@@ -41,5 +41,8 @@
     "attr.postcode": "tags.addr:postcode"
   },
   "retentionHours": 504,
-  "minIntervalMinutes": 10080
+  "minIntervalMinutes": 10080,
+  "geography": [
+    "IN"
+  ]
 }

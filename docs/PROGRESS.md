@@ -51,3 +51,4 @@
 - ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable (WJ-580)
 - ✅ Events: Helsinki Linked Events (open data) in the gateway catalogue; a source's cancelled or postponed status is honoured (WJ-573)
 - ✅ Admin: Setup to-do decisions add Helsinki crowding, Unstop's robots.txt and WedMeGood's content signal (WJ-509)
+- 2026-11-01 Talent & Services: India pass 2 — more OpenStreetMap trades, geography on gateway definitions, researched directories and government lists (WJ-594)

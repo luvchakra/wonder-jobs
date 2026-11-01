@@ -35,5 +35,8 @@
   "maxPagesPerRun": 40,
   "crawlDelayMs": 2000,
   "retentionHours": 720,
-  "minIntervalMinutes": 1440
+  "minIntervalMinutes": 1440,
+  "geography": [
+    "IN"
+  ]
 }
