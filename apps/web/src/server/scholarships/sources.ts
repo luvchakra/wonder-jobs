@@ -12,6 +12,7 @@
  * - Unstop: its public opportunity list (scholarships, hackathons, competitions for Indian students); paid ones are left out.
  * - EU Funding & Tenders: the portal's search API (public key SEDIA), open fellowship calls only (MSCA, ERA).
  * - Opportunity Desk and Scholars4Dev: their public WordPress RSS feeds (one post, one opportunity, its stated deadline).
+ * - Devfolio: hackathons open for applications in India (the public search its site uses).
  * - Kaggle: its API's open competitions — needs KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
  * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
  * owner confirms their terms later; `statusReason` says what to confirm.
@@ -42,6 +43,7 @@ export const DEVPOST = "schol_devpost";
 export const UNSTOP = "schol_unstop";
 export const EU_FELLOWSHIPS = "schol_eu_msca";
 export const KAGGLE = "schol_kaggle";
+export const DEVFOLIO = "schol_devfolio";
 export const OPPORTUNITY_DESK = "schol_opportunity_desk";
 export const SCHOLARS4DEV = "schol_scholars4dev";
 
@@ -65,6 +67,7 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: EU_FELLOWSHIPS, name: "EU Funding & Tenders: MSCA fellowships", provider: "European Commission", category: "portal", geography: ["global", "EU"], statusReason: "terms pending: the Funding & Tenders search API (public key SEDIA) is open, reuse under the Commission's reuse policy (CC BY 4.0) to confirm for this endpoint", description: "Open Marie Skłodowska-Curie fellowships for researchers from the EU Funding & Tenders portal's search API." }),
   source({ id: OPPORTUNITY_DESK, name: "Opportunity Desk scholarships and fellowships", provider: "Opportunity Desk", category: "aggregator", geography: ["global"], statusReason: "terms pending: Opportunity Desk's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships and fellowships from Opportunity Desk's public RSS feed, each with the deadline its post states." }),
   source({ id: SCHOLARS4DEV, name: "Scholars4Dev scholarships", provider: "Scholars4Dev", category: "aggregator", geography: ["global"], statusReason: "terms pending: Scholars4Dev's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "International scholarships from Scholars4Dev's public RSS feed, each with the deadline its post states." }),
+  source({ id: DEVFOLIO, name: "Devfolio hackathons", provider: "Devfolio", category: "aggregator", geography: ["IN"], statusReason: "terms pending: Devfolio's public hackathon search (the one its site uses) has no published reuse terms; confirm with Devfolio", description: "Hackathons open for applications in India from Devfolio, each with its registration deadline." }),
   source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API." }),
 ];
 
@@ -351,6 +354,53 @@ export async function fetchFeed(id: string, c: SearchCriteria): Promise<Job[]> {
   }), c);
 }
 
+// ---- Devfolio (India hackathons) -------------------------------------------------------------------------------
+
+interface DevfolioHackathon {
+  name: string;
+  slug: string;
+  tagline?: string;
+  desc?: string;
+  city?: string;
+  country?: string;
+  is_online?: boolean;
+  private?: boolean;
+  starts_at?: string;
+  ends_at?: string;
+  themes?: { name?: string }[] | null;
+  hackathon_setting?: { reg_ends_at?: string | null; subdomain?: string | null; site?: string | null; women_only?: boolean } | null;
+}
+
+/** An open Devfolio hackathon as a project: its registration deadline, its own page; a private one is left out. */
+export function rawFromDevfolio(h: DevfolioHackathon): RawPosting | null {
+  if (h.private || !h.slug) return null;
+  const sub = h.hackathon_setting?.subdomain || h.slug;
+  const url = `https://${sub}.devfolio.co/`;
+  const deadline = day(h.hackathon_setting?.reg_ends_at ?? undefined);
+  const themes = (h.themes ?? []).map((t) => t?.name ?? "").filter(Boolean);
+  const where = h.is_online ? "Online" : [h.city, h.country].filter(Boolean).join(", ");
+  const when = [day(h.starts_at), day(h.ends_at)].filter(Boolean).join(" to ");
+  return {
+    externalId: h.slug,
+    title: h.name,
+    company: h.name,
+    location: where,
+    remote: !!h.is_online,
+    description: [h.tagline ?? "", `Hackathon on Devfolio${where ? ` (${where})` : ""}${when ? `, ${when}` : ""}.`, h.hackathon_setting?.women_only ? "Women only." : "", (h.desc ?? "").replace(/[#*_`>]/g, "").slice(0, 1500)].filter(Boolean).join(" "),
+    tags: themes,
+    applyUrl: url,
+    employerSite: true,
+    attributes: { kind: "project", ...(deadline ? { deadline } : {}), officialUrl: url, ...(themes.length ? { fields: themes.join("; ") } : {}), region: h.country || "India", currency: "INR" },
+  };
+}
+
+export async function fetchDevfolio(c: SearchCriteria): Promise<Job[]> {
+  const res = await fetch("https://api.devfolio.co/api/search/hackathons", { method: "POST", headers: { "content-type": "application/json", accept: "application/json", "user-agent": "WonderWorksBot/1.0 (+https://wonderjobs.app)" }, body: JSON.stringify({ type: "application_open", from: 0, size: 50 }), signal: AbortSignal.timeout(12_000) });
+  if (!res.ok) throw new Error(`api.devfolio.co responded ${res.status}`);
+  const body = (await res.json()) as { hits?: { hits?: { _source: DevfolioHackathon }[] } };
+  return finish(DEVFOLIO, (body.hits?.hits ?? []).flatMap((h) => rawFromDevfolio(h._source) ?? []), c);
+}
+
 // ---- Kaggle (needs a key) --------------------------------------------------------------------------------------
 
 interface KaggleCompetition {
@@ -423,6 +473,8 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
     case OPPORTUNITY_DESK:
     case SCHOLARS4DEV:
       return { jobs: await fetchFeed(s.id, c), warnings: [] };
+    case DEVFOLIO:
+      return { jobs: await fetchDevfolio(c), warnings: [] };
     case KAGGLE:
       if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
