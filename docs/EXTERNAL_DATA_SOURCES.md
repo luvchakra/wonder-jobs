@@ -29,7 +29,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | Internships · "software", Pune | 3 results (Himalayas) | Same: the India-strong sources are the ones without keys. |
 | Teaching · "english teacher" | 15 results (Himalayas only) | **Adzuna and Jooble: Needs setup.** WonderWorks schools: 0 (no school has posted a match). |
 | **Talent & Services · "designer"** | **0 results** | **A bug, now fixed (below).** Freelancer.com returned 39 pros; WorksLake dropped all 39 as "too old". |
-| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners exist; no outside source by design. |
+| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners until an admin registers the OpenStreetMap practices (WJ-600). |
 | Events · "music" | 1 result | Only WonderWorks' own events; no outside source yet. |
 
 **The Talent & Services bug.** A directory profile has no posting date, so its "posted" date was the day the freelancer made their account (often years ago). WorksLake serves only postings from the last two weeks (`domain/jobs/age.ts`), so every pro was removed (`tooOld: 39` in the search metadata). Fixed in `server/services/sources.ts`: a pro is not a dated posting, so it carries no date and isn't judged for age. After the fix the same search returns 39. This source has never returned a result before.
@@ -63,7 +63,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
-| **Therapists** | 0 | — | — | Deliberately none: licence verification and health-data rules first |
+| **Therapists** | 1 (+ OpenStreetMap practices built, an admin registers it) | — | none | No register or directory is open; practices only, nothing verified |
 | **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
 | **Buy, Sell & Rent** | 0 | none found | eBay (partner contract) | No open data; scrapers carry terms risk |
@@ -219,7 +219,21 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 
 ## 7. Therapists
 
-Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources.ts`).
+Dataset `therapists`. WonderWorks practitioners (`server/therapists/sources.ts`) and, once an admin registers it, OpenStreetMap practices (below).
+
+**Built (2026-11-01, WJ-600): OpenStreetMap practices and clinics**
+
+| Item | Detail |
+|---|---|
+| Source | OpenStreetMap, open data (ODbL), through the data gateway. Four definitions, `apps/data-gateway/sources/osm-therapists-{north,west,south,east}.json`, the same 24 cities as Talent & Services, one Overpass query per city (15 km around the centre), collected **weekly**, read in-process by `server/therapists/sources.ts`, never per user search. They start paused; an admin adds them from Platform → Sources → Partners & gateway → Add from catalogue, then Test & activate. |
+| What it asks for | Named features tagged `healthcare=psychotherapist\|counselling\|psychologist`, or `amenity=clinic\|doctors` with a `healthcare:speciality` of psychiatry, psychotherapy, psychology or clinical psychology. |
+| Practices only | The gateway admits it as `publicBusinesses` (WJ-500), claiming no opt-in. A mapped name is kept only if it carries a word for a practice (clinic, centre, counselling, psychology, wellness, foundation…); a name that is only a person's ("Dr. Anita Sharma") is left out (`isPracticeName`). This drops some real practices named after their founder, on purpose; a practitioner can list themselves. |
+| Shown | Name, kind of practice, the nearest city (derived from its position, never an address), its own https website if tagged, a link to its OpenStreetMap page, and "© OpenStreetMap contributors" with the licence link on the card and the page. "Listed on OpenStreetMap". |
+| Never shown or copied | Phone, email, address, fee, languages, focus, licence, qualifications, rating, "verified" or any claim. It can't be booked in WonderWorks and has no public share page. |
+| Needs the owner | Terms pending: the licence (ODbL) is clear; **confirm where the weekly collection runs**. The public `overpass-api.de` says regular use should stay under 100 queries and 10 MB a day (the weekly collection is well inside that) and that commercial use should use its own or a paid server. The definitions use `overpass-api.de`; pick the endpoint before pressing Test & activate. No key. |
+| Owner decisions | 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists"; data-source terms are confirmed later (CLAUDE.md, "Finding data sources"). |
+
+Still not built: any register or directory of individuals; licence checks; crisis resources (legal wording first).
 
 **Researched**
 
@@ -230,7 +244,7 @@ Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources
 | Commercial directories (TherapyRoute: about 1,200 India listings) | Private | Rejected: unverified, not licensed. |
 
 **Open issues**
-1. **By design, no outside listings.** Importing health professionals needs licence verification, consent and the health-data compliance the platform doc requires.
+1. **No outside individuals.** OpenStreetMap practices only; importing individual practitioners needs licence verification, consent and the health-data compliance the platform doc requires.
 2. **Searches are now kept** in the client's own account (WJ-445); consider a Clear option or expiry.
 
 ---

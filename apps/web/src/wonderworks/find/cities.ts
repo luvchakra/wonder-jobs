@@ -1,4 +1,4 @@
-// Generated with the definition files (apps/data-gateway/sources/osm-services-*.json): the same cities, so a business is given the nearest one.
+// Shared by Talent & Services and Therapists. Generated with the definition files (apps/data-gateway/sources/osm-services-*.json and osm-therapists-*.json): the same cities, so a business or practice is given the nearest one.
 export interface City { name: string; lat: number; lon: number; region: "north" | "west" | "south" | "east" }
 export const CITIES: City[] = [
   { name: "Delhi", lat: 28.6139, lon: 77.209, region: "north" },
