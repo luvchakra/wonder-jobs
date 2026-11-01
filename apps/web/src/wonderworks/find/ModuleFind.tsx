@@ -59,6 +59,16 @@ export interface ModuleFindProps<L extends { id: string }> {
 }
 
 const PAGE = 24;
+/** Seconds since the search started, ticking once a second while it runs (it unmounts when the search ends). */
+function SearchClock() {
+  const [s, setS] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setS((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <span className="tabular-nums">{s} s</span>;
+}
+
 /** What a run was for, in words: its query, or the latest listings when it had none. */
 const forWhat = (query: string, start = false) => (query ? `${start ? "For" : "for"} “${query}”` : start ? "Latest listings" : "· latest");
 const noop = () => () => undefined;
@@ -169,9 +179,16 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
       {busy && (
         <SearchingBanner aside={<WonderSearching size={32} />}>
           <div className="min-w-0 flex-1 space-y-0.5 pt-1">
-            <p className="text-[15px] font-semibold leading-5 text-ink">Searching…</p>
+            <p className="text-[15px] font-semibold leading-5 text-ink">Searching {noun.many}…</p>
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
-              {forWhat(busy.query, true)}{busy.places.length ? ` in ${busy.places.join(", ")}` : ""}
+              {busy.query ? `For “${busy.query}”` : `The latest ${noun.many}`}
+              {busy.places.length ? ` in ${busy.places.join(", ")}` : " · anywhere"}
+            </p>
+            {/* What it's doing, in numbers it knows: how many sources it asks (the last search's count for this
+                module), and how long it has taken so far. */}
+            <p className="text-[12px] leading-4 text-ink-3">
+              {run?.sources.length ? `Asking all ${run.sources.length} ${run.sources.length === 1 ? "source" : "sources"}` : "Asking every source"}
+              {busy.query ? ", removing repeats" : ", newest first"} · <SearchClock />
             </p>
           </div>
         </SearchingBanner>
