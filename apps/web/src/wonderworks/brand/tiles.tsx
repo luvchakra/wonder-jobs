@@ -1,8 +1,8 @@
-import { BookOpen, Briefcase, CalendarDays, GraduationCap, Handshake, HeartPulse, Store, Users, type LucideIcon } from "lucide-react";
+import { Award, BookOpen, Briefcase, CalendarDays, GraduationCap, Handshake, HeartPulse, Store, Users, type LucideIcon } from "lucide-react";
 import type { ModuleIcon, ModuleManifest, ModuleTint } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
 
-export const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOpen, Handshake, Users, HeartPulse, CalendarDays, Store };
+export const ICONS: Record<ModuleIcon, LucideIcon> = { Briefcase, GraduationCap, BookOpen, Handshake, Users, HeartPulse, CalendarDays, Store, Award };
 
 /** Tile tints from the identity sheet: a soft background with the icon in its stronger shade. */
 export const TINTS: Record<ModuleTint, { tile: string; icon: string; chip: string }> = {

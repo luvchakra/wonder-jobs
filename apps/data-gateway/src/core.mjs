@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace"]);
+export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);

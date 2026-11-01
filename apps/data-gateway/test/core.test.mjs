@@ -14,7 +14,7 @@ const permitted = (overrides = {}) => ({
 const posting = (overrides = {}) => ({ id: "1", title: "Engineer", employer: "Example", location: "Mumbai", description: "Platform role", url: "https://example.org/jobs/1", postedAt: "2026-10-30T10:00:00Z", ...overrides });
 const caller = { id: "key", consumerId: "workslake", scopes: MODULES.map((x) => "read:" + x) };
 
-test("eight module ids are supported", () => assert.deepEqual(MODULES, ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace"]));
+test("nine module ids are supported", () => assert.deepEqual(MODULES, ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]));
 test("source registration fails closed on missing permission and sensitive consent", () => {
   assert.throws(() => validateSource(permitted({ permission: "denied" })), /Documented permission/);
   assert.throws(() => validateSource(permitted({ termsReviewed: false })), /Documented permission/);
