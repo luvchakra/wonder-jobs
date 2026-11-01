@@ -461,6 +461,11 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
 
 /* ------------------------------------------------------------------ test */
 
+/** How the admin gets a gateway-fed source going: one press on Setup to-do (owner, 2026-11-01: "less clicks"). */
+const SETUP_HOW = "Not added, then Add & activate all";
+/** A built-in source that only reads what the data gateway collected (it says so in its description): OSM, Houzz… */
+export const gatewayFed = (src: SourceRecord) => src.builtin === true && /data gateway/i.test(src.description);
+
 /** Share of a test's records that must pass the protocol validator for the source to pass. */
 export const MIN_VALID_SHARE = 0.9;
 
@@ -481,7 +486,7 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
       // Nothing came back: one plain reason, not a list of checks that all follow from it.
       const gw = gatewayModuleForSource(src.id);
       const label = MODULES.find((m) => m.id === (gw ?? sourceModule(src)))?.label ?? "this module";
-      checks.push({ label: "Listings found", ok: false, detail: gw ? `The gateway holds no ${label} listings yet: no approved external source covers ${label}. Add one to the gateway (see the Gateway page), then test again.` : "The source returned nothing for an empty search." });
+      checks.push({ label: "Listings found", ok: false, detail: gw ? `The gateway holds no ${label} listings yet. On Setup to-do, tap ${SETUP_HOW}, then test again.` : gatewayFed(src) ? `${src.name} shows what the data gateway collected from ${src.provider}, and nothing has been collected yet. On Setup to-do, tap ${SETUP_HOW}, then test again once they've collected.` : "The source returned nothing for an empty search." });
       report = { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, checks, discovered: 0, valid: 0, duplicates: 0, sampleTitles: [] };
       await store.recordRuns([{ id: newId("run"), sourceId: src.id, trigger: "test", startedAt: new Date(started).toISOString(), durationMs: report.durationMs, outcome: "empty", retrieved: 0, valid: 0, duplicates: 0 }]);
       await audit(actor, "source.test_failed", src.id, { discovered: 0, valid: 0, error: "no listings" });

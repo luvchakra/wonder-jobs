@@ -94,6 +94,37 @@ function RunButton({ item, onDone }: { item: SetupItem; onDone: () => void }) {
   );
 }
 
+/** Every shown gateway step in one press, one after another (owner, 2026-11-01: "less clicks"). */
+function RunAll({ items, onDone }: { items: SetupItem[]; onDone: () => void }) {
+  const [step, setStep] = useState<string | null>(null);
+  const runnable = items.filter((i) => i.run);
+  if (runnable.length < 2) return null;
+  const kinds = new Set(runnable.map((i) => i.run!.kind));
+  const verb = kinds.size > 1 ? "Set up" : kinds.has("add") ? "Add & activate" : "Test & activate";
+  return (
+    <button
+      type="button"
+      disabled={!!step}
+      onClick={async () => {
+        let live = 0;
+        const failed: string[] = [];
+        for (const [n, i] of runnable.entries()) {
+          const r = await runSetup(i.run!, (s) => setStep(`${n + 1} of ${runnable.length}: ${s}`));
+          if (r.ok) live++;
+          else failed.push(`${i.name} (${r.step})`);
+        }
+        setStep(null);
+        if (live) toast.success(`${live} of ${runnable.length} live`, failed.length ? `Not live: ${failed.join(", ")}` : "Their listings are collected.");
+        else toast.error("None went live", failed.join(", "));
+        onDone();
+      }}
+      className="rounded-full bg-brand-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+    >
+      {step ?? `${verb} all ${runnable.length}`}
+    </button>
+  );
+}
+
 export default function SetupTodoPage() {
   const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean }>("setup");
   const [need, setNeed] = useState<SetupNeed | "all">("all");
@@ -149,7 +180,7 @@ export default function SetupTodoPage() {
             </div>
           )}
           {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn&apos;t configured on this deployment, so its sources aren&apos;t listed.</p>}
-          <Panel title={items.length ? `${items.length} to fix` : undefined}>
+          <Panel title={items.length ? `${items.length} to fix` : undefined} action={<RunAll items={items} onDone={reload} />}>
             {items.length ? (
               <ul className="flex flex-col divide-y divide-line">
                 {items.map((i) => (
