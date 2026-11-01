@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MODULES } from "@/modules/registry";
+import { dataTypeOf } from "@/domain/jobslake/moduleData";
+import { DataTypes } from "../setup/DataTypes";
 import type { SourceView } from "@/server/jobslake/views";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
@@ -167,7 +169,15 @@ function Sources() {
                   </Link>
                 ),
               },
-              { header: "Type", cell: (r) => r.categoryLabel },
+              {
+                header: "Fetches",
+                cell: (r) => (
+                  <span title={dataTypeOf(r.module).info}>
+                    {r.moduleLabel ?? "Jobs"} · {dataTypeOf(r.module).type}
+                    <span className="block text-[11px] text-ink-4">{r.categoryLabel}</span>
+                  </span>
+                ),
+              },
               {
                 header: "Access",
                 cell: (r) => <AccessBadge label={r.accessLabel} />,
@@ -217,7 +227,7 @@ function Sources() {
                   <SourceStatusChip status={r.status} label={statusLabel(r)} />
                 </span>
                 <span className="text-[12px] text-ink-3">
-                  {r.moduleLabel ? `${r.moduleLabel} · ` : ""}
+                  {r.moduleLabel ?? "Jobs"} · {dataTypeOf(r.module).type} ·{" "}
                   {r.categoryLabel} · {num(r.health?.retrieved ?? null)}{" "}
                   retrieved (7 d) · {pct(r.health?.successRate)} success ·{" "}
                   {ms(r.health?.p50LatencyMs)}
@@ -227,6 +237,7 @@ function Sources() {
           />
         </Panel>
       )}
+      {data && <DataTypes />}
     </>
   );
 }

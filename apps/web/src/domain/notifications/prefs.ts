@@ -2,7 +2,7 @@ import type { Notification } from "@/domain/career/types";
 
 /**
  * What a person is told, and how (owner, 2026-10-22): Notifications & email (/app/settings/notifications) lists every
- * kind of notification WonderJobs sends, each with the channels it can actually use:
+ * kind of notification WonderWorks sends, in every module, each with the channels it can actually use:
  * - In the bell: the in-app list (on, it's kept; off, that kind isn't added).
  * - Push: to every browser where they turned notifications on.
  * - Email: to their sign-in address, only when a push didn't reach them — so both on never means two of the same.
@@ -14,12 +14,12 @@ export type NudgeChannel = "push" | "email";
 
 const ALL = ["bell", "push", "email"] as const;
 export const NOTIFY_TOPICS = [
-  { id: "messages", label: "Messages from companies", hint: "A company writes to you, or a candidate replies", channels: ALL },
-  { id: "interviews", label: "Interview reminders", hint: "Before an interview on one of your applications", channels: ALL },
+  { id: "messages", label: "Messages", hint: "A company writes to you about a job, or a candidate replies", channels: ALL },
+  { id: "interviews", label: "Interview reminders", hint: "Before an interview on one of your job applications", channels: ALL },
   { id: "follow_ups", label: "Follow-up reminders", hint: "When a follow-up or thank-you is due", channels: ALL },
-  { id: "matches", label: "Strong matches", hint: "Roles that fit you; push and email for scheduled searches", channels: ALL },
+  { id: "matches", label: "Strong matches", hint: "Jobs that fit you; push and email for scheduled searches", channels: ALL },
   { id: "searches", label: "Search results and problems", hint: "How a search went, or that it needs you; push and email for scheduled searches", channels: ALL },
-  { id: "applications", label: "Application updates", hint: "A status change, or an AI draft ready to review", channels: ["bell"] },
+  { id: "applications", label: "Updates in every module", hint: "An application, booking, session, RSVP, deal or connection changes, or an AI draft is ready", channels: ["bell"] },
   { id: "saved_jobs", label: "Saved jobs closing", hint: "A job you saved is no longer open", channels: ["bell"] },
 ] as const satisfies readonly { id: string; label: string; hint: string; channels: readonly NotifyChannel[] }[];
 

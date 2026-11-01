@@ -29,3 +29,9 @@
 - ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
 - ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page
 - ✅ Events: an outside event a source marks postponed is left out, like a cancelled one (WJ-571)
+- ✅ WorksLake gateway: the crawler reads event pages (dates, online, cancelled), only the pages a source wants, and a sitemap listed in the site's robots.txt; KonfHub and Linux Foundation Events ready to add from the catalogue (WJ-502)
+- ✅ Scholarships & Projects: Unstop, Devpost hackathons and EU fellowships as live sources, Kaggle as Needs setup (WJ-524)
+- ✅ Admin: Setup to-do lists every source that needs a key or setup, by need and module; sources show the module and data type they fetch (WJ-503)
+- ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
+- ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
+- ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)

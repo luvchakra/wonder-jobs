@@ -11,6 +11,11 @@ import { AutomationPolicyEditor } from "@/components/automation/AutomationPolicy
 import { AutomationLevelSelector } from "@/components/automation/AutomationLevelSelector";
 import { toast } from "@/components/feedback/Toast";
 import { ScheduledSearchList } from "@/components/automation/ScheduledSearchList";
+import { ModuleSchedules } from "@/wonderworks/automation/ModuleSchedules";
+import { MODULES } from "@/modules/registry";
+
+/** Every live module but Jobs: their scheduled searches sit under Jobs' own. */
+const OTHER_MODULES = MODULES.filter((m) => m.id !== "jobs" && m.status === "live").map((m) => ({ id: m.id, label: m.label }));
 import { METHOD_LABEL } from "@/components/jobs-apply/Preflight";
 import { SensitiveQuestions } from "@/components/automation/SensitiveQuestions";
 import { SENSITIVE_GROUPS } from "@/domain/jobs-apply/sensitive";
@@ -145,6 +150,7 @@ export default function AutomationSettingsPage() {
         </Button>
       </Fold>
       <ScheduledSearchList />
+      <ModuleSchedules modules={OTHER_MODULES} />
     </div>
   );
 }
