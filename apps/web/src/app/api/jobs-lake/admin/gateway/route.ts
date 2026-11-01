@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 const ID = /^src_[a-f0-9]{24}$/;
-const MODULES = ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace"];
+const MODULES = ["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"];
 
 /**
  * Gateway actions for platform admins, each audited: "collect" (Collect now), "register" (a partner who gave written

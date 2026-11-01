@@ -4,15 +4,15 @@
  * posting. The modules themselves are listed in `modules/registry.ts`, the composition root — WonderWorks imports no module.
  */
 
-export const MODULE_IDS = ["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace"] as const;
+export const MODULE_IDS = ["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace", "scholarships"] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
 /** The kind ids the Find dropdown and Admin → Settings → Menus → Find menu already use (kept, so saved menu settings still apply). */
-export type UpcomingKindId = "internships" | "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent";
+export type UpcomingKindId = "internships" | "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent" | "scholarships";
 
 export type ModuleStatus = "live" | "soon";
 export type ModuleTint = "lavender" | "lightblue" | "peach" | "mint" | "pink";
-export type ModuleIcon = "Briefcase" | "GraduationCap" | "BookOpen" | "Handshake" | "Users" | "HeartPulse" | "CalendarDays" | "Store";
+export type ModuleIcon = "Briefcase" | "GraduationCap" | "BookOpen" | "Handshake" | "Users" | "HeartPulse" | "CalendarDays" | "Store" | "Award";
 export type ResponseVerb = "apply" | "request_quote" | "book" | "rsvp" | "offer" | "connect";
 
 /** One field a module adds to a profile (persona) or a listing (attrs). `facet`: offered as a Find filter. */
