@@ -18,12 +18,14 @@ export interface SafeguardSettings {
   gatewayMaxPerSource: number;
   gatewayMaxAgeDays: number;
   limitMb: number;
+  /** The optional data database's plan size (DDB, dataDb), for its headroom on Admin → Databases. */
+  dataLimitMb: number;
   alertPercent: number;
   /** At most this many rows deleted in one pass, so a first run never stalls the cron. */
   maxDeletesPerRun: number;
 }
 
-export const SAFEGUARD_DEFAULTS: SafeguardSettings = { enabled: true, staleDays: 21, gatewayMaxPerSource: 5000, gatewayMaxAgeDays: 21, limitMb: 500, alertPercent: 70, maxDeletesPerRun: 5000 };
+export const SAFEGUARD_DEFAULTS: SafeguardSettings = { enabled: true, staleDays: 21, gatewayMaxPerSource: 5000, gatewayMaxAgeDays: 21, limitMb: 500, dataLimitMb: 500, alertPercent: 70, maxDeletesPerRun: 5000 };
 
 /** The allowed range of each number; anything outside is clamped. */
 export const SAFEGUARD_RANGES: Record<Exclude<keyof SafeguardSettings, "enabled">, [number, number]> = {
@@ -31,6 +33,7 @@ export const SAFEGUARD_RANGES: Record<Exclude<keyof SafeguardSettings, "enabled"
   gatewayMaxPerSource: [100, 200000],
   gatewayMaxAgeDays: [1, 365],
   limitMb: [100, 1000000],
+  dataLimitMb: [100, 1000000],
   alertPercent: [10, 99],
   maxDeletesPerRun: [100, 100000],
 };

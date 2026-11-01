@@ -99,6 +99,13 @@ export function dataFrom(table: DataTable) {
   return main ? main.schema("wonderjobs").from(table) : null;
 }
 
+/** The data database's client and what its safeguards are doing, when it is on (Admin → Databases). */
+export async function dataDbNow(): Promise<{ client: AdminClient; guard: ReturnType<typeof guard.state> } | null> {
+  await loadDataDb();
+  const c = g.__wjDataDb?.client;
+  return c ? { client: c, guard: guard.state() } : null;
+}
+
 /** The data database's own `db_usage` (its size), when it is on. */
 export async function dataDbUsage(): Promise<{ dbBytes: number } | null> {
   await loadDataDb();

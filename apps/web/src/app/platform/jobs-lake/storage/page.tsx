@@ -10,7 +10,8 @@ type Data = { settings: SafeguardSettings; ranges: Record<string, [number, numbe
 const mb = (b: number) => `${Math.round(b / 1048576)} MB`;
 
 const FIELDS: { key: Exclude<keyof SafeguardSettings, "enabled">; label: string; hint: string; unit: string }[] = [
-  { key: "limitMb", label: "Database limit", hint: "Your plan's size: 500 on Free, 8000 on Pro.", unit: "MB" },
+  { key: "limitMb", label: "Database limit (ADB)", hint: "The application database's plan size: 500 on Free, 8000 on Pro.", unit: "MB" },
+  { key: "dataLimitMb", label: "Data database limit (DDB)", hint: "The optional data database's plan size, for its headroom on Databases.", unit: "MB" },
   { key: "alertPercent", label: "Alert at", hint: "Overview warns past this share of the limit.", unit: "%" },
   { key: "staleDays", label: "Remove listings not seen for", hint: "WorksLake listings no source has shown since; saved or applied ones stay.", unit: "days" },
   { key: "gatewayMaxPerSource", label: "Gateway listings per source", hint: "Newest kept; older ones beyond this go.", unit: "max" },
