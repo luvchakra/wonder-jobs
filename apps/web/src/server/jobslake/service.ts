@@ -47,6 +47,8 @@ export const SearchRequestSchema = z.object({
   correlationId: z.string().max(80).optional(),
   cache: z.enum(["use", "refresh"]).optional(),
   module: z.enum(MODULE_IDS).optional(),
+  /** Asked for explicitly: no words, the latest stored listings (owner, 2026-11-01). Without it, no words is an error. */
+  latest: z.boolean().optional(),
 });
 
 /**
@@ -58,7 +60,9 @@ export function parseSearchRequest(body: unknown): Result<SearchRequest> {
   const p = SearchRequestSchema.safeParse(body);
   if (!p.success) return err(400, "INVALID_REQUEST", p.error.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).slice(0, 3).join("; "));
   const text = p.data.query.text || p.data.query.titles?.[0] || "";
-  if (!text) return err(400, "INVALID_REQUEST", "query.text or query.titles is required — WorksLake doesn't guess what to search for.");
+  // No words is a request for the latest stored listings only when the caller says so (`latest`); otherwise there's
+  // nothing to search for, and WorksLake says so rather than inventing a query.
+  if (!text && !p.data.latest) return err(400, "INVALID_REQUEST", "query.text or query.titles is required — WorksLake doesn't guess what to search for. Send latest: true for the latest listings.");
   return { ok: true, value: { ...p.data, query: { ...p.data.query, text } } };
 }
 

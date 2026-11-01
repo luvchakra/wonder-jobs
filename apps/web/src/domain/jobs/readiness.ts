@@ -9,7 +9,7 @@ import type { CareerRole } from "@/domain/career/roles";
 import type { JobSource } from "@/domain/jobs/types";
 import type { Workflow, WorkflowRun } from "@/domain/workflow/types";
 import { historyOf } from "@/domain/career/history";
-import { corePhrase, defaultSearchQuery, hasTermOrSynonym, profileSearchQuery, queryTerms, SENIORITY_WORDS, stripSelfReference } from "@/services/jobs/normalize";
+import { corePhrase, defaultSearchQuery, hasTermOrSynonym, profileSearchQuery, queryTerms, SENIORITY_WORDS } from "@/services/jobs/normalize";
 import { fieldTerms, GENERIC_SKILLS } from "@/services/jobs/matching";
 
 export type ReadinessBlocker =
@@ -64,14 +64,13 @@ export function jobsReadiness(input: ReadinessInput): Readiness {
   const query = profileSearchQuery(dna);
   const locations = dna.preferredLocations;
   const notes: RelevanceNote[] = [];
-  const latestTitle = historyOf(dna).experience.find((e) => e.current)?.title ?? historyOf(dna).experience[0]?.title;
 
   let blocker: ReadinessBlocker | undefined;
   const usable = input.sources.filter((s) => s.integrated && s.enabled && s.available !== false);
   if (!hasProfile(dna)) blocker = { kind: "profile", hasResume: input.resumeFileIds.length > 0, resumeFileId: input.resumeFileIds[0] };
   // A role the candidate wants is searched as they wrote it, even a level alone ("director", owner 2026-10-24):
   // matches to their profile still rank first. Only a level read from the headline, with nothing wanted, asks.
-  else if (!query || (onlyLevel(query) && !stripSelfReference(dna.careerGoal).trim())) blocker = { kind: "role", suggested: latestTitle?.trim() || undefined };
+  // No role wanted is not a blocker: the search runs without words and shows the latest listings, ranked by fit.
   else if (!usable.length)
     blocker = { kind: "sources", needsSetup: input.sources.filter((s) => s.integrated && s.available === false).map((s) => s.name), off: input.sources.filter((s) => s.integrated && !s.enabled && s.available !== false).map((s) => s.name) };
 
