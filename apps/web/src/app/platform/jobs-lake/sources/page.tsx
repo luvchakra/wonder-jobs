@@ -1,36 +1,98 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MODULES } from "@/modules/registry";
 import type { SourceView } from "@/server/jobslake/views";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
 import { Chip, Input } from "@/components/common/Input";
-import { AccessBadge, HealthChip, LoadError, Loading, PageTitle, Panel, ResponsiveTable, SourceStatusChip, ms, num, pct, useAdmin } from "@/components/jobslake/ui";
+import {
+  AccessBadge,
+  HealthChip,
+  LoadError,
+  Loading,
+  PageTitle,
+  Panel,
+  ResponsiveTable,
+  SourceStatusChip,
+  ms,
+  num,
+  pct,
+  useAdmin,
+} from "@/components/jobslake/ui";
 
 type Filter = "all" | "active" | "setup" | "draft" | "paused" | "partnership";
 
 /** Can't be queried yet: an active source without its credentials, or a partner portal still waiting for its endpoint or credential. */
-const needsSetup = (s: SourceView) => ((s.status === "active" || s.status === "degraded") && !s.available) || s.partner?.readiness.next === "connection" || s.partner?.readiness.next === "credential";
-const statusLabel = (s: SourceView) => (needsSetup(s) ? "Needs setup" : s.statusLabel);
+const needsSetup = (s: SourceView) =>
+  ((s.status === "active" || s.status === "degraded") && !s.available) ||
+  s.partner?.readiness.next === "connection" ||
+  s.partner?.readiness.next === "credential";
+const statusLabel = (s: SourceView) =>
+  needsSetup(s) ? "Needs setup" : s.statusLabel;
 
-const FILTERS: { value: Filter; label: string; test: (s: SourceView) => boolean }[] = [
+const FILTERS: {
+  value: Filter;
+  label: string;
+  test: (s: SourceView) => boolean;
+}[] = [
   { value: "all", label: "All", test: () => true },
-  { value: "active", label: "Active", test: (s) => (s.status === "active" || s.status === "degraded") && s.available },
+  {
+    value: "active",
+    label: "Active",
+    test: (s) =>
+      (s.status === "active" || s.status === "degraded") && s.available,
+  },
   { value: "setup", label: "Needs setup", test: needsSetup },
-  { value: "draft", label: "Draft / testing", test: (s) => s.status === "draft" || s.status === "testing" },
-  { value: "paused", label: "Paused / disabled", test: (s) => s.status === "paused" || s.status === "disabled" },
-  { value: "partnership", label: "Do not use", test: (s) => s.status === "do_not_use" },
+  {
+    value: "draft",
+    label: "Draft / testing",
+    test: (s) => s.status === "draft" || s.status === "testing",
+  },
+  {
+    value: "paused",
+    label: "Paused / disabled",
+    test: (s) => s.status === "paused" || s.status === "disabled",
+  },
+  {
+    value: "partnership",
+    label: "Do not use",
+    test: (s) => s.status === "do_not_use",
+  },
 ];
 
 export default function SourcesPage() {
-  const { data, error, reload } = useAdmin<{ sources: SourceView[] }>("sources");
+  // The module filter comes from the URL (the Overview's module cards link here with ?module=<id>).
+  return (
+    <Suspense fallback={<Loading />}>
+      <Sources />
+    </Suspense>
+  );
+}
+
+function Sources() {
+  const { data, error, reload } = useAdmin<{ sources: SourceView[] }>(
+    "sources",
+  );
+  const router = useRouter();
+  const moduleParam = useSearchParams().get("module");
+  const mod = MODULES.find((m) => m.id === moduleParam);
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const rows = useMemo(() => {
     const f = FILTERS.find((x) => x.value === filter)!;
     const t = q.trim().toLowerCase();
-    return (data?.sources ?? []).filter((s) => f.test(s) && (!t || `${s.name} ${s.provider} ${s.accessLabel} ${s.moduleLabel ?? ""}`.toLowerCase().includes(t)));
-  }, [data, filter, q]);
+    return (data?.sources ?? []).filter(
+      (s) =>
+        f.test(s) &&
+        (!mod || (s.moduleLabel ?? "Jobs") === mod.label) &&
+        (!t ||
+          `${s.name} ${s.provider} ${s.accessLabel} ${s.moduleLabel ?? ""}`
+            .toLowerCase()
+            .includes(t)),
+    );
+  }, [data, filter, q, mod]);
 
   return (
     <>
@@ -48,14 +110,42 @@ export default function SourcesPage() {
       {data && (
         <Panel>
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter sources">
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label="Filter sources"
+            >
+              {mod && (
+                <Chip
+                  active
+                  onClick={() => router.replace("/platform/jobs-lake/sources")}
+                  className="h-9 px-3 text-[12px]"
+                >
+                  Module: {mod.label} <span aria-hidden>×</span>
+                  <span className="sr-only">(show every module)</span>
+                </Chip>
+              )}
               {FILTERS.map((f) => (
-                <Chip key={f.value} active={filter === f.value} onClick={() => setFilter(f.value)} className="h-9 px-3 text-[12px]">
-                  {f.label} <span className="text-ink-4">{data.sources.filter(f.test).length}</span>
+                <Chip
+                  key={f.value}
+                  active={filter === f.value}
+                  onClick={() => setFilter(f.value)}
+                  className="h-9 px-3 text-[12px]"
+                >
+                  {f.label}{" "}
+                  <span className="text-ink-4">
+                    {data.sources.filter(f.test).length}
+                  </span>
                 </Chip>
               ))}
             </div>
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search sources…" aria-label="Search sources" className="h-9 md:w-60" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search sources…"
+              aria-label="Search sources"
+              className="h-9 md:w-60"
+            />
           </div>
           <ResponsiveTable
             rows={rows}
@@ -65,23 +155,61 @@ export default function SourcesPage() {
               {
                 header: "Source",
                 cell: (r) => (
-                  <Link href={`/platform/jobs-lake/sources/${r.id}`} className="font-medium text-ink hover:underline">
+                  <Link
+                    href={`/platform/jobs-lake/sources/${r.id}`}
+                    className="font-medium text-ink hover:underline"
+                  >
                     {r.name}
-                    <span className="block text-[11px] font-normal text-ink-4">{r.moduleLabel ? `${r.moduleLabel} · ` : ""}{r.provider}</span>
+                    <span className="block text-[11px] font-normal text-ink-4">
+                      {r.moduleLabel ? `${r.moduleLabel} · ` : ""}
+                      {r.provider}
+                    </span>
                   </Link>
                 ),
               },
               { header: "Type", cell: (r) => r.categoryLabel },
-              { header: "Access", cell: (r) => <AccessBadge label={r.accessLabel} /> },
-              { header: "Status", cell: (r) => <SourceStatusChip status={r.status} label={statusLabel(r)} /> },
-              { header: "Health", cell: (r) => <HealthChip state={r.health?.state} /> },
-              { header: "Last run", cell: (r) => (r.health?.lastRunAt ? relativeTime(r.health.lastRunAt) : "Never") },
-              { header: "Retrieved (7 d)", cell: (r) => num(r.health?.retrieved ?? null), className: "tabular-nums text-right" },
-              { header: "Success", cell: (r) => pct(r.health?.successRate), className: "tabular-nums text-right" },
-              { header: "Latency", cell: (r) => ms(r.health?.p50LatencyMs), className: "tabular-nums text-right" },
+              {
+                header: "Access",
+                cell: (r) => <AccessBadge label={r.accessLabel} />,
+              },
+              {
+                header: "Status",
+                cell: (r) => (
+                  <SourceStatusChip status={r.status} label={statusLabel(r)} />
+                ),
+              },
+              {
+                header: "Health",
+                cell: (r) => <HealthChip state={r.health?.state} />,
+              },
+              {
+                header: "Last run",
+                cell: (r) =>
+                  r.health?.lastRunAt
+                    ? relativeTime(r.health.lastRunAt)
+                    : "Never",
+              },
+              {
+                header: "Retrieved (7 d)",
+                cell: (r) => num(r.health?.retrieved ?? null),
+                className: "tabular-nums text-right",
+              },
+              {
+                header: "Success",
+                cell: (r) => pct(r.health?.successRate),
+                className: "tabular-nums text-right",
+              },
+              {
+                header: "Latency",
+                cell: (r) => ms(r.health?.p50LatencyMs),
+                className: "tabular-nums text-right",
+              },
             ]}
             card={(r) => (
-              <Link href={`/platform/jobs-lake/sources/${r.id}`} className="flex flex-col gap-1.5">
+              <Link
+                href={`/platform/jobs-lake/sources/${r.id}`}
+                className="flex flex-col gap-1.5"
+              >
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-medium text-ink">
                     {r.name} <AccessBadge label={r.accessLabel} />
@@ -89,7 +217,10 @@ export default function SourcesPage() {
                   <SourceStatusChip status={r.status} label={statusLabel(r)} />
                 </span>
                 <span className="text-[12px] text-ink-3">
-                  {r.moduleLabel ? `${r.moduleLabel} · ` : ""}{r.categoryLabel} · {num(r.health?.retrieved ?? null)} retrieved (7 d) · {pct(r.health?.successRate)} success · {ms(r.health?.p50LatencyMs)}
+                  {r.moduleLabel ? `${r.moduleLabel} · ` : ""}
+                  {r.categoryLabel} · {num(r.health?.retrieved ?? null)}{" "}
+                  retrieved (7 d) · {pct(r.health?.successRate)} success ·{" "}
+                  {ms(r.health?.p50LatencyMs)}
                 </span>
               </Link>
             )}
