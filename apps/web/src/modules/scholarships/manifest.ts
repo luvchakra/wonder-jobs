@@ -21,7 +21,7 @@ export const scholarshipsManifest: ModuleManifest = {
     { key: "level", label: "Level", type: "choice", options: ["Class 9–12", "Undergraduate", "Postgraduate", "PhD"] },
     { key: "field", label: "Course or field", type: "text" },
     { key: "institution", label: "School or college", type: "text" },
-    { key: "region", label: "State and country", type: "text" },
+    { key: "region", label: "State and country (optional)", type: "text" },
     { key: "marks", label: "Marks (%)", type: "number" },
     // Optional and opt-in only: used only to match, never inferred, never sent to a provider without consent.
     { key: "incomeBand", label: "Family income a year (optional)", type: "money" },

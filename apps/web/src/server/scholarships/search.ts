@@ -1,6 +1,7 @@
 /**
  * Scholarships & Projects Find: one search of WorksLake's Scholarships dataset (module = 'scholarships'), turned into
  * listings with their terms, and the per-source provenance the student sees ("searched X across Z sources").
+ * Always worldwide: no location is ever applied.
  *
  * An empty query is allowed: core returns the dataset's latest listings. A WonderWorks organisation's listing carries
  * the terms it gave. An outside listing carries only what its source states (`attributes`: deadline, award, levels,
@@ -99,10 +100,13 @@ export function wonderworksScholarship({ posting, org }: Awaited<ReturnType<type
   return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, ...(org.domain ? { companyDomain: org.domain } : {}), companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", skills: posting.skills, description: posting.description.slice(0, 4000), questions: posting.questions, applyUrl: posting.terms.officialUrl, postedAt: posting.updatedAt, sourceId: WONDERSTAR_SCHOLARSHIPS, sourceName };
 }
 
-/** Search scholarships and projects for these words and places. Empty words: the latest listings. */
-export async function searchScholarships(input: { query: string; places: string[]; refresh?: boolean }): Promise<ScholarshipSearchResult> {
+/**
+ * Search scholarships and projects for these words, worldwide. Places are never applied (owner, 2026-11-01: "don't put
+ * any restriction on location, make it global"): every source is asked without a location. Empty words: the latest.
+ */
+export async function searchScholarships(input: { query: string; places?: string[]; refresh?: boolean }): Promise<ScholarshipSearchResult> {
   const query = input.query.trim().slice(0, 120);
-  const places = input.places.map((p) => p.trim()).filter(Boolean).slice(0, 5);
+  const places: string[] = [];
   const [{ response, plan }, posted] = await Promise.all([
     search({ query: { text: query, locations: places }, searchMode: "balanced", limit: MAX_RESULTS, module: SCHOLARSHIPS, cache: input.refresh ? "refresh" : "use" }, { trigger: "search" }),
     openScholarships(),

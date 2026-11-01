@@ -33,13 +33,14 @@ export function refineScholarships(list: ScholarshipListing[], v: FacetValues, s
   return { kept: sorted, hidden };
 }
 
-const search = (query: string, places: string[]) => call<FindRun<ScholarshipListing>>("/api/m/scholarships/search", { body: { query, places } });
+// Worldwide (owner, 2026-11-01: "don't put any restriction on location, make it global"): no places are ever sent.
+const search = (query: string) => call<FindRun<ScholarshipListing>>("/api/m/scholarships/search", { body: { query, places: [] } });
 
 /**
  * Scholarships & Projects Find: Jobs' Find with this module's own fields. The student's words and places, searched
  * across this module's own sources (WonderWorks organisations, Grants.gov, partner uploads); an empty search shows the
- * latest. Opening the page searches nothing. Refine: kind, deadline window, level, award, remote and paid; the field is
- * the search's words and the region is Refine's Location.
+ * latest, worldwide: there is no Location (owner, 2026-11-01). Opening the page searches nothing. Refine: kind,
+ * deadline window, level, award, remote and paid; the field is the search's words.
  */
 export function ScholarshipsFind() {
   const field = useScholarshipsStore((s) => selectProfile(s)?.field);
@@ -66,7 +67,8 @@ export function ScholarshipsFind() {
       refine={refineScholarships}
       Card={ScholarshipCard}
       idle={{ title: "Search scholarships and projects", body: "Type your field or what you're looking for, or press Search to see the latest." }}
-      dictateHint="Listening — say what you want, e.g. “engineering scholarship in Karnataka”."
+      dictateHint="Listening — say what you want, e.g. “engineering scholarship for women”."
+      global
     />
   );
 }
