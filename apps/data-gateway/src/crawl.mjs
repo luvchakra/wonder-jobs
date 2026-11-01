@@ -1,4 +1,4 @@
-import { ApiError, normalize } from "./core.mjs";
+import { ApiError, normalizeAll } from "./core.mjs";
 import { allowedBy, checkRobots, decodeEntities, parseStructured, safeGet } from "./collect.mjs";
 
 /**
@@ -99,18 +99,10 @@ export async function crawlRecords(source, deps = {}) {
   }
 
   const observedAt = new Date(now()).toISOString();
-  // The same record seen twice (a feed that shifts while it is paged, a page linked twice) is one record, not a bad one.
-  const out = [], seen = new Set();
-  let repeats = 0;
-  for (const module of source.modules) for (const item of items) {
-    const normalized = normalize(source, item, module, observedAt);
-    if (normalized && seen.has(normalized.id)) repeats++;
-    else if (normalized) { seen.add(normalized.id); out.push(normalized); }
-  }
+  const n = normalizeAll(source, items, observedAt, now());
+
   return {
-    discovered: items.length * source.modules.length - repeats, repeats,
-    valid: out.length,
-    results: out,
+    ...n,
     // Crawled sources add to what earlier runs found instead of replacing it.
     merge: true,
     crawl: { pages: targets.length, read, failed, cursor: at, delayMs },

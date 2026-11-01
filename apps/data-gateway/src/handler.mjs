@@ -88,10 +88,13 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   }
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
-  async function collectDue() {
+  async function collectDue(budgetMs = 35000) {
     const due = await store.read((s) => s.sources.filter((x) => x.enabled && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
     const outcomes = [];
+    const started = Date.now();
     for (const sourceId of due) {
+      // One pass fits one serverless call: a source not started by now waits for the next pass (still due).
+      if (Date.now() - started > budgetMs) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
       try { outcomes.push({ sourceId, ...(await collectOne(sourceId)) }); }
       catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
     }

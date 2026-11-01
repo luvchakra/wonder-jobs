@@ -125,11 +125,22 @@ export function validateSource(source) {
     const pages = Number(source.maxPagesPerRun ?? 5);
     if (!Number.isInteger(pages) || pages < 1 || pages > 50) throw new ApiError(400, "INVALID_REQUEST", "maxPagesPerRun must be 1-50");
   }
+  if (source.extraUrls !== undefined) {
+    if (source.kind !== "json_api" || source.nextPath || !Array.isArray(source.extraUrls) || source.extraUrls.length > 60) throw new ApiError(400, "INVALID_REQUEST", "extraUrls: up to 60, for a JSON source that isn't paged");
+    for (const u of source.extraUrls) {
+      let x;
+      try { x = new URL(u); } catch { throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be URLs"); }
+      if (x.protocol !== "https:" || x.hostname !== url.hostname || x.username || x.password || x.port) throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be HTTPS on the source's own host");
+    }
+  }
+  if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !source.mapping?.["attr." + source.dropPastAfter])) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
+  if (source.mapping && Object.values(source.mapping).some((v) => typeof v !== "string" || v.length > 100)) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings");
+  if (source.requestDelayMs !== undefined && (!Number.isInteger(source.requestDelayMs) || source.requestDelayMs < 250 || source.requestDelayMs > 5000)) throw new ApiError(400, "INVALID_REQUEST", "requestDelayMs must be 250-5000");
   const retentionHours = Number(source.retentionHours ?? 24);
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -143,6 +154,21 @@ export function plainText(value) {
     });
   }
   return t.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
+}
+/**
+ * A source's extra fields (mapping keys `attr.<name>`, e.g. `attr.startDate` for an event), kept as they are stated:
+ * text cut to 300 characters, numbers and true/false as they are. Nothing is derived or guessed.
+ */
+function attributesOf(source, value) {
+  const out = {};
+  if (source.kind !== "json_api" || !source.mapping) return out;
+  for (const [key, path] of Object.entries(source.mapping)) {
+    if (!key.startsWith("attr.")) continue;
+    const v = value(path);
+    if (v === undefined) continue;
+    out[key.slice(5)] = typeof v === "string" ? plainText(v).slice(0, 300) : v;
+  }
+  return out;
 }
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
@@ -163,12 +189,12 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const canonicalUrl = String(field("canonicalUrl") ?? field("applyUrl") ?? field("url") ?? "").trim();
   let parsed;
   try { parsed = new URL(canonicalUrl); } catch { return null; }
-  if (!title || !organization || parsed.protocol !== "https:" || parsed.username || parsed.password) return null;
+  if (!title || (!organization && !source.organizationOptional) || parsed.protocol !== "https:" || parsed.username || parsed.password) return null;
   const originalId = String(field("id") ?? canonicalUrl);
   const publishedRaw = field("publishedAt") ?? field("postedAt");
   const publishedAt = publishedRaw && Number.isFinite(Date.parse(String(publishedRaw))) ? new Date(String(publishedRaw)).toISOString() : null;
   const unique = createHash("sha256").update(module + "|" + source.id + "|" + originalId).digest("hex").slice(0, 24);
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: {}, status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: attributesOf(source, value), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -229,4 +255,25 @@ export function logRun(state, run) {
   if (!Array.isArray(state.runs)) state.runs = [];
   state.runs.push(run);
   if (state.runs.length > MAX_RUNS) state.runs.splice(0, state.runs.length - MAX_RUNS);
+}
+
+/**
+ * Every raw record of a run, normalised for each of the source's modules: one record seen twice counts once (`repeats`),
+ * and one whose `dropPastAfter` date has gone by (an event that is over) is left out (`past`). Neither counts against
+ * the source's quality; `discovered` is what was left to judge.
+ */
+export function normalizeAll(source, items, observedAt, now = Date.now()) {
+  const out = [], seen = new Set();
+  let repeats = 0, past = 0;
+  const today = new Date(now); today.setUTCHours(0, 0, 0, 0);
+  for (const module of source.modules) for (const item of items) {
+    const n = normalize(source, item, module, observedAt);
+    if (n && source.dropPastAfter) {
+      const when = Date.parse(String(n.attributes?.[source.dropPastAfter] ?? ""));
+      if (Number.isFinite(when) && when < today.getTime()) { past++; continue; }
+    }
+    if (n && seen.has(n.id)) repeats++;
+    else if (n) { seen.add(n.id); out.push(n); }
+  }
+  return { results: out, valid: out.length, repeats, past, discovered: items.length * source.modules.length - repeats - past };
 }
