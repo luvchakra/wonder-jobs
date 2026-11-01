@@ -23,3 +23,5 @@
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
 - ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
+- ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
+- ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page

@@ -1,5 +1,5 @@
 "use client";
-import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { RefreshCw, Search } from "lucide-react";
 import { EmptyState, ErrorState } from "@/components/common/States";
@@ -47,7 +47,8 @@ export interface ModuleFindProps<L extends { id: string }> {
   facets: FacetSpec[];
   /** The orders the list can take; the first is where it starts. */
   sorts: Record<string, string>;
-  search: (query: string, places: string[]) => Promise<FindRun<L>>;
+  /** `signal` aborts when the person presses Stop; a module may pass it to its fetch (its result is dropped either way). */
+  search: (query: string, places: string[], signal?: AbortSignal) => Promise<FindRun<L>>;
   refine: (list: L[], values: FacetValues, sort: string) => { kept: L[]; hidden: number };
   Card: React.ComponentType<{ item: L; onOpen: (id: string) => void }>;
   Sheet?: React.ComponentType<{ item: L | null; onClose: () => void }>;
@@ -123,21 +124,36 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
     return () => clearTimeout(t);
   }, [more, section]);
 
+  // The search in progress, so Stop can end it: its result is dropped and the list stays as it was.
+  const inFlight = useRef<AbortController | null>(null);
+  useEffect(() => () => inFlight.current?.abort(), []);
+  const stop = () => {
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setBusy(null);
+  };
   const go = async (text = draft) => {
     // No words: the module's latest listings (owner, 2026-11-01), not an error.
     const q = text.trim();
+    inFlight.current?.abort();
+    const ctrl = new AbortController();
+    inFlight.current = ctrl;
     setError(null);
     setBusy({ query: q, places });
     try {
-      const r = await search(q, places);
+      const r = await search(q, places, ctrl.signal);
+      if (ctrl.signal.aborted) return;
       if (q) store.getState().rememberSearch(q);
       store.getState().setLastRun(r);
       setLimit(PAGE);
       setShowSources(false);
     } catch (e) {
-      setError((e as Error).message);
+      if (!ctrl.signal.aborted) setError((e as Error).message);
     } finally {
-      setBusy(null);
+      if (inFlight.current === ctrl) {
+        inFlight.current = null;
+        setBusy(null);
+      }
     }
   };
 
@@ -179,7 +195,17 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
     <div className="-mt-3">
       <h1 className="wj-sr-only">Find {noun.many}</h1>
       {busy && (
-        <SearchingBanner aside={<WonderSearching size={32} />}>
+        <SearchingBanner
+          aside={
+            <>
+              <WonderSearching size={32} />
+              {/* Stop: the search ends and the list stays as it was before it started (as on Jobs' Find). */}
+              <button type="button" onClick={stop} className="inline-flex min-h-8 items-center rounded-full border border-brand-300 bg-surface px-2.5 text-[12px] font-medium text-brand-700 hover:bg-brand-100">
+                Stop
+              </button>
+            </>
+          }
+        >
           <div className="min-w-0 flex-1 space-y-0.5 pt-1">
             <p className="text-[15px] font-semibold leading-5 text-ink">Searching {noun.many}…</p>
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
