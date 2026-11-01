@@ -30,9 +30,9 @@ describe("every module's Share carries the listing's own details", () => {
   });
 
   it("Therapists: fee, session length, languages, focus, ways of working — what the practitioner published", () => {
-    const m = text(therapists({ ...base, id: "ws_4", postingId: "4", title: "Counselling for work stress", workMode: "hybrid", terms: { currency: "INR", modes: ["online", "in_person"], languages: ["English", "Hindi"], focus: ["Stress & anxiety"], approaches: ["CBT"], feeMin: 4000, feeMax: 5000, sessionMinutes: 60 } }));
+    const m = text(therapists({ ...base, id: "ws_4", postingId: "4", origin: "wonderworks", title: "Counselling for work stress", workMode: "hybrid", terms: { currency: "INR", modes: ["online", "in_person"], languages: ["English", "Hindi"], focus: ["Stress & anxiety"], approaches: ["CBT"], feeMin: 4000, feeMax: 5000, sessionMinutes: 60 } }));
     for (const x of ["Counselling for work stress", "Session: 60 min", "Languages: English, Hindi", "Focus: Stress & anxiety", "Ways of working: CBT", "₹4,000"]) expect(m).toContain(x);
-    expect(therapists({ ...base, id: "ws_4", postingId: "4", title: "t", terms: { currency: "INR" } }).url).toBe("/s/therapists/ws_4");
+    expect(therapists({ ...base, id: "ws_4", origin: "wonderworks", postingId: "4", title: "t", terms: { currency: "INR" } }).url).toBe("/s/therapists/ws_4");
   });
 
   it("Events: when, where, who, seats right now, age, tags", () => {

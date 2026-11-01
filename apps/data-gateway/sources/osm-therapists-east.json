@@ -1,0 +1,46 @@
+{
+  "url": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3B%28nwr%5B%22healthcare%22~%22%5E%28psychotherapist%7Ccounselling%7Cpsychologist%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C22.5726%2C88.3639%29%3Bnwr%5B%22amenity%22~%22%5E%28clinic%7Cdoctors%29%24%22%5D%5B%22healthcare%3Aspeciality%22~%22psychiatry%7Cpsychotherapy%7Cpsychology%7Cclinical_psychology%22%5D%5B%22name%22%5D%28around%3A15000%2C22.5726%2C88.3639%29%3B%29%3Bout%20center%20tags%20300%3B",
+  "kind": "json_api",
+  "modules": [
+    "therapists"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"\u00a9 OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Practices and clinics only: named features, no phone or email copied. Terms pending: owner confirms the endpoint.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "publicBusinesses": true,
+  "attribution": "OpenStreetMap contributors (ODbL)",
+  "extraUrls": [
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3B%28nwr%5B%22healthcare%22~%22%5E%28psychotherapist%7Ccounselling%7Cpsychologist%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C25.5941%2C85.1376%29%3Bnwr%5B%22amenity%22~%22%5E%28clinic%7Cdoctors%29%24%22%5D%5B%22healthcare%3Aspeciality%22~%22psychiatry%7Cpsychotherapy%7Cpsychology%7Cclinical_psychology%22%5D%5B%22name%22%5D%28around%3A15000%2C25.5941%2C85.1376%29%3B%29%3Bout%20center%20tags%20300%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3B%28nwr%5B%22healthcare%22~%22%5E%28psychotherapist%7Ccounselling%7Cpsychologist%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C26.1445%2C91.7362%29%3Bnwr%5B%22amenity%22~%22%5E%28clinic%7Cdoctors%29%24%22%5D%5B%22healthcare%3Aspeciality%22~%22psychiatry%7Cpsychotherapy%7Cpsychology%7Cclinical_psychology%22%5D%5B%22name%22%5D%28around%3A15000%2C26.1445%2C91.7362%29%3B%29%3Bout%20center%20tags%20300%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3B%28nwr%5B%22healthcare%22~%22%5E%28psychotherapist%7Ccounselling%7Cpsychologist%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C21.1458%2C79.0882%29%3Bnwr%5B%22amenity%22~%22%5E%28clinic%7Cdoctors%29%24%22%5D%5B%22healthcare%3Aspeciality%22~%22psychiatry%7Cpsychotherapy%7Cpsychology%7Cclinical_psychology%22%5D%5B%22name%22%5D%28around%3A15000%2C21.1458%2C79.0882%29%3B%29%3Bout%20center%20tags%20300%3B",
+    "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A25%5D%3B%28nwr%5B%22healthcare%22~%22%5E%28psychotherapist%7Ccounselling%7Cpsychologist%29%24%22%5D%5B%22name%22%5D%28around%3A15000%2C23.2599%2C77.4126%29%3Bnwr%5B%22amenity%22~%22%5E%28clinic%7Cdoctors%29%24%22%5D%5B%22healthcare%3Aspeciality%22~%22psychiatry%7Cpsychotherapy%7Cpsychology%7Cclinical_psychology%22%5D%5B%22name%22%5D%28around%3A15000%2C23.2599%2C77.4126%29%3B%29%3Bout%20center%20tags%20300%3B"
+  ],
+  "requestDelayMs": 1000,
+  "itemsPath": "elements",
+  "organizationOptional": true,
+  "mapping": {
+    "id": "{type}/{id}",
+    "title": "tags.name",
+    "organization": "tags.name",
+    "applyUrl": "https://www.openstreetmap.org/{type}/{id}",
+    "location": [
+      "tags.addr:suburb",
+      "tags.addr:city"
+    ],
+    "description": "tags.healthcare",
+    "attr.healthcare": "tags.healthcare",
+    "attr.amenity": "tags.amenity",
+    "attr.speciality": "tags.healthcare:speciality",
+    "attr.website": "tags.website",
+    "attr.lat": "lat",
+    "attr.lon": "lon",
+    "attr.clat": "center.lat",
+    "attr.clon": "center.lon",
+    "attr.suburb": "tags.addr:suburb",
+    "attr.city": "tags.addr:city"
+  },
+  "retentionHours": 504,
+  "minIntervalMinutes": 10080
+}

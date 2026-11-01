@@ -25,6 +25,7 @@
 - ✅ Teaching: two paused crawl sources, EdJoin and TeachAway, waiting on the owner's terms check (WJ-561)
 - ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
 - ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)
+- ✅ Therapists: OpenStreetMap practices and clinics as a source (weekly via the gateway, practices only, with credit, no contact details, nothing verified or bookable), waiting on an admin to register it and pick the Overpass endpoint (WJ-600)
 - ✅ Jobs: job cards say "via WWDG" for the WorksLake Data Gateway, with the full name on hover (WJ-542)
 - ✅ Jobs: Part Time with an empty search box shows the latest part-time jobs instead of asking for words (WJ-543)
 - ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
@@ -39,4 +40,5 @@
 - ✅ Admin: Setup to-do also lists live sources whose terms are still to confirm (WJ-506)
 - ✅ WorksLake gateway: the crawler reads business pages (LocalBusiness, no contact details) and pooled directory pages (WJ-507)
 - ✅ Scholarships & Projects: Opportunity Desk and Scholars4Dev scholarship feeds as live sources (WJ-525)
+- ✅ Jobs: 11 more company career boards (Razorpay, Paytm, InMobi, LinkedIn, ServiceNow and more) and two remote feeds, Working Nomads and We Work Remotely (WJ-544)
 - ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable (WJ-580)

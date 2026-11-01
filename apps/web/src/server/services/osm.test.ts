@@ -13,7 +13,7 @@ vi.mock("@/server/gateway/listings", () => ({
 }));
 
 import type { GatewayListing } from "../../../../data-gateway/src/core.mjs";
-import { CITIES, CITY_RADIUS_KM, nearestCity } from "@/modules/services/cities";
+import { CITIES, CITY_RADIUS_KM, nearestCity } from "@/wonderworks/find/cities";
 import { craftsFor, OSM_ATTRIBUTION, readProTags, termsFromPro } from "@/modules/services/domain";
 import { fetchOsmBusinesses, OSM_GATEWAY_NAME, OPENSTREETMAP, rawFromOsm, runServicesSource, SERVICES_SOURCES } from "./sources";
 import { outside } from "./search";
