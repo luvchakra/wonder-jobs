@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
   Activity,
+  ArrowLeft,
   BadgeCheck,
   Building2,
   ChevronDown,
@@ -264,7 +265,7 @@ function Brand() {
       >
         W
       </span>
-      <span className="text-[15px] font-semibold text-white">
+      <span className="hidden text-[15px] font-semibold text-white sm:inline">
         WonderWorks Admin
       </span>
     </Link>
@@ -281,24 +282,32 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [sheet, setSheet] = useState(false);
+  // The way back to the app is a prominent button on every admin page (owner, 2026-11-01).
+  const back = (label: string, className?: string) => (
+    <Link
+      href="/app"
+      className={cn(
+        "flex items-center justify-center gap-2 rounded-[10px] bg-white px-3 text-[13px] font-semibold text-[#15132b] shadow-sm transition-colors hover:bg-brand-50",
+        className,
+      )}
+    >
+      <ArrowLeft className="size-4 shrink-0" aria-hidden />
+      {label}
+    </Link>
+  );
   const footer = (
     <div className="border-t border-white/10 px-2 pt-4 text-[11px] text-white/55">
       <p className="truncate" title={actor}>
         Signed in as {actor}
       </p>
-      <Link
-        href="/app"
-        className="mt-1 inline-block text-white/75 hover:text-white"
-      >
-        Back to WonderWorks
-      </Link>
     </div>
   );
   return (
     <div className="flex min-h-dvh bg-bg">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 bg-[#15132b] px-3 py-5 text-white/80 lg:flex">
-        <div className="px-2">
+        <div className="flex flex-col gap-4 px-2">
           <Brand />
+          {back("Back to WonderWorks", "py-2.5")}
         </div>
         <div className="flex-1 overflow-y-auto">
           <Nav pathname={pathname} />
@@ -310,19 +319,22 @@ export function AdminShell({
         <header className="sticky top-0 z-20 bg-[#15132b] text-white/80 lg:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <Brand />
-            <button
-              type="button"
-              onClick={() => setSheet((v) => !v)}
-              aria-expanded={sheet}
-              aria-label={sheet ? "Close menu" : "Open menu"}
-              className="grid size-10 place-items-center rounded-[10px] hover:bg-white/10"
-            >
-              {sheet ? (
-                <X className="size-5" aria-hidden />
-              ) : (
-                <Menu className="size-5" aria-hidden />
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              {back("WonderWorks", "h-10")}
+              <button
+                type="button"
+                onClick={() => setSheet((v) => !v)}
+                aria-expanded={sheet}
+                aria-label={sheet ? "Close menu" : "Open menu"}
+                className="grid size-10 place-items-center rounded-[10px] hover:bg-white/10"
+              >
+                {sheet ? (
+                  <X className="size-5" aria-hidden />
+                ) : (
+                  <Menu className="size-5" aria-hidden />
+                )}
+              </button>
+            </div>
           </div>
           {sheet && (
             <div className="flex max-h-[75dvh] flex-col gap-4 overflow-y-auto px-3 pb-4">
