@@ -20,3 +20,4 @@
 - ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
+- ✅ Talent & Services: OpenStreetMap local trade businesses as a source (weekly via the gateway, with credit, no phone or email), waiting on the gateway gate (WJ-591)

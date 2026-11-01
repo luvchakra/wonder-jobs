@@ -180,11 +180,19 @@ export function countryName(v) {
 }
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
-  const one = (path) => {
+  const at = (path) => {
     const parts = String(path || "").split(".").filter(Boolean);
     if (!parts.length) return undefined;
     const found = parts.reduce((acc, part) => acc && typeof acc === "object" ? acc[part] : undefined, raw);
     return ["string", "number", "boolean"].includes(typeof found) ? found : undefined;
+  };
+  // A mapping value with {paths} in it is a template ("https://www.openstreetmap.org/{type}/{id}"): each {path} is filled
+  // from the record, and if any is missing the field is absent, never half-built. A source with no URL of its own needs it.
+  const one = (path) => {
+    if (typeof path !== "string" || !path.includes("{")) return at(path);
+    let whole = true;
+    const text = path.replace(/\{([^{}]{1,100})\}/g, (_m, p) => { const v = at(p); if (v === undefined) whole = false; return v === undefined ? "" : String(v); });
+    return whole ? text : undefined;
   };
   // A mapping may list several paths (town, region, country): their values, as given, joined in order, empty ones and
   // repeats left out, a two-letter country code shown as the country's name.
