@@ -1,4 +1,6 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
+import konfhubEvents from "../../../../data-gateway/sources/konfhub-events.json";
+import linuxFoundationEvents from "../../../../data-gateway/sources/linux-foundation-events.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
 import osmServicesEast from "../../../../data-gateway/sources/osm-services-east.json";
 import osmServicesNorth from "../../../../data-gateway/sources/osm-services-north.json";
@@ -14,6 +16,8 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
+  "konfhub-events.json": konfhubEvents as Record<string, unknown>,
+  "linux-foundation-events.json": linuxFoundationEvents as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
   "osm-services-east.json": osmServicesEast as Record<string, unknown>,
   "osm-services-north.json": osmServicesNorth as Record<string, unknown>,

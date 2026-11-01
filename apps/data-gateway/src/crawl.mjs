@@ -9,14 +9,23 @@ import { allowedBy, checkRobots, decodeEntities, parseStructured, safeGet } from
  * over several runs: each run carries on from where the last one stopped (`cursor`).
  *
  * Pages are found from the source URL, which is either a sitemap (`discover: "sitemap"`, nested sitemaps followed on the
- * same host) or an index page whose links are followed (`discover: "links"`). Only paths under `pathPrefix` count.
+ * same host) or an index page whose links are followed (`discover: "links"`). Only paths under `pathPrefix` count, and,
+ * when the source sets `pathPattern`, only paths that match it whole (an event site's event pages, not its subpages).
+ *
+ * A site may keep its sitemap on another host (KonfHub's on files.konfhub.com): the source names it as `sitemap`, and it
+ * is read only when the site's own robots.txt lists it (or it is on the site's host). Pages still come only from the site.
  */
 export const CRAWL_LIMITS = Object.freeze({ maxPagesPerRun: 50, maxDiscovered: 5000, maxSitemaps: 5, minDelayMs: 1000, maxDelayMs: 30000, budgetMs: 45000 });
 
-/** The `<loc>` URLs of a sitemap, and whether it is an index of other sitemaps. */
-export function parseSitemap(xml) {
-  const locs = [...String(xml).matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/gi)].map((m) => decodeEntities(m[1]));
-  return { index: /<sitemapindex\b/i.test(xml), urls: locs.slice(0, CRAWL_LIMITS.maxDiscovered) };
+/**
+ * The `<loc>` URLs of a sitemap, and whether it is an index of other sitemaps. `keep` filters a page sitemap's URLs before
+ * the cap, so a big sitemap (the Linux Foundation's 8,800) still yields every page the source wants.
+ */
+export function parseSitemap(xml, keep = null) {
+  const index = /<sitemapindex\b/i.test(xml);
+  let locs = [...String(xml).matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/gi)].map((m) => decodeEntities(m[1]));
+  if (keep && !index) locs = locs.filter(keep);
+  return { index, urls: locs.slice(0, CRAWL_LIMITS.maxDiscovered) };
 }
 
 /** Links on an index page, made absolute against it. */
@@ -31,10 +40,20 @@ export function pageLinks(html, base) {
   return out;
 }
 
-/** The pages a source may crawl, in a stable order: same host, HTTPS, under its prefix, allowed by robots, no repeats. */
+/**
+ * A source's `pathPattern` as a matcher for the whole path: `*` is any run of characters within one path segment, `**` is
+ * anything, a trailing `/` matches with or without it. A star alone as the whole pattern ("/" + star + "/") is a site's pages one segment deep ("/kubecon-india/").
+ */
+export function pathMatcher(pattern) {
+  const body = pattern.replace(/\/$/, "").split(/(\*\*|\*)/).map((part) => (part === "**" ? ".*" : part === "*" ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).join("");
+  return new RegExp("^" + body + "/?$");
+}
+
+/** The pages a source may crawl, in a stable order: same host, HTTPS, under its prefix and pattern, allowed by robots, no repeats. */
 export function crawlTargets(urls, source, rules) {
   const host = new URL(source.url).hostname;
   const prefix = source.pathPrefix || "/";
+  const pattern = source.pathPattern ? pathMatcher(source.pathPattern) : null;
   const seen = new Set();
   const out = [];
   for (const raw of urls) {
@@ -43,7 +62,7 @@ export function crawlTargets(urls, source, rules) {
     u.hash = "";
     const key = u.toString();
     if (u.protocol !== "https:" || u.hostname !== host || u.username || u.password || u.port) continue;
-    if (!u.pathname.startsWith(prefix) || seen.has(key)) continue;
+    if (!u.pathname.startsWith(prefix) || (pattern && !pattern.test(u.pathname)) || seen.has(key)) continue;
     if (!allowedBy(rules, u.pathname + u.search)) continue;
     seen.add(key);
     out.push(key);
@@ -64,17 +83,24 @@ export async function crawlRecords(source, deps = {}) {
   const delayMs = Math.min(CRAWL_LIMITS.maxDelayMs, Math.max(CRAWL_LIMITS.minDelayMs, (policy.crawlDelay ?? 0) * 1000, source.crawlDelayMs ?? 0));
   const host = new URL(source.url).hostname;
 
-  // Find the pages.
+  // Find the pages. The sitemap is the source URL, or the one it names, which must be on the site's host or listed in
+  // the site's robots.txt; child sitemaps come from the sitemap's own host.
   let found = [];
-  const first = await get(source.url, { origin: host });
+  const mapUrl = source.discover === "sitemap" && source.sitemap ? source.sitemap : source.url;
+  const mapHost = new URL(mapUrl).hostname;
+  if (mapHost !== host && !(policy.sitemaps ?? []).some((s) => { try { return new URL(s).toString() === new URL(mapUrl).toString(); } catch { return false; } })) {
+    throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The sitemap is on another host and the site's robots.txt doesn't list it");
+  }
+  const first = await get(mapUrl, { origin: mapHost });
   if (source.discover === "sitemap") {
-    const top = parseSitemap(first);
+    const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
+    const top = parseSitemap(first, keep);
     if (top.index) {
-      const children = crawlTargets(top.urls, { ...source, pathPrefix: "/" }, policy.rules).slice(0, CRAWL_LIMITS.maxSitemaps);
+      const children = crawlTargets(top.urls, { url: mapUrl, pathPrefix: "/" }, mapHost === host ? policy.rules : []).slice(0, CRAWL_LIMITS.maxSitemaps);
       for (const child of children) {
         if (now() - started > budget / 3) break;
         await sleep(delayMs);
-        try { found.push(...parseSitemap(await get(child, { origin: host })).urls); } catch { /* one child missing doesn't stop the rest */ }
+        try { found.push(...parseSitemap(await get(child, { origin: mapHost }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
       }
     } else found = top.urls;
   } else found = pageLinks(first, source.url);
