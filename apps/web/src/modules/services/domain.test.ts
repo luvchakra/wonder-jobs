@@ -122,7 +122,7 @@ describe("a pro's listing form", () => {
     expect(problem({ ...local, warrantyDays: 0 })).toBe("Days should be a whole number.");
   });
 
-  it("a quote carries no price, and GST is only the pro's own yes", async () => {
+  it("a quote carries no price, and a ticked GST box without a GSTIN states nothing", async () => {
     const { cleanServicePosting } = await import("./domain");
     const terms = (x: Record<string, unknown>) => {
       const c = cleanServicePosting(x);
@@ -130,7 +130,28 @@ describe("a pro's listing form", () => {
       return c.value.terms;
     };
     expect(terms({ ...local, priceKind: "quote", priceMin: 500 }).priceMin).toBeUndefined();
-    expect(terms({ ...local, gst: "yes" }).gst).toBeUndefined();
-    expect(terms({ ...local, gst: true }).gst).toBe(true);
+    expect(terms({ ...local, gst: true }).gst).toBeUndefined();
+    expect(terms({ ...local, gstin: "27ABCDE1234F1Z5" }).gstin).toBe("27ABCDE1234F1Z5");
+  });
+});
+
+describe("a pro's GSTIN", () => {
+  it("is the pro's own words: only its 15-character shape is checked, never looked up", async () => {
+    const { cleanServicePosting, GSTIN, cleanGstin } = await import("./domain");
+    const base = { title: "Split AC service", description: "Wet service of indoor and outdoor units, gas check and a test run.", lane: "local", category: "AC service & repair", location: "Pune", areas: ["Kothrud"], priceKind: "visit", priceMin: 599 };
+    const terms = (x: Record<string, unknown>) => {
+      const c = cleanServicePosting({ ...base, ...x });
+      if ("problem" in c) throw new Error(c.problem);
+      return c.value.terms;
+    };
+    expect(cleanGstin(" 27abcde1234f1z5 ")).toBe("27ABCDE1234F1Z5");
+    expect(GSTIN.test("27ABCDE1234F1Z5")).toBe(true);
+    for (const bad of ["27ABCDE1234F1Z", "00ABCDE1234F1Z5", "27abcde1234f1z5", "27ABCDE12345F1Z5", "ABCDE1234F1Z527", "39ABCDE1234F1Z5"]) expect(GSTIN.test(bad), bad).toBe(false);
+    expect(terms({ gstin: "27abcde1234f1z5" })).toMatchObject({ gst: true, gstin: "27ABCDE1234F1Z5" });
+    expect(terms({})).not.toHaveProperty("gstin");
+    expect(cleanServicePosting({ ...base, gstin: "27ABCDE1234" })).toMatchObject({ problem: expect.stringMatching(/GSTIN/) });
+    // Read back from storage: a malformed value is dropped, never shown.
+    expect(readTerms({ gstin: "nonsense" })).toEqual({ currency: "INR" });
+    expect(readTerms({ gstin: "27ABCDE1234F1Z5" })).toMatchObject({ gst: true, gstin: "27ABCDE1234F1Z5" });
   });
 });
