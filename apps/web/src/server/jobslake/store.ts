@@ -11,6 +11,7 @@
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { SourceRun } from "@/domain/jobslake/health";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { dataFrom, loadDataDb, type DataTable } from "@/server/dataDb";
 import type { Job } from "@/domain/jobs/types";
 import type { AuditEvent, SourceRecord, StoredCredential } from "./types";
 import type { ModuleId } from "@/modules/registry";
@@ -170,7 +171,14 @@ class SupabaseStore implements JobsLakeStore {
     if (!sb) throw new Error("Supabase is not configured");
     return sb.schema("wonderjobs");
   }
+  /** A WorksLake data table, in the main database or the optional data database (dataDb). */
+  private data(t: DataTable) {
+    const q = dataFrom(t);
+    if (!q) throw new Error("Supabase is not configured");
+    return q;
+  }
   private async ready(): Promise<MemoryStore | null> {
+    await loadDataDb();
     if (!this.probed) {
       this.probed = (async () => {
         const { error } = await this.sb().from("jobslake_sources").select("id").limit(1);
@@ -272,25 +280,25 @@ class SupabaseStore implements JobsLakeStore {
     if (fb) return fb.upsertOpportunities(opps, module);
     for (let i = 0; i < opps.length; i += 200) {
       const rows = opps.slice(i, i + 200).map((o) => ({ id: opportunityRowId(module, o.id), data: o, employer: o.employer.name, title: o.title, posted_at: o.postedAt, last_observed_at: o.freshness.lastObservedAt, module }));
-      const { error } = await this.sb().from("jobslake_opportunities").upsert(rows);
+      const { error } = await this.data("jobslake_opportunities").upsert(rows);
       if (error) this.fail("update the warm pool", error);
     }
   }
   async getOpportunity(id: string, module: ModuleId = "jobs") {
     const fb = await this.ready();
     if (fb) return fb.getOpportunity(id, module);
-    const { data, error } = await this.sb().from("jobslake_opportunities").select("data").eq("id", opportunityRowId(module, id)).eq("module", module).maybeSingle();
+    const { data, error } = await this.data("jobslake_opportunities").select("data").eq("id", opportunityRowId(module, id)).eq("module", module).maybeSingle();
     if (error) this.fail("load the opportunity", error);
     if (data) return data.data as CanonicalOpportunity;
     // A legacy WonderJobs job id: look for the opportunity whose source records carry it.
-    const { data: byLegacy, error: e2 } = await this.sb().from("jobslake_opportunities").select("data").eq("module", module).contains("data", { sourceRecords: [{ legacyJobId: id }] }).limit(1);
+    const { data: byLegacy, error: e2 } = await this.data("jobslake_opportunities").select("data").eq("module", module).contains("data", { sourceRecords: [{ legacyJobId: id }] }).limit(1);
     if (e2) this.fail("load the opportunity", e2);
     return (byLegacy?.[0]?.data as CanonicalOpportunity | undefined) ?? undefined;
   }
   async listOpportunities(opts: { limit?: number; sinceIso?: string; module?: ModuleId } = {}) {
     const fb = await this.ready();
     if (fb) return fb.listOpportunities(opts);
-    let q = this.sb().from("jobslake_opportunities").select("data").eq("module", opts.module ?? "jobs").order("last_observed_at", { ascending: false }).limit(opts.limit ?? 500);
+    let q = this.data("jobslake_opportunities").select("data").eq("module", opts.module ?? "jobs").order("last_observed_at", { ascending: false }).limit(opts.limit ?? 500);
     if (opts.sinceIso) q = q.gte("last_observed_at", opts.sinceIso);
     const { data, error } = await q;
     if (error) this.fail("load the warm pool", error);
@@ -300,7 +308,7 @@ class SupabaseStore implements JobsLakeStore {
     const fb = await this.ready();
     if (fb) return fb.countOpportunities(opts);
     // An index-only count on (module, last_observed_at): ~0.1 s, where reading the listings to count them took 15 s+.
-    let q = this.sb().from("jobslake_opportunities").select("id", { count: "exact", head: true }).eq("module", opts.module ?? "jobs");
+    let q = this.data("jobslake_opportunities").select("id", { count: "exact", head: true }).eq("module", opts.module ?? "jobs");
     if (opts.sinceIso) q = q.gte("last_observed_at", opts.sinceIso);
     const { count, error } = await q;
     if (error) this.fail("count the warm pool", error);
@@ -310,7 +318,7 @@ class SupabaseStore implements JobsLakeStore {
     const fb = await this.ready();
     if (fb) return fb.getCachedAnswers(keys);
     if (!keys.length) return [];
-    const { data, error } = await this.sb().from("jobslake_search_cache").select("*").in("key", keys);
+    const { data, error } = await this.data("jobslake_search_cache").select("*").in("key", keys);
     if (error) this.fail("read the search cache", error);
     return (data ?? []).map((r) => ({ key: r.key, sourceId: r.source_id, depth: r.depth, jobs: r.jobs as Job[], retrieved: r.retrieved, warnings: (r.warnings ?? []) as string[], fetchedAt: new Date(r.fetched_at).toISOString() }));
   }
@@ -319,13 +327,13 @@ class SupabaseStore implements JobsLakeStore {
     if (fb) return fb.putCachedAnswers(entries);
     if (!entries.length) return;
     const rows = entries.map((e) => ({ key: e.key, source_id: e.sourceId, depth: e.depth, jobs: e.jobs, retrieved: e.retrieved, warnings: e.warnings, fetched_at: e.fetchedAt }));
-    const { error } = await this.sb().from("jobslake_search_cache").upsert(rows);
+    const { error } = await this.data("jobslake_search_cache").upsert(rows);
     if (error) this.fail("write the search cache", error);
   }
   async pruneCachedAnswers(beforeIso: string) {
     const fb = await this.ready();
     if (fb) return fb.pruneCachedAnswers(beforeIso);
-    const { error, count } = await this.sb().from("jobslake_search_cache").delete({ count: "exact" }).lt("fetched_at", beforeIso);
+    const { error, count } = await this.data("jobslake_search_cache").delete({ count: "exact" }).lt("fetched_at", beforeIso);
     if (error) this.fail("prune the search cache", error);
     return count ?? 0;
   }

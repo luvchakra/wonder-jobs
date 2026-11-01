@@ -1,6 +1,7 @@
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { dataFrom, loadDataDb, type DataTable } from "@/server/dataDb";
 import { MODULE_IDS } from "@/modules/registry";
 
 /**
@@ -135,36 +136,39 @@ export async function runSafeguards(now = new Date()): Promise<SafeguardRun> {
   const sb = getSupabaseAdmin();
   try {
     if (sb && settings.enabled) {
+      // The listings may be in the optional data database (dataDb); saves and applications stay in the main one.
+      await loadDataDb();
+      const data = (t: DataTable) => dataFrom(t)!;
       let budget = settings.maxDeletesPerRun;
       // 1. Stale WorksLake listings, except those someone kept.
       const keep = await referencedIds();
       const cutoff = new Date(now.getTime() - settings.staleDays * 86_400_000).toISOString();
-      const { data: stale, error } = await sb.from("jobslake_opportunities").select("id, legacy:data->sourceRecords").lt("last_observed_at", cutoff).order("last_observed_at", { ascending: true }).limit(budget);
+      const { data: stale, error } = await data("jobslake_opportunities").select("id, legacy:data->sourceRecords").lt("last_observed_at", cutoff).order("last_observed_at", { ascending: true }).limit(budget);
       if (error) throw new Error(`couldn't list stale listings: ${error.message}`);
       const ids = deletable((stale ?? []) as { id: string; legacy?: unknown }[], keep);
       run.opportunitiesKept = (stale?.length ?? 0) - ids.length;
       for (let i = 0; i < ids.length; i += 200) {
-        const { error: e } = await sb.from("jobslake_opportunities").delete().in("id", ids.slice(i, i + 200));
+        const { error: e } = await data("jobslake_opportunities").delete().in("id", ids.slice(i, i + 200));
         if (e) throw new Error(`couldn't remove stale listings: ${e.message}`);
         run.opportunitiesDeleted += Math.min(200, ids.length - i);
       }
       budget -= run.opportunitiesDeleted;
       // 2. Gateway: nothing older than the age limit, and each source to its newest N.
       const ageCut = new Date(now.getTime() - settings.gatewayMaxAgeDays * 86_400_000).toISOString();
-      const { count: aged, error: ea } = await sb.from("gateway_listings").delete({ count: "exact" }).lt("observed_at", ageCut);
+      const { count: aged, error: ea } = await data("gateway_listings").delete({ count: "exact" }).lt("observed_at", ageCut);
       if (ea) throw new Error(`couldn't remove old gateway listings: ${ea.message}`);
       run.gatewayDeleted += aged ?? 0;
       budget -= aged ?? 0;
-      const { data: srcs } = await sb.from("gateway_listings").select("source_id").limit(100000);
+      const { data: srcs } = await data("gateway_listings").select("source_id").limit(100000);
       const per = new Map<string, number>();
       for (const r of srcs ?? []) per.set(r.source_id, (per.get(r.source_id) ?? 0) + 1);
       for (const [source, n] of per) {
         if (n <= settings.gatewayMaxPerSource || budget <= 0) continue;
         const over = Math.min(n - settings.gatewayMaxPerSource, budget);
-        const { data: oldest } = await sb.from("gateway_listings").select("id").eq("source_id", source).order("observed_at", { ascending: true }).limit(over);
+        const { data: oldest } = await data("gateway_listings").select("id").eq("source_id", source).order("observed_at", { ascending: true }).limit(over);
         const del = (oldest ?? []).map((r) => r.id as string);
         for (let i = 0; i < del.length; i += 200) {
-          const { error: e } = await sb.from("gateway_listings").delete().in("id", del.slice(i, i + 200));
+          const { error: e } = await data("gateway_listings").delete().in("id", del.slice(i, i + 200));
           if (e) throw new Error(`couldn't trim a gateway source: ${e.message}`);
         }
         run.gatewayDeleted += del.length;

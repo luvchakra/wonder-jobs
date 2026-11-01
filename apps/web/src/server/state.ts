@@ -25,6 +25,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.ratingruns: the company-ratings job's run history (counts and masked key names only), platform tenant only.
 // wj.notifyprefs: what the person wants pushed or emailed (Notification center).
 // wj.setupdecisions: which data-source decisions the owner marked done on Setup to-do (id → when, by whom, note), platform tenant only.
+// wj.datadb: the optional WorksLake data database's connection (URL, encrypted service key, on/off), platform tenant only.
 // wj.dbsafeguards: the storage safeguards' settings and last run (Admin → Settings → Storage), platform tenant only.
 // wj.schedruns: each module scheduled search's run state (next run, what it last found, listing ids seen), cron-written.
 // wj.notifyadmin: the platform's notification settings (Admin → Settings → Notifications), platform tenant only.
@@ -32,7 +33,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.accountmenu / wj.youmenu / wj.findkindsmenu: the account menu's, the You page's and Find's coming-soon menu's order and hidden items, set by a platform admin for every user, platform tenant only.
 // wj.avatar: the candidate's profile photo (a small JPEG/PNG/WebP), read and written only through /api/avatar.
 // wj.sensitive: the candidate's answers to sensitive questions (EEO, work authorization, declarations) and ID numbers — all encrypted.
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.companynames", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.findkindsmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin", "wj.schedruns", "wj.setupdecisions", "wj.dbsafeguards"] as const;
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.companynames", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.findkindsmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin", "wj.schedruns", "wj.setupdecisions", "wj.dbsafeguards", "wj.datadb"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;

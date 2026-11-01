@@ -6,6 +6,7 @@
  */
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { dataFrom, loadDataDb } from "@/server/dataDb";
 import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
@@ -128,20 +129,30 @@ const mem = () => (g2.__wlListings ??= new Map());
  * (module, allowed sources, unexpired, words, places, newest first, a page and the count), and a collection writes
  * only its own source's rows. Without Supabase (local, tests) they are kept in memory with the same rules.
  */
+/**
+ * The listings table, in the main database or the optional WorksLake data database (dataDb): a function that starts a
+ * fresh query each call. Null without Supabase (local, tests: memory).
+ */
+async function listingsTable(): Promise<(() => NonNullable<ReturnType<typeof dataFrom>>) | null> {
+  if (!getSupabaseAdmin()) return null;
+  await loadDataDb();
+  return () => dataFrom("gateway_listings")!;
+}
+
 export class GatewayListingsTable {
   async search(plan: Plan): Promise<{ rows: GatewayListing[]; matched: number }> {
     if (!plan.sourceIds.length) return { rows: [], matched: 0 };
     const now = new Date().toISOString();
     const words = queryWords(plan.query).map(likeSafe).filter(Boolean);
     const places = plan.locations.map(likeSafe).filter(Boolean);
-    const sb = getSupabaseAdmin();
+    const sb = await listingsTable();
     if (!sb) {
       const all = [...mem().values()]
         .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
         .sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
       return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
     }
-    let req = sb.from("gateway_listings").select("doc", { count: "exact" }).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
+    let req = sb().select("doc", { count: "exact" }).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
     // Every word must appear somewhere (not the words as one phrase).
     for (const w of words) req = req.ilike("search_text", `%${w}%`);
     if (places.length) req = req.or(places.map((p) => `location.ilike.%${p}%`).join(","));
@@ -151,18 +162,18 @@ export class GatewayListingsTable {
   }
 
   async get(id: string): Promise<GatewayListing | undefined> {
-    const sb = getSupabaseAdmin();
+    const sb = await listingsTable();
     if (!sb) return mem().get(id);
-    const { data, error } = await sb.from("gateway_listings").select("doc").eq("id", id).limit(1);
+    const { data, error } = await sb().select("doc").eq("id", id).limit(1);
     if (error) throw new Error(`Could not read a gateway listing: ${error.message}`);
     return (data?.[0] as { doc: GatewayListing } | undefined)?.doc;
   }
 
   async upsert(list: GatewayListing[]) {
-    const sb = getSupabaseAdmin();
+    const sb = await listingsTable();
     if (!sb) { for (const l of list) mem().set(l.id, l); return; }
     for (let i = 0; i < list.length; i += CHUNK) {
-      const { error } = await sb.from("gateway_listings").upsert(list.slice(i, i + CHUNK).map(toRow), { onConflict: "id" });
+      const { error } = await sb().upsert(list.slice(i, i + CHUNK).map(toRow), { onConflict: "id" });
       if (error) throw new Error(`Could not save gateway listings: ${error.message}`);
     }
   }
@@ -176,18 +187,18 @@ export class GatewayListingsTable {
     const now = new Date().toISOString();
     const runAt = results.reduce((m, l) => (l.observedAt < m ? l.observedAt : m), now);
     await this.upsert(results);
-    const sb = getSupabaseAdmin();
+    const sb = await listingsTable();
     if (!sb) {
       for (const [id, l] of mem()) if (l.sourceId === sourceId && (l.expiresAt <= now || (!merge && l.observedAt < runAt))) mem().delete(id);
       return [...mem().values()].filter((l) => l.sourceId === sourceId).length;
     }
-    const gone = await sb.from("gateway_listings").delete().eq("source_id", sourceId).lte("expires_at", now);
+    const gone = await sb().delete().eq("source_id", sourceId).lte("expires_at", now);
     if (gone.error) throw new Error(`Could not remove expired gateway listings: ${gone.error.message}`);
     if (!merge) {
-      const old = await sb.from("gateway_listings").delete().eq("source_id", sourceId).lt("observed_at", runAt);
+      const old = await sb().delete().eq("source_id", sourceId).lt("observed_at", runAt);
       if (old.error) throw new Error(`Could not remove gateway listings a source no longer has: ${old.error.message}`);
     }
-    const { count, error } = await sb.from("gateway_listings").select("id", { count: "exact", head: true }).eq("source_id", sourceId);
+    const { count, error } = await sb().select("id", { count: "exact", head: true }).eq("source_id", sourceId);
     if (error) throw new Error(`Could not count gateway listings: ${error.message}`);
     return count ?? 0;
   }
@@ -196,13 +207,13 @@ export class GatewayListingsTable {
   async counts(pairs: { sourceId: string; modules: string[] }[]): Promise<{ bySource: Record<string, number>; byModule: Record<string, number> }> {
     const now = new Date().toISOString();
     const bySource: Record<string, number> = {}, byModule: Record<string, number> = {};
-    const sb = getSupabaseAdmin();
+    const sb = await listingsTable();
     for (const { sourceId, modules } of pairs)
       for (const mod of modules) {
         let n = 0;
         if (!sb) n = [...mem().values()].filter((l) => l.sourceId === sourceId && l.module === mod && l.expiresAt > now).length;
         else {
-          const { count, error } = await sb.from("gateway_listings").select("id", { count: "exact", head: true }).eq("source_id", sourceId).eq("module", mod).gt("expires_at", now);
+          const { count, error } = await sb().select("id", { count: "exact", head: true }).eq("source_id", sourceId).eq("module", mod).gt("expires_at", now);
           if (error) throw new Error(`Could not count gateway listings: ${error.message}`);
           n = count ?? 0;
         }
