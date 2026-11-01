@@ -5,7 +5,7 @@
  */
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
-import { cleanDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
+import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
 
 /** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
@@ -299,7 +299,7 @@ export { MemoryCompanies as __MemoryCompanies };
 export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toISOString()): CompanyRecord[] {
   const out = new Map<string, CompanyRecord>();
   for (const o of opps) {
-    const domain = cleanDomain(o.employer.domain) ?? employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified);
+    const domain = companyDomain(o.employer.domain) ?? employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified);
     // An event with no organiser named is its own poster: it is recorded under its own site and title.
     const name = o.employer.name?.trim() || (o.kind === "event" ? o.title : "");
     const nameKey = companyKey(name);
@@ -319,7 +319,7 @@ export async function recordCompanyFacts(items: { domain: string; name: string; 
   const now = new Date().toISOString();
   const by = new Map<string, CompanyRecord>();
   for (const i of items) {
-    const domain = cleanDomain(i.domain);
+    const domain = companyDomain(i.domain);
     const nameKey = companyKey(i.name);
     if (domain && nameKey) by.set(domain, { domain, name: i.name, nameKey, sources: [i.source], firstSeenAt: now, lastSeenAt: now, facts: i.facts, factsAt: now });
   }
@@ -341,8 +341,41 @@ function imageType(bytes: Uint8Array): string | undefined {
   return undefined;
 }
 
-/** Where a logo is looked for, best first: a 128px icon from Google's favicon service (404 when it has none), then the site's own touch icon. */
-export const logoUrls = (domain: string) => [`https://www.google.com/s2/favicons?domain=${domain}&sz=128`, `https://${domain}/apple-touch-icon.png`];
+/**
+ * Where a logo is looked for, best first (researched 2026-11-01 against real misses):
+ * 1. Google's favicon service by the site's URL (`faviconV2`): it follows the site to its real host (tiaa.org →
+ *    www.tiaa.org), which the older `s2/favicons?domain=` endpoint doesn't (404 for tiaa.org); 404 when it has none.
+ * 2. The older endpoint for the www host, for sites only indexed there.
+ * 3. DuckDuckGo's icon service (404 when it has none).
+ * Then the site's own files (`fetchLogo`), then the company's logo on Wikimedia Commons via Wikidata.
+ */
+export const logoUrls = (domain: string) => [
+  `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(`https://${domain}`)}&size=128`,
+  `https://www.google.com/s2/favicons?domain=www.${domain}&sz=128`,
+  `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+];
+
+/** The site's own icon files, on the bare host and on www (many sites answer only on one of them). */
+export const siteIconUrls = (domain: string) => [`https://${domain}`, `https://www.${domain}`].flatMap((h) => [`${h}/apple-touch-icon.png`, `${h}/favicon.ico`]);
+
+const UA = "WorksLake/1.0 (+https://jobs.wonderapps.biz)";
+
+/**
+ * The company's logo on Wikimedia Commons, from its Wikidata item's logo (P154), as a 128-px-wide PNG Commons renders
+ * (an SVG logo is never served as SVG). Only for a company whose Wikidata item WorksLake matched by its website.
+ */
+export async function wikidataLogo(qid: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"] | undefined> {
+  if (!/^Q\d{1,12}$/.test(qid)) return undefined;
+  try {
+    const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${qid}&property=P154&format=json`, { signal: AbortSignal.timeout(4000), headers: { "user-agent": UA, accept: "application/json" } });
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as { claims?: { P154?: { mainsnak?: { datavalue?: { value?: unknown } } }[] } };
+    const file = body.claims?.P154?.map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string" && v.length < 250);
+    return file ? await imageFrom(`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=128`, fetcher) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
 export function iconLinks(html: string, pageUrl: string, domain: string): string[] {
@@ -364,9 +397,11 @@ export function iconLinks(html: string, pageUrl: string, domain: string): string
   return out.sort((a, b) => Number(b.touch) - Number(a.touch) || b.size - a.size).map((x) => x.url);
 }
 
-async function imageFrom(url: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"] | undefined> {
+async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>): Promise<CompanyRecord["logo"] | undefined> {
+  const host = new URL(url).hostname;
+  if (dead?.has(host)) return undefined;
   try {
-    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8" } });
+    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
     if (!res.ok) return undefined;
     const bytes = new Uint8Array(await res.arrayBuffer());
     // Tiny files are placeholders; huge ones aren't icons.
@@ -374,31 +409,37 @@ async function imageFrom(url: string, fetcher: typeof fetch): Promise<CompanyRec
     const type = imageType(bytes);
     return type ? { data: Buffer.from(bytes).toString("base64"), type, from: new URL(url).hostname } : undefined;
   } catch {
-    // Unreachable or too slow: try the next place.
+    // Unreachable or too slow: try the next place, and don't wait on this host again for this company.
+    dead?.add(host);
     return undefined;
   }
 }
 
-export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<CompanyRecord["logo"]> {
-  for (const url of logoUrls(domain)) {
-    const logo = await imageFrom(url, fetcher);
+export async function fetchLogo(domain: string, fetcher: typeof fetch, opts: { wikidataId?: string } = {}): Promise<CompanyRecord["logo"]> {
+  // A host that didn't answer once (no DNS, a timeout) isn't asked again for this company, so a dead site costs one wait.
+  const dead = new Set<string>();
+  for (const url of [...logoUrls(domain), ...siteIconUrls(domain)]) {
+    const logo = await imageFrom(url, fetcher, dead);
     if (logo) return logo;
   }
-  // Last: the icons the company's own home page declares (many sites serve none at the standard paths).
-  try {
-    const page = `https://${domain}/`;
-    const res = await fetcher(page, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "text/html" } });
-    if (res.ok) {
+  // The icons the company's own home page declares (many sites serve none at the standard paths), bare host then www.
+  for (const page of [`https://${domain}/`, `https://www.${domain}/`]) {
+    if (dead.has(new URL(page).hostname)) continue;
+    try {
+      const res = await fetcher(page, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "text/html", "user-agent": UA } });
+      if (!res.ok) continue;
       const html = (await res.text()).slice(0, 200_000);
       for (const url of iconLinks(html, res.url || page, domain).slice(0, 3)) {
-        const logo = await imageFrom(url, fetcher);
+        const logo = await imageFrom(url, fetcher, dead);
         if (logo) return logo;
       }
+      break;
+    } catch {
+      // No answer on this host: try the other.
     }
-  } catch {
-    // No home page: no logo.
   }
-  return null;
+  // Last: the company's own logo on Wikimedia Commons, when WorksLake knows its Wikidata item.
+  return (opts.wikidataId ? await wikidataLogo(opts.wikidataId, fetcher) : undefined) ?? null;
 }
 
 /**
@@ -566,7 +607,8 @@ export async function adminLogo(
   store: CompanyStore = companyStore(),
 ): Promise<{ ok: boolean; message: string }> {
   const d = cleanDomain(domain);
-  if (!d || !(await store.byDomain(d))) return { ok: false, message: "No such company in the directory." };
+  const record = d ? await store.byDomain(d) : undefined;
+  if (!d || !record) return { ok: false, message: "No such company in the directory." };
   const at = new Date(now).toISOString();
   forgetLogo(d);
   if (action.kind === "clear") {
@@ -574,8 +616,8 @@ export async function adminLogo(
     return { ok: true, message: "Logo removed. Cards show the initial until a new one is set." };
   }
   if (action.kind === "refetch") {
-    const logo = await fetchLogo(d, fetcher);
-    if (!logo) return { ok: false, message: `No logo found on ${d}. Upload one instead.` };
+    const logo = await fetchLogo(d, fetcher, { wikidataId: record.wikidata?.sourceId });
+    if (!logo) return { ok: false, message: `No logo found for ${d} (Google, DuckDuckGo, its own site${record.wikidata?.sourceId ? ", Wikidata" : ""}). Upload one instead.` };
     await store.replaceLogo(d, logo, at);
     return { ok: true, message: `Logo fetched from ${d}.` };
   }
@@ -601,13 +643,14 @@ export async function fetchMissingLogos(
   const startedAt = Date.now();
   const budget = opts.budgetMs ?? 40_000;
   const queue = await store.needingLogo(opts.limit ?? 120, since);
+  const qids = new Map((await store.facts(queue, [])).flatMap((r) => (r.wikidata?.sourceId ? [[r.domain, r.wikidata.sourceId] as const] : [])));
   let checked = 0;
   let found = 0;
   await Promise.all(
     Array.from({ length: Math.min(opts.concurrency ?? 8, queue.length) }, async () => {
       for (let d = queue.shift(); d; d = queue.shift()) {
         if (Date.now() - startedAt > budget) return;
-        const logo = await fetchLogo(d, opts.fetcher ?? fetch);
+        const logo = await fetchLogo(d, opts.fetcher ?? fetch, { wikidataId: qids.get(d) });
         await store.setLogo(d, logo, new Date().toISOString());
         checked++;
         if (logo) found++;

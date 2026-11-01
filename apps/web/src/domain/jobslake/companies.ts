@@ -9,6 +9,7 @@ import { detectProvider, hostOf, registrableDomain } from "@/domain/jobs-apply/d
 /** Hiring platforms and boards: their host is the platform's, not the employer's. */
 const NOT_EMPLOYER = [
   "linkedin.com", "indeed.com", "naukri.com", "glassdoor.com", "remotive.com", "adzuna.com", "adzuna.in", "monster.com", "ziprecruiter.com", "wellfound.com", "instahyre.com", "foundit.in", "iimjobs.com", "hirist.tech", "hirist.com", "timesjobs.com", "shine.com", "remoteok.com", "jobicy.com", "weworkremotely.com", "himalayas.app", "arbeitnow.com", "themuse.com", "simplyhired.com", "careerbuilder.com", "jooble.org",
+  "seek.com", "seek.com.au", "seek.co.nz", "jobstreet.com", "jobsdb.com", "reed.co.uk", "totaljobs.com", "cv-library.co.uk", "stepstone.de", "stepstone.com", "xing.com", "dice.com", "bayt.com", "gulftalent.com", "naukrigulf.com", "internshala.com", "apna.co", "workindia.in", "cutshort.io", "builtin.com", "hired.com", "joinhandshake.com", "jobindex.dk", "infojobs.net", "computrabajo.com", "careerjet.com", "talent.com", "jora.com", "learn4good.com", "teachingvacancies.service.gov.uk",
   "icims.com", "taleo.net", "successfactors.com", "successfactors.eu", "jobvite.com", "bamboohr.com", "breezy.hr", "applytojob.com", "zohorecruit.com", "zohorecruit.in", "freshteam.com", "darwinbox.in", "darwinbox.com", "keka.com", "oraclecloud.com", "ultipro.com", "paylocity.com", "adp.com", "recruiterbox.com", "eightfold.ai", "phenompeople.com", "avature.net", "pinpointhq.com", "rippling.com", "dover.com", "jobs.ashbyhq.com", "workforcenow.adp.com",
 ];
 
@@ -20,6 +21,16 @@ export function cleanDomain(raw: string | undefined | null): string | undefined 
   const host = raw.trim().toLowerCase().replace(/^https?:\/\//, "").split(/[/?#:]/)[0].replace(/^www\./, "").replace(/\.$/, "");
   if (!DOMAIN.test(host) || /^\d+(\.\d+)+$/.test(host)) return undefined;
   return registrableDomain(host);
+}
+
+/**
+ * A company's domain as a source reported it, cleaned — or undefined when it's a job board's or hiring platform's (a
+ * source that lists a SEEK posting may name seek.com as the employer's domain, which would give the employer SEEK's
+ * logo and merge every employer posting there into one company).
+ */
+export function companyDomain(raw: string | undefined | null): string | undefined {
+  const d = cleanDomain(raw);
+  return d && !NOT_EMPLOYER.some((b) => d === b || d.endsWith(`.${b}`)) ? d : undefined;
 }
 
 /** The employer's domain from an apply link on their own site; undefined for any platform or board. */

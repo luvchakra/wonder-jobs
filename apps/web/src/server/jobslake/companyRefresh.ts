@@ -95,11 +95,13 @@ export async function refreshCompanies(
   let checked = 0;
   let found = 0;
   const queue = [...due];
+  // Each company's Wikidata item, when matched, so its Commons logo is the last place looked.
+  const qids = new Map((await store.facts(due, [])).flatMap((r) => (r.wikidata?.sourceId ? [[r.domain, r.wikidata.sourceId] as const] : [])));
   await Promise.all(
     Array.from({ length: Math.min(opts.concurrency ?? 6, queue.length) }, async () => {
       for (let d = queue.shift(); d; d = queue.shift()) {
         if (Date.now() - startedAt > budget) return;
-        const logo = await fetchLogo(d, opts.fetcher ?? fetch);
+        const logo = await fetchLogo(d, opts.fetcher ?? fetch, { wikidataId: qids.get(d) });
         await store.setLogo(d, logo, new Date().toISOString());
         checked++;
         if (logo) found++;

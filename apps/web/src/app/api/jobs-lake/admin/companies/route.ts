@@ -36,5 +36,6 @@ export async function POST(req: Request) {
   if (kind === "upload" && (typeof body?.type !== "string" || typeof body?.data !== "string")) return jlError("INVALID_REQUEST", "An upload needs the image's type and data.", 400);
   const r = await adminLogo(domain, kind === "upload" ? { kind, type: String(body!.type), base64: String(body!.data) } : { kind });
   await audit(a.actor, `company.logo_${kind}`, undefined, { domain, ok: r.ok });
-  return json(r, r.ok ? 200 : 422);
+  // A refusal carries its reason the way the admin pages read errors, so the page shows why, not "Request failed".
+  return json(r.ok ? r : { ...r, error: { code: "LOGO_NOT_CHANGED", message: r.message } }, r.ok ? 200 : 422);
 }
