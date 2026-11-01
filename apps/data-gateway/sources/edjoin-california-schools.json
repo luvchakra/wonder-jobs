@@ -1,0 +1,18 @@
+{
+  "url": "https://www.edjoin.org/sitemap.xml",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "pathPrefix": "/Home/JobPosting/",
+  "modules": ["teaching"],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm EdJoin's terms of use allow reuse of its job postings. Checked 2026-11-01: robots.txt is \"User-agent: * Allow: /\" and lists /sitemap.xml; each /Home/JobPosting/<id> page carries a schema.org JobPosting (title, hiringOrganization, datePosted, validThrough). California public school districts and county offices of education post here. Owner confirms before activating.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "EdJoin (California school jobs) — edjoin.org",
+  "retentionHours": 168,
+  "minIntervalMinutes": 1440,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 2000
+}
