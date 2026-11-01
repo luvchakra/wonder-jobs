@@ -202,16 +202,17 @@ export function SearchSubmit({ label }: { label: string }) {
 export const refineSectionClass = (lit: boolean) => cn("-m-1.5 flex flex-col gap-1 rounded-[12px] p-1.5 text-[13px] font-medium text-ink-2 outline-none transition-shadow", lit && "ring-2 ring-brand-400 bg-brand-50/60");
 
 /**
- * The Refine panel: "Back to …" and one corner option, the module's own top (e.g. "Search as"), its fields, one Save,
+ * The Refine panel: a back arrow and one corner option, the module's own top (e.g. "Search as"), its fields, one Save,
  * and a line of links under it.
  */
 export function RefinePanel({ backLabel, onBack, corner, top, children, onSave, links }: { backLabel: string; onBack: () => void; corner?: React.ReactNode; top?: React.ReactNode; children: React.ReactNode; onSave: () => void; links?: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
       <div className="-mb-1 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-3">
-        {/* Back to the list without changing anything typed here. */}
-        <button type="button" onClick={onBack} className="inline-flex min-h-8 items-center gap-1.5 text-[13px] font-medium text-ink-2 hover:text-ink">
-          <ArrowLeft className="size-4" aria-hidden /> {backLabel}
+        {/* Back to the list without changing anything typed here: the arrow alone (owner, 2026-11-01), its words kept as
+            the button's name for screen readers and tests. */}
+        <button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className="-ml-1.5 grid size-9 place-items-center rounded-full text-ink-2 hover:bg-bg-soft hover:text-ink">
+          <ArrowLeft className="size-5" aria-hidden />
         </button>
         {corner}
       </div>
