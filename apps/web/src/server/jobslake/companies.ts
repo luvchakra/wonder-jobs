@@ -7,6 +7,7 @@ import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
 import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
+import { dataFrom, loadDataDb } from "@/server/dataDb";
 
 /** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
 export const LOGO_TTL_MS = 30 * 86_400_000;
@@ -291,9 +292,11 @@ class SupabaseCompanies implements CompanyStore {
     return { companies, rated, waiting };
   }
   private h1bTable() {
-    return getSupabaseAdmin()!.schema("wonderjobs").from("jobslake_h1b_employers");
+    // In the main database, or the optional data database (dataDb); entry points below load which one first.
+    return dataFrom("jobslake_h1b_employers")!;
   }
   async h1bFor(nameKeys: string[]) {
+    await loadDataDb();
     const out = new Map<string, H1bRecord>();
     for (let i = 0; i < nameKeys.length; i += 200) {
       const { data, error } = await this.h1bTable().select("name_key, filings, median_wage, fiscal_year, through").in("name_key", nameKeys.slice(i, i + 200));
@@ -304,6 +307,7 @@ class SupabaseCompanies implements CompanyStore {
   }
   async putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean) {
     this.sb();
+    await loadDataDb();
     // A new file replaces the last one's totals: rows it no longer names are removed first.
     if (replace) {
       const { error } = await this.h1bTable().delete().neq("name_key", "");

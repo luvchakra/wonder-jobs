@@ -132,6 +132,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/notifications`, label: "Notifications" },
       { href: `${LAKE}/keys`, label: "API keys" },
       { href: `${LAKE}/storage`, label: "Storage" },
+      { href: `${LAKE}/data-db`, label: "Data database" },
       { href: `${LAKE}/settings`, label: "Feature switches" },
       { href: `${LAKE}/protocols`, label: "WorksLake protocol" },
     ],
