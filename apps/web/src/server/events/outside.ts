@@ -41,8 +41,8 @@ export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): Eve
   const a = o.attributes ?? {};
   const source = o.sourceRecords[0];
   const startDate = dayOf(a.startDate);
-  // A source that says an event is cancelled is not offering it.
-  if (!source || !startDate || a.cancelled === true || !isWeb(o.canonicalApplyUrl)) return null;
+  // A source that says an event is cancelled or postponed is not offering it (a postponed one has no firm date).
+  if (!source || !startDate || a.cancelled === true || a.postponed === true || !isWeb(o.canonicalApplyUrl)) return null;
   const end = dayOf(a.endDate);
   const endDate = end && end >= startDate ? end : undefined;
   // Only events that haven't ended (the source may keep one a day past its end).

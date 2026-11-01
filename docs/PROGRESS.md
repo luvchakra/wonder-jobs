@@ -28,3 +28,4 @@
 - ✅ Jobs: Part Time with an empty search box shows the latest part-time jobs instead of asking for words (WJ-543)
 - ✅ WonderWorks: sources' API keys set in Admin → Settings → API keys (no hosting dashboard needed)
 - ✅ WonderWorks: Stop on every module's search banner; module menu wide enough for every name; Translate on every module's listing page
+- ✅ Events: an outside event a source marks postponed is left out, like a cancelled one (WJ-571)

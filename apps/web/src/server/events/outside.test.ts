@@ -94,6 +94,11 @@ describe("an outside event, as its source states it", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "14/11/2026" } }), TODAY)).toBeNull();
   });
 
+  it("leaves out a postponed event: its date is no longer firm", () => {
+    expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: true } }), TODAY)).toBeNull();
+    expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: false } }), TODAY)).not.toBeNull();
+  });
+
   it("only an event from a source other than WonderWorks' own counts as outside", () => {
     expect(isOutsideEvent(conf())).toBe(true);
     expect(isOutsideEvent(conf({ kind: "job" }))).toBe(false);
