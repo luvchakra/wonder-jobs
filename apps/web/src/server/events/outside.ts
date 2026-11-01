@@ -63,8 +63,11 @@ export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): Eve
   const a = o.attributes ?? {};
   const source = o.sourceRecords[0];
   const startDate = dayOf(a.startDate, a.timezone);
-  // A source that says an event is cancelled or postponed is not offering it (a postponed one has no firm date).
-  if (!source || !startDate || a.cancelled === true || a.postponed === true || !isWeb(o.canonicalApplyUrl)) return null;
+  // A source that says an event is cancelled or postponed is not offering it (a postponed one has no firm date). A source may say
+  // so as flags (`cancelled`, `postponed`) or as a schema.org status ("EventCancelled", "EventPostponed"); "EventRescheduled"
+  // means its dates already changed, so it is shown.
+  const status = typeof a.eventStatus === "string" ? a.eventStatus : "";
+  if (!source || !startDate || a.cancelled === true || a.postponed === true || /^(https?:\/\/schema\.org\/)?Event(Cancelled|Postponed)$/i.test(status) || !isWeb(o.canonicalApplyUrl)) return null;
   const end = dayOf(a.endDate, a.timezone);
   const endDate = end && end >= startDate ? end : undefined;
   // Only events that haven't ended (the source may keep one a day past its end).
