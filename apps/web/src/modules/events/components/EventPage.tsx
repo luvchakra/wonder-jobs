@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,7 +9,7 @@ import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, whenOf, type EventListing } from "../domain";
@@ -106,8 +107,7 @@ function Page({ l }: { l: EventListing }) {
             </span>
           </div>
         )}
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">{out ? "From the source" : "From the organiser"}</h2>
-        <ClampedText text={l.description || (out ? "The source gives no description." : "The organiser shares no description.")} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={out ? "From the source" : "From the organiser"} text={l.description || (out ? "The source gives no description." : "The organiser shares no description.")} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length === 0 && (

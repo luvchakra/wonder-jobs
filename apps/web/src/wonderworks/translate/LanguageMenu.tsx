@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Languages, Loader2 } from "lucide-react";
-import { TRANSLATE_LANGUAGES, type TranslateLanguageId } from "@/domain/jobs/translate";
+import { TRANSLATE_LANGUAGES, type TranslateLanguageId } from "@/domain/translate/translate";
 import { cn } from "@/lib/cn";
 
 /**
@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
  * English and the other major languages (each with its own name). The current choice is checked; while one is being
  * translated the pill shows it working.
  */
-export function DescriptionLanguage({ value, busy, onChange }: { value: TranslateLanguageId | null; busy: boolean; onChange: (v: TranslateLanguageId | null) => void }) {
+export function LanguageMenu({ value, busy, onChange }: { value: TranslateLanguageId | null; busy: boolean; onChange: (v: TranslateLanguageId | null) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

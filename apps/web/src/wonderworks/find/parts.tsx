@@ -401,7 +401,7 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * just mention WWDG"): "WorksLake Data Gateway · Teaching" reads "WWDG". Admin pages and listing pages keep the full name.
  */
 export function shortSourceNames(text: string): string {
-  return text.replace(/WorksLake Data Gateway(?: · [^·,]+?)?(?=\s*(?:·|,|$))/g, "WWDG");
+  return text.replace(/WorksLake Data Gateway(?: · [^·,+]+?)?(?=\s*(?:\+\d|·|,|$))/g, "WWDG");
 }
 
 export function ResultCard({ className, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {

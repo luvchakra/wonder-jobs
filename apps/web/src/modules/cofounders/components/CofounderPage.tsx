@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,7 @@ import { EmptyState, PageLoading } from "@/components/common/States";
 import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { DECISION_LABEL, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
@@ -112,8 +113,7 @@ function Page({ l }: { l: CofounderListing }) {
         <p className="mt-3 rounded-[12px] bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
           {team ? "This is what the team's founders chose to list." : "This is only what they chose to show everyone. Their name, the rest of their profile and any contact details stay hidden until you both agree."} WonderWorks has not checked any of it.
         </p>
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">{team ? "What they're building" : "In their words"}</h2>
-        <ClampedText text={(team ? [l.company, l.description].filter(Boolean).join("\n\n") : l.description) || "They show nothing more than the details below."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={team ? "What they're building" : "In their words"} text={(team ? [l.company, l.description].filter(Boolean).join("\n\n") : l.description) || "They show nothing more than the details below."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length > 0 && (

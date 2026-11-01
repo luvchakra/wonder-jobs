@@ -10,6 +10,7 @@ import type { Job } from "@/domain/jobs/types";
 import { daysSince, finish, getJson, placesToSearch, rawFromAdzuna, type SearchCriteria } from "@/server/jobs/providers";
 import { corePhrase, type RawPosting } from "@/services/jobs/normalize";
 import { asTeachingQuery } from "@/modules/teaching/domain";
+import { platformKey } from "@/server/jobslake/platformKeys";
 
 export interface AdzunaCountry {
   /** The code in Adzuna's URL. */
@@ -58,8 +59,8 @@ export function rawFromAdzunaTeaching(j: AdzunaTeachingJob, country: AdzunaCount
 }
 
 export async function fetchAdzunaTeaching(sourceId: string, c: SearchCriteria): Promise<Job[]> {
-  const id = process.env.ADZUNA_APP_ID;
-  const key = process.env.ADZUNA_APP_KEY;
+  const id = platformKey("ADZUNA_APP_ID");
+  const key = platformKey("ADZUNA_APP_KEY");
   const asks = adzunaAsks(c);
   if (!id || !key || !asks.length) return [];
   const what = encodeURIComponent(corePhrase(asTeachingQuery(c.query)));

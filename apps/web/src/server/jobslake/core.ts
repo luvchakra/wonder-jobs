@@ -27,6 +27,7 @@ import type { SourceRecord, TestReport } from "./types";
 import { bannedCompanies, isBannedListing, recordCompanies } from "./companies";
 import { boardRef, closedRefs } from "@/server/jobs/origin";
 import { postingTooOld } from "@/domain/jobs/age";
+import { loadPlatformKeys } from "./platformKeys";
 
 export const newId = (prefix: string) => `${prefix}_${randomBytes(9).toString("base64url")}`;
 
@@ -198,7 +199,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const sources = (await listSources(dataset)).filter((s) => !only || only.has(s.id));
   const requested = allowedIds(sources, req);
   const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
-  const health = await healthBySource();
+  const [health] = await Promise.all([healthBySource(), loadPlatformKeys()]);
   // Companies a platform admin banned: their listings are left out of every module's results (owner, 2026-11-01).
   // A failed read leaves nothing out, and says so in the logs.
   const banned = await bannedCompanies().catch((e: unknown) => {
