@@ -174,6 +174,65 @@ const arbeitnow: SourceFetcher = {
   },
 };
 
+/* ---------- Working Nomads (public JSON; terms pending, WJ-544) ---------- */
+export interface WorkingNomadsJob { url: string; title: string; description: string; company_name: string; category_name?: string; tags?: string; location?: string; pub_date: string }
+export function rawFromWorkingNomads(j: WorkingNomadsJob): RawPosting {
+  // The job's own page on Working Nomads (/job/go/<id>/) is its id: the feed has no other.
+  const id = j.url.match(/\/job\/go\/(\d+)/)?.[1] ?? j.url;
+  return { externalId: `wn:${id}`, title: j.title, company: j.company_name, location: `Remote (${j.location || "Anywhere"})`, remote: true, description: j.description, tags: [j.category_name ?? "", ...(j.tags ?? "").split(",")].map((t) => t.trim()).filter(Boolean), postedAt: j.pub_date, applyUrl: j.url, industryHint: j.category_name, employerSite: false, applyPath: "platform" as const };
+}
+const workingnomads: SourceFetcher = {
+  id: "workingnomads",
+  available: () => true,
+  async fetch(c) {
+    // One small feed of the newest remote jobs (no search): matched locally, cached like every feed.
+    const data = await getJson<WorkingNomadsJob[]>("https://www.workingnomads.com/api/exposed_jobs/");
+    return finish("workingnomads", (Array.isArray(data) ? data : []).map(rawFromWorkingNomads), c);
+  },
+};
+
+/* ---------- We Work Remotely (public RSS; terms pending, WJ-544) ---------- */
+/** The RSS feed's items as postings. A title reads "Company: Role"; the region is where the employer hires. */
+export function rawFromWeWorkRemotely(xml: string): RawPosting[] {
+  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].flatMap(([, b]) => {
+    const link = xmlField(b, "link") || xmlField(b, "guid");
+    const full = xmlField(b, "title");
+    const at = full.indexOf(": ");
+    if (!link || at < 1) return [];
+    const region = xmlField(b, "region");
+    const type = xmlField(b, "type");
+    const category = xmlField(b, "category");
+    const posted = Date.parse(xmlField(b, "pubDate"));
+    return [
+      {
+        externalId: `wwr:${link.replace(/^.*\/remote-jobs\//, "")}`,
+        title: full.slice(at + 2).trim(),
+        company: full.slice(0, at).trim(),
+        location: `Remote (${region || "Anywhere"})`,
+        remote: true,
+        description: htmlToText(xmlField(b, "description")) || full,
+        tags: [category, type, ...xmlField(b, "skills").split(",")].map((t) => t.trim()).filter(Boolean),
+        postedAt: Number.isFinite(posted) ? new Date(posted).toISOString() : null,
+        applyUrl: link,
+        industryHint: category || undefined,
+        employerSite: false,
+        applyPath: "platform" as const,
+        jobType: type || null,
+      },
+    ];
+  });
+}
+const weworkremotely: SourceFetcher = {
+  id: "weworkremotely",
+  available: () => true,
+  async fetch(c) {
+    // The newest 100 remote jobs across categories (no search): matched locally, cached like every feed.
+    const res = await fetch("https://weworkremotely.com/remote-jobs.rss", { headers: { accept: "application/rss+xml, application/xml, text/xml", "user-agent": UA }, next: { revalidate: REVALIDATE } });
+    if (!res.ok) throw new Error(`weworkremotely.com responded ${res.status}`);
+    return finish("weworkremotely", rawFromWeWorkRemotely(await res.text()), c);
+  },
+};
+
 /* ---------- Adzuna (India) ---------- */
 /** Whole days back to `since`, at least one — Adzuna's `max_days_old` counts days, so a day's overlap is merged away by id. */
 export const daysSince = (since: string, now = Date.now()) => Math.max(1, Math.ceil((now - Date.parse(since)) / 86_400_000));
@@ -343,6 +402,16 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "ashby", slug: "openai", company: "OpenAI", domain: "openai.com" },
   { ats: "ashby", slug: "zapier", company: "Zapier", domain: "zapier.com" },
   { ats: "ashby", slug: "atlan", company: "Atlan", domain: "atlan.com" },
+  // India-strong boards (WJ-544), each checked live 2026-11-01: public, the named company, mostly hiring in India.
+  { ats: "greenhouse", slug: "razorpaysoftwareprivatelimited", company: "Razorpay", domain: "razorpay.com" },
+  { ats: "greenhouse", slug: "inmobi", company: "InMobi", domain: "inmobi.com" },
+  { ats: "greenhouse", slug: "hackerrank", company: "HackerRank", domain: "hackerrank.com" },
+  { ats: "greenhouse", slug: "observeai", company: "Observe.AI", domain: "observe.ai" },
+  { ats: "lever", slug: "paytm", company: "Paytm", domain: "paytm.com" },
+  { ats: "lever", slug: "zeta", company: "Zeta", domain: "zeta.tech" },
+  { ats: "lever", slug: "mindtickle", company: "Mindtickle", domain: "mindtickle.com" },
+  { ats: "ashby", slug: "sarvam", company: "Sarvam AI", domain: "sarvam.ai" },
+  { ats: "ashby", slug: "posthog", company: "PostHog", domain: "posthog.com" },
 ];
 
 export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[]; metadata?: { name?: string; value?: unknown }[] | null }
@@ -422,6 +491,9 @@ export const SMARTRECRUITERS_COMPANIES: { slug: string; company: string; domain:
   { slug: "BoschGroup", company: "Bosch", domain: "bosch.com" },
   { slug: "Continental", company: "Continental", domain: "continental.com" },
   { slug: "DeliveryHero", company: "Delivery Hero", domain: "deliveryhero.com" },
+  // Checked live 2026-11-01 (WJ-544): dozens of open roles in India each.
+  { slug: "LinkedIn3", company: "LinkedIn", domain: "linkedin.com" },
+  { slug: "ServiceNow", company: "ServiceNow", domain: "servicenow.com" },
 ];
 export interface SmartRecruitersPosting { id: string; name: string; releasedDate?: string; location?: { city?: string; region?: string; country?: string; remote?: boolean; hybrid?: boolean }; department?: { label?: string }; typeOfEmployment?: { label?: string }; experienceLevel?: { label?: string }; industry?: { label?: string }; function?: { label?: string }; applyUrl?: string; postingUrl?: string; jobAd?: { sections?: Record<string, { title?: string; text?: string }> } }
 const COUNTRY_NAME: Record<string, string> = { in: "India", us: "United States", gb: "United Kingdom", de: "Germany", sg: "Singapore", ae: "United Arab Emirates", nl: "Netherlands", pl: "Poland", au: "Australia", ca: "Canada" };
@@ -562,7 +634,7 @@ const employers: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

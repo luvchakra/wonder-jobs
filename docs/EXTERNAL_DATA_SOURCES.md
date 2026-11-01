@@ -59,7 +59,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 
 | Module | Outside sources in code | Free/open | Paid or agreement | Biggest open issue |
 |---|---|---|---|---|
-| **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
+| **Jobs** | 18 outside (17 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
@@ -82,7 +82,7 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Greenhouse | ATS | official public API | **Live** · responds | Public boards of companies WorksLake knows |
 | Lever | ATS | official public API | **Live** · responds | Same |
 | Ashby | ATS | official public API | **Live** | Same |
-| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero |
+| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero, LinkedIn, ServiceNow (last two added 2026-11-01, WJ-544) |
 | JazzHR career sites | ATS | public feeds | **Live** | HackerEarth, Ebizon, ProcDNA and more |
 | The Muse | aggregator | public API | **Live** · responds | Key env `THEMUSE_API_KEY` is read; check whether it is required or only raises limits |
 | Jobicy | aggregator | public API | **Live** · responds | Salary where disclosed |
@@ -90,6 +90,8 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Himalayas | aggregator | public API | **Live** · responds | Newest postings scanned |
 | Himalayas part-time | aggregator | public API | **Live** | Part Time mode |
 | Freelancer.com gigs | aggregator | public API | **Live** · responds | Gig mode; client not named publicly |
+| Working Nomads | aggregator | public JSON (`/api/exposed_jobs/`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). ~35 newest remote jobs, no search. Confirm with Working Nomads that reuse of the feed's listings is allowed |
+| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Confirm with We Work Remotely that showing the RSS listings in another product is allowed |
 | Remotive | aggregator | public API | **Off by default** · responds | Public feed exposes only a handful of listings |
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
@@ -102,8 +104,13 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Option | Open/paid | Verdict |
 |---|---|---|
 | Hacker News "Who is hiring" via Algolia API | Open | Researched. Free, no key; posts hold contact emails (personal data) and terms are unclear. Low value for India. |
-| USAJOBS (all federal jobs) | Open, key | Already used for Internships only; Jobs would add US federal roles. |
-| Jooble | Free key | Already used for Internships and Teaching; not in Jobs. Worth adding for India coverage if terms allow (check). |
+| Bundesagentur für Arbeit Jobsuche API (German federal job board, open data via bund.dev) | Open, public client id | Researched 2026-11-01. Answered 403 from our servers (a block, not a terms question): not built. Retry from the deployment before deciding. |
+| Findwork.dev | Free key | Researched 2026-11-01. Tech jobs API, answers 401 without a key. Worth adding as "Needs setup" (`FINDWORK_API_KEY`, signup findwork.dev) if tech coverage is thin. |
+| Reed.co.uk | Free key | Researched 2026-11-01. UK jobs API, 401 without a key. Low value for India; worth it only for UK searches. |
+| Careerjet partner API | Free affiliate id | Researched 2026-11-01. Global aggregator incl. India; needs an affiliate id and the user's IP/user agent per call. Candidate for a later pass. |
+| More company boards | Open | Ongoing. 2026-11-01 (WJ-544) added Razorpay, InMobi, HackerRank, Observe.AI (Greenhouse), Paytm, Zeta, Mindtickle (Lever), Sarvam AI, PostHog (Ashby); probed ~90 India-strong slugs, kept only boards that answered with the named company's jobs. Phonepe, Swiggy, Flipkart, Zomato, Dream11, Postman, BrowserStack and others aren't on these public APIs. |
+| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching; Jobs would add US federal roles. Their connectors live in those modules, so Jobs needs them moved into WonderWorks/WorksLake first (asked of the shared-layer session). |
+| Jooble | Free key | Already used for Internships and Teaching; not in Jobs. Worth adding for India coverage; same as USAJOBS, the connector must move to the shared layer first. |
 | Coresignal job/people data | Paid | Researched (vendor). Priced by volume; only if TheirStack is not enough. |
 
 ### Open issues

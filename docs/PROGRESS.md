@@ -36,3 +36,4 @@
 - ✅ Account: the WorksLake API card shows what a key actually reaches — endpoints, MCP and its sources by name
 - ✅ WonderWorks: Analytics shows every module's saves and Pipeline; Notifications cover every module (WJ-504)
 - ✅ WonderWorks: scheduled searches in every module — Automation runs a module's own search on a schedule and tells you only about new listings (WJ-505)
+- ✅ Jobs: 11 more company career boards (Razorpay, Paytm, InMobi, LinkedIn, ServiceNow and more) and two remote feeds, Working Nomads and We Work Remotely (WJ-544)
