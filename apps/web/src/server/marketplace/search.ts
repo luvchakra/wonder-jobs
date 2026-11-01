@@ -9,6 +9,7 @@ import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { categoryOfProductType, MARKETPLACE, MAX_PRICE, type MarketListing } from "@/modules/marketplace/domain";
 import { openMarketListings, toListing } from "./listings";
 import { WONDERWORKS_MARKETPLACE } from "./sources";
+import { proxiedImage } from "@/server/imageProxy";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
 export interface MarketplaceSourceLine { id: string; name: string; state: SourceState; count: number; message?: string }
@@ -40,7 +41,7 @@ export function outsideListing(o: CanonicalOpportunity): MarketListing | null {
   return {
     id: `mk_out_${o.id}`,
     listingId: o.id,
-    outside: { url: url.toString(), business },
+    outside: { url: url.toString(), business, ...(proxiedImage(a.image) ? { image: proxiedImage(a.image) } : {}) },
     title: o.title.trim().slice(0, 160),
     description: o.description.slice(0, 1200),
     area: o.locations?.[0] || "India · online shop",

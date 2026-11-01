@@ -40,7 +40,7 @@ async function assertPublic(raw: string): Promise<URL> {
   return check.url;
 }
 
-export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promise<{ status: number; contentType: string; text: string; finalUrl: string; headers: Headers }> {
+export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promise<{ status: number; contentType: string; text: string; finalUrl: string; headers: Headers; bytes: Buffer }> {
   const timeoutMs = opts.timeoutMs ?? 10_000;
   const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024;
   let url = await assertPublic(raw);
@@ -79,7 +79,8 @@ export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promi
         chunks.push(value);
       }
     }
-    const text = new TextDecoder().decode(Buffer.concat(chunks));
-    return { status: res.status, contentType: res.headers.get("content-type") ?? "", text, finalUrl: url.toString(), headers: res.headers };
+    const bytes = Buffer.concat(chunks);
+    const text = new TextDecoder().decode(bytes);
+    return { status: res.status, contentType: res.headers.get("content-type") ?? "", text, finalUrl: url.toString(), headers: res.headers, bytes };
   }
 }

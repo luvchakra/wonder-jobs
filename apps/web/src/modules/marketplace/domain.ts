@@ -139,7 +139,7 @@ export interface MarketListing {
    * An item a shop or dealer lists on its own website, read from a WorksLake outside source: WonderWorks shows it and links to
    * the shop. It is never messaged about, offered on or paid for here, and carries no seller's personal details.
    */
-  outside?: { url: string; business: string };
+  outside?: { url: string; business: string; /** The shop's own product photo, through WonderWorks' signed image proxy (/api/img). */ image?: string };
   title: string;
   description: string;
   area: string;

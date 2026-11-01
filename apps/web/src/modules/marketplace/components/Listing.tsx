@@ -11,11 +11,11 @@ import { listingHref, photoSrc } from "../manifest";
 import { selectPersona, useMarketplaceStore } from "../store";
 import { shareOf } from "../share";
 
-/** The first photo, small, through the listing's own route; a store icon until the seller adds one. */
-export function Thumb({ listingId, photo, size = 56 }: { listingId: string; photo?: string; size?: number }) {
-  return photo ? (
+/** The first photo, small, through the listing's own route (or a shop's photo through the image proxy); a store icon until there is one. */
+export function Thumb({ listingId, photo, src, size = 56 }: { listingId: string; photo?: string; src?: string; size?: number }) {
+  return photo || src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={photoSrc(listingId, photo)} alt="" width={size} height={size} loading="lazy" className="rounded-[12px] border border-line object-cover" style={{ width: size, height: size }} />
+    <img src={src ?? photoSrc(listingId, photo ?? "")} alt="" width={size} height={size} loading="lazy" className="rounded-[12px] border border-line object-cover" style={{ width: size, height: size }} />
   ) : (
     <span className="grid place-items-center rounded-[12px] border border-line bg-bg-soft text-ink-4" style={{ width: size, height: size }} aria-hidden>
       <Store className="size-5" />
@@ -39,7 +39,7 @@ export const MarketCard = memo(function MarketCard({ item: l, onOpen }: { item: 
       share={shareOf(l)}
       aside={
         <>
-          <Thumb listingId={l.listingId} photo={l.terms.photos[0]} size={44} />
+          <Thumb listingId={l.listingId} photo={l.terms.photos[0]} src={l.outside?.image} size={44} />
           {m.signals.length > 0 && m.score > 0 && <FitPill tone="bg-success-100 text-success-600" title={m.signals[0].label} top="In" bottom="your area" srText={m.signals[0].label} />}
         </>
       }
