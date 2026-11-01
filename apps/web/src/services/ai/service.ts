@@ -11,7 +11,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import { historyOf, sortExperience } from "@/domain/career/history";
 import type { CanonicalJob, Job } from "@/domain/jobs/types";
 import type { PromptId } from "@/domain/ai/prompts";
-import { parseTranslation, textsToTranslate, translationPrompt, type JobTexts } from "@/domain/jobs/translate";
+import { parseTranslation, textsToTranslate, translationPrompt, type JobTexts } from "@/domain/translate/translate";
 import { aiHistoryPrompt, rulesAsAIJson, type HistoryDraft } from "@/domain/career/historyImport";
 import { newId } from "@/lib/ids";
 

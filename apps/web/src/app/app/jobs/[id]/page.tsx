@@ -42,9 +42,9 @@ import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
 import { RatingStars } from "@/wonderworks/listing/RatingStars";
-import { DescriptionLanguage } from "@/modules/jobs/components/DescriptionLanguage";
-import { useJobTranslation } from "@/lib/useJobTranslation";
-import { TRANSLATE_LANGUAGES } from "@/domain/jobs/translate";
+import { LanguageMenu as DescriptionLanguage } from "@/wonderworks/translate/LanguageMenu";
+import { useJobTranslation } from "@/wonderworks/translate/useTranslation";
+import { TRANSLATE_LANGUAGES } from "@/domain/translate/translate";
 import { ApplicationOutcome, noteApplyOpened, useAsksOutcome } from "@/modules/jobs/components/ApplicationOutcome";
 
 export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {

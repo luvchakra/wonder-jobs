@@ -12,6 +12,7 @@ import { finish, getJson, museLocation, placesToSearch, rawFromHimalayas, rawFro
 import { corePhrase, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import { fetchJooble } from "@/server/jobslake/jooble";
 import { fetchUsaJobs } from "@/server/jobslake/usajobs";
+import { platformKey } from "@/server/jobslake/platformKeys";
 
 /** A student's words, asked of a general job source as an internship search ("marketing" → "marketing intern"). */
 export const asIntern = (c: SearchCriteria): SearchCriteria => ({ ...c, query: /\b(intern|internship|trainee)\b/i.test(c.query) ? c.query : `${c.query} intern`.trim() });
@@ -28,7 +29,8 @@ export async function fetchMuseInternships(c: SearchCriteria): Promise<Job[]> {
   const places = placesToSearch(c);
   const wantsRemote = !places.length || c.locations.some((l) => /remote|anywhere/i.test(l));
   const locs = [...new Set([...places.map(museLocation), ...(wantsRemote ? ["Flexible / Remote"] : [])])];
-  const key = process.env.THEMUSE_API_KEY ? `&api_key=${encodeURIComponent(process.env.THEMUSE_API_KEY)}` : "";
+  const muse = platformKey("THEMUSE_API_KEY");
+  const key = muse ? `&api_key=${encodeURIComponent(muse)}` : "";
   const pageNos = locs.length > 2 ? [1, 2] : [1, 2, 3];
   const urls = (places.length ? locs : [...locs, ""]).flatMap((loc) => pageNos.map((p) => `https://www.themuse.com/api/public/jobs?level=Internship&page=${p}${loc ? `&location=${encodeURIComponent(loc)}` : ""}${key}`));
   const pages = await Promise.all(urls.map((u, i) => getJson<{ results: MuseJob[] }>(u).catch((e) => (i === 0 ? Promise.reject(e) : { results: [] as MuseJob[] }))));

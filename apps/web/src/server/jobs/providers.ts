@@ -8,6 +8,7 @@ import type { Job } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { theirstack } from "./theirstack";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
+import { platformKey } from "@/server/jobslake/platformKeys";
 
 export interface SearchCriteria {
   query: string;
@@ -193,11 +194,11 @@ export function placesToSearch(c: Pick<SearchCriteria, "locations">, max = 5): s
     .slice(0, max);
 }
 
-export const adzunaAvailable = () => !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY);
+export const adzunaAvailable = () => !!(platformKey("ADZUNA_APP_ID") && platformKey("ADZUNA_APP_KEY"));
 /** One Adzuna India search; `extra` narrows it with Adzuna's own filters (`&part_time=1`). */
 export async function adzunaSearch(sourceId: string, c: SearchCriteria, extra = ""): Promise<Job[]> {
-  const id = process.env.ADZUNA_APP_ID;
-  const key = process.env.ADZUNA_APP_KEY;
+  const id = platformKey("ADZUNA_APP_ID");
+  const key = platformKey("ADZUNA_APP_KEY");
   if (!id || !key) return [];
   // Each place on its own (Adzuna takes one `where`), combined; one page each when there are several.
   const places = placesToSearch(c);

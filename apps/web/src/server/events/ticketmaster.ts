@@ -16,12 +16,13 @@
 import { normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import type { Job } from "@/domain/jobs/types";
 import type { SearchCriteria } from "@/server/jobs/providers";
+import { platformKey } from "@/server/jobslake/platformKeys";
 
 export const TICKETMASTER = "evt_ticketmaster";
 export const TICKETMASTER_KEY = "TICKETMASTER_API_KEY";
 const ENDPOINT = "https://app.ticketmaster.com/discovery/v2/events.json";
 
-export const ticketmasterAvailable = () => !!process.env[TICKETMASTER_KEY]?.trim();
+export const ticketmasterAvailable = () => !!platformKey(TICKETMASTER_KEY);
 
 interface TmVenue {
   name?: string;
@@ -77,7 +78,7 @@ export function toRawEvent(e: TmEvent): RawPosting | null {
 
 /** One search of Ticketmaster for these words (and the first place typed, as a city). Throws what the caller turns into a source line. */
 export async function ticketmasterSearch(s: { id: string; name: string; limits: { timeoutMs: number } }, c: SearchCriteria, needsSetup: (m: string) => Error): Promise<Job[]> {
-  const key = process.env[TICKETMASTER_KEY]?.trim();
+  const key = platformKey(TICKETMASTER_KEY);
   if (!key) throw needsSetup(`${s.name} needs ${TICKETMASTER_KEY} on this deployment.`);
   const params = new URLSearchParams({ apikey: key, size: "50", sort: "date,asc", locale: "*" });
   if (c.query.trim()) params.set("keyword", c.query.trim().slice(0, 120));

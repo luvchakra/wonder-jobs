@@ -1,4 +1,5 @@
 "use client";
+import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +9,7 @@ import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
-import { ClampedText, isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LANE_LABEL, materialsLabel, OSM_COPYRIGHT, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
@@ -147,8 +148,7 @@ function Page({ l }: { l: ServiceListing }) {
             )}
           </Fold>
         )}
-        <h2 className="mt-4 text-[15px] font-semibold text-ink">About</h2>
-        <ClampedText text={l.description || "The pro shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={"About"} text={l.description || "The pro shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             <Fold title="Terms" hint={[t.category, priceLabel(t)].filter(Boolean).join(" · ")}>

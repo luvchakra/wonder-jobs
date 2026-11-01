@@ -6,6 +6,7 @@
 import type { Job } from "@/domain/jobs/types";
 import { finish, getJson, placesToSearch, type SearchCriteria } from "@/server/jobs/providers";
 import { corePhrase, type RawPosting } from "@/services/jobs/normalize";
+import { platformKey } from "./platformKeys";
 
 export interface UsaJobsItem {
   MatchedObjectId: string;
@@ -25,7 +26,7 @@ export interface UsaJobsItem {
   };
 }
 
-export const usaJobsAvailable = () => !!(process.env.USAJOBS_API_KEY && process.env.USAJOBS_EMAIL);
+export const usaJobsAvailable = () => !!(platformKey("USAJOBS_API_KEY") && platformKey("USAJOBS_EMAIL"));
 
 export function rawFromUsaJobs(item: UsaJobsItem): RawPosting {
   const d = item.MatchedObjectDescriptor;
@@ -55,7 +56,7 @@ export function rawFromUsaJobs(item: UsaJobsItem): RawPosting {
 
 /** One USAJOBS search for the person's words, once per place asked (or once anywhere); `filter` adds the module's own (`HiringPath=student`). */
 export async function fetchUsaJobs(sourceId: string, c: SearchCriteria, filter = ""): Promise<Job[]> {
-  const headers = { "Authorization-Key": process.env.USAJOBS_API_KEY ?? "", "User-Agent": process.env.USAJOBS_EMAIL ?? "" };
+  const headers = { "Authorization-Key": platformKey("USAJOBS_API_KEY") ?? "", "User-Agent": platformKey("USAJOBS_EMAIL") ?? "" };
   const q = corePhrase(c.query);
   const places = placesToSearch(c);
   const urls = (places.length ? places : [""]).map((p) => `https://data.usajobs.gov/api/search?ResultsPerPage=250${filter ? `&${filter}` : ""}${q ? `&Keyword=${encodeURIComponent(q)}` : ""}${p ? `&LocationName=${encodeURIComponent(p)}` : ""}`);
