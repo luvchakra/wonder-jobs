@@ -292,6 +292,9 @@ describe("destination (APPLY-008/010, SEC-010/011)", () => {
   it("registrable domains keep two-label suffixes", () => {
     expect(registrableDomain("careers.acme.co.uk")).toBe("acme.co.uk");
     expect(registrableDomain("jobs.acme.com")).toBe("acme.com");
+    expect(registrableDomain("www.sunrise.edu.in")).toBe("sunrise.edu.in");
+    expect(registrableDomain("admissions.stmarys.sch.uk")).toBe("stmarys.sch.uk");
+    expect(registrableDomain("jobs.acme.io")).toBe("acme.io");
   });
   it("classifies a move as expected, related, SSO, approved or unexpected (§72)", () => {
     const d = destinationFor({ applyUrl: "https://boards.greenhouse.io/acme/jobs/1", companyDomain: "acme.com", onEmployerSite: false })!;

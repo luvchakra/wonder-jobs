@@ -4,7 +4,7 @@ import Link from "next/link";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { Badge } from "@/components/common/Badge";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { relativeTime } from "@/lib/format";
 import { ageLabel, matchEvent, outsidePlace, seatsLabel, whenLabel, whenOf, type EventListing, type EventMatch } from "../domain";
 import { listingHref } from "../manifest";

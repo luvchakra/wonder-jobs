@@ -5,7 +5,7 @@ import type { Application, ApplicationJob } from "@/domain/applications/types";
 import { APPLICATION_STATUS_META, handedOffAt } from "@/domain/applications/types";
 import { WORK_MODE_LABEL, type CanonicalJob } from "@/domain/jobs/types";
 import { formatDate, formatSalaryRange, relativeTime } from "@/lib/format";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge } from "@/components/common/Badge";
 import { cn } from "@/lib/cn";
 import { StageCard } from "@/wonderworks/pipeline/parts";

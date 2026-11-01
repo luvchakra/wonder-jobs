@@ -21,7 +21,7 @@ The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then Won
   - `find/`: the search box (mic, clear, Search), Refine and its fields and chips, view chips, results line, grid, cards, Save, status line, empty states (`parts.tsx`), a module's Find page (`ModuleFind.tsx`), and `place.ts` (`shortPlace`, `WorkMode`).
   - `pipeline/parts.tsx` (stage tiles, filter chips, compact card) and `you/` (You's layout; the module supplies its rows).
   - `chrome/`: the top bar and its module menu (`ModuleMenu`), the tab bar, sidebar, section tabs, page header, `nav.ts`, and `slots.tsx`.
-  - `shell/` (a module's pages at `/app/m/<module>`), `brand/`, `store.ts` (the module store base, synced through `remoteStorage.ts`), `catalog.ts` (persisted-catalog helpers) and `manifest.ts` (the manifest types).
+  - `shell/` (a module's pages at `/app/m/<module>`), `brand/` (incl. `CompanyLogo`: every module's company/organiser logo, from the shared company directory), `store.ts` (the module store base, synced through `remoteStorage.ts`), `catalog.ts` (persisted-catalog helpers) and `manifest.ts` (the manifest types).
 - **Where the rest lives:**
   - WonderJobs: `src/modules/jobs/` (manifest, nav, chrome, components, pipeline, you). Its stores and domain code (`store/jobs`, `store/applications`, `domain/jobs`, `domain/applications`, `services/jobs`) still sit at their old paths and count as Jobs' code.
   - Internships: `src/modules/internships/`.

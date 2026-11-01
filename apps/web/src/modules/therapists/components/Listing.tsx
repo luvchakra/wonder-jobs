@@ -4,7 +4,7 @@ import Link from "next/link";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { Badge } from "@/components/common/Badge";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { relativeTime } from "@/lib/format";
 import { feeLabel, lengthLabel, matchTherapist, modesLabel, type TherapistListing, type TherapistMatch } from "../domain";
 import { listingHref } from "../manifest";
