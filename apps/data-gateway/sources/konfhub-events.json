@@ -5,6 +5,7 @@
   "sitemap": "https://files.konfhub.com/konfhub-sitemap/81fae46e2653383477759a342e742aa5.xml",
   "pathPattern": "/*",
   "modules": ["events"],
+  "geography": ["IN"],
   "permission": "terms_permit",
   "permissionEvidence": "konfhub.com/robots.txt (read 2026-11-01) allows every path but /cgi-bin/ and lists this sitemap; each event page publishes schema.org Event JSON-LD for reuse. Terms pending: the owner confirms KonfHub's terms before activating.",
   "termsReviewed": true,
