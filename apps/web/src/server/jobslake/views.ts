@@ -13,7 +13,7 @@ import { partnerPreset, partnerReadiness, type PartnerPreset, type PartnerReadin
 import { credentialStatus, type CredentialStatus } from "./credentials";
 import { healthBySource } from "./core";
 import { isAvailable, listSources } from "./registry";
-import { MODULES, MODULE_IDS } from "@/modules/registry";
+import { MODULES, MODULE_IDS, type ModuleId } from "@/modules/registry";
 import { jobsLakeStore } from "./store";
 import type { SourceRecord } from "./types";
 
@@ -171,18 +171,19 @@ export function qualityFrom(opps: CanonicalOpportunity[], health: Record<string,
 
 /* ----------------------------------------------------- overview / alerts */
 
-export async function poolSince(days = 7) {
+/** A module's stored listings from the last `days` (each module has its own pool; Jobs' by default). */
+export async function poolSince(days = 7, module: ModuleId = "jobs") {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  return { since, opps: await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 5000 }) };
+  return { since, opps: await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 5000, module }) };
 }
 
-export async function coverageView(days = 7): Promise<CoverageView> {
-  const [{ since, opps }, sources] = await Promise.all([poolSince(days), listSources()]);
+export async function coverageView(days = 7, module: ModuleId = "jobs"): Promise<CoverageView> {
+  const [{ since, opps }, sources] = await Promise.all([poolSince(days, module), listSources(module)]);
   return coverageFrom(opps, since, new Map(sources.map((s) => [s.id, s.name])));
 }
 
-export async function qualityView(days = 7): Promise<QualityView> {
-  const [{ opps }, sources, health] = await Promise.all([poolSince(days), listSources(), healthBySource(days)]);
+export async function qualityView(days = 7, module: ModuleId = "jobs"): Promise<QualityView> {
+  const [{ opps }, sources, health] = await Promise.all([poolSince(days, module), listSources(module), healthBySource(days)]);
   return qualityFrom(opps, health, new Map(sources.map((s) => [s.id, s.name])));
 }
 
@@ -300,8 +301,8 @@ export function publicSource(v: SourceView) {
 
 /* -------------------------------------------------------------- insights */
 
-export async function insightsView(days = 7): Promise<InsightsView> {
-  const [{ since, opps }, sources, runs] = await Promise.all([poolSince(days), listSources(), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - days * 86_400_000).toISOString(), limit: 5000 })]);
+export async function insightsView(days = 7, module: ModuleId = "jobs"): Promise<InsightsView> {
+  const [{ since, opps }, sources, runs] = await Promise.all([poolSince(days, module), listSources(module), jobsLakeStore().listRuns({ sinceIso: new Date(Date.now() - days * 86_400_000).toISOString(), limit: 5000 })]);
   const withAvailability = await Promise.all(sources.filter((s) => s.status !== "do_not_use" && s.status !== "disabled").map(async (s) => ({ id: s.id, name: s.name, status: s.status, available: await isAvailable(s) })));
   return sourceInsights({ days, since, sources: withAvailability, runs, opps, roleFamily });
 }

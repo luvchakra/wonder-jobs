@@ -71,10 +71,10 @@ export const ADMIN_MENUS: AdminMenu[] = [
   },
   {
     id: "search",
-    label: "Jobs search pool",
+    label: "Listings",
     icon: Search,
     links: [
-      { href: `${LAKE}/jobs`, label: "Job listings" },
+      { href: `${LAKE}/jobs`, label: "Browse listings" },
       { href: `${LAKE}/quality`, label: "Data quality" },
       { href: `${LAKE}/insights`, label: "Source insights" },
       { href: `${LAKE}/playground`, label: "Search playground" },

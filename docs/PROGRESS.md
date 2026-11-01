@@ -6,3 +6,4 @@
 - ✅ WorksLake admin: "Fetch all missing" on Company directory → Missing logos looks again for every missing logo in passes (WJ-472)
 - ✅ WorksLake: logo lookups find more (Google by URL, DuckDuckGo, favicon.ico, www, Wikidata logos), Fetch again shows its reason, job-board domains refused; unit tests can no longer reach production (WJ-477)
 - ✅ WonderWorks admin redesigned: sectioned menu with module-neutral names, Overview and Alerts across every module (WJ-478)
+- ✅ Admin data pages for every module, company bans, and an empty search shows a module's latest listings (WJ-479)

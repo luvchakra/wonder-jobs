@@ -133,3 +133,32 @@ describe("where logos are looked for", () => {
     expect(companyDomain("tiaa.org")).toBe("tiaa.org");
   });
 });
+
+describe("banning a company", () => {
+  it("bans by domain with a reason, leaves its listings out, and lifts the ban", async () => {
+    const { adminBan, bannedCompanies, isBannedListing, companyDirectory } = await import("./companies");
+    await recordCompanies([opp("Scam Co", "scam.example.org", "https://x", false), opp("Acme", "acme.com", "https://y", false), opp("Scam Co", "scam-co.com", "https://z", false)]);
+    expect((await adminBan("acme.com", { ban: true, reason: "" }, "admin@x")).ok).toBe(false);
+    expect((await adminBan("nobody.com", { ban: true, reason: "fake listings" }, "admin@x")).ok).toBe(false);
+    expect((await adminBan("https://www.scam-co.com/jobs", { ban: true, reason: "fake listings" }, "admin@x")).ok).toBe(true);
+    const banned = await bannedCompanies();
+    // By domain when the listing names one; a same-named company on another domain is untouched.
+    expect(isBannedListing(opp("Scam Co", "scam-co.com", "https://z", false), banned)).toBe(true);
+    expect(isBannedListing(opp("Scam Co", "other-scam.com", "https://q", false), banned)).toBe(false);
+    // By name only when the listing names no domain.
+    expect(isBannedListing(opp("Scam Co Ltd", undefined, "https://board.example.net/1", false), banned)).toBe(true);
+    expect(isBannedListing(opp("Acme", "acme.com", "https://y", false), banned)).toBe(false);
+    const d = await companyDirectory("", 10, 0, store, { banned: true });
+    expect(d.banned).toBe(1);
+    expect(d.companies[0]).toMatchObject({ domain: "scam-co.com", ban: { reason: "fake listings", by: "admin@x" } });
+    expect((await adminBan("scam-co.com", { ban: false }, "admin@x")).ok).toBe(true);
+    expect(isBannedListing(opp("Scam Co", "scam-co.com", "https://z", false), await bannedCompanies())).toBe(false);
+  });
+
+  it("never records reserved test domains as companies", async () => {
+    const { companyDomain } = await import("@/domain/jobslake/companies");
+    for (const d of ["wonderhome.example", "acme.test", "example.com", "jobs.example.org"]) expect(companyDomain(d)).toBeUndefined();
+    expect(companyDomain("examples.com")).toBe("examples.com");
+    expect(companiesFrom([opp("wj-e2e Hiring", "wonderhome.example", "https://wonderhome.example/x")])).toEqual([]);
+  });
+});
