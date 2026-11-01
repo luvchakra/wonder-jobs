@@ -4,8 +4,8 @@ import { dirname } from "node:path";
 
 export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
-/** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. */
-const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists"]);
+/** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. Marketplace: a shop's or dealer's own catalogue (never a private seller). */
+const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists", "marketplace"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
@@ -131,8 +131,8 @@ export function validateSource(source) {
   // People modules need every person's opt-in, or (owner, 2026-11-01) public business listings from an open-data
   // source — Talent & Services and Therapists only, never people's profiles (Co-founders) or private sellers.
   const publicBusinesses = source.publicBusinesses === true && source.modules.every((m) => PUBLIC_BUSINESS_MODULES.has(m));
-  if (source.publicBusinesses === true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public business listings are allowed only for services and therapists");
-  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists)");
+  if (source.publicBusinesses === true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public business listings are allowed only for services, therapists and marketplace");
+  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists, marketplace)");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
   if (source.kind === "json_api" && source.nextPath !== undefined) {
     if (typeof source.nextPath !== "string" || !/^[\w.]{1,100}$/.test(source.nextPath)) throw new ApiError(400, "INVALID_REQUEST", "nextPath must be a dot path like links.next");

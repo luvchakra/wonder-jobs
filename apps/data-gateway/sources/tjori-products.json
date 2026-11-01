@@ -1,0 +1,41 @@
+{
+  "url": "https://www.tjori.com/products.json?limit=250&page=1",
+  "kind": "json_api",
+  "modules": [
+    "marketplace"
+  ],
+  "geography": [
+    "IN"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: TJORI's terms of use on automated reuse of its product list (the owner confirms). Checked 2026-11-01: www.tjori.com/robots.txt does not disallow /products.json; the file is the public product feed of the shop's own storefront (no sign-in), prices in INR (meta.json says INR/IN). Indian handcrafted fashion, jewellery and home accessories. Only the business's own catalogue is read: title, price, link, category and description; never a customer, seller profile or contact detail.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "publicBusinesses": true,
+  "attribution": "TJORI (www.tjori.com)",
+  "itemsPath": "products",
+  "extraUrls": [
+    "https://www.tjori.com/products.json?limit=250&page=2",
+    "https://www.tjori.com/products.json?limit=250&page=3",
+    "https://www.tjori.com/products.json?limit=250&page=4"
+  ],
+  "requestDelayMs": 1500,
+  "mapping": {
+    "id": "id",
+    "title": "title",
+    "employer": "vendor",
+    "organizationUrl": "https://www.tjori.com/",
+    "description": "body_html",
+    "applyUrl": "https://www.tjori.com/products/{handle}",
+    "postedAt": "published_at",
+    "attr.price": "variants.0.price",
+    "attr.comparePrice": "variants.0.compare_at_price",
+    "attr.available": "variants.0.available",
+    "attr.category": "product_type",
+    "attr.image": "images.0.src"
+  },
+  "retentionHours": 96,
+  "minIntervalMinutes": 720
+}

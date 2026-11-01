@@ -5,7 +5,8 @@
  */
 import { search } from "@/server/jobslake/core";
 import type { Session } from "@/server/auth";
-import { MARKETPLACE, type MarketListing } from "@/modules/marketplace/domain";
+import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
+import { categoryOfProductType, MARKETPLACE, MAX_PRICE, type MarketListing } from "@/modules/marketplace/domain";
 import { openMarketListings, toListing } from "./listings";
 import { WONDERWORKS_MARKETPLACE } from "./sources";
 
@@ -14,6 +15,43 @@ export interface MarketplaceSourceLine { id: string; name: string; state: Source
 export interface MarketplaceSearchResult { searched: { query: string; places: string[] }; results: MarketListing[]; sources: MarketplaceSourceLine[] }
 
 const MAX_RESULTS = 200;
+const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+/**
+ * A shop's or dealer's own item, read from a WorksLake outside source (the gateway's business catalogues), as a link-out
+ * listing. Null when it can't be shown honestly: no https link back to the shop, no business name, no price, or the shop
+ * says it is out of stock. The price is the one the shop states, in rupees (the sources are Indian, INR); the condition is
+ * New (a shop's own stock); the seller is the business, never a person. Nothing is messaged or paid for here.
+ */
+export function outsideListing(o: CanonicalOpportunity): MarketListing | null {
+  const a = (o.attributes ?? {}) as Record<string, unknown>;
+  const rec = o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0];
+  const price = Math.round(Number(str(a.price, 20).replace(/[, ]/g, "")));
+  const business = str(o.employer?.name, 120);
+  let url: URL;
+  try {
+    url = new URL(o.canonicalApplyUrl ?? "");
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  if (!business || !o.title.trim() || !Number.isFinite(price) || price < 1 || price > MAX_PRICE) return null;
+  if (a.available === false || a.available === "false") return null;
+  return {
+    id: `mk_out_${o.id}`,
+    listingId: o.id,
+    outside: { url: url.toString(), business },
+    title: o.title.trim().slice(0, 160),
+    description: o.description.slice(0, 1200),
+    area: o.locations?.[0] || "India · online shop",
+    terms: { category: categoryOfProductType(`${str(a.category, 80)} ${o.title}`), price, negotiable: false, condition: "New", photos: [] },
+    sellerVerified: false,
+    seller: business,
+    ...(o.postedAt ? { postedAt: o.postedAt } : {}),
+    sourceId: rec?.sourceId ?? "",
+    sourceName: rec?.sourceName ?? "",
+  };
+}
 
 /** Search listings for these words and places. They are the person's own; there is no default. */
 export async function searchMarketplace(s: Session, input: { query: string; places: string[]; refresh?: boolean }): Promise<MarketplaceSearchResult> {
@@ -26,7 +64,12 @@ export async function searchMarketplace(s: Session, input: { query: string; plac
   const byId = new Map(open.map((r) => [r.id, r]));
   const results = response.results.flatMap((o) => {
     const ws = o.sourceRecords.find((r) => r.sourceId === WONDERWORKS_MARKETPLACE);
-    const r = ws ? byId.get(ws.sourceJobId) : undefined;
+    if (!ws) {
+      // A listing from an outside source (a shop's own catalogue): shown as a link-out, or left out when it isn't complete.
+      const outside = outsideListing(o);
+      return outside ? [outside] : [];
+    }
+    const r = byId.get(ws.sourceJobId);
     return r ? [toListing(r)] : [];
   });
   const lines: MarketplaceSourceLine[] = response.sources.map((x) => ({

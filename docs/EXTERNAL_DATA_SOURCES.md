@@ -393,7 +393,7 @@ Looked at, not added: India's **National Scholarship Portal** (no API or feed; l
 
 ## 10. Buy, Sell & Rent
 
-Dataset `marketplace`. WonderWorks listings only (`server/marketplace/sources.ts`).
+Dataset `marketplace`. WonderWorks listings (`server/marketplace/sources.ts`), plus, once the gateway runs, businesses' own catalogues (below). Outside items are link-outs: Find shows the shop's name, its stated price in rupees, the source and a link back; nothing is messaged, offered on or paid for on WonderWorks, and no private seller is ever read.
 
 **Researched**
 
@@ -404,8 +404,20 @@ Dataset `marketplace`. WonderWorks listings only (`server/marketplace/sources.ts
 | OLX, Mercari, Gumtree | No public API found | Not possible. |
 | Open datasets of used goods or rentals | None found | — |
 
+**India pass (2026-11-01).** Three Shopify shops publish their public product feed (`/products.json`: title, price, link, category, availability; INR per each shop's `meta.json`) and none disallows it in robots.txt. Each is a paused gateway source (`apps/data-gateway/sources/*-products.json`, `modules: ["marketplace"]`, `geography: ["IN"]`, `publicBusinesses: true`, "terms pending", 1.5 s between pages, up to 1,000 items a run, 4-day retention). Verified by mapping 120 live products (40 each) to valid listings.
+
+| Source | Items | Notes |
+|---|---|---|
+| Chumbak (`chumbak-products`) | about 2,100 | Design-led home decor, gifts, bags. |
+| Okhai (`okhai-products`) | about 9,500 | Social enterprise: handcrafted textiles, jewellery and home goods by rural artisans; each item's vendor is the artisan group. |
+| TJORI (`tjori-products`) | about 2,500 | Handcrafted fashion, jewellery and home accessories. |
+
+Looked at, not added: **Nicobar** (rate-limits our servers, 429), **India Circus**, **Jaypore**, **Fabindia** (no public product feed), **Craftsvilla**, **Dastkari Haat**, **Rangreez** (did not answer), **KVIC** (robots.txt disallows everything), **Tribes India** (no robots or feed), **eauctionsindia.com** (bank auctions, mostly property: out of scope), **MSTC**, **IBAPI**, **data.gov.in** (no answer from our servers). Pre-loved: no open Indian dealer feed found; OLX, Quikr and Facebook Marketplace are never read. Terms are pending for all three shops; images stay off until the security policy allows the shops' image host (owner decision on Setup to-do).
+
+Gateway change (shared layer): `publicBusinesses` is now also allowed for `marketplace` (a shop's or dealer's own catalogue); a private seller still needs verified consent.
+
 **Open issues**
-1. **There is no open supply.** A marketplace needs its own listings, which also fits the anti-scam rules (we know who listed).
+1. **There is little open supply.** A marketplace needs its own listings, which also fits the anti-scam rules (we know who listed).
 2. **Housing and payments are sensitive** in the platform doc; any outside housing listings would need verification we can't do.
 
 ---

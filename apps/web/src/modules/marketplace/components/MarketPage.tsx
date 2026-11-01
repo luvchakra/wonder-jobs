@@ -94,6 +94,22 @@ function Contact({ l }: { l: MarketListing }) {
   );
 }
 
+/** An item a shop lists on its own site: where it is sold, and a link there. Nothing is messaged, offered on or paid for here. */
+function OutsidePanel({ l }: { l: MarketListing }) {
+  const host = new URL(l.outside!.url).hostname.replace(/^www\./, "");
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-[14px] text-ink-2">
+        Sold by <strong>{l.outside!.business}</strong> on {host}.
+      </p>
+      <a href={l.outside!.url} target="_blank" rel="noopener noreferrer nofollow" className="wj-gradient-bg wj-press inline-flex h-10 items-center justify-center rounded-full px-4 text-[14px] font-semibold text-white">
+        View on {host}
+      </a>
+      <p className="text-[12px] text-ink-4">WonderWorks only lists it. Price, stock, delivery and payment are on the shop&apos;s own site, as {l.outside!.business} shows them.</p>
+    </div>
+  );
+}
+
 const STATE_TONE: Record<ListingState, "neutral" | "success" | "brand" | "danger"> = { draft: "neutral", open: "success", sold: "brand", hidden: "danger", closed: "neutral" };
 const STATE_TEXT: Record<ListingState, string> = { draft: "Draft: only you can see it", open: "Live in Find", sold: "Sold", hidden: "Hidden after reports", closed: "Taken down" };
 
@@ -189,8 +205,8 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
             <span key="a" className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {l.area}</span>,
           ]}
         />
-        {l.sellerVerified && !owner && <Badge tone="success">Verified seller</Badge>}
-        <TranslatedText id={l.id} title={l.title} heading={"From the seller"} text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        {l.sellerVerified && !owner && !l.outside && <Badge tone="success">Verified seller</Badge>}
+        <TranslatedText id={l.id} title={l.title} heading={l.outside ? `From ${l.outside.business}` : "From the seller"} text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             <Fold title="Details" hint={[priceLabel(t.price), t.condition].join(" · ")}>
@@ -202,17 +218,17 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
                   </div>
                 ))}
               </dl>
-              <p className="mt-3 text-[12px] text-ink-4">As {l.seller} listed it on WonderWorks{l.postedAt ? `, updated ${relativeTime(l.postedAt)}` : ""}. Prices are in rupees. Contact details stay private until the seller shares them.</p>
+              <p className="mt-3 text-[12px] text-ink-4">{l.outside ? `As ${l.outside.business} lists it on its own site${l.postedAt ? `, published ${relativeTime(l.postedAt)}` : ""}, via ${l.sourceName}. Prices are in rupees.` : `As ${l.seller} listed it on WonderWorks${l.postedAt ? `, updated ${relativeTime(l.postedAt)}` : ""}. Prices are in rupees. Contact details stay private until the seller shares them.`}</p>
             </Fold>
-            {!owner && <Fold title="Stay safe" hint="Report or block">
+            {!owner && !l.outside && <Fold title="Stay safe" hint="Report or block">
               <ReportBlock noun={l.seller} onBlock={() => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "block" } })} onReport={(reason) => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "report", reason } })} onBlocked={() => router.push(FIND.href)} />
             </Fold>}
           </div>
         )}
       </ListingMain>
       <ListingAside>
-        {owner ? <OwnerPanel l={l} state={owner} /> : <Contact l={l} />}
-        <ScamWarning className="mt-3" />
+        {owner ? <OwnerPanel l={l} state={owner} /> : l.outside ? <OutsidePanel l={l} /> : <Contact l={l} />}
+        {!l.outside && <ScamWarning className="mt-3" />}
       </ListingAside>
     </ListingPage>
   );
