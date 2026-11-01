@@ -121,7 +121,7 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
 
   return (
     <div id="jobslake-api" className="mt-4 scroll-mt-20">
-      <Fold title="WorksLake API" hint={usage ?? "Search jobs from your own code"} open={returnState !== null || linked || undefined}>
+      <Fold title="WorksLake API" hint={usage ?? "Search job postings from your own code"} open={returnState !== null || linked || undefined}>
         <div className="flex flex-col gap-4 text-[13px]">
           {!status && !keys && <p className="text-ink-3">The API isn&apos;t reachable just now.</p>}
 
@@ -197,8 +197,28 @@ export function JobsLakeApiCard({ returnState }: { returnState: string | null })
             </div>
           )}
 
+          {/* What the API actually offers today, read from this deployment's settings (owner, 2026-11-01). */}
+          {status && (
+            <div className="rounded-[12px] border border-line p-3">
+              <p className="font-medium text-ink">What a key can do</p>
+              <ul className="mt-1.5 flex flex-col gap-1 text-[12.5px] text-ink-2">
+                <li>
+                  <code className="text-[12px]">POST /api/jobs-lake/v1/search</code> (or <code className="text-[12px]">/search/stream</code>): search job postings, 1 search each
+                </li>
+                <li>
+                  <code className="text-[12px]">GET /v1/opportunities/:id</code>: read one posting, free · <code className="text-[12px]">POST …/refresh</code>: re-read it from its source, 1 search
+                </li>
+                <li>{status.offer.mcp ? "MCP at /api/jobs-lake/mcp: search_jobs, get_job, refresh_job, metered the same way" : "MCP: off on WonderWorks for now"}</li>
+              </ul>
+              <p className="mt-2 text-[12px] text-ink-3">
+                {status.offer.sourceNames.length
+                  ? `Job postings from ${status.offer.sourceNames.length} ${status.offer.sourceNames.length === 1 ? "source" : "sources"} whose terms allow passing them on: ${status.offer.sourceNames.join(", ")}. Postings from other sources are never returned to a key.`
+                  : "No sources are offered to keys right now."}
+              </p>
+            </div>
+          )}
           <a href="/api-reference" target="_blank" rel="noreferrer" className="text-[12px] text-brand-600 hover:underline">
-            API reference — endpoints, MCP and the sources a key can reach
+            Full API reference — request and response fields, limits and errors
           </a>
         </div>
       </Fold>
