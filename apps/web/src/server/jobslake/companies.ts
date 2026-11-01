@@ -586,3 +586,34 @@ export async function adminLogo(
   await store.replaceLogo(d, { data: bytes.toString("base64"), type: kind, from: "admin upload" }, at);
   return { ok: true, message: "Logo uploaded." };
 }
+
+/**
+ * An admin's "Fetch all missing logos": looks again for every company or event poster still without a logo, however
+ * recently it was last looked for, within a time budget. Each pass skips the ones already looked for since `since`
+ * (the moment the admin pressed), so the page can call it again until nothing is left to try. Returns how many were
+ * looked for and found in this pass, how many are left to try, and how many still have no logo.
+ */
+export async function fetchMissingLogos(
+  since: string,
+  opts: { budgetMs?: number; concurrency?: number; limit?: number; fetcher?: typeof fetch; store?: CompanyStore } = {},
+): Promise<{ checked: number; found: number; remaining: number; missing: number }> {
+  const store = opts.store ?? companyStore();
+  const startedAt = Date.now();
+  const budget = opts.budgetMs ?? 40_000;
+  const queue = await store.needingLogo(opts.limit ?? 120, since);
+  let checked = 0;
+  let found = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(opts.concurrency ?? 8, queue.length) }, async () => {
+      for (let d = queue.shift(); d; d = queue.shift()) {
+        if (Date.now() - startedAt > budget) return;
+        const logo = await fetchLogo(d, opts.fetcher ?? fetch);
+        await store.setLogo(d, logo, new Date().toISOString());
+        checked++;
+        if (logo) found++;
+      }
+    }),
+  );
+  const [left, all] = await Promise.all([store.needingLogo(500, since), store.list("", 1, 0, { missingLogo: true })]);
+  return { checked, found, remaining: left.length, missing: all.total };
+}
