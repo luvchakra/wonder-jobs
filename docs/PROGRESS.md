@@ -62,3 +62,4 @@
 - ✅ Jobs: Indian job boards Cutshort and apna through the gateway, five more Indian employers' career boards, and owner decisions for NCS and blocked boards (WJ-546)
 - ✅ Admin: storage safeguards keep the database under its plan, tunable in Settings → Storage (WJ-513)
 - ✅ Scholarships & Projects: Devfolio hackathons (India) as a live source; Buddy4Study and NSP in Setup to-do (WJ-526)
+- ✅ Co-founders: India pass — Indian startup portals and programmes checked, no lawful open source found, partner-upload template and copy ready, decision on Setup to-do (WJ-610)
