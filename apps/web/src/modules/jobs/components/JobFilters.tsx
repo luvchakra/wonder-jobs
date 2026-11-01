@@ -87,7 +87,7 @@ export function RefineButton({ count: shown, className }: { /** What's set now, 
 
 const SALARY_LAKH = [5, 10, 20, 30, 50];
 const lakh = (n: number) => Math.round(n / 100_000);
-type RefineSection = "work_mode" | "salary";
+type RefineSection = "location" | "salary";
 const SORT_LABEL: Record<JobSort, string> = { best_match: "Relevance", date: "Newest", salary: "Salary" };
 
 /** "Sort by Relevance ▾" — beside the line that says how many jobs are shown. */
@@ -140,11 +140,12 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   }
   // Salary's choices, and the one set now if it isn't among them.
   const salaryOptions = [...new Set([...SALARY_LAKH, ...(filters.minSalary ? [lakh(filters.minSalary)] : [])])].sort((x, y) => x - y);
-  // All three picked reads "All modes", so the pill stays short enough to read whole on a phone.
-  // None picked is any: the pills say so, as the search does.
-  const workModesShown = !filters.workModes.length || filters.workModes.length >= Object.keys(WORK_MODE_LABEL).length ? "All modes" : filters.workModes.map((m) => WORK_MODE_LABEL[m]).join(", ");
+  // The places the next search uses (Refine's, else Full Time's Career Profile places): the first and how
+  // many more, so the pill stays short enough to read whole on a phone. None is anywhere, as the search does.
+  const placesNow = splitPlaces(where);
+  const placesShown = !placesNow.length ? "Anywhere" : placesNow.length > 1 ? `${placesNow[0]} +${placesNow.length - 1}` : placesNow[0];
   const salaryShown = filters.minSalary ? `₹${lakh(filters.minSalary)}L+` : "Any salary";
-  // Work mode and Salary open Refine at their own section: scrolled to, focused and lit for a moment.
+  // Location and Salary open Refine at their own section: scrolled to, focused and lit for a moment.
   const [section, setSection] = useState<RefineSection | null>(null);
   const openAt = (at: RefineSection) => {
     setMore(true);
@@ -228,10 +229,10 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             onForget={(t) => forgetSearch(t)}
           />
         )}
-        {/* Refine, work mode, pay and the search — one row, the same in both modes. */}
+        {/* Refine, location, pay and the search — one row, the same in both modes. */}
         <div className="flex items-center gap-2">
           <RefineButton count={activeCount} />
-          <PillButton label="Work mode" shown={workModesShown} open={more} onClick={() => openAt("work_mode")} className="min-w-0 flex-auto" />
+          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className="min-w-0 flex-auto" />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
           <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} />
         </div>
@@ -286,7 +287,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           </RefineField>
           {/* Work mode, with Hide Pipeline beside it (jobs you're already preparing, have applied to or are interviewing for). */}
           <div className="flex items-end gap-3">
-            <div id="wj-refine-work_mode" role="group" aria-label="Work mode" tabIndex={-1} className={cn(sectionClass("work_mode"), "min-w-0 flex-1")}>
+            <div role="group" aria-label="Work mode" className={cn(refineSectionClass(false), "min-w-0 flex-1")}>
               Work mode
               <div className="flex flex-wrap gap-1">
                 {(Object.keys(WORK_MODE_LABEL) as WorkMode[]).map((m) => (
@@ -302,7 +303,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             Salary
             <ChoiceChips options={[{ value: -1, label: "Any", isDefault: true }, ...salaryOptions.map((l) => ({ value: l, label: <>₹{l}L+</> }))]} value={filters.minSalary ? lakh(filters.minSalary) : -1} onPick={(l) => onChange({ minSalary: l < 0 ? undefined : l * 100_000 })} />
           </div>
-          <RefinePlaces places={splitPlaces(where)} onChange={(list) => setWhere(list.join(", "))} />
+          <div id="wj-refine-location" role="group" aria-label="Location" tabIndex={-1} className={sectionClass("location")}>
+            <RefinePlaces places={placesNow} onChange={(list) => setWhere(list.join(", "))} />
+          </div>
           <RefineField label="Level">
             <div className="flex flex-wrap gap-1">
               {LEVELS.map((l) => (
