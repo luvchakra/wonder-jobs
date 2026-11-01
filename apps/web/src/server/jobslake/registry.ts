@@ -28,6 +28,7 @@ import { COFOUNDERS_SOURCES, cofoundersSourceAvailable, runCofoundersSource } fr
 import { MARKETPLACE_SOURCES, marketplaceSourceAvailable, runMarketplaceSource } from "@/server/marketplace/sources";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 import { GATEWAY_SOURCES, gatewayModuleForSource } from "./gatewaySources";
+import { MODULE_IDS } from "@/wonderworks/manifest";
 
 const EPOCH = "2026-09-24T00:00:00.000Z";
 const ATS_CAPS = ["Search", "Job details", "Freshness", "Employer identity", "Apply URL"];
@@ -96,8 +97,16 @@ export async function listSources(module: ModuleId = "jobs"): Promise<SourceReco
 }
 
 export async function getSource(id: string): Promise<SourceRecord | undefined> {
-  // The gateway has one opt-in source per module; existing source lookup semantics stay unchanged.
-  return (await listSources(gatewayModuleForSource(id) ?? "jobs")).find((s) => s.id === id);
+  // Jobs first (most sources, and the old behaviour), then the gateway's module, then every other module's own sources,
+  // so a source opened from the admin list resolves whichever module it belongs to.
+  const first = (await listSources(gatewayModuleForSource(id) ?? "jobs")).find((s) => s.id === id);
+  if (first) return first;
+  for (const m of MODULE_IDS) {
+    if (m === "jobs") continue;
+    const found = (await listSources(m)).find((s) => s.id === id);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 /** Whether this deployment can actually query the source right now (credentials present, connector exists). */
