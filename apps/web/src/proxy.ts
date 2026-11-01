@@ -73,5 +73,7 @@ export const config = {
   // /platform is matched only so an admin's session is refreshed there; it isn't in PROTECTED, because
   // the admin portal answers 404 to anyone who isn't an admin rather than revealing a sign-in page.
   // /api is matched only for the CSRF check above; it returns before any session work.
-  matcher: ["/app/:path*", "/onboarding", "/help", "/help/:path*", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*", "/api/:path*"],
+  // Not /api/company-logo or /api/img: read-only, CDN-cached images loaded many times per page; running the proxy on
+  // each cost CPU for nothing (they take GET only, so there's no cross-site mutation to refuse).
+  matcher: ["/app/:path*", "/onboarding", "/help", "/help/:path*", "/sign-in", "/sign-up", "/forgot-password", "/platform/:path*", "/api/((?!company-logo|img).*)"],
 };
