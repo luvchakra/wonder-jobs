@@ -9,4 +9,8 @@ describe("source names on cards", () => {
     expect(shortSourceNames("via WorksLake Data Gateway")).toBe("via WWDG");
     expect(shortSourceNames("via Arbeitnow · 5 hours ago")).toBe("via Arbeitnow · 5 hours ago");
   });
+  it("keeps a trailing count of other sources", () => {
+    expect(shortSourceNames("WorksLake Data Gateway · Jobs +1")).toBe("WWDG +1");
+    expect(shortSourceNames("via WorksLake Data Gateway +2 · 3 days ago")).toBe("via WWDG +2 · 3 days ago");
+  });
 });
