@@ -160,7 +160,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     id: "sources",
     title: "Job sources",
     summary: "Where postings come from, and what each source can and cannot do.",
-    keywords: ["sources", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "part time", "part-time", "gig", "gigs", "freelance", "freelancer", "job type", "career sites", "greenhouse", "lever", "ashby", "jazzhr", "smartrecruiters", "the muse", "working nomads", "we work remotely", "razorpay", "paytm", "where do jobs come from", "needs setup", "switch off", "jobslake", "via"],
+    keywords: ["sources", "where was this job found", "duplicates", "linkedin", "indeed", "naukri", "glassdoor", "remotive", "jobicy", "remote ok", "himalayas", "arbeitnow", "adzuna", "part time", "part-time", "gig", "gigs", "freelance", "freelancer", "job type", "career sites", "greenhouse", "lever", "ashby", "jazzhr", "smartrecruiters", "the muse", "working nomads", "we work remotely", "jooble", "usajobs", "government jobs", "razorpay", "paytm", "where do jobs come from", "needs setup", "switch off", "jobslake", "via"],
     updated: "2026-11-01",
     body: [
       "Wonder searches real, public job feeds and reads every posting itself. Nothing is invented, sampled or generated for your account.",
@@ -171,6 +171,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Jobicy, Remote OK, Himalayas, Working Nomads, We Work Remotely — remote job feeds. Himalayas, Working Nomads and We Work Remotely have no search of their own, so Wonder scans their newest postings.",
       "- Arbeitnow — Europe-focused, off by default. Remotive — its public feed exposes only a handful of listings, off by default.",
       "- Part-time and gig work — Himalayas part-time (Himalayas' part-time and short-term remote jobs), Adzuna India part-time (Adzuna's part-time postings; needs the same setup as Adzuna India) and Freelancer.com gigs (open fixed-price and hourly projects — the client isn't named publicly, and you bid on Freelancer.com to take one on).",
+      "- Jooble (jobs from boards and company sites worldwide, India included) and USAJOBS (US federal government jobs) — each shows 'Needs setup' and is skipped until the platform has its free key.",
       "- Adzuna India — India-wide postings across boards; each card names the site the job lives on once Wonder has followed the link (“naukri.com via Adzuna India”). It shows 'Needs setup' and is skipped on a deployment where it isn't connected.",
       "- TheirStack — a licensed, paid job-data provider that includes postings from LinkedIn, Indeed, job boards and career sites worldwide. Because it's paid per job, Wonder asks it last, and only when the free sources found too few jobs matching your words; the search's Details always show a row for it saying why it was or wasn't asked. It shows 'Needs setup' where it isn't connected.",
       "Wonder doesn't search LinkedIn, Indeed, Naukri, Foundit or Glassdoor itself — they offer no public job APIs. Postings from some of them can arrive through TheirStack, and every card says where it came from. Turn sources on or off under You → Job sources; a source that's off is skipped in your next search.",

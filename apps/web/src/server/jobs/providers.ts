@@ -9,6 +9,8 @@ import { hashKey } from "@/lib/ids";
 import { theirstack } from "./theirstack";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import { platformKey } from "@/server/jobslake/platformKeys";
+import { fetchJooble, joobleAvailable } from "@/server/jobslake/jooble";
+import { fetchUsaJobs, usaJobsAvailable } from "@/server/jobslake/usajobs";
 
 export interface SearchCriteria {
   query: string;
@@ -232,6 +234,11 @@ const weworkremotely: SourceFetcher = {
     return finish("weworkremotely", rawFromWeWorkRemotely(await res.text()), c);
   },
 };
+
+/* ---------- USAJOBS and Jooble (WorksLake's shared connectors; each needs a free key, WJ-545) ---------- */
+// The connectors live in WorksLake (server/jobslake): Jobs asks them with the candidate's own words under its own ids.
+const usajobs: SourceFetcher = { id: "usajobs", available: usaJobsAvailable, fetch: (c) => fetchUsaJobs("usajobs", c) };
+const jooble: SourceFetcher = { id: "jooble", available: joobleAvailable, fetch: (c) => fetchJooble("jooble", corePhrase(c.query), c) };
 
 /* ---------- Adzuna (India) ---------- */
 /** Whole days back to `since`, at least one — Adzuna's `max_days_old` counts days, so a day's overlap is merged away by id. */
@@ -634,7 +641,7 @@ const employers: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, usajobs, jooble, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,
