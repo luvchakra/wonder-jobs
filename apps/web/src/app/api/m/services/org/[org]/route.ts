@@ -25,7 +25,7 @@ const Posting = z.object({
   warrantyDays: z.number().int().min(1).max(3650).optional(),
   turnaroundDays: z.number().int().min(1).max(365).optional(),
   skills: z.array(z.string().max(40)).max(10).optional(),
-  gst: z.boolean().optional(),
+  gstin: z.string().max(20).optional(),
 });
 
 /** The workspace's service listings, its quote requests when the caller's role may view them, and that role. */

@@ -215,7 +215,7 @@ export async function proAct(s: Session, orgId: string, id: string, a: ProAction
   const pro = org?.name ?? "The pro";
   switch (a.action) {
     case "quote": {
-      const q = cleanQuote(a.quote, r.profile.lane, today, at);
+      const q = cleanQuote(a.quote, r.profile.lane, today, at, { gstin: readTerms(listing?.attrs).gstin });
       if ("problem" in q) throw new HiringError(q.problem);
       await move(r, where, { status: "quoted", deal: { ...d, quote: q.value } });
       await record(r, "status:quoted", s.tenantId, totalLabel(q.value));
@@ -259,4 +259,42 @@ export async function listingReviews(listingIds: string[]): Promise<Map<string, 
     const sm = summarise(list);
     return sm ? [[id, sm] as const] : [];
   }));
+}
+
+// ---- the invoice summary ------------------------------------------------------------------------------------------
+
+/** What an invoice summary is made of: the deal as both sides agreed it, and who is who. Only for a booked or finished job. */
+export interface InvoiceData {
+  ref: string;
+  title: string;
+  pro: { name: string; gstin?: string };
+  client: { name: string; email?: string };
+  lane: Lane;
+  status: ServiceStatus;
+  request: QuoteRequest;
+  deal: Deal;
+  warrantyDays?: number;
+}
+
+function invoiceOf(r: ResponseRow, listing: { title: string; attrs: unknown } | undefined, proName: string, withEmail: boolean): InvoiceData {
+  const d = readDeal(r.deal);
+  if (!d.quote || (r.status !== "booked" && r.status !== "done")) throw new HiringError("An invoice summary is available once the job is booked.", 409);
+  const t = readTerms(listing?.attrs);
+  return { ref: `WW-${r.id.slice(-8).toUpperCase()}`, title: listing?.title ?? "Service", pro: { name: proName, ...(t.gstin ? { gstin: t.gstin } : {}) }, client: { name: r.name, ...(withEmail ? { email: r.email } : {}) }, lane: r.profile.lane, status: r.status, request: r.profile, deal: d, ...(t.warrantyDays ? { warrantyDays: t.warrantyDays } : {}) };
+}
+
+/** The client's invoice summary for their own booked or finished job. */
+export async function clientInvoice(s: Session, id: string): Promise<InvoiceData> {
+  const r = await mine(s, id);
+  const [listing, org] = await Promise.all([listings().one({ id: r.listing_id, module: SERVICES }), orgs().one({ id: r.org_id })]);
+  return invoiceOf(r, listing, org?.name ?? "The pro", false);
+}
+
+/** The pro's invoice summary for a booked or finished job in their workspace (applications.view). */
+export async function proInvoice(s: Session, orgId: string, id: string): Promise<InvoiceData> {
+  await requirePermission(s, orgId, "applications.view");
+  const r = await responses().one({ id, org_id: orgId, module: SERVICES });
+  if (!r) throw new HiringError("That request isn't in this workspace.", 404);
+  const [listing, org] = await Promise.all([listings().one({ id: r.listing_id, org_id: orgId, module: SERVICES }), orgs().one({ id: orgId })]);
+  return invoiceOf(r, listing, org?.name ?? "The pro", true);
 }

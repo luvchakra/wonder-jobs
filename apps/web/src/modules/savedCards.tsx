@@ -15,6 +15,8 @@ import { MarketCard } from "./marketplace/components/Listing";
 import type { MarketListing } from "./marketplace/domain";
 import { TherapistCard } from "./therapists/components/Listing";
 import type { TherapistListing } from "./therapists/domain";
+import { ScholarshipCard } from "./scholarships/components/Listing";
+import type { ScholarshipListing } from "./scholarships/domain";
 
 const noop = () => undefined;
 
@@ -28,6 +30,7 @@ export function SavedCard({ module, item }: { module: Exclude<ModuleId, "jobs">;
   if (module === "events") return <EventCard item={item as EventListing} onOpen={noop} />;
   if (module === "cofounders") return <CofounderCard item={item as CofounderListing} onOpen={noop} />;
   if (module === "marketplace") return <MarketCard item={item as MarketListing} onOpen={noop} />;
+  if (module === "scholarships") return <ScholarshipCard item={item as ScholarshipListing} onOpen={noop} />;
   return null;
 }
 
@@ -60,6 +63,10 @@ export function savedText(module: Exclude<ModuleId, "jobs">, item: unknown): str
   if (module === "therapists") {
     const l = item as TherapistListing;
     return [l.title, l.company, l.location, ...(l.terms.focus ?? []), ...(l.terms.languages ?? [])].join(" ");
+  }
+  if (module === "scholarships") {
+    const l = item as ScholarshipListing;
+    return [l.title, l.company, l.location, l.terms.kind, l.terms.region ?? "", ...(l.terms.fields ?? []), ...l.skills].join(" ");
   }
   return "";
 }

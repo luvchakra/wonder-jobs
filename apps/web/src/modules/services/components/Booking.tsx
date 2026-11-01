@@ -15,7 +15,7 @@ import { call } from "@/wonderworks/api";
 import { money, shortDate } from "@/wonderworks/listing/terms";
 import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from "@/wonderworks/pipeline/item";
 import { StageTimeline } from "@/wonderworks/pipeline/parts";
-import { cleanBooking, clientMay, needsConfirm, paidLabel, quoteExpired, STAGE_OF, startLabel, STATUS_LABEL, todayIst, totalLabel, warrantyUntil, whenLabel, type MyRequestDetail, type Quote } from "../deal";
+import { amountLabel, breakdown, cleanBooking, clientMay, needsConfirm, paidLabel, quoteExpired, STAGE_OF, startLabel, STATUS_LABEL, todayIst, totalLabel, warrantyUntil, whenLabel, type MyRequestDetail, type Quote } from "../deal";
 import { LANE_LABEL } from "../domain";
 import { servicesManifest } from "../manifest";
 import { useServicesStore } from "../store";
@@ -40,22 +40,24 @@ export function QuoteLines({ q, gstNote }: { q: Quote; gstNote?: boolean }) {
   return (
     <div className="text-[14px]">
       <ul className="divide-y divide-line">
-        {q.items.map((i, n) => (
-          <li key={n} className="flex justify-between gap-3 py-2">
-            <span className="text-ink-2">{i.label}</span>
-            <span className="shrink-0 font-medium text-ink">{money(i.amount, q.currency)}</span>
+        {breakdown(q).map((r, n) => (
+          <li key={n} className={cn("flex justify-between gap-3 py-2", r.strong ? "font-semibold text-ink" : "")}>
+            <span className={r.strong ? "" : "text-ink-2"}>
+              {r.label}
+              {r.note && <span className="ml-1 text-[12px] font-normal text-ink-4">{r.note}</span>}
+            </span>
+            <span className={cn("shrink-0", r.strong ? "" : "font-medium text-ink")}>
+              {r.minus ? "− " : ""}
+              {amountLabel(r.amount, q.currency)}
+            </span>
           </li>
         ))}
-        <li className="flex justify-between gap-3 py-2 font-semibold text-ink">
-          <span>Total</span>
-          <span>{totalLabel(q)}</span>
-        </li>
       </ul>
       <p className="mt-2 text-[13px] text-ink-3">
         {startLabel(q)} · valid until {shortDate(q.validUntil)}
       </p>
       {q.note && <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-2">{q.note}</p>}
-      {gstNote && <p className="mt-2 text-[12px] text-ink-4">As the pro quoted it. WonderWorks adds no tax or fee and holds no money.</p>}
+      {gstNote && <p className="mt-2 text-[12px] text-ink-4">As the pro quoted it{q.gst || q.tds ? ", with the tax they state" : ""}. WonderWorks adds no tax or fee and holds no money.</p>}
     </div>
   );
 }
@@ -193,6 +195,11 @@ export function ServicesBooking({ id }: { id: string }) {
           <Button full variant="outline" loading={busy} onClick={() => void act({ action: "paid" }, "Marked as paid", "The pro marks it on their side too.")}>
             Mark as paid
           </Button>
+        )}
+        {(r.status === "booked" || r.status === "done") && q && (
+          <a href={`/api/m/services/requests/${encodeURIComponent(r.id)}/invoice`} target="_blank" rel="noopener noreferrer" className="text-center text-[13px] font-medium text-brand-600 hover:underline">
+            Invoice summary
+          </a>
         )}
         {may.includes("issue") && (
           <div className="text-center">
