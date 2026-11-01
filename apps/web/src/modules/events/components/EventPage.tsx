@@ -81,7 +81,8 @@ function Page({ l }: { l: EventListing }) {
       <ListingMain>
         {!out && <Cover postingId={l.postingId} cover={t.cover} place="page" alt={`Cover photo for ${l.title}`} />}
         <ListingHead
-          company={l.company || l.sourceName}
+          company={l.company || l.title}
+          domain={l.companyDomain}
           name={l.company || l.sourceName}
           facts={[
             <span key="w" className="inline-flex items-center gap-1">

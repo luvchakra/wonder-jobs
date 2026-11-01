@@ -18,6 +18,11 @@ import { WONDERWORKS_EVENTS } from "./sources";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDay = (v: unknown): v is string => typeof v === "string" && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 const isWeb = (v: unknown): v is string => typeof v === "string" && /^https?:\/\//i.test(v);
+/** A bare host name ("devopsdays.org"), as WorksLake's employer.domain gives it; anything else is dropped, never guessed. */
+const host = (v: unknown) => {
+  const h = typeof v === "string" ? v.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") : "";
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(h) && h.length <= 120 ? h : undefined;
+};
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 /** Whether WorksLake's result is an outside event for Events: an event listing that doesn't come from WonderWorks' own events. */
@@ -41,6 +46,8 @@ export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): Eve
     postingId: o.id,
     title: text(o.title, 160),
     company: text(o.employer?.name, 160),
+    // The event's own website, so its logo can be found (the company directory records events under that site).
+    ...(host(o.employer?.domain) ? { companyDomain: host(o.employer?.domain) } : {}),
     location: city,
     workMode: online && !city ? "remote" : "onsite",
     // The start of that day in India time, only so events sort and filter by date; the day is all that is shown.

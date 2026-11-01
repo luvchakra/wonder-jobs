@@ -69,6 +69,8 @@ export interface EventListing {
   sourceName: string;
   /** Set for an event from an outside source: it has no seats or RSVP here (see OutsideEvent). */
   outside?: OutsideEvent;
+  /** An outside event's own website (as its source gives it), so its logo can be found; none for events posted here. */
+  companyDomain?: string;
 }
 
 export const isOutside = (l: { outside?: OutsideEvent }): l is { outside: OutsideEvent } => !!l.outside;
