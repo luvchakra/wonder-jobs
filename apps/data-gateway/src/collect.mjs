@@ -89,7 +89,9 @@ export function parseRobots(robots, agent = "WorksLakeGateway") {
   const exact = groups.filter((g) => g.agents.includes(agent.toLowerCase()));
   const selected = exact.length ? exact : groups.filter((g) => g.agents.includes("*"));
   const delays = selected.map((g) => g.delay).filter((d) => d !== null);
-  return { rules: selected.flatMap((g) => g.rules), crawlDelay: delays.length ? Math.max(...delays) : null };
+  // Sitemap lines belong to no group: the site's own list of where its sitemaps are, on any host.
+  const sitemaps = [...robots.matchAll(/^\s*sitemap\s*:\s*(\S+)/gim)].map((m) => m[1].trim()).slice(0, 50);
+  return { rules: selected.flatMap((g) => g.rules), crawlDelay: delays.length ? Math.max(...delays) : null, sitemaps };
 }
 /** Whether robots.txt lets our agent fetch `path` (path plus query). */
 export function robotsAllowed(robots, path, agent = "WorksLakeGateway") {
@@ -116,7 +118,7 @@ export async function checkRobots(source) {
   try { txt = await safeGet(base.origin + "/robots.txt", { origin: base.hostname, maxBytes: 128000, redirects: 0 }); }
   catch (e) {
     // Robots missing (404) is permitted; any other uncertainty fails closed.
-    if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return { rules: [], crawlDelay: null };
+    if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return { rules: [], crawlDelay: null, sitemaps: [] };
     throw new ApiError(403, "ROBOTS_UNAVAILABLE", "Cannot verify robots policy");
   }
   if (!robotsAllowed(txt, base.pathname + base.search)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
@@ -140,6 +142,24 @@ export function parseFeed(xml) {
     return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: tag(block, "description") || tag(block, "summary") || tag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
   });
 }
+/**
+ * An Event's own dates and state, as its page states them (schema.org): startDate and endDate as given, online when its
+ * attendance mode is online or mixed, cancelled or postponed when its status says so. A field it doesn't state is left out.
+ */
+export function eventAttributes(o) {
+  const out = {};
+  const day = (v) => (typeof v === "string" && Number.isFinite(Date.parse(v)) ? v.trim().slice(0, 40) : undefined);
+  const start = day(o.startDate), end = day(o.endDate);
+  if (start) out.startDate = start;
+  if (end) out.endDate = end;
+  const mode = String(o.eventAttendanceMode ?? "");
+  if (/Online|Mixed/i.test(mode)) out.online = true;
+  else if (/Offline/i.test(mode)) out.online = false;
+  const status = String(o.eventStatus ?? "");
+  if (/Cancelled/i.test(status)) out.cancelled = true;
+  if (/Postponed/i.test(status)) out.postponed = true;
+  return out;
+}
 export function parseStructured(html) {
   const out = [];
   for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
@@ -151,9 +171,13 @@ export function parseStructured(html) {
       if (o["@graph"]) walk(o["@graph"]);
       const kinds = [o["@type"]].flat().filter(Boolean);
       if (!kinds.some((k) => /JobPosting|Event|Product|Service/i.test(String(k)))) return;
-      const org = o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher;
-      const place = o.jobLocation || o.location || o.availableAtOrFrom;
-      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null });
+      const first = (v) => (Array.isArray(v) ? v[0] : v);
+      const org = first(o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher);
+      // An event's place may be a list (a venue and its stream): the first one with an address, else the first.
+      const places = [o.jobLocation || o.location || o.availableAtOrFrom].flat().filter(Boolean);
+      const place = places.find((x) => typeof x === "string" || x?.address) ?? places[0];
+      const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
+      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
     if (out.length >= 500) break;

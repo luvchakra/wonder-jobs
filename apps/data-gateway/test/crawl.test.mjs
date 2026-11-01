@@ -80,3 +80,47 @@ test("a run stops before its time is up", async () => {
   const r = await crawlRecords(validateSource({ ...base, maxPagesPerRun: 3 }), { ...s.deps, now: () => t, sleep: async (ms) => { t += ms + 20000; } , budgetMs: 45000 });
   assert.ok(r.crawl.read < 3, "fewer pages than allowed when the budget runs out");
 });
+
+const event = (n, extra = "") => `<html><script type="application/ld+json">{"@type":"Event","name":"Conf ${n}","organizer":{"name":"Org ${n}"},"startDate":"2026-12-03","endDate":"2026-12-04","eventAttendanceMode":"https://schema.org/MixedEventAttendanceMode","location":[{"@type":"VirtualLocation","url":"https://x.example"},{"@type":"Place","name":"Hall","address":{"addressLocality":"Bengaluru"}}]${extra}}</script></html>`;
+const events = { url: "https://events.example.org/", kind: "crawl", discover: "sitemap", sitemap: "https://files.example-cdn.org/sitemap.xml", pathPattern: "/*/", modules: ["events"], permission: "terms_permit", permissionEvidence: "Terms pending: robots allows crawling", termsReviewed: true, redistributionAllowed: true, robotsReviewed: true, organizationOptional: true, maxPagesPerRun: 5 };
+
+function eventSite(robots) {
+  const calls = [];
+  const sitemap = `<urlset>${["/conf-a/", "/conf-b/", "/conf-a/schedule/", "/about/team"].map((p) => `<url><loc>https://events.example.org${p}</loc></url>`).join("")}</urlset>`;
+  return {
+    calls,
+    deps: {
+      robots: async () => parseRobots(robots),
+      get: async (url, opts) => { calls.push([url, opts?.origin]); if (url === events.sitemap) return sitemap; if (url.endsWith("/conf-b/")) return event("b", ',"eventStatus":"https://schema.org/EventCancelled"'); return event("a"); },
+      sleep: async () => {},
+      now: () => 0,
+    },
+  };
+}
+
+test("an event crawl keeps the event's dates, online and cancelled, and reads only pages matching its pattern", async () => {
+  const { calls, deps } = eventSite("User-agent: *\nAllow: /\nSitemap: https://files.example-cdn.org/sitemap.xml");
+  const r = await crawlRecords(validateSource(events), deps);
+  assert.deepEqual(calls.slice(1).map((c) => c[0]), ["https://events.example.org/conf-a/", "https://events.example.org/conf-b/"], "subpages and other paths are skipped");
+  assert.equal(calls[0][1], "files.example-cdn.org", "the sitemap is read from its own host only");
+  const byTitle = Object.fromEntries(r.results.map((i) => [i.title, i]));
+  assert.deepEqual(byTitle["Conf a"].attributes, { startDate: "2026-12-03", endDate: "2026-12-04", online: true });
+  assert.equal(byTitle["Conf a"].location, "Bengaluru");
+  assert.equal(byTitle["Conf b"].attributes.cancelled, true);
+});
+
+test("a sitemap on another host is refused unless the site's robots.txt lists it", async () => {
+  const { calls, deps } = eventSite("User-agent: *\nAllow: /");
+  await assert.rejects(crawlRecords(validateSource(events), deps), /robots\.txt doesn't list it/);
+  assert.equal(calls.length, 0, "nothing is fetched");
+  assert.throws(() => validateSource({ ...events, discover: "links" }), /needs discover: sitemap/);
+  assert.throws(() => validateSource({ ...events, sitemap: "http://files.example-cdn.org/s.xml" }), /HTTPS/);
+  assert.throws(() => validateSource({ ...events, pathPattern: "events/*" }), /pathPattern/);
+});
+
+test("pathMatcher: * is one segment, ** is anything", async () => {
+  const { pathMatcher } = await import("../src/crawl.mjs");
+  assert.ok(pathMatcher("/*/").test("/kubecon/"));
+  assert.ok(!pathMatcher("/*/").test("/kubecon/program/"));
+  assert.ok(pathMatcher("/e/**").test("/e/a/b"));
+});
