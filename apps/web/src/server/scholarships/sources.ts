@@ -26,6 +26,7 @@ import type { RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
+import { platformKey } from "@/server/jobslake/platformKeys";
 
 const EPOCH = "2026-11-01T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
@@ -41,7 +42,8 @@ export const UNSTOP = "schol_unstop";
 export const EU_FELLOWSHIPS = "schol_eu_msca";
 export const KAGGLE = "schol_kaggle";
 
-const kaggleAvailable = () => !!(process.env.KAGGLE_USERNAME && process.env.KAGGLE_KEY);
+/** Kaggle's key, from the deployment or Admin → Settings → API (`platformKey`). */
+const kaggleAvailable = () => !!(platformKey("KAGGLE_USERNAME") && platformKey("KAGGLE_KEY"));
 
 /** Required by Grants.gov's API terms next to its data. */
 export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
@@ -52,7 +54,7 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: DEVPOST, name: "Devpost hackathons", provider: "Devpost", category: "aggregator", geography: ["global", "remote"], statusReason: "terms pending: Devpost's public hackathon JSON is unauthenticated but its terms don't state reuse; confirm with Devpost", description: "Open hackathons (student-friendly projects with prizes) from Devpost's public hackathon list." }),
   source({ id: UNSTOP, name: "Unstop scholarships and competitions", provider: "Unstop", category: "aggregator", geography: ["IN"], statusReason: "terms pending: Unstop's public opportunity API has no published reuse terms; confirm with Unstop", description: "Open scholarships, hackathons and competitions for Indian students from Unstop's public opportunity list; paid ones are left out." }),
   source({ id: EU_FELLOWSHIPS, name: "EU Funding & Tenders: MSCA fellowships", provider: "European Commission", category: "portal", geography: ["global", "EU"], statusReason: "terms pending: the Funding & Tenders search API (public key SEDIA) is open, reuse under the Commission's reuse policy (CC BY 4.0) to confirm for this endpoint", description: "Open Marie Skłodowska-Curie fellowships for researchers from the EU Funding & Tenders portal's search API." }),
-  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token)." }),
+  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API." }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
@@ -303,7 +305,7 @@ export function rawFromKaggle(k: KaggleCompetition): RawPosting | null {
 }
 
 export async function fetchKaggle(c: SearchCriteria): Promise<Job[]> {
-  const auth = Buffer.from(`${process.env.KAGGLE_USERNAME}:${process.env.KAGGLE_KEY}`).toString("base64");
+  const auth = Buffer.from(`${platformKey("KAGGLE_USERNAME")}:${platformKey("KAGGLE_KEY")}`).toString("base64");
   const q = c.query.trim() ? `&search=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
   const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: `Basic ${auth}` } });
   return finish(KAGGLE, (Array.isArray(list) ? list : []).flatMap((k) => rawFromKaggle(k) ?? []), c);
@@ -340,7 +342,7 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
     case EU_FELLOWSHIPS:
       return { jobs: await fetchEuFellowships(c), warnings: [] };
     case KAGGLE:
-      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY on this deployment (free: kaggle.com → Settings → API → Create New Token).`);
+      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
     default:
       throw new Error("No connector");
