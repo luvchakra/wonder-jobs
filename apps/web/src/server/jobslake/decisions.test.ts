@@ -22,3 +22,14 @@ describe("owner decisions on Setup to-do", () => {
     expect(id in (await decisionsDone())).toBe(false);
   });
 });
+
+describe("Setup to-do links", () => {
+  it("every in-app link opens a page that exists (a decision once linked to /platform/data, which doesn't)", async () => {
+    const { existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const LAKE = "/platform/jobs-lake";
+    const setupLinks = ["keys", "credentials", "gateway"].map((p) => `${LAKE}/${p}`);
+    const internal = [...OWNER_DECISIONS.map((d) => d.href).filter((h): h is string => !!h && h.startsWith("/")), ...setupLinks];
+    for (const href of internal) expect(existsSync(join(process.cwd(), "src/app", href, "page.tsx")), href).toBe(true);
+  });
+});
