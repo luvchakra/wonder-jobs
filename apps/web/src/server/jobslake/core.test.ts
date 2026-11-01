@@ -168,6 +168,15 @@ describe("WorksLake core search", () => {
     expect(many.checks.find((c) => c.label === "Protocol v1 validation")?.detail).toMatch(/at least 90% must be valid/);
   });
 
+  it("a source that returns nothing says so once, not as a list of checks that all follow from it", async () => {
+    connector.mockResolvedValue({ jobs: [], warnings: [] });
+    const r = await testSource(BUILTIN_SOURCES[0], "admin@example.com");
+    expect(r.ok).toBe(false);
+    expect(r.checks.map((c) => c.label)).toEqual(["Connection", "Listings found"]);
+    expect(r.checks[1].detail).toMatch(/returned nothing/);
+    expect((await jobsLakeStore().listAudit())[0]).toMatchObject({ action: "source.test_failed", sourceId: "greenhouse" });
+  });
+
   it("a failing test says why and can't pass", async () => {
     connector.mockRejectedValue(new NeedsSetupError("The API credential is missing."));
     const r = await testSource(BUILTIN_SOURCES[0], "admin@example.com");
