@@ -42,6 +42,58 @@ const NEEDS: { value: SetupNeed | "all"; label: string }[] = [
  * Every source that still needs something from the admin, across every module and the gateway, in one list to work
  * through one by one (owner, 2026-11-01): what's missing, which module and data type it serves, and where to fix it.
  */
+type Run = NonNullable<SetupItem["run"]>;
+
+/**
+ * One press does the gateway's steps in order (owner, 2026-11-01: "make the setup buttons do it directly"): add the
+ * reviewed source from the catalogue (it starts paused), test it, activate it only if the test found valid listings,
+ * then collect once so its listings show now instead of at the next hourly run. Each step is the same admin call the
+ * Gateway page makes, audited the same way; a failed step stops and says which.
+ */
+async function runSetup(run: Run, onStep: (s: string) => void): Promise<{ ok: true; valid: number } | { ok: false; step: string; message: string }> {
+  const call = (body: Record<string, unknown>) => adminFetch<Record<string, unknown>>("gateway", { method: "POST", body: JSON.stringify(body) });
+  let sourceId = run.kind === "activate" ? run.sourceId : "";
+  if (run.kind === "add") {
+    onStep("Adding…");
+    const r = await call({ action: "add_catalogue", file: run.file });
+    if (!r.ok) return { ok: false, step: "Add", message: r.error.message };
+    sourceId = String(r.data.id ?? "");
+    if (!sourceId) return { ok: false, step: "Add", message: "The gateway didn't return the new source." };
+  }
+  onStep("Testing…");
+  const t = await call({ action: "test", sourceId });
+  if (!t.ok) return { ok: false, step: "Test", message: t.error.message };
+  const valid = Number(t.data.valid ?? 0);
+  if (!valid) return { ok: false, step: "Test", message: "The test found no valid listings, so it stays paused. Open the Gateway page to see why." };
+  onStep("Activating…");
+  const a = await call({ action: "activate", sourceId });
+  if (!a.ok) return { ok: false, step: "Activate", message: a.error.message };
+  onStep("Collecting…");
+  const c = await call({ action: "collect", sourceId });
+  // Active either way; a failed first collection is retried by the hourly run.
+  return { ok: true, valid: c.ok ? Number(c.data.valid ?? valid) : valid };
+}
+
+function RunButton({ item, onDone }: { item: SetupItem; onDone: () => void }) {
+  const [step, setStep] = useState<string | null>(null);
+  return (
+    <button
+      type="button"
+      disabled={!!step}
+      onClick={async () => {
+        const r = await runSetup(item.run!, setStep);
+        setStep(null);
+        if (r.ok) toast.success(`${item.name} is live`, `${r.valid} listings collected.`);
+        else toast.error(`${r.step} didn't work for ${item.name}`, r.message);
+        onDone();
+      }}
+      className="shrink-0 rounded-full border border-brand-300 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-60"
+    >
+      {step ?? item.action.label}
+    </button>
+  );
+}
+
 export default function SetupTodoPage() {
   const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean }>("setup");
   const [need, setNeed] = useState<SetupNeed | "all">("all");
@@ -132,6 +184,8 @@ export default function SetupTodoPage() {
                           Done
                         </button>
                       </span>
+                    ) : i.run ? (
+                      <RunButton item={i} onDone={reload} />
                     ) : (
                       <Link href={i.action.href} className="shrink-0 rounded-full border border-brand-300 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-50">
                         {i.action.label}
