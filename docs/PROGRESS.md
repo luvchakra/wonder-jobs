@@ -17,3 +17,4 @@
 - ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)
 - ✅ Jobs: Find's row shows Location (your places, or Anywhere) instead of All modes; Work mode is in Refine (WJ-540)
 - ✅ WonderWorks: every page that's loading shows the animated WonderWorks mark instead of grey skeleton cards
+- ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"

@@ -395,6 +395,14 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * where each module puts its own: Jobs' place, work mode and salary; Internships' place, duration, start and stipend),
  * skills, why it fits, a summary where there's room, then a footer line with Save.
  */
+/**
+ * Source names as a card shows them, in every module (owner, 2026-11-01: "instead of writing full name in the card,
+ * just mention WWDG"): "WorksLake Data Gateway · Teaching" reads "WWDG". Admin pages and listing pages keep the full name.
+ */
+export function shortSourceNames(text: string): string {
+  return text.replace(/WorksLake Data Gateway(?: · [^·,]+?)?(?=\s*(?:·|,|$))/g, "WWDG");
+}
+
 export function ResultCard({ className, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
   return (
@@ -444,7 +452,9 @@ export function ResultCard({ className, cover, aside, title, facts, tags = [], r
       </div>
       <div className="mt-1 flex items-center gap-2">
         {status}
-        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4">{footnote}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4" title={typeof footnote === "string" && footnote !== shortSourceNames(footnote) ? footnote : undefined}>
+          {typeof footnote === "string" ? shortSourceNames(footnote) : footnote}
+        </span>
         {(share || actions) && (
           <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
             {share && <ListingShare {...share} />}
