@@ -176,9 +176,11 @@ Dataset `teaching`. Source of truth: `server/teaching/sources.ts`.
 | State teacher-recruitment boards | Open pages, no API | Would be per-state scraping; terms unverified. Not recommended without permission. |
 | EdJoin, California school jobs (`apps/data-gateway/sources/edjoin-california-schools.json`) | Gateway crawl of public JobPosting pages | **Paused — terms pending** | Confirm EdJoin's terms allow reuse. robots.txt allows everything and lists its sitemap; pages carry JobPosting JSON-LD. Register, /test, then the owner activates. |
 | TeachAway, international and ESL teaching (`.../teachaway-international.json`) | Gateway crawl of public JobPosting pages | **Paused — terms pending** | Confirm TeachAway's terms allow reuse (a recruiter: written permission may be better). robots.txt allows `/teaching-jobs-abroad/`. |
+| jobs.ac.uk (university lecturers and teaching posts) (`.../jobs-ac-uk.json`) | Gateway crawl of public JobPosting pages | **Paused until Test & Activate — terms pending** | Confirm jobs.ac.uk's terms allow reuse (written permission may be better). robots.txt disallows only `/job/feedback/` and `/enhanced/fp/`. |
+| K12JobSpot, SchoolSpring, eTeach UK | Open robots.txt | Checked 2026-11-01: sitemaps list no job pages with JobPosting data, so no crawl source. |
+| Academic Positions, SchoolJobs | robots.txt disallows | Not built (a site that refuses us is recorded and skipped). |
 | Germany BA Jobsuche | Unofficial, undocumented terms | Not built: no documented reuse rights. |
 | France Travail "Offres d'emploi" | Key + signed licence, attribution | Deferred: needs the owner to accept the licence. |
-| jobs.ac.uk (higher education) | Feeds exist, no explicit reuse permission | Not built; ask them for written permission. |
 | Careerjet | Key; terms to confirm | Deferred until the partner terms are read. |
 | Canada Job Bank open data | Monthly CSV (OGL – Canada) | For the gateway (shared-layer session), not a live API. |
 | NZ Education Gazette, Australian state boards, TES | No feed or API | Not built (would be scraping). |
