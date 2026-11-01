@@ -91,6 +91,8 @@ export interface SearchOptions {
   jobTypes?: JobType[];
   /** Skip Career Profile: only what was typed — no work modes or minimum salary from the profile either. */
   skipProfile?: boolean;
+  /** Part Time's empty box: the latest listings (owner, 2026-11-01), the one words search that runs without words. */
+  latest?: boolean;
 }
 
 /** What a typed search will look for — shown before it runs, so the candidate sees what Wonder read. */
@@ -138,15 +140,16 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
     (opts: SearchOptions = {}) => {
       const query = (opts.query ?? readiness.query).trim();
       // Typed words and roles carry their own role, so only a profile search waits on the profile's blockers.
-      // The profile's search may have no words (no role wanted): it brings the latest listings. Typed words never run empty.
-      if ((!query && (opts.origin ?? "profile") !== "profile") || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
+      // The profile's search may have no words (no role wanted): it brings the latest listings. Typed words never run
+      // empty, except Part Time's empty box, which asks for the latest listings on purpose (`latest`).
+      if ((!query && (opts.origin ?? "profile") !== "profile" && !opts.latest) || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
       // Refine's places, work modes and pay first; the Career Profile's only for what Refine leaves open.
       const { locations, workModes, minSalary } = searchScope(useJobsStore.getState().filters, { locations: readiness.locations, workModes: dna.workModes, minSalary: dna.minSalary }, opts);
       // Job types asked for (words like "part time", or the pills under the search box): the sources that list them go first.
       const jobTypes = opts.jobTypes?.length ? opts.jobTypes : (useJobsStore.getState().filters.jobTypes ?? []);
       try {
         const run = getWorkflowService().startRun({
-          workflowName: opts.role ? `Search as ${opts.role.title}` : `Jobs for you — ${query}`,
+          workflowName: opts.role ? `Search as ${opts.role.title}` : query ? `Jobs for you — ${query}` : "Latest jobs",
           stageKeys: [...SEARCH_ONLY_STAGES],
           config: {
             careerGoal: opts.careerGoal ?? dna.careerGoal,
@@ -179,6 +182,12 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       const skip = !!useJobsStore.getState().filters.skipProfile;
       // Only places or pay typed ("Singapore", "high paying jobs"): the profile's own roles, there — unless skipped.
       const query = intent.query || (!skip && (intent.locations.length || intent.highPay || intent.jobTypes.length) ? readiness.query : "");
+      // Part Time with nothing typed: its latest listings, in its Refine places, job types and pay (owner, 2026-11-01).
+      if (!query && skip && !text.trim()) {
+        await stopRunningSearch();
+        track("find_started", { derivedFromWords: true, locations: (places ?? []).length, sources: sources.filter((s) => s.enabled).length });
+        return sayBusy(search({ query: "", locations: places ?? useJobsStore.getState().filters.locations ?? [], careerGoal: "", origin: "words", skipProfile: true, latest: true }));
+      }
       if (!query) return null;
       // "High paying": the best-paid first (jobs without a stated salary go last).
       if (intent.highPay) useJobsStore.getState().setSort("salary");

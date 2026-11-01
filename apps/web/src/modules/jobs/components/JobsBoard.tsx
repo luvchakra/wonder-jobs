@@ -1,5 +1,6 @@
 "use client";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { wordsQuery } from "@/domain/jobs/latest";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GitCompareArrows, Search, X } from "lucide-react";
 import { EmptyState } from "@/components/common/States";
@@ -152,7 +153,9 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
     // Part Time's list is its own words' search: say those words (their places are in them).
     if (partTime && searchedFor) {
       const count = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
-      return `Showing ${results.length.toLocaleString("en-IN")} ${results.length === 1 ? "job" : "jobs"} for “${effective.query.trim() || searchedFor}” from ${count} ${count === 1 ? "source" : "sources"}`;
+      const words = effective.query.trim() || wordsQuery(searchedFor);
+      // Part Time's empty box brought its latest jobs: say so, not “”.
+      return `Showing ${results.length.toLocaleString("en-IN")} ${words ? `${results.length === 1 ? "job" : "jobs"} for “${words}”` : `latest part-time ${results.length === 1 ? "job" : "jobs"}`} from ${count} ${count === 1 ? "source" : "sources"}`;
     }
     // Full Time: what is Looking for and where is the Location pill, both just above — the line counts.
     const what = effective.query.trim();
@@ -199,8 +202,11 @@ export function JobsBoard({ header, footer, refineTop, searchAs, empty, sourceSe
       {partTimeIdle ? (
         partTimeMiss ? (
           <EmptyState icon={<Search className="size-5" aria-hidden />} title={`Nothing found for “${partTimeMiss}”`} body="No source lists that right now. Try other words, or fewer of them." />
+        ) : partTimeMiss === "" ? (
+          // The empty box's latest jobs found none (in these places and job types): say so, never ask for words.
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title="No part-time jobs here yet" body="None of the latest listings fit your places and job types in Refine. Widen them, or type the work you want." />
         ) : (
-          <EmptyState icon={<Search className="size-5" aria-hidden />} title="Search for part-time work" body="Type the work you want — for example “weekend barista in Pune” or “freelance designer” — and press Search." />
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title="Search for part-time work" body="Press Search for the latest part-time jobs, or type the work you want — for example “weekend barista in Pune” — first." />
         )
       ) : results.length === 0 ? (
         searching && !savedOnly ? (
