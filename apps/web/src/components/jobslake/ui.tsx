@@ -13,7 +13,7 @@ import { Badge, StatusPill, type Tone } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Modal } from "@/components/common/Modal";
-import { Skeleton } from "@/components/common/States";
+import { WonderSearching } from "@/components/brand/WonderSearching";
 import { cn } from "@/lib/cn";
 
 export const API = "/api/jobs-lake/admin";
@@ -171,12 +171,12 @@ export function Meter({ label, value, hint, judged = true }: { label: string; va
   );
 }
 
+/** An admin page or panel still loading: the WonderWorks mark at work, the same as everywhere else in the app. */
 export function Loading({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading">
-      {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className="h-20 w-full rounded-[16px]" />
-      ))}
+    <div className="flex flex-col items-center justify-center gap-2 py-6" style={{ minHeight: `${Math.min(4 + rows * 4, 20)}rem` }} role="status" aria-busy="true" aria-label="Loading">
+      <WonderSearching size={rows > 1 ? 48 : 32} />
+      <p className="text-[12px] text-ink-3">Loading…</p>
     </div>
   );
 }
