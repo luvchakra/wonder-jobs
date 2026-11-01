@@ -11,6 +11,7 @@
  * - Devpost: its public hackathon list (open hackathons only), as projects with their submission deadline and prizes.
  * - Unstop: its public opportunity list (scholarships, hackathons, competitions for Indian students); paid ones are left out.
  * - EU Funding & Tenders: the portal's search API (public key SEDIA), open fellowship calls only (MSCA, ERA).
+ * - Opportunity Desk and Scholars4Dev: their public WordPress RSS feeds (one post, one opportunity, its stated deadline).
  * - Kaggle: its API's open competitions — needs KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
  * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
  * owner confirms their terms later; `statusReason` says what to confirm.
@@ -41,6 +42,14 @@ export const DEVPOST = "schol_devpost";
 export const UNSTOP = "schol_unstop";
 export const EU_FELLOWSHIPS = "schol_eu_msca";
 export const KAGGLE = "schol_kaggle";
+export const OPPORTUNITY_DESK = "schol_opportunity_desk";
+export const SCHOLARS4DEV = "schol_scholars4dev";
+
+/** Scholarship blogs' public WordPress RSS feeds: each post names one opportunity and states its deadline. */
+const FEEDS: Record<string, { url: string; name: string }> = {
+  [OPPORTUNITY_DESK]: { url: "https://opportunitydesk.org/category/fellowships-and-scholarships/feed/", name: "Opportunity Desk" },
+  [SCHOLARS4DEV]: { url: "https://www.scholars4dev.com/feed/", name: "Scholars4Dev" },
+};
 
 /** Kaggle's key, from the deployment or Admin → Settings → API (`platformKey`). */
 const kaggleAvailable = () => !!(platformKey("KAGGLE_USERNAME") && platformKey("KAGGLE_KEY"));
@@ -54,6 +63,8 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: DEVPOST, name: "Devpost hackathons", provider: "Devpost", category: "aggregator", geography: ["global", "remote"], statusReason: "terms pending: Devpost's public hackathon JSON is unauthenticated but its terms don't state reuse; confirm with Devpost", description: "Open hackathons (student-friendly projects with prizes) from Devpost's public hackathon list." }),
   source({ id: UNSTOP, name: "Unstop scholarships and competitions", provider: "Unstop", category: "aggregator", geography: ["IN"], statusReason: "terms pending: Unstop's public opportunity API has no published reuse terms; confirm with Unstop", description: "Open scholarships, hackathons and competitions for Indian students from Unstop's public opportunity list; paid ones are left out." }),
   source({ id: EU_FELLOWSHIPS, name: "EU Funding & Tenders: MSCA fellowships", provider: "European Commission", category: "portal", geography: ["global", "EU"], statusReason: "terms pending: the Funding & Tenders search API (public key SEDIA) is open, reuse under the Commission's reuse policy (CC BY 4.0) to confirm for this endpoint", description: "Open Marie Skłodowska-Curie fellowships for researchers from the EU Funding & Tenders portal's search API." }),
+  source({ id: OPPORTUNITY_DESK, name: "Opportunity Desk scholarships and fellowships", provider: "Opportunity Desk", category: "aggregator", geography: ["global"], statusReason: "terms pending: Opportunity Desk's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships and fellowships from Opportunity Desk's public RSS feed, each with the deadline its post states." }),
+  source({ id: SCHOLARS4DEV, name: "Scholars4Dev scholarships", provider: "Scholars4Dev", category: "aggregator", geography: ["global"], statusReason: "terms pending: Scholars4Dev's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "International scholarships from Scholars4Dev's public RSS feed, each with the deadline its post states." }),
   source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API." }),
 ];
 
@@ -272,6 +283,74 @@ export async function fetchEuFellowships(c: SearchCriteria): Promise<Job[]> {
   return finish(EU_FELLOWSHIPS, raws, c);
 }
 
+// ---- Scholarship blogs' RSS feeds -----------------------------------------------------------------------------
+
+const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+const entity = (x: string) => x.replace(/<!\[CDATA\[|\]\]>/g, "").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+const tag = (item: string, name: string) => entity(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`).exec(item)?.[1] ?? "").trim();
+
+/** "Deadline: December 14, 2026" / "Deadline: 15 Jan 2027 (annual)" → "2026-12-14"; "Unspecified" or none → undefined. */
+export function statedDeadline(text: string): string | undefined {
+  const m = new RegExp(`deadline[^:\\n]{0,30}:\\s*((?:\\d{1,2}\\s+(?:${MONTHS})[a-z]*\\.?,?\\s+\\d{4})|(?:(?:${MONTHS})[a-z]*\\.?\\s+\\d{1,2},?\\s+\\d{4}))`, "i").exec(text);
+  if (!m) return undefined;
+  const t = Date.parse(`${m[1].replace(/,/g, "")} 00:00:00 UTC`);
+  return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : undefined;
+}
+
+/** "X Scholarship at Sciences Po 2027 (Fully-funded)" → "Sciences Po"; otherwise the feed's own name. */
+export function providerFromTitle(title: string, fallback: string): string {
+  const m = /\b(?:at|by|from)\s+(?:the\s+)?(.+?)(?:\s+(?:spring|summer|fall|autumn|winter))?(?:\s+\d{4}(?:[–/-]\d{2,4})?)?(?:\s*\(.*\))?\s*$/i.exec(title);
+  const name = m?.[1]?.trim();
+  return name && name.length >= 3 && name.length <= 80 ? name : fallback;
+}
+
+/** One RSS item as a posting, or null for a round-up post ("Top 10 scholarships…") that names no single opportunity. */
+export function rawFromFeedItem(item: string, feed: { name: string }): RawPosting | null {
+  const title = tag(item, "title");
+  const link = tag(item, "link");
+  if (!title || !/^https:\/\//.test(link) || /^(top\s+)?\d+\+?\s|^(fully[- ]funded\s+)?(international\s+)?scholarships\s+(for|in)\b|\blist of\b|\bround-?up\b/i.test(title)) return null;
+  const html = tag(item, "content:encoded") || tag(item, "description");
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const deadline = statedDeadline(text);
+  const pub = Date.parse(tag(item, "pubDate"));
+  return {
+    externalId: link,
+    title,
+    company: providerFromTitle(title, feed.name),
+    location: "",
+    remote: false,
+    description: text.slice(0, 3000),
+    tags: [],
+    ...(Number.isFinite(pub) ? { postedAt: new Date(pub).toISOString() } : {}),
+    applyUrl: link,
+    employerSite: false,
+    attributes: { kind: /\bfellowship|\bscholar/i.test(title) || !isProjectLike(title) ? "scholarship" : "project", ...(deadline ? { deadline } : {}), officialUrl: link },
+  };
+}
+const isProjectLike = (t: string) => /\b(hackathon|challenge|competition|project)\b/i.test(t);
+
+export async function fetchFeed(id: string, c: SearchCriteria): Promise<Job[]> {
+  const feed = FEEDS[id];
+  const pages = await Promise.all([1, 2, 3].map(async (p, i) => {
+    try {
+      const res = await fetch(p === 1 ? feed.url : `${feed.url}?paged=${p}`, { headers: { accept: "application/rss+xml, application/xml", "user-agent": "WonderWorksBot/1.0 (+https://wonderjobs.app)" }, signal: AbortSignal.timeout(12_000) });
+      if (!res.ok) throw new Error(`${new URL(feed.url).host} responded ${res.status}`);
+      return await res.text();
+    } catch (e) {
+      if (i === 0) throw e;
+      return "";
+    }
+  }));
+  const items = pages.flatMap((x) => x.match(/<item>[\s\S]*?<\/item>/g) ?? []);
+  const seen = new Set<string>();
+  return finish(id, items.flatMap((it) => {
+    const raw = rawFromFeedItem(it, feed);
+    if (!raw || seen.has(raw.externalId)) return [];
+    seen.add(raw.externalId);
+    return [raw];
+  }), c);
+}
+
 // ---- Kaggle (needs a key) --------------------------------------------------------------------------------------
 
 interface KaggleCompetition {
@@ -341,6 +420,9 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
       return { jobs: await fetchUnstop(c), warnings: [] };
     case EU_FELLOWSHIPS:
       return { jobs: await fetchEuFellowships(c), warnings: [] };
+    case OPPORTUNITY_DESK:
+    case SCHOLARS4DEV:
+      return { jobs: await fetchFeed(s.id, c), warnings: [] };
     case KAGGLE:
       if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
