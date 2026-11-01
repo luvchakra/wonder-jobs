@@ -103,7 +103,16 @@ export async function crawlRecords(source, deps = {}) {
         try { found.push(...parseSitemap(await get(child, { origin: mapHost }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
       }
     } else found = top.urls;
-  } else found = pageLinks(first, source.url);
+  } else {
+    // A links crawl may name more index pages (a directory's ?page= pages): their links are pooled with the start
+    // page's, each fetched from the site's own host, a delay apart, allowed by robots.
+    found = pageLinks(first, source.url);
+    for (const extra of crawlTargets(source.extraUrls ?? [], { url: source.url, pathPrefix: "/" }, policy.rules)) {
+      if (now() - started > budget / 3) break;
+      await sleep(delayMs);
+      try { found.push(...pageLinks(await get(extra, { origin: host }), extra)); } catch { /* one index page missing doesn't stop the rest */ }
+    }
+  }
   const targets = crawlTargets(found, source, policy.rules);
   if (!targets.length) throw new ApiError(422, "INVALID_SOURCE", "No pages to crawl under the source's path");
 
