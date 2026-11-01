@@ -18,6 +18,8 @@ export interface SetupItem {
   /** What exactly is missing, in a line. */
   detail: string;
   action: { label: string; href: string };
+  /** A gateway step the Setup page can do in one press (owner, 2026-11-01): add from the catalogue, or test and activate. */
+  run?: { kind: "add"; file: string } | { kind: "activate"; sourceId: string };
   /** The countries the source serves (two-letter codes, "global", "remote"); empty when it doesn't say. */
   countries: string[];
   /** An owner decision (decisions.ts): marked done on the page instead of fixed elsewhere. */
@@ -63,7 +65,7 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
   for (const c of gw?.catalogue ?? []) {
     if (c.added) continue;
     const mod = c.modules[0] ?? "jobs";
-    items.push({ id: `catalogue:${c.file}`, name: c.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: c.geography, need: "add", detail: `Gateway catalogue (${c.kind}, ${c.host}): not added yet${c.termsPending ? " · terms pending" : ""}`, action: { label: "Add from catalogue", href: `${LAKE}/gateway` } });
+    items.push({ id: `catalogue:${c.file}`, name: c.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: c.geography, need: "add", detail: `Gateway catalogue (${c.kind}, ${c.host}): not added yet${c.termsPending ? " · terms pending" : ""}`, action: { label: "Add & activate", href: `${LAKE}/gateway` }, run: { kind: "add", file: c.file } });
   }
   for (const g of gw?.sources ?? []) {
     if (g.enabled) {
@@ -74,7 +76,7 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
       continue;
     }
     const mod = g.modules[0] ?? "jobs";
-    items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: g.geography, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` } });
+    items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: g.geography, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` }, run: { kind: "activate", sourceId: g.id } });
   }
   const order: SetupNeed[] = ["decision", "key", "terms", "add", "activate", "connection", "other"];
   items.sort((a, b) => order.indexOf(a.need) - order.indexOf(b.need) || a.moduleLabel.localeCompare(b.moduleLabel) || a.name.localeCompare(b.name));
