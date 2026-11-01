@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
-import { collectGatewaySource, gatewayOverview, registerPartner, setGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
+import { collectGatewaySource, gatewayOverview, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,12 +42,23 @@ export async function POST(req: Request) {
     await audit(a.actor, "gateway.partner_registered", undefined, { name: p.name, module: p.module, ok: r.status === 201 });
     return json(r.body, r.status);
   }
+  if (action === "add_catalogue") {
+    const file = typeof body?.file === "string" ? body.file.slice(0, 80) : "";
+    const r = await registerFromCatalogue(file);
+    await audit(a.actor, "gateway.catalogue_added", undefined, { file, ok: r.status === 201 });
+    return json(r.body, r.status);
+  }
   if (!sourceId) return jlError("INVALID_REQUEST", "Name the gateway source.", 400);
   if (action === "upload") {
     const format = body?.format === "json" ? "json" : body?.format === "csv" ? "csv" : null;
     if (!format || typeof body?.content !== "string") return jlError("INVALID_REQUEST", "Upload a CSV or JSON file.", 400);
     const r = await uploadPartnerList(sourceId, format, body.content);
     await audit(a.actor, "gateway.partner_uploaded", sourceId, { ok: r.body.ok === true, rows: r.body.rows, valid: r.body.valid });
+    return json(r.body, r.status);
+  }
+  if (action === "test") {
+    const r = await testGatewaySource(sourceId);
+    await audit(a.actor, "gateway.test", sourceId, { ok: r.status === 200 });
     return json(r.body, r.status);
   }
   if (action === "activate" || action === "pause") {

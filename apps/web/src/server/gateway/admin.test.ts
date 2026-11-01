@@ -69,3 +69,25 @@ describe("partner uploads", () => {
     expect(r.status).toBe(403);
   });
 });
+
+describe("the source catalogue", () => {
+  it("lists every reviewed source file shipped with the gateway", async () => {
+    const { readdirSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { CATALOGUE } = await import("./catalogue");
+    const files = readdirSync(join(__dirname, "../../../../data-gateway/sources")).filter((f) => f.endsWith(".json"));
+    expect(Object.keys(CATALOGUE).sort()).toEqual(files.sort());
+  });
+
+  it("adds a catalogue source paused, once, and marks it added", async () => {
+    vi.stubEnv("GATEWAY_ADMIN_TOKEN", "a".repeat(40));
+    vi.stubEnv("GATEWAY_CURSOR_SECRET", "c".repeat(40));
+    const { registerFromCatalogue } = await import("./admin");
+    expect((await registerFromCatalogue("nope.json")).status).toBe(404);
+    const r = await registerFromCatalogue("osm-calendar.json");
+    expect(r.status).toBe(201);
+    const o = await gatewayOverview();
+    expect(o.catalogue.find((e) => e.file === "osm-calendar.json")).toMatchObject({ added: true, modules: ["events"], host: "osmcal.org" });
+    expect(o.sources.find((s) => s.host === "osmcal.org")).toMatchObject({ enabled: false });
+  });
+});
