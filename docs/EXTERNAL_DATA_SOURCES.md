@@ -404,3 +404,10 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 - **For modules:** `server/gateway/listings.ts::gatewayListings(module, { query, places })` gives a module its active, unexpired gateway listings with their attributes and source names, in process. The Events module (its own session) decides how to show them.
 - A collection pass stops starting new sources after 35 s; the rest stay due for the next pass.
 
+### 13.7 Partner uploads (2026-11-01)
+
+- **Who:** a partner that gave written permission (an association, a cooperative, a placement cell). Admin → Platform → WorksLake → Gateway → **Add a partner**: name, https website, module, the permission and where it's kept. People modules (Therapists, Co-founders, Services, Marketplace) also need the partner's confirmation that every person opted in.
+- **The file:** CSV or JSON (array or `{ items }`), ≤2 MB, ≤5,000 rows, one template (**Download the template**): `id, title, organization, url, town, region, country, description, posted_at, organization_url`, plus any `attr_<name>` column kept as the listing's own field (e.g. `attr_starts_at` for an event). `title` and `url` (https) are required; `id` defaults to the url.
+- **Upload:** **Upload list** on the partner's row in Sources. Rows are checked like any source's records; only an upload where ≥90% of rows read well replaces the partner's listings (repeats and past items aside). Otherwise nothing changes and the first five problems are shown. A partner refreshes its list by uploading again.
+- **Serving:** registered paused; **Activate** after a good upload. Its listings flow into its module through the module's WorksLake gateway source like any other gateway listing. The scheduler never fetches an upload source.
+

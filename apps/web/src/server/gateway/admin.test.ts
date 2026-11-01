@@ -5,7 +5,8 @@ vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant:
 import { resetTablesForTests } from "@/server/db/table";
 import { resetGatewayListingsForTests } from "./store";
 import { hostedGateway } from "./index";
-import { collectGatewaySource, gatewayOverview } from "./admin";
+import { collectGatewaySource, gatewayOverview, registerPartner, setGatewaySource, uploadPartnerList } from "./admin";
+import { gatewayListings } from "./listings";
 
 beforeEach(() => {
   resetTablesForTests();
@@ -40,5 +41,31 @@ describe("the gateway admin overview", () => {
     expect(o.last24h).toEqual({ runs: 2, ok: 1, failed: 1, collected: 5 });
     // No secrets in what the page gets.
     expect(JSON.stringify(o)).not.toMatch(/hash|permissionEvidence|wlg_/);
+  });
+});
+
+describe("partner uploads", () => {
+  it("registers a partner, keeps only a good upload, and serves it in its own module once active", async () => {
+    vi.stubEnv("GATEWAY_ADMIN_TOKEN", "a".repeat(40));
+    vi.stubEnv("GATEWAY_CURSOR_SECRET", "c".repeat(40));
+    const reg = await registerPartner({ name: "Pune Teachers Circle", website: "https://teachers.example.org", module: "teaching", permissionEvidence: "Email from the secretary, 1 Nov 2026", consentVerified: false });
+    expect(reg.status).toBe(201);
+    const id = String((reg.body as { id: string }).id);
+    const bad = await uploadPartnerList(id, "csv", "title,url\nMaths teacher,http://x.example.org/1\n");
+    expect(bad.body).toMatchObject({ ok: false, kept: null });
+    const csv = "id,title,organization,url,town,region,country\nm1,Maths teacher,Sunrise School,https://teachers.example.org/m1,Pune,Maharashtra,India\n";
+    expect((await uploadPartnerList(id, "csv", csv)).body).toMatchObject({ ok: true, rows: 1, valid: 1, kept: 1 });
+    expect((await setGatewaySource(id, "activate")).status).toBe(200);
+    const served = await gatewayListings("teaching", { query: "maths" });
+    expect(served.results.map((r) => r.title)).toEqual(["Maths teacher"]);
+    expect((await gatewayListings("jobs", { query: "maths" })).results).toEqual([]);
+    expect((await gatewayOverview()).sources.find((s) => s.id === id)).toMatchObject({ kind: "upload", name: "Pune Teachers Circle", listings: 1 });
+  });
+
+  it("refuses a people module without the partner's confirmation that each person opted in", async () => {
+    vi.stubEnv("GATEWAY_ADMIN_TOKEN", "a".repeat(40));
+    vi.stubEnv("GATEWAY_CURSOR_SECRET", "c".repeat(40));
+    const r = await registerPartner({ name: "Calm Minds", website: "https://calm.example.org", module: "therapists", permissionEvidence: "Signed letter, 1 Nov 2026", consentVerified: false });
+    expect(r.status).toBe(403);
   });
 });

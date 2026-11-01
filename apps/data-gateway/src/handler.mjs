@@ -1,5 +1,6 @@
 import { ApiError, MODULES, RateLimiter, logRun, pushAudit, searchPlan, searchResponse, stateListings, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, recordUsage, checkScope } from "./core.mjs";
 import { fetchRecords } from "./collect.mjs";
+import { uploadListings } from "./upload.mjs";
 import { OPENAPI } from "./openapi.mjs";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
@@ -7,9 +8,9 @@ const MAX_BODY = 65536;
 
 const reply = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...JSON_HEADERS, ...extra } });
 
-async function readBody(request) {
+async function readBody(request, max = MAX_BODY) {
   const text = await request.text();
-  if (text.length > MAX_BODY) throw new ApiError(413, "TOO_LARGE", "Request too large");
+  if (text.length > max) throw new ApiError(413, "TOO_LARGE", "Request too large");
   try { return JSON.parse(text); } catch { throw new ApiError(400, "BAD_JSON", "Valid JSON body required"); }
 }
 function publicListing(x) {
@@ -49,6 +50,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     try {
       const source = await store.read((s) => s.sources.find((src) => src.id === sourceId));
       if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+      if (source.kind === "upload") throw new ApiError(409, "UPLOAD_SOURCE", "This source is filled by uploading the partner's file");
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
       const report = await fetchRecords(source);
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
@@ -93,7 +95,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
   async function collectDue(budgetMs = 35000) {
-    const due = await store.read((s) => s.sources.filter((x) => x.enabled && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
+    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
     for (const sourceId of due) {
@@ -140,6 +142,30 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         if (method === "POST" && p[2] === "sources" && p.length === 5) {
           const id = p[3], action = p[4];
           if (action === "test" || action === "refresh") return reply(200, await collectOne(id, action === "test"));
+          if (action === "upload") {
+            // A partner's list, uploaded by an admin: checked like any source's records, then it replaces the partner's
+            // listings. The check counts as the source's test (so it can be activated after a good upload).
+            const { format, content } = await readBody(request, 2_200_000) ?? {};
+            const source = await store.read((s) => s.sources.find((x) => x.id === id));
+            if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+            if (source.kind !== "upload") throw new ApiError(409, "NOT_AN_UPLOAD_SOURCE", "Only a partner upload source takes a file");
+            const startedAt = Date.now();
+            const report = uploadListings(source, format, content);
+            const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
+            // A failed upload changes nothing the partner already has; only a good one replaces it.
+            const kept = ok ? await listings.replace(id, report.results, false) : null;
+            const at = new Date().toISOString();
+            await store.change((s) => {
+              const src = s.sources.find((x) => x.id === id);
+              if (!src) return;
+              src.lastTest = { at, ok, discovered: report.discovered, valid: report.valid };
+              if (ok) src.lastSuccessAt = at;
+              src.lastError = ok ? null : "UPLOAD_QUALITY";
+              pushAudit(s, { at, action: "source.uploaded", target: id, rows: report.rows, valid: report.valid });
+              logRun(s, { at, sourceId: id, trigger: "upload", ok, discovered: report.discovered, valid: report.valid, kept, ms: Date.now() - startedAt });
+            });
+            return reply(200, { ok, rows: report.rows, valid: report.valid, discovered: report.discovered, repeats: report.repeats, kept, columns: report.columns, problems: report.problems });
+          }
           if (action === "update") {
             // Changes how an existing source is read (its mapping, attribution, pages per run) and keeps its id, so its
             // listings keep theirs. Everything is validated again, as when it was registered.
