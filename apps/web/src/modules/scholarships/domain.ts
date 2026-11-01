@@ -370,7 +370,7 @@ export interface StudentProfile {
   level?: Level;
   field: string;
   institution: string;
-  /** A state, or a state and country. */
+  /** A state, or a state and country (optional: nothing is ever limited by place). */
   region: string;
   /** Latest marks, in percent. */
   marks?: number;
@@ -390,7 +390,6 @@ export function missingProfile(p: StudentProfile | undefined): string[] {
   if (!p?.level) out.push("level");
   if (!p?.field.trim()) out.push("course or field");
   if (!p?.institution.trim()) out.push("school or college");
-  if (!p?.region.trim()) out.push("state and country");
   if (p?.level === "school" && !p.guardianConsent) out.push("a parent's or guardian's consent");
   return out;
 }
@@ -403,7 +402,7 @@ export function cleanProfile(raw: unknown): { value: StudentProfile } | { proble
   const field = text(r.field, 160);
   const institution = text(r.institution, 160);
   const region = text(r.region, 160);
-  if (!field || !institution || !region) return { problem: "Add your course or field, your school or college, and your state and country." };
+  if (!field || !institution) return { problem: "Add your course or field, and your school or college." };
   const marks = r.marks == null || r.marks === "" ? undefined : int(r.marks, 0, 100);
   if (r.marks != null && r.marks !== "" && marks === undefined) return { problem: "Marks should be a percentage (0 to 100)." };
   if (level === "school" && r.guardianConsent !== true) return { problem: "Class 9–12 students need a parent's or guardian's consent first." };

@@ -141,6 +141,11 @@ describe("the student's profile", () => {
     expect(cleanProfile({ ...base, sensitiveConsent: true })).toMatchObject({ value: { sensitiveConsent: true, incomeBand: 300000, gender: "female", category: "OBC" } });
   });
 
+  it("never needs a place: state and country are optional", () => {
+    expect(cleanProfile({ level: "ug", field: "Physics", institution: "MIT" })).toEqual({ value: { level: "ug", field: "Physics", institution: "MIT", region: "" } });
+    expect(missingProfile({ level: "ug", field: "Physics", institution: "MIT", region: "" })).toEqual([]);
+  });
+
   it("needs a parent's or guardian's consent for Class 9–12", () => {
     const school = { level: "school", field: "Science", institution: "KV Pune", region: "Maharashtra" };
     expect(cleanProfile(school)).toMatchObject({ problem: expect.stringMatching(/guardian/) });

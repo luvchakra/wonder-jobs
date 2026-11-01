@@ -62,6 +62,13 @@ describe("its own WorksLake dataset", () => {
     await searchScholarships({ query: "", places: [] });
     expect(worksLake.run.mock.calls[0][0]).toMatchObject({ module: "scholarships", query: { text: "" } });
   });
+
+  it("is worldwide: a place is never applied (owner, 2026-11-01)", async () => {
+    worksLake.run.mockResolvedValue({ response: { results: [], sources: [] }, plan: { skipped: [] } });
+    const r = await searchScholarships({ query: "engineering", places: ["Pune"] });
+    expect(worksLake.run.mock.calls[0][0].query.locations).toEqual([]);
+    expect(r.searched.places).toEqual([]);
+  });
 });
 
 describe("outside listings", () => {

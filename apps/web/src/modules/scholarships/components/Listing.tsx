@@ -284,7 +284,7 @@ function ApplySheet({ listing: l, sheet, onClose, onSend }: { listing: Scholarsh
           <Field label="School or college" htmlFor="sa-inst" required>
             <Input id="sa-inst" value={p.institution} onChange={(e) => setP({ institution: e.target.value })} />
           </Field>
-          <Field label="State and country" htmlFor="sa-region" required>
+          <Field label="State and country (optional)" htmlFor="sa-region">
             <Input id="sa-region" value={p.region} onChange={(e) => setP({ region: e.target.value })} />
           </Field>
         </div>
