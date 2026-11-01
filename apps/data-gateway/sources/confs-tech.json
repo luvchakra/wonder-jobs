@@ -70,7 +70,10 @@
   "mapping": {
     "id": "url",
     "title": "name",
-    "location": "city",
+    "location": [
+      "city",
+      "country"
+    ],
     "applyUrl": "url",
     "attr.startDate": "startDate",
     "attr.endDate": "endDate",

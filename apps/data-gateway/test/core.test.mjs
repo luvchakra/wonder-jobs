@@ -145,3 +145,14 @@ test("a query's words each match on their own, in any order", () => {
   assert.equal(matchesWords("WeAreDevelopers Conference India", "tech conference"), false, "every word must appear");
   assert.equal(matchesWords("anything", ""), true);
 });
+import { countryName } from "../src/core.mjs";
+test("a place can combine town, region and country; a country code reads as its name", () => {
+  assert.equal(countryName("GB"), "United Kingdom");
+  assert.equal(countryName("IN"), "India");
+  assert.equal(countryName("East Midlands"), "East Midlands");
+  const src = validateSource(permitted({ mapping: { id: "id", title: "title", employer: "employer", applyUrl: "url", location: ["loc.town", "loc.region", "loc.country"] } }));
+  const got = normalize(src, posting({ loc: { town: "Countesthorpe", region: "East Midlands", country: "GB" } }), "jobs");
+  assert.equal(got.location, "Countesthorpe, East Midlands, United Kingdom");
+  assert.equal(normalize(src, posting({ loc: { town: "London", region: "London", country: "GB" } }), "jobs").location, "London, United Kingdom", "a repeated part shows once");
+  assert.throws(() => validateSource(permitted({ mapping: { title: ["a", "b", "c", "d", "e", "f"] } })), /up to 5/);
+});

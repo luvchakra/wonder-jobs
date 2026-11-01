@@ -15,7 +15,11 @@
     "id": "url",
     "title": "title",
     "employer": "hiringOrganization.name",
-    "location": "jobLocation.address.addressLocality",
+    "location": [
+      "jobLocation.address.addressLocality",
+      "jobLocation.address.addressRegion",
+      "jobLocation.address.addressCountry"
+    ],
     "description": "description",
     "applyUrl": "url",
     "postedAt": "datePosted"
