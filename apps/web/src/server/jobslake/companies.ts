@@ -16,6 +16,8 @@ export interface CompanyStore {
   upsert(records: CompanyRecord[]): Promise<void>;
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
+  /** Only what serving a logo needs (domain, logo, when it was looked for): by domain, else by name key. Never the facts. */
+  logoFor(q: { domain?: string; nameKey?: string }): Promise<Pick<CompanyRecord, "domain" | "logo" | "logoCheckedAt"> | undefined>;
   /** The directory, most open roles first: a page of companies matching `q` (name or domain), and how many match. No logo bytes. */
   list(q: string, limit: number, offset: number, opts?: { missingLogo?: boolean }): Promise<{ total: number; rows: CompanyRecord[] }>;
   /** The companies with any of these domains or name keys — facts only, no logos. */
@@ -82,6 +84,10 @@ class MemoryCompanies implements CompanyStore {
   }
   async facts(domains: string[], nameKeys: string[]) {
     return [...this.rows.values()].filter((r) => domains.includes(r.domain) || nameKeys.includes(r.nameKey));
+  }
+  async logoFor(q: { domain?: string; nameKey?: string }) {
+    const r = (q.domain ? this.rows.get(q.domain) : undefined) ?? (q.nameKey ? await this.byName(q.nameKey) : undefined);
+    return r ? { domain: r.domain, logo: r.logo, logoCheckedAt: r.logoCheckedAt } : undefined;
   }
   async byName(nameKey: string) {
     return [...this.rows.values()].filter((r) => r.nameKey === nameKey).sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt))[0];
@@ -186,6 +192,19 @@ class SupabaseCompanies implements CompanyStore {
     if (a.error || b.error) throw new Error((a.error ?? b.error)!.message);
     return [...(a.data ?? []), ...(b.data ?? [])].map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row));
   }
+  async logoFor(q: { domain?: string; nameKey?: string }) {
+    const cols = "domain, logo, logo_type, logo_from, logo_checked_at";
+    const pick = (r: Partial<Row> | null | undefined) => (r ? fromRow({ name: "", name_key: "", sources: [], first_seen_at: "", last_seen_at: "", ...r } as Row) : undefined);
+    if (q.domain) {
+      const { data, error } = await this.sb().select(cols).eq("domain", q.domain).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (data) return pick(data as Partial<Row>);
+    }
+    if (!q.nameKey) return undefined;
+    const { data, error } = await this.sb().select(cols).eq("name_key", q.nameKey).order("last_seen_at", { ascending: false }).limit(1);
+    if (error) throw new Error(error.message);
+    return pick(data?.[0] as Partial<Row> | undefined);
+  }
   async byName(nameKey: string) {
     const { data, error } = await this.sb().select("*").eq("name_key", nameKey).order("last_seen_at", { ascending: false }).limit(1);
     if (error) throw new Error(error.message);
@@ -272,6 +291,7 @@ export function companyStore(): CompanyStore {
 /** Tests only. */
 export function __setCompanyStore(s: CompanyStore | undefined) {
   g.__companyStore = s;
+  LOGO_CACHE.clear();
 }
 export { MemoryCompanies as __MemoryCompanies };
 
@@ -382,21 +402,58 @@ export async function fetchLogo(domain: string, fetcher: typeof fetch): Promise<
 }
 
 /**
- * The cached logo for a company WorksLake knows — by its domain, else by its name — fetched and stored the
- * first time it's asked for (and again after LOGO_TTL_MS). Undefined when WorksLake doesn't know the
- * company; null when it has no logo.
+ * Logos already served, kept in this instance's memory so a page of cards doesn't read the directory once per card: a
+ * company logo is public and shared by every module, never tenant data. Bounded (entries and bytes) and short-lived,
+ * and dropped the moment an admin changes that company's logo.
+ */
+const LOGO_CACHE = new Map<string, { at: number; domain: string; logo: { data: Buffer; type: string } }>();
+const LOGO_CACHE_MS = 10 * 60_000;
+const LOGO_CACHE_MAX = 500;
+const LOGO_CACHE_BYTES = 12_000_000;
+let logoCacheBytes = 0;
+function cacheLogo(keys: string[], domain: string, logo: { data: Buffer; type: string }, now: number) {
+  for (const k of keys) {
+    const old = LOGO_CACHE.get(k);
+    if (old) logoCacheBytes -= old.logo.data.length;
+    LOGO_CACHE.set(k, { at: now, domain, logo });
+    logoCacheBytes += logo.data.length;
+  }
+  for (const [k, v] of LOGO_CACHE) {
+    if (LOGO_CACHE.size <= LOGO_CACHE_MAX && logoCacheBytes <= LOGO_CACHE_BYTES) break;
+    LOGO_CACHE.delete(k);
+    logoCacheBytes -= v.logo.data.length;
+  }
+}
+function forgetLogo(domain: string) {
+  for (const [k, v] of LOGO_CACHE) if (v.domain === domain) { LOGO_CACHE.delete(k); logoCacheBytes -= v.logo.data.length; }
+}
+
+/**
+ * The cached logo for a company WorksLake knows — by its domain, else by its name — from the one company directory every
+ * module shares, so a company is stored and fetched once however many modules show it. Looked for the first time it's
+ * asked for (and again after LOGO_TTL_MS) when the directory refresh hasn't already. Undefined when WorksLake doesn't
+ * know the company; null when it has no logo.
  */
 export async function companyLogo(q: { domain?: string; name?: string }, now = Date.now(), fetcher: typeof fetch = fetch): Promise<{ data: Buffer; type: string } | null | undefined> {
-  const store = companyStore();
   const domain = cleanDomain(q.domain);
-  const company = (domain ? await store.byDomain(domain) : undefined) ?? (q.name ? await store.byName(companyKey(q.name)) : undefined);
+  const nameKey = q.name ? companyKey(q.name) : "";
+  const keys = [...(domain ? [`d:${domain}`] : []), ...(nameKey ? [`n:${nameKey}`] : [])];
+  for (const k of keys) {
+    const hit = LOGO_CACHE.get(k);
+    if (hit && now - hit.at < LOGO_CACHE_MS) return hit.logo;
+  }
+  const store = companyStore();
+  const company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
   if (!company) return undefined;
   let logo = company.logo;
   if (!logo && (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS)) {
     logo = await fetchLogo(company.domain, fetcher);
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
-  return logo ? { data: Buffer.from(logo.data, "base64"), type: logo.type } : null;
+  if (!logo) return null;
+  const served = { data: Buffer.from(logo.data, "base64"), type: logo.type };
+  cacheLogo([...keys, `d:${company.domain}`], company.domain, served, now);
+  return served;
 }
 
 /** A company's profile by the domain a source reported, else by its exact (normalized) name; undefined when WorksLake knows nothing. */
@@ -511,6 +568,7 @@ export async function adminLogo(
   const d = cleanDomain(domain);
   if (!d || !(await store.byDomain(d))) return { ok: false, message: "No such company in the directory." };
   const at = new Date(now).toISOString();
+  forgetLogo(d);
   if (action.kind === "clear") {
     await store.replaceLogo(d, null, at);
     return { ok: true, message: "Logo removed. Cards show the initial until a new one is set." };

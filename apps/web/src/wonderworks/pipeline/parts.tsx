@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Chip } from "@/components/common/Input";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge, type Tone } from "@/components/common/Badge";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";

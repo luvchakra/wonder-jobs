@@ -2,7 +2,7 @@
 import { htmlToText, looksLikeHtml } from "@/services/jobs/normalize";
 import { useState } from "react";
 import { Bell, Bookmark, Building2, CheckCircle2, Clock, Lock, MapPin, Send, Sparkles, Wallet } from "lucide-react";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge } from "@/components/common/Badge";
 import { Card } from "@/components/common/Card";
 import { Tabs } from "@/components/common/Tabs";

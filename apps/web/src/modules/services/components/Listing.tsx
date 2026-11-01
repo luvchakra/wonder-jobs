@@ -2,7 +2,7 @@
 import { memo } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Star } from "lucide-react";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { Badge } from "@/components/common/Badge";
 import { shortPlace } from "@/wonderworks/find/place";
 import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";

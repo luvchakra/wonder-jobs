@@ -8,7 +8,7 @@ import { useJobsStore } from "@/store/jobs";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { EmptyState, PageLoading } from "@/components/common/States";
-import { CompanyLogo } from "@/components/common/Avatar";
+import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 
 /**
  * Compare 2–4 opportunities side by side (outcome spec §13). Every cell is a job's own computed

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanDomain, companyKey, employerDomainOf } from "@/domain/jobslake/companies";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { __MemoryCompanies, __setCompanyStore, companiesFrom, companyLogo, LOGO_TTL_MS, recordCompanies } from "./companies";
+import { __MemoryCompanies, __setCompanyStore, adminLogo, companiesFrom, companyLogo, LOGO_TTL_MS, recordCompanies } from "./companies";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, ...new Array(400).fill(1)]);
 const opp = (name: string, domain: string | undefined, applyUrl: string, employerSite = true, sourceId = "greenhouse") =>
@@ -79,5 +79,21 @@ describe("icons a home page declares", () => {
     const { iconLinks } = await import("./companies");
     const html = `<link rel="icon" href="/f.png" sizes="32x32"><link rel="apple-touch-icon" href="/t.png" sizes="180x180"><link rel="icon" href="https://evil.example/x.png"><link rel="icon" href="http://169.254.169.254/x.png"><link rel="stylesheet" href="/a.css">`;
     expect(iconLinks(html, "https://www.acme.com/", "acme.com")).toEqual(["https://www.acme.com/t.png", "https://www.acme.com/f.png"]);
+  });
+});
+
+describe("logos served to every module's cards", () => {
+  it("reads only the logo columns, then serves a page of cards from memory, and forgets a logo an admin changes", async () => {
+    await recordCompanies([opp("IBM", "ibm.com", "https://x", false)]);
+    const fetcher = vi.fn(async () => new Response(PNG, { status: 200 }));
+    await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch);
+    const reads = vi.spyOn(store, "logoFor");
+    const full = vi.spyOn(store, "byDomain");
+    for (let i = 0; i < 20; i++) expect((await companyLogo({ domain: "https://www.ibm.com/careers", name: "IBM" }, Date.now(), fetcher as unknown as typeof fetch))?.type).toBe("image/png");
+    expect(reads).not.toHaveBeenCalled();
+    expect(full).not.toHaveBeenCalled();
+    await adminLogo("ibm.com", { kind: "clear" }, Date.now(), fetcher as unknown as typeof fetch, store);
+    expect(await companyLogo({ domain: "ibm.com" }, Date.now(), fetcher as unknown as typeof fetch)).toBeNull();
+    expect(reads).toHaveBeenCalledTimes(1);
   });
 });
