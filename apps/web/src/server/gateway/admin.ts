@@ -11,6 +11,8 @@ export interface GatewaySourceRow {
   enabled: boolean;
   /** Its permission evidence says its terms are still to be confirmed by the owner. */
   termsPending: boolean;
+  /** The countries it covers (two-letter codes, "global" or "remote"), as its definition states. */
+  geography: string[];
   listings: number;
   lastSuccessAt: string | null;
   lastError: string | null;
@@ -57,6 +59,7 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
         host: (() => { try { return new URL(String(x.url)).hostname; } catch { return ""; } })(),
         enabled: x.enabled === true,
         termsPending: /terms pending/i.test(String(x.permissionEvidence ?? "")),
+        geography: Array.isArray(x.geography) ? (x.geography as string[]) : [],
         listings: counts.get(String(x.id)) ?? 0,
         lastSuccessAt: str(x.lastSuccessAt),
         lastError: str(x.lastError),

@@ -4,6 +4,7 @@
   "discover": "sitemap",
   "pathPattern": "/*/",
   "modules": ["events"],
+  "geography": ["global"],
   "permission": "terms_permit",
   "permissionEvidence": "events.linuxfoundation.org/robots.txt (read 2026-11-01) allows every path but /wp/wp-admin/, lists this sitemap and signals search=yes, ai-input=yes, ai-train=no (nothing here trains a model); each event's own page (one path segment deep) publishes schema.org Event JSON-LD. Terms pending: the owner confirms before activating.",
   "termsReviewed": true,
