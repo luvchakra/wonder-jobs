@@ -37,10 +37,23 @@ const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
 const ref = (name: string) => `platform:${name}`;
 const TTL = 60_000;
 let cache: { at: number; values: Record<string, string> } | null = null;
+// One read at a time: a page that resolves 100+ sources at once used to start 100+ reads of every key in parallel, and
+// the burst failed ("fetch failed"). Concurrent callers now share the read in flight.
+let inflight: Promise<void> | null = null;
 
 /** Reads the admin's keys into memory (at most once a minute; a failed read keeps what was there). */
-export async function loadPlatformKeys(now = Date.now(), force = false): Promise<void> {
-  if (!force && cache && now - cache.at < TTL) return;
+export function loadPlatformKeys(now = Date.now(), force = false): Promise<void> {
+  if (!force && cache && now - cache.at < TTL) return Promise.resolve();
+  // A forced read (right after a key was saved) never reuses a read that started before the save.
+  if (force) return readKeys(now);
+  if (inflight) return inflight;
+  inflight = readKeys(now).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function readKeys(now: number): Promise<void> {
   const store = jobsLakeStore();
   const values: Record<string, string> = {};
   try {

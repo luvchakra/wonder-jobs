@@ -173,10 +173,16 @@ export function qualityFrom(opps: CanonicalOpportunity[], health: Record<string,
 /* ----------------------------------------------------- overview / alerts */
 
 /** A module's stored listings from the last `days` (each module has its own pool; Jobs' by default). */
-export async function poolSince(days = 7, module: ModuleId = "jobs") {
+export async function poolSince(days = 7, module: ModuleId = "jobs", limit = QUALITY_SAMPLE) {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  return { since, opps: await jobsLakeStore().listOpportunities({ sinceIso: since, limit: 5000, module }) };
+  return { since, opps: await jobsLakeStore().listOpportunities({ sinceIso: since, limit, module }) };
 }
+
+/**
+ * Data → Quality measures the newest listings, not all of them: reading Jobs' 8,000+ stored documents ran past the
+ * database's statement timeout (2026-11-01). The page says it's the newest QUALITY_SAMPLE.
+ */
+export const QUALITY_SAMPLE = 1000;
 
 export async function coverageView(days = 7, module: ModuleId = "jobs"): Promise<CoverageView> {
   const [{ since, opps }, sources] = await Promise.all([poolSince(days, module), listSources(module)]);
@@ -257,8 +263,10 @@ export function moduleOverview(views: SourceView[], runs: { sourceId: string; ou
 
 export async function overviewView(): Promise<OverviewView> {
   const store = jobsLakeStore();
-  const [status, views, runs, { opps }, alerts] = await Promise.all([store.status(), listAllSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), poolSince(7), alertsView()]);
-  const q = qualityFrom(opps, {}, new Map());
+  // The pool is counted, not read: reading Jobs' week of listings (8,000+ documents) to count them ran past the
+  // database's statement timeout and left the Overview loading (2026-11-01). Its quality shares are on Data → Quality.
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const [status, views, runs, opportunities, alerts] = await Promise.all([store.status(), listAllSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), store.countOpportunities({ sinceIso: since, module: "jobs" }), alertsView()]);
   const live = views.filter((v) => v.status === "active" || v.status === "degraded");
   return {
     store: status,
@@ -283,7 +291,7 @@ export async function overviewView(): Promise<OverviewView> {
       retrieved: runs.reduce((a, r) => a + r.retrieved, 0),
       valid: runs.reduce((a, r) => a + r.valid, 0),
     },
-    pool: { opportunities: opps.length, employerVerified: q.employerVerified, multiSource: q.multiSource },
+    pool: { opportunities, employerVerified: null, multiSource: null },
     alerts,
     modules: moduleOverview(views, runs),
     recentRuns: runs.slice(0, 10),

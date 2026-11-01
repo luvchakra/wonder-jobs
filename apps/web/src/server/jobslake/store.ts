@@ -59,6 +59,8 @@ export interface JobsLakeStore {
   upsertOpportunities(opps: CanonicalOpportunity[], module?: ModuleId): Promise<void>;
   getOpportunity(id: string, module?: ModuleId): Promise<CanonicalOpportunity | undefined>;
   listOpportunities(opts?: { limit?: number; sinceIso?: string; module?: ModuleId }): Promise<CanonicalOpportunity[]>;
+  /** How many listings a module holds (observed since `sinceIso`), counted in the database without reading them. */
+  countOpportunities(opts?: { sinceIso?: string; module?: ModuleId }): Promise<number>;
   getCachedAnswers(keys: string[]): Promise<CachedAnswer[]>;
   putCachedAnswers(entries: CachedAnswer[]): Promise<void>;
   /** Drops answers fetched before `beforeIso`; returns how many. */
@@ -136,6 +138,9 @@ class MemoryStore implements JobsLakeStore {
       .filter((o) => !opts.sinceIso || o.freshness.lastObservedAt >= opts.sinceIso)
       .sort((a, b) => b.freshness.lastObservedAt.localeCompare(a.freshness.lastObservedAt))
       .slice(0, opts.limit ?? 500);
+  }
+  async countOpportunities(opts: { sinceIso?: string; module?: ModuleId } = {}) {
+    return [...this.pool(opts.module ?? "jobs").values()].filter((o) => !opts.sinceIso || o.freshness.lastObservedAt >= opts.sinceIso).length;
   }
   async getCachedAnswers(keys: string[]) {
     return keys.flatMap((k) => (this.answers.has(k) ? [structuredClone(this.answers.get(k)!)] : []));
@@ -290,6 +295,16 @@ class SupabaseStore implements JobsLakeStore {
     const { data, error } = await q;
     if (error) this.fail("load the warm pool", error);
     return (data ?? []).map((r) => r.data as CanonicalOpportunity);
+  }
+  async countOpportunities(opts: { sinceIso?: string; module?: ModuleId } = {}) {
+    const fb = await this.ready();
+    if (fb) return fb.countOpportunities(opts);
+    // An index-only count on (module, last_observed_at): ~0.1 s, where reading the listings to count them took 15 s+.
+    let q = this.sb().from("jobslake_opportunities").select("id", { count: "exact", head: true }).eq("module", opts.module ?? "jobs");
+    if (opts.sinceIso) q = q.gte("last_observed_at", opts.sinceIso);
+    const { count, error } = await q;
+    if (error) this.fail("count the warm pool", error);
+    return count ?? 0;
   }
   async getCachedAnswers(keys: string[]) {
     const fb = await this.ready();
