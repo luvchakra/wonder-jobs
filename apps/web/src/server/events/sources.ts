@@ -50,7 +50,9 @@ export const EVENTS_SOURCES: SourceRecord[] = [
     category: "aggregator",
     geography: ["global", "IN"],
     description: "Developer conferences worldwide with their dates, place, own page and call for papers, from the public list its maintainers publish (developers.events). No key.",
-    status: "active",
+    // Paused until the owner confirms the terms (CLAUDE.md "Finding data sources"); then Activate in the admin.
+    status: "paused",
+    statusReason: "Terms pending: developers.events publishes its list as public JSON but states no licence; confirm its reuse (or ask the maintainers) before activating.",
     roleFamilies: [],
     config: { kind: "builtin" },
     limits: { ...DEFAULT_LIMITS, timeoutMs: 25_000, maxResults: 150, refreshMinutes: 720 },
@@ -70,7 +72,9 @@ export const EVENTS_SOURCES: SourceRecord[] = [
     category: "aggregator",
     geography: ["global", "IN"],
     description: "Mapathons, meetups and State of the Map events from the OpenStreetMap community's calendar (osmcal.org), with each event's own page. No key.",
-    status: "active",
+    // Paused until the owner confirms the terms (CLAUDE.md "Finding data sources"); then Activate in the admin.
+    status: "paused",
+    statusReason: "Terms pending: osmcal.org documents a public API for showing its events but states no data licence; confirm its reuse before activating.",
     roleFamilies: [],
     config: { kind: "builtin" },
     limits: { ...DEFAULT_LIMITS, timeoutMs: 15_000, maxResults: 150, refreshMinutes: 360 },
