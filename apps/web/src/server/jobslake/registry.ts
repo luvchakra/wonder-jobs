@@ -58,8 +58,14 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "himalayas_parttime", name: "Himalayas part-time", provider: "Himalayas", category: "aggregator", accessStrategy: "official_api", geography: ["remote"], legacySourceId: "himalayas_parttime", jobTypes: ["part_time", "temporary"], capabilities: [...FEED_CAPS, "Salary", "Job type"], description: legacyNote("himalayas_parttime") }),
   builtin({ id: "freelancer", name: "Freelancer.com gigs", provider: "Freelancer.com", category: "aggregator", accessStrategy: "official_api", geography: ["global", "remote"], legacySourceId: "freelancer", jobTypes: ["gig"], capabilities: [...FEED_CAPS, "Job type"], description: legacyNote("freelancer") }),
   builtin({ id: "employers", name: "WonderWorks employers", provider: "WonderWorks", category: "portal", accessStrategy: "official_api", geography: ["global"], legacySourceId: "employers", capabilities: [...FEED_CAPS, "Job type"], description: "Jobs companies post in their WonderWorks hiring workspace." }),
+  // Public feeds with no published reuse terms (WJ-544): live, the terms to confirm noted for the owner (CLAUDE.md, "Finding data sources").
+  builtin({ id: "workingnomads", name: "Working Nomads", provider: "Working Nomads", category: "aggregator", accessStrategy: "official_feed", geography: ["remote"], legacySourceId: "workingnomads", capabilities: FEED_CAPS, statusReason: "terms pending: Working Nomads' public jobs JSON (/api/exposed_jobs/) is unauthenticated but its reuse terms aren't published; confirm with Working Nomads", description: legacyNote("workingnomads") }),
+  builtin({ id: "weworkremotely", name: "We Work Remotely", provider: "We Work Remotely", category: "aggregator", accessStrategy: "official_feed", geography: ["remote"], legacySourceId: "weworkremotely", capabilities: [...FEED_CAPS, "Job type"], statusReason: "terms pending: We Work Remotely's public RSS feed is offered for subscribing; reuse of listings in another product to confirm with We Work Remotely", description: legacyNote("weworkremotely") }),
   builtin({ id: "arbeitnow", name: "Arbeitnow", provider: "Arbeitnow", category: "aggregator", accessStrategy: "official_api", geography: ["DE", "remote"], legacySourceId: "arbeitnow", capabilities: FEED_CAPS, description: legacyNote("arbeitnow") }),
   builtin({ id: "theirstack", name: "TheirStack", provider: "TheirStack", category: "aggregator", accessStrategy: "licensed", geography: ["global"], legacySourceId: "theirstack", capabilities: [...FEED_CAPS, "Salary", "Employer identity"], secretRef: "env:THEIRSTACK", paid: true, description: legacyNote("theirstack") }),
+  // WorksLake's shared USAJOBS and Jooble connectors, asked with Jobs' own words (WJ-545). Needs setup until the owner sets the key.
+  builtin({ id: "jooble", name: "Jooble", provider: "Jooble", category: "aggregator", accessStrategy: "official_api", geography: ["global", "IN"], legacySourceId: "jooble", capabilities: FEED_CAPS, secretRef: "env:JOOBLE", description: legacyNote("jooble") }),
+  builtin({ id: "usajobs", name: "USAJOBS", provider: "USAJOBS", category: "portal", accessStrategy: "official_api", geography: ["US"], legacySourceId: "usajobs", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:USAJOBS", description: legacyNote("usajobs") }),
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),
   builtin({ id: "adzuna_in_parttime", name: "Adzuna India part-time", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in_parttime", jobTypes: ["part_time"], capabilities: [...FEED_CAPS, "Salary", "Job type"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in_parttime") }),
 ];
@@ -171,7 +177,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
     case "builtin": {
       if (sourceModule(s) === "teaching") return runTeachingSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "services") return runServicesSource(s, c, (m) => new NeedsSetupError(m));
-      if (sourceModule(s) === "therapists") return runTherapistsSource(s, c);
+      if (sourceModule(s) === "therapists") return runTherapistsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "events") return runEventsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
       if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c);
