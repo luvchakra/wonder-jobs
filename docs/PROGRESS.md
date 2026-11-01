@@ -41,4 +41,5 @@
 - ✅ WorksLake gateway: the crawler reads business pages (LocalBusiness, no contact details) and pooled directory pages (WJ-507)
 - ✅ Scholarships & Projects: Opportunity Desk and Scholars4Dev scholarship feeds as live sources (WJ-525)
 - ✅ Jobs: 11 more company career boards (Razorpay, Paytm, InMobi, LinkedIn, ServiceNow and more) and two remote feeds, Working Nomads and We Work Remotely (WJ-544)
+- ✅ Jobs: searches Jooble (India and worldwide) and USAJOBS (US federal) once their free keys are set (WJ-545)
 - ✅ Internships: Unstop (India, with stipends), the Workable job board and 15 more company career sites with intern programmes; terms pending for Unstop and Workable (WJ-580)

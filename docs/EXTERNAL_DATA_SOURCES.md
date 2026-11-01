@@ -59,7 +59,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 
 | Module | Outside sources in code | Free/open | Paid or agreement | Biggest open issue |
 |---|---|---|---|---|
-| **Jobs** | 18 outside (17 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
+| **Jobs** | 20 outside (19 free, 1 paid; 4 need a free key) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
@@ -96,6 +96,8 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
+| Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
+| USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
 | LinkedIn, Indeed, Naukri, foundit, TimesJobs | portals | partner API | **Do not use** | None has an open search API; see `docs/PARTNER_INTEGRATIONS.md` for who to contact and what to ask |
 
@@ -109,8 +111,8 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Reed.co.uk | Free key | Researched 2026-11-01. UK jobs API, 401 without a key. Low value for India; worth it only for UK searches. |
 | Careerjet partner API | Free affiliate id | Researched 2026-11-01. Global aggregator incl. India; needs an affiliate id and the user's IP/user agent per call. Candidate for a later pass. |
 | More company boards | Open | Ongoing. 2026-11-01 (WJ-544) added Razorpay, InMobi, HackerRank, Observe.AI (Greenhouse), Paytm, Zeta, Mindtickle (Lever), Sarvam AI, PostHog (Ashby); probed ~90 India-strong slugs, kept only boards that answered with the named company's jobs. Phonepe, Swiggy, Flipkart, Zomato, Dream11, Postman, BrowserStack and others aren't on these public APIs. |
-| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/usajobs.ts`); Jobs adds it next (WJ-545), Needs setup until the key is set. |
-| Jooble | Free key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/jooble.ts`); Jobs adds it next (WJ-545) for India coverage, Needs setup until the key is set. |
+| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/usajobs.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
+| Jooble | Free key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/jooble.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
 | Coresignal job/people data | Paid | Researched (vendor). Priced by volume; only if TheirStack is not enough. |
 
 ### Open issues
