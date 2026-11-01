@@ -2,6 +2,7 @@
   "url": "https://osmcal.org/api/v2/events/",
   "kind": "json_api",
   "modules": ["events"],
+  "geography": ["global"],
   "permission": "terms_permit",
   "permissionEvidence": "osmcal.org/documentation (read 2026-11-01): the calendar exists \"to reach more people with the events the community creates\"; it documents a public JSON API and RSS and invites sites to \"integrate OSMCAL into your website\". robots.txt allows /api/. No data licence is stated: the owner confirms before activating.",
   "termsReviewed": true,

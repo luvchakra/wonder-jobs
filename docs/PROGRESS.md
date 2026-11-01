@@ -52,3 +52,4 @@
 - ✅ Events: Helsinki Linked Events (open data) in the gateway catalogue; a source's cancelled or postponed status is honoured (WJ-573)
 - ✅ Admin: Setup to-do decisions add Helsinki crowding, Unstop's robots.txt and WedMeGood's content signal (WJ-509)
 - ✅ Teaching: India pass, findings recorded and a Setup to-do for partner uploads (WJ-563)
+- ✅ Admin: Setup to-do filters by the country each source serves (WJ-510)

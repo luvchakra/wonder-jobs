@@ -2,6 +2,7 @@
   "url": "https://www.hackerearth.com/chrome-extension/events/",
   "kind": "json_api",
   "modules": ["events"],
+  "geography": ["global", "IN"],
   "permission": "terms_permit",
   "permissionEvidence": "www.hackerearth.com/robots.txt (read 2026-11-01) allows every path but login and AJAX ones. The JSON is HackerEarth's public list of its upcoming and ongoing hackathons and challenges (the feed its own browser extension reads), with start and end times in India time. Terms pending: the owner confirms HackerEarth's terms for reuse of the list.",
   "termsReviewed": true,
