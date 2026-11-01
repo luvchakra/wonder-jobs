@@ -94,6 +94,17 @@ describe("an outside event, as its source states it", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "14/11/2026" } }), TODAY)).toBeNull();
   });
 
+  it("reads a UTC moment as the day in the event's own zone when the source names it, else as stated", () => {
+    // Devfolio: 18:30 UTC on 27 Nov is half past midnight on 28 Nov in India.
+    const at = (extra: Record<string, unknown>) => toOutsideEvent(conf({ attributes: { startDate: "2026-11-27T18:30:00.000Z", endDate: "2026-11-28T18:30:00.000Z", ...extra } }), TODAY)!;
+    expect(at({ timezone: "Asia/Calcutta" }).outside).toMatchObject({ startDate: "2026-11-28", endDate: "2026-11-29" });
+    expect(at({}).outside).toMatchObject({ startDate: "2026-11-27" });
+    // An unknown zone name is ignored, not guessed.
+    expect(at({ timezone: "Not/AZone" }).outside).toMatchObject({ startDate: "2026-11-27" });
+    // A moment with its own offset already states the local day.
+    expect(toOutsideEvent(conf({ attributes: { startDate: "2026-10-30 10:00:00+05:30", timezone: "Asia/Kolkata" } }), "2026-10-01")!.outside).toMatchObject({ startDate: "2026-10-30" });
+  });
+
   it("leaves out a postponed event: its date is no longer firm", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: true } }), TODAY)).toBeNull();
     expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14", postponed: false } }), TODAY)).not.toBeNull();

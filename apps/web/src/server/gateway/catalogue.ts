@@ -1,5 +1,7 @@
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
+import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
+import hackerearthEvents from "../../../../data-gateway/sources/hackerearth-events.json";
 import konfhubEvents from "../../../../data-gateway/sources/konfhub-events.json";
 import linuxFoundationEvents from "../../../../data-gateway/sources/linux-foundation-events.json";
 import osmCalendar from "../../../../data-gateway/sources/osm-calendar.json";
@@ -18,7 +20,9 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "confs-tech.json": confsTech as Record<string, unknown>,
+  "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
+  "hackerearth-events.json": hackerearthEvents as Record<string, unknown>,
   "konfhub-events.json": konfhubEvents as Record<string, unknown>,
   "linux-foundation-events.json": linuxFoundationEvents as Record<string, unknown>,
   "osm-calendar.json": osmCalendar as Record<string, unknown>,
