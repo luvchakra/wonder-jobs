@@ -15,5 +15,7 @@ describe("Setup to-do — what each source still needs", () => {
     expect(sourceNeed({ ...base, status: "disabled" } as SourceView)).toBeNull();
     expect(sourceNeed({ ...base, status: "do_not_use" } as SourceView)).toBeNull();
     expect(sourceNeed({ ...base, status: "paused", statusReason: "Paused by an admin" } as SourceView)).toBeNull();
+    // Live while its terms are confirmed (CLAUDE.md): still on the list, marked live.
+    expect(sourceNeed({ ...base, available: true, statusReason: "terms pending: Devpost's reuse terms" } as SourceView)).toMatchObject({ need: "terms", detail: "Live · terms pending: Devpost's reuse terms" });
   });
 });
