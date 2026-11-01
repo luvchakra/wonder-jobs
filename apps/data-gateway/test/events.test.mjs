@@ -43,3 +43,14 @@ test("a listing carries its organiser's own site for its logo: the one the sourc
   const ev = normalize(validateSource(base), conf("JSConf", "2026-12-01"), "events");
   assert.equal(ev.organizationDomain, "jsconf.example.org");
 });
+
+test("a source's stated time zone is kept on each record, and only a real IANA zone is accepted", async () => {
+  const { normalize, validateSource } = await import("../src/core.mjs");
+  const def = { url: "https://api.hel.fi/linkedevents/v1/event/", kind: "json_api", modules: ["events"], permission: "terms_permit", permissionEvidence: "CC BY 4.0, terms pending", termsReviewed: true, redistributionAllowed: true, organizationOptional: true, itemsPath: "data", timezone: "Europe/Helsinki", mapping: { id: "id", title: "name.en", applyUrl: "info_url.en", "attr.startDate": "start_time" } };
+  assert.throws(() => validateSource({ ...def, timezone: "Mars/Olympus" }), /IANA time zone/);
+  assert.throws(() => validateSource({ ...def, timezone: "x; drop" }), /IANA time zone/);
+  const src = validateSource(def);
+  assert.equal(src.timezone, "Europe/Helsinki");
+  const r = normalize(src, { id: "e1", name: { en: "Jazz night" }, info_url: { en: "https://example.fi/e1" }, start_time: "2026-11-20T17:00:00Z" }, "events");
+  assert.deepEqual(r.attributes, { startDate: "2026-11-20T17:00:00Z", timezone: "Europe/Helsinki" });
+});

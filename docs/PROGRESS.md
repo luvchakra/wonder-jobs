@@ -42,4 +42,5 @@
 - ✅ Scholarships & Projects: Opportunity Desk and Scholars4Dev scholarship feeds as live sources (WJ-525)
 - ✅ Jobs: 11 more company career boards (Razorpay, Paytm, InMobi, LinkedIn, ServiceNow and more) and two remote feeds, Working Nomads and We Work Remotely (WJ-544)
 - ✅ Jobs: searches Jooble (India and worldwide) and USAJOBS (US federal) once their free keys are set (WJ-545)
+- ✅ WorksLake gateway: a source can state its time zone, kept on every record (WJ-508)
 - ✅ Admin: Setup to-do lists every data-source decision waiting on the owner, with Done (WJ-509)
