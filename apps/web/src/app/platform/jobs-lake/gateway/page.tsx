@@ -180,6 +180,7 @@ const MODULES = [
   ["cofounders", "Co-founders"],
   ["events", "Events"],
   ["marketplace", "Marketplace"],
+  ["scholarships", "Scholarships & Projects"],
 ] as const;
 /** Modules whose listings are about people or their work: the partner must confirm each person opted in. */
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
