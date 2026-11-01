@@ -533,10 +533,6 @@ test.describe("Golden journey — search", () => {
     await expect(main.getByRole("button", { name: /^Refine, \d+ set/ })).toBeVisible();
     await main.getByLabel(/^Hide Pipeline/).uncheck();
     await main.getByRole("button", { name: "Save", exact: true }).click();
-    // Search searches only the typed words: with none, it asks for them.
-    await main.getByRole("button", { name: "Search", exact: true }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "Part Time searches only your words" })).toBeVisible();
-
     // Part Time has its own results: a prompt before its first search, then that search's jobs —
     // and switching modes swaps each one's results back, without searching again.
     await expect(main.getByRole("heading", { name: "Search for part-time work" })).toBeVisible();
@@ -567,6 +563,12 @@ test.describe("Golden journey — search", () => {
     await expect(words).toHaveValue("designer");
     await expect(recent).toHaveCount(0);
     await expect(summary).toContainText("“designer”", { timeout: 20_000 });
+    // Search with the box empty brings the latest part-time jobs (owner, 2026-11-01): it never asks for words.
+    await words.fill("");
+    await main.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Part Time searches only your words" })).toHaveCount(0);
+    await expect(main.getByRole("status")).toHaveCount(0, { timeout: 45_000 });
+    await expect(main).not.toContainText("for “”");
 
     // The menu switches back, and Escape closes it without choosing.
     await pickKind("Full Time Jobs");

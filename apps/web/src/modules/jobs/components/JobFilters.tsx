@@ -183,8 +183,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
     // Words searched: every source too, not only the jobs already on screen.
     // Full Time has no box: it is always the Career Profile's own search.
     const words = partTime ? text.trim() : "";
-    // Part Time: only typed words are searched — nothing typed is asked for, not filled in from the profile.
-    if (filters.skipProfile && (!words || !sourceSearch?.describe(words, splitPlaces(where)))) {
+    // Part Time: only typed words are searched, never the profile's. An empty box brings the latest part-time jobs
+    // (owner, 2026-11-01); words with nothing searchable in them (only a place) are asked about.
+    if (filters.skipProfile && !words) {
+      setNeedWordsFor(null);
+      sourceSearch?.run("", splitPlaces(where));
+      return;
+    }
+    if (filters.skipProfile && !sourceSearch?.describe(words, splitPlaces(where))) {
       setNeedWordsFor(text.trim());
       return;
     }

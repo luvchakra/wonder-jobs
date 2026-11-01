@@ -22,3 +22,4 @@
 - ✅ WonderWorks: cards show the WorksLake Data Gateway as "WWDG"
 - ✅ WonderWorks: Refine's back button is an arrow alone, in every module
 - ✅ WorksLake gateway: add reviewed sources from the catalogue and Test & activate them in the admin (WJ-500)
+- ✅ Jobs: Part Time with an empty search box shows the latest part-time jobs instead of asking for words (WJ-543)
