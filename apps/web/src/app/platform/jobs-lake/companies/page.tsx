@@ -4,10 +4,66 @@ import type { DirectoryCompany } from "@/server/jobslake/companies";
 import { companyLines } from "@/domain/jobslake/companies";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
-import { LoadError, Loading, PageTitle, Panel, ResponsiveTable, num, useAdmin } from "@/components/jobslake/ui";
+import { Chip, Input } from "@/components/common/Input";
+import { adminFetch, LoadError, Loading, PageTitle, Panel, ResponsiveTable, num, useAdmin } from "@/components/jobslake/ui";
 
 const PAGE = 50;
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon"];
+
+/**
+ * A company's (or event poster's) logo and the three things an admin can do to it: fetch it again from its own site,
+ * upload one (PNG, JPEG, GIF, WebP or ICO, under 256 KB; checked again on the server), or remove a wrong one.
+ */
+function LogoCell({ c, onChanged }: { c: DirectoryCompany; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [v, setV] = useState(0);
+  const act = async (body: Record<string, string>) => {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch<{ ok: boolean; message: string }>("companies", { method: "POST", body: JSON.stringify({ domain: c.domain, ...body }) });
+    setBusy(false);
+    setMsg(r.ok ? r.data.message : r.error.message);
+    setV(Date.now());
+    onChanged();
+  };
+  const upload = (file: File | undefined) => {
+    if (!file) return;
+    if (!LOGO_TYPES.includes(file.type) || file.size > 256 * 1024) return setMsg("Use a PNG, JPEG, GIF, WebP or ICO image under 256 KB.");
+    const reader = new FileReader();
+    reader.onload = () => void act({ action: "upload", type: file.type, data: String(reader.result).split(",")[1] ?? "" });
+    reader.readAsDataURL(file);
+  };
+  return (
+    <span className="flex items-start gap-2">
+      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-line bg-surface text-[15px] font-bold text-brand-600">
+        {c.name.trim()[0]?.toUpperCase()}
+        {c.hasLogo && (
+          // eslint-disable-next-line @next/next/no-img-element -- a small icon from our own logo API
+          <img src={`/api/company-logo?d=${encodeURIComponent(c.domain)}&n=${encodeURIComponent(c.name)}&a=${v}`} alt="" className="absolute inset-0 size-full bg-surface object-contain p-[12%]" />
+        )}
+      </span>
+      <span className="flex flex-col gap-1">
+        <span className="text-[11.5px] text-ink-3">{c.hasLogo ? "Has a logo" : c.logoChecked ? "None found" : "Not looked for yet"}</span>
+        <span className="flex flex-wrap gap-1">
+          <Button size="sm" variant="outline" loading={busy} onClick={() => void act({ action: "refetch" })}>
+            Fetch again
+          </Button>
+          <label className="inline-flex h-8 cursor-pointer items-center rounded-[10px] border border-line px-2.5 text-[12.5px] font-medium text-ink hover:bg-bg-soft">
+            Upload
+            <input type="file" accept={LOGO_TYPES.join(",")} className="sr-only" onChange={(e) => upload(e.target.files?.[0])} />
+          </label>
+          {c.hasLogo && (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void act({ action: "clear" })}>
+              Remove
+            </Button>
+          )}
+        </span>
+        {msg && <span className="text-[11.5px] text-ink-3">{msg}</span>}
+      </span>
+    </span>
+  );
+}
 
 /** What a company's facts say, one line per fact, each with the source it came from. */
 function Facts({ c }: { c: DirectoryCompany }) {
@@ -31,7 +87,8 @@ export default function CompaniesPage() {
   const [q, setQ] = useState("");
   const [applied, setApplied] = useState("");
   const [offset, setOffset] = useState(0);
-  const { data, error, reload, loading } = useAdmin<{ total: number; companies: DirectoryCompany[] }>(`companies?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}`);
+  const [missing, setMissing] = useState(false);
+  const { data, error, reload, loading } = useAdmin<{ total: number; missingLogos: number; companies: DirectoryCompany[] }>(`companies?limit=${PAGE}&offset=${offset}&q=${encodeURIComponent(applied)}${missing ? "&missing=1" : ""}`);
   return (
     <>
       <PageTitle title="Company directory" subtitle="Every employer WorksLake recorded from a real posting, by its website domain — with what each source says about it. Most open roles first." />
@@ -48,6 +105,13 @@ export default function CompaniesPage() {
           Search
         </Button>
       </form>
+      {data && (
+        <div className="mb-3">
+          <Chip active={missing} onClick={() => (setOffset(0), setMissing((m) => !m))}>
+            Missing logos {num(data.missingLogos)}
+          </Chip>
+        </div>
+      )}
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
@@ -63,6 +127,7 @@ export default function CompaniesPage() {
                   <span className="block text-[12px] text-ink-3">{c.domain}</span>
                 </span>
               ) },
+              { header: "Logo", cell: (c) => <LogoCell c={c} onChanged={reload} /> },
               { header: "Open roles", cell: (c) => (c.openJobs === undefined ? "—" : `${num(c.openJobs)}${c.newJobs7d ? ` (${num(c.newJobs7d)} new)` : ""}`), className: "tabular-nums text-right whitespace-nowrap" },
               { header: "Facts", cell: (c) => <Facts c={c} /> },
               { header: "Seen via · checked", cell: (c) => (
@@ -74,6 +139,9 @@ export default function CompaniesPage() {
             ]}
             card={(c) => (
               <div className="text-[13px]">
+                <div className="mb-1.5">
+                  <LogoCell c={c} onChanged={reload} />
+                </div>
                 <p className="font-medium text-ink">
                   {c.name} <span className="font-normal text-ink-3">· {c.domain}</span>
                 </p>

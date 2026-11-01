@@ -88,6 +88,8 @@ export interface CompanyRecord {
   logo?: { data: string; type: string; from: string } | null;
   /** When a logo was last looked for (found or not). */
   logoCheckedAt?: string;
+  /** Directory pages only (no logo bytes there): whether a logo is stored. */
+  hasLogo?: boolean;
   /** How many of its postings WorksLake saw in the last two weeks — set by the daily refresh only. */
   openJobs?: number;
   countedAt?: string;

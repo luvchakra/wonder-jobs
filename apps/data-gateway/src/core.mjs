@@ -194,7 +194,12 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const publishedRaw = field("publishedAt") ?? field("postedAt");
   const publishedAt = publishedRaw && Number.isFinite(Date.parse(String(publishedRaw))) ? new Date(String(publishedRaw)).toISOString() : null;
   const unique = createHash("sha256").update(module + "|" + source.id + "|" + originalId).digest("hex").slice(0, 24);
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: attributesOf(source, value), status: "active" };
+  // The organiser's own website, for its logo: the one the source names (a school's site), else, for a listing that is
+  // its own organiser (an event), its own page's site. Never a job board's or the gateway's.
+  const orgUrl = String(field("organizationUrl") ?? "").trim();
+  const domainOf = (u) => { try { const h = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.toLowerCase().replace(/^www\./, ""); return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) ? h : ""; } catch { return ""; } };
+  const organizationDomain = domainOf(orgUrl) || (source.organizationOptional ? domainOf(parsed.toString()) : "");
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: attributesOf(source, value), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");

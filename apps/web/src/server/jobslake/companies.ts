@@ -17,10 +17,12 @@ export interface CompanyStore {
   byDomain(domain: string): Promise<CompanyRecord | undefined>;
   byName(nameKey: string): Promise<CompanyRecord | undefined>;
   /** The directory, most open roles first: a page of companies matching `q` (name or domain), and how many match. No logo bytes. */
-  list(q: string, limit: number, offset: number): Promise<{ total: number; rows: CompanyRecord[] }>;
+  list(q: string, limit: number, offset: number, opts?: { missingLogo?: boolean }): Promise<{ total: number; rows: CompanyRecord[] }>;
   /** The companies with any of these domains or name keys — facts only, no logos. */
   facts(domains: string[], nameKeys: string[]): Promise<CompanyRecord[]>;
   setLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<void>;
+  /** An admin's choice: replaces (or, with null, clears) a company's logo even when one is stored. */
+  replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string): Promise<boolean>;
   /** Companies whose logo was never looked for, or not since `staleBefore` — oldest first. */
   needingLogo(limit: number, staleBefore: string): Promise<string[]>;
   /** Companies whose Wikidata facts were never looked for, or not since `staleBefore` — oldest first. */
@@ -66,11 +68,17 @@ class MemoryCompanies implements CompanyStore {
   async byDomain(domain: string) {
     return this.rows.get(domain);
   }
-  async list(q: string, limit: number, offset: number) {
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean } = {}) {
     const k = q.trim().toLowerCase();
-    const all = [...this.rows.values()].filter((r) => !k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k));
+    const all = [...this.rows.values()].filter((r) => (!k || r.domain.includes(k) || r.nameKey.includes(companyKey(k)) || r.name.toLowerCase().includes(k)) && (!opts.missingLogo || !r.logo));
     all.sort((a, b) => (b.openJobs ?? -1) - (a.openJobs ?? -1) || a.name.localeCompare(b.name));
-    return { total: all.length, rows: all.slice(offset, offset + limit) };
+    return { total: all.length, rows: all.slice(offset, offset + limit).map((r) => ({ ...r, hasLogo: !!r.logo })) };
+  }
+  async replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
+    const r = this.rows.get(domain);
+    if (!r) return false;
+    this.rows.set(domain, { ...r, logo, logoCheckedAt: checkedAt });
+    return true;
   }
   async facts(domains: string[], nameKeys: string[]) {
     return [...this.rows.values()].filter((r) => domains.includes(r.domain) || nameKeys.includes(r.nameKey));
@@ -153,15 +161,21 @@ class SupabaseCompanies implements CompanyStore {
     if (error) throw new Error(error.message);
     return data ? fromRow(data as Row) : undefined;
   }
-  async list(q: string, limit: number, offset: number) {
-    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
+  async list(q: string, limit: number, offset: number, opts: { missingLogo?: boolean } = {}) {
+    const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_type, logo_checked_at, open_jobs, counted_at, new_jobs_7d, facts, facts_at, wikidata, wikidata_at, ratings, ratings_at";
     // Only the characters a name or domain has go into the filter (it is a PostgREST expression).
     const k = q.trim().toLowerCase().replace(/[^a-z0-9 .\-&']/g, "").slice(0, 80);
     let query = this.sb().select(cols, { count: "exact" });
     if (k) query = query.or(`domain.ilike.%${k}%,name.ilike.%${k}%`);
+    if (opts.missingLogo) query = query.is("logo_type", null);
     const { data, error, count } = await query.order("open_jobs", { ascending: false, nullsFirst: false }).order("name", { ascending: true }).range(offset, offset + limit - 1);
     if (error) throw new Error(error.message);
-    return { total: count ?? 0, rows: (data ?? []).map((r) => fromRow({ logo: null, logo_type: null, logo_from: null, ...(r as object) } as Row)) };
+    return { total: count ?? 0, rows: (data ?? []).map((r) => ({ ...fromRow({ logo: null, logo_from: null, ...(r as object), logo_type: null } as Row), hasLogo: !!(r as { logo_type?: string | null }).logo_type })) };
+  }
+  async replaceLogo(domain: string, logo: CompanyRecord["logo"], checkedAt: string) {
+    const { data, error } = await this.sb().update({ logo: logo?.data ?? null, logo_type: logo?.type ?? null, logo_from: logo?.from ?? null, logo_checked_at: checkedAt }).eq("domain", domain).select("domain");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   }
   async facts(domains: string[], nameKeys: string[]) {
     const cols = "domain, name, name_key, sources, first_seen_at, last_seen_at, logo_checked_at, facts, wikidata, wikidata_at, ratings, ratings_at";
@@ -266,11 +280,13 @@ export function companiesFrom(opps: CanonicalOpportunity[], now = new Date().toI
   const out = new Map<string, CompanyRecord>();
   for (const o of opps) {
     const domain = cleanDomain(o.employer.domain) ?? employerDomainOf(o.canonicalApplyUrl, o.applyPath === "employer_site" && o.quality.employerVerified);
-    const nameKey = companyKey(o.employer.name);
+    // An event with no organiser named is its own poster: it is recorded under its own site and title.
+    const name = o.employer.name?.trim() || (o.kind === "event" ? o.title : "");
+    const nameKey = companyKey(name);
     if (!domain || !nameKey) continue;
     const sources = o.sourceRecords.map((r) => r.sourceId);
     const prev = out.get(domain);
-    out.set(domain, { domain, name: o.employer.name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
+    out.set(domain, { domain, name, nameKey, sources: [...new Set([...(prev?.sources ?? []), ...sources])], firstSeenAt: now, lastSeenAt: now });
   }
   return [...out.values()];
 }
@@ -430,6 +446,8 @@ export interface DirectoryCompany {
   firstSeenAt: string;
   lastSeenAt: string;
   logoChecked: boolean;
+  /** Whether a logo is stored for it. */
+  hasLogo: boolean;
   openJobs?: number;
   newJobs7d?: number;
   countedAt?: string;
@@ -443,11 +461,13 @@ export interface DirectoryCompany {
 }
 
 /** The admin Companies page: one page of the directory, each company with its H-1B totals read from their own table. */
-export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore()): Promise<{ total: number; companies: DirectoryCompany[] }> {
-  const { total, rows } = await store.list(q, limit, offset);
+export async function companyDirectory(q: string, limit: number, offset: number, store: CompanyStore = companyStore(), opts: { missingLogo?: boolean } = {}): Promise<{ total: number; missingLogos: number; companies: DirectoryCompany[] }> {
+  const { total, rows } = await store.list(q, limit, offset, opts);
+  const missingLogos = opts.missingLogo ? total : (await store.list(q, 1, 0, { missingLogo: true })).total;
   const h1b = await store.h1bFor([...new Set(rows.map((r) => r.nameKey))]);
   return {
     total,
+    missingLogos,
     companies: rows.map((r) => ({
       domain: r.domain,
       name: r.name,
@@ -455,6 +475,7 @@ export async function companyDirectory(q: string, limit: number, offset: number,
       firstSeenAt: r.firstSeenAt,
       lastSeenAt: r.lastSeenAt,
       logoChecked: !!r.logoCheckedAt,
+      hasLogo: !!r.hasLogo,
       ...(r.openJobs !== undefined ? { openJobs: r.openJobs, countedAt: r.countedAt } : {}),
       ...(r.newJobs7d !== undefined ? { newJobs7d: r.newJobs7d } : {}),
       ...(r.facts ? { facts: r.facts, factsAt: r.factsAt } : {}),
@@ -465,3 +486,45 @@ export async function companyDirectory(q: string, limit: number, offset: number,
   };
 }
 
+
+/** Logo files an admin may upload, by what their first bytes say they are (the declared type must agree). */
+const LOGO_MAGIC: [string, (b: Buffer) => boolean][] = [
+  ["image/png", (b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47],
+  ["image/jpeg", (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ["image/gif", (b) => b.length > 6 && b.toString("ascii", 0, 3) === "GIF"],
+  ["image/webp", (b) => b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP"],
+  ["image/x-icon", (b) => b.length > 4 && b[0] === 0 && b[1] === 0 && b[2] === 1 && b[3] === 0],
+];
+const MAX_UPLOAD_BYTES = 256 * 1024;
+
+/**
+ * An admin's logo change for one company or event poster: fetch it again from its site, upload a file (PNG, JPEG, GIF,
+ * WebP or ICO, at most 256 KB, checked by its own bytes; never SVG), or remove a wrong one. Returns what happened.
+ */
+export async function adminLogo(
+  domain: string,
+  action: { kind: "refetch" } | { kind: "upload"; type: string; base64: string } | { kind: "clear" },
+  now = Date.now(),
+  fetcher: typeof fetch = fetch,
+  store: CompanyStore = companyStore(),
+): Promise<{ ok: boolean; message: string }> {
+  const d = cleanDomain(domain);
+  if (!d || !(await store.byDomain(d))) return { ok: false, message: "No such company in the directory." };
+  const at = new Date(now).toISOString();
+  if (action.kind === "clear") {
+    await store.replaceLogo(d, null, at);
+    return { ok: true, message: "Logo removed. Cards show the initial until a new one is set." };
+  }
+  if (action.kind === "refetch") {
+    const logo = await fetchLogo(d, fetcher);
+    if (!logo) return { ok: false, message: `No logo found on ${d}. Upload one instead.` };
+    await store.replaceLogo(d, logo, at);
+    return { ok: true, message: `Logo fetched from ${d}.` };
+  }
+  const bytes = Buffer.from(action.base64, "base64");
+  if (!bytes.length || bytes.length > MAX_UPLOAD_BYTES) return { ok: false, message: "The file must be under 256 KB." };
+  const kind = LOGO_MAGIC.find(([, test]) => test(bytes))?.[0];
+  if (!kind || kind !== action.type) return { ok: false, message: "Upload a PNG, JPEG, GIF, WebP or ICO image (its contents must match its type)." };
+  await store.replaceLogo(d, { data: bytes.toString("base64"), type: kind, from: "admin upload" }, at);
+  return { ok: true, message: "Logo uploaded." };
+}

@@ -48,7 +48,7 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   description: "Additional approved external sources indexed in the independent gateway; existing sources remain unchanged.",
   capabilities: ["Search", "Freshness", "Apply URL"],
   status: "draft",
-  config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind" } } },
+  config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain" } } },
   secretRef: "env:WORKSLAKE_GATEWAY_API_KEY",
   limits: { ...DEFAULT_LIMITS, timeoutMs: 12000, maxResults: 100 },
   roleFamilies: [],

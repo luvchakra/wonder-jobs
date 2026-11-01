@@ -19,7 +19,7 @@ function publicListing(x) {
 function workslakeItem(x) {
   // An event (its dates in attributes, often no organiser) goes as kind "event"; WorksLake keeps the attributes as given.
   const event = x.module === "events" || (x.attributes && "startDate" in x.attributes);
-  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {} };
+  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {}, employerDomain: x.organizationDomain ?? "" };
 }
 function sourcePublic(s) {
   return { id: s.id, attribution: s.attribution, kind: s.kind, modules: s.modules, enabled: s.enabled, lastSuccessAt: s.lastSuccessAt, lastError: s.lastError };

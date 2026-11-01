@@ -18,7 +18,8 @@
     "location": "jobLocation.address.addressLocality",
     "description": "description",
     "applyUrl": "url",
-    "postedAt": "datePosted"
+    "postedAt": "datePosted",
+    "organizationUrl": "hiringOrganization.sameAs"
   },
   "retentionHours": 168,
   "minIntervalMinutes": 60,
