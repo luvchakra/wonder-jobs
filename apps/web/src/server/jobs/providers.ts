@@ -33,7 +33,6 @@ export interface SourceFetcher {
 }
 
 const UA = "WonderWorks/1.0 (+https://wonderjobs-wonder-team4.vercel.app; job search agent)";
-const REVALIDATE = 900;
 const MAX_PER_SOURCE = 150;
 
 /** Identical GETs started within a few seconds share one request — a smart search asks a feed-style source several phrasings at once. */
@@ -47,7 +46,10 @@ export async function getJson<T>(url: string, init: RequestInit & { revalidate?:
   const hit = key ? inflight.get(key) : undefined;
   if (hit && now - hit.at < SHARE_MS) return hit.p as Promise<T>;
   const p = (async () => {
-    const res = await fetch(url, { ...init, headers: { accept: "application/json", "user-agent": UA, ...(init.headers ?? {}) }, next: { revalidate: init.revalidate ?? REVALIDATE } });
+    const { revalidate, ...rest } = init;
+    // Not into Vercel's data cache unless a caller asks (each write is an ISR write on the free plan's quota; owner,
+    // 2026-11-01: 20K ISR writes): WorksLake already keeps answers in its own search cache (jobslake_search_cache).
+    const res = await fetch(url, { ...rest, headers: { accept: "application/json", "user-agent": UA, ...(init.headers ?? {}) }, ...(revalidate ? { next: { revalidate } } : { cache: "no-store" as const }) });
     if (!res.ok) throw new Error(`${new URL(url).host} responded ${res.status}`);
     return (await res.json()) as T;
   })();
@@ -229,7 +231,7 @@ const weworkremotely: SourceFetcher = {
   available: () => true,
   async fetch(c) {
     // The newest 100 remote jobs across categories (no search): matched locally, cached like every feed.
-    const res = await fetch("https://weworkremotely.com/remote-jobs.rss", { headers: { accept: "application/rss+xml, application/xml, text/xml", "user-agent": UA }, next: { revalidate: REVALIDATE } });
+    const res = await fetch("https://weworkremotely.com/remote-jobs.rss", { headers: { accept: "application/rss+xml, application/xml, text/xml", "user-agent": UA }, cache: "no-store" });
     if (!res.ok) throw new Error(`weworkremotely.com responded ${res.status}`);
     return finish("weworkremotely", rawFromWeWorkRemotely(await res.text()), c);
   },
@@ -368,7 +370,7 @@ const jazzhr: SourceFetcher = {
   async fetch(c) {
     const feeds = await Promise.all(
       JAZZHR_COMPANIES.map(async (sub) => {
-        const res = await fetch(`https://app.jazz.co/feeds/export/jobs/${sub}`, { headers: { accept: "application/xml, text/xml", "user-agent": UA }, next: { revalidate: REVALIDATE } }).catch(() => null);
+        const res = await fetch(`https://app.jazz.co/feeds/export/jobs/${sub}`, { headers: { accept: "application/xml, text/xml", "user-agent": UA }, cache: "no-store" }).catch(() => null);
         // The feed answers XML labelled text/html; an unknown company is a 404.
         return res?.ok ? rawFromJazzFeed(sub, await res.text()) : [];
       }),

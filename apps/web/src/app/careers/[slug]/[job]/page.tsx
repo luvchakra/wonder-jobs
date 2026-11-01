@@ -8,7 +8,8 @@ import { JOB_TYPE_LABEL, WORK_MODE_LABEL } from "../labels";
 import { HostedApplyForm } from "./HostedApplyForm";
 
 export const runtime = "nodejs";
-export const revalidate = 60;
+// Regenerated at most this often: each regeneration is server CPU and an ISR write (owner, 2026-11-01: cut Vercel usage).
+export const revalidate = 600;
 
 type Props = { params: Promise<{ slug: string; job: string }> };
 
