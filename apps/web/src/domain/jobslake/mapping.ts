@@ -134,9 +134,9 @@ export function validateMapping(mapping: ResponseMapping, result: MappingResult)
     { label: "Jobs found in the response", ok: n > 0, detail: n ? `${n} items` : result.issues[0] ?? "No items" },
     { label: "Required fields mapped", ok: missing.length === 0, detail: missing.length ? `Missing: ${missing.join(", ")}` : undefined },
     { label: "Every job has a title", ok: n > 0 && pct("title") === 1, detail: n ? `${result.coverage.title}/${n}` : undefined },
-    { label: "Employer identity available", ok: n > 0 && employerOk === jobs.length, detail: jobs.length ? `${employerOk}/${jobs.length}` : "Events only: no employer needed" },
+    { label: "Employer identity available", ok: n > 0 && employerOk === jobs.length, detail: jobs.length ? `${employerOk}/${jobs.length}` : n ? "Events only: no employer needed" : undefined },
     { label: "Apply URLs valid", ok: n > 0 && urlOk === n, detail: n ? `${urlOk}/${n} valid` : undefined },
-    { label: "Posted dates readable", ok: n > 0 && dateOk === jobs.length, detail: jobs.length ? `${dateOk}/${jobs.length} readable` : "Events only: dated by their own start and end" },
+    { label: "Posted dates readable", ok: n > 0 && dateOk === jobs.length, detail: jobs.length ? `${dateOk}/${jobs.length} readable` : n ? "Events only: dated by their own start and end" : undefined },
   ];
   return { ok: checks.every((c) => c.ok), checks };
 }

@@ -20,7 +20,8 @@ import { DestinationBlockedError } from "./safeFetch";
 import { asksSince, isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
 import { creditsLeft, topUpBelow } from "./paid";
 import { jobsLakeStore, sourceModule, type CachedAnswer, type JobsLakeStore } from "./store";
-import type { ModuleId } from "@/modules/registry";
+import { MODULES, type ModuleId } from "@/modules/registry";
+import { gatewayModuleForSource } from "./gatewaySources";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { recordCompanies } from "./companies";
@@ -431,6 +432,16 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
     const r = await withTimeout(runConnector(src, { query: "", locations: [] }, "normal"), Math.max(src.limits.timeoutMs, 15_000));
     checks.push({ label: "Connection", ok: true, detail: `Responded in ${((Date.now() - started) / 1000).toFixed(1)}s` });
     if (src.secretRef) checks.push({ label: "Authentication", ok: true, detail: "Credential accepted" });
+    if (!r.jobs.length && !(r.mapping?.totalItems ?? 0)) {
+      // Nothing came back: one plain reason, not a list of checks that all follow from it.
+      const gw = gatewayModuleForSource(src.id);
+      const label = MODULES.find((m) => m.id === (gw ?? sourceModule(src)))?.label ?? "this module";
+      checks.push({ label: "Listings found", ok: false, detail: gw ? `The gateway holds no ${label} listings yet: no approved external source covers ${label}. Add one to the gateway (see the Gateway page), then test again.` : "The source returned nothing for an empty search." });
+      report = { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, checks, discovered: 0, valid: 0, duplicates: 0, sampleTitles: [] };
+      await store.recordRuns([{ id: newId("run"), sourceId: src.id, trigger: "test", startedAt: new Date(started).toISOString(), durationMs: report.durationMs, outcome: "empty", retrieved: 0, valid: 0, duplicates: 0 }]);
+      await audit(actor, "source.test_failed", src.id, { discovered: 0, valid: 0, error: "no listings" });
+      return report;
+    }
     if (r.mapping) {
       const { validateMapping } = await import("@/domain/jobslake/mapping");
       const cfg = src.config.kind === "json_api" ? src.config.api.mapping : src.config.kind === "mcp" ? src.config.mcp.mapping : undefined;
