@@ -12,4 +12,7 @@
 - ✅ Jobs: Full Time with no role searches the latest 100 jobs ranked by fit, instead of the role held today (WJ-481)
 - ✅ WonderWorks: the searching banner says what, where, how many sources and how long, with the WonderWorks mark animating (wings open, star twinkles)
 - ✅ Scholarships & Projects: Find, sources (WonderWorks, Grants.gov, gateway), listing page, organisation posting and applying (WJ-521)
+- ✅ Scholarships & Projects is live: Applications with Deadlines, application page, AI drafts for answers and statements (WJ-522)
+- ✅ Talent & Services: pros state their GSTIN, and GST and TDS on a quote (their rate, SAC and section); an invoice summary for both sides to print once a job is booked (WJ-590)
+- ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)
 - ✅ Jobs: Find's row shows Location (your places, or Anywhere) instead of All modes; Work mode is in Refine (WJ-540)

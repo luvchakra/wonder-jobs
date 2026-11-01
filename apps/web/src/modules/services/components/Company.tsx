@@ -7,12 +7,13 @@ import { Modal } from "@/components/common/Modal";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { Badge } from "@/components/common/Badge";
+import { Fold } from "@/components/common/Fold";
 import type { OrgRole } from "@/domain/org/types";
 import { OwnerWorkspace, useWorkspaces } from "@/wonderworks/owner/Workspace";
 import { call } from "@/wonderworks/api";
 import { relativeTime } from "@/lib/format";
 import { money, shortDate } from "@/wonderworks/listing/terms";
-import { addDays, chipsOf, cleanQuote, MAX_ITEMS, paidLabel, proMay, SLOT_LABEL, SLOTS, STATUS_LABEL, todayIst, whenLabel, type ProRequest, type Slot } from "../deal";
+import { addDays, amountLabel, chipsOf, cleanQuote, MAX_ITEMS, paidLabel, proMay, SLOT_LABEL, SLOTS, STATUS_LABEL, todayIst, whenLabel, type ProRequest, type Slot } from "../deal";
 import { TONE } from "./Bookings";
 import { QuoteLines } from "./Booking";
 import { CURRENCIES, LANE_LABEL, LANE_PRICES, LOCAL_TRADES, materialsLabel, PRICE_KIND_LABEL, priceLabel, REMOTE_FIELDS, warrantyLabel, type Lane, type ServicePosting } from "../domain";
@@ -119,6 +120,11 @@ export function ServicesCompany() {
                     {r.deal.review && <p className="text-[13px] text-ink-2">★ {r.deal.review.rating} of 5{r.deal.review.text ? ` — “${r.deal.review.text}”` : ""}</p>}
                     {r.deal.issue && <p className="text-[13px] text-danger-600">Problem reported {shortDate(r.deal.issue.at.slice(0, 10))}: {r.deal.issue.text}</p>}
                     {(paid || chipsOf(r.status, r.deal, "pro").length > 0) && <p className="text-[12px] text-ink-4">{[...new Set([paid, ...chipsOf(r.status, r.deal, "pro").filter((c) => c !== "Paid")].filter(Boolean))].join(" · ")}</p>}
+                    {(r.status === "booked" || r.status === "done") && r.deal.quote && (
+                      <a className="inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline" href={`/api/m/services/org/${encodeURIComponent(org!)}/requests/${encodeURIComponent(r.id)}/invoice`} target="_blank" rel="noopener noreferrer">
+                        Invoice summary
+                      </a>
+                    )}
                     {next.length > 0 && (
                       <div className="flex flex-wrap gap-3 text-[13px] font-medium">
                         {next.includes("quote") && (
@@ -212,6 +218,7 @@ export function ServicesCompany() {
           orgId={org}
           request={quoteFor}
           currency={data?.listings.find((p) => p.id === quoteFor.listingId)?.terms.currency ?? "INR"}
+          gstin={data?.listings.find((p) => p.id === quoteFor.listingId)?.terms.gstin}
           onClose={() => setQuoteFor(null)}
           onSent={() => {
             setQuoteFor(null);
@@ -234,7 +241,7 @@ export function ServicesCompany() {
   );
 }
 
-type FormState = { title: string; description: string; lane: Lane; category: string; location: string; areas: string; priceKind: string; priceMin: string; priceMax: string; currency: string; visitCharge: string; materials: string; warrantyDays: string; turnaroundDays: string; skills: string; gst: boolean };
+type FormState = { title: string; description: string; lane: Lane; category: string; location: string; areas: string; priceKind: string; priceMin: string; priceMax: string; currency: string; visitCharge: string; materials: string; warrantyDays: string; turnaroundDays: string; skills: string; gstin: string };
 
 /** The listing form: one lane at a time, so a local trade never sees "turnaround" and a remote project never sees "visit charge". */
 function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; posting: ServicePosting | null; onClose: () => void; onSaved: () => void }) {
@@ -255,7 +262,7 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
     warrantyDays: t?.warrantyDays?.toString() ?? "",
     turnaroundDays: t?.turnaroundDays?.toString() ?? "",
     skills: t?.skills?.join(", ") ?? "",
-    gst: !!t?.gst,
+    gstin: t?.gstin ?? "",
   });
   const [busy, setBusy] = useState(false);
   const set = (k: keyof FormState) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
@@ -277,7 +284,7 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
         currency: f.currency,
         warrantyDays: num(f.warrantyDays),
         skills: list(f.skills),
-        gst: f.gst,
+        gstin: f.gstin.trim() || undefined,
         ...(local ? { areas: list(f.areas), visitCharge: num(f.visitCharge), materials: f.materials || undefined } : { turnaroundDays: num(f.turnaroundDays) }),
       };
       const url = `/api/m/services/org/${encodeURIComponent(orgId)}`;
@@ -386,10 +393,9 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
             <Input id="sf-skills" value={f.skills} onChange={set("skills")} placeholder={local ? "Split AC, inverter AC" : "Figma, Illustrator"} />
           </Field>
         </div>
-        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-[12px] border border-line px-3 py-2.5">
-          <input type="checkbox" className="mt-1 size-4 accent-[var(--color-brand-600)]" checked={f.gst} onChange={(e) => setF((x) => ({ ...x, gst: e.target.checked }))} />
-          <span className="block text-[14px] font-medium text-ink">I&apos;m GST-registered</span>
-        </label>
+        <Field label="GSTIN" htmlFor="sf-gstin" hint="Only if you're GST-registered. Shown on your page as you state it; WonderWorks doesn't look it up">
+          <Input id="sf-gstin" value={f.gstin} onChange={set("gstin")} placeholder="27ABCDE1234F1Z5" autoCapitalize="characters" />
+        </Field>
       </div>
     </Modal>
   );
@@ -401,7 +407,7 @@ type Line = { label: string; amount: string };
  * The pro's quote, line by line (labour, visit, parts, revisions…), with the day they'd start — for a visit, its
  * window too; for a remote project, the delivery day — and how long it stands. The total is the lines' sum.
  */
-function QuoteForm({ orgId, request: r, currency, onClose, onSent }: { orgId: string; request: ProRequest; currency: string; onClose: () => void; onSent: () => void }) {
+function QuoteForm({ orgId, request: r, currency, gstin, onClose, onSent }: { orgId: string; request: ProRequest; currency: string; gstin?: string; onClose: () => void; onSent: () => void }) {
   const q = r.deal.quote;
   const today = todayIst();
   const local = r.lane === "local";
@@ -411,13 +417,20 @@ function QuoteForm({ orgId, request: r, currency, onClose, onSent }: { orgId: st
   const [deliverBy, setDeliverBy] = useState(q?.deliverBy ?? r.request.neededBy ?? "");
   const [validUntil, setValidUntil] = useState(q?.validUntil ?? addDays(today, 7));
   const [note, setNote] = useState(q?.note ?? "");
+  const [gstRate, setGstRate] = useState(q?.gst ? String(q.gst.rate) : "");
+  const [sac, setSac] = useState(q?.gst?.sac ?? "");
+  const [tdsSection, setTdsSection] = useState(q?.tds?.section ?? "");
+  const [tdsRate, setTdsRate] = useState(q?.tds ? String(q.tds.rate) : "");
   const [busy, setBusy] = useState(false);
   const cur = q?.currency ?? currency;
   const amount = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(/[^\d]/g, "")));
-  const body = { items: lines.filter((l) => l.label.trim() || l.amount.trim()).map((l) => ({ label: l.label, amount: amount(l.amount) ?? -1 })), currency: cur, start, ...(local ? { slot: slot || undefined } : { deliverBy: deliverBy || undefined }), validUntil, note };
-  const total = body.items.reduce((s, i) => s + Math.max(0, i.amount), 0);
+  const pct = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
+  const body = { items: lines.filter((l) => l.label.trim() || l.amount.trim()).map((l) => ({ label: l.label, amount: amount(l.amount) ?? -1 })), currency: cur, start, ...(local ? { slot: slot || undefined } : { deliverBy: deliverBy || undefined }), validUntil, note, ...(gstin && gstRate.trim() ? { gstRate: pct(gstRate), sac: sac.trim() } : {}), ...(tdsSection.trim() || tdsRate.trim() ? { tdsSection: tdsSection.trim(), tdsRate: pct(tdsRate) } : {}) };
+  // The preview is the same arithmetic the server does, so what the pro sees is what the client is quoted.
+  const preview = cleanQuote(body, r.lane, "0000-00-00", "", { gstin });
+  const total = "value" in preview ? preview.value.total : body.items.reduce((s, i) => s + Math.max(0, i.amount), 0);
   const send = async () => {
-    const c = cleanQuote(body, r.lane, today, "");
+    const c = cleanQuote(body, r.lane, today, "", { gstin });
     if ("problem" in c) return toast.error("Check the quote", c.problem);
     setBusy(true);
     try {
@@ -431,7 +444,7 @@ function QuoteForm({ orgId, request: r, currency, onClose, onSent }: { orgId: st
     }
   };
   return (
-    <Modal open onClose={onClose} title={`Quote for ${r.name}`} footer={<Button full loading={busy} onClick={() => void send()}>{q ? "Send revised quote" : "Send quote"} · {money(total, cur)}</Button>}>
+    <Modal open onClose={onClose} title={`Quote for ${r.name}`} footer={<Button full loading={busy} onClick={() => void send()}>{q ? "Send revised quote" : "Send quote"} · {amountLabel(total, cur)}</Button>}>
       <div className="space-y-3">
         <p className="whitespace-pre-wrap text-[13px] text-ink-3">{r.request.details}</p>
         <fieldset className="space-y-2">
@@ -477,6 +490,31 @@ function QuoteForm({ orgId, request: r, currency, onClose, onSent }: { orgId: st
         <Field label="Valid until" htmlFor="qf-valid">
           <Input id="qf-valid" type="date" min={today} value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
         </Field>
+        <Fold title="Tax (optional)" hint={gstin ? "GST and TDS, as you state them" : "TDS, as you state it"}>
+          <div className="space-y-3">
+            {gstin ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="GST rate (%)" htmlFor="qf-gst" hint={`On your GSTIN ${gstin}`}>
+                  <Input id="qf-gst" inputMode="decimal" value={gstRate} onChange={(e) => setGstRate(e.target.value)} placeholder="18" />
+                </Field>
+                <Field label="SAC code" htmlFor="qf-sac" hint="For this service">
+                  <Input id="qf-sac" inputMode="numeric" value={sac} onChange={(e) => setSac(e.target.value)} placeholder="998733" />
+                </Field>
+              </div>
+            ) : (
+              <p className="text-[13px] text-ink-3">To charge GST, add your GSTIN to this service first (Services → Edit).</p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="TDS section" htmlFor="qf-tds" hint="If the client deducts it">
+                <Input id="qf-tds" value={tdsSection} onChange={(e) => setTdsSection(e.target.value)} placeholder="194J" />
+              </Field>
+              <Field label="TDS rate (%)" htmlFor="qf-tdsr">
+                <Input id="qf-tdsr" inputMode="decimal" value={tdsRate} onChange={(e) => setTdsRate(e.target.value)} placeholder="10" />
+              </Field>
+            </div>
+            <p className="text-[12px] text-ink-4">WonderWorks works the amounts from what you state here and doesn&apos;t check them. TDS is worked on the amount before GST. Confirm rates and sections with a chartered accountant if unsure.</p>
+          </div>
+        </Fold>
         <Field label="Note" htmlFor="qf-note" hint="Optional: what's not included, materials billed at cost, revisions…">
           <Textarea id="qf-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>

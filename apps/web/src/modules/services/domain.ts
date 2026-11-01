@@ -47,8 +47,9 @@ export interface ServiceTerms {
   /** Remote work: days to deliver a typical job. */
   turnaroundDays?: number;
   skills?: string[];
-  /** The pro says they're GST-registered (the invoice then carries GST). */
+  /** The pro says they're GST-registered, and gives their GSTIN (format checked only; WonderWorks doesn't look it up). */
   gst?: boolean;
+  gstin?: string;
   /** Reported by the source, never computed here. Out of 5. */
   rating?: number;
   reviews?: number;
@@ -189,6 +190,14 @@ export const turnaroundLabel = (d: number | undefined) => (d ? (d === 1 ? "Deliv
 /** "4.9 (101 reviews)", only when the source reported a rating. */
 export const ratingLabel = (t: Pick<ServiceTerms, "rating" | "reviews">) => (t.rating === undefined ? null : `${t.rating.toFixed(1)}${t.reviews ? ` (${t.reviews} review${t.reviews === 1 ? "" : "s"})` : ""}`);
 
+/**
+ * A GSTIN as the pro typed it, in its 15-character shape: two for the state code, ten for the PAN, two for the entity
+ * code and a checksum character (CGST Rules, rule 10). Only the shape is checked: WonderWorks doesn't confirm it with
+ * the GST portal, so it is shown as "the pro's GSTIN", never as verified.
+ */
+export const GSTIN = /^(0[1-9]|[1-2]\d|3[0-8]|9[79])[A-Z]{5}\d{4}[A-Z][0-9A-Z]{3}$/;
+export const cleanGstin = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, "").toUpperCase() : "");
+
 /* ------------------------------------------------------------------ the client */
 
 /** What a client tells us once: where they are, so Find starts from there and a pro's service area can be compared. */
@@ -313,7 +322,7 @@ export function readTerms(raw: unknown): ServiceTerms {
     ...(areas.length ? { areas } : {}),
     ...(turnaroundDays ? { turnaroundDays } : {}),
     ...(skills.length ? { skills } : {}),
-    ...(r.gst === true ? { gst: true } : {}),
+    ...(typeof r.gstin === "string" && GSTIN.test(r.gstin) ? { gst: true, gstin: r.gstin } : r.gst === true ? { gst: true } : {}),
   };
 }
 
@@ -343,6 +352,7 @@ export interface ServicePostingInput {
   turnaroundDays?: unknown;
   skills?: unknown;
   gst?: unknown;
+  gstin?: unknown;
 }
 
 export type CleanServicePosting = Pick<ServicePosting, "title" | "description" | "location" | "workMode" | "terms">;
@@ -385,6 +395,8 @@ export function cleanServicePosting(i: ServicePostingInput): { value: CleanServi
   if ((!blank(i.warrantyDays) && warrantyDays === undefined) || (!blank(i.turnaroundDays) && turnaroundDays === undefined)) return { problem: "Days should be a whole number." };
   const materials = lane === "local" ? oneOf(i.materials, ["included", "extra"] as const) : undefined;
   const skills = words(i.skills, 10, 40);
+  const gstin = cleanGstin(i.gstin);
+  if (gstin && !GSTIN.test(gstin)) return { problem: "That GSTIN doesn't look right: it has 15 letters and digits, like 27ABCDE1234F1Z5. Leave it blank if you don't have one." };
   const terms: ServiceTerms = {
     currency,
     lane,
@@ -398,7 +410,7 @@ export function cleanServicePosting(i: ServicePostingInput): { value: CleanServi
     ...(lane === "local" ? { areas } : {}),
     ...(lane === "remote" && turnaroundDays ? { turnaroundDays } : {}),
     ...(skills.length ? { skills } : {}),
-    ...(i.gst === true ? { gst: true } : {}),
+    ...(gstin ? { gst: true, gstin } : {}),
   };
   return { value: { title, description, location: lane === "remote" ? location || "Remote" : location, workMode: lane === "remote" ? "remote" : "onsite", terms } };
 }

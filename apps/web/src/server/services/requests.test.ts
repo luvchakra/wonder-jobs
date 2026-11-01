@@ -13,7 +13,8 @@ import { writeClientState } from "@/server/clientState";
 import { defaultPolicy, POLICY_VERSION } from "@/domain/automation/policy";
 import * as H from "@/server/hiring";
 import { saveService, setServiceStatus } from "./listings";
-import { clientAct, listingReviews, myRequest, myRequests, orgRequests, proAct, requestQuote } from "./requests";
+import { clientAct, clientInvoice, listingReviews, myRequest, myRequests, orgRequests, proAct, proInvoice, requestQuote } from "./requests";
+import { renderInvoice } from "./invoice";
 
 const pro: Session = { userId: "u-pro", tenantId: "u-pro", email: "ravi@coolfix.test", name: "Ravi" };
 const recruiter: Session = { userId: "u-rec", tenantId: "u-rec", email: "rec@coolfix.test" };
@@ -152,5 +153,66 @@ describe("tenant and workspace isolation", () => {
     // A review written straight into a request that isn't done isn't read.
     await table("responses").update({ id } as never, { deal: { review: { rating: 1, text: "x", name: "X", at: new Date().toISOString() } } } as never);
     expect((await listingReviews([draft.id])).size).toBe(0);
+  });
+});
+
+describe("GST, TDS and the invoice summary", () => {
+  const GSTIN = "27ABCDE1234F1Z5";
+  async function listedWithGstin() {
+    const { org } = await H.createWorkspace(pro, { name: "CoolFix <Pune>" });
+    const p = await saveService(pro, org.id, { ...AC, gstin: GSTIN });
+    await setServiceStatus(pro, org.id, p.id, "open");
+    return { orgId: org.id, listingId: p.id };
+  }
+
+  it("a pro can charge GST only with a GSTIN on their listing, and the quote carries exactly what they stated", async () => {
+    const { orgId, listingId } = await listed();
+    const { id } = await ask(listingId);
+    await expect(proAct(pro, orgId, id, { action: "quote", quote: { ...QUOTE, gstRate: 18, sac: "998733" } }, TODAY)).rejects.toMatchObject({ status: 400, message: expect.stringMatching(/GSTIN/) });
+    const w = await listedWithGstin();
+    const r2 = await ask(w.listingId, client);
+    await proAct(pro, w.orgId, r2.id, { action: "quote", quote: { ...QUOTE, gstRate: 18, sac: "998733", tdsSection: "194J", tdsRate: 10 } }, TODAY);
+    expect((await myRequest(client, r2.id)).deal.quote).toMatchObject({ taxable: 2799, gst: { rate: 18, sac: "998733", amount: 503.82 }, total: 3302.82, tds: { section: "194J", amount: 279.9 }, net: 3022.92 });
+  });
+
+  it("the invoice summary exists only once the job is booked, only for the two sides, and shows only what the pro stated", async () => {
+    const w = await listedWithGstin();
+    const { id } = await ask(w.listingId);
+    await expect(clientInvoice(client, id)).rejects.toMatchObject({ status: 409 });
+    await proAct(pro, w.orgId, id, { action: "quote", quote: { ...QUOTE, gstRate: 18, sac: "998733" } }, TODAY);
+    await expect(clientInvoice(client, id)).rejects.toMatchObject({ status: 409 });
+    await clientAct(client, id, { action: "accept", booking: BOOK }, TODAY);
+    await proAct(pro, w.orgId, id, { action: "done" }, TODAY);
+    await clientAct(client, id, { action: "paid" }, TODAY);
+
+    const html = renderInvoice(await clientInvoice(client, id), "client");
+    expect(html).toContain("Invoice summary");
+    expect(html).toContain("GSTIN 27ABCDE1234F1Z5 (as the pro states it)");
+    expect(html).toContain("GST at 18%");
+    expect(html).toContain("SAC 998733");
+    expect(html).toContain("₹3,302.82");
+    expect(html).toContain("You marked it paid");
+    expect(html).toContain("It is not a GST tax invoice");
+    // Another person's invoice, another workspace's and a role without view rights are refused; the client's email is the pro's view only.
+    await expect(clientInvoice(other, id)).rejects.toMatchObject({ status: 404 });
+    await expect(proInvoice(other, w.orgId, id)).rejects.toMatchObject({ status: 403 });
+    const { org: theirs } = await H.createWorkspace(other, { name: "Other Pros" });
+    await expect(proInvoice(other, theirs.id, id)).rejects.toMatchObject({ status: 404 });
+    expect(renderInvoice(await proInvoice(pro, w.orgId, id), "pro")).toContain("meera@example.com");
+    expect(html).not.toContain("meera@example.com");
+  });
+
+  it("a quote without tax says none; TDS is shown only when the pro named it; whatever anyone typed is escaped", async () => {
+    const w = await listedWithGstin();
+    const { id } = await ask(w.listingId);
+    await proAct(pro, w.orgId, id, { action: "quote", quote: { ...QUOTE, note: "<script>alert(1)</script>" } }, TODAY);
+    await clientAct(client, id, { action: "accept", booking: { ...BOOK, address: "Flat 4, <img src=x onerror=alert(1)>, Kothrud" } }, TODAY);
+    const html = renderInvoice(await clientInvoice(client, id), "client");
+    expect(html).not.toContain("GST at");
+    expect(html).not.toContain("TDS under");
+    expect(html).not.toContain("<script>alert");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(renderInvoice(await proInvoice(pro, w.orgId, id), "pro")).toContain("CoolFix &lt;Pune&gt;");
   });
 });

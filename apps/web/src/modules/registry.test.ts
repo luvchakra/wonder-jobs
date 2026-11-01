@@ -27,7 +27,7 @@ describe("WonderWorks module registry", () => {
     expect(moduleById("cofounders")!.status).toBe("live");
     expect(moduleById("events")!.status).toBe("live");
     expect(moduleById("marketplace")!.status).toBe("live");
-    expect(moduleById("scholarships")!.status).toBe("soon");
+    expect(moduleById("scholarships")!.status).toBe("live");
     for (const m of MODULES.filter((x) => x.id !== "jobs")) {
       expect(m.routes.find).toBe(`/app/m/${m.id}`);
       expect(m.pipeline.stages.length, m.id).toBeGreaterThan(0);

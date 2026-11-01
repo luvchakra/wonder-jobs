@@ -78,10 +78,31 @@ export interface QuoteItem {
   amount: number;
 }
 
+/** GST the pro states on a quote: their own rate and SAC. Only a pro who gave their GSTIN can add it. */
+export interface QuoteGst {
+  rate: number;
+  sac: string;
+  amount: number;
+}
+
+/** TDS the pro states applies to this quote: the section and rate they name. The amount is arithmetic on those. */
+export interface QuoteTds {
+  section: string;
+  rate: number;
+  amount: number;
+}
+
 export interface Quote {
   items: QuoteItem[];
   currency: string;
+  /** The lines' sum, before any tax the pro states. */
+  taxable?: number;
+  gst?: QuoteGst;
+  /** What the client is billed: the lines plus the GST the pro states. */
   total: number;
+  tds?: QuoteTds;
+  /** After the TDS the pro states (the client deducts it only if the law makes them a deductor). */
+  net?: number;
   /** The day work starts; for local work, its window too. */
   start: string;
   slot?: Slot;
@@ -95,8 +116,22 @@ export interface Quote {
 
 export const MAX_ITEMS = 10;
 
-/** The pro's quote, checked: 1–10 priced lines, a start, and a "valid until" no earlier than today. The total is the lines' sum. */
-export function cleanQuote(raw: unknown, lane: Lane, today: string, at: string): { value: Quote } | { problem: string } {
+/** Whole paise, so tax arithmetic never drifts: ₹599 at 18% is 10782 paise. */
+const paise = (rupees: number) => Math.round(rupees * 100);
+const rupees = (p: number) => p / 100;
+/** A percentage to two places, as a number of hundredths of a percent. */
+const hundredths = (pct: number) => Math.round(pct * 100);
+const percent = (v: unknown, max: number) => (typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max && hundredths(v) / 100 === v ? v : undefined);
+const taxOn = (taxablePaise: number, pct: number) => Math.round((taxablePaise * hundredths(pct)) / 10_000);
+
+/**
+ * The pro's quote, checked: 1–10 priced lines, a start, and a "valid until" no earlier than today. The lines' sum is the
+ * taxable value. GST and TDS are only what the pro states, never guessed:
+ * - GST needs the pro's GSTIN (`tax.gstin`, from their listing), their rate and a SAC code; the amount is the rate on the lines.
+ * - TDS needs the section and the rate the pro names; the amount is that rate on the lines (the amount before GST, as the
+ *   Income Tax Department's guidance has it when GST is shown separately).
+ */
+export function cleanQuote(raw: unknown, lane: Lane, today: string, at: string, tax: { gstin?: string } = {}): { value: Quote } | { problem: string } {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const lines = Array.isArray(r.items) ? r.items : [];
   const items: QuoteItem[] = [];
@@ -120,11 +155,54 @@ export function cleanQuote(raw: unknown, lane: Lane, today: string, at: string):
   const validUntil = isDate(r.validUntil) ? r.validUntil : addDays(today, 7);
   if (validUntil < today) return { problem: "The quote must be valid until today or later." };
   const note = text(r.note, 1000);
-  return { value: { items, currency, total: items.reduce((s, i) => s + i.amount, 0), start: r.start, ...(slot ? { slot } : {}), ...(deliverBy ? { deliverBy } : {}), validUntil, ...(note ? { note } : {}), at } };
+  const taxable = paise(items.reduce((s, i) => s + i.amount, 0));
+  let gst: QuoteGst | undefined;
+  if (r.gstRate != null && r.gstRate !== "") {
+    if (!tax.gstin) return { problem: "Add your GSTIN to this service (You → Offer your services → Edit) before charging GST." };
+    const rate = percent(r.gstRate, 40);
+    if (rate === undefined) return { problem: "GST rate should be a percentage above 0, up to 40, with at most two decimals." };
+    const sac = text(r.sac, 8).replace(/\s+/g, "");
+    if (!/^\d{4,8}$/.test(sac)) return { problem: "Add the SAC code for this service (4 to 8 digits) to charge GST." };
+    gst = { rate, sac, amount: rupees(taxOn(taxable, rate)) };
+  }
+  let tds: QuoteTds | undefined;
+  const section = text(r.tdsSection, 20);
+  if (section || (r.tdsRate != null && r.tdsRate !== "")) {
+    const rate = percent(r.tdsRate, 30);
+    if (!section || rate === undefined) return { problem: "For TDS, give the section (for example 194J) and its rate as a percentage, up to 30." };
+    tds = { section, rate, amount: rupees(taxOn(taxable, rate)) };
+  }
+  const total = taxable + paise(gst?.amount ?? 0);
+  return { value: { items, currency, taxable: rupees(taxable), ...(gst ? { gst } : {}), total: rupees(total), ...(tds ? { tds, net: rupees(total - paise(tds.amount)) } : {}), start: r.start, ...(slot ? { slot } : {}), ...(deliverBy ? { deliverBy } : {}), validUntil, ...(note ? { note } : {}), at } };
 }
 
 export const quoteExpired = (q: Pick<Quote, "validUntil">, today: string) => q.validUntil < today;
 export const totalLabel = (q: Pick<Quote, "total" | "currency">) => money(q.total, q.currency);
+
+/** An amount with paise only when it has them: ₹2,799, ₹107.82. */
+export const amountLabel = (v: number, currency: string) => (Number.isInteger(v) ? money(v, currency) : `${money(Math.trunc(v), currency).replace(/\d[\d,]*$/, "")}${v.toLocaleString(currency === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+export interface BreakdownRow {
+  label: string;
+  amount: number;
+  /** A subtotal or the total, drawn heavier. */
+  strong?: boolean;
+  /** Taken off (TDS). */
+  minus?: boolean;
+  note?: string;
+}
+
+/** The quote as rows: the lines, then — only where the pro stated them — the taxable value, GST, the total, TDS and what's payable after it. */
+export function breakdown(q: Quote): BreakdownRow[] {
+  const taxed = !!q.gst || !!q.tds;
+  return [
+    ...q.items.map((i) => ({ label: i.label, amount: i.amount })),
+    ...(taxed && q.gst ? [{ label: "Taxable value", amount: q.taxable ?? q.items.reduce((s, i) => s + i.amount, 0), strong: true }] : []),
+    ...(q.gst ? [{ label: `GST at ${q.gst.rate}%`, amount: q.gst.amount, note: `SAC ${q.gst.sac}` }] : []),
+    { label: "Total", amount: q.total, strong: true },
+    ...(q.tds ? [{ label: `TDS under section ${q.tds.section} at ${q.tds.rate}%`, amount: q.tds.amount, minus: true, note: "on the amount before GST" }, { label: "Payable after TDS", amount: q.net ?? q.total - q.tds.amount, strong: true }] : []),
+  ];
+}
 /** "Starts 3 Nov 2026, morning (8 am–12 pm)" or "Starts 3 Nov 2026 · delivered by 10 Nov 2026". */
 export const startLabel = (q: Pick<Quote, "start" | "slot" | "deliverBy">) => `Starts ${shortDate(q.start)}${q.slot ? `, ${SLOT_LABEL[q.slot].replace(/^\w/, (c) => c.toLowerCase())}` : ""}${q.deliverBy ? ` · delivered by ${shortDate(q.deliverBy)}` : ""}`;
 export const whenLabel = (r: Pick<QuoteRequest, "date" | "slot" | "neededBy">) => (r.date ? `${shortDate(r.date)}${r.slot ? `, ${SLOT_LABEL[r.slot].replace(/^\w/, (c) => c.toLowerCase())}` : ""}` : r.neededBy ? `Needed by ${shortDate(r.neededBy)}` : "No deadline");
