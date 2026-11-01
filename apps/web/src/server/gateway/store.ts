@@ -107,7 +107,7 @@ function toRow(l: GatewayListing) {
     source_id: l.sourceId,
     module: l.module,
     location: (l.location ?? "").toLowerCase(),
-    search_text: `${l.title} ${l.organization} ${l.description}`.toLowerCase().slice(0, 20000),
+    search_text: `${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`.toLowerCase().slice(0, 20000),
     sort_at: l.publishedAt || l.observedAt,
     observed_at: l.observedAt,
     expires_at: l.expiresAt,
@@ -137,7 +137,7 @@ export class GatewayListingsTable {
     const sb = getSupabaseAdmin();
     if (!sb) {
       const all = [...mem().values()]
-        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
+        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
         .sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
       return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
     }

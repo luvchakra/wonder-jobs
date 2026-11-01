@@ -1,7 +1,8 @@
 /**
  * developers.events as an Events source: a public list of developer conferences and their calls for papers, published as one
  * JSON file by its maintainers (https://developers.events/all-events.json, listed in the project's README as public data;
- * robots.txt allows it). No key. About 790 upcoming events, some two dozen in India.
+ * robots.txt allows it). No key. **Licence:** the README licenses the data CC-BY-NC (non-commercial), so the source is registered paused
+ * until the owner decides (sources.ts). About 790 upcoming events, some two dozen in India.
  *
  * Genuine and traceable: each event is exactly one entry in that file, linked to the event's own page (`hyperlink`). Only entries
  * the file marks open (or virtualized, which it states as online) are shown; cancelled, postponed and delayed ones have no firm

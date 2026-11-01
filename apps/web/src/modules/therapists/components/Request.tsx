@@ -38,6 +38,8 @@ export function RequestSession({ listing: l, start = false }: { listing: Therapi
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const decision = resolveCapability("therapists.book", policy, level);
+  // Only a practitioner who listed on WonderWorks can be asked for a session; an outside practice has no listing here.
+  if (!l.postingId) return null;
 
   if (open)
     return (

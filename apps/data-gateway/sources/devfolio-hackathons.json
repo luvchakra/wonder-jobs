@@ -1,0 +1,30 @@
+{
+  "url": "https://api.devfolio.co/api/hackathons?filter=application_open&page=1&limit=100",
+  "kind": "json_api",
+  "modules": ["events"],
+  "permission": "terms_permit",
+  "permissionEvidence": "api.devfolio.co/robots.txt and devfolio.co/robots.txt (read 2026-11-01) disallow nothing. The JSON is what devfolio.co loads for its public hackathon list (no sign-in); India's largest hackathon platform. Terms pending: the owner confirms Devfolio's terms for reuse of the list (ask Devfolio).",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "robotsReviewed": true,
+  "attribution": "Devfolio (devfolio.co)",
+  "itemsPath": "result",
+  "organizationOptional": true,
+  "dropPastAfter": "endDate",
+  "mapping": {
+    "id": "uuid",
+    "title": "name",
+    "location": ["city", "state", "country"],
+    "description": "tagline",
+    "applyUrl": "https://{slug}.devfolio.co/",
+    "attr.startDate": "starts_at",
+    "attr.endDate": "ends_at",
+    "attr.timezone": "timezone",
+    "attr.online": "is_online",
+    "attr.city": "city",
+    "attr.country": "country"
+  },
+  "retentionHours": 48,
+  "minIntervalMinutes": 720
+}

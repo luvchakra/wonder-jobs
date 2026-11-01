@@ -17,12 +17,34 @@ import { WONDERWORKS_EVENTS } from "./sources";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDay = (v: unknown): v is string => typeof v === "string" && DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+/** An IANA zone name ("Asia/Kolkata") this runtime knows, else undefined. */
+const zoneOf = (v: unknown): string | undefined => {
+  if (typeof v !== "string" || !/^[A-Za-z_]+(?:\/[A-Za-z_+\-0-9]+){0,2}$/.test(v.trim())) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: v.trim() });
+    return v.trim();
+  } catch {
+    return undefined;
+  }
+};
+const INSTANT = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/;
 /**
  * The calendar day a source states: "2026-11-14", or a date and time ("2026-11-14T17:00:00+05:30"), whose date part is the day
- * where the event is. Anything else is not a date (no day is made up).
+ * where the event is. A moment given in UTC ("2026-11-27T18:30:00Z") with the event's own zone named by the source
+ * (`timezone`) is read as the day in that zone (18:30 UTC is already 28 Nov in India); without a zone the date as stated is used.
+ * Anything else is not a date (no day is made up).
  */
-const dayOf = (v: unknown): string | undefined => {
-  const d = typeof v === "string" ? /^(\d{4}-\d{2}-\d{2})(?:[T ]|$)/.exec(v.trim())?.[1] : undefined;
+const dayOf = (v: unknown, timezone?: unknown): string | undefined => {
+  const t = typeof v === "string" ? v.trim() : "";
+  const zone = zoneOf(timezone);
+  if (zone && INSTANT.test(t) && /(?:Z|[+-]\d{2}:?\d{2})$/.test(t)) {
+    const ms = Date.parse(t.replace(" ", "T"));
+    if (Number.isFinite(ms)) {
+      const d = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
+      return isDay(d) ? d : undefined;
+    }
+  }
+  const d = /^(\d{4}-\d{2}-\d{2})(?:[T ]|$)/.exec(t)?.[1];
   return d && isDay(d) ? d : undefined;
 };
 const isWeb = (v: unknown): v is string => typeof v === "string" && /^https?:\/\//i.test(v);
@@ -40,10 +62,13 @@ export const isOutsideEvent = (o: Pick<CanonicalOpportunity, "kind" | "sourceRec
 export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): EventListing | null {
   const a = o.attributes ?? {};
   const source = o.sourceRecords[0];
-  const startDate = dayOf(a.startDate);
-  // A source that says an event is cancelled or postponed is not offering it (a postponed one has no firm date).
-  if (!source || !startDate || a.cancelled === true || a.postponed === true || !isWeb(o.canonicalApplyUrl)) return null;
-  const end = dayOf(a.endDate);
+  const startDate = dayOf(a.startDate, a.timezone);
+  // A source that says an event is cancelled or postponed is not offering it (a postponed one has no firm date). A source may say
+  // so as flags (`cancelled`, `postponed`) or as a schema.org status ("EventCancelled", "EventPostponed"); "EventRescheduled"
+  // means its dates already changed, so it is shown.
+  const status = typeof a.eventStatus === "string" ? a.eventStatus : "";
+  if (!source || !startDate || a.cancelled === true || a.postponed === true || /^(https?:\/\/schema\.org\/)?Event(Cancelled|Postponed)$/i.test(status) || !isWeb(o.canonicalApplyUrl)) return null;
+  const end = dayOf(a.endDate, a.timezone);
   const endDate = end && end >= startDate ? end : undefined;
   // Only events that haven't ended (the source may keep one a day past its end).
   if ((endDate ?? startDate) < today) return null;

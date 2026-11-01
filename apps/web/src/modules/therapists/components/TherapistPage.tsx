@@ -3,7 +3,7 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Clock, MapPin, Wallet } from "lucide-react";
+import { Bookmark, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
@@ -12,6 +12,7 @@ import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { OSM_COPYRIGHT } from "@/wonderworks/find/osm";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
 import { FIT, useMatch } from "./Listing";
@@ -49,6 +50,7 @@ function Page({ l }: { l: TherapistListing }) {
   const long = isLongText(l.description);
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
+  const outside = l.origin === "outside";
   const rows: [string, string][] = [
     ["How they meet", modesLabel(t.modes) ?? "Not stated"],
     ["City", t.modes?.includes("in_person") ? l.location || "Not stated" : "Not applicable"],
@@ -60,7 +62,7 @@ function Page({ l }: { l: TherapistListing }) {
   ];
   return (
     <ListingPage
-      share={shareOf(l)}
+      share={outside ? null : shareOf(l)}
       back={FIND}
       title={l.title}
       actions={
@@ -80,9 +82,11 @@ function Page({ l }: { l: TherapistListing }) {
               </span>
             ),
             modesLabel(t.modes) && <span key="m">{modesLabel(t.modes)}</span>,
-            <span key="$" className="inline-flex items-center gap-1">
-              <Wallet className="size-3.5" aria-hidden /> {feeLabel(t)}
-            </span>,
+            !outside && (
+              <span key="$" className="inline-flex items-center gap-1">
+                <Wallet className="size-3.5" aria-hidden /> {feeLabel(t)}
+              </span>
+            ),
             l.postedAt && (
               <span key="p" className="inline-flex items-center gap-1">
                 <Clock className="size-3.5" aria-hidden /> {relativeTime(l.postedAt)}
@@ -98,9 +102,11 @@ function Page({ l }: { l: TherapistListing }) {
           </div>
         )}
         <p className="mt-3 rounded-[12px] bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
-          Everything here is what {l.company} wrote about themselves. WonderWorks has not checked their licence, qualifications or claims, and shows no rating.
+          {outside
+            ? `${l.company} is mapped on OpenStreetMap; the practice didn't list itself here. WonderWorks has not checked it, its licence, qualifications or claims, and shows no rating.`
+            : `Everything here is what ${l.company} wrote about themselves. WonderWorks has not checked their licence, qualifications or claims, and shows no rating.`}
         </p>
-        <TranslatedText id={l.id} title={l.title} heading={"In their words"} text={l.description || "The practitioner shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={outside ? "From OpenStreetMap" : "In their words"} text={l.description || "The practitioner shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length > 0 && (
@@ -129,16 +135,39 @@ function Page({ l }: { l: TherapistListing }) {
                   </div>
                 ))}
               </dl>
-              <p className="mt-3 text-[12px] text-ink-4">As {l.company} listed them on WonderWorks.</p>
+              <p className="mt-3 text-[12px] text-ink-4">{outside ? "Only what OpenStreetMap has for this practice." : `As ${l.company} listed them on WonderWorks.`}</p>
             </Fold>
             <Fold title="Source" hint={`Via ${l.sourceName}`}>
-              <p className="text-[13px] text-ink-2">Listed on WonderWorks by {l.company}.{l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}</p>
+              {outside ? (
+                <>
+                  <p className="text-[13px] text-ink-2">Mapped on {l.sourceName}, not listed by the practice itself and not verified by WonderWorks. Contact them directly; WonderWorks can&apos;t book a session with them.</p>
+                  {l.attribution && (
+                    <p className="mt-2 text-[12px] text-ink-4">
+                      {l.attribution}, under the{" "}
+                      <a href={OSM_COPYRIGHT} target="_blank" rel="noopener noreferrer" className="underline">
+                        Open Database Licence
+                      </a>
+                      . Only what OpenStreetMap has: its name, kind of practice, area and website if it has one.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[13px] text-ink-2">Listed on WonderWorks by {l.company}.{l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}</p>
+              )}
             </Fold>
           </div>
         )}
       </ListingMain>
       <ListingAside>
-        <RequestSession listing={l} start={params.get("book") === "1"} />
+        {outside ? (
+          l.applyUrl && (
+            <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
+              Open their page
+            </Button>
+          )
+        ) : (
+          <RequestSession listing={l} start={params.get("book") === "1"} />
+        )}
       </ListingAside>
     </ListingPage>
   );

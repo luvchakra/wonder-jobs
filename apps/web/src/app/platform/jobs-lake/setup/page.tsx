@@ -6,10 +6,12 @@ import { MODULE_DATA } from "@/domain/jobslake/moduleData";
 import { MODULES } from "@/modules/registry";
 import { Chip } from "@/components/common/Input";
 import { DataTypes } from "./DataTypes";
-import { LoadError, Loading, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
+import { adminFetch, LoadError, Loading, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
+import { toast } from "@/components/feedback/Toast";
 
 const NEEDS: { value: SetupNeed | "all"; label: string }[] = [
   { value: "all", label: "All" },
+  { value: "decision", label: "Your decisions" },
   { value: "key", label: "API key" },
   { value: "terms", label: "Terms to confirm" },
   { value: "add", label: "Not added" },
@@ -31,7 +33,7 @@ export default function SetupTodoPage() {
 
   return (
     <>
-      <PageTitle title="Setup to-do" subtitle="Sources that can't bring listings in yet: a key to set, terms to confirm, or a gateway source to add and activate. Fix one, and it leaves the list." />
+      <PageTitle title="Setup to-do" subtitle="Everything about data sources that waits on you: your decisions, keys to set, terms to confirm, and gateway sources to add and activate. Fix or decide one, and it leaves the list." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading rows={4} />}
       {data && (
@@ -72,9 +74,31 @@ export default function SetupTodoPage() {
                         {i.detail}
                       </span>
                     </span>
-                    <Link href={i.action.href} className="shrink-0 rounded-full border border-brand-300 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-50">
-                      {i.action.label}
-                    </Link>
+                    {i.decision ? (
+                      <span className="flex shrink-0 items-center gap-2">
+                        {i.action.href !== "/platform/jobs-lake/setup" && (
+                          <Link href={i.action.href} className="text-[12px] font-medium text-brand-600 hover:underline">
+                            {i.action.label}
+                          </Link>
+                        )}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const r = await adminFetch("setup", { method: "POST", body: JSON.stringify({ decision: i.id.replace(/^decision:/, ""), done: true }) });
+                            if (r.ok) toast.success("Marked done", i.name);
+                            else toast.error("Couldn't mark it done", r.error.message);
+                            reload();
+                          }}
+                          className="rounded-full border border-brand-300 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-50"
+                        >
+                          Done
+                        </button>
+                      </span>
+                    ) : (
+                      <Link href={i.action.href} className="shrink-0 rounded-full border border-brand-300 px-3 py-1 text-[12px] font-semibold text-brand-700 hover:bg-brand-50">
+                        {i.action.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

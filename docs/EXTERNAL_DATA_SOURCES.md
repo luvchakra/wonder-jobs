@@ -29,7 +29,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | Internships · "software", Pune | 3 results (Himalayas) | Same: the India-strong sources are the ones without keys. |
 | Teaching · "english teacher" | 15 results (Himalayas only) | **Adzuna and Jooble: Needs setup.** WonderWorks schools: 0 (no school has posted a match). |
 | **Talent & Services · "designer"** | **0 results** | **A bug, now fixed (below).** Freelancer.com returned 39 pros; WorksLake dropped all 39 as "too old". |
-| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners exist; no outside source by design. |
+| Therapists · "counselling" | 1 result | Only WonderWorks' own practitioners until an admin registers the OpenStreetMap practices (WJ-600). |
 | Events · "music" | 1 result | Only WonderWorks' own events; no outside source yet. |
 
 **The Talent & Services bug.** A directory profile has no posting date, so its "posted" date was the day the freelancer made their account (often years ago). WorksLake serves only postings from the last two weeks (`domain/jobs/age.ts`), so every pro was removed (`tooOld: 39` in the search metadata). Fixed in `server/services/sources.ts`: a pro is not a dated posting, so it carries no date and isn't judged for age. After the fix the same search returns 39. This source has never returned a result before.
@@ -59,11 +59,11 @@ Each module's real search was run against the live feeds (no mocks). What came b
 
 | Module | Outside sources in code | Free/open | Paid or agreement | Biggest open issue |
 |---|---|---|---|---|
-| **Jobs** | 16 outside (15 free, 1 paid) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
+| **Jobs** | 20 outside (19 free, 1 paid; 4 need a free key) plus WonderWorks employers; 5 partner portals not in use | Yes (15) | TheirStack (paid); LinkedIn, Indeed, Naukri, foundit, TimesJobs (agreement) | Credentials on production unverified; partner portals not started |
 | **Internships** | 11 outside | Yes (all 11; 3 need a free key) | none | Same credentials; quality of "internship" detection varies by source |
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
-| **Therapists** | 0 | — | — | Deliberately none: licence verification and health-data rules first |
+| **Therapists** | 1 (+ OpenStreetMap practices built, an admin registers it) | — | none | No register or directory is open; practices only, nothing verified |
 | **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
 | **Buy, Sell & Rent** | 0 | none found | eBay (partner contract) | No open data; scrapers carry terms risk |
@@ -82,7 +82,7 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Greenhouse | ATS | official public API | **Live** · responds | Public boards of companies WorksLake knows |
 | Lever | ATS | official public API | **Live** · responds | Same |
 | Ashby | ATS | official public API | **Live** | Same |
-| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero |
+| SmartRecruiters career sites | ATS | official public API | **Live** · responds | Swiggy, Freshworks, Bosch, Continental, Delivery Hero, LinkedIn, ServiceNow (last two added 2026-11-01, WJ-544) |
 | JazzHR career sites | ATS | public feeds | **Live** | HackerEarth, Ebizon, ProcDNA and more |
 | The Muse | aggregator | public API | **Live** · responds | Key env `THEMUSE_API_KEY` is read; check whether it is required or only raises limits |
 | Jobicy | aggregator | public API | **Live** · responds | Salary where disclosed |
@@ -90,10 +90,14 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Himalayas | aggregator | public API | **Live** · responds | Newest postings scanned |
 | Himalayas part-time | aggregator | public API | **Live** | Part Time mode |
 | Freelancer.com gigs | aggregator | public API | **Live** · responds | Gig mode; client not named publicly |
+| Working Nomads | aggregator | public JSON (`/api/exposed_jobs/`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). ~35 newest remote jobs, no search. Confirm with Working Nomads that reuse of the feed's listings is allowed |
+| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Confirm with We Work Remotely that showing the RSS listings in another product is allowed |
 | Remotive | aggregator | public API | **Off by default** · responds | Public feed exposes only a handful of listings |
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
+| Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
+| USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
 | LinkedIn, Indeed, Naukri, foundit, TimesJobs | portals | partner API | **Do not use** | None has an open search API; see `docs/PARTNER_INTEGRATIONS.md` for who to contact and what to ask |
 
@@ -102,8 +106,13 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Option | Open/paid | Verdict |
 |---|---|---|
 | Hacker News "Who is hiring" via Algolia API | Open | Researched. Free, no key; posts hold contact emails (personal data) and terms are unclear. Low value for India. |
-| USAJOBS (all federal jobs) | Open, key | Already used for Internships only; Jobs would add US federal roles. |
-| Jooble | Free key | Already used for Internships and Teaching; not in Jobs. Worth adding for India coverage if terms allow (check). |
+| Bundesagentur für Arbeit Jobsuche API (German federal job board, open data via bund.dev) | Open, public client id | Researched 2026-11-01. Answered 403 from our servers (a block, not a terms question): not built. Retry from the deployment before deciding. |
+| Findwork.dev | Free key | Researched 2026-11-01. Tech jobs API, answers 401 without a key. Worth adding as "Needs setup" (`FINDWORK_API_KEY`, signup findwork.dev) if tech coverage is thin. |
+| Reed.co.uk | Free key | Researched 2026-11-01. UK jobs API, 401 without a key. Low value for India; worth it only for UK searches. |
+| Careerjet partner API | Free affiliate id | Researched 2026-11-01. Global aggregator incl. India; needs an affiliate id and the user's IP/user agent per call. Candidate for a later pass. |
+| More company boards | Open | Ongoing. 2026-11-01 (WJ-544) added Razorpay, InMobi, HackerRank, Observe.AI (Greenhouse), Paytm, Zeta, Mindtickle (Lever), Sarvam AI, PostHog (Ashby); probed ~90 India-strong slugs, kept only boards that answered with the named company's jobs. Phonepe, Swiggy, Flipkart, Zomato, Dream11, Postman, BrowserStack and others aren't on these public APIs. |
+| USAJOBS (all federal jobs) | Open, key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/usajobs.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
+| Jooble | Free key | Already used for Internships and Teaching through WorksLake's shared connector (`server/jobslake/jooble.ts`); Added to Jobs 2026-11-01 (WJ-545); see Current sources. |
 | Coresignal job/people data | Paid | Researched (vendor). Priced by volume; only if TheirStack is not enough. |
 
 ### Open issues
@@ -121,7 +130,9 @@ Dataset `internships`. Source of truth: `server/internships/sources.ts`, `provid
 | Source | Access | Status | Notes |
 |---|---|---|---|
 | WonderWorks companies | own | **Live** | Postings in Internships → Company |
-| Company career sites (Greenhouse, Lever, Ashby) | public API | **Live** · responds | Internship-titled roles only |
+| Unstop internships | public JSON list | **Live** · responds · terms pending | India's largest open internship list, with stated stipends (74 for "marketing" on 2026-11-01). **terms pending:** no published reuse terms, and robots.txt disallows `/api/*`; confirm with Unstop |
+| Workable job board | public JSON | **Live** · responds · terms pending | Workable career sites worldwide, strong in India (Bengaluru, Pune, Noida). **terms pending:** robots.txt doesn't disallow it, but Workable's terms don't state reuse; confirm with Workable |
+| Company career sites (Greenhouse, Lever, Ashby) | public API | **Live** · responds | Internship-titled roles only. Internships also asks 15 intern-heavy boards (WJ-580): Paytm, InMobi, Sarvam AI, Waymo, Jump Trading, Lyft, Point72, IMC, Pinterest, Samsara, Verkada, Sigma Computing, Scale AI, Akuna Capital, Roblox |
 | SmartRecruiters career sites | public API | **Live** · responds | |
 | Remotive | public API | **Live** · responds | |
 | Remote OK | public API | **Live** · responds | |
@@ -133,12 +144,12 @@ Dataset `internships`. Source of truth: `server/internships/sources.ts`, `provid
 | Jooble | free key | **Needs key** | `JOOBLE_API_KEY` |
 | USAJOBS student internships | free key | **Needs key** | `USAJOBS_API_KEY`, `USAJOBS_EMAIL`; US only |
 
-**Not available (no open API):** Internshala, LinkedIn, the AICTE and NATS internship portals. Their stipend and duration cannot be read.
+**Not added:** Internshala (no API or feed; its terms forbid automated access and robots.txt disallows its search and detail pages), LinkedIn (blocks automated access: a technical barrier), the AICTE and NATS internship portals (no API or feed). **Looked at, not added (WJ-580):** Sweden's JobTech "praktik" ads (open CC0 data, but few internships and Swedish-only titles), UK Find an apprenticeship API (free key; its v2 response format couldn't be checked without one, so a parser would be untested), SimplifyJobs' GitHub internship lists (no licence), Naukri (refuses automated requests: 403).
 
 **Open issues**
 1. **Detection.** "Is this an internship?" relies on the source's flag or the title; sources that don't flag it miss roles and some include false matches.
 2. **Stipend and duration are often not stated** by outside postings; the app says "not stated" rather than guessing.
-3. **India coverage** rests on Adzuna and Jooble, both key-gated and unverified in production.
+3. **India coverage**: Unstop and Workable now add key-less India internships; Adzuna and Jooble (key-gated) add more.
 4. **AICTE/NATS** could be approached as partners if the owner wants them.
 
 ---
@@ -201,6 +212,8 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 | Upwork | GraphQL API; talent search needs the "Freelancer Profile - Read And Write Access" permission and an approved API key (support.upwork.com "Request an API key"); the developer pages returned 403 to our fetch, so its terms were not read in full. A search result says its documentation limits storing data to 24 hours and that its terms need results attributed to Upwork | Rejected unless a partnership is agreed and its terms are read: WorksLake stores what it collects. |
 | Foursquare Places | Free sandbox, then pay per call (the pricing page's two free figures disagree: 10,000 calls vs 500 at $0). Rating and tip fields are Premium | **Rejected for WorksLake**: its usage guidelines allow caching only of the place id; "Pay as You Go and Sandbox customers get no caching permitted"; Enterprise only 24 hours on the device. WorksLake keeps what it collects. |
 | Google Places | Not read in this pass | Rejected on the same ground as Foursquare until its caching terms are read; its terms are known to restrict storing results. |
+| Houzz professionals (houzz.in) | public directory pages via the data gateway (crawl) | **Built** (2026-11-01, WJ-592); terms pending: confirm Houzz allows automated reading; an admin registers the ten definitions, tests and activates them | Design, build & renovation: interior designers, architects, design-build firms, contractors, kitchen & bath, flooring, tile & stone, landscape. Ten definitions `apps/data-gateway/sources/houzz-*.json` (16 listing pages each, 15 profiles a page, 2 s delay, daily at most, businesses only, no phone or email), read in-process by `server/services/sources.ts`, never per search. Shows name, category, city, rating and reviews if the page states them, link to the Houzz profile and "Houzz (houzz.in)". |
+| WedMeGood vendors (wedmegood.com) | public vendor profiles, found from its sitemaps, via the data gateway (crawl) | **Built** (2026-11-01, WJ-593; owner: "yes, add WedMeGood"); terms pending: WedMeGood terms of use on automated access; an admin registers the four definitions, tests and activates them | New trade "Wedding & events": photographers, makeup artists, decorators, caterers, mehendi artists, planners, DJs, choreographers, priests, bartenders, entertainers, pre-wedding shoots (wear, jewellery, cards, cakes, favours, accessories and venues are left out). Four definitions `apps/data-gateway/sources/wedmegood-vendors-{1..4}.json`, one per vendor-profile sitemap (~38,000 profiles in the first), 20 profiles a run, hourly at most, 2 s delay; robots.txt (Content-Signal search=yes, ai-train=no) allows `*` and disallows `/profile/*/reviews/*`, which is never read. Trade and city come from the page's BreadcrumbList (kept by the gateway as `breadcrumb`); name, rating and review count from its LocalBusiness block; no phone, email or street. Coverage grows over days: a run reads at most 20 pages, and the first 5,000 profiles of each sitemap are reachable. |
 | Geoapify Places (OSM-based) | Free 3,000 credits a day; its Places FAQ says results may be cached, stored and redistributed with attribution to OpenStreetMap (and to Geoapify on the free plan); the pricing page says the free plan may be used commercially, its terms say "with some limitations in production" | Possible: needs a free key and a call to confirm the production limit. Its trade categories (plumber, electrician) were **not** verified; the page lists `service` generally. Not built. |
 | Overture Maps Places | Bulk GeoParquet on S3/Azure, no query API; per-source licences (CDLA Permissive 2.0, Apache 2.0, CC0); the Places theme names no single licence; India coverage unverified | Not built: needs a bulk-file pipeline, not an API. Worth a spike if OpenStreetMap proves thin. |
 | Guru.com | Returned 403 to our fetch | Not checked. |
@@ -221,7 +234,21 @@ Dataset `services`. Source of truth: `server/services/sources.ts`.
 
 ## 7. Therapists
 
-Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources.ts`).
+Dataset `therapists`. WonderWorks practitioners (`server/therapists/sources.ts`) and, once an admin registers it, OpenStreetMap practices (below).
+
+**Built (2026-11-01, WJ-600): OpenStreetMap practices and clinics**
+
+| Item | Detail |
+|---|---|
+| Source | OpenStreetMap, open data (ODbL), through the data gateway. Four definitions, `apps/data-gateway/sources/osm-therapists-{north,west,south,east}.json`, the same 24 cities as Talent & Services, one Overpass query per city (15 km around the centre), collected **weekly**, read in-process by `server/therapists/sources.ts`, never per user search. They start paused; an admin adds them from Platform → Sources → Partners & gateway → Add from catalogue, then Test & activate. |
+| What it asks for | Named features tagged `healthcare=psychotherapist\|counselling\|psychologist`, or `amenity=clinic\|doctors` with a `healthcare:speciality` of psychiatry, psychotherapy, psychology or clinical psychology. |
+| Practices only | The gateway admits it as `publicBusinesses` (WJ-500), claiming no opt-in. A mapped name is kept only if it carries a word for a practice (clinic, centre, counselling, psychology, wellness, foundation…); a name that is only a person's ("Dr. Anita Sharma") is left out (`isPracticeName`). This drops some real practices named after their founder, on purpose; a practitioner can list themselves. |
+| Shown | Name, kind of practice, the nearest city (derived from its position, never an address), its own https website if tagged, a link to its OpenStreetMap page, and "© OpenStreetMap contributors" with the licence link on the card and the page. "Listed on OpenStreetMap". |
+| Never shown or copied | Phone, email, address, fee, languages, focus, licence, qualifications, rating, "verified" or any claim. It can't be booked in WonderWorks and has no public share page. |
+| Needs the owner | Terms pending: the licence (ODbL) is clear; **confirm where the weekly collection runs**. The public `overpass-api.de` says regular use should stay under 100 queries and 10 MB a day (the weekly collection is well inside that) and that commercial use should use its own or a paid server. The definitions use `overpass-api.de`; pick the endpoint before pressing Test & activate. No key. |
+| Owner decisions | 2026-11-01 (relayed by the shared-layer session): "allow OpenStreetMap business listings for services and therapists"; data-source terms are confirmed later (CLAUDE.md, "Finding data sources"). |
+
+Still not built: any register or directory of individuals; licence checks; crisis resources (legal wording first).
 
 **Researched**
 
@@ -232,7 +259,7 @@ Dataset `therapists`. WonderWorks practitioners only (`server/therapists/sources
 | Commercial directories (TherapyRoute: about 1,200 India listings) | Private | Rejected: unverified, not licensed. |
 
 **Open issues**
-1. **By design, no outside listings.** Importing health professionals needs licence verification, consent and the health-data compliance the platform doc requires.
+1. **No outside individuals.** OpenStreetMap practices only; importing individual practitioners needs licence verification, consent and the health-data compliance the platform doc requires.
 2. **Searches are now kept** in the client's own account (WJ-445); consider a Clear option or expiry.
 
 ---
@@ -260,7 +287,7 @@ Dataset `cofounders`. WonderWorks founders only (`server/cofounders/sources.ts`)
 
 ## 9. Events & Social
 
-Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), developers.events, OpenStreetMap Calendar (gateway), and Ticketmaster (below). The same event from two sources is listed once (title and start day). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
+Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the gateway's events (`works_gateway_events`: confs.tech today), developers.events, Devpost hackathons, OpenStreetMap Calendar, Devfolio, HackerEarth (the last three through the gateway), and Ticketmaster (below). The same event from two sources is listed once (title and start day). An outside event shows only what its source states, never a seat, an RSVP or an organiser the source didn't give, and links to the event's own page (`server/events/outside.ts`).
 
 **In the code**
 
@@ -272,14 +299,21 @@ Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the 
 | **OpenStreetMap Calendar** (via the gateway, `apps/data-gateway/sources/osm-calendar.json`, listed in the admin catalogue) | **Defined, not added**: the owner adds it from the catalogue after confirming the terms | Public JSON API at `osmcal.org/api/v2/events/`, no key (the site documents it for sites that show its events; robots.txt allows it). 116 upcoming mapping events worldwide on 2026-11-01 (6 in India); a cancelled event is left out. **Terms to confirm:** no data licence is stated. |
 | **KonfHub** (via the gateway's crawler, `apps/data-gateway/sources/konfhub-events.json`, in the admin catalogue) | **Defined, not added**: terms pending; the owner confirms, then adds it from the catalogue, Tests and Activates | India-heavy tech and community events. robots.txt (read 2026-11-01) allows every path but /cgi-bin/ and lists its sitemap on files.konfhub.com (1,974 event pages, one path segment deep). Each event page carries schema.org Event JSON-LD: the crawler keeps its start and end dates, whether it's online, and cancelled or postponed (WJ-502). Up to 40 pages an hour, a second apart; past events are dropped. |
 | **Linux Foundation Events** (via the gateway's crawler, `apps/data-gateway/sources/linux-foundation-events.json`, in the admin catalogue) | **Defined, not added**: terms pending, as above | KubeCon, Open Source Summit and the other LF events worldwide. robots.txt (read 2026-11-01) allows crawling and signals search=yes, ai-input=yes, ai-train=no. Its sitemap lists 8,814 pages; the crawler reads only the 254 event roots (`pathPattern: "/*/"`), up to 40 every 6 hours. |
-| **developers.events** (`evt_developers_events`, `server/events/developersEvents.ts`) | **Paused: terms pending**, no key | The maintainers' public `all-events.json` (README: "all the data … available publicly in JSON"; robots.txt allows it). Read directly, once every 12 hours (3.6 MB, mostly past events, dropped before it is kept; over the gateway's 2 MB limit). 797 upcoming developer conferences on 2026-11-01, 23 in India, 41 online, with each event's own page and call for papers. Only entries it marks open or virtualized are shown; cancelled, postponed and delayed ones are not. Terms to confirm: the list is published as public JSON but has no licence file (ask the maintainers, scraly/developers-conferences-agenda). |
+| **developers.events** (`evt_developers_events`, `server/events/developersEvents.ts`) | **Paused: licence limits use**, no key | The maintainers' public `all-events.json` (README: "all the data … available publicly in JSON"; robots.txt allows it). Read directly, once every 12 hours (3.6 MB, mostly past events, dropped before it is kept; over the gateway's 2 MB limit). 797 upcoming developer conferences on 2026-11-01, 23 in India, 41 online, with each event's own page and call for papers. Only entries it marks open or virtualized are shown; cancelled, postponed and delayed ones are not. **Correction (2026-11-01):** earlier notes here and in #481 said it states no licence; its README ("License") says "The content & the data are licensed under the CC-BY-NC license", i.e. non-commercial. That is a stated limit, not just unconfirmed terms, so it stays paused for the owner to decide: confirm WonderWorks' use counts as allowed, or ask the maintainers (scraly/developers-conferences-agenda) for permission, then Activate in the admin. |
+| **Devpost hackathons** (`evt_devpost`, `server/events/devpost.ts`) | **Live, terms pending**, no key | `devpost.com/api/hackathons?status[]=open` (the public JSON its own site loads; robots.txt allows it). 44 open hackathons on 2026-11-01, mostly online, nine to a page, so five requests, read once every 12 hours. Devpost states dates as one line of text ("Oct 01 - Nov 12, 2026"); `devpostRange` reads it into a first and last day and leaves an entry out when it can't (no day is guessed). Shows Devpost's own organiser, themes and prize total; each event links to the hackathon's own page. Terms to confirm: the list is public JSON but Devpost's terms don't state reuse (ask Devpost). Scholarships lists the same hackathons as projects in its own dataset. |
+| **Devfolio hackathons** (via the gateway, `apps/data-gateway/sources/devfolio-hackathons.json`, in the admin catalogue) | **Defined, not added**: terms pending; the owner adds it from the catalogue, Tests and Activates | India's largest hackathon platform: 10 open hackathons on 2026-11-01 (eight in India, one online, one with no place given), with city, dates and their own `<name>.devfolio.co` page. `api.devfolio.co/api/hackathons?filter=application_open` (the JSON devfolio.co loads, no sign-in; robots.txt disallows nothing; `page=1` is required, `limit=100`). Times are UTC with the event's zone named (`timezone`, e.g. Asia/Calcutta), so Events shows the day in that zone (18:30 UTC on 27 Nov is 28 Nov in India). Real payload through the gateway's validator and mapper: 10 of 10 kept. Terms to confirm: Devfolio's terms for reuse of the list. |
+| **HackerEarth challenges** (via the gateway, `apps/data-gateway/sources/hackerearth-events.json`, in the admin catalogue) | **Defined, not added**: terms pending, as above | The upcoming and ongoing hackathons in HackerEarth's public events feed (`hackerearth.com/chrome-extension/events/`; robots.txt allows it), with start and end times in India time. Two on 2026-11-01; small but India-strong. Real payload through the mapper: 2 of 2 kept. Terms to confirm: HackerEarth's terms for reuse of the list. |
+| **Helsinki Linked Events** (via the gateway, `apps/data-gateway/sources/helsinki-linkedevents.json`, in the admin catalogue; WJ-573) | **Defined, not added**: terms pending; the owner adds it from the catalogue, Tests and Activates | The City of Helsinki's open events data (`api.hel.fi/linkedevents/v1/event/`, no key), licensed CC BY 4.0 per the city's developer portal and the open-data catalogues (read second-hand on 2026-11-01; images carry stricter licences and are not used). Only events with an English name, no series, no longer than 14 days (3,709 on 2026-11-01: library workshops, meetups, concerts, short exhibitions), with the venue and city, and the city's own page (`tapahtumat.hel.fi/en/events/<id>`). Times are UTC moments; the source's `timezone: "Europe/Helsinki"` (WJ-508) makes Events show the day in Helsinki. A schema.org status of EventCancelled or EventPostponed is left out. Up to 20 pages of 100 a day, a second apart, additive across runs. Real payload through the gateway's validator and mapper: 91 of 100 kept (the rest already over). **Caveat:** it is ~3,700 Finnish events in a global dataset, so an unfiltered word like "music" will list many of them; add it when that is acceptable, or once Find narrows by the person's place. **Terms to confirm:** the licence page itself, and api.hel.fi's robots.txt (unreadable from the build environment). |
 
 **Researched, not built** (owner, 2026-11-01: any genuine public feed or page is fine unless its robots.txt or terms forbid automated access; never harvest private people's profiles)
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| Devpost hackathons (`devpost.com/api/hackathons`) | Public JSON, robots allows all | Dates are display text ("Dec 19, 2026 - Jan 18, 2027") and its terms were not read. Not built. |
-| Paris "Que faire à Paris" (ODbL), Brisbane City Council "What's On" (CC BY 4.0), Melbourne events (open data) | Open licences, no key | Not reachable from the build environment (connections reset), so their payloads could not be read or the mapping tested. Worth testing from the gateway's admin (it runs from Vercel). |
+| GDG and CNCF community events (Bevy: `gdg.community.dev/api/event/`) | Public JSON, no key; 903 live events | **robots.txt disallows `/api/`** (and asks for a 2-second crawl delay), and the gateway honours robots.txt. Not built until the owner decides whether to read it anyway or asks Google/Bevy (CNCF's site redirects to a different host). |
+| Commudle (India community events), Hasgeek | robots.txt allows crawling | Commudle's event pages carry no schema.org Event data and its sitemaps sit on another host; Hasgeek's dated sitemaps were empty on 2026-11-01. Nothing to read. |
+| Townscript | — | Discontinued ("Townscript and Townhall services have been discontinued"). |
+| Meetup event pages | robots.txt lists its events sitemap | Event pages carry Event JSON-LD, but the site is millions of pages and its terms forbid scraping; not a fit for a polite hourly crawl. Not built. |
+| Paris "Que faire à Paris" (ODbL), Brisbane City Council "What's On" (CC BY 4.0), Melbourne events, Ghent events (all open data on Opendatasoft hosts) | Open licences, no key | Not reachable from the build environment on 2026-11-01 (connections reset), so their payloads could not be read and a mapping can't be written blind. Worth testing from the gateway's admin (it runs from Vercel) once someone can read a real record. |
 | NYC Parks events (Socrata) | Open | Stale: the newest event is from 2019. Rejected. |
 | Wikidata events | CC0 | Thin (about 6 upcoming conferences). Not worth a source. |
 | Skiddle (UK), Eventfinda (NZ), SeatGeek (US) | Free keys, terms not read | Regional; no India value. Not built. |
@@ -287,7 +321,7 @@ Dataset `events`. Sources: WonderWorks events (`server/events/sources.ts`), the 
 | Vihaya, AllEvents, Insider and similar | Their own products | Not data sources; scraping them is not allowed. |
 
 **Open issues**
-1. **No India-strong open events feed** beyond confs.tech and OSM Calendar's few.
+1. **India coverage** now comes from confs.tech, developers.events (23), Devfolio (hackathons) and HackerEarth, plus KonfHub once the owner adds it; there is still no open feed of everyday community meetups (Meetup, Commudle and Townscript are closed, empty or discontinued).
 2. **Imported events carry no capacity or price we control**: RSVP is only for events posted on WonderWorks; outside ones link out.
 3. **Minors:** the platform doc marks Events as sensitive for minors; age rules must come from the source.
 
@@ -302,8 +336,12 @@ A dataset of its own (`module = 'scholarships'`), always searched worldwide. Bui
 | **Unstop** (`schol_unstop`) | **Live, terms pending**, no key | `unstop.com/api/public/opportunity/search-result` (public JSON) for scholarships, hackathons and competitions open to students in India; 86 open on 2026-11-01. Listings it marks `isPaid` or closed for registration are left out. Terms to confirm: no published reuse terms for the API (ask Unstop). |
 | **Devpost** (`schol_devpost`) | **Live, terms pending**, no key | `devpost.com/api/hackathons?status[]=open` (public JSON), open hackathons as projects with their submission deadline and prizes; 44 open on 2026-11-01. Terms to confirm: the hackathon list is public JSON but its terms don't state reuse (ask Devpost). |
 | **EU Funding & Tenders: fellowships** (`schol_eu_msca`) | **Live, terms pending**, no key | The portal's search API (`api.tech.ec.europa.eu/search-api`, public key `SEDIA`), open fellowship calls only (MSCA Postdoctoral Fellowships, ERA Fellowships), each linked to its call page. Terms to confirm: Commission reuse policy (CC BY 4.0) for this endpoint. |
+| **Opportunity Desk** (`schol_opportunity_desk`) | **Live, terms pending**, no key | The site's public WordPress RSS feed for scholarships and fellowships (pages 1–3): one post per opportunity, with the deadline its post states ("Deadline: December 14, 2026"); round-up posts are left out. 25 on 2026-11-01. Links go to the post, which links to the provider. Terms to confirm: reuse of post summaries (ask the site). |
+| **Scholars4Dev** (`schol_scholars4dev`) | **Live, terms pending**, no key | The same for Scholars4Dev's feed (international scholarships). 20 on 2026-11-01. Terms to confirm: reuse of post summaries. |
 | **Kaggle competitions** (`schol_kaggle`) | **Needs setup** | Kaggle's API (`/api/v1/competitions/list`). Owner: set `KAGGLE_USERNAME` and `KAGGLE_KEY` in Admin → Settings → API (free: kaggle.com → Settings → API → Create New Token). |
 | **Partner uploads** (`works_gateway_scholarships`) | Draft until activated | A college, foundation or CSR team's list, uploaded through the gateway (§13.7). |
+
+Looked at on the second pass (2026-11-01), not added: **LFX Mentorship** (its API answered "being upgraded", 503; re-check), **MLH** events (Cloudflare redirect on the events page; not bypassed), **NSF** program announcements RSS (programmes for institutions, not students), **DAAD** (results load through its page only), Indian state scholarship portals (no feed or API found; listings link to them).
 
 Looked at, not added: India's **National Scholarship Portal** (no API or feed; listings link to it), **Buddy4Study**, **Fastweb** and **Scholarships.com** (no open API or feed), **Google Summer of Code** (its API returned no current programme on 2026-11-01; re-check when the 2027 programme opens), **Outreachy** (no public JSON), **DAAD** scholarship database (search only through its page; a gateway crawl candidate), **EURAXESS** (job offers, mostly positions; a gateway candidate for fellowships).
 
@@ -471,3 +509,4 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 ### 13.8 Adding a reviewed source from the catalogue (2026-11-01)
 
 The reviewed source files in `apps/data-gateway/sources/*.json` (confs.tech, OpenStreetMap Calendar, UK Teaching Vacancies, We Work Remotely) are listed on Platform → Sources → Partners & gateway → **Add from catalogue**. **Add** registers one paused (as `register.mjs` would, without handling the admin token); **Test & activate** on its row in Sources runs the gateway's test and turns it on when it passes. A module session that adds a source file also adds it to `server/gateway/catalogue.ts` (a test checks every file is listed). OpenStreetMap Calendar (osmcal.org) documents an integration API and robots allows it, but states no data licence: the owner confirms before activating.
+
