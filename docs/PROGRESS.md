@@ -14,3 +14,4 @@
 - ✅ Scholarships & Projects: Find, sources (WonderWorks, Grants.gov, gateway), listing page, organisation posting and applying (WJ-521)
 - ✅ Scholarships & Projects is live: Applications with Deadlines, application page, AI drafts for answers and statements (WJ-522)
 - ✅ Talent & Services: pros state their GSTIN, and GST and TDS on a quote (their rate, SAC and section); an invoice summary for both sides to print once a job is booked (WJ-590)
+- ✅ Scholarships & Projects searches worldwide, with no location restriction (WJ-523)

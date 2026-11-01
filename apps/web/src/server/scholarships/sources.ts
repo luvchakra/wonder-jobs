@@ -37,7 +37,7 @@ export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is no
 
 export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: WONDERSTAR_SCHOLARSHIPS, name: "WonderWorks organisations", provider: "WonderWorks", category: "portal", geography: ["global"], description: "Scholarships and projects organisations post on WonderWorks." }),
-  source({ id: GRANTS_GOV, name: "Grants.gov (open to individuals)", provider: "Grants.gov", category: "portal", geography: ["US"], description: "US federal funding opportunities open to individuals, from Grants.gov's public search API." }),
+  source({ id: GRANTS_GOV, name: "Grants.gov (open to individuals)", provider: "Grants.gov", category: "portal", geography: ["global"], description: "US federal funding opportunities open to individuals, from Grants.gov's public search API." }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
