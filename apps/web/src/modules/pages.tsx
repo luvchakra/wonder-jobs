@@ -41,6 +41,10 @@ import { MarketplaceItem } from "./marketplace/components/Item";
 import { MarketplaceProfile, MarketplaceYou } from "./marketplace/components/You";
 import { MarketPage } from "./marketplace/components/MarketPage";
 import { MarketplaceCompany } from "./marketplace/components/Company";
+import { ScholarshipsFind } from "./scholarships/components/Find";
+import { ScholarshipsProfile, ScholarshipsYou } from "./scholarships/components/You";
+import { ScholarshipPage } from "./scholarships/components/ScholarshipPage";
+import { ScholarshipsCompany } from "./scholarships/components/Company";
 import type { ModuleId } from "./registry";
 
 /**
@@ -68,6 +72,7 @@ const PAGES: Partial<Record<Exclude<ModuleId, "jobs">, ModulePages>> = {
   events: { Find: EventsFind, Pipeline: EventsPipeline, You: EventsYou, Profile: EventsProfile, Listing: EventPage, Item: EventsItem, Company: EventsCompany },
   cofounders: { Find: CofoundersFind, Pipeline: CofoundersPipeline, You: CofoundersYou, Profile: CofoundersProfile, Listing: CofounderPage, Item: CofoundersConnection, Company: CofoundersTeams },
   marketplace: { Find: MarketplaceFind, Pipeline: MarketplacePipeline, You: MarketplaceYou, Profile: MarketplaceProfile, Listing: MarketPage, Item: MarketplaceItem, Company: MarketplaceCompany },
+  scholarships: { Find: ScholarshipsFind, You: ScholarshipsYou, Profile: ScholarshipsProfile, Listing: ScholarshipPage, Company: ScholarshipsCompany },
   teaching: { Find: TeachingFind, Pipeline: TeachingPipeline, You: TeachingYou, Profile: TeachingProfile, Listing: TeachingPage, Item: TeachingApplication, Company: TeachingCompany },
 };
 

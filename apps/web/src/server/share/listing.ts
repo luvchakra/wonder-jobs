@@ -19,6 +19,9 @@ import { wonderworksTherapist } from "@/server/therapists/search";
 import { openEventPosts, seatCounts } from "@/server/events/listings";
 import { wonderworksEvent } from "@/server/events/search";
 import { openMarketListings, toListing } from "@/server/marketplace/listings";
+import { shareOf as scholarshipShare } from "@/modules/scholarships/share";
+import { openScholarships } from "@/server/scholarships/applications";
+import { outside as outsideScholarship, wonderworksScholarship } from "@/server/scholarships/search";
 
 /**
  * A listing's public page (`/s/<module>/<id>`): the listing as the module shows it, read from the public record —
@@ -26,12 +29,12 @@ import { openMarketListings, toListing } from "@/server/marketplace/listings";
  * account. What it says is the module's own `shareOf`, the same words a shared message carries, so the link's preview
  * and the message never differ. People's profiles (Co-founders) are not here: they have no public page.
  */
-export const SHARE_MODULES = ["internships", "teaching", "services", "therapists", "events", "marketplace"] as const;
+export const SHARE_MODULES = ["internships", "teaching", "services", "therapists", "events", "marketplace", "scholarships"] as const;
 export type ShareModule = (typeof SHARE_MODULES)[number];
 export const isShareModule = (m: string): m is ShareModule => (SHARE_MODULES as readonly string[]).includes(m);
 
 /** Where a module's own listings say they came from. */
-const OWN = { internships: "WonderWorks companies", teaching: "WonderWorks schools", services: "WonderWorks pros", therapists: "WonderWorks practitioners", events: "WonderWorks events", marketplace: "WonderWorks listings" } as const;
+const OWN = { internships: "WonderWorks companies", teaching: "WonderWorks schools", services: "WonderWorks pros", therapists: "WonderWorks practitioners", events: "WonderWorks events", marketplace: "WonderWorks listings", scholarships: "WonderWorks organisations" } as const;
 
 const MAX = 1000;
 const wsId = (id: string) => (id.startsWith("ws_") ? id.slice(3) : null);
@@ -80,6 +83,16 @@ async function load(module: ShareModule, id: string): Promise<ListingShareProps 
     case "marketplace": {
       const r = (await openMarketListings(null, MAX)).find((x) => toListing(x).id === id);
       return r ? marketplaceShare({ ...toListing(r), sourceName: OWN.marketplace }) : null;
+    }
+    case "scholarships": {
+      if (own) {
+        const p = (await openScholarships(MAX)).find((x) => x.posting.id === own);
+        return p ? scholarshipShare(wonderworksScholarship(p, OWN.scholarships)) : null;
+      }
+      // An outside one past its deadline, or asking a fee, is gone here too.
+      const o = await pooled(id, module);
+      const l = o ? outsideScholarship(o) : null;
+      return l ? scholarshipShare({ ...l, id }) : null;
     }
   }
 }
