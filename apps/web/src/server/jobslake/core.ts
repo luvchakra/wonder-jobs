@@ -64,7 +64,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-const basicValid = (j: Job) => !!j.title && !!j.company && j.company !== "Unknown company" && normalizeUrl(j.applyUrl) !== null && !Number.isNaN(Date.parse(j.postedAt));
+// An event may name no organiser; a job must name its employer.
+const basicValid = (j: Job) => !!j.title && (j.kind === "event" || (!!j.company && j.company !== "Unknown company")) && normalizeUrl(j.applyUrl) !== null && !Number.isNaN(Date.parse(j.postedAt));
 
 function classify(e: unknown): { outcome: SourceOutcome; code: string; message: string } {
   if (e instanceof TimeoutError) return { outcome: "timeout", code: "SOURCE_TIMEOUT", message: e.message };

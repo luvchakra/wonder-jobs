@@ -55,7 +55,16 @@ export interface Job {
   /** Full-time, part-time, contract… as the source reported it, or as the title says (`jobTypeFrom`). Absent when neither says. */
   jobType?: JobType;
   jobTypeFrom?: JobTypeFrom;
+  /** What the listing is: a job (the default) or an event (dates, place; no employer or description needed). */
+  kind?: ListingKind;
+  /** A source's own extra fields as it states them (an event's startDate, endDate, online…). Never derived. */
+  attributes?: ListingAttributes;
+  /** Where postedAt came from: the source's own date, or when WorksLake first saw it (the source gave none). */
+  postedAtFrom?: "source" | "first_seen";
 }
+
+export type ListingKind = "job" | "event";
+export type ListingAttributes = Record<string, string | number | boolean>;
 
 /** Deduplicated role, possibly seen on several sources. */
 export interface CanonicalJob extends Omit<Job, "sourceId" | "externalId"> {
