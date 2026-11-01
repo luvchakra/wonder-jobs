@@ -37,6 +37,7 @@ export function outside(o: CanonicalOpportunity): TeachingListing {
     origin: "outside",
     title: o.title,
     company: o.employer.name,
+    ...(o.employer.domain ? { companyDomain: o.employer.domain } : {}),
     location: o.locations[0] ?? "",
     workMode: o.workplaceType,
     terms: termsFromPosting({ title: o.title, description: o.description, jobType: o.jobType, payMin: o.compensation?.min, payMax: o.compensation?.max, currency: o.compensation?.currency }),
@@ -51,7 +52,7 @@ export function outside(o: CanonicalOpportunity): TeachingListing {
 
 /** A WonderWorks school's open opening as Find and its public page list it: with the terms the school gave. */
 export function wonderworksTeaching({ posting, org }: Awaited<ReturnType<typeof openTeachingPosts>>[number], sourceName: string): TeachingListing {
-  return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_TEACHING, sourceName };
+  return { id: `ws_${posting.id}`, origin: "wonderstar", postingId: posting.id, title: posting.title, company: org.name, ...(org.domain ? { companyDomain: org.domain } : {}), companyVerified: org.verified, location: posting.location, workMode: posting.workMode, terms: posting.terms, termsFrom: "company", description: posting.description.slice(0, 4000), postedAt: posting.updatedAt, sourceId: WONDERSTAR_TEACHING, sourceName };
 }
 
 /** Search teaching openings for these words and places. The words are the teacher's own; there is no default. */

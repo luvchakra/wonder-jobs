@@ -16,6 +16,7 @@ import { decryptFile, encryptFile } from "../resume/files";
 import { readClientState } from "../clientState";
 import { siteUrl } from "@/lib/siteUrl";
 import { can } from "@/domain/org/permissions";
+import { websiteDomain } from "@/domain/org/company";
 import type { OrgRole } from "@/domain/org/types";
 import { defaultPolicy, resolveCapability, type AutomationLevel, type AutomationPolicy, type Capability } from "@/domain/automation/policy";
 import type { WorkMode } from "@/wonderworks/find/place";
@@ -34,6 +35,12 @@ export const files = () => table<FileRow>("response_files");
 export const orgs = () => table<OrgRow>("hiring_orgs");
 const members = () => table<MemberRow>("hiring_members");
 
+/** `{ domain }` from a workspace's own website, or nothing. */
+export const orgDomain = (o: { website?: string | null }): { domain?: string } => {
+  const d = websiteDomain(o.website);
+  return d ? { domain: d } : {};
+};
+
 export const now = () => new Date().toISOString();
 export const newId = (p: string) => `${p}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
 
@@ -46,12 +53,12 @@ export async function record(r: { id: string; org_id: string }, event: string, a
 }
 
 /** Open listings of one module with their workspace (public postings: the one cross-tenant read). */
-export async function openListings<P extends { orgId: string }>(module: string, toPosting: (r: ListingRow) => P, limit = 300): Promise<{ posting: P; org: { id: string; name: string; verified: boolean } }[]> {
+export async function openListings<P extends { orgId: string }>(module: string, toPosting: (r: ListingRow) => P, limit = 300): Promise<{ posting: P; org: { id: string; name: string; verified: boolean; /** Its website's domain, for its logo. */ domain?: string } }[]> {
   const rows = (await listings().find({ module, status: "open" }, { order: "updated_at", desc: true, limit })).map(toPosting);
   const byOrg = new Map((await orgs().findIn("id", [...new Set(rows.map((p) => p.orgId))])).map((o) => [o.id, o]));
   return rows.flatMap((posting) => {
     const o = byOrg.get(posting.orgId);
-    return o ? [{ posting, org: { id: o.id, name: o.name, verified: !!o.verified } }] : [];
+    return o ? [{ posting, org: { id: o.id, name: o.name, verified: !!o.verified, ...orgDomain(o) } }] : [];
   });
 }
 

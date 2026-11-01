@@ -55,7 +55,7 @@ export const TeachingCard = memo(function TeachingCard({ item: l, onOpen }: { it
       share={shareOf(l)}
       aside={
         <>
-          <CompanyLogo name={l.company} logo size={44} />
+          <CompanyLogo name={l.company} domain={l.companyDomain} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.word} bottom="fit" srText={fit.title} />}
           <ApplyButton listing={l} card />
         </>
