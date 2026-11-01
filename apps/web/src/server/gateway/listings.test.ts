@@ -35,6 +35,8 @@ describe("a module reading the gateway in the app", () => {
     expect(r.results[0].attributes.startDate).toBe("2026-12-01");
     expect(r.sources).toEqual([{ id: "src_on", name: "Confs", count: 1 }]);
     expect((await gatewayListings("events")).results.map((x) => x.id)).toEqual(["e1"]);
+    expect((await gatewayListings("events", { query: "india pycon" })).results.map((x) => x.id)).toEqual(["e1"]);
+    expect((await gatewayListings("events", { query: "pycon berlin" })).results).toEqual([]);
     expect((await gatewayListings("nonsense")).results).toEqual([]);
   });
 });

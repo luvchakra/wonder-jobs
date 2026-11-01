@@ -137,3 +137,11 @@ test("a feed that names the company only as 'Company: Title' is read when the so
   assert.equal(got.title, "Backend Engineer");
   assert.equal(got.remote, true);
 });
+import { matchesWords, queryWords } from "../src/core.mjs";
+test("a query's words each match on their own, in any order", () => {
+  assert.deepEqual(queryWords("Tech  Conference, India!"), ["tech", "conference", "india"]);
+  assert.deepEqual(queryWords("C++ and node.js"), ["c++", "and", "node.js"]);
+  assert.equal(matchesWords("WeAreDevelopers Conference India — the tech event", "tech conference"), true);
+  assert.equal(matchesWords("WeAreDevelopers Conference India", "tech conference"), false, "every word must appear");
+  assert.equal(matchesWords("anything", ""), true);
+});

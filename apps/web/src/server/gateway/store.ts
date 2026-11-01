@@ -6,7 +6,7 @@
  */
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { initial, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
+import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
 type Part = "main" | "listings" | "usage";
@@ -132,17 +132,18 @@ export class GatewayListingsTable {
   async search(plan: Plan): Promise<{ rows: GatewayListing[]; matched: number }> {
     if (!plan.sourceIds.length) return { rows: [], matched: 0 };
     const now = new Date().toISOString();
-    const q = likeSafe(plan.query);
+    const words = queryWords(plan.query).map(likeSafe).filter(Boolean);
     const places = plan.locations.map(likeSafe).filter(Boolean);
     const sb = getSupabaseAdmin();
     if (!sb) {
       const all = [...mem().values()]
-        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && (!q || `${l.title} ${l.organization} ${l.description}`.toLowerCase().includes(q)) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
+        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
         .sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
       return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
     }
     let req = sb.from("gateway_listings").select("doc", { count: "exact" }).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
-    if (q) req = req.ilike("search_text", `%${q}%`);
+    // Every word must appear somewhere (not the words as one phrase).
+    for (const w of words) req = req.ilike("search_text", `%${w}%`);
     if (places.length) req = req.or(places.map((p) => `location.ilike.%${p}%`).join(","));
     const { data, error, count } = await req.order("sort_at", { ascending: false }).order("id").range(plan.offset, plan.offset + plan.limit - 1);
     if (error) throw new Error(`Could not search gateway listings: ${error.message}`);
