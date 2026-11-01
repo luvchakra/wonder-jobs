@@ -74,3 +74,4 @@
 - ✅ Admin → Databases: ADB and DDB size, headroom, limit and performance side by side (WJ-631)
 - ✅ Databases: clear fix for a data database set up before the performance function; Test flags an old setup script (WJ-632)
 - ✅ Setup to-do: 'Add & activate all' in one press; gateway-fed sources' failed test says how to set them up (WJ-633)
+- ✅ Less Vercel CPU: search pool reloads every 10 min, proxy skips image routes (WJ-634)

@@ -105,7 +105,10 @@ async function bookkeeping<T>(what: string, fn: () => Promise<T>): Promise<T | u
  * up to 3,000 postings with their descriptions — on every search). What a search on this instance writes
  * is merged in at once, so its own results never wait for the next read.
  */
-const POOL_TTL_MS = 2 * 60_000;
+// 10 minutes (was 2): each reload reads and parses up to 3,000 full postings, the heaviest CPU work a search does, and
+// Vercel's free plan counts active CPU (owner, 2026-11-01: 90% of the month's 4 hours used). A search's own new postings
+// are merged in at once (rememberInPool), so this only delays other instances' new postings by a few minutes.
+const POOL_TTL_MS = 10 * 60_000;
 // One pool per module's dataset: a module's search never sees another module's postings.
 const pools = new WeakMap<JobsLakeStore, Map<ModuleId, { at: number; byId: Map<string, CanonicalOpportunity> }>>();
 const poolsOf = (store: JobsLakeStore) => {
