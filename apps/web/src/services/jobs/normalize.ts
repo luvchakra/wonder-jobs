@@ -34,7 +34,27 @@ export interface RawPosting {
   applyPath?: Job["applyPath"];
   /** The source's own employment-type field ("Part Time", "FullTime", ["full-time"]), as given. */
   jobType?: string | (string | null | undefined)[] | null;
+  /** A job (default) or an event. */
+  kind?: "job" | "event";
+  /** The source's own extra fields (an event's dates…), as given. */
+  attributes?: Record<string, unknown> | null;
 }
+
+/** A source's extra fields kept as given: text, numbers and true/false only, at most 20, text cut to 300 characters. */
+export function cleanAttributes(a: Record<string, unknown> | null | undefined): Record<string, string | number | boolean> | undefined {
+  if (!a || typeof a !== "object") return undefined;
+  const out: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(a).slice(0, 20)) {
+    if (!/^\w{1,40}$/.test(k)) continue;
+    if (typeof v === "string") out[k] = v.slice(0, 300);
+    else if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === "boolean") out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Whether a source gave a date WorksLake can read. */
+const hasDate = (v: string | number | null | undefined) => v != null && v !== "" && Number.isFinite(typeof v === "number" ? v : /^\d{9,13}$/.test(String(v)) ? Number(v) : Date.parse(String(v)));
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", "#39": "'", "#x27": "'", "#x2F": "/", "#8217": "’", "#8211": "–", "#8212": "—", ndash: "–", mdash: "—", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", hellip: "…", bull: "•" };
 
@@ -249,7 +269,8 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     sourceId,
     externalId: String(raw.externalId),
     title,
-    company: raw.company.trim() || "Unknown company",
+    // An event may have no organiser named; a job always names its employer (or reads "Unknown company" and isn't served).
+    company: raw.company.trim() || (raw.kind === "event" ? "" : "Unknown company"),
     // A domain the source reported, else the employer's own site the apply link is on — never guessed from the name.
     companyDomain: raw.companyDomain || employerDomainOf(raw.applyUrl, raw.employerSite),
     location,
@@ -259,6 +280,9 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     salaryMax: hasSalary ? parsed.max || parsed.min : undefined,
     currency: hasSalary ? (parsed.currency ?? (country === "IN" ? "INR" : "USD")) : country === "IN" ? "INR" : "USD",
     postedAt: toIso(raw.postedAt, now),
+    postedAtFrom: hasDate(raw.postedAt) ? "source" : "first_seen",
+    ...(raw.kind === "event" ? { kind: "event" as const } : {}),
+    ...(cleanAttributes(raw.attributes) ? { attributes: cleanAttributes(raw.attributes) } : {}),
     observedAt: new Date(now).toISOString(),
     description,
     requirements,

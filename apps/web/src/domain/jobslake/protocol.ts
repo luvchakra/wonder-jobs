@@ -145,6 +145,12 @@ export interface CanonicalOpportunity {
   /** Enrichment WorksLake derives from the posting text — labelled derived, never presented as fact. */
   enrichment: { seniority: "junior" | "mid" | "senior" | "lead" | "director"; industry: string; tags: string[] };
   postedAt: string;
+  /** Where postedAt came from: the source's own date, or when WorksLake first saw the listing (the source gave none). */
+  postedAtFrom?: "source" | "first_seen";
+  /** A job (default) or an event: an event needs no employer or description, and carries its dates in `attributes`. */
+  kind?: "job" | "event";
+  /** The source's own extra fields as it states them (an event's startDate, endDate, online…). Never derived. */
+  attributes?: Record<string, string | number | boolean>;
   canonicalApplyUrl: string;
   applyPath: "employer_site" | "platform" | "email" | "unknown";
   sourceRecords: SourceRecord[];
@@ -290,11 +296,13 @@ export function validateOpportunity(o: CanonicalOpportunity): ValidationIssue[] 
   if (o.protocolVersion !== PROTOCOL_VERSION) issues.push({ field: "protocolVersion", problem: `must be ${PROTOCOL_VERSION}` });
   if (!o.id) issues.push({ field: "id", problem: "missing" });
   if (!o.title?.trim()) issues.push({ field: "title", problem: "missing" });
-  if (!o.employer?.name?.trim() || o.employer.name === "Unknown company") issues.push({ field: "employer.name", problem: "employer identity missing" });
+  const event = o.kind === "event";
+  // An event may name no organiser (the source gives none); a job must name its employer.
+  if (!event && (!o.employer?.name?.trim() || o.employer.name === "Unknown company")) issues.push({ field: "employer.name", problem: "employer identity missing" });
   if (!o.canonicalApplyUrl || !isHttpUrl(o.canonicalApplyUrl)) issues.push({ field: "canonicalApplyUrl", problem: "not a valid http(s) URL" });
   if (!o.postedAt || !isIsoDate(o.postedAt)) issues.push({ field: "postedAt", problem: "not a valid date" });
   if (!Array.isArray(o.locations) || !o.locations.length) issues.push({ field: "locations", problem: "missing" });
-  if (!o.description?.trim()) issues.push({ field: "description", problem: "missing" });
+  if (!event && !o.description?.trim()) issues.push({ field: "description", problem: "missing" });
   if (!o.sourceRecords?.length) issues.push({ field: "sourceRecords", problem: "no source record" });
   for (const r of o.sourceRecords ?? []) {
     if (!r.sourceId || !r.sourceJobId) issues.push({ field: "sourceRecords", problem: "record without source id" });

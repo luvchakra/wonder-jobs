@@ -17,7 +17,9 @@ function publicListing(x) {
   return { ...safe, source: { id: x.sourceId, name: x.sourceName, method: x.sourceMethod } };
 }
 function workslakeItem(x) {
-  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId };
+  // An event (its dates in attributes, often no organiser) goes as kind "event"; WorksLake keeps the attributes as given.
+  const event = x.module === "events" || (x.attributes && "startDate" in x.attributes);
+  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {} };
 }
 function sourcePublic(s) {
   return { id: s.id, attribution: s.attribution, kind: s.kind, modules: s.modules, enabled: s.enabled, lastSuccessAt: s.lastSuccessAt, lastError: s.lastError };
@@ -177,8 +179,9 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         checkScope(caller, module);
         const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
         const result = { results: (await listings.search(plan)).rows };
-        // WorksLake Protocol v1 requires genuine published dates; undated profiles are left out, never given a made-up date.
-        const items = result.results.filter((x) => x.publishedAt).map(workslakeItem);
+        // Undated items go too: WorksLake records when it first saw them and says so (postedAtFrom "first_seen"), never
+        // presenting that as a posting date.
+        const items = result.results.map(workslakeItem);
         store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
         return reply(200, { items });
       }
