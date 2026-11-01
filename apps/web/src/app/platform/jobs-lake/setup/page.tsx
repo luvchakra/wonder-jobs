@@ -57,7 +57,7 @@ export default function SetupTodoPage() {
               ))}
             </div>
           )}
-          {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn't configured on this deployment, so its sources aren't listed.</p>}
+          {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn&apos;t configured on this deployment, so its sources aren&apos;t listed.</p>}
           <Panel title={items.length ? `${items.length} to fix` : undefined}>
             {items.length ? (
               <ul className="flex flex-col divide-y divide-line">
