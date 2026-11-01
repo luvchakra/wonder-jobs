@@ -169,7 +169,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       if (sourceModule(s) === "teaching") return runTeachingSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "services") return runServicesSource(s, c);
       if (sourceModule(s) === "therapists") return runTherapistsSource(s, c);
-      if (sourceModule(s) === "events") return runEventsSource(s, c);
+      if (sourceModule(s) === "events") return runEventsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
       if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c);
       if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c);

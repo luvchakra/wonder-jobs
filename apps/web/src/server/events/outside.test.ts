@@ -84,6 +84,16 @@ describe("an outside event, as its source states it", () => {
     expect(toOutsideEvent(conf({ attributes: { cfpUrl: "nope", cfpEndDate: "2026-09-01" } }), TODAY)!.outside).not.toHaveProperty("cfpUrl");
   });
 
+  it("reads the day from a date and time, as the source states it, and leaves out a cancelled event", () => {
+    const e = toOutsideEvent(conf({ attributes: { startDate: "2026-11-14T17:00:00+05:30", endDate: "2026-11-14T20:00:00+05:30" } }), TODAY)!;
+    expect(e.outside).toMatchObject({ startDate: "2026-11-14" });
+    // The same day at both ends reads as one day.
+    expect(whenOf(e)).toBe("14 Nov 2026");
+    expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14T17:00:00+05:30", cancelled: true } }), TODAY)).toBeNull();
+    expect(toOutsideEvent(conf({ attributes: { startDate: "2026-11-14T17:00:00+05:30", cancelled: false } }), TODAY)).not.toBeNull();
+    expect(toOutsideEvent(conf({ attributes: { startDate: "14/11/2026" } }), TODAY)).toBeNull();
+  });
+
   it("only an event from a source other than WonderWorks' own counts as outside", () => {
     expect(isOutsideEvent(conf())).toBe(true);
     expect(isOutsideEvent(conf({ kind: "job" }))).toBe(false);
