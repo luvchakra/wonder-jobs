@@ -1,9 +1,2 @@
 
-- ✅ Events: outside events (conferences from confs.tech) shown in Find beside events posted here, with their source and a link to the event's own page; no RSVP for them (WJ-468)
-- ✅ Events: one cover photo per event, shown on its card, page, My events and the organiser's list (WJ-461)
-- ✅ WorksLake gateway pilot: We Work Remotely checked and run end to end locally; two other feeds ruled out; two real bugs fixed (WJ-462)
-- ✅ The WorksLake gateway is hosted in the app (same project and Supabase), off until configured (WJ-463)
-- ✅ WorksLake gateway on in production: We Work Remotely active (98 listings); WorksLake shows the gateway sources as Draft for the owner to activate (WJ-464)
-- ✅ Gateway crawler for permitted sites; UK Teaching Vacancies active on the gateway (100 listings); 18 sources checked (WJ-465)
-- ✅ Gateway covers all locations, collects hourly, reads paged feeds in full; new admin page Platform → WorksLake → Gateway (WJ-466)
-- ✅ Gateway handles events (dates, no invented organiser, past ones dropped); confs.tech ready with 157 upcoming conferences (WJ-467)
+- ✅ Events: outside events now come through WorksLake's own search, like every module (WJ-471)
