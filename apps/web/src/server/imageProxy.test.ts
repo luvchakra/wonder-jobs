@@ -45,7 +45,7 @@ describe("GET /api/img", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("image/jpeg");
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(r.headers.get("cache-control")).toContain("s-maxage=86400");
+    expect(r.headers.get("cache-control")).toContain("s-maxage=2592000");
     expect(new Uint8Array(await r.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
   });
   it("never serves SVG, HTML or a failed fetch", async () => {
