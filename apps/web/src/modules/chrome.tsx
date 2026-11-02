@@ -69,7 +69,8 @@ function useStatus(hydrated: boolean, module: string) {
   return module === "jobs" ? status : { ...status, tasks: 0 };
 }
 
-const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus };
+const postFor = (m: string) => MODULES.find((x) => x.id === m)?.post ?? null;
+const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus, postFor };
 
 /** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {

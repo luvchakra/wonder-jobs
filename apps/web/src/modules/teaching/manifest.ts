@@ -30,6 +30,7 @@ export const teachingManifest: ModuleManifest = {
   ],
   response: { verb: "apply", questions: true, states: ["applied", "shortlisted", "demo_class", "appointed", "closed"], capability: "teaching.apply" },
   pipeline: { label: "Pipeline", icon: "LayoutList", stages: stagesOf("Preparing", "Applied", "In Process", "Appointed / Closed"), sections: ["Demo-class bookings"] },
+  post: { href: "/app/m/teaching/company", label: "Post a teaching job" },
   ownerSide: { workspace: "company" },
   trust: { reviews: "off" },
   compliance: ["minors"],

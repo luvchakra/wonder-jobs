@@ -42,6 +42,7 @@ export const scholarshipsManifest: ModuleManifest = {
   ],
   response: { verb: "apply", questions: true, states: ["applied", "shortlisted", "accepted", "done", "declined", "withdrawn"], capability: "scholarships.apply" },
   pipeline: { label: "Applications", icon: "LayoutList", stages: stagesOf("Saved", "Preparing", "Applied", "Shortlisted", "Awarded / Selected", "Completed"), sections: ["Deadlines"] },
+  post: { href: "/app/m/scholarships/company", label: "Post a scholarship or project" },
   ownerSide: { workspace: "company" },
   trust: { reviews: "off" },
   money: { kind: "none", currency: "INR" },

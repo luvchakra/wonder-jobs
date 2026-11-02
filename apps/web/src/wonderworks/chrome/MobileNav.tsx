@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { isActivePath } from "./nav";
-import { useModuleNav } from "./useModuleNav";
+import { useModuleNav, useSelectedModule } from "./useModuleNav";
+import { useChromeSlots } from "./slots";
 
 /** The bottom bar: the four places, nothing else. Each place's own pages are tabs at its top (or rows
  * on You); help, account and sign-out are in the account menu — the top-bar avatar, or the round button above the bar. */
@@ -27,8 +28,23 @@ export function MobileNav() {
   const barShown = useUIStore((s) => s.bottomBars > 0);
   // Jobs' four places, or the active WonderWorks module's.
   const nav = useModuleNav();
+  // The selected module's "post a new entry" page (owner, 2026-11-02): a + just above the menu button. Not on that page itself.
+  const slots = useChromeSlots();
+  const selected = useSelectedModule();
+  const post = slots.postFor?.(selected) ?? null;
+  const showPost = !barShown && post && !pathname.startsWith(post.href);
   return (
     <>
+      {showPost && (
+        <Link
+          href={post.href}
+          aria-label={post.label}
+          title={post.label}
+          className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+5.25rem)] right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden"
+        >
+          <Plus className="size-6" aria-hidden />
+        </Link>
+      )}
       {/* The account menu (help, account, sign out) within thumb's reach, above the bar. */}
       {!barShown && (
         <button
