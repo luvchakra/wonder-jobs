@@ -20,6 +20,14 @@ import { lastGatewayRefresh } from "./warm";
 
 export type ImportState = "live" | "waiting" | "needs_you" | "down" | "off";
 
+export type ImportAction =
+  | { kind: "run"; label: string; run: NonNullable<SetupItem["run"]> }
+  | { kind: "link"; label: string; href: string }
+  | { kind: "decide"; label: string; decision: string }
+  | { kind: "pause" | "activate" | "collect" | "test"; label: string; sourceId: string }
+  | { kind: "upload"; label: string; sourceId: string }
+  | { kind: "source_status"; label: string; id: string; status: "paused" | "active" };
+
 /** One source (or one thing the owner must decide) on a module's list: one state, at most one action. */
 export interface ImportRow {
   id: string;
@@ -31,12 +39,12 @@ export interface ImportRow {
   detail: string;
   /** Listings it holds (gateway sources) or fetched in the last day (WorksLake sources). */
   listings?: number;
-  action?:
-    | { kind: "run"; label: string; run: NonNullable<SetupItem["run"]> }
-    | { kind: "link"; label: string; href: string }
-    | { kind: "decide"; label: string; decision: string }
-    | { kind: "pause" | "activate"; label: string; sourceId: string }
-    | { kind: "upload"; label: string; sourceId: string };
+  /** The one thing to do next. */
+  action?: ImportAction;
+  /** For investigating and fixing: pause or resume, collect or test now, open the source. */
+  more: ImportAction[];
+  /** What it did lately, for the row's Details: never a secret. */
+  history: { label: string; value: string }[];
   termsPending?: boolean;
 }
 
@@ -51,6 +59,10 @@ export interface ImportModule {
   collected: number;
   /** Listings in Find (stored in the last two weeks); null when uncountable. */
   inFind: number | null;
+  /** Import paused for this module: not collected, set up or refreshed until resumed. */
+  paused: boolean;
+  /** Rows that are down or need you, in a line, so a problem is seen without opening the card. */
+  problems: string[];
   rows: ImportRow[];
 }
 
@@ -61,7 +73,7 @@ export interface ImportView {
     collected: { listings: number; lastAt: string | null; nextAt: string | null };
     find: { listings: number | null; refreshedAt: string | null; stored: Record<string, number> };
   };
-  schedule: { activateWaiting: boolean; cronSet: boolean };
+  schedule: { activateWaiting: boolean; cronSet: boolean; pausedModules: string[] };
   /** The server job started by Import now (or the hourly run), while it runs or for a day after. */
   job: { running: boolean; done: number; total: number; trigger: string; finishedAt?: string; live: number; failed: { name: string; step?: string; message?: string }[] } | null;
   lastRun: CronRun | null;
@@ -71,6 +83,31 @@ export interface ImportView {
 
 const DAY = 86_400_000;
 const liveStatus = (s: { status: string }) => s.status === "active" || s.status === "degraded";
+const ago = (iso: string | null | undefined) => (iso ? `${Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 3_600_000))} h ago` : "never");
+const n = (v: number) => v.toLocaleString("en-IN");
+
+/** A WorksLake source's recent runs, in lines. */
+function sourceHistory(v: SourceView): ImportRow["history"] {
+  const h = v.health;
+  if (!h || !h.runs) return [{ label: "Runs, 7 days", value: "none" }];
+  const failed = h.failures.timeout + h.failures.unavailable + h.failures.needs_setup;
+  return [
+    { label: "Runs, 7 days", value: `${n(h.runs)} · ${h.successRate == null ? "—" : `${Math.round(h.successRate * 100)}% ok`}${failed ? ` · ${n(failed)} failed (${[h.failures.timeout && `${h.failures.timeout} timed out`, h.failures.unavailable && `${h.failures.unavailable} unavailable`, h.failures.needs_setup && `${h.failures.needs_setup} needed setup`].filter(Boolean).join(", ")})` : ""}` },
+    { label: "Last run", value: `${ago(h.lastRunAt)} · last success ${ago(h.lastSuccessAt)}` },
+    { label: "Fetched, 7 days", value: `${n(h.retrieved)} · ${n(h.valid)} passed checks${h.p50LatencyMs ? ` · ${Math.round(h.p50LatencyMs)} ms typical` : ""}` },
+  ];
+}
+
+/** A gateway source's recent runs, in lines. */
+function gatewayHistory(g: GatewaySourceRow): ImportRow["history"] {
+  const out: ImportRow["history"] = [{ label: "Listings held", value: n(g.listings) }];
+  out.push({ label: "Last collection", value: g.lastError ? `failed: ${g.lastError} · last success ${ago(g.lastSuccessAt)}` : ago(g.lastSuccessAt) });
+  if (g.lastTest) out.push({ label: "Last test", value: `${ago(g.lastTest.at)} · ${g.lastTest.ok ? "passed" : "failed"} · ${n(g.lastTest.valid)} of ${n(g.lastTest.discovered)} read well` });
+  if (g.enabled) out.push({ label: "Next collection", value: `${g.nextRunAt ? ago(g.nextRunAt).replace(" ago", "") : "soon"} · every ${g.intervalMinutes >= 1440 ? `${Math.round(g.intervalMinutes / 1440)} d` : `${Math.round(g.intervalMinutes / 60)} h`}` });
+  if (g.crawl?.progress) out.push({ label: "Crawl", value: g.crawl.progress });
+  if (g.termsPending) out.push({ label: "Terms", value: "pending: confirm its reuse terms (Setup decision)" });
+  return out;
+}
 
 /** Pure: a module's rows from its WorksLake sources, its gateway sources and its Setup items (exported for tests). */
 export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[]): ImportRow[] {
@@ -79,8 +116,8 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
-    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") } });
-    else if (i.run?.kind === "add") rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "waiting", detail: i.detail, action: { kind: "run", label: "Add & activate", run: i.run } });
+    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href.startsWith("/") && i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
+    else if (i.run?.kind === "add") rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "waiting", detail: i.detail, action: { kind: "run", label: "Add & activate", run: i.run }, more: [], history: [] });
   }
   // WorksLake's own sources (the gateway bridges are automatic now, so they aren't listed).
   for (const v of views) {
@@ -88,13 +125,14 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     if (v.status === "do_not_use" || v.status === "disabled") continue;
     const item = byItem.get(v.id);
     const href = `/platform/jobs-lake/sources/${encodeURIComponent(v.id)}`;
+    const open: ImportAction = { kind: "link", label: "Open source", href };
     if (item) {
       const state: ImportState = item.need === "activate" ? "waiting" : "needs_you";
-      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: item.need === "terms", action: { kind: "link", label: item.action.label, href: item.action.href } });
+      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: item.need === "terms", action: { kind: "link", label: item.action.label, href: item.action.href }, more: item.action.href === href ? [] : [open], history: sourceHistory(v) });
       continue;
     }
-    if (liveStatus(v)) rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: v.health?.state === "down" ? "down" : "live", detail: v.health?.state === "down" ? "Down: its last runs failed" : v.statusLabel, action: { kind: "link", label: "Open", href } });
-    else rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: "off", detail: v.statusLabel, action: { kind: "link", label: "Open", href } });
+    if (liveStatus(v)) rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: v.health?.state === "down" ? "down" : "live", detail: v.health?.state === "down" ? "Down: its last runs failed" : v.statusLabel, action: v.health?.state === "down" ? open : undefined, more: [{ kind: "source_status", label: "Pause", id: v.id, status: "paused" }, ...(v.health?.state === "down" ? [] : [open])], history: sourceHistory(v) });
+    else rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: "off", detail: v.statusLabel, action: v.status === "paused" ? { kind: "source_status", label: "Resume", id: v.id, status: "active" } : open, more: v.status === "paused" ? [open] : [], history: sourceHistory(v) });
   }
   // The gateway's sources for this module.
   for (const g of gateway) {
@@ -103,12 +141,14 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     const kind = partner ? "Partner" : "Gateway";
     if (g.enabled) {
       const detail = g.lastError ? `Last run failed: ${g.lastError}` : `${g.listings ? `${g.listings.toLocaleString("en-IN")} listings` : "No listings yet"}${g.termsPending ? " · terms pending" : ""}`;
-      rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: g.lastError ? "down" : "live", detail, listings: g.listings, termsPending: g.termsPending, action: partner ? { kind: "upload", label: "Upload list", sourceId: g.id } : { kind: "pause", label: "Pause", sourceId: g.id } });
+      const collect: ImportAction = { kind: "collect", label: "Collect now", sourceId: g.id };
+      const pause: ImportAction = { kind: "pause", label: "Pause", sourceId: g.id };
+      rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: g.lastError ? "down" : "live", detail, listings: g.listings, termsPending: g.termsPending, action: partner ? { kind: "upload", label: "Upload list", sourceId: g.id } : g.lastError ? collect : undefined, more: partner ? [pause] : g.lastError ? [{ kind: "test", label: "Test", sourceId: g.id }, pause] : [collect, { kind: "test", label: "Test", sourceId: g.id }, pause], history: gatewayHistory(g) });
       continue;
     }
     const item = byItem.get(`gateway:${g.id}`);
-    if (partner) rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: g.listings ? "waiting" : "needs_you", detail: g.listings ? `${g.listings.toLocaleString("en-IN")} listings uploaded, not live` : "Upload its list to go live", listings: g.listings, action: g.listings ? { kind: "activate", label: "Activate", sourceId: g.id } : { kind: "upload", label: "Upload list", sourceId: g.id } });
-    else rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: "waiting", detail: item?.detail ?? "Added, not live", listings: g.listings, termsPending: g.termsPending, action: { kind: "run", label: "Test & activate", run: { kind: "activate", sourceId: g.id } } });
+    if (partner) rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: g.listings ? "waiting" : "needs_you", detail: g.listings ? `${g.listings.toLocaleString("en-IN")} listings uploaded, not live` : "Upload its list to go live", listings: g.listings, action: g.listings ? { kind: "activate", label: "Activate", sourceId: g.id } : { kind: "upload", label: "Upload list", sourceId: g.id }, more: g.listings ? [{ kind: "upload", label: "Upload again", sourceId: g.id }] : [], history: gatewayHistory(g) });
+    else rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: "waiting", detail: item?.detail ?? "Added, not live", listings: g.listings, termsPending: g.termsPending, action: { kind: "run", label: "Test & activate", run: { kind: "activate", sourceId: g.id } }, more: [{ kind: "test", label: "Test only", sourceId: g.id }], history: gatewayHistory(g) });
   }
   const order: ImportState[] = ["needs_you", "waiting", "down", "live", "off"];
   return rows.sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state) || a.name.localeCompare(b.name));
@@ -144,6 +184,7 @@ export async function importView(): Promise<ImportView> {
   ]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
+  const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
     const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items);
     return {
@@ -155,6 +196,8 @@ export async function importView(): Promise<ImportView> {
       needsYou: rows.filter((r) => r.state === "needs_you").length,
       collected: held.get(m.id) ?? 0,
       inFind: found.get(m.id) ?? null,
+      paused: paused.has(m.id),
+      problems: rows.filter((r) => r.state === "down" || r.state === "needs_you").map((r) => `${r.name}: ${r.detail}`),
       rows,
     };
   });
@@ -169,7 +212,7 @@ export async function importView(): Promise<ImportView> {
       collected: { listings: modules.reduce((n, m) => n + m.collected, 0), lastAt: last, nextAt: next },
       find: { listings: counted.length ? counted.reduce((n, m) => n + (m.inFind ?? 0), 0) : null, refreshedAt: refresh?.at ?? null, stored: refresh?.stored ?? {} },
     },
-    schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET },
+    schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
     job: jobSummary(job),
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,
     modules,
