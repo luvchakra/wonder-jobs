@@ -54,7 +54,7 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
   const items: SetupItem[] = [];
   for (const d of OWNER_DECISIONS) {
     if (d.id in done) continue;
-    items.push({ id: `decision:${d.id}`, name: d.title, module: d.module, moduleLabel: label(d.module), dataType: d.module === "all" ? "Data sources" : dataTypeOf(d.module).type, need: "decision", countries: d.geography ?? [], detail: d.detail, action: { label: d.href ? "Open" : "Details", href: d.href ?? "/platform/jobs-lake/setup" }, decision: true });
+    items.push({ id: `decision:${d.id}`, name: d.title, module: d.module, moduleLabel: label(d.module), dataType: d.module === "all" ? "Data sources" : dataTypeOf(d.module).type, need: "decision", countries: d.geography ?? [], detail: d.detail, action: { label: d.href ? "Open" : "Details", href: d.href ?? "/platform/jobs-lake/import" }, decision: true });
   }
   for (const s of sources) {
     const n = sourceNeed(s);

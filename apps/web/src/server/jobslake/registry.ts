@@ -92,7 +92,8 @@ export async function listSources(module: ModuleId = "jobs"): Promise<SourceReco
     if (!o) return b;
     // Built-ins keep their definition from code; only the admin's status/limits choices and the last test persist.
     const kept = { ...b, statusReason: o.statusReason ?? b.statusReason, limits: o.limits ?? b.limits, updatedAt: o.updatedAt, lastTest: o.lastTest, activatedAt: o.activatedAt };
-    if (b.config.kind !== "partnership") return { ...kept, status: o.status };
+    // A gateway bridge (works_gateway_*) keeps the status its code gives: the gateway's own activation is the approval.
+    if (b.config.kind !== "partnership") return { ...kept, status: gatewayModuleForSource(b.id) ? b.status : o.status };
     // A partner portal also keeps the connection its partnership handed over, its credential ref and
     // the agreement record. Fail closed: no connection, or "active" without an agreement, is Do not use.
     const connection = o.config.kind === "partnership" ? o.config.connection : undefined;

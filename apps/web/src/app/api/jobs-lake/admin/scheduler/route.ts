@@ -7,10 +7,6 @@ import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { badJson, json, readJson } from "@/server/jobslake/http";
 import { runCompanyRefresh } from "@/server/scheduler/companyJob";
-import { runGatewayCollection } from "@/server/gateway/collectJob";
-import { readSetupJob } from "@/server/gateway/setupJob";
-import { lastGatewayRefresh } from "@/server/jobslake/warm";
-import { siteUrl } from "@/lib/siteUrl";
 import { listCronRuns, loadScheduler, saveScheduler } from "@/server/scheduler/store";
 import { stateStore } from "@/server/state";
 import { cronIntervalMinutes } from "@/server/workflow/cronCadence";
@@ -43,7 +39,7 @@ export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
   const now = new Date();
-  const [settings, runs, schedules, refresh, setupJob] = await Promise.all([loadScheduler(), listCronRuns(), candidateSchedules(now), lastGatewayRefresh().catch(() => null), readSetupJob().catch(() => null)]);
+  const [settings, runs, schedules] = await Promise.all([loadScheduler(), listCronRuns(), candidateSchedules(now)]);
   return json({
     settings,
     defaults: SCHEDULER_DEFAULTS,
@@ -52,10 +48,6 @@ export async function GET() {
     jobs: CRON_JOBS.map((j) => ({ ...j, when: describeCron(j.schedule), nextRunAt: nextCronRun(j.schedule, now), lastRun: runs.find((r) => r.job === j.id) })),
     runs,
     schedules,
-    gateway: {
-      refresh,
-      job: setupJob && !setupJob.finishedAt ? { done: setupJob.items.filter((i) => i.status === "live" || i.status === "failed").length, total: setupJob.items.length } : null,
-    },
   });
 }
 
@@ -65,22 +57,20 @@ export async function PUT(req: Request) {
   if (a instanceof NextResponse) return a;
   const body = await readJson(req);
   if (!body) return badJson();
-  const saved = await saveScheduler(body, a.actor);
+  // The gateway's one option is set on Data → Import; a save from here keeps it.
+  const current = await loadScheduler();
+  const saved = await saveScheduler({ ...(body as Record<string, unknown>), gateway: current.gateway }, a.actor);
   await audit(a.actor, "scheduler.update", undefined, { scheduledRuns: saved.scheduledRuns, companyRefresh: saved.companyRefresh, gateway: saved.gateway });
   return json({ settings: saved });
 }
 
-/**
- * Run now: the company refresh, with the saved limits, or the gateway collection, the same code the cron runs (the
- * daily run stays with the cron, which has 5 minutes).
- */
+/** Run now: the company refresh, with the saved limits (the daily run stays with the cron; the gateway's import is on Data → Import). */
 export async function POST(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
   const body = (await readJson(req)) as { job?: string } | null;
-  if (body?.job !== "jobslake-companies" && body?.job !== "gateway-collect") return jlError("INVALID_REQUEST", "Only the company refresh and the gateway collection can be run from here.", 400);
+  if (body?.job !== "jobslake-companies") return jlError("INVALID_REQUEST", "Only the company refresh can be run from here; the gateway's import is on Data → Import.", 400);
   await audit(a.actor, "scheduler.run", undefined, { job: body.job });
-  if (body.job === "gateway-collect") return json(await runGatewayCollection("admin", siteUrl().origin));
   const r = await runCompanyRefresh("admin");
   return json(r, r.outcome === "failed" ? 500 : 200);
 }

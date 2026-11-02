@@ -19,6 +19,9 @@ function enabled() {
   } catch { return false; }
 }
 
+/** Whether an id names a gateway bridge source (works_gateway_<module>), configured or not. */
+export const isGatewayBridge = (id: string) => id.startsWith(prefix);
+
 export function gatewayModuleForSource(id: string): ModuleId | undefined {
   if (!enabled() || !id.startsWith(prefix)) return undefined;
   const selected = id.slice(prefix.length);
@@ -47,7 +50,9 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   geography: ["global", "IN"],
   description: "Additional approved external sources indexed in the independent gateway; existing sources remain unchanged.",
   capabilities: ["Search", "Freshness", "Apply URL"],
-  status: "draft",
+  // Active whenever the gateway is configured (owner, 2026-11-02: one import pipeline, no second approval here): every
+  // gateway source was already tested and activated by an admin in the gateway itself.
+  status: "active",
   config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain" } } },
   secretRef: "env:WORKSLAKE_GATEWAY_API_KEY",
   limits: { ...DEFAULT_LIMITS, timeoutMs: 12000, maxResults: 100 },
