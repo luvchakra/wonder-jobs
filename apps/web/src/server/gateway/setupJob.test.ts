@@ -78,8 +78,8 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
   it("saves each step as it happens, so a reloaded page shows where the job is, and records the run when it finishes", async () => {
     await startSetupJob([item(1), item(2)], "admin@example.com", new Date(), "admin", { kind: "module", module: "therapists" });
     const seen: { status: string; step?: string }[] = [];
-    const run = vi.fn(async (r: SetupRun, onStep: (s: string) => void) => {
-      onStep("Test");
+    const run = vi.fn(async (r: SetupRun, onStep?: (s: string) => void) => {
+      onStep?.("Test");
       await new Promise((res) => setTimeout(res, 0));
       const saved = (await readSetupJob())!.items.find((i) => i.status === "running");
       seen.push({ status: saved!.status, step: saved!.step });
