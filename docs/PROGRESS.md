@@ -106,3 +106,4 @@
 - ✅ Automation, Analytics and Notifications follow the selected module; the top bar names it (WJ-661)
 - ✅ Therapists: mapped practices open with a real link, show a Call button when the map has a phone, and practices named after a doctor are left out (WJ-602)
 - ✅ Therapists: clinics named after a doctor are listed again (WJ-603)
+- ✅ A + button on phones posts a new entry in the selected module (WJ-662)

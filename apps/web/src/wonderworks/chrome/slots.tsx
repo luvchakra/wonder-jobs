@@ -17,6 +17,8 @@ export interface ChromeSlots {
   FindMenu?: ComponentType;
   /** How many things need the person in the module selected (Needs attention, the bell's badge), and their status line in the account menu. */
   useStatus: (hydrated: boolean, module: string) => { tasks: number; careerStatus: string };
+  /** Where a module's new entry is posted (the page its You tab links to: Hiring, Post internships, Host an event …), for the + button. */
+  postFor?: (module: string) => { href: string; label: string } | null;
 }
 
 const NONE: ChromeSlots = { tabsFor: () => [], moduleFromPath: () => null, sections: [], useStatus: () => ({ tasks: 0, careerStatus: "Career Explorer" }) };

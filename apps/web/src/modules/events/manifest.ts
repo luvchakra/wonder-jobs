@@ -29,6 +29,7 @@ export const eventsManifest: ModuleManifest = {
   ],
   response: { verb: "rsvp", questions: false, states: ["going", "waitlist", "attended", "no_show"], capability: "events.rsvp" },
   pipeline: { label: "My events", icon: "CalendarHeart", stages: stagesOf("Going", "Waitlist", "Attended"), sections: ["Calendar"] },
+  post: { href: "/app/m/events/company", label: "Host an event" },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
   compliance: ["minors"],

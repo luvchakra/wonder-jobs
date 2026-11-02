@@ -58,6 +58,8 @@ export interface ModuleManifest {
   /** The one tab a module shapes (§4.1); Find, Saved and You are the platform's. */
   pipeline: { label: string; icon: string; stages: PipelineStage[]; sections?: string[] };
   ownerSide: { workspace: "company" | "person" | "none" };
+  /** Where a new entry is posted, as its You tab links it, and what the + button says (owner, 2026-11-02). */
+  post?: { href: string; label: string };
   trust: { reviews: "off" | "after_done" | "both_sides" };
   money?: { kind: "none" | "fee_display" | "booking_payment" | "escrow"; currency: string };
   compliance?: ("health_data" | "minors" | "payments" | "housing")[];

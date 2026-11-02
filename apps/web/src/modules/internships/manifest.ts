@@ -29,6 +29,7 @@ export const internshipsManifest: ModuleManifest = {
   ],
   response: { verb: "apply", questions: false, states: ["applied", "shortlisted", "offer", "accepted", "closed", "withdrawn"], capability: "internships.apply" },
   pipeline: { label: "Applications", icon: "LayoutList", stages: stagesOf("Preparing", "Applied", "Shortlisted", "Offer"), sections: ["Deadlines"] },
+  post: { href: "/app/m/internships/company", label: "Post an internship" },
   ownerSide: { workspace: "company" },
   trust: { reviews: "off" },
 };
