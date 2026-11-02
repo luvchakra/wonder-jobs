@@ -28,6 +28,7 @@ import { bannedCompanies, isBannedListing, recordCompanies } from "./companies";
 import { boardRef, closedRefs } from "@/server/jobs/origin";
 import { postingTooOld } from "@/domain/jobs/age";
 import { loadPlatformKeys } from "./platformKeys";
+import { placeWithCountry } from "@/domain/jobslake/country";
 
 export const newId = (prefix: string) => `${prefix}_${randomBytes(9).toString("base64url")}`;
 
@@ -259,7 +260,12 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const paidLimit = new Map<string, number>();
   const connectorCriteria = (src: SourceRecord, q: string) => (src.paid ? { ...criteriaFor(q), titles: phrasings.filter((x) => x !== q), maxResults: paidLimit.get(src.id) } : criteriaFor(q));
 
+  // Every source's jobs name their country in the place, cached ones included (domain/jobslake/country.ts).
   const attempt = async (src: SourceRecord, q: string): Promise<Attempt> => {
+    const a = await attemptRaw(src, q);
+    return { ...a, jobs: placeWithCountry(a.jobs, src.geography) };
+  };
+  const attemptRaw = async (src: SourceRecord, q: string): Promise<Attempt> => {
     const c = caches.get(q) ?? noCache;
     const hit = req.cache === "refresh" ? undefined : c.fresh.get(src.id);
     if (hit) return { jobs: hit.jobs.slice(0, src.limits.maxResults), warnings: [], called: false, cachedAt: hit.fetchedAt, cacheUse: "fresh" };
