@@ -135,6 +135,11 @@ function RunAll({ items, onDone }: { items: SetupItem[]; onDone: () => void }) {
         let live = 0;
         const failed: string[] = [];
         for (const [n, i] of runnable.entries()) {
+          // A short pause between sources, so shared servers (Overpass) don't refuse the next one as "too many requests".
+          if (n > 0) {
+            setStep(`${n + 1} of ${runnable.length}: waiting…`);
+            await new Promise((res) => setTimeout(res, 5000));
+          }
           const r = await runSetup(i.run!, (s) => setStep(`${n + 1} of ${runnable.length}: ${s}`));
           if (r.ok) live++;
           else failed.push(`${i.name} (${r.step})`);
