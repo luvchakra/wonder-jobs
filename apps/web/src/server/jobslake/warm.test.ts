@@ -9,6 +9,8 @@ vi.mock("./registry", async (orig) => {
 
 import { __MemoryStore, __setJobsLakeStore, jobsLakeStore } from "./store";
 import { gatewayRefreshStamp, isGatewayFed, lastGatewayRefresh, refreshGatewayListings } from "./warm";
+import { saveScheduler } from "@/server/scheduler/store";
+import { SCHEDULER_DEFAULTS } from "@/domain/scheduler/settings";
 
 const practice = (n: number, sourceId = "thp_osm"): Job => ({ id: `${sourceId}_${n}`, sourceId, externalId: `node/${n}`, title: `Mind Care Clinic ${n}`, company: `Mind Care Clinic ${n}`, location: "Mumbai", country: "IN", workMode: "onsite", currency: "INR", postedAt: new Date().toISOString(), observedAt: new Date().toISOString(), description: "Counselling practice in Mumbai. Listed on OpenStreetMap.", requirements: [], niceToHave: [], skills: [], seniority: "unknown", industry: "", applyUrl: `https://www.openstreetmap.org/node/${n}`, applyPath: "employer_site", onEmployerSite: false, repostCount: 0, tags: [] }) as unknown as Job;
 
@@ -30,6 +32,18 @@ describe("refreshGatewayListings — the one step that brings gateway listings i
     // What the refresh fetched is recorded as runs, so Overview's "fetched · 24 h" counts it.
     expect((await jobsLakeStore().listRuns({ sourceId: "thp_osm" }))[0]).toMatchObject({ trigger: "refresh", outcome: "ok", retrieved: 2 });
     expect(await gatewayRefreshStamp()).toBe(r.at);
+  });
+
+  it("a module whose import is paused (Data → Import) keeps what Find has; nothing new is stored for it", async () => {
+    connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "thp_osm" ? [practice(1)] : [], warnings: [] }));
+    await saveScheduler({ ...SCHEDULER_DEFAULTS, gateway: { activateWaiting: false, pausedModules: ["therapists"] } }, "test");
+    try {
+      const r = await refreshGatewayListings(["therapists"]);
+      expect(r.stored).toEqual({});
+      expect(await jobsLakeStore().listOpportunities({ module: "therapists" })).toEqual([]);
+    } finally {
+      await saveScheduler(SCHEDULER_DEFAULTS, "test");
+    }
   });
 
   it("stores a listing once, however often it's refreshed", async () => {
