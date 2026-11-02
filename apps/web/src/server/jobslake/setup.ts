@@ -39,7 +39,7 @@ export function sourceNeed(s: SourceView): Pick<SetupItem, "need" | "detail" | "
   if (s.credential && !s.credential.present) {
     const names = vars(s.credential.masked);
     const onPlatform = names.length > 0 && names.every((n) => PLATFORM_NAMES.has(n));
-    return { need: "key", detail: names.length ? `Needs ${names.join(" + ")}` : "Needs its credential", action: onPlatform ? { label: "Set key", href: `${LAKE}/keys` } : { label: "Add credential", href: `${LAKE}/credentials` } };
+    return { need: "key", detail: names.length ? `Needs ${names.join(" + ")}` : "Needs its credential", action: onPlatform ? { label: "Set key", href: `${LAKE}/keys` } : { label: "Add credential", href: `${LAKE}/sources/${encodeURIComponent(s.id)}` } };
   }
   // Terms pending: a source the owner still has to confirm, whether it's paused for it or live meanwhile (CLAUDE.md, "Finding data sources").
   if (/terms pending/i.test(s.statusReason ?? "") || (s.status === "paused" && /terms/i.test(s.statusReason ?? ""))) return { need: "terms", detail: `${s.status === "paused" ? "Paused" : "Live"} · ${s.statusReason}`, action: page };
