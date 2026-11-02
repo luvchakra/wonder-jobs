@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SetupItem, SetupNeed } from "@/server/jobslake/setup";
+import type { SetupJob } from "@/server/gateway/setupJob";
 import { MODULE_DATA } from "@/domain/jobslake/moduleData";
 import { MODULES } from "@/modules/registry";
 import { Chip } from "@/components/common/Input";
@@ -120,44 +121,66 @@ function ItemSummary({ item: i }: { item: SetupItem }) {
   );
 }
 
-/** Every shown gateway step in one press, one after another (owner, 2026-11-01: "less clicks"). */
-function RunAll({ items, onDone }: { items: SetupItem[]; onDone: () => void }) {
-  const [step, setStep] = useState<string | null>(null);
+/**
+ * Every shown gateway step in one press, run by a server job (owner, 2026-11-02: "keep the entire process backend job
+ * based"): the page only starts it and shows how far it got; closing the page doesn't stop it. Each row's own button
+ * still runs that one item here, on demand.
+ */
+function RunAll({ items, job, onDone }: { items: SetupItem[]; job: SetupJob | null; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const running = !!job && !job.finishedAt;
+  // While the job runs and the page is shown, its progress is read again every 10 s; nothing runs once it's done.
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") onDone();
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [running, onDone]);
   const runnable = items.filter((i) => i.run);
+  if (running) {
+    const done = job.items.filter((i) => i.status === "live" || i.status === "failed").length;
+    return <span className="text-[12px] text-ink-3">On the server: {done} of {job.items.length} done</span>;
+  }
   if (runnable.length < 2) return null;
   const kinds = new Set(runnable.map((i) => i.run!.kind));
   const verb = kinds.size > 1 ? "Set up" : kinds.has("add") ? "Add & activate" : "Test & activate";
   return (
     <button
       type="button"
-      disabled={!!step}
+      disabled={busy}
       onClick={async () => {
-        let live = 0;
-        const failed: string[] = [];
-        for (const [n, i] of runnable.entries()) {
-          // A short pause between sources, so shared servers (Overpass) don't refuse the next one as "too many requests".
-          if (n > 0) {
-            setStep(`${n + 1} of ${runnable.length}: waiting…`);
-            await new Promise((res) => setTimeout(res, 5000));
-          }
-          const r = await runSetup(i.run!, (s) => setStep(`${n + 1} of ${runnable.length}: ${s}`));
-          if (r.ok) live++;
-          else failed.push(`${i.name} (${r.step})`);
-        }
-        setStep(null);
-        if (live) toast.success(`${live} of ${runnable.length} live`, failed.length ? `Not live: ${failed.join(", ")}` : "Their listings are collected.");
-        else toast.error("None went live", failed.join(", "));
+        setBusy(true);
+        const r = await adminFetch("setup", { method: "POST", body: JSON.stringify({ action: "run_all", ids: runnable.map((i) => i.id) }) });
+        setBusy(false);
+        if (r.ok) toast.success("Started on the server", "You can close this page; it carries on.");
+        else toast.error("Didn't start", r.error.message);
         onDone();
       }}
       className="rounded-full bg-brand-600 px-3 py-1 text-[12px] font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
     >
-      {step ?? `${verb} all ${runnable.length}`}
+      {busy ? "Starting…" : `${verb} all ${runnable.length}`}
     </button>
   );
 }
 
+/** The last server job's outcome, while it's recent (the server sends it for a day): what went live, what didn't and why, and what reached Find. */
+function JobSummary({ job }: { job: SetupJob | null }) {
+  if (!job) return null;
+  const live = job.items.filter((i) => i.status === "live");
+  const failed = job.items.filter((i) => i.status === "failed");
+  const stored = Object.entries(job.stored ?? {}).filter(([, n]) => n > 0);
+  return (
+    <p className="mb-3 text-[12.5px] text-ink-3">
+      {job.finishedAt ? "Last server job" : "Server job, running"}: {live.length} live
+      {failed.length ? ` · not live: ${failed.map((i) => `${i.name} (${i.step}: ${i.message})`).join("; ")}` : ""}
+      {stored.length ? ` · in Find now: ${stored.map(([m, n]) => `${n} ${m}`).join(", ")}` : ""}.
+    </p>
+  );
+}
+
 export default function SetupTodoPage() {
-  const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean }>("setup");
+  const { data, error, reload } = useAdmin<{ items: SetupItem[]; gatewayConfigured: boolean; job: SetupJob | null }>("setup");
   const [need, setNeed] = useState<SetupNeed | "all">("all");
   const [mod, setMod] = useState<string | null>(null);
   const [country, setCountry] = useState<string | null>(null);
@@ -210,8 +233,9 @@ export default function SetupTodoPage() {
               ))}
             </div>
           )}
+          <JobSummary job={data.job} />
           {!data.gatewayConfigured && <p className="mb-3 text-[12.5px] text-ink-3">The gateway isn&apos;t configured on this deployment, so its sources aren&apos;t listed.</p>}
-          <Panel title={items.length ? `${items.length} to fix` : undefined} action={<RunAll items={items} onDone={reload} />}>
+          <Panel title={items.length ? `${items.length} to fix` : undefined} action={<RunAll items={items} job={data.job} onDone={reload} />}>
             {items.length ? (
               <ul className="flex flex-col divide-y divide-line">
                 {items.map((i) => (
