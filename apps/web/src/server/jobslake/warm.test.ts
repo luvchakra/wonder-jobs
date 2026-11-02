@@ -27,6 +27,8 @@ describe("refreshGatewayListings — the one step that brings gateway listings i
     expect((await jobsLakeStore().listOpportunities({ module: "therapists" })).map((o) => o.title).sort()).toEqual(["Mind Care Clinic 1", "Mind Care Clinic 2"]);
     expect(await jobsLakeStore().listOpportunities({ module: "jobs" })).toEqual([]); // never another module's dataset
     expect((await lastGatewayRefresh())?.at).toBe(r.at);
+    // What the refresh fetched is recorded as runs, so Overview's "fetched · 24 h" counts it.
+    expect((await jobsLakeStore().listRuns({ sourceId: "thp_osm" }))[0]).toMatchObject({ trigger: "refresh", outcome: "ok", retrieved: 2 });
     expect(await gatewayRefreshStamp()).toBe(r.at);
   });
 

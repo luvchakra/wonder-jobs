@@ -6,6 +6,7 @@
  * Every number here is counted from stored runs or warm-pool opportunities. When there is nothing to
  * count the value is null / empty and the UI says "No data yet" — nothing is estimated.
  */
+import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { deriveAlerts, type Alert, type SourceHealth } from "@/domain/jobslake/health";
 import { sourceInsights, type InsightsView } from "@/domain/jobslake/insights";
 import { ACCESS_LABEL, CATEGORY_LABEL, STATUS_LABEL, type CanonicalOpportunity } from "@/domain/jobslake/protocol";
@@ -236,12 +237,14 @@ export interface ModuleOverview {
   runs24h: number;
   failed24h: number;
   retrieved24h: number;
+  /** Listings the module holds for Find (stored in the last two weeks, Find's age limit); null when uncountable. */
+  listings: number | null;
 }
 
 const failedRun = (r: { outcome: string }) => r.outcome === "timeout" || r.outcome === "unavailable" || r.outcome === "needs_setup";
 
 /** Each module's row on the admin Overview, from every module's source views and the last 24 h of runs. */
-export function moduleOverview(views: SourceView[], runs: { sourceId: string; outcome: string; retrieved: number }[]): ModuleOverview[] {
+export function moduleOverview(views: SourceView[], runs: { sourceId: string; outcome: string; retrieved: number }[], listings: Record<string, number | null> = {}): ModuleOverview[] {
   const moduleOf = new Map(views.map((v) => [v.id, v.moduleLabel ?? "Jobs"]));
   return MODULES.map((m) => {
     const mine = views.filter((v) => (v.moduleLabel ?? "Jobs") === m.label);
@@ -257,6 +260,7 @@ export function moduleOverview(views: SourceView[], runs: { sourceId: string; ou
       runs24h: r.length,
       failed24h: r.filter(failedRun).length,
       retrieved24h: r.reduce((a, x) => a + x.retrieved, 0),
+      listings: listings[m.id] ?? null,
     };
   });
 }
@@ -266,7 +270,10 @@ export async function overviewView(): Promise<OverviewView> {
   // The pool is counted, not read: reading Jobs' week of listings (8,000+ documents) to count them ran past the
   // database's statement timeout and left the Overview loading (2026-11-01). Its quality shares are on Data → Quality.
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [status, views, runs, opportunities, alerts] = await Promise.all([store.status(), listAllSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), store.countOpportunities({ sinceIso: since, module: "jobs" }), alertsView()]);
+  // What each module holds for Find (counted in the database, never read): listings stored in the last two weeks.
+  const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * 86_400_000).toISOString();
+  const held = Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)).then((e) => Object.fromEntries(e));
+  const [status, views, runs, opportunities, alerts, listings] = await Promise.all([store.status(), listAllSourceViews(), store.listRuns({ sinceIso: new Date(Date.now() - 86_400_000).toISOString(), limit: 5000 }), store.countOpportunities({ sinceIso: since, module: "jobs" }), alertsView(), held]);
   const live = views.filter((v) => v.status === "active" || v.status === "degraded");
   return {
     store: status,
@@ -293,7 +300,7 @@ export async function overviewView(): Promise<OverviewView> {
     },
     pool: { opportunities, employerVerified: null, multiSource: null },
     alerts,
-    modules: moduleOverview(views, runs),
+    modules: moduleOverview(views, runs, listings),
     recentRuns: runs.slice(0, 10),
   };
 }
