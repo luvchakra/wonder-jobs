@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { bearerMatches } from "@/server/crypto";
 import { gatewaySourceModules, ingestByUrl } from "@/server/gateway/admin";
-import { warmGatewayModules } from "@/server/jobslake/warm";
+import { refreshGatewayListings } from "@/server/jobslake/warm";
 import { readJson } from "@/server/jobslake/http";
 
 export const runtime = "nodejs";
@@ -22,8 +22,8 @@ export async function POST(req: Request) {
   const results = await ingestByUrl(body.url, body.items);
   console.info("[gateway-ingest]", JSON.stringify(results.map((r) => ({ source: r.sourceId, status: r.status, valid: r.body.valid }))));
   if (!results.length) return NextResponse.json({ ok: false, error: "No gateway source reads this URL (add it from the catalogue first)" }, { status: 404 });
-  // The delivered listings go into WorksLake's store at once (a paused source's are read only once it's activated).
+  // The delivered listings reach Find at once: their modules are refreshed (a paused source's are served once activated).
   const modules = (await Promise.all(results.filter((r) => r.status === 200).map((r) => gatewaySourceModules(r.sourceId)))).flat();
-  const stored = modules.length ? await warmGatewayModules(modules).catch(() => []) : [];
+  const stored = modules.length ? ((await refreshGatewayListings(modules).catch(() => null))?.stored ?? {}) : {};
   return NextResponse.json({ ok: results.every((r) => r.status === 200 && r.body.ok === true), results, stored });
 }

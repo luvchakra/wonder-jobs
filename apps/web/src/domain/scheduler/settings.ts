@@ -10,6 +10,11 @@ export interface SchedulerSettings {
   companyRefresh: { enabled: boolean; logoLimit: number; budgetSec: number };
   /** WorksLake's company-ratings job (`/api/cron/jobslake-ratings`): how often it runs and who's told when it has no key left. */
   ratings: { enabled: boolean; frequency: RatingsFrequency; notifyEmail: string };
+  /**
+   * The gateway collection (`/api/cron/gateway-collect`, hourly): whether each run also tests and activates the gateway
+   * sources waiting on Setup to-do (added, not yet live), as one server job. Off: only an admin's press does it.
+   */
+  gateway: { activateWaiting: boolean };
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -43,6 +48,7 @@ export const SCHEDULER_DEFAULTS: SchedulerSettings = {
   scheduledRuns: { enabled: true, maxTenants: 200, tenantBudgetSec: 60, reminders: true, digests: true },
   companyRefresh: { enabled: true, logoLimit: 150, budgetSec: 45 },
   ratings: { enabled: true, frequency: "weekly", notifyEmail: DEFAULT_RATINGS_NOTIFY_EMAIL },
+  gateway: { activateWaiting: false },
 };
 
 /** Each number's allowed range — the time budgets stay inside each function's Vercel limit. */
@@ -63,6 +69,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
   const s = obj(r.scheduledRuns);
   const c = obj(r.companyRefresh);
   const g = obj(r.ratings);
+  const gw = obj(r.gateway);
   const D = SCHEDULER_DEFAULTS;
   return {
     scheduledRuns: {
@@ -82,6 +89,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
       frequency: typeof g.frequency === "string" && g.frequency in RATINGS_FREQUENCIES ? (g.frequency as RatingsFrequency) : D.ratings.frequency,
       notifyEmail: typeof g.notifyEmail === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.notifyEmail.trim()) && g.notifyEmail.length <= 200 ? g.notifyEmail.trim().toLowerCase() : D.ratings.notifyEmail,
     },
+    gateway: { activateWaiting: bool(gw.activateWaiting, D.gateway.activateWaiting) },
     ...(typeof r.updatedAt === "string" ? { updatedAt: r.updatedAt } : {}),
     ...(typeof r.updatedBy === "string" ? { updatedBy: r.updatedBy } : {}),
   };
@@ -106,7 +114,7 @@ export const CRON_JOBS = [
   { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "WorksLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
   { id: "jobslake-ratings", runner: "vercel", path: "/api/cron/jobslake-ratings", schedule: "50 1 * * *", label: "Company ratings", description: "Looks up employee-review ratings from Explorium for companies never looked up (or not for 90 days), on the frequency set in Company ratings. Emails the owner when no API key is left." },
   { id: "application-reminders", runner: "vercel", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
-  { id: "gateway-collect", runner: "vercel", path: "/api/cron/gateway-collect", schedule: "0 23 * * *", label: "Gateway collection", description: "Fetches the external sources an administrator has tested and activated in the WorksLake gateway (robots and permission checked again each time), for the modules each is approved for. Also called every hour by GitHub Actions (.github/workflows/gateway-collect.yml), so each source runs on its own interval. Does nothing until the gateway is configured." },
+  { id: "gateway-collect", runner: "vercel", path: "/api/cron/gateway-collect", schedule: "0 23 * * *", label: "Gateway collection", description: "Collects the gateway sources that are live and due (robots and permission checked again each time), carries on an unfinished Setup job and, when switched on below, tests and activates the sources waiting on Setup to-do. When anything new arrives, every module's Find is refreshed with it. Called every hour by GitHub Actions (gateway-collect.yml) and daily by Vercel." },
   // Called by GitHub Actions (.github/workflows/reminders.yml): Vercel's plan runs its own crons once a day.
   { id: "reminders", runner: "github", path: "/api/cron/reminders", schedule: "17 * * * *", label: "Reminders", description: "Interview and follow-up reminders between daily runs, so one due this evening isn't raised tomorrow morning. Called by GitHub Actions; the daily run raises them too." },
 ] as const satisfies readonly { id: CronRun["job"]; runner: "vercel" | "github"; path: string; schedule: string; label: string; description: string }[];

@@ -11,8 +11,8 @@
  */
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
-import { warmGatewayModules } from "@/server/jobslake/warm";
-import { collectGatewaySource, gatewaySourceModules, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
+import { refreshGatewayListings } from "@/server/jobslake/warm";
+import { collectGatewaySource, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
 
 export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string };
 
@@ -35,7 +35,9 @@ export interface SetupJob {
   /** Until when a server is working on it (ISO); another server waits until it has passed. */
   leaseUntil?: string;
   items: SetupJobItem[];
-  /** Listings stored in WorksLake per module once the job's sources were live. */
+  /** Who started it: an admin's press on Setup to-do, or the scheduled Gateway collection. */
+  trigger?: "admin" | "scheduler";
+  /** Listings in Find per module after the job's refresh (every module, once, when the job finished). */
   stored?: Record<string, number>;
 }
 
@@ -55,11 +57,11 @@ const save = (job: SetupJob) => stateStore.put(PLATFORM_TENANT, KEY, job);
 export const jobRunning = (job: SetupJob | null) => !!job && !job.finishedAt;
 
 /** Queues these items as the new job. Refused while another job hasn't finished. */
-export async function startSetupJob(items: { id: string; name: string; run: SetupRun }[], by: string, now = new Date()): Promise<{ ok: true; job: SetupJob } | { ok: false; message: string }> {
+export async function startSetupJob(items: { id: string; name: string; run: SetupRun }[], by: string, now = new Date(), trigger: "admin" | "scheduler" = "admin"): Promise<{ ok: true; job: SetupJob } | { ok: false; message: string }> {
   const current = await readSetupJob();
   if (jobRunning(current)) return { ok: false, message: "A setup job is already running; it continues on the server." };
   if (!items.length) return { ok: false, message: "Nothing to run." };
-  const job: SetupJob = { id: `setup_${now.getTime().toString(36)}`, by: by.slice(0, 120), createdAt: now.toISOString(), items: items.slice(0, MAX_ITEMS).map((i) => ({ ...i, status: "pending" })) };
+  const job: SetupJob = { id: `setup_${now.getTime().toString(36)}`, by: by.slice(0, 120), createdAt: now.toISOString(), trigger, items: items.slice(0, MAX_ITEMS).map((i) => ({ ...i, status: "pending" })) };
   await save(job);
   return { ok: true, job };
 }
@@ -93,20 +95,18 @@ export interface ContinueDeps {
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
   run?: typeof runSetupItem;
-  modulesOf?: (sourceId: string) => Promise<string[]>;
-  warm?: (modules: string[]) => Promise<{ module: string; stored: number }[]>;
+  refresh?: () => Promise<{ stored: Record<string, number> }>;
 }
 
 /**
  * Works on the job until it's done or the time budget runs out. Returns whether items are left (so the caller hands
  * them on). Does nothing while another server holds the lease.
  */
-export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: number; left: number; done: boolean }> {
+export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: number; left: number; done: boolean; refreshed?: boolean }> {
   const now = deps.now ?? Date.now;
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const run = deps.run ?? runSetupItem;
-  const modulesOf = deps.modulesOf ?? gatewaySourceModules;
-  const warm = deps.warm ?? warmGatewayModules;
+  const refresh = deps.refresh ?? (() => refreshGatewayListings());
   const job = await readSetupJob();
   if (!job || job.finishedAt) return { ran: 0, left: 0, done: true };
   if (job.leaseUntil && Date.parse(job.leaseUntil) > now()) return { ran: 0, left: job.items.filter((i) => i.status !== "live" && i.status !== "failed").length, done: false };
@@ -115,7 +115,6 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   // An item left "running" by a server that stopped mid-way is tried again.
   for (const i of job.items) if (i.status === "running") i.status = "pending";
   await save(job);
-  const touched = new Set<string>();
   let ran = 0;
   for (const item of job.items) {
     if (item.status !== "pending") continue;
@@ -126,23 +125,27 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
     const r = await run(item.run, (s) => (item.step = s)).catch((e: unknown) => ({ ok: false as const, step: item.step ?? "Run", message: e instanceof Error ? e.message : String(e) }));
     if (r.ok) {
       Object.assign(item, { status: "live", valid: r.valid, step: undefined, message: undefined });
-      for (const m of await modulesOf(r.sourceId).catch(() => [])) touched.add(m);
     } else Object.assign(item, { status: "failed", step: r.step, message: r.message.slice(0, 300) });
     ran++;
     job.leaseUntil = new Date(now() + LEASE_MS).toISOString();
     await save(job);
   }
-  // The sources that went live: their listings go into WorksLake's store now, so Find shows them at once.
-  if (touched.size) {
-    const stored = await warm([...touched]).catch(() => []);
-    job.stored = { ...job.stored };
-    for (const s of stored) job.stored[s.module] = (job.stored[s.module] ?? 0) + s.stored;
-  }
   const left = job.items.filter((i) => i.status === "pending").length;
-  if (!left) job.finishedAt = new Date(now()).toISOString();
+  // Done: one refresh of every module's gateway listings, so all new entries appear in Find (warm.ts).
+  let refreshed = false;
+  if (!left) {
+    if (job.items.some((i) => i.status === "live")) {
+      const r = await refresh().catch(() => null);
+      if (r) {
+        job.stored = r.stored;
+        refreshed = true;
+      }
+    }
+    job.finishedAt = new Date(now()).toISOString();
+  }
   job.leaseUntil = undefined;
   await save(job);
-  return { ran, left, done: !left };
+  return { ran, left, done: !left, refreshed };
 }
 
 /**
