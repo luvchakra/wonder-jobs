@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { NO_PROVIDER, rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -127,16 +127,27 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
     expect(statedDeadline("Deadline:  15 Jan 2027 (annual)")).toBe("2027-01-15");
     expect(statedDeadline("Deadline: Unspecified")).toBeUndefined();
     expect(providerFromTitle("Mastercard Foundation Scholars Program at American University of Cairo (AUC) Spring 2027", "Feed")).toBe("American University of Cairo (AUC)");
-    expect(providerFromTitle("SMART Scholarship-for-Service Program 2027", "Feed")).toBe("Feed");
+    expect(providerFromTitle("SMART Scholarship-for-Service Program 2027", NO_PROVIDER)).toBe(NO_PROVIDER);
     const item = (title: string) => `<item><title>${title}</title><link>https://opportunitydesk.org/2026/10/30/x/</link><pubDate>Thu, 30 Oct 2026 10:00:00 +0000</pubDate><description><![CDATA[Deadline: December 14, 2026 Applications are open.]]></description></item>`;
-    expect(rawFromFeedItem(item("Mastercard Foundation Scholars Program at Sciences Po 2027 (Fully-funded)"), { name: "Opportunity Desk" })).toMatchObject({ company: "Sciences Po", applyUrl: "https://opportunitydesk.org/2026/10/30/x/", attributes: { kind: "scholarship", deadline: "2026-12-14" } });
-    for (const t of ["10+ Scholarships in Canada for International Students", "Top 20 Excellence Scholarships", "Fully Funded Scholarships for International Students"]) expect(rawFromFeedItem(item(t), { name: "Feed" }), t).toBeNull();
+    expect(rawFromFeedItem(item("Mastercard Foundation Scholars Program at Sciences Po 2027 (Fully-funded)"))).toMatchObject({ company: "Sciences Po", applyUrl: "https://opportunitydesk.org/2026/10/30/x/", attributes: { kind: "scholarship", deadline: "2026-12-14" } });
+    for (const t of ["10+ Scholarships in Canada for International Students", "Top 20 Excellence Scholarships", "Fully Funded Scholarships for International Students"]) expect(rawFromFeedItem(item(t)), t).toBeNull();
   });
 
   it("Devfolio: an open Indian hackathon is a project, closing when registration ends; a private one is left out", () => {
     const h = { name: "DevNexus 2.0", slug: "devnexus2", city: "Kolkata", country: "India", is_online: false, starts_at: "2026-11-27T18:30:00+00:00", ends_at: "2026-11-28T18:30:00+00:00", themes: [{ name: "Web3" }], hackathon_setting: { reg_ends_at: "2026-11-20T18:30:00+00:00", subdomain: "devnexus2" } };
     expect(rawFromDevfolio(h)).toMatchObject({ location: "Kolkata, India", applyUrl: "https://devnexus2.devfolio.co/", attributes: { kind: "project", deadline: "2026-11-20", region: "India" } });
     expect(rawFromDevfolio({ ...h, private: true })).toBeNull();
+  });
+
+  it("a listing whose source names no provider shows none — never the source's name (owner, 2026-11-02)", () => {
+    const item = `<item><title>SMART Scholarship-for-Service Program 2027</title><link>https://opportunitydesk.org/2026/10/30/smart/</link><description><![CDATA[Deadline: December 4, 2026]]></description></item>`;
+    expect(rawFromFeedItem(item)!.company).toBe(NO_PROVIDER);
+    expect(rawFromDevfolio({ name: "DevNexus 2.0", slug: "devnexus2", hackathon_setting: { subdomain: "devnexus2" } })!.company).toBe(NO_PROVIDER);
+    expect(rawFromDevfolio({ name: "DevNexus 2.0", slug: "devnexus2", hosted_by: { name: "IEM Kolkata" } })!.company).toBe("IEM Kolkata");
+    expect(rawFromDevpost({ id: 5, title: "Hack", url: "https://hack.devpost.com/", open_state: "open" })!.company).toBe(NO_PROVIDER);
+    const l = outside(opp({ employer: { name: NO_PROVIDER } } as never))!;
+    expect(l.company).toBe("");
+    expect(l.sourceName).toBe("Partner: Example Trust");
   });
 
   it("Kaggle: a competition is an online project with its deadline", () => {

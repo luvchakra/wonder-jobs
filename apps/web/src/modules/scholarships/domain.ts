@@ -330,6 +330,14 @@ export const isProjectText = (s: string) => /\b(project|capstone|research assist
 
 /* ------------------------------------------------------------------ display */
 
+/**
+ * A listing whose source names no provider or host has an empty `company`; the source's own name never stands in for
+ * it (owner, 2026-11-02). Pages show "Provider not stated"; sentences say "the provider".
+ */
+export const PROVIDER_NOT_STATED = "Provider not stated";
+export const providerLine = (l: { company: string }) => l.company || PROVIDER_NOT_STATED;
+export const providerWord = (l: { company: string }) => l.company || "the provider";
+
 /** "₹50,000 a year", "₹10,000 one-time · renewable", or "Award not stated". */
 export function awardLabel(t: Pick<ScholarshipTerms, "awardAmount" | "awardPeriod" | "renewable" | "currency">): string {
   if (!t.awardAmount) return "Award not stated";

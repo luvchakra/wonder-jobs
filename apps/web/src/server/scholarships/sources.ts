@@ -102,7 +102,7 @@ export function rawFromGrants(h: GrantsHit): RawPosting | null {
   return {
     externalId: h.id,
     title: h.title.replace(/\s+/g, " ").trim(),
-    company: h.agency || "US federal agency",
+    company: h.agency || NO_PROVIDER,
     location: "United States",
     remote: false,
     description: `Funding opportunity ${h.number} from ${h.agency}, ${h.oppStatus === "forecasted" ? "forecasted" : "open"} on Grants.gov. Eligibility, award and documents are in the official notice.`,
@@ -126,6 +126,13 @@ export async function fetchGrantsGov(c: SearchCriteria): Promise<Job[]> {
   if (body.errorcode) throw new Error(body.msg || "Grants.gov refused the search");
   return finish(GRANTS_GOV, (body.data?.oppHits ?? []).flatMap((h) => rawFromGrants(h) ?? []), c);
 }
+
+/**
+ * WorksLake's pipeline needs an organisation on every non-event listing ("Unknown company" is dropped), so a listing
+ * whose source names no provider carries this placeholder through it; `search.ts::outside` turns it back into "" so the
+ * source's name never shows as the provider.
+ */
+export const NO_PROVIDER = "Provider not stated";
 
 const day = (iso: string | undefined | null) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : undefined);
 const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
@@ -161,7 +168,7 @@ export function rawFromDevpost(h: DevpostHackathon): RawPosting | null {
   return {
     externalId: String(h.id),
     title: h.title,
-    company: h.organization_name || "Devpost",
+    company: h.organization_name || NO_PROVIDER,
     location: online ? "Online" : (h.displayed_location?.location ?? ""),
     remote: online,
     description: [`Hackathon on Devpost${themes.length ? ` (${themes.join(", ")})` : ""}.`, prize && prize !== "$0" ? `Prizes: ${prize}.` : "", h.submission_period_dates ? `Submissions: ${h.submission_period_dates}.` : ""].filter(Boolean).join(" "),
@@ -221,7 +228,7 @@ export function rawFromUnstop(o: UnstopOpportunity): RawPosting | null {
   return {
     externalId: String(o.id),
     title: o.title,
-    company: o.organisation?.name || "Unstop",
+    company: o.organisation?.name || NO_PROVIDER,
     location: online ? "Online" : "India",
     remote: online,
     description: o.details ?? "",
@@ -300,7 +307,7 @@ export function statedDeadline(text: string): string | undefined {
   return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : undefined;
 }
 
-/** "X Scholarship at Sciences Po 2027 (Fully-funded)" → "Sciences Po"; otherwise the feed's own name. */
+/** "X Scholarship at Sciences Po 2027 (Fully-funded)" → "Sciences Po"; otherwise `fallback` (never the feed's name). */
 export function providerFromTitle(title: string, fallback: string): string {
   const m = /\b(?:at|by|from)\s+(?:the\s+)?(.+?)(?:\s+(?:spring|summer|fall|autumn|winter))?(?:\s+\d{4}(?:[–/-]\d{2,4})?)?(?:\s*\(.*\))?\s*$/i.exec(title);
   const name = m?.[1]?.trim();
@@ -308,7 +315,7 @@ export function providerFromTitle(title: string, fallback: string): string {
 }
 
 /** One RSS item as a posting, or null for a round-up post ("Top 10 scholarships…") that names no single opportunity. */
-export function rawFromFeedItem(item: string, feed: { name: string }): RawPosting | null {
+export function rawFromFeedItem(item: string): RawPosting | null {
   const title = tag(item, "title");
   const link = tag(item, "link");
   if (!title || !/^https:\/\//.test(link) || /^(top\s+)?\d+\+?\s|^(fully[- ]funded\s+)?(international\s+)?scholarships\s+(for|in)\b|\blist of\b|\bround-?up\b/i.test(title)) return null;
@@ -319,7 +326,7 @@ export function rawFromFeedItem(item: string, feed: { name: string }): RawPostin
   return {
     externalId: link,
     title,
-    company: providerFromTitle(title, feed.name),
+    company: providerFromTitle(title, NO_PROVIDER),
     location: "",
     remote: false,
     description: text.slice(0, 3000),
@@ -347,7 +354,7 @@ export async function fetchFeed(id: string, c: SearchCriteria): Promise<Job[]> {
   const items = pages.flatMap((x) => x.match(/<item>[\s\S]*?<\/item>/g) ?? []);
   const seen = new Set<string>();
   return finish(id, items.flatMap((it) => {
-    const raw = rawFromFeedItem(it, feed);
+    const raw = rawFromFeedItem(it);
     if (!raw || seen.has(raw.externalId)) return [];
     seen.add(raw.externalId);
     return [raw];
@@ -368,8 +375,12 @@ interface DevfolioHackathon {
   starts_at?: string;
   ends_at?: string;
   themes?: { name?: string }[] | null;
+  hosted_by?: { name?: string } | string | null;
   hackathon_setting?: { reg_ends_at?: string | null; subdomain?: string | null; site?: string | null; women_only?: boolean } | null;
 }
+
+/** Who hosts it, when Devfolio says; never the hackathon's own name or Devfolio's. */
+const hostOf = (h: DevfolioHackathon) => (typeof h.hosted_by === "string" ? h.hosted_by : (h.hosted_by?.name ?? "")).trim();
 
 /** An open Devfolio hackathon as a project: its registration deadline, its own page; a private one is left out. */
 export function rawFromDevfolio(h: DevfolioHackathon): RawPosting | null {
@@ -383,7 +394,7 @@ export function rawFromDevfolio(h: DevfolioHackathon): RawPosting | null {
   return {
     externalId: h.slug,
     title: h.name,
-    company: h.name,
+    company: hostOf(h) || NO_PROVIDER,
     location: where,
     remote: !!h.is_online,
     description: [h.tagline ?? "", `Hackathon on Devfolio${where ? ` (${where})` : ""}${when ? `, ${when}` : ""}.`, h.hackathon_setting?.women_only ? "Women only." : "", (h.desc ?? "").replace(/[#*_`>]/g, "").slice(0, 1500)].filter(Boolean).join(" "),
@@ -422,7 +433,7 @@ export function rawFromKaggle(k: KaggleCompetition): RawPosting | null {
   return {
     externalId: String(k.id),
     title: k.title,
-    company: k.organizationName || "Kaggle",
+    company: k.organizationName || NO_PROVIDER,
     location: "Online",
     remote: true,
     description: [k.description ?? "", k.reward ? `Reward: ${k.reward}.` : "", k.category ? `Category: ${k.category}.` : ""].filter(Boolean).join(" "),
