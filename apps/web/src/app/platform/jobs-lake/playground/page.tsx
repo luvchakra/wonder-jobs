@@ -89,7 +89,7 @@ function PlaygroundPageInner() {
   return (
     <>
       <PageTitle
-        title="Search playground"
+        title="Try a search"
         subtitle="Runs a real search of this module through WorksLake core. Runs are recorded with the “playground” trigger and the search is audited."
         actions={
           <ModulePicker

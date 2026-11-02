@@ -144,11 +144,13 @@ function JobLine({ d, reload }: { d: ImportView; reload: () => void }) {
 }
 
 /**
- * One module: its three numbers, its import switch and "Import this module", and its sources when opened. Open by
- * default when something needs doing. A paused module is not collected, set up or refreshed; what Find has stays.
+ * One module, closed by default (owner, 2026-11-02: "collapse the info by default, keep only minimum info on card with
+ * actionable options"): its name and import switch, one line of numbers (in Find · collected · live), and only the
+ * actions there are: Set up N (its waiting sources, then a collection and a Find refresh) or Import, and Review N when
+ * sources are down or need the admin, which opens the card on its sources. Everything else is inside.
  */
 function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: boolean; reload: () => void }) {
-  const [open, setOpen] = useState(m.waiting + m.needsYou + (m.paused ? 1 : 0) > 0 || m.problems.length > 0);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<"pause" | "import" | null>(null);
   const pause = async (paused: boolean) => {
     setBusy("pause");
@@ -166,45 +168,47 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
     else toast.error("Didn't start", r.error.message);
     reload();
   };
+  const review = m.problems.length;
+  const canImport = !m.paused && m.live + m.waiting > 0;
   return (
-    <Panel className={m.paused ? "opacity-80" : undefined}>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left">
-          <span className="flex min-w-0 items-center gap-2">
-            <ChevronDown className={`size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
-            <span className="min-w-0">
-              <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-                {m.label}
-                {m.paused && <Badge tone="neutral">Import paused</Badge>}
-              </span>
-              <span className="block text-[12px] text-ink-3">{m.dataType}</span>
+    <Panel>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+          <ChevronDown className={`size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+          <span className="min-w-0">
+            <span className="block truncate text-[14px] font-semibold text-ink">{m.label}</span>
+            <span className="block text-[12px] tabular-nums text-ink-3">
+              {m.paused ? "Import paused · " : ""}
+              <span className="font-medium text-ink-2">{m.inFind == null ? "—" : num(m.inFind)} in Find</span> · {num(m.collected)} collected · {num(m.live)} live
             </span>
-          </span>
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] tabular-nums text-ink-2">
-            <span>
-              {num(m.live)} live
-              {m.waiting ? <Badge tone="info" className="ml-1.5">{num(m.waiting)} waiting</Badge> : null}
-              {m.needsYou ? <Badge tone="warning" className="ml-1.5">{num(m.needsYou)} need you</Badge> : null}
-              {m.problems.length && !m.needsYou ? <Badge tone="danger" className="ml-1.5">{num(m.problems.length)} down</Badge> : null}
-            </span>
-            <span className="text-ink-4">→</span>
-            <span>{num(m.collected)} collected</span>
-            <span className="text-ink-4">→</span>
-            <span className="font-medium text-ink">{m.inFind == null ? "—" : num(m.inFind)} in Find</span>
           </span>
         </button>
-        <span className="flex shrink-0 items-center gap-3">
-          <Switch label={`Import ${m.label}`} checked={!m.paused} disabled={!!busy} onChange={(on) => void pause(!on)} />
-          <Button size="sm" variant="outline" loading={busy === "import"} disabled={!!busy || jobRunning || m.paused || (m.live + m.waiting === 0)} onClick={() => void importNow()}>
-            Import this module
-          </Button>
-        </span>
+        <Switch label={`Import ${m.label}`} checked={!m.paused} disabled={!!busy} onChange={(on) => void pause(!on)} />
       </div>
-      {!open && m.problems.length > 0 && <p className="mt-2 text-[12px] text-danger-600">{m.problems.slice(0, 2).join(" · ")}{m.problems.length > 2 ? ` · +${m.problems.length - 2} more` : ""}</p>}
+      {(canImport || review > 0) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6">
+          {canImport && (
+            <Button size="sm" variant={m.waiting ? "primary" : "outline"} loading={busy === "import"} disabled={!!busy || jobRunning} onClick={() => void importNow()}>
+              {m.waiting ? `Set up ${num(m.waiting)}` : "Import"}
+            </Button>
+          )}
+          {review > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              Review {num(review)}
+            </Button>
+          )}
+        </div>
+      )}
       {open && (
-        <ul className="mt-3 flex flex-col divide-y divide-line border-t border-line">
-          {m.rows.length ? m.rows.map((r) => <Row key={r.id} r={r} reload={reload} />) : <li className="py-3 text-[13px] text-ink-4">No sources yet. Add one below.</li>}
-        </ul>
+        <div className="mt-3 border-t border-line pt-2">
+          <p className="text-[12px] text-ink-3">
+            {m.dataType} · {num(m.live)} live{m.waiting ? ` · ${num(m.waiting)} waiting to be set up` : ""}
+            {m.needsYou ? ` · ${num(m.needsYou)} need you` : ""}
+          </p>
+          <ul className="mt-1 flex flex-col divide-y divide-line">
+            {m.rows.length ? m.rows.map((r) => <Row key={r.id} r={r} reload={reload} />) : <li className="py-3 text-[13px] text-ink-4">No sources yet. Add one below.</li>}
+          </ul>
+        </div>
       )}
     </Panel>
   );

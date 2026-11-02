@@ -22,11 +22,19 @@ export default function DatabasesPage() {
     <>
       <PageTitle
         title="Databases"
-        subtitle="How full each database is, how much room is left, and how fast it answers. Plan limits are set in Storage."
+        subtitle="How full each database is, how much room is left, and how fast it answers. Its limits are under Storage limits; a second database for WorksLake's data is under Data database."
         actions={
-          <Button size="sm" variant="outline" onClick={() => reload()}>
-            Refresh
-          </Button>
+          <>
+            <Button size="sm" variant="outline" href="/platform/jobs-lake/storage">
+              Storage limits
+            </Button>
+            <Button size="sm" variant="outline" href="/platform/jobs-lake/data-db">
+              Data database
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => reload()}>
+              Refresh
+            </Button>
+          </>
         }
       />
       {error && <LoadError error={error} onRetry={reload} />}

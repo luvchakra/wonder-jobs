@@ -31,7 +31,7 @@ export default function CareersAdminPage() {
   const k = data?.key;
   return (
     <>
-      <PageTitle title="Career sites" subtitle="The career-site key behind jobs.wonderapps.biz/careers. Encrypted on the server and shown only masked." />
+      <PageTitle title="Our careers page" subtitle="WonderWorks' own careers page (jobs.wonderapps.biz/careers) and the key it reads its openings with. Encrypted on the server and shown only masked." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {k && (

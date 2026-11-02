@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ADMIN_MENUS, activeHref } from "./AdminShell";
+import { readFileSync } from "node:fs";
+import { ADMIN_MENUS, SUB_PAGES, activeHref } from "./AdminShell";
 
 describe("admin menus", () => {
   it("every admin page is in exactly one menu, with no duplicates", () => {
     const hrefs = ADMIN_MENUS.flatMap((m) => m.links.map((l) => l.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);
-    for (const p of ["/platform/jobs-lake/sources", "/platform/jobs-apply", "/platform/companies", "/platform/billing/plans", "/platform/jobs-lake/scheduler"]) expect(hrefs).toContain(p);
+    for (const p of ["/platform/jobs-lake/sources", "/platform/jobs-apply", "/platform/companies", "/platform/billing/plans", "/platform/jobs-lake/scheduler", "/platform/jobs-lake/import", "/platform/careers"]) expect(hrefs).toContain(p);
   });
 
   it("highlights the page a path is on, including its sub-pages; Overview only on itself", () => {
@@ -25,12 +26,27 @@ describe("admin menus", () => {
       .map((d) => `/platform/${relative(root, d)}`.replace(/\/$/, ""))
       .filter((p) => !p.includes("[") && p !== "/platform/billing");
     const hrefs = new Set(ADMIN_MENUS.flatMap((m) => m.links.map((l) => l.href)));
-    expect(pages.filter((p) => !hrefs.has(p))).toEqual([]);
+    expect(pages.filter((p) => !hrefs.has(p) && !(p in SUB_PAGES))).toEqual([]);
+  });
+
+  it("a page off the rail is linked from the page it sits under, which is on the rail", () => {
+    const root = join(__dirname, "../../app");
+    const hrefs = new Set(ADMIN_MENUS.flatMap((m) => m.links.map((l) => l.href)));
+    for (const [sub, parent] of Object.entries(SUB_PAGES)) {
+      expect(hrefs.has(parent)).toBe(true);
+      expect(readFileSync(join(root, parent, "page.tsx"), "utf8")).toContain(sub);
+      expect(activeHref(sub)).toBe(parent);
+    }
+  });
+
+  it("is short: two sections, at most 7 menus and 5 links a menu (owner, 2026-11-02: menus to a minimum)", () => {
+    expect(ADMIN_MENUS.length).toBeLessThanOrEqual(7);
+    expect(Math.max(...ADMIN_MENUS.map((m) => m.links.length))).toBeLessThanOrEqual(5);
   });
 
   it("reads as WonderWorks: no old product names in the rail, and sections start with Data", () => {
     const words = ADMIN_MENUS.flatMap((m) => [m.label, m.section ?? "", ...m.links.map((l) => l.label)]).join(" ");
-    expect(words).not.toMatch(/WonderJobs|WonderStar|JobsApply|JobsLake|Jobs data/);
-    expect(ADMIN_MENUS.filter((m) => m.section).map((m) => m.section)).toEqual(["Data", "Running", "Accounts", "Business", "Settings"]);
+    expect(words).not.toMatch(/WonderJobs|WonderStar|JobsApply|JobsLake|Jobs data|Employer|Compan|Application helper|Career site/);
+    expect(ADMIN_MENUS.filter((m) => m.section).map((m) => m.section)).toEqual(["Data", "Platform"]);
   });
 });
