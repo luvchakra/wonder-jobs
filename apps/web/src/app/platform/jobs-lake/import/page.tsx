@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import type { ImportAction, ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
+import type { ImportRun } from "@/server/gateway/importRuns";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
@@ -39,7 +40,7 @@ export default function ImportPage() {
     if (!running) return;
     const t = setInterval(() => {
       if (document.visibilityState === "visible") reload();
-    }, 10_000);
+    }, 5_000);
     return () => clearInterval(t);
   }, [running, reload]);
 
@@ -68,14 +69,16 @@ export default function ImportPage() {
       {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
+          <ProgressBanner d={data} />
           <Pipeline d={data} />
-          <JobLine d={data} reload={reload} />
+          <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
             {data.modules.map((m) => (
               <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
           </div>
           <AddSources reload={reload} />
+          <RunHistory runs={data.runs} />
           <RecentRuns d={data} />
           <DataTypes />
         </div>
@@ -92,54 +95,135 @@ function Pipeline({ d }: { d: ImportView }) {
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr]">
       <Stat label="Sources live" value={num(p.sources.live)} hint={[p.sources.waiting ? `${num(p.sources.waiting)} waiting` : "", p.sources.needsYou ? `${num(p.sources.needsYou)} need you` : ""].filter(Boolean).join(" · ") || "Nothing waiting"} />
       {arrow}
-      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
+      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${Date.parse(p.collected.nextAt) <= Date.parse(d.generatedAt) ? "due now (the hourly run)" : when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
       {arrow}
       <Stat label="In Find" value={p.find.listings == null ? "—" : num(p.find.listings)} hint={p.find.refreshedAt ? `Refreshed ${when(p.find.refreshedAt)}` : "Not refreshed from the gateway yet: press Import now"} />
     </div>
   );
 }
 
-/** What the server is doing, what it last did, and the hourly schedule's one option. */
-function JobLine({ d, reload }: { d: ImportView; reload: () => void }) {
+/**
+ * The import's progress, read from the database (wj.setupjob), so a reload shows exactly where it is (owner,
+ * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
+ * finishes, its outcome stays for a day.
+ */
+function ProgressBanner({ d }: { d: ImportView }) {
   const j = d.job;
+  if (!j) return null;
+  const pct = j.total ? Math.round((j.done / j.total) * 100) : 100;
+  const what = j.kind === "module" ? `Importing ${MODULES.find((m) => m.id === j.module)?.label ?? j.module}` : "Importing";
+  const tone = j.running ? "border-brand-200 bg-brand-50" : j.failed ? "border-warning-100 bg-warning-100/40" : "border-success-100 bg-success-100/40";
+  return (
+    <div role="status" aria-live="polite" className={`rounded-[14px] border px-4 py-3 text-[13px] ${tone}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold text-ink">
+          {j.running ? (j.phase === "refreshing" ? "Refreshing Find for every module…" : `${what}: ${num(j.done)} of ${num(j.total)} sources`) : `Last import finished ${when(j.finishedAt)}`}
+        </p>
+        <p className="text-[12px] text-ink-3">
+          Started {when(j.startedAt)} by {j.trigger === "scheduler" ? "the hourly run" : j.by}
+        </p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70" aria-hidden>
+        <div className={`h-full rounded-full ${j.running ? "bg-brand-500" : j.failed ? "bg-warning-600" : "bg-success-600"} transition-[width]`} style={{ width: `${j.running && j.phase === "refreshing" ? 100 : pct}%` }} />
+      </div>
+      <p className="mt-2 text-[12.5px] text-ink-2">
+        {j.running && j.current ? (
+          <>
+            Now: <span className="font-medium text-ink">{j.current.name}</span>
+            {j.current.step ? ` · ${j.current.step}` : ""}
+            {j.current.since ? ` · ${when(j.current.since)}` : ""} ·{" "}
+          </>
+        ) : null}
+        {num(j.live)} live · {num(j.failed)} didn&apos;t go live · {num(j.total - j.done)} to go
+        {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
+        {j.running ? ". It runs on the server; you can leave this page." : "."}
+      </p>
+      <RunItems items={j.items} />
+    </div>
+  );
+}
+
+const ITEM_TONE: Record<string, string> = { live: "text-success-600", collected: "text-success-600", failed: "text-danger-600", running: "text-brand-600", pending: "text-ink-4" };
+const ITEM_LABEL: Record<string, string> = { live: "Live", collected: "Collected", failed: "Didn't go live", running: "Working", pending: "Waiting" };
+
+/** A run's sources, folded: each one's outcome and, when it failed, the step and why. */
+function RunItems({ items }: { items: { name: string; status: string; step?: string; message?: string; valid?: number }[] }) {
+  if (!items.length) return null;
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
+      <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
+        {items.map((i, n) => (
+          <li key={`${i.name}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1">
+            <span className="min-w-0 text-ink-2">{i.name}</span>
+            <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
+              {ITEM_LABEL[i.status] ?? i.status}
+              {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
+              {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+              {i.status === "failed" ? ` · ${i.step ? `${i.step}: ` : ""}${i.message ?? ""}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+const RUN_KIND: Record<ImportRun["kind"], string> = { import: "Import now", module: "Module import", hourly: "Hourly collection" };
+
+/** Every run, newest first, each folded to its sources (owner, 2026-11-02: "persist every run detail in folded form"). */
+function RunHistory({ runs }: { runs: ImportRun[] }) {
+  return (
+    <Fold title="Runs" hint={runs.length ? `The newest ${num(runs.length)}, each with what happened to every source` : "None yet"}>
+      <ul className="flex flex-col divide-y divide-line pb-4">
+        {runs.map((r) => (
+          <li key={`${r.id}-${r.finishedAt}`} className="py-2 text-[13px]">
+            <details>
+              <summary className="cursor-pointer">
+                <span className="font-medium text-ink">
+                  {RUN_KIND[r.kind]}
+                  {r.module ? ` · ${MODULES.find((m) => m.id === r.module)?.label ?? r.module}` : ""}
+                </span>
+                <span className="text-ink-3">
+                  {" "}
+                  · {when(r.finishedAt)}
+                  {r.repeats && r.repeats > 1 ? ` · ${r.repeats} runs with nothing new since ${when(r.startedAt)}` : ""} · {r.trigger === "cron" ? "scheduled" : r.trigger === "scheduler" ? "hourly set-up" : (r.by ?? "admin")}
+                </span>
+                <span className="block text-[12px] text-ink-3">{r.summary}</span>
+              </summary>
+              <div className="mt-1 pl-3">
+                {r.stored && Object.keys(r.stored).length > 0 && (
+                  <p className="text-[12px] text-ink-3">In Find after it: {Object.entries(r.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}</p>
+                )}
+                {r.items.length ? <RunItems items={r.items} /> : <p className="text-[12px] text-ink-4">No source was due.</p>}
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </Fold>
+  );
+}
+
+/** The hourly schedule's one option. */
+function Schedule({ d, reload }: { d: ImportView; reload: () => void }) {
   const [saving, setSaving] = useState(false);
   return (
-    <Panel>
-      <div className="flex flex-col gap-2 text-[13px] text-ink-2">
-        {j?.running && (
-          <p>
-            <span className="font-medium text-ink">Importing on the server:</span> {j.done} of {j.total} sources set up. Then every module&apos;s Find is refreshed. You can leave this page.
-          </p>
-        )}
-        {j && !j.running && (
-          <p>
-            <span className="font-medium text-ink">Last import {when(j.finishedAt)}:</span> {num(j.live)} of {num(j.total)} sources went live
-            {j.failed.length ? ` · not live: ${j.failed.map((f) => `${f.name} (${f.step ?? "failed"}: ${f.message ?? ""})`).join("; ")}` : ""}.
-            {Object.keys(d.pipeline.find.stored).length ? ` In Find: ${Object.entries(d.pipeline.find.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}.` : ""}
-          </p>
-        )}
-        {!j && d.lastRun && (
-          <p>
-            <span className="font-medium text-ink">Last hourly run {when(d.lastRun.finishedAt)}:</span> {d.lastRun.summary}.
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-ink-3">{d.schedule.cronSet ? "Runs every hour: collects what's due and refreshes Find for anything new." : "CRON_SECRET isn't set, so the hourly run can't reach this deployment."}</span>
-          <Switch
-            label="Also set up waiting sources every hour"
-            checked={d.schedule.activateWaiting}
-            disabled={saving}
-            onChange={async (v) => {
-              setSaving(true);
-              const r = await post({ action: "schedule", activateWaiting: v });
-              setSaving(false);
-              if (!r.ok) toast.error("Couldn't save", r.error.message);
-              reload();
-            }}
-          />
-        </div>
-      </div>
-    </Panel>
+    <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px]">
+      <span className="text-ink-3">{d.schedule.cronSet ? "Runs every hour: collects what's due and refreshes Find for anything new." : "CRON_SECRET isn't set, so the hourly run can't reach this deployment."}</span>
+      <Switch
+        label="Also set up waiting sources every hour"
+        checked={d.schedule.activateWaiting}
+        disabled={saving}
+        onChange={async (v) => {
+          setSaving(true);
+          const r = await post({ action: "schedule", activateWaiting: v });
+          setSaving(false);
+          if (!r.ok) toast.error("Couldn't save", r.error.message);
+          reload();
+        }}
+      />
+    </div>
   );
 }
 

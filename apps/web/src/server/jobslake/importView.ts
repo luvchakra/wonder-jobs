@@ -11,12 +11,33 @@ import type { CronRun } from "@/domain/scheduler/settings";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/server/gateway/admin";
 import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
+import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { isGatewayBridge } from "./gatewaySources";
 import { setupTodo, type SetupItem } from "./setup";
 import { jobsLakeStore } from "./store";
 import { listAllSourceViews, type SourceView } from "./views";
 import { lastGatewayRefresh } from "./warm";
+
+export interface ImportJobView {
+  id: string;
+  running: boolean;
+  phase: "setup" | "refreshing" | "done";
+  kind: "import" | "module";
+  module?: string;
+  trigger: string;
+  by: string;
+  startedAt: string;
+  finishedAt?: string;
+  done: number;
+  total: number;
+  live: number;
+  failed: number;
+  /** The source being worked on now, and its step. */
+  current?: { name: string; step?: string; since?: string };
+  items: { name: string; status: string; step?: string; message?: string; valid?: number }[];
+  stored?: Record<string, number>;
+}
 
 export type ImportState = "live" | "waiting" | "needs_you" | "down" | "off";
 
@@ -67,6 +88,8 @@ export interface ImportModule {
 }
 
 export interface ImportView {
+  /** When the server built this answer (the page compares times against it, not the device's clock). */
+  generatedAt: string;
   gatewayConfigured: boolean;
   pipeline: {
     sources: { live: number; waiting: number; needsYou: number };
@@ -74,8 +97,10 @@ export interface ImportView {
     find: { listings: number | null; refreshedAt: string | null; stored: Record<string, number> };
   };
   schedule: { activateWaiting: boolean; cronSet: boolean; pausedModules: string[] };
-  /** The server job started by Import now (or the hourly run), while it runs or for a day after. */
-  job: { running: boolean; done: number; total: number; trigger: string; finishedAt?: string; live: number; failed: { name: string; step?: string; message?: string }[] } | null;
+  /** The server job started by Import now, a module's import or the hourly run: while it runs, or for a day after. */
+  job: ImportJobView | null;
+  /** Every run, newest first (importRuns.ts). */
+  runs: ImportRun[];
   lastRun: CronRun | null;
   modules: ImportModule[];
   recentRuns: GatewayRunRow[];
@@ -154,25 +179,34 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
   return rows.sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state) || a.name.localeCompare(b.name));
 }
 
-function jobSummary(job: SetupJob | null): ImportView["job"] {
+function jobSummary(job: SetupJob | null): ImportJobView | null {
   if (!job) return null;
   if (job.finishedAt && Date.now() - Date.parse(job.finishedAt) > DAY) return null;
-  const done = job.items.filter((i) => i.status === "live" || i.status === "failed");
+  const current = job.items.find((i) => i.status === "running");
   return {
+    id: job.id,
     running: !job.finishedAt,
-    done: done.length,
-    total: job.items.length,
+    phase: job.finishedAt ? "done" : job.phase === "refreshing" ? "refreshing" : "setup",
+    kind: job.kind ?? "import",
+    ...(job.module ? { module: job.module } : {}),
     trigger: job.trigger ?? "admin",
+    by: job.by,
+    startedAt: job.createdAt,
     ...(job.finishedAt ? { finishedAt: job.finishedAt } : {}),
+    done: job.items.filter((i) => i.status === "live" || i.status === "failed").length,
+    total: job.items.length,
     live: job.items.filter((i) => i.status === "live").length,
-    failed: job.items.filter((i) => i.status === "failed").map((i) => ({ name: i.name, step: i.step, message: i.message })),
+    failed: job.items.filter((i) => i.status === "failed").length,
+    ...(current ? { current: { name: current.name, step: current.step, since: current.startedAt } } : {}),
+    items: job.items.map((i) => ({ name: i.name, status: i.status, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}), ...(i.valid != null ? { valid: i.valid } : {}) })),
+    ...(job.stored ? { stored: job.stored } : {}),
   };
 }
 
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -181,6 +215,7 @@ export async function importView(): Promise<ImportView> {
     loadScheduler(),
     listCronRuns(),
     Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)),
+    listImportRuns().catch(() => [] as ImportRun[]),
   ]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
@@ -206,6 +241,7 @@ export async function importView(): Promise<ImportView> {
   const next = enabled.map((s) => s.nextRunAt).filter((x): x is string => !!x).sort()[0] ?? null;
   const counted = modules.filter((m) => m.inFind != null);
   return {
+    generatedAt: new Date().toISOString(),
     gatewayConfigured: !!gw?.configured,
     pipeline: {
       sources: { live: modules.reduce((n, m) => n + m.live, 0), waiting: modules.reduce((n, m) => n + m.waiting, 0), needsYou: modules.reduce((n, m) => n + m.needsYou, 0) },
@@ -214,6 +250,7 @@ export async function importView(): Promise<ImportView> {
     },
     schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
     job: jobSummary(job),
+    runs,
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,
     modules,
     recentRuns: (gw?.runs ?? []).slice(0, 30),
