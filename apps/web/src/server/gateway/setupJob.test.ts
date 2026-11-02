@@ -58,11 +58,15 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("a job where nothing went live refreshes nothing", async () => {
-    await startSetupJob([item(1)], "admin");
+  it("the hourly set-up refreshes nothing when nothing went live; an admin's import always ends with a refresh", async () => {
     const refresh = vi.fn(async () => ({ stored: {} }));
-    await continueSetupJob({ run: async () => ({ ok: false as const, step: "Test", message: "no" }), sleep: async () => undefined, refresh });
+    const fail = async () => ({ ok: false as const, step: "Test", message: "no" });
+    await startSetupJob([item(1)], "Scheduler", new Date(), "scheduler");
+    await continueSetupJob({ run: fail, sleep: async () => undefined, refresh });
     expect(refresh).not.toHaveBeenCalled();
+    await startSetupJob([item(2)], "admin@example.com");
+    await continueSetupJob({ run: fail, sleep: async () => undefined, refresh });
+    expect(refresh).toHaveBeenCalledTimes(1); // 2026-11-02: an import of blocked sites still refreshed nothing
   });
 
   it("a collect item only collects a live source (Import this module)", async () => {
@@ -91,7 +95,7 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(job.items.every((i) => i.startedAt && i.finishedAt)).toBe(true);
     const [rec] = await listImportRuns();
     expect(rec).toMatchObject({ kind: "module", module: "therapists", by: "admin@example.com", stored: { therapists: 6 }, summary: "2 of 2 went live · Find refreshed" });
-    expect(rec.items).toEqual([{ name: "Source 1", status: "live", valid: 3 }, { name: "Source 2", status: "live", valid: 3 }]);
+    expect(rec.items).toEqual([{ id: "gateway:src_1", name: "Source 1", status: "live", valid: 3 }, { id: "gateway:src_2", name: "Source 2", status: "live", valid: 3 }]);
   });
 
   it("does nothing with no job, and nothing to queue is refused", async () => {

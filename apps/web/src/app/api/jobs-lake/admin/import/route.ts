@@ -44,13 +44,13 @@ export async function POST(req: Request) {
   if (action === "import") {
     const r = await startImport(a.actor, origin);
     if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);
-    await audit(a.actor, "import.started", undefined, { queued: r.queued });
+    await audit(a.actor, "import.started", undefined, { queued: r.queued, skipped: r.skipped });
     if (r.queued)
       after(async () => {
         const c = await continueSetupJob();
         if (c.left && c.ran) await handOnSetupJob(origin);
       });
-    return json({ ok: true, queued: r.queued });
+    return json({ ok: true, queued: r.queued, skipped: r.skipped });
   }
   if (action === "item") {
     // Only an item the server itself lists as runnable: the page sends its id, never what to run.
@@ -89,6 +89,18 @@ export async function POST(req: Request) {
       if (c.left && c.ran) await handOnSetupJob(origin);
     });
     return json({ ok: true, queued: r.queued });
+  }
+  if (action === "dismiss") {
+    // A source that keeps failing (a site that refuses us): Import never tries it until restored. Audited.
+    const id = typeof body?.id === "string" ? body.id.slice(0, 120) : "";
+    if (!/^(gateway:src_[a-f0-9]{24}|catalogue:[a-z0-9-]{1,80}\.json)$/.test(id)) return jlError("INVALID_REQUEST", "Name the source.", 400);
+    const current = await loadScheduler();
+    const set = new Set(current.gateway.dismissed);
+    if (body?.dismissed === false) set.delete(id);
+    else set.add(id);
+    await saveScheduler({ ...current, gateway: { ...current.gateway, dismissed: [...set] } }, a.actor);
+    await audit(a.actor, body?.dismissed === false ? "import.source_restored" : "import.source_dismissed", undefined, { id });
+    return json({ ok: true });
   }
   if (action === "source_status") {
     // A WorksLake source paused or resumed by the admin (the same change its own page makes), audited there.
