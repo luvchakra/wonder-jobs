@@ -2,9 +2,21 @@
 import { useState } from "react";
 import { photoSrc } from "../manifest";
 
-/** A listing's photos, through the listing's own route: the big one and thumbnails to pick another. Nothing without photos. */
-export function Gallery({ listingId, photos, title }: { listingId: string; photos: string[]; title: string }) {
+/**
+ * A listing's photos, through the listing's own route: the big one and thumbnails to pick another. A shop's listing has
+ * one photo of its own (`outside`, through the signed image proxy), shown as the hero with the shop credited, when no photo
+ * was uploaded. Nothing at all when there is neither.
+ */
+export function Gallery({ listingId, photos, title, outside }: { listingId: string; photos: string[]; title: string; outside?: { src: string; credit: string } }) {
   const [i, setI] = useState(0);
+  if (!photos.length && outside)
+    return (
+      <figure className="mb-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={outside.src} alt={title} className="h-[320px] w-full rounded-[16px] border border-line bg-bg-soft object-contain sm:h-[420px]" />
+        <figcaption className="mt-1.5 text-[12px] text-ink-4">Photo: {outside.credit}</figcaption>
+      </figure>
+    );
   if (!photos.length) return null;
   return (
     <div className="mb-4">
