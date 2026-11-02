@@ -7,7 +7,7 @@ import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonde
 import { Badge } from "@/components/common/Badge";
 import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { relativeTime } from "@/lib/format";
-import { feeLabel, lengthLabel, matchTherapist, modesLabel, type TherapistListing, type TherapistMatch } from "../domain";
+import { CONTACT_LABEL, feeLabel, isContactStatus, lengthLabel, matchTherapist, modesLabel, type TherapistListing, type TherapistMatch } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useTherapistsStore } from "../store";
 import { isOpen } from "./Request";
@@ -35,6 +35,7 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
   const toggle = useTherapistsStore((s) => s.toggleSaved);
   const requested = useTherapistsStore((s) => isOpen(s, l.id));
   const outside = l.origin === "outside";
+  const contact = useTherapistsStore((s) => (outside && isContactStatus(s.responses[l.id]?.status) ? s.responses[l.id].status : undefined));
   const m = useMatch(l);
   const fit = m.fit === "unknown" ? null : FIT[m.fit];
   const t = l.terms;
@@ -81,7 +82,7 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
       reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
       summary={l.description.slice(0, 240)}
       summaryTitle={outside ? "From OpenStreetMap" : "In their words"}
-      status={!outside && requested && <Badge tone="brand">Session requested</Badge>}
+      status={outside ? contact && isContactStatus(contact) && <Badge tone="brand">{CONTACT_LABEL[contact]}</Badge> : requested && <Badge tone="brand">Session requested</Badge>}
       footnote={`via ${l.sourceName}${l.attribution ? ` · ${l.attribution}` : ""}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
       actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun="practitioner" />}
     />

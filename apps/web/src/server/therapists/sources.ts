@@ -8,7 +8,7 @@
  * - OpenStreetMap practices (WJ-600): practices and clinics mapped in OpenStreetMap (open data, ODbL), collected weekly
  *   by the data gateway (apps/data-gateway/sources/osm-therapists-*.json) and read here, never asked per search. Practices
  *   only: a named feature that is a person's own name with no word for a practice is left out (domain.ts::isPracticeName).
- *   Only what the map has (name, kind, the nearest city, its own website); no phone, email, address, licence or claim.
+ *   Only what the map has (name, kind, the nearest city, its own website and published phone); no email, address, licence or claim.
  * Not here, on purpose: Psychology Today, Practo and other directories that forbid it, and any register that is an
  * individual's profile. A search's source lines say what each source gave rather than implying coverage.
  */
@@ -23,7 +23,7 @@ import { gatewayListings } from "@/server/gateway/listings";
 import type { GatewayListing } from "../../../../data-gateway/src/core.mjs";
 import { nearestCity } from "@/wonderworks/find/cities";
 import { OSM_GATEWAY_NAME } from "@/wonderworks/find/osm";
-import { isPracticeName, osmTags, practiceKind } from "@/modules/therapists/domain";
+import { cleanPhone, isPracticeName, osmTags, practiceKind } from "@/modules/therapists/domain";
 
 const EPOCH = "2026-10-30T00:00:00.000Z";
 
@@ -85,7 +85,7 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : u
 /**
  * An OpenStreetMap practice the gateway collected, as a posting: its name, what kind of practice the map says it is, the
  * nearest city (from its position, within 25 km of a city centre) and its own website if it has an https one. Only what the
- * map has: no phone, email, address, fee, language or licence, and no "verified" anything. `null` for a record that isn't a
+ * map has: its name, kind, nearest city, website and published phone; no email, address, fee, language or licence, and no "verified" anything. `null` for a record that isn't a
  * named practice (no name, or a name that is only a person's).
  */
 export function rawFromOsm(l: GatewayListing): (RawPosting & { city?: string }) | null {
@@ -99,9 +99,10 @@ export function rawFromOsm(l: GatewayListing): (RawPosting & { city?: string }) 
   const lon = num(a.lon) ?? num(a.clon);
   const city = lat !== undefined && lon !== undefined ? nearestCity(lat, lon)?.name : str(a.city) || undefined;
   const web = /^https:\/\/[^\s]+$/i.test(str(a.website)) ? str(a.website) : undefined;
+  const phone = cleanPhone(str(a.phone) || str(a.contactPhone));
   const speciality = str(a.speciality) || undefined;
   const area = [str(a.suburb), city].filter(Boolean).join(", ");
-  const facts = { healthcare, amenity, speciality, city, web };
+  const facts = { healthcare, amenity, speciality, city, web, phone };
   return {
     externalId: l.id,
     title: name,

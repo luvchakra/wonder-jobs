@@ -3,7 +3,7 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
+import { Bookmark, Clock, MapPin, Wallet } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
@@ -16,6 +16,7 @@ import { OSM_COPYRIGHT } from "@/wonderworks/find/osm";
 import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
 import { FIT, useMatch } from "./Listing";
+import { ContactPanel } from "./Contact";
 import { RequestSession } from "./Request";
 import { shareOf } from "../share";
 
@@ -51,7 +52,14 @@ function Page({ l }: { l: TherapistListing }) {
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
   const outside = l.origin === "outside";
-  const rows: [string, string][] = [
+  const rows: [string, string][] = outside
+    ? [
+        ["Kind of practice", l.practiceKind ?? "Not stated"],
+        ["City", l.location || "Not stated"],
+        ["Phone", l.phone ?? "Not on the map"],
+        ["Website", l.applyUrl && l.applyUrl !== l.mapUrl ? l.applyUrl.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "Not on the map"],
+      ]
+    : [
     ["How they meet", modesLabel(t.modes) ?? "Not stated"],
     ["City", t.modes?.includes("in_person") ? l.location || "Not stated" : "Not applicable"],
     ["Languages", t.languages?.length ? t.languages.join(", ") : "Not stated"],
@@ -59,7 +67,7 @@ function Page({ l }: { l: TherapistListing }) {
     ["Ways of working", t.approaches?.length ? t.approaches.join(", ") : "Not stated"],
     ["Fee", feeLabel(t)],
     ["Session length", lengthLabel(t.sessionMinutes) ?? "Not stated"],
-  ];
+      ];
   return (
     <ListingPage
       share={outside ? null : shareOf(l)}
@@ -74,7 +82,7 @@ function Page({ l }: { l: TherapistListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
-          name={l.company}
+          name={l.company === l.title && l.practiceKind ? <span className="font-normal text-ink-3">{l.practiceKind}</span> : l.company}
           facts={[
             t.modes?.includes("in_person") && (
               <span key="l" className="inline-flex items-center gap-1">
@@ -126,7 +134,7 @@ function Page({ l }: { l: TherapistListing }) {
                 Save your language, how you&apos;d like to meet and a budget in <Link href="/app/m/therapists/you/profile" className="font-medium text-brand-600 hover:underline">Therapists → You</Link> to see how they compare.
               </p>
             )}
-            <Fold title="Terms" hint={[modesLabel(t.modes), feeLabel(t)].filter(Boolean).join(" · ")}>
+            <Fold title={outside ? "About this listing" : "Terms"} hint={outside ? l.practiceKind : [modesLabel(t.modes), feeLabel(t)].filter(Boolean).join(" · ")}>
               <dl className="grid grid-cols-2 gap-3 text-[13px]">
                 {rows.map(([k, v]) => (
                   <div key={k}>
@@ -147,7 +155,7 @@ function Page({ l }: { l: TherapistListing }) {
                       <a href={OSM_COPYRIGHT} target="_blank" rel="noopener noreferrer" className="underline">
                         Open Database Licence
                       </a>
-                      . Only what OpenStreetMap has: its name, kind of practice, area and website if it has one.
+                      . Only what OpenStreetMap has: its name, kind of practice, area, and website or phone if it has them.
                     </p>
                   )}
                 </>
@@ -159,15 +167,7 @@ function Page({ l }: { l: TherapistListing }) {
         )}
       </ListingMain>
       <ListingAside>
-        {outside ? (
-          l.applyUrl && (
-            <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
-              Open their page
-            </Button>
-          )
-        ) : (
-          <RequestSession listing={l} start={params.get("book") === "1"} />
-        )}
+        {outside ? <ContactPanel listing={l} /> : <RequestSession listing={l} start={params.get("book") === "1"} />}
       </ListingAside>
     </ListingPage>
   );

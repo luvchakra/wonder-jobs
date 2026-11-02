@@ -29,7 +29,7 @@ export const therapistsManifest: ModuleManifest = {
     { key: "fee", label: "Fee", type: "money", facet: true },
   ],
   response: { verb: "book", questions: false, states: ["requested", "confirmed", "held", "cancelled"], capability: "therapists.book" },
-  pipeline: { label: "Sessions", icon: "CalendarClock", stages: stagesOf("Requested", "Upcoming", "Held / Closed") },
+  pipeline: { label: "Sessions", icon: "CalendarClock", stages: stagesOf("Contacted", "Requested", "Upcoming", "Held / Closed") },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
   money: { kind: "fee_display", currency: "INR" },

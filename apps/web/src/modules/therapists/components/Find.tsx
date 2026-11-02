@@ -43,7 +43,7 @@ export function TherapistsFind() {
       search={search}
       refine={refineTherapists}
       Card={TherapistCard}
-      idle={{ title: "Find a practitioner", body: "Type a language, a way of working or a name, add a city under Refine for in-person sessions, and press Search." }}
+      idle={{ title: "Find a practitioner", body: "Type a language, a way of working or a name, add a city under Refine for in-person sessions, and press Search. A practitioner who lists on WonderWorks can be booked here; a practice mapped on OpenStreetMap shows how to reach them." }}
       needWords="Type a language, a way of working or a name."
       dictateHint="Listening — say a language or approach, e.g. “Hindi, CBT”."
     />

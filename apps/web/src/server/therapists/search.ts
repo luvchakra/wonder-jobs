@@ -6,7 +6,7 @@
  * client's own module store keeps the last search in their own account, as every module's does.
  */
 import { search } from "@/server/jobslake/core";
-import { readOsmTags, termsFromOsm, THERAPISTS, type TherapistListing } from "@/modules/therapists/domain";
+import { practiceKind, readOsmTags, termsFromOsm, THERAPISTS, type TherapistListing } from "@/modules/therapists/domain";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { OSM_ATTRIBUTION } from "@/wonderworks/find/osm";
 import { openTherapistPosts } from "./listings";
@@ -52,6 +52,9 @@ export function outside(o: CanonicalOpportunity): TherapistListing {
     terms: termsFromOsm(),
     description: o.description.slice(0, 1200),
     applyUrl: facts.web ?? o.canonicalApplyUrl,
+    mapUrl: o.canonicalApplyUrl,
+    practiceKind: practiceKind(facts),
+    ...(facts.phone ? { phone: facts.phone } : {}),
     attribution: OSM_ATTRIBUTION,
     // A mapped practice has no listing date (the map's edit date isn't when it was listed), so none is shown.
     sourceId: rec?.sourceId ?? "",

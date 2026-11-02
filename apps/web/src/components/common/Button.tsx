@@ -14,6 +14,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: ReactNode;
   iconRight?: ReactNode;
   href?: string;
+  /** With `href`: a plain link to another site or a `tel:`/`mailto:` address, not a client-side route. An http(s) one opens in a new tab. */
+  external?: boolean;
   full?: boolean;
 }
 
@@ -34,7 +36,7 @@ const sizes: Record<Size, string> = {
   xl: "h-14 px-7 text-base rounded-[16px]",
 };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", loading, icon, iconRight, className, children, href, full, ...rest }, ref) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", loading, icon, iconRight, className, children, href, external, full, ...rest }, ref) {
   const disabled = !!rest.disabled;
   const cls = cn(base, variants[variant], sizes[size], full && "w-full", disabled && "opacity-50 pointer-events-none", className);
   const content = (
@@ -44,6 +46,21 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {iconRight}
     </>
   );
+  if (href && external) {
+    const web = /^https?:\/\//i.test(href);
+    return (
+      <a
+        href={disabled ? undefined : href}
+        {...(web ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className={cls}
+        aria-label={rest["aria-label"]}
+        aria-disabled={disabled || undefined}
+        onClick={rest.onClick as unknown as React.MouseEventHandler<HTMLAnchorElement>}
+      >
+        {content}
+      </a>
+    );
+  }
   if (href) {
     return (
       <Link
