@@ -40,7 +40,46 @@ async function assertPublic(raw: string): Promise<URL> {
   return check.url;
 }
 
-export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promise<{ status: number; contentType: string; text: string; finalUrl: string; headers: Headers; bytes: Buffer }> {
+type FetchResult = { status: number; contentType: string; text: string; finalUrl: string; headers: Headers; bytes: Buffer };
+
+/**
+ * The WorksLake data gateway runs inside this app (/v1, app/v1/[...path]/route.ts). A call to it from the server is
+ * answered in process instead of over HTTP: a server call to its own deployment, deep in a chain of server calls (the
+ * import's hand-ons), was refused by Vercel with 508 Loop Detected (2026-11-02), and it cost an extra function call
+ * for every search. Only a URL on the configured gateway's own origin under /v1/ is answered here; null otherwise.
+ */
+async function inProcessGateway(url: URL, opts: SafeFetchOptions): Promise<FetchResult | null> {
+  const configured = process.env.WORKSLAKE_GATEWAY_URL;
+  if (!configured || !url.pathname.startsWith("/v1/")) return null;
+  let origin: string;
+  try {
+    origin = new URL(configured).origin;
+  } catch {
+    return null;
+  }
+  if (url.origin !== origin) return null;
+  const { hostedGateway } = await import("@/server/gateway");
+  const hosted = hostedGateway();
+  if (!hosted) return null;
+  const res = await hosted.gateway.handle(new Request(url, { method: opts.method ?? "GET", body: opts.body, headers: { ...(opts.body ? { "content-type": "application/json" } : {}), ...(opts.headers ?? {}) } }));
+  hosted.store.flush().catch(() => undefined);
+  const bytes = Buffer.from(await res.arrayBuffer());
+  const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024;
+  if (bytes.byteLength > maxBytes) throw new Error(`Response too large (over ${Math.round(maxBytes / 1024)} KB)`);
+  return { status: res.status, contentType: res.headers.get("content-type") ?? "", text: new TextDecoder().decode(bytes), finalUrl: url.toString(), headers: res.headers, bytes };
+}
+
+export async function safeFetch(raw: string, opts: SafeFetchOptions = {}): Promise<FetchResult> {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    parsed = null;
+  }
+  const own = parsed && (await inProcessGateway(parsed, opts).catch((e: unknown) => {
+    throw new Error(`The data gateway didn't answer (${e instanceof Error ? e.message.slice(0, 80) : "unknown"})`);
+  }));
+  if (own) return own;
   const timeoutMs = opts.timeoutMs ?? 10_000;
   const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024;
   let url = await assertPublic(raw);
