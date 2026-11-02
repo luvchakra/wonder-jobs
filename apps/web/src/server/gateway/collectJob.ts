@@ -14,6 +14,7 @@ import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
 import { gatewaySourceModules } from "./admin";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
+import { recordImportRun } from "./importRuns";
 
 export interface GatewayRunResult {
   ok: boolean;
@@ -66,7 +67,20 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   else if (setupRunning) parts.push("Setup job continuing");
   if (refreshed) parts.push(`Find refreshed: ${Object.entries(refreshed).map(([m, n]) => `${n} ${m}`).join(", ")}`);
   const summary = parts.join(" · ");
-  await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt: new Date().toISOString(), outcome: failed && !collected.length ? "failed" : "ok", summary });
+  const finishedAt = new Date().toISOString();
+  await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt, outcome: failed && !collected.length ? "failed" : "ok", summary });
+  // The run's own record, with each source's outcome (Data → Import → Runs).
+  const names = await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>());
+  await recordImportRun({
+    id: `hourly_${Date.parse(startedAt).toString(36)}`,
+    kind: "hourly",
+    trigger: trigger === "admin" ? "admin" : "cron",
+    startedAt,
+    finishedAt,
+    items: outcomes.filter((o) => o.code !== "DEFERRED").map((o) => ({ name: names.get(o.sourceId) ?? o.sourceId, status: o.ok ? "collected" : "failed", ...(o.valid != null ? { valid: o.valid } : {}), ...(o.ok ? {} : { message: o.code ?? "failed" }) })),
+    ...(refreshed ? { stored: refreshed } : {}),
+    summary,
+  });
   return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
 }
 
@@ -105,7 +119,7 @@ export async function startModuleImport(module: string, by: string, origin: stri
   const live = await hosted.store.read((s) => (s.sources as { id: string; attribution?: string; modules: string[]; enabled: boolean; kind: string; externalCollection?: boolean }[]).filter((x) => x.enabled && x.modules.includes(module) && x.kind !== "upload" && !x.externalCollection).map((x) => ({ id: `collect:${x.id}`, name: String(x.attribution ?? x.id), run: { kind: "collect" as const, sourceId: x.id } })));
   const items = [...waiting, ...live];
   if (!items.length) return { ok: false, message: "Nothing to import for this module: no waiting sources and no live gateway sources." };
-  const r = await startSetupJob(items, by);
+  const r = await startSetupJob(items, by, new Date(), "admin", { kind: "module", module });
   if (!r.ok) return { ok: false, message: r.message };
   await handOnSetupJob(origin);
   return { ok: true, queued: r.job.items.length };

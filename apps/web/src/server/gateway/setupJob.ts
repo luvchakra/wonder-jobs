@@ -12,6 +12,7 @@
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 import { refreshGatewayListings } from "@/server/jobslake/warm";
+import { recordImportRun, type ImportRun } from "./importRuns";
 import { collectGatewaySource, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
 
 export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string } | { kind: "collect"; sourceId: string };
@@ -25,6 +26,9 @@ export interface SetupJobItem {
   step?: string;
   message?: string;
   valid?: number;
+  /** When this item started and finished (for the page's progress and the run's record). */
+  startedAt?: string;
+  finishedAt?: string;
 }
 
 export interface SetupJob {
@@ -39,6 +43,11 @@ export interface SetupJob {
   trigger?: "admin" | "scheduler";
   /** Listings in Find per module after the job's refresh (every module, once, when the job finished). */
   stored?: Record<string, number>;
+  /** Import now (every waiting source) or Import this module (that module's). */
+  kind?: "import" | "module";
+  module?: string;
+  /** What the job is doing now: setting sources up, or refreshing Find once they're done. */
+  phase?: "setup" | "refreshing";
 }
 
 const KEY = "wj.setupjob" as const;
@@ -57,11 +66,11 @@ const save = (job: SetupJob) => stateStore.put(PLATFORM_TENANT, KEY, job);
 export const jobRunning = (job: SetupJob | null) => !!job && !job.finishedAt;
 
 /** Queues these items as the new job. Refused while another job hasn't finished. */
-export async function startSetupJob(items: { id: string; name: string; run: SetupRun }[], by: string, now = new Date(), trigger: "admin" | "scheduler" = "admin"): Promise<{ ok: true; job: SetupJob } | { ok: false; message: string }> {
+export async function startSetupJob(items: { id: string; name: string; run: SetupRun }[], by: string, now = new Date(), trigger: "admin" | "scheduler" = "admin", scope: { kind?: "import" | "module"; module?: string } = {}): Promise<{ ok: true; job: SetupJob } | { ok: false; message: string }> {
   const current = await readSetupJob();
   if (jobRunning(current)) return { ok: false, message: "A setup job is already running; it continues on the server." };
   if (!items.length) return { ok: false, message: "Nothing to run." };
-  const job: SetupJob = { id: `setup_${now.getTime().toString(36)}`, by: by.slice(0, 120), createdAt: now.toISOString(), trigger, items: items.slice(0, MAX_ITEMS).map((i) => ({ ...i, status: "pending" })) };
+  const job: SetupJob = { id: `setup_${now.getTime().toString(36)}`, by: by.slice(0, 120), createdAt: now.toISOString(), trigger, kind: scope.kind ?? "import", ...(scope.module ? { module: scope.module } : {}), phase: "setup", items: items.slice(0, MAX_ITEMS).map((i) => ({ ...i, status: "pending" })) };
   await save(job);
   return { ok: true, job };
 }
@@ -129,11 +138,17 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
     if (now() - started >= SETUP_BUDGET_MS) break;
     if (ran > 0) await sleep(SETUP_PAUSE_MS);
     item.status = "running";
+    item.startedAt = new Date(now()).toISOString();
     await save(job);
-    const r = await run(item.run, (s) => (item.step = s)).catch((e: unknown) => ({ ok: false as const, step: item.step ?? "Run", message: e instanceof Error ? e.message : String(e) }));
+    // Each step is saved as it starts, so a reloaded page shows exactly where the job is.
+    const r = await run(item.run, (s) => {
+      item.step = s;
+      void save(job).catch(() => undefined);
+    }).catch((e: unknown) => ({ ok: false as const, step: item.step ?? "Run", message: e instanceof Error ? e.message : String(e) }));
     if (r.ok) {
       Object.assign(item, { status: "live", valid: r.valid, step: undefined, message: undefined });
     } else Object.assign(item, { status: "failed", step: r.step, message: r.message.slice(0, 300) });
+    item.finishedAt = new Date(now()).toISOString();
     ran++;
     job.leaseUntil = new Date(now() + LEASE_MS).toISOString();
     await save(job);
@@ -143,6 +158,8 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   let refreshed = false;
   if (!left) {
     if (job.items.some((i) => i.status === "live")) {
+      job.phase = "refreshing";
+      await save(job);
       const r = await refresh().catch(() => null);
       if (r) {
         job.stored = r.stored;
@@ -153,6 +170,7 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   }
   job.leaseUntil = undefined;
   await save(job);
+  if (job.finishedAt) await recordImportRun(runFromJob(job));
   return { ran, left, done: !left, refreshed };
 }
 
@@ -169,4 +187,22 @@ export async function handOnSetupJob(origin: string, secret = process.env.CRON_S
     // A timeout here is expected: the next call keeps working after this one stops waiting.
     return true;
   }
+}
+
+/** A finished job as its run record: what happened to each source and what reached Find. */
+export function runFromJob(job: SetupJob): ImportRun {
+  const live = job.items.filter((i) => i.status === "live").length;
+  const failed = job.items.filter((i) => i.status === "failed").length;
+  return {
+    id: job.id,
+    kind: job.kind ?? "import",
+    trigger: job.trigger ?? "admin",
+    by: job.by,
+    ...(job.module ? { module: job.module } : {}),
+    startedAt: job.createdAt,
+    finishedAt: job.finishedAt ?? new Date().toISOString(),
+    items: job.items.map((i) => ({ name: i.name, status: i.status === "running" ? "pending" : i.status, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}), ...(i.valid != null ? { valid: i.valid } : {}) })),
+    ...(job.stored ? { stored: job.stored } : {}),
+    summary: `${live} of ${job.items.length} went live${failed ? ` · ${failed} didn't` : ""}${job.stored ? ` · Find refreshed` : ""}`,
+  };
 }
