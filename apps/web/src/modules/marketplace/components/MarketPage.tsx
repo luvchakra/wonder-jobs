@@ -195,7 +195,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
       }
     >
       <ListingMain>
-        <Gallery listingId={l.listingId} photos={l.terms.photos} title={l.title} />
+        <Gallery listingId={l.listingId} photos={l.terms.photos} title={l.title} outside={l.outside?.image ? { src: l.outside.image, credit: l.outside.business } : undefined} />
         <ListingHead
           company={owner ? "You" : l.seller}
           name={owner ? "You" : l.seller}
