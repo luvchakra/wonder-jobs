@@ -16,7 +16,7 @@ export function JobsYou() {
   const runCount = useWorkflowStore((s) => Object.keys(s.runs).length);
   const integrated = sources.filter((s) => s.integrated);
   const on = integrated.filter((s) => s.enabled && s.available !== false).length;
-  // The order and rows a platform admin set for everyone (Admin → Settings → Menus).
+  // The order and rows a platform admin set for everyone (Admin → Settings → App menus).
   const menu = useMenu("you");
 
   const rows = arrangeMenu([

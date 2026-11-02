@@ -1,4 +1,5 @@
 "use client";
+import { WonderStarMark, WonderStarWord } from "@/wonderworks/brand/Logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -253,13 +254,13 @@ function Brand() {
   return (
     <Link href={LAKE} className="flex items-center gap-2.5">
       <span
-        className="grid size-9 place-items-center rounded-[10px] bg-brand-500 text-[15px] font-bold text-white"
+        className="grid size-9 place-items-center rounded-[10px] bg-white"
         aria-hidden
       >
-        W
+        <WonderStarMark className="h-6 w-auto" />
       </span>
-      <span className="hidden text-[15px] font-semibold text-white sm:inline">
-        WonderWorks Admin
+      <span className="hidden text-[15px] sm:inline">
+        <WonderStarWord dark /> <span className="font-semibold text-white">Admin</span>
       </span>
     </Link>
   );

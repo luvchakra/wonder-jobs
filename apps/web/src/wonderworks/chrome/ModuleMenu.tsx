@@ -23,7 +23,7 @@ export interface MenuItem {
  * live modules and "Coming soon". A soft pulse invites the first tap, then stops for good. What a pick does is the
  * composition root's (`modules/chrome.tsx`): each tile is in its module's tint (§9 "Icons").
  */
-export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Kind of jobs". */ label: string; /** The current value, shown as its own row. */ now: Pick<MenuItem, "label" | "icon" | "tint">; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
+export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Module". */ label: string; /** The current value, shown as its own row. */ now: Pick<MenuItem, "label" | "icon" | "tint">; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

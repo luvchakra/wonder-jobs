@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { PLAN_IDS, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
+import { PLAN_FEATURES, PLAN_IDS, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
+import { MODULES } from "@/modules/registry";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
 import { Plus, X } from "lucide-react";
@@ -10,21 +11,11 @@ import { toast } from "@/components/feedback/Toast";
 import { adminFetch, LoadError, Loading, PageTitle, useAdmin } from "@/components/jobslake/ui";
 import { label } from "@/components/billing/admin/shared";
 
-type NumberKey = "scheduledSearches" | "aiDraftsPerMonth" | "roles" | "resumeTemplates";
-type FlagKey = "dailySearches" | "keepWatch" | "atsReport" | "applyWithWonder";
-const NUMBERS: { key: NumberKey; label: string }[] = [
-  { key: "scheduledSearches", label: "Scheduled searches on at once" },
-  { key: "aiDraftsPerMonth", label: "WonderWorks AI drafts a month" },
-  { key: "roles", label: "Roles (Search as)" },
-  { key: "resumeTemplates", label: "Résumé designs (8 = all)" },
-];
-const FLAGS: { key: FlagKey; label: string }[] = [
-  { key: "dailySearches", label: "Daily searches" },
-  { key: "keepWatch", label: "Keep watch" },
-  { key: "applyWithWonder", label: "Apply with Wonder" },
-  { key: "atsReport", label: "ATS report" },
-];
-const FEATURE_KEYS = ["label", "tagline", ...NUMBERS.map((n) => n.key), ...FLAGS.map((f) => f.key), "highlights"] as const;
+// What each plan allows, grouped as WonderWorks is (owner, 2026-11-02): limits every module shares, then Jobs' own.
+const EVERY = PLAN_FEATURES.filter((f) => f.scope === "every");
+const JOBS = PLAN_FEATURES.filter((f) => f.scope === "jobs");
+const OTHER_MODULES = MODULES.filter((m) => m.id !== "jobs").map((m) => m.label);
+const FEATURE_KEYS = ["label", "tagline", ...PLAN_FEATURES.map((f) => f.key), "highlights"] as const;
 const MAX_HIGHLIGHTS = 10;
 
 type Data = { config: PlansConfig; enforcedAt: Record<string, string> };
@@ -61,7 +52,7 @@ function Editor({ data }: { data: Data }) {
     <>
       <PageTitle
         title="Plans & features"
-        subtitle={`What each plan is called and allows. ${updated}`}
+        subtitle={`What each plan is called and allows across WonderWorks: limits every module shares, then Jobs' own. ${OTHER_MODULES.join(", ")} have no limits of their own: their scheduled searches and AI drafts count against the shared ones. ${updated}`}
         actions={
           <Button onClick={save} loading={busy}>
             Save
@@ -85,20 +76,16 @@ function Editor({ data }: { data: Data }) {
                 </label>
                 <Input id={`${id}-tagline`} value={l.tagline} onChange={(e) => setPlan(id, { tagline: e.target.value })} />
               </div>
-              {NUMBERS.map((n) => (
-                <div key={n.key}>
-                  <label className={label} htmlFor={`${id}-${n.key}`}>
-                    {n.label}
-                  </label>
-                  <Input id={`${id}-${n.key}`} type="number" inputMode="numeric" min={0} value={l[n.key]} onChange={(e) => setPlan(id, { [n.key]: Math.max(0, Math.round(Number(e.target.value || 0))) })} />
-                </div>
-              ))}
-              {FLAGS.map((f) => (
-                <div key={f.key} className="flex items-center justify-between gap-2 text-[13px] text-ink-2">
-                  {f.label}
-                  <Switch checked={l[f.key]} onChange={(v) => setPlan(id, { [f.key]: v })} label={`${l.label}: ${f.label}`} />
-                </div>
-              ))}
+              <Section title="Every module" hint="Jobs, Internships, Teaching and every other module share these.">
+                {EVERY.map((f) => (
+                  <Feature key={f.key} id={id} f={f} l={l} setPlan={setPlan} />
+                ))}
+              </Section>
+              <Section title="Jobs" hint="Only Jobs has these.">
+                {JOBS.map((f) => (
+                  <Feature key={f.key} id={id} f={f} l={l} setPlan={setPlan} />
+                ))}
+              </Section>
               <div className="border-t border-line pt-3">
                 <p className={label}>More features on pricing</p>
                 <p className="mb-2 text-[12px] text-ink-3">Shown as written after the limits above. Display only — keep each line true for {l.label}.</p>
@@ -122,7 +109,7 @@ function Editor({ data }: { data: Data }) {
       </div>
       <Fold className="mt-4" title="Where each limit is enforced" hint="Server-checked limits can't be bypassed from the browser.">
         <ul className="flex flex-col gap-1.5 text-[13px] text-ink-2">
-          {[...NUMBERS, ...FLAGS, { key: "highlights", label: "More features on pricing" }].map((f) => (
+          {[...PLAN_FEATURES, { key: "highlights", label: "More features on pricing" }].map((f) => (
             <li key={f.key}>
               <span className="font-medium text-ink">{f.label}</span> — {data.enforcedAt[f.key] ?? "—"}
             </li>
@@ -130,5 +117,40 @@ function Editor({ data }: { data: Data }) {
         </ul>
       </Fold>
     </>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-line pt-3">
+      <div>
+        <p className="text-[13px] font-semibold text-ink">{title}</p>
+        <p className="text-[12px] text-ink-3">{hint}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** One limit: a number, or a yes/no switch, with what it means. */
+function Feature({ id, f, l, setPlan }: { id: PlanId; f: (typeof PLAN_FEATURES)[number]; l: PlanLimits; setPlan: (id: PlanId, patch: Partial<PlanLimits>) => void }) {
+  if (f.kind === "number")
+    return (
+      <div>
+        <label className={label} htmlFor={`${id}-${f.key}`}>
+          {f.label}
+        </label>
+        <Input id={`${id}-${f.key}`} type="number" inputMode="numeric" min={0} value={l[f.key] as number} onChange={(e) => setPlan(id, { [f.key]: Math.max(0, Math.round(Number(e.target.value || 0))) })} />
+        <p className="mt-1 text-[11.5px] text-ink-4">{f.hint}</p>
+      </div>
+    );
+  return (
+    <div className="flex items-start justify-between gap-2 text-[13px] text-ink-2">
+      <span>
+        {f.label}
+        <span className="block text-[11.5px] text-ink-4">{f.hint}</span>
+      </span>
+      <Switch checked={l[f.key] as boolean} onChange={(v) => setPlan(id, { [f.key]: v })} label={`${l.label}: ${f.label}`} />
+    </div>
   );
 }

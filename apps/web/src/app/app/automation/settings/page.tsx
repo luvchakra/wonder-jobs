@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Check, Hand, Lock, X } from "lucide-react";
 import { AUTOMATION_LEVEL_META, CAPABILITIES, CAPABILITY_META, resolveCapability, type Capability } from "@/domain/automation/policy";
 import { useAutomationStore } from "@/store/automation";
+import { useWorkflowStore } from "@/store/workflow";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Card } from "@/components/common/Card";
 import { Fold } from "@/components/common/Fold";
@@ -72,6 +73,8 @@ export default function AutomationSettingsPage() {
     [policy, level],
   );
   const handheld = useHandheld();
+  // Jobs' scheduled searches that are on: other modules' count against the same plan limit.
+  const jobsSchedulesOn = useWorkflowStore((s) => Object.values(s.schedules).filter((x) => x.enabled).length);
   const groups = (desktop: boolean) => (
     <div className="grid gap-3 sm:grid-cols-3">
       {GROUPS.map((g) => {
@@ -150,7 +153,7 @@ export default function AutomationSettingsPage() {
         </Button>
       </Fold>
       <ScheduledSearchList />
-      <ModuleSchedules modules={OTHER_MODULES} />
+      <ModuleSchedules modules={OTHER_MODULES} jobsEnabled={jobsSchedulesOn} />
     </div>
   );
 }

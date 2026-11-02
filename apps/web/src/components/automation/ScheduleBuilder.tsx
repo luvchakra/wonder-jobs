@@ -1,4 +1,5 @@
 "use client";
+import { useModuleSchedules } from "@/wonderworks/automation/schedules";
 import { scheduleAllowance, type ScheduleCadence } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { useMemo, useState } from "react";
@@ -67,7 +68,9 @@ export function ScheduleBuilder({ existing, template }: { existing?: { schedule:
 
   const [confirmedBroadMatch, setConfirmedBroadMatch] = useState(false);
   const save = () => {
-    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== sch?.id).length;
+    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== sch?.id).length
+      // The plan counts scheduled searches across every module (Data → Plans & features).
+      + useModuleSchedules.getState().schedules.filter((s) => s.enabled).length;
     const cadence: ScheduleCadence = trigger !== "schedule" ? "manual" : frequency === "weekly" || frequency === "monthly" ? "weekly" : "daily";
     const allowance = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, cadence);
     if (!allowance.ok) {

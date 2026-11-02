@@ -320,7 +320,7 @@ test.describe("Candidate searches through WorksLake", () => {
 
   test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to WorksLake — terms and places only", async ({ page }) => {
     await page.goto("/app/jobs");
-    await expect(page.getByRole("button", { name: "Kind of jobs: Full Time Jobs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Module: Full Time Jobs" })).toBeVisible();
     const { lake } = await find(page, "Product designer roles, remote");
     const body = JSON.parse(lake.postData() ?? "{}");
     expect(Object.keys(body).sort()).toEqual(["limit", "query", "searchMode", "sourceIds"]);
