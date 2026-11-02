@@ -6,7 +6,7 @@
  */
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { dataFrom, loadDataDb } from "@/server/dataDb";
+import { dataFrom, dataWritable, loadDataDb } from "@/server/dataDb";
 import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
@@ -172,6 +172,9 @@ export class GatewayListingsTable {
   async upsert(list: GatewayListing[]) {
     const sb = await listingsTable();
     if (!sb) { for (const l of list) mem().set(l.id, l); return; }
+    // Where the listings live isn't known yet (dataDb): fail the collection (it's retried) rather than write them to
+    // the wrong database.
+    if (!dataWritable()) throw new Error("The WorksLake data database setting couldn't be read; collect again shortly.");
     for (let i = 0; i < list.length; i += CHUNK) {
       const { error } = await sb().upsert(list.slice(i, i + CHUNK).map(toRow), { onConflict: "id" });
       if (error) throw new Error(`Could not save gateway listings: ${error.message}`);

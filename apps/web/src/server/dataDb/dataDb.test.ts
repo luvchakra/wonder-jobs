@@ -55,3 +55,17 @@ describe("optional WorksLake data database", () => {
     expect(DATA_DB_SCHEMA_SQL).toContain("revoke all on public.%I from anon, authenticated");
   });
 });
+
+describe("when the data database setting can't be read", () => {
+  afterEach(() => vi.restoreAllMocks());
+  it("writes nothing until it knows where the data lives, instead of assuming the main database", async () => {
+    const { dataWritable, loadDataDb, __resetDataDb } = await import("./index");
+    __resetDataDb();
+    const spy = vi.spyOn(stateStore, "get").mockRejectedValueOnce(new Error("database busy"));
+    await loadDataDb(true);
+    expect(dataWritable()).toBe(false);
+    spy.mockRestore();
+    await loadDataDb(true);
+    expect(dataWritable()).toBe(true);
+  });
+});
