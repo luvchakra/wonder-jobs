@@ -3,7 +3,7 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Clock, ExternalLink, MapPin, Wallet } from "lucide-react";
+import { Bookmark, Clock, ExternalLink, MapPin, Phone, Wallet } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
@@ -13,7 +13,7 @@ import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from 
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { OSM_COPYRIGHT } from "@/wonderworks/find/osm";
-import { feeLabel, lengthLabel, modesLabel, type TherapistListing } from "../domain";
+import { feeLabel, lengthLabel, modesLabel, telHref, type TherapistListing } from "../domain";
 import { useTherapistsStore } from "../store";
 import { FIT, useMatch } from "./Listing";
 import { RequestSession } from "./Request";
@@ -53,7 +53,14 @@ function Page({ l }: { l: TherapistListing }) {
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
   const outside = l.origin === "outside";
-  const rows: [string, string][] = [
+  const rows: [string, string][] = outside
+    ? [
+        ["Kind of practice", l.practiceKind ?? "Not stated"],
+        ["City", l.location || "Not stated"],
+        ["Phone", l.phone ?? "Not on the map"],
+        ["Website", l.applyUrl && l.applyUrl !== l.mapUrl ? l.applyUrl.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : "Not on the map"],
+      ]
+    : [
     ["How they meet", modesLabel(t.modes) ?? "Not stated"],
     ["City", t.modes?.includes("in_person") ? l.location || "Not stated" : "Not applicable"],
     ["Languages", t.languages?.length ? t.languages.join(", ") : "Not stated"],
@@ -61,7 +68,7 @@ function Page({ l }: { l: TherapistListing }) {
     ["Ways of working", t.approaches?.length ? t.approaches.join(", ") : "Not stated"],
     ["Fee", feeLabel(t)],
     ["Session length", lengthLabel(t.sessionMinutes) ?? "Not stated"],
-  ];
+      ];
   return (
     <ListingPage
       share={outside ? null : shareOf(l)}
@@ -76,7 +83,7 @@ function Page({ l }: { l: TherapistListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
-          name={l.company}
+          name={l.company === l.title && l.practiceKind ? <span className="font-normal text-ink-3">{l.practiceKind}</span> : l.company}
           facts={[
             t.modes?.includes("in_person") && (
               <span key="l" className="inline-flex items-center gap-1">
@@ -128,7 +135,7 @@ function Page({ l }: { l: TherapistListing }) {
                 Save your language, how you&apos;d like to meet and a budget in <Link href="/app/m/therapists/you/profile" className="font-medium text-brand-600 hover:underline">Therapists → You</Link> to see how they compare.
               </p>
             )}
-            <Fold title="Terms" hint={[modesLabel(t.modes), feeLabel(t)].filter(Boolean).join(" · ")}>
+            <Fold title={outside ? "About this listing" : "Terms"} hint={outside ? l.practiceKind : [modesLabel(t.modes), feeLabel(t)].filter(Boolean).join(" · ")}>
               <dl className="grid grid-cols-2 gap-3 text-[13px]">
                 {rows.map(([k, v]) => (
                   <div key={k}>
@@ -163,10 +170,23 @@ function Page({ l }: { l: TherapistListing }) {
       <ListingAside>
         {outside ? (
           <>
+            {/* Real links, not scripts: a button calling window.open does nothing in an installed app or an in-app browser. */}
             {l.applyUrl && (
-              <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
+              <Button full external href={l.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
                 Open their page
               </Button>
+            )}
+            {l.phone && (
+              <Button full external variant="outline" href={telHref(l.phone)} icon={<Phone className="size-4" aria-hidden />}>
+                Call {l.phone}
+              </Button>
+            )}
+            {l.mapUrl && l.applyUrl !== l.mapUrl && (
+              <p className="text-center text-[13px]">
+                <a href={l.mapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center font-medium text-brand-600 hover:underline">
+                  View on OpenStreetMap
+                </a>
+              </p>
             )}
             <OutsideTracker useStore={useTherapistsStore} id={l.id} item={l} flow={THERAPISTS_OUTSIDE} pipelineHref="/app/m/therapists/pipeline" />
           </>
