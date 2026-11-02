@@ -14,6 +14,8 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { LANE_LABEL, materialsLabel, OSM_COPYRIGHT, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "../domain";
 import { useServicesStore } from "../store";
+import { SERVICES_OUTSIDE } from "../outside";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { call } from "@/wonderworks/api";
 import { shortDate } from "@/wonderworks/listing/terms";
 import type { ReviewSummary } from "../deal";
@@ -213,9 +215,12 @@ function Page({ l }: { l: ServiceListing }) {
       <ListingAside>
         {l.origin === "wonderstar" && l.postingId && <RequestQuote listing={l} start={params.get("quote") === "1"} />}
         {l.origin === "outside" && l.applyUrl && (
-          <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
-            Open their page
-          </Button>
+          <>
+            <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
+              Open their page
+            </Button>
+            <OutsideTracker useStore={useServicesStore} id={l.id} item={l} flow={SERVICES_OUTSIDE} pipelineHref="/app/m/services/pipeline" />
+          </>
         )}
       </ListingAside>
       )}

@@ -13,10 +13,13 @@ import { AutomationLevelSelector } from "@/components/automation/AutomationLevel
 import { toast } from "@/components/feedback/Toast";
 import { ScheduledSearchList } from "@/components/automation/ScheduledSearchList";
 import { ModuleSchedules } from "@/wonderworks/automation/ModuleSchedules";
-import { MODULES } from "@/modules/registry";
+import { MODULES, type ModuleId } from "@/modules/registry";
+import { MODULE_CAPABILITIES } from "@/domain/automation/policy";
+import { useSelectedModule } from "@/wonderworks/chrome/useModuleNav";
 
 /** Every live module but Jobs: their scheduled searches sit under Jobs' own. */
-const OTHER_MODULES = MODULES.filter((m) => m.id !== "jobs" && m.status === "live").map((m) => ({ id: m.id, label: m.label }));
+/** A module's own actions (its namespaced capabilities), e.g. Talent & Services' Request a quote and Book. */
+const capabilitiesOf = (id: ModuleId) => MODULE_CAPABILITIES.filter((c) => c.startsWith(`${id}.`));
 import { METHOD_LABEL } from "@/components/jobs-apply/Preflight";
 import { SensitiveQuestions } from "@/components/automation/SensitiveQuestions";
 import { SENSITIVE_GROUPS } from "@/domain/jobs-apply/sensitive";
@@ -54,6 +57,34 @@ const KNOWN = new Set<Capability>([...SHOWN.flatMap((s) => s.keys), ...SENSITIVE
  * tablet where the helper can't run (owner, 2026-10-25).
  */
 export default function AutomationSettingsPage() {
+  // Module-specific (owner, 2026-11-02: "make this page applicable to each module as and when that module is selected, so
+  // that there is no out of place information"): Jobs (Full Time and Part Time) keeps its own page; any other module sees
+  // only its own actions and scheduled searches.
+  const selected = useSelectedModule();
+  if (selected !== "jobs") return <ModuleAutomation id={selected} />;
+  return <JobsAutomation />;
+}
+
+function ModuleAutomation({ id }: { id: ModuleId }) {
+  const policy = useAutomationStore((s) => s.policy);
+  const setCapability = useAutomationStore((s) => s.setCapability);
+  const jobsSchedulesOn = useWorkflowStore((s) => Object.values(s.schedules).filter((x) => x.enabled).length);
+  const m = MODULES.find((x) => x.id === id)!;
+  const caps = capabilitiesOf(id);
+  return (
+    <div className="mx-auto max-w-3xl">
+      <PageHeader title="Automation" description={`What Wonder does on its own in ${m.label}, and the searches it runs for you.`} />
+      {caps.length > 0 && (
+        <Fold title="Change one action" hint={`Automatic, Ask me or Off for each thing Wonder does in ${m.label}`} className="mb-6">
+          <AutomationPolicyEditor policy={policy} onChange={setCapability} capabilities={caps} />
+        </Fold>
+      )}
+      <ModuleSchedules modules={[{ id: m.id, label: m.label }]} jobsEnabled={jobsSchedulesOn} />
+    </div>
+  );
+}
+
+function JobsAutomation() {
   const policy = useAutomationStore((s) => s.policy);
   const setCapability = useAutomationStore((s) => s.setCapability);
   const resetPolicy = useAutomationStore((s) => s.resetPolicy);
@@ -73,8 +104,6 @@ export default function AutomationSettingsPage() {
     [policy, level],
   );
   const handheld = useHandheld();
-  // Jobs' scheduled searches that are on: other modules' count against the same plan limit.
-  const jobsSchedulesOn = useWorkflowStore((s) => Object.values(s.schedules).filter((x) => x.enabled).length);
   const groups = (desktop: boolean) => (
     <div className="grid gap-3 sm:grid-cols-3">
       {GROUPS.map((g) => {
@@ -153,7 +182,6 @@ export default function AutomationSettingsPage() {
         </Button>
       </Fold>
       <ScheduledSearchList />
-      <ModuleSchedules modules={OTHER_MODULES} jobsEnabled={jobsSchedulesOn} />
     </div>
   );
 }

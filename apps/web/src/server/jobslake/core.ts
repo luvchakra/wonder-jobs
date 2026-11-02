@@ -137,9 +137,14 @@ async function warmCandidates(req: SearchRequest, allowed: Set<string> | null, s
     if (allowed && !o.sourceRecords.some((r) => allowed.has(r.sourceId))) return false;
     // Strict (an API-key search): the posting's own fields must come from an allowed source, not just a sighting.
     if (allowed && strict && !allowed.has((o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0])?.sourceId ?? "")) return false;
-    const proj = { title: o.title, description: o.description, tags: o.enrichment.tags, skills: o.skills, location: o.locations[0] ?? "", workMode: o.workplaceType, country: o.country };
-    return matchesQuery(proj, req.query.text) && matchesLocations(proj, req.query.locations);
+    return matchesRequest(o, req);
   });
+}
+
+/** Whether a listing answers the search's words and places: the same test for the warm pool and for live results. */
+function matchesRequest(o: CanonicalOpportunity, req: SearchRequest): boolean {
+  const proj = { title: o.title, description: o.description, tags: o.enrichment.tags, skills: o.skills, location: o.locations[0] ?? "", workMode: o.workplaceType, country: o.country };
+  return matchesQuery(proj, req.query.text) && matchesLocations(proj, req.query.locations);
 }
 
 function applyFilters(opps: CanonicalOpportunity[], req: SearchRequest) {
@@ -403,7 +408,12 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const order = new Map(planned.map((p, i) => [p.id, i]));
   statuses.sort((a, b) => (order.get(a.sourceId) ?? 0) - (order.get(b.sourceId) ?? 0));
   const canon = canonicalize(observations);
-  const valid =canon.opportunities.filter((o) => validateOpportunity(o).length === 0);
+  const valid = canon.opportunities.filter((o) => validateOpportunity(o).length === 0);
+  // Every module's live results answer the search's words, as the warm pool's do (2026-11-02: "flute" showed Freelancer.com's
+  // graphic designers, because its directory returns people whatever the words). Jobs' sources already run this test on
+  // each posting (providers.ts::finish); other modules' own fetchers (Freelancer.com, Devpost, Himalayas …) trusted the
+  // source's ranking. A listing that doesn't answer is still stored for the warm pool below.
+  const answering = dataset === "jobs" ? valid : valid.filter((o) => matchesRequest(o, req));
   // Duplicates per source = its records that another, stronger source's record represents.
   for (const run of runs) run.duplicates = canon.opportunities.reduce((n, o) => n + o.sourceRecords.filter((r) => r.sourceId === run.sourceId && !r.canonical).length, 0);
   // Run history and the warm pool are bookkeeping around live results the sources already returned:
@@ -415,7 +425,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // Jobs' company directory is Jobs' data: another module's postings never enter it.
   if (valid.length && dataset === "jobs") await bookkeeping("record companies", () => recordCompanies(valid));
 
-  let results = valid;
+  let results = answering;
   let warmCount = 0;
   if (flags.jobsLakeWarmPoolEnabled) {
     if (valid.length) await bookkeeping("update the warm pool", async () => {
@@ -424,7 +434,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     });
     if (plan.useWarmPool) {
       const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only));
-      const merged = mergeWithWarm(valid, warm ?? []);
+      const merged = mergeWithWarm(answering, warm ?? []);
       results = merged.results;
       warmCount = merged.warm;
     }

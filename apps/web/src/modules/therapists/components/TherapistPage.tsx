@@ -18,6 +18,8 @@ import { useTherapistsStore } from "../store";
 import { FIT, useMatch } from "./Listing";
 import { RequestSession } from "./Request";
 import { shareOf } from "../share";
+import { THERAPISTS_OUTSIDE } from "../outside";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/therapists", label: "Therapists" };
@@ -160,11 +162,14 @@ function Page({ l }: { l: TherapistListing }) {
       </ListingMain>
       <ListingAside>
         {outside ? (
-          l.applyUrl && (
-            <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
-              Open their page
-            </Button>
-          )
+          <>
+            {l.applyUrl && (
+              <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
+                Open their page
+              </Button>
+            )}
+            <OutsideTracker useStore={useTherapistsStore} id={l.id} item={l} flow={THERAPISTS_OUTSIDE} pipelineHref="/app/m/therapists/pipeline" />
+          </>
         ) : (
           <RequestSession listing={l} start={params.get("book") === "1"} />
         )}

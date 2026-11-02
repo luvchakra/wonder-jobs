@@ -27,6 +27,10 @@ export interface ModuleResponseRef {
   status?: string;
   /** What the person did toward it, oldest first ("resume", "apply_opened"), as Jobs' Preparing cards show. */
   marks?: string[];
+  /** When it happens, as the person entered it for an outside listing ("YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"): listing/progress.ts. */
+  when?: string;
+  /** The person's own note on it (at most 300 characters). */
+  note?: string;
 }
 
 /** The last search as Find showed it: what was searched, where, each source's count, and the results in order. */
@@ -57,7 +61,7 @@ export interface ModuleState {
    * Set where a response stands; `item` keeps the listing with it (for Pipeline after a reload), `mark` adds what the
    * person did toward it, and marks already there are kept.
    */
-  setResponse: (listingId: string, stage: string, extra?: { status?: string; mark?: string; item?: unknown }) => void;
+  setResponse: (listingId: string, stage: string, extra?: { status?: string; mark?: string; item?: unknown; /** Kept when left out; null clears it. */ when?: string | null; note?: string | null }) => void;
   /** Take a response out of the module's Pipeline. */
   clearResponse: (listingId: string) => void;
   /** Into Find's history, or Saved's. */
@@ -165,8 +169,11 @@ function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
           }),
         setResponse: (listingId, stage, extra = {}) =>
           set((s) => {
-            const marks = [...new Set([...(s.responses[listingId]?.marks ?? []), ...(extra.mark ? [extra.mark] : [])])];
-            const ref: ModuleResponseRef = { stage, at: new Date().toISOString(), ...(extra.status ? { status: extra.status } : {}), ...(marks.length ? { marks } : {}) };
+            const prev = s.responses[listingId];
+            const marks = [...new Set([...(prev?.marks ?? []), ...(extra.mark ? [extra.mark] : [])])];
+            const when = extra.when === undefined ? prev?.when : (extra.when ?? undefined);
+            const note = extra.note === undefined ? prev?.note : (extra.note?.slice(0, 300) ?? undefined);
+            const ref: ModuleResponseRef = { stage, at: new Date().toISOString(), ...(extra.status ? { status: extra.status } : {}), ...(marks.length ? { marks } : {}), ...(when ? { when } : {}), ...(note ? { note } : {}) };
             return { responses: { ...s.responses, [listingId]: ref }, ...(extra.item !== undefined ? { items: { ...s.items, [listingId]: extra.item } } : {}) };
           }),
         clearResponse: (listingId) => set((s) => ({ responses: Object.fromEntries(Object.entries(s.responses).filter(([k]) => k !== listingId)) })),

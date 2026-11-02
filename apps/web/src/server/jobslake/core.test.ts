@@ -343,6 +343,14 @@ describe("WorksLake search cache — the next similar search reuses each source'
     expect(response.sources.find((s) => s.sourceId === "thp_wonderworks")?.cacheUse).toBe("fresh"); // not gateway-fed: still cached
   });
 
+  it("another module's live results answer the search's words (2026-11-02: \"flute\" showed graphic designers)", async () => {
+    const designer = job({ id: "svc_fl_1", sourceId: "thp_osm", externalId: "u/1", title: "Graphic Design, Logo Design", company: "Dharamveer", applyUrl: "https://www.freelancer.com/u/d" });
+    const flautist = job({ id: "svc_fl_2", sourceId: "thp_osm", externalId: "u/2", title: "Flute lessons", company: "Asha", applyUrl: "https://www.freelancer.com/u/a" });
+    connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "thp_osm" ? [designer, flautist] : [], warnings: [] }));
+    const { response } = await search(req({ query: { text: "flute", locations: [] }, module: "therapists" }), { trigger: "search" });
+    expect(response.results.map((o) => o.title)).toEqual(["Flute lessons"]);
+  });
+
   it("a search without words shows the gateway listings a refresh stored", async () => {
     const osm = job({ id: "thp_osm_1", sourceId: "thp_osm", externalId: "node/1", title: "Mind Care Clinic", company: "Mind Care Clinic", applyUrl: "https://www.openstreetmap.org/node/1" });
     connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "thp_osm" ? [osm] : [], warnings: [] }));

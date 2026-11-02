@@ -27,7 +27,11 @@ function FindMenu() {
   const current = useJobsFindMode();
   const router = useRouter();
   const pathname = usePathname();
-  const onModule = moduleFromPath(pathname);
+  // The module whose pages are open, else the one picked last (as the tab bar shows it, useSelectedModule), so a shared
+  // page (Automation, Analytics, Notifications) names the same module as its tabs (2026-11-02: "Part Time Jobs" over
+  // Talent & Services' tabs).
+  const stored = useUIStore((s) => s.activeModule);
+  const onModule = moduleFromPath(pathname) ?? stored ?? null;
   const setActiveModule = useUIStore((s) => s.setActiveModule);
   const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
   const liveKinds = kinds.filter((k) => LIVE[k.id]);

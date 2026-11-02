@@ -9,6 +9,10 @@ import { relativeTime } from "@/lib/format";
 import { DECLINE_REASONS, requestLabel, sessionLabel, STAGE_OF, STATUS_LABEL, type MySession, type SessionStatus } from "../sessions";
 import { therapistsManifest } from "../manifest";
 import { useTherapistsStore } from "../store";
+import { THERAPISTS_OUTSIDE } from "../outside";
+import { listingHref } from "../manifest";
+import type { TherapistListing } from "../domain";
+import { useTracked } from "@/wonderworks/pipeline/tracked";
 
 export const itemHref = (id: string) => `/app/m/therapists/pipeline/${encodeURIComponent(id)}`;
 export const TONE: Record<SessionStatus, Tone> = { requested: "info", confirmed: "brand", held: "success", declined: "neutral", cancelled: "neutral" };
@@ -53,30 +57,38 @@ export function TherapistsSessions() {
   const stages = therapistsManifest.pipeline.stages;
   const { list, error, reload } = useMySessions();
   const [tab, setTab] = useState<string | null>(null);
+  // Practices outside WonderWorks the client is tracking themselves (wonderworks/listing/progress.ts).
+  const tracked = useTracked<TherapistListing>(useTherapistsStore, THERAPISTS_OUTSIDE, (_id, l) => l.origin === "outside");
 
   if (error) return <ErrorState title="Couldn't load your sessions" body={error} actions={[{ label: "Try again", onClick: reload }]} />;
   if (!list) return <PageLoading rows={3} />;
 
-  const count = (stage: string) => list.filter((r) => STAGE_OF[r.status] === stage).length;
+  const count = (stage: string) => list.filter((r) => STAGE_OF[r.status] === stage).length + tracked.filter((t) => t.stage === stage).length;
   const current = tab ?? stages.find((s) => count(s.id))?.id ?? stages[0].id;
   const label = stages.find((s) => s.id === current)!.label;
   const shown = list.filter((r) => STAGE_OF[r.status] === current);
+  const shownTracked = tracked.filter((t) => t.stage === current);
 
   return (
     <div>
       <PageHeader title={therapistsManifest.pipeline.label} />
-      {list.length === 0 ? (
-        <EmptyState title="No sessions yet" body="Request a session from a practitioner on WonderWorks: their reply and the confirmed time show here." action={{ label: "Find a practitioner", href: "/app/m/therapists" }} />
+      {list.length === 0 && tracked.length === 0 ? (
+        <EmptyState title="No sessions yet" body="Request a session from a practitioner on WonderWorks, or keep track of one you contacted on their own page: it shows here." action={{ label: "Find a practitioner", href: "/app/m/therapists" }} />
       ) : (
         <section aria-label="Sessions">
           <StageTiles label="Sessions by stage" stages={stages.map((s) => ({ id: s.id, label: s.label, count: count(s.id) }))} current={current} onPick={setTab} />
-          {shown.length === 0 ? (
+          {shown.length === 0 && shownTracked.length === 0 ? (
             <StageEmpty label={label} />
           ) : (
             <StageList label={label}>
               {shown.map((r) => (
                 <li key={r.id}>
                   <StageCard href={itemHref(r.id)} logo={{ name: r.practitioner }} company={r.practitioner} title={r.title} line={lineOf(r)} tags={[]} badge={{ label: STATUS_LABEL[r.status], tone: TONE[r.status] }} when={relativeTime(r.updatedAt)} />
+                </li>
+              ))}
+              {shownTracked.map((t) => (
+                <li key={t.id}>
+                  <StageCard href={listingHref(t.id)} logo={{ name: t.item.company }} company={t.item.company} title={t.item.title} line={t.line} tags={["Outside WonderWorks"]} badge={{ label: t.label, tone: "neutral" }} when={relativeTime(t.ref.at)} />
                 </li>
               ))}
             </StageList>

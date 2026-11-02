@@ -20,6 +20,8 @@ import { relativeTime } from "@/lib/format";
 import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
+import { MARKETPLACE_OUTSIDE } from "../outside";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { Gallery } from "./Gallery";
 import { ScamWarning } from "./ScamWarning";
 import { shareOf } from "../share";
@@ -106,6 +108,7 @@ function OutsidePanel({ l }: { l: MarketListing }) {
         View on {host}
       </a>
       <p className="text-[12px] text-ink-4">WonderWorks only lists it. Price, stock, delivery and payment are on the shop&apos;s own site, as {l.outside!.business} shows them.</p>
+      <OutsideTracker useStore={useMarketplaceStore} id={l.id} item={l} flow={MARKETPLACE_OUTSIDE} pipelineHref="/app/m/marketplace/pipeline" />
     </div>
   );
 }
