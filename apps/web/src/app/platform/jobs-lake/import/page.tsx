@@ -13,6 +13,7 @@ import { DataTypes } from "@/components/jobslake/DataTypes";
 import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, Stat, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
+import { SCHEDULE_LINE, TRIGGER_EVERY_HOURS } from "@/domain/gateway/budget";
 
 const when = (iso: string | null | undefined) => (iso ? relativeTime(iso) : "—");
 const post = (body: Record<string, unknown>) => adminFetch<Record<string, unknown>>("import", { method: "POST", body: JSON.stringify(body) });
@@ -28,7 +29,7 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 /**
  * Admin → Data → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
  * nowhere else. One press, Import now, runs the pipeline on the server: it sets up the sources that are waiting,
- * collects, and refreshes every module's Find. The same job runs every hour. Each module shows its three numbers
+ * collects, and refreshes every module's Find. The same job runs on a schedule that fits the free plans (domain/gateway/budget.ts). Each module shows its three numbers
  * (sources, collected, in Find) and, opened, its sources with one state and one action each.
  */
 export default function ImportPage() {
@@ -58,7 +59,7 @@ export default function ImportPage() {
     <>
       <PageTitle
         title="Import"
-        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs every hour. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
+        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs on its own every few hours. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
         actions={
           <Button icon={<Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
             {running ? "Importing…" : "Import now"}
@@ -96,7 +97,7 @@ function Pipeline({ d }: { d: ImportView }) {
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr]">
       <Stat label="Sources live" value={num(p.sources.live)} hint={[p.sources.waiting ? `${num(p.sources.waiting)} waiting` : "", p.sources.needsYou ? `${num(p.sources.needsYou)} need you` : ""].filter(Boolean).join(" · ") || "Nothing waiting"} />
       {arrow}
-      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${Date.parse(p.collected.nextAt) <= Date.parse(d.generatedAt) ? "due now (the hourly run)" : when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
+      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${Date.parse(p.collected.nextAt) <= Date.parse(d.generatedAt) ? "due at the next scheduled run" : when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
       {arrow}
       <Stat label="In Find" value={p.find.listings == null ? "—" : num(p.find.listings)} hint={p.find.refreshedAt ? `Refreshed ${when(p.find.refreshedAt)}` : "Not refreshed from the gateway yet: press Import now"} />
     </div>
@@ -121,7 +122,7 @@ function ProgressBanner({ d }: { d: ImportView }) {
           {j.running ? (j.phase === "refreshing" ? "Refreshing Find for every module…" : `${what}: ${num(j.done)} of ${num(j.total)} sources`) : `Last import finished ${when(j.finishedAt)}`}
         </p>
         <p className="text-[12px] text-ink-3">
-          Started {when(j.startedAt)} by {j.trigger === "scheduler" ? "the hourly run" : j.by}
+          Started {when(j.startedAt)} by {j.trigger === "scheduler" ? "the scheduled run" : j.by}
         </p>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70" aria-hidden>
@@ -139,8 +140,33 @@ function ProgressBanner({ d }: { d: ImportView }) {
         {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
         {j.running ? ". It runs on the server; you can leave this page." : "."}
       </p>
+      {j.stalled && <ContinueImport />}
       <RunItems items={j.items} />
     </div>
+  );
+}
+
+/** A running import no server has picked up for a while: one press carries it on (the scheduled run would, later). */
+function ContinueImport() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-warning-600">
+      It has paused: no server has worked on it for a few minutes.
+      <Button
+        size="sm"
+        variant="outline"
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          const r = await post({ action: "continue" });
+          setBusy(false);
+          if (!r.ok) toast.error("Couldn't continue it", r.error.message);
+          else toast.success("Continuing on the server", "This page shows where it gets to.");
+        }}
+      >
+        Continue
+      </Button>
+    </p>
   );
 }
 
@@ -170,7 +196,7 @@ function RunItems({ items }: { items: { name: string; status: string; step?: str
   );
 }
 
-const RUN_KIND: Record<ImportRun["kind"], string> = { import: "Import now", module: "Module import", hourly: "Hourly collection" };
+const RUN_KIND: Record<ImportRun["kind"], string> = { import: "Import now", module: "Module import", hourly: "Scheduled collection" };
 
 /** Every run, newest first, each folded to its sources (owner, 2026-11-02: "persist every run detail in folded form"). */
 function RunHistory({ runs }: { runs: ImportRun[] }) {
@@ -188,7 +214,7 @@ function RunHistory({ runs }: { runs: ImportRun[] }) {
                 <span className="text-ink-3">
                   {" "}
                   · {when(r.finishedAt)}
-                  {r.repeats && r.repeats > 1 ? ` · ${r.repeats} runs with nothing new since ${when(r.startedAt)}` : ""} · {r.trigger === "cron" ? "scheduled" : r.trigger === "scheduler" ? "hourly set-up" : (r.by ?? "admin")}
+                  {r.repeats && r.repeats > 1 ? ` · ${r.repeats} runs with nothing new since ${when(r.startedAt)}` : ""} · {r.trigger === "cron" ? "scheduled" : r.trigger === "scheduler" ? "scheduled set-up" : (r.by ?? "admin")}
                 </span>
                 <span className="block text-[12px] text-ink-3">{r.summary}</span>
               </summary>
@@ -206,14 +232,14 @@ function RunHistory({ runs }: { runs: ImportRun[] }) {
   );
 }
 
-/** The hourly schedule's one option. */
+/** The schedule and its one option. */
 function Schedule({ d, reload }: { d: ImportView; reload: () => void }) {
   const [saving, setSaving] = useState(false);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px]">
-      <span className="text-ink-3">{d.schedule.cronSet ? "Runs every hour: collects what's due and refreshes Find for anything new." : "CRON_SECRET isn't set, so the hourly run can't reach this deployment."}</span>
+      <span className="text-ink-3">{d.schedule.cronSet ? `${SCHEDULE_LINE} It collects what's due and refreshes Find for anything new.` : "CRON_SECRET isn't set, so the scheduled run can't reach this deployment."}</span>
       <Switch
-        label="Also set up waiting sources every hour"
+        label={`Also set up waiting sources every ${TRIGGER_EVERY_HOURS} hours`}
         checked={d.schedule.activateWaiting}
         disabled={saving}
         onChange={async (v) => {
@@ -242,7 +268,7 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
     const r = await post({ action: "module_pause", module: m.id, paused });
     setBusy(null);
     if (!r.ok) toast.error("Couldn't change it", r.error.message);
-    else toast.success(paused ? `${m.label} import paused` : `${m.label} import resumed`, paused ? "Nothing new is collected or stored for it until you resume. What Find has stays." : "The next hourly run includes it again.");
+    else toast.success(paused ? `${m.label} import paused` : `${m.label} import resumed`, paused ? "Nothing new is collected or stored for it until you resume. What Find has stays." : "The next scheduled run includes it again.");
     reload();
   };
   const importNow = async () => {

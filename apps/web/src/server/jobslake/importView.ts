@@ -23,6 +23,8 @@ import { lastGatewayRefresh } from "./warm";
 export interface ImportJobView {
   id: string;
   running: boolean;
+  /** Running, but no server has worked on it for over two minutes (its hand-on was lost): Continue picks it up. */
+  stalled?: true;
   phase: "setup" | "refreshing" | "done";
   kind: "import" | "module";
   module?: string;
@@ -204,6 +206,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
   return {
     id: job.id,
     running: !job.finishedAt,
+    ...(!job.finishedAt && (!job.leaseUntil || Date.now() - Date.parse(job.leaseUntil) > 120_000) ? { stalled: true as const } : {}),
     phase: job.finishedAt ? "done" : job.phase === "refreshing" ? "refreshing" : "setup",
     kind: job.kind ?? "import",
     ...(job.module ? { module: job.module } : {}),

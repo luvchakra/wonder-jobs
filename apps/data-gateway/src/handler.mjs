@@ -125,10 +125,12 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   }
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
-  async function collectDue(budgetMs = 35000, skipModules = []) {
+  async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0) {
     // A source feeding only paused modules (Data → Import) waits; one that also feeds a live module runs.
     const paused = new Set(skipModules);
-    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now()) && !(paused.size && x.modules.every((m) => paused.has(m)))).map((x) => x.id));
+    // `floorMinutes`: the scheduled run collects no source more often than this, whatever its own interval (a plan's budget).
+    const rested = (x) => !floorMinutes || !x.lastSuccessAt || Date.now() - Date.parse(x.lastSuccessAt) >= floorMinutes * 60000;
+    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now()) && rested(x) && !(paused.size && x.modules.every((m) => paused.has(m)))).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
     for (const sourceId of due) {

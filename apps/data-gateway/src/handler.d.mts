@@ -11,7 +11,8 @@ export interface CollectOutcome { sourceId: string; ok: boolean; code?: string; 
 export interface Gateway {
   handle(request: Request): Promise<Response>;
   /** Collects every active source that is due; a source feeding only `skipModules` waits. */
-  collectDue(budgetMs?: number, skipModules?: string[]): Promise<CollectOutcome[]>;
+  /** `floorMinutes`: no source collected more often than this (the scheduled run's budget). */
+  collectDue(budgetMs?: number, skipModules?: string[], floorMinutes?: number): Promise<CollectOutcome[]>;
   /** Collects one active source now (or only tests it). Throws with a `code` when it can't. */
   collectOne(sourceId: string, testOnly?: boolean): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
 }

@@ -109,3 +109,4 @@
 - 2026-11-02 Talent & Services: Open their page is a real external link (WJ-595)
 - ✅ A + button on phones posts a new entry in the selected module (WJ-662)
 - ✅ The WonderWorks mark shows wherever it is drawn twice on a page, e.g. the admin header on phones (WJ-662)
+- ✅ The scheduled import runs every 3 hours, each source at most every 6, within the free plans for a month; a paused import shows Continue (WJ-663)
