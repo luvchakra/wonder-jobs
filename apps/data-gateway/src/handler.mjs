@@ -1,4 +1,4 @@
-import { ApiError, MODULES, RateLimiter, logRun, pushAudit, searchPlan, searchResponse, stateListings, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, recordUsage, checkScope } from "./core.mjs";
+import { ApiError, MODULES, RateLimiter, normalizeAll, logRun, pushAudit, searchPlan, searchResponse, stateListings, requireAdmin, requireConsumer, issueKey, revokeKey, withoutHash, validateSource, recordUsage, checkScope } from "./core.mjs";
 import { fetchRecords } from "./collect.mjs";
 import { uploadListings } from "./upload.mjs";
 import { OPENAPI } from "./openapi.mjs";
@@ -75,6 +75,13 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       const source = await store.read((s) => s.sources.find((src) => src.id === sourceId));
       if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
       if (source.kind === "upload") throw new ApiError(409, "UPLOAD_SOURCE", "This source is filled by uploading the partner's file");
+      // Collected outside the app (the weekly GitHub job, osm-collect.yml): its test is the last delivery, and the app
+      // never fetches it itself (OpenStreetMap queries outlast a serverless call; 2026-11-02).
+      if (source.externalCollection) {
+        if (!testOnly) return { ok: true, skipped: true, code: "EXTERNAL_COLLECTION" };
+        if (!source.lastTest) throw new ApiError(409, "EXTERNAL_COLLECTION", "Collected weekly by the GitHub job (OpenStreetMap collection); nothing delivered yet");
+        return { ok: source.lastTest.ok, discovered: source.lastTest.discovered, valid: source.lastTest.valid };
+      }
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
       const report = await fetchRecords(source);
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
@@ -119,7 +126,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
   async function collectDue(budgetMs = 35000) {
-    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
+    const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now())).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
     for (const sourceId of due) {
@@ -189,6 +196,30 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
               logRun(s, { at, sourceId: id, trigger: "upload", ok, discovered: report.discovered, valid: report.valid, kept, ms: Date.now() - startedAt });
             });
             return reply(200, { ok, rows: report.rows, valid: report.valid, discovered: report.discovered, repeats: report.repeats, kept, columns: report.columns, problems: report.problems });
+          }
+          if (action === "ingest") {
+            // Records collected outside the app (the weekly GitHub job), checked and mapped like the source's own
+            // fetch, then they replace its listings. Counts as the source's test, as a partner upload does.
+            const { items } = await readBody(request, 4_000_000) ?? {};
+            const source = await store.read((s) => s.sources.find((x) => x.id === id));
+            if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
+            if (source.kind !== "json_api") throw new ApiError(409, "NOT_INGESTIBLE", "Only a JSON source takes delivered records");
+            if (!Array.isArray(items) || items.length > 10000) throw new ApiError(400, "INVALID_REQUEST", "items: an array of up to 10,000 records");
+            const startedAt = Date.now(), at = new Date().toISOString();
+            const report = normalizeAll(source, items, at, Date.now());
+            const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
+            const kept = ok ? await listings.replace(id, report.results, false) : null;
+            await store.change((s) => {
+              const src = s.sources.find((x) => x.id === id);
+              if (!src) return;
+              src.externalCollection = true;
+              src.lastTest = { at, ok, discovered: report.discovered, valid: report.valid };
+              if (ok) src.lastSuccessAt = at;
+              src.lastError = ok ? null : "INGEST_QUALITY";
+              pushAudit(s, { at, action: "source.ingested", target: id, valid: report.valid });
+              logRun(s, { at, sourceId: id, trigger: "ingest", ok, discovered: report.discovered, valid: report.valid, kept, ms: Date.now() - startedAt });
+            });
+            return reply(200, { ok, discovered: report.discovered, valid: report.valid, kept });
           }
           if (action === "update") {
             // Changes how an existing source is read (its mapping, attribution, pages per run) and keeps its id, so its

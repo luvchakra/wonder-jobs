@@ -1,0 +1,32 @@
+# Weekly OpenStreetMap collection for Talent & Services and Therapists, run here rather than in the app: Overpass
+# queries can take minutes, longer than a serverless call allows (2026-11-02). The script asks the public Overpass
+# servers one query at a time, then delivers the businesses to the app (/api/cron/gateway-ingest), which checks and
+# stores them. Needs the repository secret CRON_SECRET (same value as on Vercel).
+name: OpenStreetMap collection
+
+on:
+  schedule:
+    - cron: "23 2 * * 1" # Mondays 07:53 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osm-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Collect and deliver
+        run: node apps/data-gateway/scripts/osm-collect.mjs
