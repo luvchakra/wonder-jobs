@@ -12,6 +12,7 @@ import { JOBS_MENU_CHOICES, pickJobsFindMode, useJobsFindMode, useJobsStatus } f
 import { SECTION_TABS } from "./jobs/nav";
 import { moduleFromPath, moduleNav } from "./nav";
 import { MODULES, type ModuleId, type UpcomingKindId } from "./registry";
+import { withNew } from "@/wonderworks/owner/useOpenNew";
 
 // Each other module's icon and tint in the menu are its manifest's; a live one (WJ-418: Internships) is picked like
 // Full Time and Part Time — the four tabs become its own (docs/WONDERWORKS_PLATFORM.md §4.1). The rest are "Coming soon".
@@ -69,7 +70,11 @@ function useStatus(hydrated: boolean, module: string) {
   return module === "jobs" ? status : { ...status, tasks: 0 };
 }
 
-const postFor = (m: string) => MODULES.find((x) => x.id === m)?.post ?? null;
+// The + opens the post page with its new-entry form already open (useOpenNew reads ?new=1).
+const postFor = (m: string) => {
+  const p = MODULES.find((x) => x.id === m)?.post;
+  return p ? { ...p, href: withNew(p.href) } : null;
+};
 const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus, postFor };
 
 /** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */

@@ -2,6 +2,7 @@
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import type { EmployerJob } from "@/domain/org/types";
 import type { CareerSite } from "@/domain/org/careers";
 import { CareerSites } from "./CareerSites";
@@ -30,6 +31,8 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
   const wantCounts = !!onApplicants;
   const [sites, setSites] = useState<{ sites: CareerSite[]; links: { siteId: string; jobId: string }[] }>({ sites: [], links: [] });
   const [editing, setEditing] = useState<{ id?: string; job: JobInput } | null>(null);
+  // The + button (/app/hiring?tab=jobs&new=1) opens Post a job when this person may post.
+  useOpenNew(canEdit, useCallback(() => setEditing({ job: EMPTY }), []));
   const load = useCallback(() => {
     hiringApi
       .jobs(orgId)

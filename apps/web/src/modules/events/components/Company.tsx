@@ -2,6 +2,7 @@
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
@@ -33,6 +34,8 @@ export function EventsCompany() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<EventPosting | "new" | null>(null);
   const [tab, setTab] = useState<"events" | "attendees">("events");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;

@@ -1,4 +1,5 @@
 "use client";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -34,6 +35,8 @@ export function InternshipsCompany() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<InternshipPosting | "new" | null>(null);
   const [tab, setTab] = useState<"internships" | "applications">(params.get("tab") === "applications" ? "applications" : "internships");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
