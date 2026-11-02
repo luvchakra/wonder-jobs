@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MODULES } from "@/modules/registry";
 import { dataTypeOf } from "@/domain/jobslake/moduleData";
-import { DataTypes } from "../setup/DataTypes";
+import { DataTypes } from "@/components/jobslake/DataTypes";
 import type { SourceView } from "@/server/jobslake/views";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/common/Button";

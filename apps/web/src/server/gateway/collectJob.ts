@@ -69,3 +69,24 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt: new Date().toISOString(), outcome: failed && !collected.length ? "failed" : "ok", summary });
   return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
 }
+
+/**
+ * Import now (Admin → Data → Import): the one press that runs the whole pipeline. Waiting sources (added, not live:
+ * catalogue entries to add, gateway sources to test and activate) are queued as a Setup job, which refreshes every
+ * module's Find when it finishes; with nothing waiting, the collection runs now and refreshes every module itself.
+ * Either way the work runs on the server after the answer; the page shows how far it got.
+ */
+export async function startImport(by: string, origin: string): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {
+  if (!hostedGateway()) return { ok: false, message: "The gateway isn't configured on this deployment." };
+  if (jobRunning(await readSetupJob())) return { ok: false, message: "An import is already running on the server." };
+  const items = (await setupTodo()).items.filter((i) => i.run).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+  if (items.length) {
+    const r = await startSetupJob(items, by);
+    if (!r.ok) return { ok: false, message: r.message };
+    // The job's own call does the work and hands the rest on; the collection runs on its hourly schedule.
+    await handOnSetupJob(origin);
+    return { ok: true, queued: r.job.items.length };
+  }
+  await runGatewayCollection("admin", origin);
+  return { ok: true, queued: 0 };
+}

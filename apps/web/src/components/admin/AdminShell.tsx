@@ -54,10 +54,9 @@ export const ADMIN_MENUS: AdminMenu[] = [
     label: "Sources",
     icon: Database,
     links: [
-      { href: `${LAKE}/setup`, label: "Setup to-do" },
+      { href: `${LAKE}/import`, label: "Import" },
       { href: `${LAKE}/sources`, label: "All sources" },
       { href: `${LAKE}/add`, label: "Add a source" },
-      { href: `${LAKE}/gateway`, label: "Partners & gateway" },
       { href: `${LAKE}/credentials`, label: "Source credentials" },
     ],
   },

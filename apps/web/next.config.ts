@@ -74,6 +74,13 @@ const nextConfig: NextConfig = {
     // repeat navigations render instantly instead of refetching the segment.
     staleTimes: { dynamic: 300, static: 300 },
   },
+  // Setup to-do and Partners & gateway became one page, Import (2026-11-02); old links still land there.
+  async redirects() {
+    return [
+      { source: "/platform/jobs-lake/setup", destination: "/platform/jobs-lake/import", permanent: true },
+      { source: "/platform/jobs-lake/gateway", destination: "/platform/jobs-lake/import", permanent: true },
+    ];
+  },
   async headers() {
     // An applicant's status page carries their token in its address: no referrer at all leaves it.
     const noReferrer = [{ key: "Referrer-Policy", value: "no-referrer" }];
