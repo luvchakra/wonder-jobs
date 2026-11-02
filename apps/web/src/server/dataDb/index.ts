@@ -47,9 +47,13 @@ interface Active {
   /** The data client when the data database is on; null when every table stays in the main database. */
   client: AdminClient | null;
   from: "environment" | "platform" | null;
+  /** The setting couldn't be read yet: where the data lives isn't known, so nothing is written (dataWritable). */
+  unknown?: boolean;
 }
 const g = globalThis as unknown as { __wjDataDb?: Active; __wjDataDbLoading?: Promise<void> | null };
 const TTL = 60_000;
+/** After a failed first read, ask again this soon. */
+const RETRY_MS = 5_000;
 // Its own guard: a struggling data database backs off without blocking the main one's requests.
 const guard = createDbGuard();
 
@@ -78,8 +82,9 @@ export function loadDataDb(force = false): Promise<void> {
       const doc = (await (await state()).get(PLATFORM_TENANT, DOC))?.state as StoredDataDb | undefined;
       g.__wjDataDb = doc?.enabled && PROJECT_URL.test(doc.url) ? { at: now, client: client(doc.url, (await crypto()).decrypt(doc.keyCipher)), from: "platform" } : { at: now, client: null, from: null };
     } catch {
-      // Keep what was there; with nothing loaded yet, stay on the main database.
-      g.__wjDataDb = { at: now, client: g.__wjDataDb?.client ?? null, from: g.__wjDataDb?.from ?? null };
+      // Keep what was there. With nothing known yet, don't assume the main database (a cold instance whose read failed
+      // once wrote 2,000 listings there while the data database was on, 2026-11-02): stay unknown and ask again soon.
+      g.__wjDataDb = g.__wjDataDb && !g.__wjDataDb.unknown ? { ...g.__wjDataDb, at: now } : { at: now - TTL + RETRY_MS, client: null, from: null, unknown: true };
     }
   })().finally(() => {
     g.__wjDataDbLoading = null;
@@ -104,6 +109,14 @@ export async function dataDbNow(): Promise<{ client: AdminClient; guard: ReturnT
   await loadDataDb();
   const c = g.__wjDataDb?.client;
   return c ? { client: c, guard: guard.state() } : null;
+}
+
+/**
+ * Whether WorksLake may write its data now: false while it isn't known which database holds it (the setting couldn't
+ * be read), so a write never lands in the wrong one. The data is re-fetchable; a skipped write costs nothing lasting.
+ */
+export function dataWritable(): boolean {
+  return !g.__wjDataDb?.unknown;
 }
 
 /** The data database's own `db_usage` (its size), when it is on. */
