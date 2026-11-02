@@ -398,10 +398,10 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  */
 /**
  * Source names as a card shows them, in every module (owner, 2026-11-01: "instead of writing full name in the card,
- * just mention WWDG"): "WorksLake Data Gateway · Teaching" reads "WWDG". Admin pages and listing pages keep the full name.
+ * just mention WWDG"; renamed 2026-11-02: "change it to WorksLakeDG"): "WorksLake Data Gateway · Teaching" reads "WorksLakeDG". Admin pages and listing pages keep the full name.
  */
 export function shortSourceNames(text: string): string {
-  return text.replace(/WorksLake Data Gateway(?: · [^·,+]+?)?(?=\s*(?:\+\d|·|,|$))/g, "WWDG");
+  return text.replace(/WorksLake Data Gateway(?: · [^·,+]+?)?(?=\s*(?:\+\d|·|,|$))/g, "WorksLakeDG");
 }
 
 export function ResultCard({ className, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
