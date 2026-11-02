@@ -11,7 +11,7 @@
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { SourceRun } from "@/domain/jobslake/health";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { dataFrom, loadDataDb, type DataTable } from "@/server/dataDb";
+import { dataFrom, dataWritable, loadDataDb, type DataTable } from "@/server/dataDb";
 import type { Job } from "@/domain/jobs/types";
 import type { AuditEvent, SourceRecord, StoredCredential } from "./types";
 import type { ModuleId } from "@/modules/registry";
@@ -278,6 +278,8 @@ class SupabaseStore implements JobsLakeStore {
   async upsertOpportunities(opps: CanonicalOpportunity[], module: ModuleId = "jobs") {
     const fb = await this.ready();
     if (fb) return fb.upsertOpportunities(opps, module);
+    // Where the pool lives isn't known yet (dataDb): skip rather than write it to the wrong database.
+    if (!dataWritable()) return;
     for (let i = 0; i < opps.length; i += 200) {
       const rows = opps.slice(i, i + 200).map((o) => ({ id: opportunityRowId(module, o.id), data: o, employer: o.employer.name, title: o.title, posted_at: o.postedAt, last_observed_at: o.freshness.lastObservedAt, module }));
       const { error } = await this.data("jobslake_opportunities").upsert(rows);
@@ -325,7 +327,7 @@ class SupabaseStore implements JobsLakeStore {
   async putCachedAnswers(entries: CachedAnswer[]) {
     const fb = await this.ready();
     if (fb) return fb.putCachedAnswers(entries);
-    if (!entries.length) return;
+    if (!entries.length || !dataWritable()) return;
     const rows = entries.map((e) => ({ key: e.key, source_id: e.sourceId, depth: e.depth, jobs: e.jobs, retrieved: e.retrieved, warnings: e.warnings, fetched_at: e.fetchedAt }));
     const { error } = await this.data("jobslake_search_cache").upsert(rows);
     if (error) this.fail("write the search cache", error);
