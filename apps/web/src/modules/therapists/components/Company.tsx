@@ -1,4 +1,5 @@
 "use client";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -37,6 +38,8 @@ export function TherapistsCompany() {
   const [declineFor, setDeclineFor] = useState<PractitionerSession | null>(null);
   const params = useSearchParams();
   const [tab, setTab] = useState<"listings" | "requests">(params.get("tab") === "requests" ? "requests" : "listings");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;

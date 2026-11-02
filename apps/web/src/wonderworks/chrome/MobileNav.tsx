@@ -32,7 +32,7 @@ export function MobileNav() {
   const slots = useChromeSlots();
   const selected = useSelectedModule();
   const post = slots.postFor?.(selected) ?? null;
-  const showPost = !barShown && post && !pathname.startsWith(post.href);
+  const showPost = !barShown && post && pathname !== post.href.split("?")[0];
   return (
     <>
       {showPost && (
