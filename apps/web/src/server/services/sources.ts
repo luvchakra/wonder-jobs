@@ -47,6 +47,7 @@ export const SERVICES_SOURCES: SourceRecord[] = [
   source({ id: FREELANCER_EXPERTS, name: "Freelancer.com experts", provider: "Freelancer.com", category: "aggregator", geography: ["remote"], capabilities: [...FEED_CAPS, "Rating"], description: "Remote freelancers from Freelancer.com's public user directory." }),
   source({
     id: OPENSTREETMAP,
+    liveRead: true,
     name: "OpenStreetMap",
     provider: "OpenStreetMap contributors",
     category: "aggregator",
@@ -55,6 +56,7 @@ export const SERVICES_SOURCES: SourceRecord[] = [
   }),
   source({
     id: HOUZZ,
+    liveRead: true,
     name: "Houzz professionals",
     provider: "Houzz",
     category: "aggregator",
@@ -64,6 +66,7 @@ export const SERVICES_SOURCES: SourceRecord[] = [
   }),
   source({
     id: WEDMEGOOD,
+    liveRead: true,
     name: "WedMeGood vendors",
     provider: "WedMeGood",
     category: "aggregator",

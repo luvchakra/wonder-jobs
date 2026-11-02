@@ -172,22 +172,46 @@ async function latestListings(req: SearchRequest, dataset: ModuleId, sources: So
   // Streamed like any search: started (no source is asked) and completed, so a stream never ends without its answer.
   emit({ type: "search_started", requestId, plannedSources: [], searchMode: req.searchMode });
   const now = Date.now();
-  const pool = await jobsLakeStore().listOpportunities({ module: dataset, limit: 2000 });
-  let results = pool.filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now) && !isBannedListing(o, banned));
+  // A source that reads listings WonderWorks already collected (the data gateway's) is read now as well: its listings
+  // aren't in the warm pool until a worded search stores them, so without this a search without words never shows them
+  // (2026-11-02: activated OpenStreetMap practices didn't appear). A read of our own data, never an outside site.
+  const direct = sources.filter((s) => s.liveRead && (s.status === "active" || s.status === "degraded"));
+  const [pool, read] = await Promise.all([
+    jobsLakeStore().listOpportunities({ module: dataset, limit: 2000 }),
+    Promise.all(
+      direct.map(async (s) => {
+        try {
+          if (!(await isAvailable(s))) return { s, jobs: [] as Job[] };
+          const r = await withTimeout(runConnector(s, { query: "", locations: req.query.locations }, "shallow"), Math.min(s.limits.timeoutMs, BUDGET.shallow));
+          return { s, jobs: placeWithCountry(r.jobs, s.geography) };
+        } catch (e) {
+          return { s, jobs: [] as Job[], error: classify(e) };
+        }
+      }),
+    ),
+  ]);
+  const inPool = new Set(pool.map((o) => o.id));
+  const fresh = canonicalize(read.flatMap(({ s, jobs }) => jobs.map((job) => ({ source: s, job })))).opportunities.filter((o) => !inPool.has(o.id));
+  const failed = new Map(read.filter((r) => r.error).map((r) => [r.s.id, r.error!]));
+  let results = [...pool, ...fresh].filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now) && !isBannedListing(o, banned));
   const boardRefs = results.map((o) => boardRef(o.canonicalApplyUrl) ?? o.sourceRecords.map((r) => boardRef(r.url)).find(Boolean) ?? null);
   const gone = await closedRefs(boardRefs.filter((r): r is string => !!r)).catch(() => new Set<string>());
   if (gone.size) results = results.filter((_, i) => !boardRefs[i] || !gone.has(boardRefs[i]!));
   results = applyFilters(results, req).slice(0, Math.min(req.limit, LATEST_LIMIT));
   const count = (id: string) => results.filter((o) => o.sourceRecords.some((r) => r.sourceId === id)).length;
   const live = sources.filter((s) => s.status === "active" || s.status === "degraded");
-  const statuses: SourceSearchStatus[] = live.map((s) => ({ sourceId: s.id, sourceName: s.name, outcome: count(s.id) ? "ok" : "empty", retrieved: count(s.id), durationMs: 0, message: "Latest stored listings" }));
+  const statuses: SourceSearchStatus[] = live.map((s) => {
+    const err = failed.get(s.id);
+    if (err && !count(s.id)) return { sourceId: s.id, sourceName: s.name, outcome: err.outcome, retrieved: 0, durationMs: 0, message: err.message };
+    return { sourceId: s.id, sourceName: s.name, outcome: count(s.id) ? "ok" : "empty", retrieved: count(s.id), durationMs: 0, message: s.liveRead ? "Latest collected listings" : "Latest stored listings" };
+  });
   const response: SearchResponse = {
     requestId,
     protocolVersion: PROTOCOL_VERSION,
     searchMode: req.searchMode,
     results,
     sources: statuses,
-    metadata: { retrieved: 0, normalized: 0, duplicates: 0, unique: results.length, sourcesPlanned: 0, sourcesSucceeded: statuses.length, sourcesFailed: 0, warm: results.length, live: 0 },
+    metadata: { retrieved: 0, normalized: 0, duplicates: 0, unique: results.length, sourcesPlanned: 0, sourcesSucceeded: statuses.length - failed.size, sourcesFailed: failed.size, warm: results.length, live: 0 },
   };
   emit({ type: "search_completed", response });
   return { response, plan: { mode: req.searchMode, depth: "shallow", useWarmPool: true, waves: [], skipped: [] } };
@@ -267,15 +291,15 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   };
   const attemptRaw = async (src: SourceRecord, q: string): Promise<Attempt> => {
     const c = caches.get(q) ?? noCache;
-    const hit = req.cache === "refresh" ? undefined : c.fresh.get(src.id);
+    const hit = req.cache === "refresh" || src.liveRead ? undefined : c.fresh.get(src.id);
     if (hit) return { jobs: hit.jobs.slice(0, src.limits.maxResults), warnings: [], called: false, cachedAt: hit.fetchedAt, cacheUse: "fresh" };
     const fetchedAt = new Date().toISOString();
     // An earlier answer that's no longer fresh: a source that filters by date is asked only for what's new since then.
-    const earlier = req.cache === "refresh" || !asksSince(src) ? undefined : c.fallback.get(src.id);
+    const earlier = req.cache === "refresh" || src.liveRead || !asksSince(src) ? undefined : c.fallback.get(src.id);
     try {
       const r = await withTimeout(runConnector(src, { ...connectorCriteria(src, q), ...(earlier ? { since: earlier.fetchedAt } : {}) }, plan.depth), Math.min(src.limits.timeoutMs, BUDGET[plan.depth]));
       const jobs = earlier ? mergeDelta(r.jobs, earlier.jobs, src.limits.maxResults) : r.jobs.slice(0, src.limits.maxResults);
-      if (cacheOn) toCache.push(answerFor(src, plan.depth, criteriaFor(q), { jobs, warnings: r.warnings }, fetchedAt));
+      if (cacheOn && !src.liveRead) toCache.push(answerFor(src, plan.depth, criteriaFor(q), { jobs, warnings: r.warnings }, fetchedAt));
       return { jobs, warnings: r.warnings, called: true, ...(earlier ? { since: earlier.fetchedAt } : {}) };
     } catch (e) {
       const error = classify(e);

@@ -85,6 +85,11 @@ export interface SourceRecord extends JobSourceDescriptor {
   jobTypes?: JobType[];
   /** The WonderWorks module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */
   module?: ModuleId;
+  /**
+   * Reads data WonderWorks already collected (the data gateway's listings), not an outside site: a cached answer saves
+   * nothing and would hide a source activated or refreshed since (2026-11-02), so its answers are never cached.
+   */
+  liveRead?: boolean;
 }
 
 export interface AuditEvent {
