@@ -1,9 +1,11 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCircle2, Cloud, Code2, FileText, Globe, Plug, Rss, ScanSearch } from "lucide-react";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { CheckCircle2, Cloud, Code2, FileText, Globe, Plug, Rss, ScanSearch, Upload } from "lucide-react";
 import type { Detection } from "@/domain/jobslake/detect";
 import type { ResponseMapping } from "@/domain/jobslake/mapping";
+import { kindFitsModule, type SourceKind } from "@/domain/jobslake/sourceKinds";
 import type { SourceConfig, TestReport } from "@/server/jobslake/types";
 import type { SourceView } from "@/server/jobslake/views";
 import { Button } from "@/components/common/Button";
@@ -11,45 +13,53 @@ import { Card } from "@/components/common/Card";
 import { Field, Input, Select } from "@/components/common/Input";
 import { MappingEditor, TestReportView } from "@/components/jobslake/SourceParts";
 import { AccessBadge, adminFetch, Note, PageTitle, Panel, num } from "@/components/jobslake/ui";
+import { MODULES, isModuleId, type ModuleId } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 
-type Kind = "ats_board" | "json_api" | "mcp" | "feed" | "structured" | "scraper";
+type Kind = SourceKind;
 type Step = "type" | "configure" | "mapping" | "test" | "activate";
 
-const KINDS: { kind: Kind; title: string; body: string; icon: typeof Cloud; tags: string[] }[] = [
-  { kind: "ats_board", title: "Career site / ATS", body: "A company board on Greenhouse, Lever, Ashby, SmartRecruiters or Workable.", icon: Globe, tags: ["Employer data", "No key needed"] },
-  { kind: "json_api", title: "Official API", body: "A documented jobs API. You map its response to WorksLake fields.", icon: Cloud, tags: ["Most reliable"] },
-  { kind: "mcp", title: "MCP", body: "A tool on an MCP server you're authorized to use.", icon: Plug, tags: ["AI-friendly"] },
-  { kind: "feed", title: "Feed", body: "An RSS or Atom jobs feed.", icon: Rss, tags: ["Simple"] },
-  { kind: "structured", title: "Structured page", body: "A careers page with schema.org JobPosting data.", icon: FileText, tags: ["Public data"] },
-  { kind: "scraper", title: "Permitted scraper", body: "Recorded for governance only — no scraper engine runs here.", icon: Code2, tags: ["Needs written permission"] },
+/** What WorksLake can connect today (2026-11-02), in plain words for every module. */
+const KINDS: { kind: Kind; title: string; body: string; icon: typeof Cloud }[] = [
+  { kind: "ats_board", title: "Careers site", body: "A company's board on Greenhouse, Lever, Ashby, SmartRecruiters or Workable. No key needed.", icon: Globe },
+  { kind: "json_api", title: "API", body: "A documented listings API. You map its fields once.", icon: Cloud },
+  { kind: "feed", title: "Feed", body: "An RSS or Atom feed of listings.", icon: Rss },
+  { kind: "structured", title: "Page with job data", body: "A careers page publishing schema.org JobPosting.", icon: FileText },
+  { kind: "mcp", title: "MCP tool", body: "A tool on an MCP server you're authorized to use. You map its fields once.", icon: Plug },
+  { kind: "scraper", title: "Record a site only", body: "Kept on record with its permission; nothing is collected from it.", icon: Code2 },
 ];
 
-const POPULAR: { label: string; url?: string; note: string }[] = [
-  { label: "Greenhouse", url: "https://boards.greenhouse.io/", note: "API" },
-  { label: "Lever", url: "https://jobs.lever.co/", note: "API" },
-  { label: "Ashby", url: "https://jobs.ashbyhq.com/", note: "API" },
-  { label: "Workable", url: "https://apply.workable.com/", note: "API" },
-  { label: "SmartRecruiters", url: "https://jobs.smartrecruiters.com/", note: "API" },
-  { label: "LinkedIn", url: "https://www.linkedin.com/jobs", note: "Partner" },
-  { label: "Indeed", url: "https://www.indeed.com", note: "Partner" },
-  { label: "Naukri", url: "https://www.naukri.com", note: "Partner" },
-  { label: "foundit", url: "https://www.foundit.in", note: "Partner" },
+const ATS_EXAMPLES: { label: string; url: string }[] = [
+  { label: "Greenhouse", url: "https://boards.greenhouse.io/" },
+  { label: "Lever", url: "https://jobs.lever.co/" },
+  { label: "Ashby", url: "https://jobs.ashbyhq.com/" },
+  { label: "Workable", url: "https://apply.workable.com/" },
+  { label: "SmartRecruiters", url: "https://jobs.smartrecruiters.com/" },
 ];
 
 const STEPS: { key: Step; label: string }[] = [
-  { key: "type", label: "Choose type" },
-  { key: "configure", label: "Configure" },
-  { key: "mapping", label: "Map response" },
-  { key: "test", label: "Test & validate" },
-  { key: "activate", label: "Activate" },
+  { key: "type", label: "Source" },
+  { key: "configure", label: "Details" },
+  { key: "mapping", label: "Map fields" },
+  { key: "test", label: "Test" },
+  { key: "activate", label: "Go live" },
 ];
 
 const EMPTY_MAPPING: ResponseMapping = { itemsPath: "", fields: {} };
 
 export default function AddSourcePage() {
+  return (
+    <Suspense fallback={null}>
+      <AddSource />
+    </Suspense>
+  );
+}
+
+function AddSource() {
+  const param = useSearchParams().get("module");
+  const [module, setModule] = useState<ModuleId>(isModuleId(param) ? param : "jobs");
   const [step, setStep] = useState<Step>("type");
-  const [kind, setKind] = useState<Kind>("ats_board");
+  const [kind, setKind] = useState<Kind>(kindFitsModule("ats_board", isModuleId(param) ? param : "jobs") ? "ats_board" : "json_api");
   const [url, setUrl] = useState("");
   const [detection, setDetection] = useState<Detection | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,6 +71,15 @@ export default function AddSourcePage() {
   const needsMapping = kind === "json_api" || kind === "mcp";
   const steps = STEPS.filter((s) => s.key !== "mapping" || needsMapping);
   const at = steps.findIndex((s) => s.key === step);
+  const moduleLabel = MODULES.find((m) => m.id === module)?.label ?? "Jobs";
+  const kinds = KINDS.filter((k) => kindFitsModule(k.kind, module));
+  const jobPostings = kindFitsModule("ats_board", module);
+
+  const pickModule = (m: ModuleId) => {
+    setModule(m);
+    setDetection(null);
+    if (!kindFitsModule(kind, m)) setKind("json_api");
+  };
 
   const runDetect = async () => {
     setBusy(true);
@@ -69,8 +88,8 @@ export default function AddSourcePage() {
     setBusy(false);
     if (!r.ok) return setError(r.error.message);
     setDetection(r.data);
-    if (r.data.kind === "ats_board") setKind("ats_board");
-    else if (r.data.kind === "custom" && kind === "ats_board") setKind("json_api");
+    if (r.data.kind === "ats_board" && jobPostings) setKind("ats_board");
+    else if (r.data.kind === "custom" && (kind === "ats_board" || !kindFitsModule(kind, module))) setKind("json_api");
   };
 
   const runTest = async (id: string) => {
@@ -82,14 +101,23 @@ export default function AddSourcePage() {
     setReport(r.data);
   };
 
+  const canContinue = kind === "ats_board" ? detection?.kind === "ats_board" : detection?.kind !== "invalid" && detection?.kind !== "partnership";
+
   return (
     <>
-      <PageTitle title="Add a source" subtitle="A source serves candidates only after a real, validated connection — detection alone never activates anything." />
-      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <PageTitle title="Add a source" subtitle="Bring a site, API or feed into a module's Find. Nothing reaches Find until its test passes and you make it live." />
+      <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)]">
         <Card padding="sm" className="h-fit min-w-0">
-          <ol className="flex gap-2 overflow-x-auto lg:flex-col" aria-label="Steps">
+          <p className="px-1 text-[12px] text-ink-3 lg:hidden">
+            Step {at + 1} of {steps.length} · <span className="font-medium text-ink">{steps[at]?.label}</span>
+            {step !== "type" && <> · {moduleLabel}</>}
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-bg-soft lg:hidden" aria-hidden>
+            <div className="h-full rounded-full bg-brand-500 transition-[width]" style={{ width: `${((at + 1) / steps.length) * 100}%` }} />
+          </div>
+          <ol className="hidden flex-col gap-1 lg:flex" aria-label="Steps">
             {steps.map((s, i) => (
-              <li key={s.key} aria-current={s.key === step ? "step" : undefined} className={cn("flex shrink-0 items-center gap-2 rounded-[10px] px-2 py-1.5 text-[13px]", s.key === step ? "bg-brand-50 font-medium text-brand-700" : i < at ? "text-ink-2" : "text-ink-4")}>
+              <li key={s.key} aria-current={s.key === step ? "step" : undefined} className={cn("flex items-center gap-2 rounded-[10px] px-2 py-1.5 text-[13px]", s.key === step ? "bg-brand-50 font-medium text-brand-700" : i < at ? "text-ink-2" : "text-ink-4")}>
                 <span className={cn("grid size-6 place-items-center rounded-full text-[11px]", i < at ? "bg-success-100 text-success-600" : s.key === step ? "bg-brand-500 text-white" : "bg-bg-soft")}>{i < at ? <CheckCircle2 className="size-3.5" aria-hidden /> : i + 1}</span>
                 {s.label}
               </li>
@@ -102,25 +130,17 @@ export default function AddSourcePage() {
 
           {step === "type" && (
             <>
-              <Panel title="What are you connecting?">
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup" aria-label="Integration type">
-                  {KINDS.map(({ kind: k, title, body, icon: Icon, tags }) => (
-                    <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={cn("flex flex-col gap-1.5 rounded-[14px] border p-3 text-left transition-colors", kind === k ? "border-brand-400 bg-brand-50/60 ring-2 ring-brand-100" : "border-line hover:border-line-strong")}>
-                      <Icon className="size-5 text-brand-600" aria-hidden />
-                      <span className="text-[14px] font-medium text-ink">{title}</span>
-                      <span className="text-[12px] text-ink-3">{body}</span>
-                      <span className="mt-1 flex flex-wrap gap-1">
-                        {tags.map((t) => (
-                          <span key={t} className="rounded-full bg-bg-soft px-2 py-0.5 text-[11px] text-ink-3">
-                            {t}
-                          </span>
-                        ))}
-                      </span>
+              <Panel title="Which module?">
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Module">
+                  {MODULES.map((m) => (
+                    <button key={m.id} type="button" role="radio" aria-checked={module === m.id} onClick={() => pickModule(m.id)} className={cn("rounded-full border px-3 py-1.5 text-[13px]", module === m.id ? "border-brand-400 bg-brand-50 font-medium text-brand-700" : "border-line text-ink-2 hover:border-line-strong")}>
+                      {m.label}
                     </button>
                   ))}
                 </div>
               </Panel>
-              <Panel title="Careers or job-listing URL">
+
+              <Panel title="Where are the listings?">
                 <form
                   className="flex flex-col gap-2 sm:flex-row"
                   onSubmit={(e) => {
@@ -128,41 +148,56 @@ export default function AddSourcePage() {
                     void runDetect();
                   }}
                 >
-                  <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://jobs.lever.co/company" aria-label="Careers or job-listing URL" className="font-mono text-[13px]" />
-                  <Button type="submit" loading={busy} disabled={!url.trim()} icon={<ScanSearch className="size-4" aria-hidden />}>
-                    Detect
+                  <Input value={url} onChange={(e) => { setUrl(e.target.value); setDetection(null); }} placeholder={jobPostings ? "https://jobs.lever.co/company" : "https://example.org/api/listings"} aria-label="Link to the listings" className="font-mono text-[13px]" />
+                  <Button type="submit" variant="outline" loading={busy} disabled={!url.trim()} icon={<ScanSearch className="size-4" aria-hidden />}>
+                    Check link
                   </Button>
                 </form>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[12px] text-ink-4">Popular:</span>
-                  {POPULAR.map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => {
-                        setUrl(p.url ?? "");
-                        setDetection(null);
-                      }}
-                      className="rounded-full border border-line px-2.5 py-1 text-[12px] text-ink-2 hover:border-line-strong"
-                    >
-                      {p.label} <span className="text-ink-4">· {p.note}</span>
+                {jobPostings && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[12px] text-ink-4">Careers sites:</span>
+                    {ATS_EXAMPLES.map((p) => (
+                      <button key={p.label} type="button" onClick={() => { setUrl(p.url); setDetection(null); }} className="rounded-full border border-line px-2.5 py-1 text-[12px] text-ink-2 hover:border-line-strong">
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {detection && <DetectionCard d={detection} />}
+
+                <p className="mt-4 text-[12px] font-medium text-ink-3">Kind of source</p>
+                <div className="mt-1.5 flex flex-col gap-1.5" role="radiogroup" aria-label="Kind of source">
+                  {kinds.map(({ kind: k, title, body, icon: Icon }) => (
+                    <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={cn("flex items-start gap-3 rounded-[12px] border px-3 py-2.5 text-left", kind === k ? "border-brand-400 bg-brand-50/60" : "border-line hover:border-line-strong")}>
+                      <Icon className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
+                      <span className="min-w-0">
+                        <span className="block text-[14px] font-medium text-ink">{title}</span>
+                        <span className="block text-[12px] text-ink-3">{body}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
-                {detection && <DetectionCard d={detection} onContinue={() => setStep("configure")} />}
-                {!detection && kind !== "ats_board" && (
-                  <div className="mt-3">
-                    <Button variant="outline" size="sm" onClick={() => setStep("configure")}>
-                      Skip detection and configure manually
-                    </Button>
-                  </div>
-                )}
+                <p className="mt-3 flex items-start gap-2 text-[12px] text-ink-3">
+                  <Upload className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  <span>
+                    A partner&apos;s list (CSV or JSON), or a reviewed catalogue source?{" "}
+                    <Link href="/platform/jobs-lake/import" className="font-medium text-brand-600 hover:underline">
+                      Data → Import
+                    </Link>
+                  </span>
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <Button onClick={() => setStep("configure")} disabled={!canContinue || (kind !== "scraper" && kind !== "ats_board" && !url.trim())}>
+                    Continue
+                  </Button>
+                </div>
               </Panel>
             </>
           )}
 
           {step === "configure" && (
             <ConfigureStep
+              module={module}
               kind={kind}
               url={url}
               detection={detection}
@@ -177,7 +212,7 @@ export default function AddSourcePage() {
           )}
 
           {step === "mapping" && source && (
-            <Panel title="Map the response to WorksLake fields">
+            <Panel title="Map its fields">
               <MappingEditor
                 sourceId={source.id}
                 initial={EMPTY_MAPPING}
@@ -198,14 +233,14 @@ export default function AddSourcePage() {
 
           {step === "test" && source && (
             <Panel
-              title="Test & validate"
+              title="Test"
               action={
                 <Button size="sm" onClick={() => runTest(source.id)} loading={busy}>
                   {report ? "Test again" : "Run test"}
                 </Button>
               }
             >
-              {report ? <TestReportView report={report} /> : <p className="text-[13px] text-ink-3">The test fetches from {source.name} through its real connector and validates every record against Protocol v1. Nothing is shown to candidates.</p>}
+              {report ? <TestReportView report={report} /> : <p className="text-[13px] text-ink-3">The test fetches from {source.name} and checks every listing. Nobody sees anything from it yet.</p>}
               <div className="mt-4 flex justify-between gap-2">
                 <Button variant="ghost" onClick={() => setStep(needsMapping ? "mapping" : "configure")} disabled={needsMapping ? false : true}>
                   Back
@@ -218,10 +253,10 @@ export default function AddSourcePage() {
           )}
 
           {step === "activate" && source && report && (
-            <Panel title={activated ? "Source activated" : "Ready to activate"}>
+            <Panel title={activated ? "Live" : "Ready to go live"}>
               {activated ? (
                 <div className="flex flex-col items-start gap-3">
-                  <Note tone="success">{source.name} is active. WorksLake includes it in searches from now on, and its health is measured from the runs it records.</Note>
+                  <Note tone="success">{source.name} is live in {moduleLabel}. Its listings reach Find from the next search or import, and its health shows on its page.</Note>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" href={`/platform/jobs-lake/sources/${source.id}`}>
                       View source
@@ -235,9 +270,9 @@ export default function AddSourcePage() {
                 <>
                   <dl className="grid grid-cols-3 gap-2 text-center">
                     {[
-                      ["Jobs discovered", report.discovered],
-                      ["Valid records", report.valid],
-                      ["Potential duplicates", report.duplicates],
+                      ["Listings found", report.discovered],
+                      ["Valid", report.valid],
+                      ["Possible duplicates", report.duplicates],
                     ].map(([k, v]) => (
                       <div key={k as string} className="rounded-[12px] bg-bg-soft p-3">
                         <dt className="text-[11px] text-ink-3">{k}</dt>
@@ -245,7 +280,7 @@ export default function AddSourcePage() {
                       </div>
                     ))}
                   </dl>
-                  <p className="mt-3 text-[13px] text-ink-3">From the test run {new Date(report.at).toLocaleTimeString()}. Activation needs a passing test from the last 24 hours.</p>
+                  <p className="mt-3 text-[13px] text-ink-3">From the test run {new Date(report.at).toLocaleTimeString()}. Going live needs a passing test from the last 24 hours.</p>
                   <div className="mt-4 flex justify-between gap-2">
                     <Button variant="ghost" onClick={() => setStep("test")}>
                       Back
@@ -262,7 +297,7 @@ export default function AddSourcePage() {
                         setActivated(true);
                       }}
                     >
-                      Activate source
+                      Make it live
                     </Button>
                   </div>
                 </>
@@ -275,7 +310,7 @@ export default function AddSourcePage() {
   );
 }
 
-function DetectionCard({ d, onContinue }: { d: Detection; onContinue: () => void }) {
+function DetectionCard({ d }: { d: Detection }) {
   if (d.kind === "ats_board")
     return (
       <div className="mt-4 rounded-[14px] border border-success-100 bg-success-100/40 p-3">
@@ -285,23 +320,17 @@ function DetectionCard({ d, onContinue }: { d: Detection; onContinue: () => void
         <p className="mt-1 text-[12px] text-ink-3">
           Board <span className="font-mono">{d.slug}</span> · official API · no credential needed · capabilities: {d.capabilities.join(", ")}
         </p>
-        <Button size="sm" className="mt-3" onClick={onContinue}>
-          Continue
-        </Button>
       </div>
     );
   if (d.kind === "partnership" || d.kind === "invalid") return <div className="mt-4">{<Note tone={d.kind === "invalid" ? "danger" : "warning"}>{d.message}</Note>}</div>;
   return (
-    <div className="mt-4 flex flex-col items-start gap-2">
-      <Note>{d.message}</Note>
-      <Button size="sm" onClick={onContinue}>
-        Configure as the type selected above
-      </Button>
+    <div className="mt-4">
+      <Note>{d.message} Pick its kind below.</Note>
     </div>
   );
 }
 
-function ConfigureStep({ kind, url, detection, onBack, onCreated }: { kind: Kind; url: string; detection: Detection | null; onBack: () => void; onCreated: (s: SourceView) => void }) {
+function ConfigureStep({ module, kind, url, detection, onBack, onCreated }: { module: ModuleId; kind: Kind; url: string; detection: Detection | null; onBack: () => void; onCreated: (s: SourceView) => void }) {
   const ats = detection?.kind === "ats_board" ? detection : null;
   const guessCompany = ats ? ats.slug.replace(/[-_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
   const cleanUrl = url.trim() && !/^https?:\/\//i.test(url.trim()) ? `https://${url.trim()}` : url.trim();
@@ -351,7 +380,7 @@ function ConfigureStep({ kind, url, detection, onBack, onCreated }: { kind: Kind
           if (!cfg) return;
           setBusy(true);
           setError(null);
-          const r = await adminFetch<{ source: SourceView }>("sources", { method: "POST", body: JSON.stringify({ name, description, geography: geo.split(",").map((g) => g.trim()).filter(Boolean), config: cfg, credential: credential || undefined }) });
+          const r = await adminFetch<{ source: SourceView }>("sources", { method: "POST", body: JSON.stringify({ module, name, description, geography: geo.split(",").map((g) => g.trim()).filter(Boolean), config: cfg, credential: credential || undefined }) });
           setBusy(false);
           setCredential("");
           if (!r.ok) return setError(r.error.message);
