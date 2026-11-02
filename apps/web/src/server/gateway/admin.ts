@@ -156,3 +156,17 @@ export function registerFromCatalogue(file: string) {
 export function testGatewaySource(sourceId: string) {
   return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/test`, {});
 }
+
+/**
+ * Records collected outside the app (the weekly GitHub job for OpenStreetMap, osm-collect.yml), delivered to every
+ * registered source read from `url`: mapped and checked as the source's own fetch would be, then they replace its
+ * listings and count as its test. Returns each source's result.
+ */
+export async function ingestByUrl(url: string, items: unknown[]): Promise<{ sourceId: string; status: number; body: Record<string, unknown> }[]> {
+  const hosted = hostedGateway();
+  if (!hosted) return [];
+  const ids = await hosted.store.read((s) => s.sources.filter((x) => x.url === url && x.kind === "json_api").map((x) => x.id as string));
+  const out = [];
+  for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items })) });
+  return out;
+}
