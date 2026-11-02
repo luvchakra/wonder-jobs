@@ -15,6 +15,7 @@ import { placeWithCountry } from "@/domain/jobslake/country";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
+import { loadScheduler } from "@/server/scheduler/store";
 import { gatewayModuleForSource } from "./gatewaySources";
 import { isAvailable, listSources, runConnector } from "./registry";
 import { jobsLakeStore } from "./store";
@@ -55,7 +56,10 @@ export async function lastGatewayRefresh(): Promise<GatewayRefresh | null> {
  */
 export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date()): Promise<GatewayRefresh> {
   const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
+  // A module whose import is paused (Data → Import) keeps what Find has; nothing new is stored for it.
+  const paused = new Set((await loadScheduler()).gateway.pausedModules);
   for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
+    if (paused.has(mod)) continue;
     const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
     const observations: Observation[] = [];
     // Each source's read is recorded as a "refresh" run, so Overview and Runs count what the job fetched.

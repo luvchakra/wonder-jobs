@@ -14,7 +14,7 @@ import { stateStore } from "@/server/state";
 import { refreshGatewayListings } from "@/server/jobslake/warm";
 import { collectGatewaySource, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
 
-export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string };
+export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string } | { kind: "collect"; sourceId: string };
 
 export interface SetupJobItem {
   /** The Setup to-do item's id ("gateway:src_…", "catalogue:<file>"). */
@@ -66,9 +66,17 @@ export async function startSetupJob(items: { id: string; name: string; run: Setu
   return { ok: true, job };
 }
 
-/** One item, as the row's button does it: add (if new) → test → activate when the test found valid listings → collect. */
+/**
+ * One item, as the row's button does it: add (if new) → test → activate when the test found valid listings → collect.
+ * A "collect" item only collects a live source now (Import this module).
+ */
 export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = () => undefined): Promise<{ ok: true; valid: number; sourceId: string } | { ok: false; step: string; message: string }> {
   const msg = (b: Record<string, unknown>, fallback: string) => String((b.error as { message?: string } | undefined)?.message ?? fallback);
+  if (run.kind === "collect") {
+    onStep("Collect");
+    const c = await collectGatewaySource(run.sourceId);
+    return c.ok ? { ok: true, valid: c.valid ?? 0, sourceId: run.sourceId } : { ok: false, step: "Collect", message: c.code };
+  }
   let sourceId = run.kind === "activate" ? run.sourceId : "";
   if (run.kind === "add") {
     onStep("Add");

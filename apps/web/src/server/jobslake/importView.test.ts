@@ -19,13 +19,24 @@ describe("Import page: a module's sources as rows with one state and one action 
       ["catalogue:osm.json", "waiting", "run"],
       ["gateway:src_b", "waiting", "run"],
       ["thp_osm", "down", "link"],
-      ["gateway:src_a", "live", "pause"],
-      ["thp_wonderworks", "live", "link"],
-      ["thp_off", "off", "link"],
+      ["gateway:src_a", "live", undefined], // a healthy live row needs nothing; its ways to fix or pause are under Details
+      ["thp_wonderworks", "live", undefined],
+      ["thp_off", "off", "source_status"],
     ]);
     expect(rows.find((r) => r.id === "gateway:src_a")?.listings).toBe(10);
+    // Investigating and fixing: a live gateway source can be collected, tested or paused from its Details; a live WorksLake source paused.
+    expect(rows.find((r) => r.id === "gateway:src_a")?.more.map((a) => a.kind)).toEqual(["collect", "test", "pause"]);
+    expect(rows.find((r) => r.id === "thp_wonderworks")?.more.map((a) => a.kind)).toEqual(["source_status", "link"]);
+    expect(rows.find((r) => r.id === "thp_off")?.action).toMatchObject({ kind: "source_status", status: "active", label: "Resume" });
+    expect(rows.find((r) => r.id === "gateway:src_b")?.history.map((h) => h.label)).toContain("Last test");
     expect(rows.some((r) => r.id === "works_gateway_therapists")).toBe(false); // the bridge is automatic, not a row
     expect(rows.some((r) => r.id === "adzuna" || r.id === "gateway:src_c")).toBe(false); // another module's
+  });
+
+  it("a gateway source whose last collection failed is down, with Collect now as its action and the failure in its history", () => {
+    const [row] = moduleRows("events", [], [gw("src_e", "events", { enabled: true, listings: 40, lastError: "SOURCE_UNAVAILABLE" })], []);
+    expect(row).toMatchObject({ state: "down", action: { kind: "collect" } });
+    expect(row.history.find((h) => h.label === "Last collection")?.value).toMatch(/failed: SOURCE_UNAVAILABLE/);
   });
 
   it("a partner's row asks for its list, then offers Activate once one is uploaded", () => {
