@@ -19,6 +19,7 @@ type Data = {
   jobs: Job[];
   runs: CronRun[];
   schedules: { accounts: number; total: number; enabled: number; dueNow: number; list: ScheduleRow[] };
+  gateway: { refresh: { at: string; stored: Record<string, number> } | null; job: { done: number; total: number } | null };
 };
 
 const when = (iso?: string) => (iso ? `${new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · ${relativeTime(iso)}` : "—");
@@ -40,9 +41,9 @@ export default function SchedulerPage() {
 function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
   const [draft, setDraft] = useState<SchedulerSettings>(data.settings);
   const [saving, setSaving] = useState(false);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState<CronRun["job"] | null>(null);
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
-  const dirty = JSON.stringify({ a: draft.scheduledRuns, b: draft.companyRefresh }) !== JSON.stringify({ a: data.settings.scheduledRuns, b: data.settings.companyRefresh });
+  const dirty = JSON.stringify({ a: draft.scheduledRuns, b: draft.companyRefresh, c: draft.gateway }) !== JSON.stringify({ a: data.settings.scheduledRuns, b: data.settings.companyRefresh, c: data.settings.gateway });
   const sr = (patch: Partial<SchedulerSettings["scheduledRuns"]>) => setDraft((d) => ({ ...d, scheduledRuns: { ...d.scheduledRuns, ...patch } }));
   const cr = (patch: Partial<SchedulerSettings["companyRefresh"]>) => setDraft((d) => ({ ...d, companyRefresh: { ...d.companyRefresh, ...patch } }));
 
@@ -55,15 +56,20 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
     setMessage({ tone: "success", text: "Saved. The next run uses these settings." });
     reload();
   };
-  const runNow = async () => {
-    setRunning(true);
+  const runNow = async (job: CronRun["job"]) => {
+    setRunning(job);
     setMessage(null);
-    const r = await adminFetch<{ outcome: string; report?: { postings: number; companies: number; logosChecked: number; logosFound: number } }>("scheduler", { method: "POST", body: JSON.stringify({ job: "jobslake-companies" }) });
-    setRunning(false);
+    const r = await adminFetch<{ outcome?: string; summary?: string; report?: { postings: number; companies: number; logosChecked: number; logosFound: number } }>("scheduler", { method: "POST", body: JSON.stringify({ job }) });
+    setRunning(null);
     if (!r.ok) setMessage({ tone: "danger", text: r.error.message });
     else if (r.data.report) setMessage({ tone: "success", text: `Company refresh done: ${r.data.report.companies} companies from ${r.data.report.postings} postings; ${r.data.report.logosFound} of ${r.data.report.logosChecked} logos found.` });
+    else if (r.data.summary) setMessage({ tone: "success", text: `Gateway collection done: ${r.data.summary}.` });
     reload();
   };
+  // Whether each job is switched on; the jobs without a switch always run.
+  const isOn = (id: CronRun["job"]) => (id === "scheduled-runs" ? draft.scheduledRuns.enabled : id === "jobslake-companies" ? draft.companyRefresh.enabled : id === "jobslake-ratings" ? draft.ratings.enabled : true);
+  const RUNNABLE: CronRun["job"][] = ["jobslake-companies", "gateway-collect"];
+  const refresh = data.gateway.refresh;
 
   const num = (value: number, onChange: (n: number) => void, [lo, hi]: readonly [number, number], unit: string) => (
     <span className="flex items-center gap-2">
@@ -91,7 +97,7 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
       <Panel title="Jobs">
         <ul className="divide-y divide-line">
           {data.jobs.map((j) => {
-            const on = j.id === "scheduled-runs" ? draft.scheduledRuns.enabled : draft.companyRefresh.enabled;
+            const on = isOn(j.id);
             return (
               <li key={j.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
                 <span className="min-w-0">
@@ -106,8 +112,8 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
                   </span>
                   {j.lastRun && <span className="mt-0.5 block text-[12px] text-ink-3">Last run {when(j.lastRun.finishedAt)} — {j.lastRun.summary}</span>}
                 </span>
-                {j.id === "jobslake-companies" && (
-                  <Button size="sm" variant="outline" className="shrink-0" icon={<Play className="size-3.5" aria-hidden />} loading={running} onClick={() => void runNow()}>
+                {RUNNABLE.includes(j.id) && (
+                  <Button size="sm" variant="outline" className="shrink-0" icon={<Play className="size-3.5" aria-hidden />} loading={running === j.id} disabled={!!running} onClick={() => void runNow(j.id)}>
                     Run now
                   </Button>
                 )}
@@ -135,11 +141,30 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
         </ul>
       </Panel>
 
+      <Panel title="Gateway collection">
+        <ul className="divide-y divide-line">
+          {row(
+            "Test & activate waiting sources",
+            "Each run also tests the gateway sources waiting on Setup to-do and switches on the ones whose test passes, as one server job. Off: only your press on Setup to-do does it.",
+            <Switch label="Test & activate waiting sources" checked={draft.gateway.activateWaiting} onChange={(v) => setDraft((d) => ({ ...d, gateway: { ...d.gateway, activateWaiting: v } }))} />,
+          )}
+        </ul>
+        <p className="pb-1 text-[12px] text-ink-3">
+          {data.gateway.job ? `Setup job on the server: ${data.gateway.job.done} of ${data.gateway.job.total} done. ` : ""}
+          {refresh
+            ? `Find last refreshed ${when(refresh.at)}: ${Object.entries(refresh.stored)
+                .filter(([, n]) => n > 0)
+                .map(([m, n]) => `${n} ${m}`)
+                .join(", ") || "nothing new"}.`
+            : "Find hasn't been refreshed from the gateway yet; Run now does it."}
+        </p>
+      </Panel>
+
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={!dirty} loading={saving} onClick={() => void save()}>
           Save settings
         </Button>
-        <Button variant="ghost" disabled={saving} onClick={() => setDraft({ ...data.settings, scheduledRuns: data.defaults.scheduledRuns, companyRefresh: data.defaults.companyRefresh })}>
+        <Button variant="ghost" disabled={saving} onClick={() => setDraft({ ...data.settings, scheduledRuns: data.defaults.scheduledRuns, companyRefresh: data.defaults.companyRefresh, gateway: data.defaults.gateway })}>
           Use defaults
         </Button>
         {data.settings.updatedAt && (

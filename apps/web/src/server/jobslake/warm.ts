@@ -1,40 +1,77 @@
 /**
- * Puts a module's gateway-collected listings into WorksLake's stored listings (its warm pool), from a background job:
- * after Setup's job activates a source and after the weekly OpenStreetMap delivery (owner, 2026-11-02: "add/update in
- * the cache in the job"). Reads only data WonderWorks already collected, through the module's `liveRead` sources, so a
- * search without words shows them from the store at once. Never an outside site, never per user search.
+ * The one step that brings gateway-collected listings into Find, for every module (owner, 2026-11-02: "after the job
+ * completes, it should also update the cache so ALL new entries appear for all the modules"; "no duplicate jobs ... no
+ * duplicate entries"). Called only by jobs: when Setup's job finishes, after the weekly OpenStreetMap delivery, and after
+ * a gateway collection that found something. It
+ *  - stores each module's gateway listings in WorksLake's store (the warm pool a search without words shows), all of a
+ *    module's gateway-fed sources canonicalised together, so a listing two sources carry is stored once;
+ *  - retires every cached answer from a gateway-fed source (a newer refresh stamp is part of their cache key), so a
+ *    worded search asks again and sees the new entries.
+ * Reads only data WonderWorks already collected, with no words; never an outside site, never per user search.
  */
-import { canonicalize } from "@/domain/jobslake/canonical";
+import { canonicalize, type Observation } from "@/domain/jobslake/canonical";
 import { validateOpportunity } from "@/domain/jobslake/protocol";
 import { placeWithCountry } from "@/domain/jobslake/country";
-import type { ModuleId } from "@/modules/registry";
+import { MODULES, type ModuleId } from "@/modules/registry";
+import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
+import { stateStore } from "@/server/state";
+import { gatewayModuleForSource } from "./gatewaySources";
 import { isAvailable, listSources, runConnector } from "./registry";
 import { jobsLakeStore } from "./store";
+import type { SourceRecord } from "./types";
 
-export interface WarmResult {
-  module: string;
-  sourceId: string;
-  stored: number;
-  error?: string;
+export interface GatewayRefresh {
+  at: string;
+  /** Listings stored per module. */
+  stored: Record<string, number>;
+  /** Sources that couldn't be read, with why. */
+  failed: { sourceId: string; error: string }[];
 }
 
-/** Stores the latest gateway-collected listings of these modules; one source's failure doesn't stop the rest. */
-export async function warmGatewayModules(modules: Iterable<string>): Promise<WarmResult[]> {
-  const out: WarmResult[] = [];
-  for (const mod of new Set(modules)) {
-    const sources = (await listSources(mod as ModuleId)).filter((s) => s.liveRead && (s.status === "active" || s.status === "degraded"));
+const KEY = "wj.gatewayrefresh" as const;
+
+/** A source whose listings are the data gateway's: read in process (`liveRead`) or through its API (WWDG). */
+export const isGatewayFed = (s: Pick<SourceRecord, "id" | "liveRead">) => !!s.liveRead || !!gatewayModuleForSource(s.id);
+
+const g = globalThis as unknown as { __wjGatewayStamp?: { at?: string; readAt: number } };
+
+/** When gateway listings were last refreshed (memoised for a minute per server). */
+export async function gatewayRefreshStamp(now = Date.now()): Promise<string | undefined> {
+  if (g.__wjGatewayStamp && now - g.__wjGatewayStamp.readAt < 60_000) return g.__wjGatewayStamp.at;
+  const at = ((await stateStore.get(PLATFORM_TENANT, KEY))?.state as GatewayRefresh | undefined)?.at;
+  g.__wjGatewayStamp = { at, readAt: now };
+  return at;
+}
+
+export async function lastGatewayRefresh(): Promise<GatewayRefresh | null> {
+  return ((await stateStore.get(PLATFORM_TENANT, KEY))?.state as GatewayRefresh | undefined) ?? null;
+}
+
+/**
+ * Refreshes these modules (every module when none are named): stores their gateway listings and retires the cached
+ * answers. One source's failure doesn't stop the rest; it's reported.
+ */
+export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date()): Promise<GatewayRefresh> {
+  const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
+  for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
+    const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
+    const observations: Observation[] = [];
     for (const s of sources) {
       try {
         if (!(await isAvailable(s))) continue;
         const r = await runConnector(s, { query: "", locations: [] }, "shallow");
-        const jobs = placeWithCountry(r.jobs, s.geography);
-        const opps = canonicalize(jobs.map((job) => ({ source: s, job }))).opportunities.filter((o) => validateOpportunity(o).length === 0);
-        if (opps.length) await jobsLakeStore().upsertOpportunities(opps, mod as ModuleId);
-        out.push({ module: mod, sourceId: s.id, stored: opps.length });
+        for (const job of placeWithCountry(r.jobs, s.geography)) observations.push({ source: s, job });
       } catch (e) {
-        out.push({ module: mod, sourceId: s.id, stored: 0, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+        result.failed.push({ sourceId: s.id, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
       }
     }
+    if (!sources.length) continue;
+    const opps = canonicalize(observations).opportunities.filter((o) => validateOpportunity(o).length === 0);
+    if (opps.length) await jobsLakeStore().upsertOpportunities(opps, mod as ModuleId);
+    result.stored[mod] = opps.length;
   }
-  return out;
+  // The new stamp retires every gateway-fed source's cached answers (core.ts keys them with it).
+  await stateStore.put(PLATFORM_TENANT, KEY, result);
+  g.__wjGatewayStamp = { at: result.at, readAt: Date.now() };
+  return result;
 }

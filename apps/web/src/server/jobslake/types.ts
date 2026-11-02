@@ -86,8 +86,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   /** The WonderWorks module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */
   module?: ModuleId;
   /**
-   * Reads data WonderWorks already collected (the data gateway's listings), not an outside site: a cached answer saves
-   * nothing and would hide a source activated or refreshed since (2026-11-02), so its answers are never cached.
+   * Reads the data gateway's collected listings in process, never an outside site. Gateway-fed: the jobs that collect
+   * them store its listings in WorksLake and retire its cached answers (warm.ts).
    */
   liveRead?: boolean;
 }
