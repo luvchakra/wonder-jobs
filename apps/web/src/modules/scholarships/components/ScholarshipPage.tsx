@@ -15,7 +15,7 @@ import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
 import { OutcomeButtons } from "@/wonderworks/listing/OutcomeButtons";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { deadlineLabel, durationLabel, GENDER_LABEL, KIND_LABEL, levelsLabel, outsideStatus, OUTSIDE_LABEL, PROVIDER_LABEL, shortDate, valueLabel, WORK_MODE_LABEL, type ScholarshipListing } from "../domain";
+import { deadlineLabel, durationLabel, PROVIDER_NOT_STATED, GENDER_LABEL, KIND_LABEL, levelsLabel, outsideStatus, OUTSIDE_LABEL, PROVIDER_LABEL, shortDate, valueLabel, WORK_MODE_LABEL, type ScholarshipListing } from "../domain";
 import { money } from "@/wonderworks/listing/terms";
 import { useScholarshipsStore } from "../store";
 import { shareOf } from "../share";
@@ -120,7 +120,7 @@ function Page({ l }: { l: ScholarshipListing }) {
           company={l.company}
           name={
             <>
-              {l.company}
+              {l.company || <span className="font-normal text-ink-3">{PROVIDER_NOT_STATED}</span>}
               {l.origin === "wonderstar" && !l.companyVerified && <span className="font-normal text-ink-3"> · not verified yet</span>}
             </>
           }
@@ -174,7 +174,7 @@ function Page({ l }: { l: ScholarshipListing }) {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[12px] text-ink-4">Only from what the {noun} states and your details. {l.company} decides who is selected.</p>
+              <p className="mt-2 text-[12px] text-ink-4">Only from what the {noun} states and your details. {l.company ? `${l.company} decides` : "The provider decides"} who is selected.</p>
             </>
           ) : (
             <p className="text-sm text-ink-3">
@@ -207,11 +207,11 @@ function Page({ l }: { l: ScholarshipListing }) {
               <Fold title="How to apply" hint={outside ? "On the official page" : "On WonderWorks"}>
                 <p className="text-[13px] text-ink-2">
                   {outside
-                    ? `Apply on ${l.company}'s official page. WonderWorks doesn't apply for you there; mark it applied to track it.`
+                    ? `Apply on ${l.company ? `${l.company}'s` : "its"} official page. WonderWorks doesn't apply for you there; mark it applied to track it.`
                     : `Press Apply. ${l.company} gets your details${(l.questions ?? []).length ? ` and your answers to its ${(l.questions ?? []).length === 1 ? "question" : `${(l.questions ?? []).length} questions`}` : ""}.`}
                 </p>
               </Fold>
-              <CompanyFold job={{ company: l.company }} />
+              {l.company && <CompanyFold job={{ company: l.company }} />}
               <Fold title="Source" hint={`Via ${l.sourceName}`}>
                 <p className="text-[13px] text-ink-2">
                   {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}.`}

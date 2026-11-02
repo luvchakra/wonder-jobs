@@ -12,7 +12,7 @@ import { search } from "@/server/jobslake/core";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { asksForFee, isDate, isProjectText, levelsFromText, LEVELS, officialLink, SCHOLARSHIPS, stillOpen, type Level, type ScholarshipListing, type ScholarshipTerms } from "@/modules/scholarships/domain";
 import { openScholarships } from "./applications";
-import { WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { NO_PROVIDER, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
 
@@ -79,7 +79,8 @@ export function outside(o: CanonicalOpportunity, today = new Date().toISOString(
     id: o.id,
     origin: "outside",
     title: o.title,
-    company: o.employer.name,
+    // The pipeline's placeholder for "no provider named" is shown as no provider, never as the source.
+    company: o.employer.name === NO_PROVIDER ? "" : o.employer.name,
     ...(o.employer.domain ? { companyDomain: o.employer.domain } : {}),
     location: o.locations[0] ?? "",
     workMode: o.workplaceType,

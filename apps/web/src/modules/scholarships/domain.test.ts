@@ -179,6 +179,15 @@ describe("you may be eligible — never a guarantee", () => {
   });
 });
 
+describe("provider not stated", () => {
+  it("says so on pages and 'the provider' in sentences, never a source's name", async () => {
+    const { providerLine, providerWord } = await import("./domain");
+    expect(providerLine({ company: "" })).toBe("Provider not stated");
+    expect(providerWord({ company: "" })).toBe("the provider");
+    expect(providerLine({ company: "Tata Trusts" })).toBe("Tata Trusts");
+  });
+});
+
 describe("Refine and stages", () => {
   const s = listing({ kind: "scholarship", currency: "INR", awardAmount: 50000, levels: ["ug"], deadline: "2026-11-05", region: "Karnataka" });
   const p = listing({ kind: "project", currency: "INR", stipend: 5000, deadline: "2027-01-30" }, { workMode: "remote", title: "Data project", location: "Remote" });
