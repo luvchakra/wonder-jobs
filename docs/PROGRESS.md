@@ -85,3 +85,4 @@
 - ✅ Every posting form asks for the country (shared PlaceField) (WJ-642)
 - ✅ OpenStreetMap businesses collected weekly by a GitHub job and delivered to the gateway; the app no longer queries Overpass (WJ-643)
 - ✅ A search without words shows the gateway-collected listings (OpenStreetMap practices and businesses), read fresh, never from the cache (WJ-644)
+- ✅ Setup to-do's "Test & activate all" runs on the server (the page can close); jobs store gateway listings in WorksLake (WJ-645)

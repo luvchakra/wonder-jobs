@@ -170,3 +170,10 @@ export async function ingestByUrl(url: string, items: unknown[]): Promise<{ sour
   for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items })) });
   return out;
 }
+
+/** The modules a gateway source feeds ([] for an unknown source or no gateway). */
+export async function gatewaySourceModules(sourceId: string): Promise<string[]> {
+  const hosted = hostedGateway();
+  if (!hosted) return [];
+  return hosted.store.read((s) => ((s.sources as { id: string; modules?: string[] }[]).find((x) => x.id === sourceId)?.modules ?? []).slice());
+}

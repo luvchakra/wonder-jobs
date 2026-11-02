@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { bearerMatches } from "@/server/crypto";
 import { hostedGateway } from "@/server/gateway";
+import { continueSetupJob } from "@/server/gateway/setupJob";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,9 @@ export async function GET(req: Request) {
   if (!bearerMatches(req, expected)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const hosted = hostedGateway();
   if (!hosted) return NextResponse.json({ ok: true, skipped: "gateway not configured" });
+  // A Setup job left unfinished (its server stopped) is picked up here too, at most once an hour.
+  const setup = await continueSetupJob().catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }));
   const outcomes = await hosted.gateway.collectDue();
   console.info("[gateway-collect]", JSON.stringify(outcomes.map((o) => ({ source: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }))));
-  return NextResponse.json({ ok: outcomes.every((o) => o.ok), outcomes });
+  return NextResponse.json({ ok: outcomes.every((o) => o.ok), outcomes, setup });
 }
