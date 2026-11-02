@@ -55,5 +55,7 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   module,
   builtin: true,
   createdAt: "2026-10-31T00:00:00.000Z",
-  updatedAt: "2026-10-31T00:00:00.000Z",
+  // Bumped whenever what the gateway returns changes, so WorksLake's cached answers (6 h) are retired at once:
+  // 2026-11-02, places carry their country.
+  updatedAt: "2026-11-02T03:00:00.000Z",
 })) : [];
