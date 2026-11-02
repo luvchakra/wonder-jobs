@@ -216,7 +216,7 @@ function Page({ l }: { l: ServiceListing }) {
         {l.origin === "wonderstar" && l.postingId && <RequestQuote listing={l} start={params.get("quote") === "1"} />}
         {l.origin === "outside" && l.applyUrl && (
           <>
-            <Button full iconRight={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => window.open(l.applyUrl, "_blank", "noopener,noreferrer")}>
+            <Button full external href={l.applyUrl} iconRight={<ExternalLink className="size-3.5" aria-hidden />}>
               Open their page
             </Button>
             <OutsideTracker useStore={useServicesStore} id={l.id} item={l} flow={SERVICES_OUTSIDE} pipelineHref="/app/m/services/pipeline" />

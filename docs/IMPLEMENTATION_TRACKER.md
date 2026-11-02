@@ -598,6 +598,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 
 ## Deviations from the spec
 
+- ✅ Talent & Services: "Open their page" on an outside pro's page is a real link opening in a new tab (generic `Button external`), as Therapists; no Call action, since Services never keeps a phone (WJ-595)
 - ✅ Talent & Services: India pass 2 — OpenStreetMap asks for seven more trades (tilers, roofers, glaziers, plasterers, masons, photographers, caterers); `geography: ["IN"]` on all services gateway definitions; Asklaila, Sulekha, WeddingWire.in and government lists researched, not built; Udyam API request is an owner decision (WJ-594).
 - ✅ Talent & Services: WedMeGood vendors as a source (new "Wedding & events" trade) — four sitemap crawl definitions; gateway keeps a page's breadcrumb, reads sitemaps up to 12 MB, searches the breadcrumb; terms pending (WJ-593). Read only, no contact details.
 - ✅ Talent & Services: Houzz professionals as a source — ten gateway crawl definitions, "Design, build & renovation" trade, terms pending (WJ-592). No new capability; read only, no contact details.
