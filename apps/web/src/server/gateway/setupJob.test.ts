@@ -63,6 +63,16 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it("a collect item only collects a live source (Import this module)", async () => {
+    await startSetupJob([{ id: "collect:src_1", name: "Source 1", run: { kind: "collect", sourceId: "src_1" } }], "admin");
+    const run = vi.fn(async (r: SetupRun) => ({ ok: true as const, valid: 9, sourceId: (r as { sourceId: string }).sourceId }));
+    const refresh = vi.fn(async () => ({ stored: { events: 9 } }));
+    await continueSetupJob({ run, sleep: async () => undefined, refresh });
+    expect(run).toHaveBeenCalledWith({ kind: "collect", sourceId: "src_1" }, expect.any(Function));
+    expect((await readSetupJob())?.items[0]).toMatchObject({ status: "live", valid: 9 });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("does nothing with no job, and nothing to queue is refused", async () => {
     expect(await continueSetupJob()).toEqual({ ran: 0, left: 0, done: true });
     expect(await startSetupJob([], "admin")).toMatchObject({ ok: false });

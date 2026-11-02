@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
+import { Fragment, useEffect, useState } from "react";
+import type { ImportAction, ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
@@ -56,7 +56,7 @@ export default function ImportPage() {
     <>
       <PageTitle
         title="Import"
-        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs every hour."
+        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs every hour. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
         actions={
           <Button icon={<Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
             {running ? "Importing…" : "Import now"}
@@ -72,7 +72,7 @@ export default function ImportPage() {
           <JobLine d={data} reload={reload} />
           <div className="flex flex-col gap-3">
             {data.modules.map((m) => (
-              <ModuleCard key={m.id} m={m} reload={reload} />
+              <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
           </div>
           <AddSources reload={reload} />
@@ -143,31 +143,64 @@ function JobLine({ d, reload }: { d: ImportView; reload: () => void }) {
   );
 }
 
-/** One module: its three numbers, and its sources when opened. Open by default when something needs doing. */
-function ModuleCard({ m, reload }: { m: ImportModule; reload: () => void }) {
-  const [open, setOpen] = useState(m.waiting + m.needsYou > 0);
+/**
+ * One module: its three numbers, its import switch and "Import this module", and its sources when opened. Open by
+ * default when something needs doing. A paused module is not collected, set up or refreshed; what Find has stays.
+ */
+function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: boolean; reload: () => void }) {
+  const [open, setOpen] = useState(m.waiting + m.needsYou + (m.paused ? 1 : 0) > 0 || m.problems.length > 0);
+  const [busy, setBusy] = useState<"pause" | "import" | null>(null);
+  const pause = async (paused: boolean) => {
+    setBusy("pause");
+    const r = await post({ action: "module_pause", module: m.id, paused });
+    setBusy(null);
+    if (!r.ok) toast.error("Couldn't change it", r.error.message);
+    else toast.success(paused ? `${m.label} import paused` : `${m.label} import resumed`, paused ? "Nothing new is collected or stored for it until you resume. What Find has stays." : "The next hourly run includes it again.");
+    reload();
+  };
+  const importNow = async () => {
+    setBusy("import");
+    const r = await post({ action: "module_import", module: m.id });
+    setBusy(null);
+    if (r.ok) toast.success(`${m.label}: import started`, `${num(Number(r.data.queued))} steps on the server; then Find is refreshed.`);
+    else toast.error("Didn't start", r.error.message);
+    reload();
+  };
   return (
-    <Panel>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left">
-        <span className="flex min-w-0 items-center gap-2">
-          <ChevronDown className={`size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
-          <span className="min-w-0">
-            <span className="block text-[14px] font-semibold text-ink">{m.label}</span>
-            <span className="block text-[12px] text-ink-3">{m.dataType}</span>
+    <Panel className={m.paused ? "opacity-80" : undefined}>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left">
+          <span className="flex min-w-0 items-center gap-2">
+            <ChevronDown className={`size-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+                {m.label}
+                {m.paused && <Badge tone="neutral">Import paused</Badge>}
+              </span>
+              <span className="block text-[12px] text-ink-3">{m.dataType}</span>
+            </span>
           </span>
-        </span>
-        <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] tabular-nums text-ink-2">
-          <span>
-            {num(m.live)} live
-            {m.waiting ? <Badge tone="info" className="ml-1.5">{num(m.waiting)} waiting</Badge> : null}
-            {m.needsYou ? <Badge tone="warning" className="ml-1.5">{num(m.needsYou)} need you</Badge> : null}
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] tabular-nums text-ink-2">
+            <span>
+              {num(m.live)} live
+              {m.waiting ? <Badge tone="info" className="ml-1.5">{num(m.waiting)} waiting</Badge> : null}
+              {m.needsYou ? <Badge tone="warning" className="ml-1.5">{num(m.needsYou)} need you</Badge> : null}
+              {m.problems.length && !m.needsYou ? <Badge tone="danger" className="ml-1.5">{num(m.problems.length)} down</Badge> : null}
+            </span>
+            <span className="text-ink-4">→</span>
+            <span>{num(m.collected)} collected</span>
+            <span className="text-ink-4">→</span>
+            <span className="font-medium text-ink">{m.inFind == null ? "—" : num(m.inFind)} in Find</span>
           </span>
-          <span className="text-ink-4">→</span>
-          <span>{num(m.collected)} collected</span>
-          <span className="text-ink-4">→</span>
-          <span className="font-medium text-ink">{m.inFind == null ? "—" : num(m.inFind)} in Find</span>
+        </button>
+        <span className="flex shrink-0 items-center gap-3">
+          <Switch label={`Import ${m.label}`} checked={!m.paused} disabled={!!busy} onChange={(on) => void pause(!on)} />
+          <Button size="sm" variant="outline" loading={busy === "import"} disabled={!!busy || jobRunning || m.paused || (m.live + m.waiting === 0)} onClick={() => void importNow()}>
+            Import this module
+          </Button>
         </span>
-      </button>
+      </div>
+      {!open && m.problems.length > 0 && <p className="mt-2 text-[12px] text-danger-600">{m.problems.slice(0, 2).join(" · ")}{m.problems.length > 2 ? ` · +${m.problems.length - 2} more` : ""}</p>}
       {open && (
         <ul className="mt-3 flex flex-col divide-y divide-line border-t border-line">
           {m.rows.length ? m.rows.map((r) => <Row key={r.id} r={r} reload={reload} />) : <li className="py-3 text-[13px] text-ink-4">No sources yet. Add one below.</li>}
@@ -177,10 +210,40 @@ function ModuleCard({ m, reload }: { m: ImportModule; reload: () => void }) {
   );
 }
 
-/** A source: its state, a line on it, and its one action. */
+/** One action button, for a row's main action and its Details. */
+function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm" }: { a: ImportAction; rowId: string; busy: boolean; act: (body: Record<string, unknown>, done: (d: Record<string, unknown>) => string) => Promise<void>; setBusy: (b: boolean) => void; setMsg: (m: string | null) => void; reload: () => void; size?: "sm" }) {
+  if (a.kind === "link")
+    return (
+      <Link href={a.href} className="text-[12px] font-medium text-brand-600 hover:underline">
+        {a.label}
+      </Link>
+    );
+  if (a.kind === "upload") return <Upload sourceId={a.sourceId} busy={busy} setBusy={setBusy} setMsg={setMsg} reload={reload} />;
+  const body: Record<string, unknown> =
+    a.kind === "run" ? { action: "item", id: rowId }
+    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
+    : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
+    : { action: a.kind, sourceId: a.sourceId };
+  const done = (d: Record<string, unknown>) =>
+    a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
+    : a.kind === "decide" ? "Decided"
+    : a.kind === "pause" ? "Paused"
+    : a.kind === "activate" ? "Live"
+    : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
+    : a.kind === "test" ? (d.ok === false ? `Test didn't pass: ${num(Number(d.valid ?? 0))} of ${num(Number(d.discovered ?? 0))} read well` : `Test passed · ${num(Number(d.valid ?? 0))} read well`)
+    : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
+  return (
+    <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
+      {a.label}
+    </Button>
+  );
+}
+
+/** A source: its state, a line on it, its one action, and Details (what it did lately, and the ways to fix or pause it). */
 function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [details, setDetails] = useState(false);
   const s = STATE[r.state];
   const act = async (body: Record<string, unknown>, done: (d: Record<string, unknown>) => string) => {
     setBusy(true);
@@ -191,38 +254,46 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
     else setMsg(res.error.message);
     reload();
   };
-  const a = r.action;
+  const shared = { rowId: r.id, busy, act, setBusy, setMsg, reload };
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-[13px]">
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <Badge tone={s.tone}>{s.label}</Badge>
-          <span className="font-medium text-ink">{r.name}</span>
-          <span className="text-[12px] text-ink-4">{r.kind}</span>
+    <li className="py-2.5 text-[13px]">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge tone={s.tone}>{s.label}</Badge>
+            <span className="font-medium text-ink">{r.name}</span>
+            <span className="text-[12px] text-ink-4">{r.kind}</span>
+            {(r.history.length > 0 || r.more.length > 0) && (
+              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-[12px] text-ink-3 hover:text-ink">
+                {details ? "Hide details" : "Details"}
+              </button>
+            )}
+          </span>
+          <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
         </span>
-        <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
-      </span>
-      {a?.kind === "run" && (
-        <Button size="sm" variant="outline" loading={busy} onClick={() => void act({ action: "item", id: r.id }, (d) => `Live · ${num(Number(d.valid ?? 0))} listings`)}>
-          {a.label}
-        </Button>
+        {r.action && <ActionButton a={r.action} {...shared} />}
+      </div>
+      {details && (
+        <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
+          {r.history.length > 0 && (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
+              {r.history.map((h) => (
+                <Fragment key={h.label}>
+                  <dt className="text-ink-4">{h.label}</dt>
+                  <dd className="text-ink-2">{h.value}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          )}
+          {r.more.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {r.more.map((a) => (
+                <ActionButton key={a.label} a={a} {...shared} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
-      {a?.kind === "link" && (
-        <Link href={a.href} className="text-[12px] font-medium text-brand-600 hover:underline">
-          {a.label}
-        </Link>
-      )}
-      {a?.kind === "decide" && (
-        <Button size="sm" variant="outline" loading={busy} onClick={() => void act({ action: "decide", decision: a.decision, done: true }, () => "Decided")}>
-          {a.label}
-        </Button>
-      )}
-      {(a?.kind === "pause" || a?.kind === "activate") && (
-        <Button size="sm" variant="outline" loading={busy} onClick={() => void act({ action: a.kind, sourceId: a.sourceId }, () => (a.kind === "pause" ? "Paused" : "Live"))}>
-          {a.label}
-        </Button>
-      )}
-      {a?.kind === "upload" && <Upload sourceId={a.sourceId} busy={busy} setBusy={setBusy} setMsg={setMsg} reload={reload} />}
     </li>
   );
 }
