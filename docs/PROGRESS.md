@@ -100,4 +100,5 @@
 - ✅ Admin Listings pages offer every module as a chip and read generically, not as Jobs pages (WJ-655)
 - ✅ Plans & features cover every module: shared limits for scheduled searches and AI drafts, Jobs-only features marked Jobs (WJ-656)
 - ✅ App menus: "Modules" replaces "Find menu"; admin shows the WonderWorks logo and every module's listings (WJ-657)
+- ✅ Add a source works for every module, with only the kinds that fit it (WJ-658)
 - ✅ Therapists: the details-page contact link works (a real link: Call, website or OpenStreetMap), a Contacted stage in Sessions with how it went, one title on the page, and practices named after a doctor left out (WJ-602)

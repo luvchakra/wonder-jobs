@@ -176,6 +176,16 @@ describe("activation needs a real passing test (WJ-JL-008..012)", () => {
     expect(r.status).toBe(409);
   });
 
+  it("a source joins the module it was added for, and a job-only kind is refused for other modules (2026-11-02)", async () => {
+    asAdmin();
+    const r = await createSource(post("/admin/sources", { ...JSON_API, credential: undefined, module: "events" }));
+    expect(r.status).toBe(201);
+    const { source } = await r.json();
+    expect((await jobsLakeStore().listSources("events")).find((s) => s.id === source.id)?.module).toBe("events");
+    const refused = await createSource(post("/admin/sources", { ...board, module: "events" }));
+    expect(refused.status).toBe(400);
+  });
+
   it("a failing test blocks activation, a passing one allows it", async () => {
     asAdmin();
     const { source } = await (await createSource(post("/admin/sources", board))).json();

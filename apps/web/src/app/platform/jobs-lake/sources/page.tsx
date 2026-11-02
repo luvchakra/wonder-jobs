@@ -102,7 +102,7 @@ function Sources() {
         title="Sources"
         subtitle="Every source WorksLake knows, how it's accessed, and how it has actually performed over the last 7 days."
         actions={
-          <Button size="sm" href="/platform/jobs-lake/add">
+          <Button size="sm" href={mod ? `/platform/jobs-lake/add?module=${mod.id}` : "/platform/jobs-lake/add"}>
             Add source
           </Button>
         }
