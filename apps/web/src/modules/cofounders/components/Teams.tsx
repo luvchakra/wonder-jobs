@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -164,7 +165,7 @@ function TeamForm({ existing, onDone }: { existing: MyTeam | null; onDone: (save
         <Segmented<Commitment | ""> label="Commitment" value={t.commitment ?? ""} onChange={(v) => set("commitment", v || undefined)} options={[{ value: "", label: "Not stated" }, ...COMMITMENTS.map((c) => ({ value: c, label: c }))]} />
       </Field>
       <Field label="City" htmlFor="tm-loc">
-        <Input id="tm-loc" value={t.location} maxLength={80} onChange={(e) => set("location", e.target.value)} />
+        <PlaceField id="tm-loc" value={t.location} maxLength={80} onChange={(v) => set("location", v)} />
       </Field>
       <Field label="Equity" htmlFor="tm-eq">
         <Input id="tm-eq" value={t.equity} maxLength={200} onChange={(e) => set("equity", e.target.value)} />

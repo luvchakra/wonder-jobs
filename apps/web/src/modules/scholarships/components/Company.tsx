@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, Plus, Trash2 } from "lucide-react";
@@ -376,7 +377,7 @@ function PostingForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
               </Select>
             </Field>
             <Field label="Where" htmlFor="sf-loc" required={f.workMode !== "remote"}>
-              <Input id="sf-loc" value={f.location} onChange={set("location")} />
+              <PlaceField id="sf-loc" value={f.location} onChange={(v) => setF((x) => ({ ...x, location: v }))} required={f.workMode !== "remote"} />
             </Field>
             <Field label="Duration (weeks)" htmlFor="sf-weeks" required>
               <Input id="sf-weeks" inputMode="numeric" value={f.durationWeeks} onChange={set("durationWeeks")} />

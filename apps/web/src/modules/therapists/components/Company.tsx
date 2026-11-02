@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -260,7 +261,7 @@ function ListingForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
         </Field>
         {modes.includes("in_person") && (
           <Field label="City" htmlFor="tf-city" required>
-            <Input id="tf-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Pune" />
+            <PlaceField id="tf-city" value={city} onChange={setCity} placeholder="Pune" required />
           </Field>
         )}
         <Field label="Languages" required>

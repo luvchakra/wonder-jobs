@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
@@ -327,9 +328,9 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
           </Select>
         </Field>
         {local && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Field label="City" htmlFor="sf-city" required>
-              <Input id="sf-city" value={f.location} onChange={set("location")} placeholder="Pune" />
+              <PlaceField id="sf-city" value={f.location} onChange={(v) => setF((x) => ({ ...x, location: v }))} placeholder="Pune" required />
             </Field>
             <Field label="Areas or pin codes you serve" htmlFor="sf-areas" hint="Separate them with commas" required>
               <Input id="sf-areas" value={f.areas} onChange={set("areas")} placeholder="Kothrud, 411038" />

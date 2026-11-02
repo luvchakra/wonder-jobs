@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/common/Button";
@@ -291,7 +292,7 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
               Online
             </Chip>
           </div>
-          {!online && <Input aria-label="Place" value={place} onChange={(e) => setPlace(e.target.value)} placeholder="Koregaon Park, Pune" />}
+          {!online && <PlaceField value={place} onChange={setPlace} placeholder="Koregaon Park, Pune" required />}
         </Field>
         <Field label="Seats" htmlFor="ef-cap" hint="Empty means no limit. Raising it moves people up from the waitlist">
           <Input id="ef-cap" inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="12" />

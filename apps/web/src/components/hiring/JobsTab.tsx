@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import type { EmployerJob } from "@/domain/org/types";
@@ -196,7 +197,7 @@ function JobForm({ orgId, id, initial, onClose, onSaved }: { orgId: string; id?:
           <Input id="jt" value={j.title} onChange={(e) => set({ title: e.target.value })} maxLength={140} placeholder="Senior Platform Engineer" />
         </Field>
         <Field label="Location" htmlFor="jl" required>
-          <Input id="jl" value={j.location} onChange={(e) => set({ location: e.target.value })} maxLength={120} placeholder="Bengaluru, or Remote" />
+          <PlaceField id="jl" value={j.location} onChange={(v) => set({ location: v })} placeholder="Bengaluru, or Remote" />
         </Field>
         <Field label="Work mode" htmlFor="jw">
           <Select id="jw" value={j.workMode} onChange={(e) => set({ workMode: e.target.value as JobInput["workMode"] })}>

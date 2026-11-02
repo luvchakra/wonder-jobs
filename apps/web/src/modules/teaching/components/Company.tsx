@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, Plus } from "lucide-react";
@@ -272,7 +273,7 @@ function OpeningForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
             </Select>
           </Field>
           <Field label="Where" htmlFor="tf-loc" required={f.workMode !== "remote"}>
-            <Input id="tf-loc" value={f.location} onChange={set("location")} />
+            <PlaceField id="tf-loc" value={f.location} onChange={(v) => setF((x) => ({ ...x, location: v }))} required={f.workMode !== "remote"} />
           </Field>
         </div>
         <fieldset>

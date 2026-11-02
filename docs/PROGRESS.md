@@ -82,3 +82,4 @@
 - ✅ Gateway listings show their country on cards and detail pages (e.g. 'Chatham, United Kingdom') (WJ-639)
 - ✅ Every module: listings' places name their country (WorksLake sources, cached answers too) (WJ-641)
 - ✅ Country on cards shows at once (cached gateway answers retired) and in modules that read the gateway directly (WJ-640)
+- ✅ Every posting form asks for the country (shared PlaceField) (WJ-642)

@@ -1,4 +1,5 @@
 "use client";
+import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -190,7 +191,7 @@ function Editor({ initial, onDone }: { initial: Mine | null; onDone: () => void 
         <input type="checkbox" checked={negotiable} onChange={(e) => setNegotiable(e.target.checked)} /> Open to offers
       </label>
       <Field label="Area" htmlFor="mk-area2" hint="Where buyers can see it, e.g. Indiranagar, Bengaluru">
-        <Input id="mk-area2" value={area} maxLength={80} onChange={(e) => setArea(e.target.value)} />
+        <PlaceField id="mk-area2" value={area} maxLength={80} onChange={setArea} />
       </Field>
       <Field label={`Photos (${photos.length} of ${MAX_PHOTOS})`} hint="JPEG, PNG or WebP. Each photo is shrunk on your device and its location data is removed. At least one is needed to publish.">
         <div className="flex flex-wrap gap-2">
