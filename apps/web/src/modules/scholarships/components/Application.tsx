@@ -15,7 +15,7 @@ import { ItemAside, ItemHead, ItemMain, ItemPage, ItemSection, StageSteps } from
 import { formatDate } from "@/lib/format";
 import { call } from "@/wonderworks/api";
 import { listingHref, scholarshipsManifest } from "../manifest";
-import { canWithdraw, deadlineLabel, KIND_LABEL, LEVEL_LABEL, OUTSIDE_LABEL, outsideStatus, shortDate, stageOf, STATUS_LABEL, valueLabel, type MyScholarshipApplicationDetail, type ScholarshipListing, type ScholarshipStatus } from "../domain";
+import { PROVIDER_NOT_STATED, canWithdraw, deadlineLabel, KIND_LABEL, LEVEL_LABEL, OUTSIDE_LABEL, outsideStatus, shortDate, stageOf, STATUS_LABEL, valueLabel, type MyScholarshipApplicationDetail, type ScholarshipListing, type ScholarshipStatus } from "../domain";
 import { useScholarshipsStore } from "../store";
 
 const noop = () => () => undefined;
@@ -72,10 +72,10 @@ export function ScholarshipApplication({ id }: { id: string }) {
     const l = outside.item;
     const st = outsideStatus(outside.ref) ?? "applied";
     return (
-      <ItemPage back={BACK} title={`${l.title} · ${l.company}`} badge={<Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge>}>
+      <ItemPage back={BACK} title={l.company ? `${l.title} · ${l.company}` : l.title} badge={<Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge>}>
         <ItemMain>
           <Card>
-            <ItemHead company={l.company} domain={l.companyDomain} lines={[facts([KIND_LABEL[l.terms.kind], valueLabel(l.terms)]), deadlineLabel(l.terms)]}>
+            <ItemHead company={l.company || PROVIDER_NOT_STATED} domain={l.companyDomain} lines={[facts([KIND_LABEL[l.terms.kind], valueLabel(l.terms)]), deadlineLabel(l.terms)]}>
               {l.applyUrl && (
                 <a href={l.applyUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-brand-600 hover:underline">
                   Official page <ExternalLink className="size-3.5" aria-hidden />
@@ -95,7 +95,7 @@ export function ScholarshipApplication({ id }: { id: string }) {
         </ItemMain>
         <ItemAside>
           <Card>
-            <p className="text-[13px] text-ink-3">{l.company} doesn&apos;t tell WonderWorks how this goes. Their replies come to you directly.</p>
+            <p className="text-[13px] text-ink-3">{l.company || "The provider"} doesn&apos;t tell WonderWorks how this goes. Their replies come to you directly.</p>
           </Card>
           <Button
             variant="ghost"
