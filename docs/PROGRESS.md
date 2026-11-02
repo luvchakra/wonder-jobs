@@ -107,3 +107,4 @@
 - ✅ Therapists: mapped practices open with a real link, show a Call button when the map has a phone, and practices named after a doctor are left out (WJ-602)
 - ✅ Therapists: clinics named after a doctor are listed again (WJ-603)
 - ✅ A + button on phones posts a new entry in the selected module (WJ-662)
+- ✅ The WonderWorks mark shows wherever it is drawn twice on a page, e.g. the admin header on phones (WJ-662)

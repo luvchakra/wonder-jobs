@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -6,40 +7,43 @@ import { cn } from "@/lib/cn";
  * (`scripts/brand-svg.py`) — change them there and copy them here.
  */
 export function WonderStarMark({ className }: { className?: string }) {
+  // Each mark's own gradient ids (2026-11-02): with shared ids, a page drawing the mark twice (the admin rail, hidden on a
+  // phone, and its phone header) painted the visible one from the hidden one's gradients, which Chrome renders as nothing.
+  const p = useId().replace(/:/g, "");
   return (
     <svg viewBox="0 0 120 100" className={className} aria-hidden>
       <defs>
-        <linearGradient id="ws-left" x1="0.1" y1="0" x2="0.7" y2="1">
+        <linearGradient id={`${p}-left`} x1="0.1" y1="0" x2="0.7" y2="1">
           <stop offset="0" stopColor="#3730FF" />
           <stop offset="0.45" stopColor="#5B78FF" />
           <stop offset="1" stopColor="#C9A2F9" />
         </linearGradient>
-        <linearGradient id="ws-left-fold" x1="0" y1="0" x2="1" y2="0.6">
+        <linearGradient id={`${p}-left-fold`} x1="0" y1="0" x2="1" y2="0.6">
           <stop offset="0" stopColor="#8F7BFF" stopOpacity="0.5" />
           <stop offset="1" stopColor="#4C0FF5" />
         </linearGradient>
-        <linearGradient id="ws-right" x1="0.1" y1="1" x2="0.8" y2="0">
+        <linearGradient id={`${p}-right`} x1="0.1" y1="1" x2="0.8" y2="0">
           <stop offset="0" stopColor="#5312FF" />
           <stop offset="0.5" stopColor="#A43FF7" />
           <stop offset="1" stopColor="#F563E0" />
         </linearGradient>
-        <linearGradient id="ws-right-fold" x1="0.2" y1="1" x2="0.8" y2="0">
+        <linearGradient id={`${p}-right-fold`} x1="0.2" y1="1" x2="0.8" y2="0">
           <stop offset="0" stopColor="#8A3FFF" />
           <stop offset="0.6" stopColor="#E24DF2" />
           <stop offset="1" stopColor="#FF7EBF" />
         </linearGradient>
-        <linearGradient id="ws-spark" x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id={`${p}-spark`} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0.2" stopColor="#3D33FF" />
           <stop offset="0.55" stopColor="#B444FF" />
           <stop offset="0.85" stopColor="#FF5CCF" />
         </linearGradient>
       </defs>
       <g transform="translate(1.4 9.8) scale(0.11) translate(-233 -137)">
-        <path d="M240 374A66 66 0 0 1 326 284L588 400Q630 418 652 456L763 645L640 815A97 97 0 0 1 458 832Z" fill="url(#ws-left)" />
-        <path d="M588 400Q630 418 652 456L763 645L640 815Q652 780 622 715Q562 590 562 500Q562 430 588 400Z" fill="url(#ws-left-fold)" />
-        <path d="M763 645L880 460Q905 422 948 403L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right)" />
-        <path d="M878 815Q868 785 892 735Q990 510 1112 342L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill="url(#ws-right-fold)" opacity="0.85" />
-        <path d="M766 138C772 236 790 288 920 298C790 310 772 362 766 462C760 362 742 310 612 298C742 288 760 236 766 138Z" fill="url(#ws-spark)" />
+        <path d="M240 374A66 66 0 0 1 326 284L588 400Q630 418 652 456L763 645L640 815A97 97 0 0 1 458 832Z" fill={`url(#${p}-left)`} />
+        <path d="M588 400Q630 418 652 456L763 645L640 815Q652 780 622 715Q562 590 562 500Q562 430 588 400Z" fill={`url(#${p}-left-fold)`} />
+        <path d="M763 645L880 460Q905 422 948 403L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill={`url(#${p}-right)`} />
+        <path d="M878 815Q868 785 892 735Q990 510 1112 342L1208 285A66 66 0 0 1 1293 376L1056 835A97 97 0 0 1 878 815Z" fill={`url(#${p}-right-fold)`} opacity="0.85" />
+        <path d="M766 138C772 236 790 288 920 298C790 310 772 362 766 462C760 362 742 310 612 298C742 288 760 236 766 138Z" fill={`url(#${p}-spark)`} />
       </g>
     </svg>
   );
