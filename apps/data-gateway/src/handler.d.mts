@@ -15,3 +15,7 @@ export interface Gateway {
   collectOne(sourceId: string, testOnly?: boolean): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
 }
 export function createGateway(options: { store: GatewayStore; env?: Record<string, string | undefined>; storage?: string }): Gateway;
+/** The one country a source covers (its geography, or its site's country domain), or null. */
+export function sourceCountry(source: { geography?: string[]; url?: string }): string | null;
+/** The place with its country after it, unless it already names it. */
+export function withCountry(location: string, code: string | null): string;
