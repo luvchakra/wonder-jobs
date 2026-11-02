@@ -122,14 +122,13 @@ export function practiceKind(f: OsmFacts): string {
 }
 
 /**
- * Practices and clinics only, never a private individual: the map names many sole practitioners by their own name
- * ("Dr. Anita Sharma"), which WonderWorks must not list. A mapped name is a practice only if it carries a word for one.
- * This leaves out some real practices named after their founder, on purpose; a practitioner can list themselves.
+ * Practices and clinics only: the map names many sole practitioners by their own name ("Dr. Anita Sharma") with no word
+ * for a practice, which WonderWorks leaves out. A mapped name is a practice only if it carries a word for one, so a
+ * clinic named after its doctor ("Dr Mehta's Clinic") stays.
  */
 const PRACTICE_WORDS = /\b(clinic|clinics|centre|center|hospital|counsel+ing|counsel+ors|therapy|psycholog\w*|psychiatr\w*|psychotherap\w*|wellness|wellbeing|well-being|mind|minds|mental|health|healthcare|care|institute|foundation|associates|trust|society|services|studio|hub|lab|academy|rehab\w*|de-?addiction|nursing|polyclinic|medical|consultancy|consultants|practice)\b/i;
-const PERSONAL_TITLE = /(^|[\s(,-])(dr|doctor|prof|professor|mr|mrs|ms|shri|smt|sri)\b\.?(?=\s|$)/i;
-/** A name with a personal title ("Neuro Clinic - Dr. Dinesh Chouksey") is a person's own practice, however it is worded. */
-export const isPracticeName = (name: string) => !PERSONAL_TITLE.test(name.trim()) && PRACTICE_WORDS.test(name.trim());
+/** A clinic named after its doctor ("Neuro Clinic - Dr. Dinesh Chouksey") is a practice mapped as a business, so it stays (owner, 2026-11-02). */
+export const isPracticeName = (name: string) => PRACTICE_WORDS.test(name.trim());
 
 /** An outside practice's terms: only what the map says. In person, in the city it's near; no fee, language or focus is stated, so none is shown. */
 export function termsFromOsm(): TherapistTerms {

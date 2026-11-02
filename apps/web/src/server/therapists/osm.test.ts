@@ -60,8 +60,8 @@ describe("an OpenStreetMap practice as a listing", () => {
     expect(cleanPhone("+91 20 1234 5678")).toBe("+91 20 1234 5678");
     for (const n of ["Calm Minds Counselling Centre", "Delhi Psychology Associates", "Sunrise Clinic", "Mann Wellness Studio", "Hope Foundation"]) expect(isPracticeName(n), n).toBe(true);
     for (const n of ["Dr. Anita Sharma", "Anita Sharma", "Rakesh Mehta", "Mr. K. Iyer"]) expect(isPracticeName(n), n).toBe(false);
-    // A person's own practice is a person's profile, even with a word for a practice in it.
-    for (const n of ["Neuro Clinic - Neurologist indore - Dr. Dinesh Chouksey", "Dr Mehta's Clinic", "Prof. Rao Counselling Centre", "Sunrise Clinic (Dr. A. Rao)"]) expect(isPracticeName(n), n).toBe(false);
+    // A clinic named after its doctor is a business mapped as one, so it stays (owner, 2026-11-02).
+    for (const n of ["Neuro Clinic - Neurologist indore - Dr. Dinesh Chouksey", "Dr Mehta's Clinic", "Prof. Rao Counselling Centre", "Sunrise Clinic (Dr. A. Rao)"]) expect(isPracticeName(n), n).toBe(true);
     expect(isPracticeName("Doctors Hospital & Research Centre")).toBe(true);
     expect(practiceKind({ healthcare: "psychotherapist" })).toBe("Psychotherapy practice");
     expect(practiceKind({ amenity: "doctors" })).toBe("Medical practice");
