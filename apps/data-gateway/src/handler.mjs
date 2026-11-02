@@ -17,10 +17,34 @@ function publicListing(x) {
   const { expiresAt, externalRedistributionAllowed, status, ...safe } = x;
   return { ...safe, source: { id: x.sourceId, name: x.sourceName, method: x.sourceMethod } };
 }
-function workslakeItem(x) {
+/**
+ * The one country a source covers, as a code: its geography when that names a single country, else its site's
+ * country domain (teaching-vacancies.service.gov.uk → GB) for a short list of unambiguous ones. Null otherwise.
+ */
+const CC_TLD = { uk: "GB", in: "IN", fi: "FI", au: "AU", ca: "CA", nz: "NZ", sg: "SG", za: "ZA", de: "DE", fr: "FR", ie: "IE", nl: "NL", es: "ES", it: "IT", jp: "JP", ae: "AE" };
+export function sourceCountry(source) {
+  const geo = source?.geography ?? [];
+  if (geo.length) return geo.length === 1 && /^[A-Z]{2}$/.test(geo[0]) && geo[0] !== "EU" ? geo[0] : null;
+  try { return CC_TLD[new URL(source.url).hostname.split(".").pop()] ?? null; } catch { return null; }
+}
+const COUNTRY_ALIASES = { GB: ["uk", "u.k.", "england", "scotland", "wales", "northern ireland", "great britain"], US: ["usa", "u.s.a.", "u.s.", "us"], AE: ["uae"] };
+/** The place with its country after it (owner, 2026-11-02: "ensure the country is mentioned in the card and the details page"), unless it already names it. */
+export function withCountry(location, code) {
+  if (!code) return location;
+  let name;
+  try { name = new Intl.DisplayNames(["en"], { type: "region" }).of(code); } catch { return location; }
+  if (!name) return location;
+  const loc = String(location ?? "").trim();
+  if (!loc) return name;
+  const low = loc.toLowerCase();
+  const names = [name.toLowerCase(), ...(COUNTRY_ALIASES[code] ?? [])];
+  if (names.some((n) => new RegExp(`(^|[\\s,(])${n.replace(/[.]/g, "\\.")}($|[\\s,)])`).test(low))) return loc;
+  return `${loc}, ${name}`;
+}
+function workslakeItem(x, country = null) {
   // An event (its dates in attributes, often no organiser) goes as kind "event"; WorksLake keeps the attributes as given.
   const event = x.module === "events" || (x.attributes && "startDate" in x.attributes);
-  return { id: x.id, title: x.title, employer: x.organization, location: x.location, description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {}, employerDomain: x.organizationDomain ?? "" };
+  return { id: x.id, title: x.title, employer: x.organization, location: withCountry(x.location, country), description: x.description, postedAt: x.publishedAt, applyUrl: x.canonicalUrl, remote: x.remote, sourceId: x.sourceId, kind: event ? "event" : "job", attributes: x.attributes ?? {}, employerDomain: x.organizationDomain ?? "" };
 }
 function sourcePublic(s) {
   return { id: s.id, attribution: s.attribution, kind: s.kind, modules: s.modules, enabled: s.enabled, lastSuccessAt: s.lastSuccessAt, lastError: s.lastError };
@@ -222,7 +246,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         const result = { results: (await listings.search(plan)).rows };
         // Undated items go too: WorksLake records when it first saw them and says so (postedAtFrom "first_seen"), never
         // presenting that as a posting date.
-        const items = result.results.map(workslakeItem);
+        const countries = await store.read((s) => new Map(s.sources.map((x) => [x.id, sourceCountry(x)])));
+        const items = result.results.map((x) => workslakeItem(x, countries.get(x.sourceId) ?? null));
         store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
         return reply(200, { items });
       }
