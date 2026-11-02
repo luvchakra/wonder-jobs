@@ -1,7 +1,9 @@
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
-import { startImport } from "@/server/gateway/collectJob";
-import { registerFromCatalogue, registerPartner, setGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
+import { startImport, startModuleImport } from "@/server/gateway/collectJob";
+import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
+import { updateSource } from "@/server/jobslake/admin";
+import { MODULE_IDS } from "@/wonderworks/manifest";
 import { continueSetupJob, handOnSetupJob, runSetupItem } from "@/server/gateway/setupJob";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
@@ -61,9 +63,41 @@ export async function POST(req: Request) {
   }
   if (action === "schedule") {
     const current = await loadScheduler();
-    const saved = await saveScheduler({ ...current, gateway: { activateWaiting: body?.activateWaiting === true } }, a.actor);
+    const saved = await saveScheduler({ ...current, gateway: { ...current.gateway, activateWaiting: body?.activateWaiting === true } }, a.actor);
     await audit(a.actor, "scheduler.update", undefined, { gateway: saved.gateway });
     return json({ ok: true, activateWaiting: saved.gateway.activateWaiting });
+  }
+  const mod = typeof body?.module === "string" && (MODULE_IDS as readonly string[]).includes(body.module) ? body.module : null;
+  if (action === "module_pause") {
+    // Pause or resume one module's import: it's not collected, set up or refreshed while paused; what Find has stays.
+    if (!mod) return jlError("INVALID_REQUEST", "Name the module.", 400);
+    const current = await loadScheduler();
+    const set = new Set(current.gateway.pausedModules);
+    if (body?.paused === true) set.add(mod);
+    else set.delete(mod);
+    const saved = await saveScheduler({ ...current, gateway: { ...current.gateway, pausedModules: [...set] } }, a.actor);
+    await audit(a.actor, body?.paused === true ? "import.module_paused" : "import.module_resumed", undefined, { module: mod });
+    return json({ ok: true, pausedModules: saved.gateway.pausedModules });
+  }
+  if (action === "module_import") {
+    if (!mod) return jlError("INVALID_REQUEST", "Name the module.", 400);
+    const r = await startModuleImport(mod, a.actor, origin);
+    if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);
+    await audit(a.actor, "import.module_started", undefined, { module: mod, queued: r.queued });
+    after(async () => {
+      const c = await continueSetupJob();
+      if (c.left && c.ran) await handOnSetupJob(origin);
+    });
+    return json({ ok: true, queued: r.queued });
+  }
+  if (action === "source_status") {
+    // A WorksLake source paused or resumed by the admin (the same change its own page makes), audited there.
+    const id = typeof body?.id === "string" ? body.id.slice(0, 120) : "";
+    const status = body?.status === "paused" ? "paused" : body?.status === "active" ? "active" : null;
+    if (!id || !status) return jlError("INVALID_REQUEST", "Name the source and the status.", 400);
+    const r = await updateSource(id, { status }, a.actor);
+    if (!r.ok) return jlError(r.error.code, r.error.message, r.status);
+    return json({ ok: true, status: r.value.status });
   }
   if (action === "decide") {
     const id = typeof body?.decision === "string" ? body.decision.slice(0, 80) : "";
@@ -93,6 +127,16 @@ export async function POST(req: Request) {
     if (!format || typeof body?.content !== "string") return jlError("INVALID_REQUEST", "Upload a CSV or JSON file.", 400);
     const r = await uploadPartnerList(sourceId, format, body.content);
     await audit(a.actor, "gateway.partner_uploaded", sourceId, { ok: r.body.ok === true, rows: r.body.rows, valid: r.body.valid });
+    return json(r.body, r.status);
+  }
+  if (action === "collect") {
+    const r = await collectGatewaySource(sourceId);
+    await audit(a.actor, "gateway.collect", sourceId, { ok: r.ok, ...(r.ok ? { valid: r.valid } : { code: r.code }) });
+    return json(r, r.ok ? 200 : 422);
+  }
+  if (action === "test") {
+    const r = await testGatewaySource(sourceId);
+    await audit(a.actor, "gateway.test", sourceId, { ok: r.status === 200 });
     return json(r.body, r.status);
   }
   if (action === "activate" || action === "pause") {
