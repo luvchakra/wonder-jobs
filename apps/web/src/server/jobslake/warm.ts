@@ -18,6 +18,8 @@ import { stateStore } from "@/server/state";
 import { gatewayModuleForSource } from "./gatewaySources";
 import { isAvailable, listSources, runConnector } from "./registry";
 import { jobsLakeStore } from "./store";
+import { randomBytes } from "node:crypto";
+import type { SourceRun } from "@/domain/jobslake/health";
 import type { SourceRecord } from "./types";
 
 export interface GatewayRefresh {
@@ -56,15 +58,24 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
   for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
     const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
     const observations: Observation[] = [];
+    // Each source's read is recorded as a "refresh" run, so Overview and Runs count what the job fetched.
+    const runs: SourceRun[] = [];
     for (const s of sources) {
+      const started = Date.now();
+      const base = { id: `run_${randomBytes(9).toString("base64url")}`, sourceId: s.id, trigger: "refresh" as const, startedAt: new Date(started).toISOString(), duplicates: 0 };
       try {
         if (!(await isAvailable(s))) continue;
         const r = await runConnector(s, { query: "", locations: [] }, "shallow");
-        for (const job of placeWithCountry(r.jobs, s.geography)) observations.push({ source: s, job });
+        const jobs = placeWithCountry(r.jobs, s.geography);
+        for (const job of jobs) observations.push({ source: s, job });
+        runs.push({ ...base, durationMs: Date.now() - started, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, valid: jobs.length });
       } catch (e) {
-        result.failed.push({ sourceId: s.id, error: e instanceof Error ? e.message.slice(0, 200) : String(e) });
+        const message = e instanceof Error ? e.message.slice(0, 200) : String(e);
+        result.failed.push({ sourceId: s.id, error: message });
+        runs.push({ ...base, durationMs: Date.now() - started, outcome: "unavailable", retrieved: 0, valid: 0, message });
       }
     }
+    if (runs.length) await jobsLakeStore().recordRuns(runs).catch(() => undefined);
     if (!sources.length) continue;
     const opps = canonicalize(observations).opportunities.filter((o) => validateOpportunity(o).length === 0);
     if (opps.length) await jobsLakeStore().upsertOpportunities(opps, mod as ModuleId);

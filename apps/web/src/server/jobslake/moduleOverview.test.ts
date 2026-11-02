@@ -20,6 +20,14 @@ describe("the admin Overview's module rows", () => {
     expect(rows.find((r) => r.label === "Events & Social")).toMatchObject({ live: 1, needsSetup: 1, runs24h: 0 });
     expect(rows.find((r) => r.label === "Internships")).toMatchObject({ live: 0, runs24h: 0, retrieved24h: 0 });
   });
+
+  it("shows what each module holds for Find, apart from what searches fetched in the last day (2026-11-02)", () => {
+    const rows = moduleOverview([], [], { therapists: 57, services: 660, jobs: null });
+    expect(rows.find((r) => r.id === "therapists")).toMatchObject({ listings: 57, retrieved24h: 0 });
+    expect(rows.find((r) => r.id === "services")?.listings).toBe(660);
+    expect(rows.find((r) => r.id === "jobs")?.listings).toBeNull(); // uncountable says so
+    expect(rows.find((r) => r.id === "events")?.listings).toBeNull();
+  });
 });
 
 describe("the admin Overview's pool count", () => {

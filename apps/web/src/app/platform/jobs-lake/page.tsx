@@ -138,6 +138,11 @@ export default function AdminOverview() {
               className: "tabular-nums",
             },
             {
+              header: "In Find",
+              cell: (m) => (m.listings == null ? "—" : num(m.listings)),
+              className: "tabular-nums text-right",
+            },
+            {
               header: "Fetched · 24 h",
               cell: (m) => num(m.retrieved24h),
               className: "tabular-nums text-right",
@@ -165,9 +170,9 @@ export default function AdminOverview() {
                 </span>
               </span>
               <span className="shrink-0 text-right tabular-nums">
-                {num(m.retrieved24h)}
+                {m.listings == null ? "—" : num(m.listings)}
                 <span className="block text-[11px] text-ink-4">
-                  fetched · 24 h
+                  in Find · {num(m.retrieved24h)} fetched 24 h
                 </span>
               </span>
               <ChevronRight
