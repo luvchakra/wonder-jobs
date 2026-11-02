@@ -40,7 +40,6 @@ function QualityPageInner() {
         subtitle="Measured on the newest 1,000 listings WorksLake stored for this module, and on each source's recorded runs."
         actions={
           <span className="flex flex-wrap items-center gap-2">
-            <ModulePicker value={mod.module} onChange={mod.setModule} />
             <Segmented
               value={days}
               onChange={setDays}
@@ -55,6 +54,7 @@ function QualityPageInner() {
           </span>
         }
       />
+      <ModulePicker value={mod.module} onChange={mod.setModule} />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

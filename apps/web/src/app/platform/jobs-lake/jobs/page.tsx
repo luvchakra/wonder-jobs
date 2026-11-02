@@ -55,13 +55,11 @@ function JobsPageInner() {
     <>
       <PageTitle
         title="Browse listings"
-        subtitle="The listings WorksLake stored for this module — every one retrieved from a source, with the records it was merged from."
-        actions={
-          <ModulePicker
-            value={mod.module}
-            onChange={(m) => (setOffset(0), setType(""), mod.setModule(m))}
-          />
-        }
+        subtitle="The listings WorksLake stored for the chosen module — every one retrieved from a source, with the records it was merged from."
+      />
+      <ModulePicker
+        value={mod.module}
+        onChange={(m) => (setOffset(0), setType(""), mod.setModule(m))}
       />
       <form
         className="mb-3 flex gap-2"
@@ -74,10 +72,11 @@ function JobsPageInner() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Title, employer or location"
-          aria-label="Search jobs"
+          placeholder="Title, organisation or place"
+          aria-label={`Search ${mod.label} listings`}
           className="h-10"
         />
+        {mod.module === "jobs" && (
         <Select
           aria-label="Job type"
           value={type}
@@ -98,6 +97,7 @@ function JobsPageInner() {
             Not stated{data?.byType ? ` (${num(data.byType.unstated)})` : ""}
           </option>
         </Select>
+        )}
         <Button type="submit" size="sm" className="h-10">
           Search
         </Button>
@@ -105,7 +105,7 @@ function JobsPageInner() {
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
-        <Panel title={`${num(data.total)} job${data.total === 1 ? "" : "s"}`}>
+        <Panel title={`${num(data.total)} ${mod.label} listing${data.total === 1 ? "" : "s"}`}>
           {data.opportunities.length ? (
             <ul className="divide-y divide-line">
               {data.opportunities.map((o) => (
@@ -133,7 +133,7 @@ function JobsPageInner() {
                         />
                       )}
                       {o.quality.employerVerified && (
-                        <AccessBadge label="Employer" />
+                        <AccessBadge label="Verified organisation" />
                       )}
                       <AccessBadge
                         label={`${o.quality.sourceCount} source${o.quality.sourceCount === 1 ? "" : "s"}`}

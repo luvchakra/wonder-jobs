@@ -96,3 +96,4 @@
 - ✅ Scholarships & Projects: a listing that names no provider says "Provider not stated", never the source's name (WJ-527)
 - ✅ Import progress is saved step by step and shown in a banner; every import run is kept with each source's outcome (WJ-652)
 - ✅ The app reads its own data gateway in process, so imports no longer fail with 508 and every module's gateway listings reach Find (WJ-653)
+- ✅ Admin Listings pages offer every module as a chip and read generically, not as Jobs pages (WJ-655)
