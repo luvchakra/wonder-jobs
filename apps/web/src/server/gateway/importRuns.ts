@@ -7,6 +7,8 @@ import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 
 export interface ImportRunItem {
+  /** The Setup item's id ("gateway:src_…", "catalogue:<file>"), so a later run can tell it was tried. */
+  id?: string;
   name: string;
   status: "live" | "failed" | "collected" | "pending";
   step?: string;
@@ -53,4 +55,27 @@ export async function recordImportRun(run: ImportRun): Promise<void> {
   } catch (e) {
     console.warn(`[import] could not record the run: ${e instanceof Error ? e.message : "unknown"}`);
   }
+}
+
+/** How long a source that didn't go live is left out of Import now and the hourly set-up before it's tried again. */
+export const RETRY_AFTER_MS = 86_400_000;
+
+/**
+ * Sources whose last attempt, within `withinMs`, didn't go live: a site that refuses us (robots unreadable, 403, a
+ * redirect elsewhere) or a test that found nothing. Import now leaves them out instead of retrying every one each time
+ * (2026-11-02: 16 blocked sites held a whole import up for 10 minutes); the module's own Set up, or the row's button,
+ * still tries one on purpose. A later success clears it.
+ */
+export async function recentFailures(withinMs = RETRY_AFTER_MS, now = Date.now()): Promise<Map<string, { at: string; step?: string; message?: string }>> {
+  const out = new Map<string, { at: string; step?: string; message?: string }>();
+  const settled = new Set<string>();
+  for (const r of await listImportRuns()) {
+    if (now - Date.parse(r.finishedAt) > withinMs) continue;
+    for (const i of r.items) {
+      if (!i.id || settled.has(i.id)) continue;
+      settled.add(i.id);
+      if (i.status === "failed") out.set(i.id, { at: r.finishedAt, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}) });
+    }
+  }
+  return out;
 }

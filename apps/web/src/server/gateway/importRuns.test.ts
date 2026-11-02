@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
-import { listImportRuns, MAX_IMPORT_RUNS, recordImportRun, type ImportRun } from "./importRuns";
+import { listImportRuns, MAX_IMPORT_RUNS, recentFailures, recordImportRun, type ImportRun } from "./importRuns";
 
 const run = (over: Partial<ImportRun> = {}): ImportRun => ({ id: "r", kind: "hourly", trigger: "cron", startedAt: "2026-11-02T10:00:00Z", finishedAt: "2026-11-02T10:00:05Z", items: [], summary: "0 due · 0 collected", ...over });
 
@@ -33,5 +33,17 @@ describe("every import run is kept (2026-11-02: persist every run detail)", () =
     const runs = await listImportRuns();
     expect(runs).toHaveLength(MAX_IMPORT_RUNS);
     expect(runs[0].id).toBe(`r${MAX_IMPORT_RUNS + 4}`);
+  });
+});
+
+describe("sources that didn't go live lately are left out of Import now (2026-11-02: blocked sites held an import up)", () => {
+  it("lists a source whose latest attempt in the last day failed, with why; a later success, or an older failure, doesn't count", async () => {
+    const now = Date.parse("2026-11-02T15:00:00Z");
+    await recordImportRun(run({ id: "old", kind: "import", finishedAt: "2026-11-01T10:00:00Z", items: [{ id: "gateway:src_old", name: "Old", status: "failed", message: "403" }] }));
+    await recordImportRun(run({ id: "a", kind: "import", finishedAt: "2026-11-02T13:00:00Z", items: [{ id: "gateway:src_h", name: "Houzz", status: "failed", step: "Test", message: "Cannot verify robots policy" }, { id: "gateway:src_x", name: "X", status: "failed", message: "403" }] }));
+    await recordImportRun(run({ id: "b", kind: "module", finishedAt: "2026-11-02T14:00:00Z", items: [{ id: "gateway:src_x", name: "X", status: "live", valid: 4 }] }));
+    const f = await recentFailures(undefined, now);
+    expect([...f.keys()]).toEqual(["gateway:src_h"]);
+    expect(f.get("gateway:src_h")).toEqual({ at: "2026-11-02T13:00:00Z", step: "Test", message: "Cannot verify robots policy" });
   });
 });

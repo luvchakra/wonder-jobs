@@ -14,7 +14,7 @@ export interface SchedulerSettings {
    * The gateway collection (`/api/cron/gateway-collect`, hourly): whether each run also tests and activates the gateway
    * sources waiting on Setup to-do (added, not yet live), as one server job. Off: only an admin's press does it.
    */
-  gateway: { activateWaiting: boolean; /** Modules whose import is paused (Data → Import): not collected, set up or refreshed until resumed. */ pausedModules: string[] };
+  gateway: { activateWaiting: boolean; /** Modules whose import is paused (Data → Import): not collected, set up or refreshed until resumed. */ pausedModules: string[]; /** Sources an admin dismissed (Data → Import): never tried by Import now or the hourly run, and not counted as waiting. */ dismissed: string[] };
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -48,7 +48,7 @@ export const SCHEDULER_DEFAULTS: SchedulerSettings = {
   scheduledRuns: { enabled: true, maxTenants: 200, tenantBudgetSec: 60, reminders: true, digests: true },
   companyRefresh: { enabled: true, logoLimit: 150, budgetSec: 45 },
   ratings: { enabled: true, frequency: "weekly", notifyEmail: DEFAULT_RATINGS_NOTIFY_EMAIL },
-  gateway: { activateWaiting: false, pausedModules: [] },
+  gateway: { activateWaiting: false, pausedModules: [], dismissed: [] },
 };
 
 /** Each number's allowed range — the time budgets stay inside each function's Vercel limit. */
@@ -89,7 +89,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
       frequency: typeof g.frequency === "string" && g.frequency in RATINGS_FREQUENCIES ? (g.frequency as RatingsFrequency) : D.ratings.frequency,
       notifyEmail: typeof g.notifyEmail === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.notifyEmail.trim()) && g.notifyEmail.length <= 200 ? g.notifyEmail.trim().toLowerCase() : D.ratings.notifyEmail,
     },
-    gateway: { activateWaiting: bool(gw.activateWaiting, D.gateway.activateWaiting), pausedModules: Array.isArray(gw.pausedModules) ? [...new Set(gw.pausedModules.filter((m): m is string => typeof m === "string" && /^[a-z]{2,20}$/.test(m)))].slice(0, 20) : [] },
+    gateway: { activateWaiting: bool(gw.activateWaiting, D.gateway.activateWaiting), pausedModules: Array.isArray(gw.pausedModules) ? [...new Set(gw.pausedModules.filter((m): m is string => typeof m === "string" && /^[a-z]{2,20}$/.test(m)))].slice(0, 20) : [], dismissed: Array.isArray(gw.dismissed) ? [...new Set(gw.dismissed.filter((d): d is string => typeof d === "string" && /^(gateway:src_[a-f0-9]{24}|catalogue:[a-z0-9-]{1,80}\.json)$/.test(d)))].slice(0, 300) : [] },
     ...(typeof r.updatedAt === "string" ? { updatedAt: r.updatedAt } : {}),
     ...(typeof r.updatedBy === "string" ? { updatedBy: r.updatedBy } : {}),
   };

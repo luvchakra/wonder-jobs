@@ -157,7 +157,9 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   // Done: one refresh of every module's gateway listings, so all new entries appear in Find (warm.ts).
   let refreshed = false;
   if (!left) {
-    if (job.items.some((i) => i.status === "live")) {
+    // An admin's import always ends with a refresh, so Find is up to date even when nothing new went live; the
+    // hourly set-up refreshes only when something did.
+    if (job.items.some((i) => i.status === "live") || (job.trigger ?? "admin") === "admin") {
       job.phase = "refreshing";
       await save(job);
       const r = await refresh().catch(() => null);
@@ -201,7 +203,7 @@ export function runFromJob(job: SetupJob): ImportRun {
     ...(job.module ? { module: job.module } : {}),
     startedAt: job.createdAt,
     finishedAt: job.finishedAt ?? new Date().toISOString(),
-    items: job.items.map((i) => ({ name: i.name, status: i.status === "running" ? "pending" : i.status, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}), ...(i.valid != null ? { valid: i.valid } : {}) })),
+    items: job.items.map((i) => ({ id: i.id, name: i.name, status: i.status === "running" ? "pending" : i.status, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}), ...(i.valid != null ? { valid: i.valid } : {}) })),
     ...(job.stored ? { stored: job.stored } : {}),
     summary: `${live} of ${job.items.length} went live${failed ? ` · ${failed} didn't` : ""}${job.stored ? ` · Find refreshed` : ""}`,
   };
