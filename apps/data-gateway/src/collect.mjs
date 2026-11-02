@@ -234,6 +234,31 @@ export function parseStructured(html) {
   if (trail) for (const rec of businesses) rec.attributes.breadcrumb = trail;
   return out.slice(0, 500);
 }
+/**
+ * Public Overpass servers (OpenStreetMap queries). The main one is often too busy from a cloud server (timeouts, then
+ * 429 "too many requests"; 2026-11-02), so each source starts on one of them (spread by its id) and a query a server
+ * refuses or fails moves to the next while time remains. Their usage policies are on Setup to-do (owner decision).
+ */
+export const OVERPASS_HOSTS = Object.freeze(["overpass-api.de", "overpass.private.coffee", "overpass.kumi.systems"]);
+const isOverpass = (u) => { try { return OVERPASS_HOSTS.includes(new URL(u).hostname); } catch { return false; } };
+export function overpassOrder(seed) {
+  let h = 0;
+  for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const start = h % OVERPASS_HOSTS.length;
+  return OVERPASS_HOSTS.map((_, k) => OVERPASS_HOSTS[(start + k) % OVERPASS_HOSTS.length]);
+}
+async function getVia(u, opts, get, seed, deadline, now) {
+  if (!isOverpass(u)) return get(u, opts);
+  let last;
+  for (const [k, host] of overpassOrder(seed).entries()) {
+    if (k > 0 && now() > deadline) break;
+    const x = new URL(u);
+    x.hostname = host;
+    try { return await get(x.toString(), opts?.origin ? { ...opts, origin: host } : opts); }
+    catch (e) { last = e; if (e?.code !== "SOURCE_UNAVAILABLE" && e?.code !== "SOURCE_TIMEOUT") throw e; }
+  }
+  throw last;
+}
 export async function fetchRecords(source, deps = {}) {
   if (!source.termsReviewed || !source.redistributionAllowed || !["terms_permit", "granted_in_writing"].includes(source.permission)) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Permission missing");
   if (source.kind === "crawl") return crawlRecords(source, deps);
@@ -253,7 +278,8 @@ export async function fetchRecords(source, deps = {}) {
       if (i > 0) { if (now() - started > 40000) break; await sleep(source.requestDelayMs ?? 1000); }
       read++;
       let parsed;
-      try { parsed = JSON.parse(await get(u, i > 0 ? { origin: new URL(source.url).hostname } : undefined)); }
+      // A refused or failed Overpass query tries the next public server while 25 s of the source's budget remain.
+      try { parsed = JSON.parse(await getVia(u, i > 0 ? { origin: new URL(source.url).hostname } : undefined, get, source.id, started + 25000, now)); }
       catch (e) { if (i === 0) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); failed++; continue; }
       const list = source.itemsPath.split(".").filter(Boolean).reduce((v, k) => v?.[k], parsed);
       if (!Array.isArray(list)) { if (i === 0) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); failed++; continue; }

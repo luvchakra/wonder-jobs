@@ -77,4 +77,5 @@
 - ✅ Less Vercel CPU: search pool reloads every 10 min, proxy skips image routes (WJ-634)
 - ✅ Less Vercel usage: no data-cache writes for job APIs, slower page regeneration, 30-day CDN caching for logos and images (WJ-635)
 - ✅ Gateway: Overpass (OpenStreetMap) queries wait the time they ask for, so their tests pass (WJ-636)
+- ✅ Gateway: OpenStreetMap queries spread over three public Overpass servers with fallback; 'all' pauses between sources (WJ-638)
 - ✅ WorksLake data never written to the main database while the data database is on (WJ-637)
