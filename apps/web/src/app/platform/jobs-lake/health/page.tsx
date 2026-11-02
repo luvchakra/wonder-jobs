@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { SourceView } from "@/server/jobslake/views";
 import { relativeTime } from "@/lib/format";
+import { AlertsPanel } from "@/components/jobslake/AlertsPanel";
 import { AccessBadge, HealthChip, LoadError, Loading, Note, PageTitle, Panel, ResponsiveTable, Stat, ms, num, pct, useAdmin } from "@/components/jobslake/ui";
 
 export default function HealthPage() {
@@ -10,7 +11,8 @@ export default function HealthPage() {
   const count = (st: string) => live.filter((s) => (s.health?.state ?? "no_data") === st).length;
   return (
     <>
-      <PageTitle title="Source health" subtitle="Computed from the last 7 days of runs. Down = the last two runs failed; degraded = success under 90% or median latency over 4 s." />
+      <PageTitle title="Health" subtitle="Alerts first, then every live source over the last 7 days. Down = the last two runs failed; degraded = success under 90% or median latency over 4 s." />
+      <AlertsPanel />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (

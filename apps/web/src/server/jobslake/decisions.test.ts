@@ -28,7 +28,7 @@ describe("Setup to-do links", () => {
     const { existsSync } = await import("node:fs");
     const { join } = await import("node:path");
     const LAKE = "/platform/jobs-lake";
-    const setupLinks = ["keys", "credentials", "import"].map((p) => `${LAKE}/${p}`);
+    const setupLinks = ["keys", "import"].map((p) => `${LAKE}/${p}`);
     const internal = [...OWNER_DECISIONS.map((d) => d.href).filter((h): h is string => !!h && h.startsWith("/")), ...setupLinks];
     for (const href of internal) expect(existsSync(join(process.cwd(), "src/app", href, "page.tsx")), href).toBe(true);
   });

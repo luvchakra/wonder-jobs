@@ -97,7 +97,7 @@ export default function AdminOverview() {
         />
         <Stat
           icon={<AlertTriangle className="size-5" aria-hidden />}
-          href="/platform/jobs-lake/alerts"
+          href="/platform/jobs-lake/health"
           label="Alerts"
           value={num(d.alerts.length)}
           hint={critical ? `${critical} critical` : "None critical"}
@@ -189,7 +189,7 @@ export default function AdminOverview() {
           title="Needs attention"
           action={
             <Link
-              href="/platform/jobs-lake/alerts"
+              href="/platform/jobs-lake/health"
               className="text-[12px] font-medium text-brand-600 hover:underline"
             >
               All alerts

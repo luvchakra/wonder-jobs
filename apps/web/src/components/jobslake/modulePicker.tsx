@@ -5,7 +5,7 @@ import { MODULES, MODULE_IDS, type ModuleId } from "@/modules/registry";
 
 /**
  * Which module an admin data page shows (owner, 2026-11-01: the admin caters to every module equally). Each module has
- * its own WorksLake pool, so Job listings, Data quality, Source insights and the Search playground read the one chosen
+ * its own WorksLake pool, so Browse, Quality, Source insights and Try a search read the one chosen
  * here. It lives in the URL (`?module=`), so a link or a reload keeps it; Jobs when none is given.
  * Pages that call this sit inside a <Suspense> (Next needs one around useSearchParams).
  */

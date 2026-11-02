@@ -79,6 +79,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/platform/jobs-lake/setup", destination: "/platform/jobs-lake/import", permanent: true },
       { source: "/platform/jobs-lake/gateway", destination: "/platform/jobs-lake/import", permanent: true },
+      // Folded into another page by the admin menu redesign (2026-11-02).
+      { source: "/platform/jobs-lake/alerts", destination: "/platform/jobs-lake/health", permanent: true },
+      { source: "/platform/jobs-lake/credentials", destination: "/platform/jobs-lake/keys", permanent: true },
     ];
   },
   async headers() {
