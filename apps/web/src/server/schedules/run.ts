@@ -1,4 +1,6 @@
-import { afterRun, isScheduleDue, MODULE_SCHEDULES_CAP, nextRunAt, runStateFor, type ModuleSchedule, type ScheduleRunState } from "@/domain/moduleSchedules";
+import { afterRun, isScheduleDue, MODULE_SCHEDULES_CAP, nextRunAt, planCadence, runStateFor, WEEK_MS, type ModuleSchedule, type ScheduleRunState } from "@/domain/moduleSchedules";
+import { allowedModuleSchedules } from "@/domain/billing/plans";
+import { tenantPlan } from "@/server/billing/service";
 import { readClientState } from "@/server/clientState";
 import { deliver } from "@/server/notifications/deliver";
 import { stateStore } from "@/server/state";
@@ -35,14 +37,24 @@ export interface ModuleScheduleReport {
  * push and email as the person chose for "Search results"). A failed search is recorded and tried again next time.
  */
 export async function runDueModuleSchedules(tenantId: string, now = new Date(), earlyMs = 0): Promise<ModuleScheduleReport> {
-  const [schedules, stored] = await Promise.all([readSchedules(tenantId), readRuns(tenantId)]);
+  const [schedules, stored, { limits }, workflow] = await Promise.all([
+    readSchedules(tenantId),
+    readRuns(tenantId),
+    tenantPlan(tenantId),
+    readClientState<{ schedules?: Record<string, { enabled?: boolean }> }>(tenantId, "wj.workflow").catch(() => undefined),
+  ]);
+  // The plan's scheduled searches count across every module (Jobs' first), and daily ones need daily searches.
+  const jobsEnabled = Object.values(workflow?.schedules ?? {}).filter((s) => s?.enabled).length;
+  const allowed = allowedModuleSchedules(limits, jobsEnabled, schedules);
   const runs: Record<string, ScheduleRunState> = {};
   for (const s of schedules) runs[s.id] = runStateFor(s, stored.runs[s.id], now);
   const report: ModuleScheduleReport = { tenantId, ran: 0, notified: 0, failed: 0 };
   for (const s of schedules) {
     if (report.ran >= PER_TENANT) break;
     const r = runs[s.id];
+    if (!allowed.has(s.id)) continue;
     if (!isScheduleDue(s, r, now, earlyMs)) continue;
+    if (planCadence(s.cadence) === "daily" && !limits.dailySearches && r.lastRunAt && now.getTime() - Date.parse(r.lastRunAt) < WEEK_MS) continue;
     report.ran++;
     const next = nextRunAt(s, now);
     try {
@@ -88,12 +100,21 @@ export async function runModuleSchedulePass(now: Date, limit: number, deadline: 
 }
 
 /** What the Automation page shows for each schedule: when it runs next and what it last found. Never the seen ids. */
-export async function moduleScheduleStatus(tenantId: string, now = new Date()): Promise<Record<string, Omit<ScheduleRunState, "seen" | "key">>> {
-  const [schedules, stored] = await Promise.all([readSchedules(tenantId), readRuns(tenantId)]);
+export async function moduleScheduleStatus(tenantId: string, now = new Date()): Promise<Record<string, Omit<ScheduleRunState, "seen" | "key"> & { held?: true }>> {
+  const [schedules, stored, { limits }, workflow] = await Promise.all([
+    readSchedules(tenantId),
+    readRuns(tenantId),
+    tenantPlan(tenantId),
+    readClientState<{ schedules?: Record<string, { enabled?: boolean }> }>(tenantId, "wj.workflow").catch(() => undefined),
+  ]);
+  // The plan's scheduled searches count across every module (Jobs' first), and daily ones need daily searches.
+  const jobsEnabled = Object.values(workflow?.schedules ?? {}).filter((s) => s?.enabled).length;
+  const allowed = allowedModuleSchedules(limits, jobsEnabled, schedules);
   return Object.fromEntries(
     schedules.map((s) => {
       const r = runStateFor(s, stored.runs[s.id], now);
-      return [s.id, { nextRunAt: r.nextRunAt, lastRunAt: r.lastRunAt, last: r.last, primed: r.primed }];
+      // One that is on but the plan leaves no room for is held: it doesn't run (the page says so).
+      return [s.id, { nextRunAt: r.nextRunAt, lastRunAt: r.lastRunAt, last: r.last, primed: r.primed, ...(s.enabled && !allowed.has(s.id) ? { held: true as const } : {}) }];
     }),
   );
 }

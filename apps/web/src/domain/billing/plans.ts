@@ -23,19 +23,21 @@ export interface PlanLimits {
   /** Monthly price in the currency's minor unit (paise); 0 for Free. Shown to candidates; the payment provider charges what its price says. */
   priceMinor: number;
   currency: string;
-  /** Scheduled searches that may be switched on at once. */
+  /** Every module: scheduled searches that may be switched on at once, counted across all modules (Jobs' first). */
   scheduledSearches: number;
-  /** Whether a scheduled search may run every day (else weekly). */
+  /** Every module: whether a scheduled search may run every day or every weekday (else weekly). */
   dailySearches: boolean;
-  /** Whether "Keep watch" (continuous) is allowed. */
+  /** Jobs: whether "Keep watch" (continuous) is allowed. */
   keepWatch: boolean;
-  /** Drafts written by WonderJobs AI per calendar month; a connected own-AI key never counts. */
+  /** Every module: drafts written by WonderWorks AI per calendar month; a connected own-AI key never counts. */
   aiDraftsPerMonth: number;
-  /** Roles the candidate can search as. */
+  /** Jobs: roles the person can search as. */
   roles: number;
-  /** How many résumé designs, counted from the first in the gallery; 8 is all of them. */
+  /** Jobs: how many résumé designs, counted from the first in the gallery; 8 is all of them. */
   resumeTemplates: number;
+  /** Jobs: the ATS report on a résumé. */
   atsReport: boolean;
+  /** Jobs: applying with the WonderWorks helper on the employer's page. */
   applyWithWonder: boolean;
   /** Extra lines the operator adds to this plan's description on pricing, shown as written. Display only — nothing enforces them. */
   highlights: string[];
@@ -138,7 +140,39 @@ export function draftQuota(limit: number, used: number): { allowed: boolean; rem
   return { allowed: used < limit, remaining: Math.max(0, limit - used), limit };
 }
 
+/**
+ * What a plan allows, grouped as WonderWorks is (owner, 2026-11-02: "redesign this for works like WonderWorks instead
+ * of just for jobs"): limits every module shares, and the ones only Jobs has. A module with no limits of its own uses
+ * the shared ones; the admin's Plans & features page and pricing read this list.
+ */
+export type PlanFeatureKey = Exclude<keyof PlanLimits, "label" | "tagline" | "priceMinor" | "currency" | "highlights">;
+export const PLAN_FEATURES: { key: PlanFeatureKey; scope: "every" | "jobs"; kind: "number" | "flag"; label: string; hint: string }[] = [
+  { key: "scheduledSearches", scope: "every", kind: "number", label: "Scheduled searches on at once", hint: "Across every module, Jobs' counted first." },
+  { key: "dailySearches", scope: "every", kind: "flag", label: "Scheduled searches can run daily", hint: "Every day or every weekday; otherwise once a week." },
+  { key: "aiDraftsPerMonth", scope: "every", kind: "number", label: "WonderWorks AI drafts a month", hint: "Cover notes, answers and messages in every module; the person's own AI key never counts." },
+  { key: "roles", scope: "jobs", kind: "number", label: "Roles to search as", hint: "Search as" },
+  { key: "resumeTemplates", scope: "jobs", kind: "number", label: "Résumé designs", hint: "Counted from the first in the gallery; 8 is all." },
+  { key: "keepWatch", scope: "jobs", kind: "flag", label: "Keep watch", hint: "A Jobs search that runs continuously." },
+  { key: "applyWithWonder", scope: "jobs", kind: "flag", label: "Apply with the WonderWorks helper", hint: "Fills the employer's own page in the person's browser." },
+  { key: "atsReport", scope: "jobs", kind: "flag", label: "ATS report", hint: "How an applicant tracking system reads a résumé." },
+];
+
 export type ScheduleCadence = "daily" | "weekly" | "keep_watch" | "manual";
+
+/**
+ * Which of a person's other modules' scheduled searches the plan lets run: the oldest first, after the Jobs searches
+ * that are on (they keep their place, as they did before other modules had schedules). Ids, oldest first.
+ */
+export function allowedModuleSchedules(limits: Pick<PlanLimits, "scheduledSearches">, jobsEnabled: number, schedules: { id: string; enabled: boolean; createdAt: string }[]): Set<string> {
+  const room = Math.max(0, limits.scheduledSearches - jobsEnabled);
+  return new Set(
+    schedules
+      .filter((s) => s.enabled)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .slice(0, room)
+      .map((s) => s.id),
+  );
+}
 
 function scheduleProblem(l: PlanLimits, enabledOthers: number, cadence: ScheduleCadence): string | null {
   if (cadence === "manual") return null;

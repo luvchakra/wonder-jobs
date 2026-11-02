@@ -11,6 +11,7 @@ import { deriveSearchIntent } from "@/services/jobs/searchIntent";
 import { roleSearch } from "@/domain/career/roles";
 import { RolePicker } from "@/components/career/RolePicker";
 import { describeSchedule } from "@/domain/workflow/scheduleTemplates";
+import { useModuleSchedules } from "@/wonderworks/automation/schedules";
 import { scheduleAllowance } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";
@@ -70,7 +71,9 @@ export function SimpleScheduleSetup({ initialRequest, initialFrequency, advanced
 
   const save = () => {
     // The plan decides how many searches may be on at once and how often they may run.
-    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== existing?.schedule.id).length;
+    const others = Object.values(schedules).filter((s) => s.enabled && s.id !== existing?.schedule.id).length
+      // The plan counts scheduled searches across every module (Data → Plans & features).
+      + useModuleSchedules.getState().schedules.filter((s) => s.enabled).length;
     const allowance = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, frequency);
     if (!allowance.ok) {
       setGate(allowance);

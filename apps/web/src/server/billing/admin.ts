@@ -164,10 +164,10 @@ export async function adminPrices(): Promise<{ plans: PlanPrices[]; providers: {
 
 /** Where each limit is enforced — so an admin knows which ones the server re-checks. */
 export const ENFORCED_AT: Record<string, string> = {
-  scheduledSearches: "Server: scheduled runs (server/workflow/scheduledRun.ts) run at most this many.",
-  dailySearches: "Browser: the schedule screens (scheduleAllowance); the server doesn't re-check it yet.",
+  scheduledSearches: "Server, every module: Jobs' scheduled runs (server/workflow/scheduledRun.ts) run at most this many, and other modules' (server/schedules/run.ts) only in the room Jobs' leave; the schedule screens check it too.",
+  dailySearches: "Server for other modules (a daily search runs at most weekly without it, server/schedules/run.ts); browser for Jobs (scheduleAllowance).",
   keepWatch: "Browser: the schedule screens (scheduleAllowance); the server doesn't re-check it yet.",
-  aiDraftsPerMonth: "Server: /api/ai/complete counts each WonderWorks AI draft.",
+  aiDraftsPerMonth: "Server, every module: /api/ai/complete counts each WonderWorks AI draft, whichever module asks.",
   roles: "Browser: the Roles card; the server doesn't re-check it yet.",
   resumeTemplates: "Browser: the Résumé studio gallery.",
   atsReport: "Server: /api/resume-files/[id]/ats.",

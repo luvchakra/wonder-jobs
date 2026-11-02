@@ -223,7 +223,7 @@ export default function AdminOverview() {
           )}
         </Panel>
         <Panel
-          title="Jobs listings · 7 days"
+          title="Listings in Find · every module"
           action={
             <Link
               href="/platform/jobs-lake/quality"
@@ -233,32 +233,36 @@ export default function AdminOverview() {
             </Link>
           }
         >
-          {q.data ? (
-            q.data.quality.opportunities ? (
-              <div className="flex flex-col gap-3">
-                <p className="text-[13px] text-ink-2">
-                  <span className="font-semibold text-ink">
-                    {num(d.pool.opportunities)}
-                  </span>{" "}
-                  unique job listings
-                  {d.pool.employerVerified != null
-                    ? `, ${pct(d.pool.employerVerified, 0)} from employers' own sites`
-                    : ""}
-                </p>
-                <Meter
-                  label="Required fields"
-                  value={q.data.quality.requiredFields}
-                />
-                <Meter
-                  label="Valid apply links"
-                  value={q.data.quality.validApplyUrls}
-                />
-              </div>
-            ) : (
-              <p className="py-4 text-center text-[13px] text-ink-4">
-                No listings stored yet.
-              </p>
-            )
+          {modules.length ? (
+            <div className="flex flex-col gap-3">
+              <ul className="flex flex-col divide-y divide-line">
+                {modules.map((m) => (
+                  <li key={m.id} className="flex items-baseline justify-between gap-3 py-1.5 text-[13px]">
+                    <Link href={moduleHref(m)} className="text-ink hover:underline">
+                      {m.label}
+                    </Link>
+                    <span className="text-right text-ink-3">
+                      <span className="font-semibold text-ink">
+                        {m.listings == null ? "—" : num(m.listings)}
+                      </span>{" "}
+                      in Find · {num(m.retrieved24h)} fetched 24 h
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {q.data?.quality.opportunities ? (
+                <>
+                  <p className="text-[12px] text-ink-3">
+                    Jobs, 7 days: {num(d.pool.opportunities)} unique listings
+                    {d.pool.employerVerified != null
+                      ? `, ${pct(d.pool.employerVerified, 0)} from employers' own sites`
+                      : ""}
+                  </p>
+                  <Meter label="Jobs: required fields" value={q.data.quality.requiredFields} />
+                  <Meter label="Jobs: valid apply links" value={q.data.quality.validApplyUrls} />
+                </>
+              ) : null}
+            </div>
           ) : (
             <Loading rows={1} />
           )}

@@ -73,3 +73,21 @@ describe("planBadgeLabel", () => {
     expect(planBadgeLabel("max", { max: { label: "Max+" } })).toBe("Max+");
   });
 });
+
+describe("scheduled searches count across every module (2026-11-02)", () => {
+  it("lets other modules' oldest schedules run in the room Jobs' leave", async () => {
+    const { allowedModuleSchedules } = await import("./plans");
+    const s = (id: string, createdAt: string, enabled = true) => ({ id, createdAt, enabled });
+    const list = [s("new", "2026-11-02"), s("old", "2026-10-01"), s("off", "2026-09-01", false), s("mid", "2026-10-15")];
+    expect([...allowedModuleSchedules({ scheduledSearches: 3 }, 1, list)]).toEqual(["old", "mid"]);
+    expect([...allowedModuleSchedules({ scheduledSearches: 1 }, 1, list)]).toEqual([]);
+    expect([...allowedModuleSchedules({ scheduledSearches: 10 }, 0, list)]).toEqual(["old", "mid", "new"]);
+  });
+
+  it("every limit is shown, grouped as every module or Jobs", async () => {
+    const { PLAN_FEATURES, DEFAULT_PLANS } = await import("./plans");
+    const keys = Object.keys(DEFAULT_PLANS.plans.free).filter((k) => !["label", "tagline", "priceMinor", "currency", "highlights"].includes(k));
+    expect(PLAN_FEATURES.map((f) => f.key).sort()).toEqual(keys.sort());
+    expect(PLAN_FEATURES.filter((f) => f.scope === "every").map((f) => f.key)).toEqual(["scheduledSearches", "dailySearches", "aiDraftsPerMonth"]);
+  });
+});

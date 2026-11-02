@@ -20,7 +20,7 @@ const LIVE = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status ===
 
 /**
  * The menu in the middle of the top bar: WonderJobs' Full Time Jobs and Part Time Jobs, then the other modules in the
- * order a platform admin set (Admin → Settings → Menus → Find menu). Its value is the module whose pages are open, else
+ * order a platform admin set (Admin → Settings → App menus → Modules). Its value is the module whose pages are open, else
  * Jobs' current kind. A kind of jobs switches Find — in place on Find, or opening Find from anywhere else.
  */
 function FindMenu() {
@@ -34,7 +34,7 @@ function FindMenu() {
   const liveNow = onModule && onModule !== "jobs" ? liveKinds.find((k) => LIVE[k.id]!.id === onModule) : undefined;
   return (
     <ModuleMenu
-      label="Kind of jobs"
+      label="Module"
       now={liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!}
       choices={JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current }))}
       live={liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id }))}

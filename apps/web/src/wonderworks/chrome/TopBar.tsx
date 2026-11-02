@@ -114,7 +114,7 @@ export function TopBar() {
             { id: "analytics", href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
             { id: "help", href: "/help", label: "Get Help", icon: LifeBuoy },
           ],
-          // The order and hidden items a platform admin set for everyone (Admin → Settings → Menus).
+          // The order and hidden items a platform admin set for everyone (Admin → Settings → App menus).
           menuConfig,
         ),
         // Platform admins only, after the rest; never hidden from them.
