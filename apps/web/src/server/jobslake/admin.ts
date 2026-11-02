@@ -22,6 +22,8 @@ import { ADMIN_SETTABLE, getSource, runConnector } from "./registry";
 import { err, type Result } from "./service";
 import { jobsLakeStore } from "./store";
 import { DEFAULT_LIMITS, type SourceConfig, type SourceRecord, type TestReport } from "./types";
+import { MODULE_IDS } from "@/wonderworks/manifest";
+import { kindFitsModule } from "@/domain/jobslake/sourceKinds";
 
 const ok = <T>(value: T): Result<T> => ({ ok: true, value });
 const ACTIVATION_WINDOW_MS = 24 * 3_600_000;
@@ -91,6 +93,8 @@ export const CreateSourceInput = z.object({
   /** Write-only. Stored encrypted; never echoed. */
   credential: z.string().min(4).max(4096).optional(),
   limits: z.object({ timeoutMs: z.number().int().min(2000).max(30_000), maxResults: z.number().int().min(1).max(500), refreshMinutes: z.number().int().min(15).max(10_080) }).partial().optional(),
+  /** The module whose Find the source feeds (2026-11-02). Default Jobs. */
+  module: z.enum(MODULE_IDS).default("jobs"),
 });
 
 export const UpdateSourceInput = z.object({
@@ -174,6 +178,7 @@ export async function createSource(raw: unknown, actor: string): Promise<Result<
   if (!p.success) return err(400, "INVALID_REQUEST", p.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).slice(0, 3).join("; "));
   const input = p.data;
   if (input.config.kind === "partnership") return err(400, "INVALID_REQUEST", "Partner portals are already registered — configure them on their own source page.");
+  if (!kindFitsModule(input.config.kind, input.module)) return err(400, "INVALID_REQUEST", "That kind of source only reads job postings; pick an API, MCP or feed for this module.");
   const urls = checkUrls(input.config);
   if (!urls.ok) return urls;
   const store = jobsLakeStore();
@@ -202,6 +207,7 @@ export async function createSource(raw: unknown, actor: string): Promise<Result<
     limits: { ...DEFAULT_LIMITS, ...input.limits },
     legacySourceId: input.config.kind === "ats_board" ? "careers" : undefined,
     builtin: false,
+    ...(input.module !== "jobs" ? { module: input.module } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -211,7 +217,7 @@ export async function createSource(raw: unknown, actor: string): Promise<Result<
     rec.secretRef = await saveCredential(input.credential);
   }
   await store.putSource(rec);
-  await audit(actor, "source.created", id, { kind: input.config.kind, status: rec.status, credential: input.credential ? "set" : "none" });
+  await audit(actor, "source.created", id, { kind: input.config.kind, module: input.module, status: rec.status, credential: input.credential ? "set" : "none" });
   return ok(rec);
 }
 
