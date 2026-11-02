@@ -85,6 +85,15 @@ describe("module catalog persistence", () => {
 });
 
 describe("module responses", () => {
+  it("keeps when and a note with a response until changed or cleared (outside progress)", () => {
+    const s = moduleStore("therapists");
+    s.getState().setResponse("w1", "upcoming", { status: "booked", when: "2026-11-05T16:00", note: "Bring reports" });
+    s.getState().setResponse("w1", "held_closed", { status: "held" });
+    expect(s.getState().responses.w1).toMatchObject({ status: "held", when: "2026-11-05T16:00", note: "Bring reports" });
+    s.getState().setResponse("w1", "held_closed", { status: "held", note: null });
+    expect(s.getState().responses.w1.note).toBeUndefined();
+  });
+
   it("keep a status, the marks made toward one, and the listing; clearing takes it out", () => {
     const s = moduleStore("events");
     s.getState().setResponse("r1", "preparing", { status: "preparing", mark: "apply_opened", item: { id: "r1", title: "T" } });

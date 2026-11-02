@@ -332,7 +332,7 @@ export function stageOf(s: InternshipStatus): "applied" | "shortlisted" | "offer
 // ---- the student's own record of an internship applied to on another site ----------------------------------------
 
 /** Where an outside internship stands, by the student's own word: Preparing, Applied or Withdrawn. */
-export type OutsideStatus = "preparing" | "applied" | "withdrawn";
+export type OutsideStatus = "preparing" | "applied" | "shortlisted" | "offer" | "not_selected" | "withdrawn";
 
 /** What the student did toward one, as Jobs' Preparing cards show it. */
 export const MARK_LABEL: Record<string, string> = { resume: "Résumé made", apply_opened: "Apply opened" };
@@ -340,13 +340,13 @@ export const MARK_LABEL: Record<string, string> = { resume: "Résumé made", app
 /** A response's status (refs from before statuses were kept read as applied); null when there's none. */
 export function outsideStatus(ref: { stage: string; status?: string } | undefined): OutsideStatus | null {
   if (!ref) return null;
-  if (ref.status === "preparing" || ref.status === "applied" || ref.status === "withdrawn") return ref.status;
+  if (ref.status && ref.status in OUTSIDE_LABEL) return ref.status as OutsideStatus;
   return ref.stage === "preparing" ? "preparing" : "applied";
 }
 
 /** The Pipeline stage each outside status sits in. */
-export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "offer" };
-export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
+export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", shortlisted: "shortlisted", offer: "offer", not_selected: "offer", withdrawn: "offer" };
+export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", shortlisted: "Shortlisted / interview", offer: "Offer received", not_selected: "Not selected", withdrawn: "Withdrawn" };
 
 /** One of the student's own applications, as their Pipeline shows it. */
 export interface MyInternshipApplication {

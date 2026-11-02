@@ -340,7 +340,7 @@ export function readTerms(raw: unknown): TeachingTerms {
 /* ------------------------------------------------------------------ the teacher's own record of an outside opening */
 
 /** Where an outside opening stands, by the teacher's own word: Preparing, Applied or Withdrawn. */
-export type OutsideStatus = "preparing" | "applied" | "withdrawn";
+export type OutsideStatus = "preparing" | "applied" | "in_process" | "appointed" | "not_selected" | "withdrawn";
 
 export const MARK_LABEL: Record<string, string> = { resume: "Résumé made", apply_opened: "Apply opened" };
 
@@ -348,12 +348,12 @@ export const MARK_LABEL: Record<string, string> = { resume: "Résumé made", app
 export function outsideStatus(ref: { stage: string; status?: string } | undefined): OutsideStatus | null {
   if (!ref) return null;
   const s = ref.status ?? ref.stage;
-  return s === "preparing" || s === "applied" || s === "withdrawn" ? s : null;
+  return s in OUTSIDE_LABEL ? (s as OutsideStatus) : null;
 }
 
 /** The Pipeline stage each outside status sits in. */
-export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", withdrawn: "appointed_closed" };
-export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", withdrawn: "Withdrawn" };
+export const OUTSIDE_STAGE: Record<OutsideStatus, string> = { preparing: "preparing", applied: "applied", in_process: "in_process", appointed: "appointed_closed", not_selected: "appointed_closed", withdrawn: "appointed_closed" };
+export const OUTSIDE_LABEL: Record<OutsideStatus, string> = { preparing: "Preparing", applied: "Applied on their site", in_process: "Interview or demo class", appointed: "Appointed", not_selected: "Not selected", withdrawn: "Withdrawn" };
 
 /* ------------------------------------------------------------------ a school's form */
 

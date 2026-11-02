@@ -12,10 +12,10 @@ const GROUPS: { title: string; blurb: string; risk: "low" | "medium" | "high" }[
 ];
 
 /** The boundary of what Wonder may do without asking (spec §12). */
-export function AutomationPolicyEditor({ policy, onChange, className }: { policy: Policy; onChange: (c: Capability, m: PolicyMode) => void; className?: string }) {
+export function AutomationPolicyEditor({ policy, onChange, className, capabilities = CAPABILITIES }: { policy: Policy; onChange: (c: Capability, m: PolicyMode) => void; className?: string; /** The actions to list: Jobs' by default, or one module's own (2026-11-02). */ capabilities?: readonly Capability[] }) {
   return (
     <div className={cn("flex flex-col gap-5", className)}>
-      {GROUPS.map((g) => (
+      {GROUPS.filter((g) => capabilities.some((c) => CAPABILITY_META[c].risk === g.risk)).map((g) => (
         <section key={g.risk} aria-labelledby={`policy-${g.risk}`}>
           <div className="mb-2 flex items-center gap-2">
             <h3 id={`policy-${g.risk}`} className="text-[14px] font-semibold text-ink">
@@ -26,7 +26,7 @@ export function AutomationPolicyEditor({ policy, onChange, className }: { policy
           <p className="mb-2 text-[12px] text-ink-3">{g.blurb}</p>
           <ul className="divide-y divide-line rounded-[16px] border border-line bg-surface">
             {/* Sensitive questions are turned on only through their own confirmation (SensitiveQuestions). */}
-            {CAPABILITIES.filter((c) => CAPABILITY_META[c].risk === g.risk && !(SENSITIVE_GROUPS as readonly string[]).includes(c)).map((c) => {
+            {capabilities.filter((c) => CAPABILITY_META[c].risk === g.risk && !(SENSITIVE_GROUPS as readonly string[]).includes(c)).map((c) => {
               const meta = CAPABILITY_META[c];
               return (
                 <li key={c} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
