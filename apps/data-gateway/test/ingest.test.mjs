@@ -42,3 +42,19 @@ test("records delivered by the weekly job replace a source's listings, count as 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("the scheduled run's floor leaves a source collected lately alone, whatever its own interval", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gw-floor-"));
+  try {
+    const store = await new JsonStore(join(dir, "g.json")).init();
+    const gw = createGateway({ store, env: { GATEWAY_ADMIN_TOKEN: "a".repeat(40), GATEWAY_CURSOR_SECRET: "c".repeat(40) } });
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    await store.change((s) => { s.sources.push({ id: "src_f", kind: "rss", modules: ["events"], enabled: true, minIntervalMinutes: 30, nextRunAt: hourAgo, lastSuccessAt: hourAgo }); });
+    const read = (floor) => store.read((s) => s.sources.filter((x) => x.id === "src_f" && (!floor || Date.now() - Date.parse(x.lastSuccessAt) >= floor * 60000)).length);
+    assert.equal(await read(0), 1); // due by its own 30-minute interval
+    const outcomes = await gw.collectDue(35000, [], 360);
+    assert.equal(outcomes.find((o) => o.sourceId === "src_f"), undefined); // but not with a 6-hour floor
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

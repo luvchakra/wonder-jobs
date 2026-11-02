@@ -79,3 +79,9 @@ export async function recentFailures(withinMs = RETRY_AFTER_MS, now = Date.now()
   }
   return out;
 }
+
+/** Whether a scheduled (cron) collection finished within the last `minutes` (server/gateway/budget.ts). */
+export async function lastScheduledRunWithin(minutes: number, now = Date.now()): Promise<boolean> {
+  const last = (await listImportRuns()).find((r) => r.kind === "hourly" && r.trigger === "cron");
+  return !!last && now - Date.parse(last.finishedAt) < minutes * 60_000;
+}

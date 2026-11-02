@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
-import { listImportRuns, MAX_IMPORT_RUNS, recentFailures, recordImportRun, type ImportRun } from "./importRuns";
+import { lastScheduledRunWithin, listImportRuns, MAX_IMPORT_RUNS, recentFailures, recordImportRun, type ImportRun } from "./importRuns";
+import { MONTHLY } from "@/domain/gateway/budget";
 
 const run = (over: Partial<ImportRun> = {}): ImportRun => ({ id: "r", kind: "hourly", trigger: "cron", startedAt: "2026-11-02T10:00:00Z", finishedAt: "2026-11-02T10:00:05Z", items: [], summary: "0 due · 0 collected", ...over });
 
@@ -45,5 +46,20 @@ describe("sources that didn't go live lately are left out of Import now (2026-11
     const f = await recentFailures(undefined, now);
     expect([...f.keys()]).toEqual(["gateway:src_h"]);
     expect(f.get("gateway:src_h")).toEqual({ at: "2026-11-02T13:00:00Z", step: "Test", message: "Cannot verify robots policy" });
+  });
+});
+
+describe("the scheduled pace (2026-11-02: a month within the free plans)", () => {
+  it("knows a scheduled collection ran within the gap, and ignores admin runs", async () => {
+    const now = Date.parse("2026-11-02T12:00:00Z");
+    await recordImportRun(run({ id: "admin", kind: "import", trigger: "admin", finishedAt: "2026-11-02T11:55:00Z", items: [{ name: "x", status: "live" }] }));
+    expect(await lastScheduledRunWithin(150, now)).toBe(false);
+    await recordImportRun(run({ id: "cron", finishedAt: "2026-11-02T10:00:00Z", items: [{ name: "y", status: "collected" }] }));
+    expect(await lastScheduledRunWithin(150, now)).toBe(true);
+    expect(await lastScheduledRunWithin(90, now)).toBe(false);
+  });
+  it("stays within the month's budget", () => {
+    expect(MONTHLY.runs).toBeLessThanOrEqual(240);
+    expect(MONTHLY.perSource).toBeLessThanOrEqual(120);
   });
 });

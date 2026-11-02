@@ -52,6 +52,15 @@ export async function POST(req: Request) {
       });
     return json({ ok: true, queued: r.queued, skipped: r.skipped });
   }
+  if (action === "continue") {
+    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours): carry it on now.
+    after(async () => {
+      const c = await continueSetupJob();
+      if (c.left && c.ran) await handOnSetupJob(origin);
+    });
+    await audit(a.actor, "import.continued", undefined, {});
+    return json({ ok: true });
+  }
   if (action === "item") {
     // Only an item the server itself lists as runnable: the page sends its id, never what to run.
     const id = typeof body?.id === "string" ? body.id.slice(0, 120) : "";

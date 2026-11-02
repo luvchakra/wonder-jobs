@@ -14,7 +14,8 @@ import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
 import { gatewaySourceModules } from "./admin";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
-import { recentFailures, recordImportRun, RETRY_AFTER_MS } from "./importRuns";
+import { lastScheduledRunWithin, recentFailures, recordImportRun, RETRY_AFTER_MS } from "./importRuns";
+import { MIN_GAP_MINUTES, SOURCE_FLOOR_MINUTES } from "@/domain/gateway/budget";
 
 export interface GatewayRunResult {
   ok: boolean;
@@ -60,7 +61,14 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
     }
   }
 
-  const outcomes = (await hosted.gateway.collectDue(undefined, settings.gateway.pausedModules)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
+  // A scheduled trigger right after the last one only carries a running import on (domain/gateway/budget.ts).
+  if (trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
+    const running = jobRunning(await readSetupJob());
+    if (running) await handOnSetupJob(origin);
+    return { ok: true, skipped: "ran recently", summary: running ? "Ran recently · Setup job continuing" : "Ran recently: nothing to do" };
+  }
+  const floor = trigger === "cron" ? SOURCE_FLOOR_MINUTES : 0;
+  const outcomes = (await hosted.gateway.collectDue(undefined, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
   if (setupRunning) await handOnSetupJob(origin);
 
