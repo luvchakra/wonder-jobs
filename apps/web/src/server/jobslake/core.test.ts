@@ -326,6 +326,34 @@ describe("WorksLake search cache — the next similar search reuses each source'
     expect((await jobsLakeStore().listRuns()).find((r) => r.sourceId === "greenhouse" && r.outcome === "unavailable")).toBeTruthy();
   });
 
+  it("a source that reads the gateway's collected listings is read every time, never from the cache (2026-11-02)", async () => {
+    // Before the owner activated the OpenStreetMap practices, the source answered empty; that answer must not stand in for 6 h.
+    const osm = job({ id: "thp_osm_1", sourceId: "thp_osm", externalId: "node/1", title: "Mind Care Clinic", company: "Mind Care Clinic", applyUrl: "https://www.openstreetmap.org/node/1" });
+    const therapists = req({ query: { text: "counselling", locations: [] }, module: "therapists" });
+    connector.mockImplementation(async () => ({ jobs: [], warnings: [] }));
+    await search(therapists, { trigger: "search" });
+    expect([...(jobsLakeStore() as InstanceType<typeof __MemoryStore>).answers.values()].some((a) => a.sourceId === "thp_osm")).toBe(false);
+    connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "thp_osm" ? [osm] : [], warnings: [] }));
+    const { response } = await search(therapists, { trigger: "search" });
+    expect(response.sources.find((s) => s.sourceId === "thp_osm")).toMatchObject({ outcome: "ok", retrieved: 1 });
+    expect(response.sources.find((s) => s.sourceId === "thp_osm")?.cacheUse).toBeUndefined();
+  });
+
+  it("a search without words shows the gateway-read sources' listings too, read now (2026-11-02)", async () => {
+    const osm = job({ id: "thp_osm_1", sourceId: "thp_osm", externalId: "node/1", title: "Mind Care Clinic", company: "Mind Care Clinic", applyUrl: "https://www.openstreetmap.org/node/1" });
+    connector.mockImplementation(async (src: { id: string }, c: { query: string }) => ({ jobs: src.id === "thp_osm" && c.query === "" ? [osm] : [], warnings: [] }));
+    const { response } = await search(req({ query: { text: "", locations: [] }, module: "therapists" }), { trigger: "search" });
+    expect(response.results.map((o) => o.title)).toContain("Mind Care Clinic");
+    expect(response.sources.find((s) => s.sourceId === "thp_osm")).toMatchObject({ outcome: "ok", retrieved: 1 });
+    // Only the gateway-read sources are asked; the others' latest stay the stored ones.
+    expect(connector.mock.calls.every((c) => (c[0] as { liveRead?: boolean }).liveRead)).toBe(true);
+    connector.mockImplementation(async () => {
+      throw new Error("gateway down");
+    });
+    const down = await search(req({ query: { text: "", locations: [] }, module: "therapists" }), { trigger: "search" });
+    expect(down.response.sources.find((s) => s.sourceId === "thp_osm")?.outcome).not.toBe("ok");
+  });
+
   it("editing a source retires its cached answers", async () => {
     const { answerKey } = await import("./cache");
     expect(answerKey({ id: "greenhouse", updatedAt: "2026-10-01T00:00:00Z" }, "normal", "v1|q=identity|l=")).not.toBe(answerKey({ id: "greenhouse", updatedAt: "2026-10-09T00:00:00Z" }, "normal", "v1|q=identity|l="));

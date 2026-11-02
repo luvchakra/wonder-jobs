@@ -54,6 +54,7 @@ export const THERAPISTS_SOURCES: SourceRecord[] = [
   {
     protocolVersion: PROTOCOL_VERSION,
     id: OPENSTREETMAP_THERAPISTS,
+    liveRead: true,
     name: "OpenStreetMap",
     provider: "OpenStreetMap contributors",
     category: "aggregator",
