@@ -1,4 +1,5 @@
 import { MODULES, searchPlan, type GatewayListing } from "../../../../data-gateway/src/core.mjs";
+import { sourceCountry, withCountry } from "../../../../data-gateway/src/handler.mjs";
 import { hostedGateway } from "./index";
 
 /**
@@ -13,7 +14,10 @@ export async function gatewayListings(module: string, input: { query?: string; p
   const internal = { id: "in-app", consumerId: "workslake", scopes: [`read:${module}`] };
   const plan = await hosted.store.read((s) => searchPlan(s, internal, { module, query: input.query ?? "", locations: input.places ?? [], limit: Math.min(100, input.limit ?? 50) }, secret));
   const offset = Number.isInteger(input.offset) && input.offset! > 0 ? Math.min(input.offset!, 100_000) : plan.offset;
-  const r = { results: (await hosted.store.listings.search({ ...plan, offset })).rows };
+  const rows = (await hosted.store.listings.search({ ...plan, offset })).rows;
+  // Each place with its source's country, as the WorksLake API gives it (owner, 2026-11-02: country on every card).
+  const countries = await hosted.store.read((s) => new Map(s.sources.map((x) => [x.id, sourceCountry(x)])));
+  const r = { results: rows.map((l) => ({ ...l, location: withCountry(l.location, countries.get(l.sourceId) ?? null) })) };
   const counts = new Map<string, { id: string; name: string; count: number }>();
   for (const l of r.results) {
     const c = counts.get(l.sourceId) ?? { id: l.sourceId, name: l.sourceName, count: 0 };

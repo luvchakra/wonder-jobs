@@ -80,3 +80,4 @@
 - ✅ Gateway: OpenStreetMap queries spread over three public Overpass servers with fallback; 'all' pauses between sources (WJ-638)
 - ✅ WorksLake data never written to the main database while the data database is on (WJ-637)
 - ✅ Gateway listings show their country on cards and detail pages (e.g. 'Chatham, United Kingdom') (WJ-639)
+- ✅ Country on cards shows at once (cached gateway answers retired) and in modules that read the gateway directly (WJ-640)
