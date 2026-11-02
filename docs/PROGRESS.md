@@ -91,3 +91,4 @@
 - ✅ One Import page manages the whole data import, from sources to Find; Setup to-do, Partners & gateway and the Scheduler's gateway controls are folded into it (WJ-648)
 - ✅ Admin menus redesigned for WonderWorks: 7 menus in two sections, generic names, Alerts on Health and credentials on Keys (WJ-649)
 - ✅ Cards name the gateway “WorksLakeDG” instead of “WWDG” (WJ-650)
+- ✅ Import page module cards start closed, with the numbers in one line and only the actions there are (WJ-651)
