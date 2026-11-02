@@ -59,6 +59,10 @@ export interface TherapistListing {
   sourceName: string;
   /** An outside practice's own website when it has one, else the page its source lists it on. */
   applyUrl?: string;
+  /** An outside practice: the page its source lists it on, what kind of practice the map says it is, and its published phone. */
+  mapUrl?: string;
+  practiceKind?: string;
+  phone?: string;
   /** Open data needs its credit shown on every listing it gave (OpenStreetMap: "© OpenStreetMap contributors", ODbL). */
   attribution?: string;
 }
@@ -76,10 +80,20 @@ export interface OsmFacts {
   speciality?: string;
   city?: string;
   web?: string;
+  /** The practice's published phone, if the map has one (a business line, never a person's). */
+  phone?: string;
 }
 
+/** A phone number as the map writes it, if it's a plausible one: the first of several, digits and the usual separators only. */
+export function cleanPhone(v: unknown): string | undefined {
+  const first = (typeof v === "string" ? v : "").split(/[;,/]/)[0].trim();
+  const digits = first.replace(/\D/g, "");
+  return /^\+?[\d\s().-]{7,24}$/.test(first) && digits.length >= 7 && digits.length <= 15 ? first : undefined;
+}
+export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
+
 export function osmTags(f: OsmFacts): string[] {
-  return [...(f.healthcare ? [`hc:${f.healthcare}`] : []), ...(f.amenity ? [`amenity:${f.amenity}`] : []), ...(f.speciality ? [`spec:${f.speciality}`] : []), ...(f.city ? [`city:${f.city}`] : []), ...(f.web ? [`web:${f.web}`] : [])];
+  return [...(f.healthcare ? [`hc:${f.healthcare}`] : []), ...(f.amenity ? [`amenity:${f.amenity}`] : []), ...(f.speciality ? [`spec:${f.speciality}`] : []), ...(f.city ? [`city:${f.city}`] : []), ...(f.web ? [`web:${f.web}`] : []), ...(f.phone ? [`tel:${f.phone}`] : [])];
 }
 
 export function readOsmTags(tags: string[]): OsmFacts {
@@ -94,6 +108,7 @@ export function readOsmTags(tags: string[]): OsmFacts {
     else if (k === "spec") out.speciality = v;
     else if (k === "city") out.city = v;
     else if (k === "web") out.web = v;
+    else if (k === "tel") out.phone = v;
   }
   return out;
 }
@@ -112,7 +127,9 @@ export function practiceKind(f: OsmFacts): string {
  * This leaves out some real practices named after their founder, on purpose; a practitioner can list themselves.
  */
 const PRACTICE_WORDS = /\b(clinic|clinics|centre|center|hospital|counsel+ing|counsel+ors|therapy|psycholog\w*|psychiatr\w*|psychotherap\w*|wellness|wellbeing|well-being|mind|minds|mental|health|healthcare|care|institute|foundation|associates|trust|society|services|studio|hub|lab|academy|rehab\w*|de-?addiction|nursing|polyclinic|medical|consultancy|consultants|practice)\b/i;
-export const isPracticeName = (name: string) => PRACTICE_WORDS.test(name.trim());
+const PERSONAL_TITLE = /(^|[\s(,-])(dr|doctor|prof|professor|mr|mrs|ms|shri|smt|sri)\b\.?(?=\s|$)/i;
+/** A name with a personal title ("Neuro Clinic - Dr. Dinesh Chouksey") is a person's own practice, however it is worded. */
+export const isPracticeName = (name: string) => !PERSONAL_TITLE.test(name.trim()) && PRACTICE_WORDS.test(name.trim());
 
 /** An outside practice's terms: only what the map says. In person, in the city it's near; no fee, language or focus is stated, so none is shown. */
 export function termsFromOsm(): TherapistTerms {

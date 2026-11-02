@@ -8,7 +8,7 @@
     "IN"
   ],
   "permission": "terms_permit",
-  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"© OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Practices and clinics only: named features, no phone or email copied. Terms pending: owner confirms the endpoint.",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"\u00a9 OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Practices and clinics only: named features; the practice's published phone is kept, no email. Terms pending: owner confirms the endpoint.",
   "termsReviewed": true,
   "redistributionAllowed": true,
   "externalRedistributionAllowed": false,
@@ -44,7 +44,9 @@
     "attr.clat": "center.lat",
     "attr.clon": "center.lon",
     "attr.suburb": "tags.addr:suburb",
-    "attr.city": "tags.addr:city"
+    "attr.city": "tags.addr:city",
+    "attr.phone": "tags.phone",
+    "attr.contactPhone": "tags.contact:phone"
   },
   "retentionHours": 504,
   "minIntervalMinutes": 10080

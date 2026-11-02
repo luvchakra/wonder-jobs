@@ -104,3 +104,4 @@
 - ✅ Your progress on outside listings in every module, from opening their page to the last step (WJ-659)
 - ✅ Searches in every module show only listings that match the words (WJ-660)
 - ✅ Automation, Analytics and Notifications follow the selected module; the top bar names it (WJ-661)
+- ✅ Therapists: mapped practices open with a real link, show a Call button when the map has a phone, and practices named after a doctor are left out (WJ-602)
