@@ -12,6 +12,7 @@ import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/server/gateway/admin";
 import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
+import { failedLately } from "@/server/gateway/collectJob";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { isGatewayBridge } from "./gatewaySources";
 import { setupTodo, type SetupItem } from "./setup";
@@ -47,7 +48,8 @@ export type ImportAction =
   | { kind: "decide"; label: string; decision: string }
   | { kind: "pause" | "activate" | "collect" | "test"; label: string; sourceId: string }
   | { kind: "upload"; label: string; sourceId: string }
-  | { kind: "source_status"; label: string; id: string; status: "paused" | "active" };
+  | { kind: "source_status"; label: string; id: string; status: "paused" | "active" }
+  | { kind: "dismiss"; label: string; id: string; dismissed: boolean };
 
 /** One source (or one thing the owner must decide) on a module's list: one state, at most one action. */
 export interface ImportRow {
@@ -111,6 +113,9 @@ const liveStatus = (s: { status: string }) => s.status === "active" || s.status 
 const ago = (iso: string | null | undefined) => (iso ? `${Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 3_600_000))} h ago` : "never");
 const n = (v: number) => v.toLocaleString("en-IN");
 
+/** Why a source didn't go live lately, in a line. */
+const blockedLine = (f: { at: string; step?: string; message?: string }) => `Didn't go live ${ago(f.at)}${f.step ? ` at ${f.step}` : ""}: ${f.message ?? "failed"}. Import now leaves it out for a day.`;
+
 /** A WorksLake source's recent runs, in lines. */
 function sourceHistory(v: SourceView): ImportRow["history"] {
   const h = v.health;
@@ -135,14 +140,18 @@ function gatewayHistory(g: GatewaySourceRow): ImportRow["history"] {
 }
 
 /** Pure: a module's rows from its WorksLake sources, its gateway sources and its Setup items (exported for tests). */
-export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[]): ImportRow[] {
+export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[], failed: Map<string, { at: string; step?: string; message?: string }> = new Map(), dismissed: Set<string> = new Set()): ImportRow[] {
   const rows: ImportRow[] = [];
   const byItem = new Map(items.map((i) => [i.id, i]));
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
     if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href.startsWith("/") && i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
-    else if (i.run?.kind === "add") rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "waiting", detail: i.detail, action: { kind: "run", label: "Add & activate", run: i.run }, more: [], history: [] });
+    else if (i.run?.kind === "add") {
+      const f = failed.get(i.id);
+      if (dismissed.has(i.id)) rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "off", detail: "Dismissed: Import never tries it.", action: { kind: "dismiss", label: "Restore", id: i.id, dismissed: false }, more: [], history: [] });
+      else rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: f ? "needs_you" : "waiting", detail: f ? blockedLine(f) : i.detail, action: { kind: "run", label: f ? "Try again" : "Add & activate", run: i.run }, more: f ? [{ kind: "dismiss", label: "Dismiss", id: i.id, dismissed: true }] : [], history: [] });
+    }
   }
   // WorksLake's own sources (the gateway bridges are automatic now, so they aren't listed).
   for (const v of views) {
@@ -173,7 +182,16 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     }
     const item = byItem.get(`gateway:${g.id}`);
     if (partner) rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: g.listings ? "waiting" : "needs_you", detail: g.listings ? `${g.listings.toLocaleString("en-IN")} listings uploaded, not live` : "Upload its list to go live", listings: g.listings, action: g.listings ? { kind: "activate", label: "Activate", sourceId: g.id } : { kind: "upload", label: "Upload list", sourceId: g.id }, more: g.listings ? [{ kind: "upload", label: "Upload again", sourceId: g.id }] : [], history: gatewayHistory(g) });
-    else rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: "waiting", detail: item?.detail ?? "Added, not live", listings: g.listings, termsPending: g.termsPending, action: { kind: "run", label: "Test & activate", run: { kind: "activate", sourceId: g.id } }, more: [{ kind: "test", label: "Test only", sourceId: g.id }], history: gatewayHistory(g) });
+    else {
+      // Didn't go live in the last day (a site that refuses us, or a test that found nothing): Import now leaves it out;
+      // Try again here tries it on purpose.
+      const f = failed.get(`gateway:${g.id}`);
+      if (dismissed.has(`gateway:${g.id}`)) {
+        rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: "off", detail: "Dismissed: Import never tries it.", listings: g.listings, action: { kind: "dismiss", label: "Restore", id: `gateway:${g.id}`, dismissed: false }, more: [{ kind: "test", label: "Test only", sourceId: g.id }], history: gatewayHistory(g) });
+        continue;
+      }
+      rows.push({ id: `gateway:${g.id}`, name: g.name, kind, state: f ? "needs_you" : "waiting", detail: f ? blockedLine(f) : (item?.detail ?? "Added, not live"), listings: g.listings, termsPending: g.termsPending, action: { kind: "run", label: f ? "Try again" : "Test & activate", run: { kind: "activate", sourceId: g.id } }, more: [{ kind: "test", label: "Test only", sourceId: g.id }, ...(f ? [{ kind: "dismiss" as const, label: "Dismiss", id: `gateway:${g.id}`, dismissed: true }] : [])], history: gatewayHistory(g) });
+    }
   }
   const order: ImportState[] = ["needs_you", "waiting", "down", "live", "off"];
   return rows.sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state) || a.name.localeCompare(b.name));
@@ -206,7 +224,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -216,12 +234,13 @@ export async function importView(): Promise<ImportView> {
     listCronRuns(),
     Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)),
     listImportRuns().catch(() => [] as ImportRun[]),
+    failedLately().catch(() => new Map<string, { at: string; step?: string; message?: string }>()),
   ]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
   const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
-    const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items);
+    const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed));
     return {
       id: m.id,
       label: m.label,

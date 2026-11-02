@@ -10,7 +10,7 @@ import { Fold } from "@/components/common/Fold";
 import { Field, Input, Select, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { DataTypes } from "@/components/jobslake/DataTypes";
-import { adminFetch, LoadError, Loading, ms, Note, PageTitle, Panel, ResponsiveTable, Stat, num, useAdmin } from "@/components/jobslake/ui";
+import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, Stat, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
 
@@ -48,7 +48,8 @@ export default function ImportPage() {
     setStarting(true);
     const r = await post({ action: "import" });
     setStarting(false);
-    if (r.ok) toast.success("Import started", Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed. You can leave this page.` : "Collecting, then refreshing every module's Find. You can leave this page.");
+    const skipped = r.ok && Number(r.data.skipped) ? ` ${num(Number(r.data.skipped))} that didn't go live in the last day are left out; each has Try again on its module's card.` : "";
+    if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
     else toast.error("Didn't start", r.error.message);
     reload();
   };
@@ -311,6 +312,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     a.kind === "run" ? { action: "item", id: rowId }
     : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
     : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
+    : a.kind === "dismiss" ? { action: "dismiss", id: a.id, dismissed: a.dismissed }
     : { action: a.kind, sourceId: a.sourceId };
   const done = (d: Record<string, unknown>) =>
     a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
@@ -319,6 +321,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     : a.kind === "activate" ? "Live"
     : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
     : a.kind === "test" ? (d.ok === false ? `Test didn't pass: ${num(Number(d.valid ?? 0))} of ${num(Number(d.discovered ?? 0))} read well` : `Test passed · ${num(Number(d.valid ?? 0))} read well`)
+    : a.kind === "dismiss" ? (a.dismissed ? "Dismissed: Import won't try it again" : "Restored")
     : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
   return (
     <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
@@ -510,33 +513,49 @@ function AddSources({ reload }: { reload: () => void }) {
   );
 }
 
-/** The gateway's last collections and tests. */
+/** What a gateway failure code means, and what can be done, in plain words. */
+const REASON: Record<string, string> = {
+  ROBOTS_UNAVAILABLE: "Its robots.txt can't be read from our servers, so it isn't collected. Dismiss it, or ask the site to allow WonderWorks.",
+  ROBOTS_DISALLOWED: "Its robots.txt doesn't allow collecting this page. Dismiss it.",
+  SOURCE_UNAVAILABLE: "The site refused us or didn't answer (403 or down). Try again later, or dismiss it.",
+  UNSAFE_REDIRECT: "The site sends us to another address, which isn't followed. Dismiss it, or fix its address.",
+  INVALID_SOURCE: "Too few of its records read well (90% needed). Open its Details to see why.",
+  SOURCE_TIMEOUT: "It took too long to answer. The next run tries again.",
+  "Collection already running": "It was already being collected. The next run tries again.",
+};
+const reasonFor = (code?: string) => (code ? (REASON[code] ?? code) : "It failed without a reason.");
+
+/** The gateway's last collections and tests, repeats grouped: one line per source and outcome, with what it means. */
 function RecentRuns({ d }: { d: ImportView }) {
+  const groups = new Map<string, { source: string; ok: boolean; code?: string; kind: string; count: number; at: string; valid?: number }>();
+  for (const r of d.recentRuns) {
+    const kind = r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect";
+    const key = `${r.source}|${r.ok}|${r.code ?? ""}|${kind}`;
+    const g = groups.get(key);
+    if (g) g.count++;
+    else groups.set(key, { source: r.source, ok: r.ok, code: r.code, kind, count: 1, at: r.at, valid: r.valid });
+  }
+  const rows = [...groups.values()];
+  const failing = rows.filter((r) => !r.ok).length;
   return (
-    <Fold title="Recent collections" hint={d.recentRuns.length ? `Newest ${d.recentRuns.length}` : "None yet"}>
-      <div className="pb-4">
-        <ResponsiveTable
-          rows={d.recentRuns}
-          rowKey={(r) => `${r.at}${r.sourceId}${r.trigger}`}
-          empty="No collections yet."
-          columns={[
-            { header: "When", cell: (r) => when(r.at) },
-            { header: "Source", cell: (r) => r.source },
-            { header: "Kind", cell: (r) => (r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect") },
-            { header: "Result", cell: (r) => (r.ok ? `${num(r.valid)} listings` : <span className="text-danger-600">{r.code ?? "failed"}</span>) },
-            { header: "Time", cell: (r) => ms(r.ms) },
-          ]}
-          card={(r) => (
-            <div className="flex flex-col gap-0.5 text-[13px]">
-              <span className="font-medium text-ink">{r.source}</span>
-              <span className="text-ink-3">
-                {when(r.at)} · {r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect"} · {ms(r.ms)}
+    <Fold title="Recent collections" hint={rows.length ? `The newest ${num(d.recentRuns.length)}${failing ? ` · ${num(failing)} failing; each says why and what to do` : ""}` : "None yet"}>
+      <ul className="flex flex-col divide-y divide-line pb-4">
+        {rows.map((r) => (
+          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="py-2 text-[13px]">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="font-medium text-ink">
+                {r.source}
+                {r.count > 1 ? <span className="font-normal text-ink-3"> ×{r.count}</span> : null}
               </span>
-              <span>{r.ok ? `${num(r.valid)} listings` : <span className="text-danger-600">{r.code ?? "failed"}</span>}</span>
-            </div>
-          )}
-        />
-      </div>
+              <span className="text-[12px] text-ink-3">
+                {r.kind} · {when(r.at)}
+              </span>
+            </span>
+            <span className={`block text-[12px] ${r.ok ? "text-success-600" : "text-danger-600"}`}>{r.ok ? `${num(r.valid)} listings` : reasonFor(r.code)}</span>
+          </li>
+        ))}
+      </ul>
+      {failing > 0 && <p className="pb-4 text-[12px] text-ink-3">To stop a failing source being tried: open its module card above, then Details → Dismiss on its row.</p>}
     </Fold>
   );
 }
