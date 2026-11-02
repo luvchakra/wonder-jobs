@@ -30,7 +30,7 @@ const SOURCE_NAME = new Map(JOB_SOURCES.map((s) => [s.id, s.name]));
 
 /**
  * Where the listing was found — the first source's name, "+1" when it was seen on more. `short` names the WorksLake
- * Data Gateway "WWDG" (the card; the full name is its tooltip). Shortened per name, so the "+1" is kept.
+ * Data Gateway "WorksLakeDG" (the card; the full name is its tooltip). Shortened per name, so the "+1" is kept.
  */
 export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">, short = false): string {
   const full = job.lake?.sightings.length ? job.lake.sightings.map((x) => x.sourceName) : job.sourceIds.map((id) => SOURCE_NAME.get(id) ?? id);
@@ -128,7 +128,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       status={status && <Badge tone={statusTone}>{status}</Badge>}
       footnote={
         <>
-          {/* "via WWDG", not "via WorksLake Data Gateway · Jobs"; the full name on hover (owner, 2026-11-01). */}
+          {/* "via WorksLakeDG", not "via WorksLake Data Gateway · Jobs"; the full name on hover (owner, 2026-11-01). */}
           {sourceLine(job) ? <span title={sourceLine(job, true) !== sourceLine(job) ? sourceLine(job) : undefined}>{`${origin ? `${origin} ` : ""}via ${sourceLine(job, true)} · `}</span> : ""}
           {relativeTime(job.postedAt)}
           {brief?.size && ` · ${brief.size}`}
