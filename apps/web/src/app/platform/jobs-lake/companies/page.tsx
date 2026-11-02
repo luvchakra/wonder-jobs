@@ -172,7 +172,7 @@ export default function CompaniesPage() {
   return (
     <>
       <PageTitle
-        title="Directory & logos"
+        title="Directory"
         subtitle="Every company, school and organiser WorksLake recorded from a real listing, in every module, by its website domain — with what each source says about it. Most open roles first."
       />
       <form

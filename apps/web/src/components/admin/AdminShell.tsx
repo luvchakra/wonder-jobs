@@ -5,7 +5,6 @@ import { useState, type ReactNode } from "react";
 import {
   Activity,
   ArrowLeft,
-  BadgeCheck,
   Building2,
   ChevronDown,
   CreditCard,
@@ -13,7 +12,6 @@ import {
   LayoutDashboard,
   Menu,
   Search,
-  Send,
   Settings,
   X,
   type LucideIcon,
@@ -36,10 +34,13 @@ export interface AdminMenu {
 const LAKE = "/platform/jobs-lake";
 
 /**
- * Every platform admin page, grouped for the WonderWorks admin (owner, 2026-11-01: the admin works at WonderWorks
- * level and caters to every module equally). Sections read top to bottom as the work goes: the data every module reads,
- * keeping it running, the accounts on the platform, money, then settings. A menu with one page is a plain link.
- * Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
+ * The WonderWorks admin rail (owner, 2026-11-02: "rename, reorganize, merge based on new design. make it generic
+ * WonderWorks design, instead of jobs specific terms. keep the menus to minimum while not losing any function").
+ * Two sections. Data: where listings come from (Sources), what they are (Listings), and who offers them
+ * (Organisations: companies, schools, practices, organisers, shops). Platform: keeping it running (Operations),
+ * money (Billing) and settings. Pages that belong to another page are reached from it (SUB_PAGES), not the rail:
+ * Add a source from Sources and Import, Storage limits and Data database from Databases. Alerts are on Health and
+ * source credentials on Keys. Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
  */
 export const ADMIN_MENUS: AdminMenu[] = [
   {
@@ -56,61 +57,45 @@ export const ADMIN_MENUS: AdminMenu[] = [
     links: [
       { href: `${LAKE}/import`, label: "Import" },
       { href: `${LAKE}/sources`, label: "All sources" },
-      { href: `${LAKE}/add`, label: "Add a source" },
-      { href: `${LAKE}/credentials`, label: "Source credentials" },
+      { href: `${LAKE}/keys`, label: "Keys" },
     ],
   },
   {
-    id: "companies",
-    label: "Companies",
-    icon: Building2,
-    links: [
-      { href: `${LAKE}/companies`, label: "Directory & logos" },
-      { href: `${LAKE}/ratings`, label: "Employee ratings" },
-    ],
-  },
-  {
-    id: "search",
+    id: "listings",
     label: "Listings",
     icon: Search,
     links: [
-      { href: `${LAKE}/jobs`, label: "Browse listings" },
-      { href: `${LAKE}/quality`, label: "Data quality" },
+      { href: `${LAKE}/jobs`, label: "Browse" },
+      { href: `${LAKE}/quality`, label: "Quality" },
       { href: `${LAKE}/insights`, label: "Source insights" },
-      { href: `${LAKE}/playground`, label: "Search playground" },
+      { href: `${LAKE}/playground`, label: "Try a search" },
+    ],
+  },
+  {
+    id: "organisations",
+    label: "Organisations",
+    icon: Building2,
+    links: [
+      { href: `${LAKE}/companies`, label: "Directory" },
+      { href: "/platform/companies", label: "Verification" },
+      { href: `${LAKE}/ratings`, label: "Ratings" },
     ],
   },
   {
     id: "operations",
-    section: "Running",
+    section: "Platform",
     label: "Operations",
     icon: Activity,
     links: [
-      { href: `${LAKE}/health`, label: "Source health" },
+      { href: `${LAKE}/health`, label: "Health" },
       { href: `${LAKE}/runs`, label: "Runs" },
-      { href: `${LAKE}/alerts`, label: "Alerts" },
       { href: `${LAKE}/scheduler`, label: "Scheduler" },
+      { href: `${LAKE}/databases`, label: "Databases" },
+      { href: "/platform/jobs-apply", label: "WonderWorks helper" },
     ],
-  },
-  {
-    id: "employers",
-    section: "Accounts",
-    label: "Employers",
-    icon: BadgeCheck,
-    links: [
-      { href: "/platform/companies", label: "Verify employers" },
-      { href: "/platform/careers", label: "Career sites" },
-    ],
-  },
-  {
-    id: "apply",
-    label: "Application helper",
-    icon: Send,
-    links: [{ href: "/platform/jobs-apply", label: "Application helper" }],
   },
   {
     id: "billing",
-    section: "Business",
     label: "Billing",
     icon: CreditCard,
     links: [
@@ -123,24 +108,28 @@ export const ADMIN_MENUS: AdminMenu[] = [
   },
   {
     id: "settings",
-    section: "Settings",
     label: "Settings",
     icon: Settings,
     links: [
       { href: `${LAKE}/menus`, label: "App menus" },
       { href: `${LAKE}/notifications`, label: "Notifications" },
-      { href: `${LAKE}/keys`, label: "API keys" },
-      { href: `${LAKE}/databases`, label: "Databases" },
-      { href: `${LAKE}/storage`, label: "Storage" },
-      { href: `${LAKE}/data-db`, label: "Data database" },
+      { href: "/platform/careers", label: "Our careers page" },
       { href: `${LAKE}/settings`, label: "Feature switches" },
       { href: `${LAKE}/protocols`, label: "WorksLake protocol" },
     ],
   },
 ];
 
+/** Pages reached from another page rather than the rail, and the rail link they sit under (it stays highlighted). */
+export const SUB_PAGES: Record<string, string> = {
+  [`${LAKE}/add`]: `${LAKE}/sources`,
+  [`${LAKE}/storage`]: `${LAKE}/databases`,
+  [`${LAKE}/data-db`]: `${LAKE}/databases`,
+};
+
 /** The page a path belongs to: the longest link that it is, or sits under. The Overview matches only itself. */
 export function activeHref(pathname: string): string | undefined {
+  for (const [sub, parent] of Object.entries(SUB_PAGES)) if (pathname === sub || pathname.startsWith(`${sub}/`)) return parent;
   let best: string | undefined;
   for (const m of ADMIN_MENUS)
     for (const l of m.links) {

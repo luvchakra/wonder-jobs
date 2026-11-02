@@ -4,6 +4,7 @@ import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { adminFetch, LoadError, Loading, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
+import { CredentialsPanel } from "@/components/jobslake/CredentialsPanel";
 
 /**
  * The API keys sources need, set here on the platform instead of in the hosting dashboard (owner, 2026-11-01).
@@ -14,7 +15,7 @@ export default function ApiKeysPage() {
   const missing = data?.keys.filter((k) => !k.set).length ?? 0;
   return (
     <>
-      <PageTitle title="API keys" subtitle="Keys the sources need. Saved encrypted on the server and shown only masked; a source that needs one says Needs setup until it's set." />
+      <PageTitle title="Keys" subtitle="Every key and credential the sources need, in one place. Saved encrypted on the server and shown only masked; a source that needs one says Needs setup until it's set." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
@@ -26,6 +27,7 @@ export default function ApiKeysPage() {
           </ul>
         </Panel>
       )}
+      <CredentialsPanel />
     </>
   );
 }

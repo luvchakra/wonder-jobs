@@ -3,22 +3,23 @@ import Link from "next/link";
 import type { SourceView } from "@/server/jobslake/views";
 import { relativeTime } from "@/lib/format";
 import { StatusPill } from "@/components/common/Badge";
-import { LoadError, Loading, Note, PageTitle, Panel, ResponsiveTable, useAdmin } from "@/components/jobslake/ui";
+import { LoadError, Loading, Panel, ResponsiveTable, useAdmin } from "@/components/jobslake/ui";
 
-/** Which sources hold a credential, and in what state. Values are never shown — only a mask. */
-export default function CredentialsPage() {
+/**
+ * Which sources hold their own credential, and in what state. Values are never shown, only a mask; one is set or
+ * replaced from its source's Configuration tab. Shown on Data → Sources → Keys (its own page until 2026-11-02).
+ * WorksLake never returns a credential through any API, never logs one, and never puts one in an error message.
+ */
+export function CredentialsPanel() {
   const { data, error, reload } = useAdmin<{ sources: SourceView[] }>("sources");
   const rows = (data?.sources ?? []).filter((s) => s.credential || s.config.kind === "json_api" || s.config.kind === "mcp");
   return (
     <>
-      <PageTitle title="Source credentials" subtitle="Encrypted with AES-256-GCM on the server and shown only masked. Set or replace one from its source's Configuration tab." />
-      <div className="mb-4">
-        <Note>WorksLake never returns a credential through any API, never logs one, and never puts one in an error message.</Note>
-      </div>
       {error && <LoadError error={error} onRetry={reload} />}
-      {!data && !error && <Loading />}
+      {!data && !error && <Loading rows={2} />}
       {data && (
-        <Panel>
+        <Panel title="Source credentials" className="mt-4">
+          <p className="mb-2 text-[12.5px] text-ink-3">A source&apos;s own credential, encrypted (AES-256-GCM) and shown only masked. Set or replace one from its source&apos;s Configuration tab; it&apos;s never returned, logged or put in an error.</p>
           <ResponsiveTable
             rows={rows}
             rowKey={(r) => r.id}

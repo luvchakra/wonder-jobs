@@ -89,3 +89,4 @@
 - ✅ One gateway job on the Scheduler (Run now, test & activate waiting sources); every finished job refreshes Find for every module, each listing once (WJ-646)
 - ✅ Overview's module cards show listings in Find, and gateway refreshes count as fetched (WJ-647)
 - ✅ One Import page manages the whole data import, from sources to Find; Setup to-do, Partners & gateway and the Scheduler's gateway controls are folded into it (WJ-648)
+- ✅ Admin menus redesigned for WonderWorks: 7 menus in two sections, generic names, Alerts on Health and credentials on Keys (WJ-649)

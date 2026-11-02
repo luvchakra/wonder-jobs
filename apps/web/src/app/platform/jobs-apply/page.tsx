@@ -37,7 +37,7 @@ export default function JobsApplyAdminPage() {
   const entries = (m: Record<string, number> | undefined) => Object.entries(m ?? {}).map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count);
   return (
     <>
-      <PageTitle title="Application helper" subtitle="Candidate-controlled application help: adapters, domain policies and observed outcomes. Submission is always the candidate's — no adapter can submit." />
+      <PageTitle title="WonderWorks helper" subtitle="The browser helper that fills applications for people, under their control: adapters, domain policies and observed outcomes. Submission is always the candidate's — no adapter can submit." />
       {error && <LoadError error={error} onRetry={load} />}
       {!data && !error && <Loading rows={3} />}
       {data && (
