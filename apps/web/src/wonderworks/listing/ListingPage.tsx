@@ -1,4 +1,5 @@
 "use client";
+import { ReportListing } from "./ReportListing";
 import { Card } from "@/components/common/Card";
 import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/cn";
  * description and the folds under it) and `ListingAside` (Apply first, then the résumé and the outcome), which stays in
  * view on a wide screen. A module brings only what goes in each.
  */
-export function ListingPage({ back, title, share, actions, notice, children }: { back: { href: string; label: string }; title: string; /** Share, at the top beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; actions?: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) {
+export function ListingPage({ back, title, share, actions, notice, report, children }: { back: { href: string; label: string }; title: string; /** Share, at the top beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; actions?: React.ReactNode; notice?: React.ReactNode; /** "Report this listing" at the foot (2026-11-03): the module and the listing id its Find serves. */ report?: { module: string; id: string }; children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
@@ -30,6 +31,7 @@ export function ListingPage({ back, title, share, actions, notice, children }: {
       />
       {notice}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-x-5">{children}</div>
+      {report && <ReportListing module={report.module} id={report.id} title={title} />}
     </div>
   );
 }

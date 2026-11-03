@@ -186,6 +186,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
   ];
   return (
     <ListingPage
+      report={{ module: "marketplace", id: l.id }}
       share={shareOf(l)}
       back={owner ? { href: "/app/m/marketplace/company", label: "My listings" } : FIND}
       title={l.title}

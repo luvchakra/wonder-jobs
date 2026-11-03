@@ -3,6 +3,8 @@ import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { hashKey } from "@/lib/ids";
 import type { EmployerJob } from "@/domain/org/types";
 import type { CareerSite } from "@/domain/org/careers";
 import { CareerSites } from "./CareerSites";
@@ -134,6 +136,7 @@ export function JobsTab({ orgId, canEdit, canManage, onApplicants }: { orgId: st
                       Close
                     </button>
                   )}
+                  <DeletePost module="jobs" listingId={`employers_${hashKey(`employers:${j.id}`)}`} title={j.title} onDeleted={load} />
                 </div>
               )}
             </li>

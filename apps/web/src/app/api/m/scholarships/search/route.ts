@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchScholarships } from "@/server/scholarships/search";
 
 export const runtime = "nodejs";
@@ -11,5 +12,5 @@ const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.str
 
 /** Scholarships & Projects Find: the student's words and places, searched across this module's own sources (never another's). */
 export async function POST(req: Request) {
-  return hiringRoute(req, (_s, b) => searchScholarships(b), { schema: Body, write: true });
+  return hiringRoute(req, (_s, b) => searchScholarships(b).then(hideIn("scholarships")), { schema: Body, write: true });
 }

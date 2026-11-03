@@ -61,6 +61,7 @@ function Page({ l }: { l: TeachingListing }) {
 
   return (
     <ListingPage
+      report={{ module: "teaching", id: l.id }}
       share={shareOf(l)}
       back={FIND}
       title={l.title}

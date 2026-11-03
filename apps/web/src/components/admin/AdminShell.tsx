@@ -70,6 +70,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/quality`, label: "Quality" },
       { href: `${LAKE}/insights`, label: "Source insights" },
       { href: `${LAKE}/playground`, label: "Try a search" },
+      { href: `${LAKE}/moderation`, label: "Moderation" },
     ],
   },
   {

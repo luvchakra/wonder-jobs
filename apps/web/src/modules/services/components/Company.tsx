@@ -1,4 +1,5 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
 import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
@@ -193,6 +194,7 @@ export function ServicesCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="services" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>
