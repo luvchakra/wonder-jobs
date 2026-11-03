@@ -99,7 +99,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
     <div className="relative min-h-dvh overflow-hidden bg-ink text-white">
       <HeroScene variant="dusk" className="absolute inset-0" />
       <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink/95" />
-      <main id="main" className={cn("relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-8 pt-8 md:max-w-5xl md:flex-row md:gap-16 md:px-10", jobTeaser ? "md:items-start md:py-14" : "md:items-center")}>
+      <main id="main" className={cn("relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-6 md:max-w-5xl md:flex-row md:gap-16 md:px-10", jobTeaser ? "md:items-start md:py-14" : "md:items-center")}>
         <div className="md:flex-1">
           <WonderLogo href="/" tone="dark" size={34} />
           {jobTeaser ? (
@@ -110,14 +110,11 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
             </>
           ) : (
             <>
-              <h1 className="mt-10 text-[36px] font-semibold leading-[1.05] tracking-tight md:mt-14 md:text-[48px]">
-                A smarter
-                <br />
-                way to your
-                <br />
+              <h1 className="mt-5 text-[24px] font-semibold leading-tight tracking-tight md:mt-14 md:text-[48px] md:leading-[1.05]">
+                A smarter way to your <br className="hidden md:inline" />
                 next opportunity
               </h1>
-              <p className="mt-3 text-[15px] text-white/80">We search. We analyze. You move forward.</p>
+              <p className="mt-1.5 text-[14px] text-white/80 md:mt-3 md:text-[15px]">We search. We analyze. You move forward.</p>
               <ul className="mt-6 hidden flex-col gap-2.5 md:flex" aria-label="What Wonder does">
                 {FEATURES.map((f) => (
                   <li key={f.label} className="inline-flex w-fit items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[13px] font-medium backdrop-blur">
@@ -129,9 +126,9 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
           )}
         </div>
 
-        <div className={cn("mt-8 w-full rounded-[24px] bg-white p-6 text-ink shadow-xl md:w-[420px] md:p-8", jobTeaser ? "md:mt-28" : "md:mt-0")}>
-          <h2 className="text-[22px] font-semibold tracking-tight">{title}</h2>
-          <p className="mt-1 text-sm text-ink-3">{sub}</p>
+        <div className={cn("mt-5 w-full rounded-[24px] bg-white p-5 text-ink shadow-xl md:w-[420px] md:p-8", jobTeaser ? "md:mt-28" : "md:mt-0")}>
+          <h2 className="text-[20px] font-semibold tracking-tight md:text-[22px]">{title}</h2>
+          <p className="mt-0.5 text-[13px] text-ink-3">{sub}</p>
 
           {sent ? (
             <div role="status" className="mt-6 rounded-[16px] bg-brand-50 p-4 text-sm text-ink-2">
@@ -147,7 +144,12 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
               </button>
             </div>
           ) : (
-            <form onSubmit={submit} className="mt-6 flex flex-col gap-4" noValidate>
+            <form onSubmit={submit} className="mt-4 flex flex-col gap-3" noValidate>
+              {/* Social sign-in first (owner, 2026-11-03), then email and password. */}
+              <GoogleButton next={next} disabled={busy !== null} onError={(m) => setError(friendlyAuthError(m))} label={mode === "sign-up" ? "Sign up with Google" : "Continue with Google"} />
+              <div className="flex items-center gap-3 text-[12px] text-ink-4" aria-hidden>
+                <span className="h-px flex-1 bg-line" /> or with email <span className="h-px flex-1 bg-line" />
+              </div>
               {mode === "sign-up" && (
                 <Field label="Your name" htmlFor="name" required>
                   <Input id="name" name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Morgan" required />
@@ -156,8 +158,8 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
               <Field label="Email" htmlFor="email" required>
                 <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
               </Field>
-              <Field label="Password" htmlFor="password" required hint="At least 8 characters.">
-                <PasswordInput id="password" name="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
+              <Field label="Password" htmlFor="password" required>
+                <PasswordInput id="password" name="password" autoComplete={mode === "sign-up" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} placeholder="At least 8 characters" required />
                 {mode === "sign-in" && (
                   <Link href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`} className="self-end text-[12px] font-medium text-brand-600 hover:underline">
                     Forgot password?
@@ -172,17 +174,13 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
               <Button type="submit" size="lg" full loading={busy === "password"} disabled={busy !== null || !email.trim() || password.length < 8 || (mode === "sign-up" && !name.trim())} iconRight={<ArrowRight className="size-4" aria-hidden />}>
                 {mode === "sign-up" ? "Get Started" : "Sign in"}
               </Button>
-              <Button type="button" variant="outline" size="lg" full loading={busy === "magic"} disabled={busy !== null || !email.trim()} onClick={magic} icon={<Mail className="size-4" aria-hidden />}>
-                Email me a magic link instead
-              </Button>
-              <div className="flex items-center gap-3 text-[12px] text-ink-4" aria-hidden>
-                <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-              </div>
-              <GoogleButton next={next} disabled={busy !== null} onError={(m) => setError(friendlyAuthError(m))} label={mode === "sign-up" ? "Sign up with Google" : "Continue with Google"} />
+              <button type="button" onClick={magic} disabled={busy !== null || !email.trim()} className="inline-flex items-center justify-center gap-1.5 self-center text-[13px] font-medium text-brand-600 hover:underline disabled:cursor-not-allowed disabled:text-ink-4 disabled:no-underline">
+                <Mail className="size-3.5" aria-hidden /> {busy === "magic" ? "Sending…" : "Email me a sign-in link instead"}
+              </button>
             </form>
           )}
 
-          <p className="mt-6 text-center text-[13px] text-ink-3">
+          <p className="mt-4 text-center text-[13px] text-ink-3">
             {mode === "sign-up" ? (
               <>
                 Already have an account?{" "}
@@ -199,7 +197,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
               </>
             )}
           </p>
-          <p className="mt-2 text-center text-[13px] text-ink-3">
+          <p className="mt-1.5 text-center text-[12px] text-ink-4">
             Stuck?{" "}
             <Link href="/forgot-password" className="font-semibold text-brand-600 hover:underline">
               Reset your password
