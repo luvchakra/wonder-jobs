@@ -112,3 +112,4 @@
 - ✅ The scheduled import runs every 3 hours, each source at most every 6, within the free plans for a month; a paused import shows Continue (WJ-663)
 - ✅ The + button opens the new-entry form directly in every module (WJ-664)
 - ✅ Post pages set up an organisation in place, in the module's words, not via Hiring (WJ-665)
+- ✅ Onboarding is skipped for an account that already has a profile or résumé, on any device (WJ-666)

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, FileUp, X } from "lucide-react";
 import type { CareerDNA } from "@/domain/career/types";
@@ -17,6 +17,8 @@ import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { track } from "@/lib/analytics";
 import { safeNextPath } from "@/lib/safeRedirect";
+import { hasProfile } from "@/domain/career/hasProfile";
+import { serverState } from "@/store/remoteStorage";
 
 const FIELD = "border-white/20 bg-white/10 text-white placeholder:text-white/40 focus:border-brand-300 focus:ring-brand-500/30";
 const ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -64,6 +66,26 @@ function Steps() {
   const setBase = useCareerStore((s) => s.setBaseResume);
   const upload = useResumeFilesStore((s) => s.upload);
   const fileRef = useRef<HTMLInputElement>(null);
+  // An account that already has a profile (signed up again, a magic link, a new device) goes straight in: checked
+  // against this browser's copy, then the account's saved one, before anything is shown.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    if (!hydrated) return;
+    let live = true;
+    const local = useCareerStore.getState();
+    if (hasProfile(local)) {
+      router.replace(next);
+      return;
+    }
+    void serverState("wj.career").then((saved) => {
+      if (!live) return;
+      if (hasProfile(saved)) router.replace(next);
+      else setChecking(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [hydrated, router, next]);
 
   const [step, setStep] = useState<"cv" | "confirm">("cv");
   const [busy, setBusy] = useState(false);
@@ -136,6 +158,13 @@ function Steps() {
 
   const levelOnly = !!role.trim() && onlyLevel(role);
   const found = read ? [read.draft.seniority && read.draft.seniority[0].toUpperCase() + read.draft.seniority.slice(1), read.draft.yearsExperience && `${read.draft.yearsExperience} years`, read.history?.experience.length && `${read.history.experience.length} roles`].filter(Boolean).join(" · ") : "";
+
+  if (checking)
+    return (
+      <div className="relative min-h-dvh overflow-hidden bg-ink" aria-busy="true">
+        <HeroScene variant="dusk" className="absolute inset-0" />
+      </div>
+    );
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-ink text-white">
