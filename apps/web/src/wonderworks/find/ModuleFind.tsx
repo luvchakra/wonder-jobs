@@ -40,8 +40,10 @@ export interface FindRun<L> {
 
 export interface ModuleFindProps<L extends { id: string }> {
   module: Shell;
-  /** Refine's "WonderWorks only" check (default on); off where every result is posted on WonderWorks (Co-founders). */
+  /** Refine's "WonderWorks only" check (default on). */
   ownFilter?: boolean;
+  /** Which results were posted on WonderWorks, where `origin`/`outside` don't say (Co-founders: its own source). */
+  isOwn?: (l: L) => boolean;
   /** "internship" / "internships". */
   noun: { one: string; many: string };
   placeholder: string;
@@ -81,7 +83,7 @@ const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceState, string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
 const set = (v: FacetValues) => Object.values(v).filter((x) => x !== undefined && x !== "").length;
 
-export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint, global = false, ownFilter = true }: ModuleFindProps<L>) {
+export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint, global = false, ownFilter = true, isOwn = postedOnWonderWorks }: ModuleFindProps<L>) {
   const store = moduleStore(module);
   const recent = store((s) => s.recentSearches);
   const forget = store((s) => s.forgetSearch);
@@ -164,9 +166,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const { kept, hidden } = useMemo(() => {
     const r = refine(run?.results ?? [], values, sort);
     if (values[OWN_KEY] !== "1") return r;
-    const own = r.kept.filter(postedOnWonderWorks);
+    const own = r.kept.filter(isOwn);
     return { kept: own, hidden: r.hidden + (r.kept.length - own.length) };
-  }, [refine, run, values, sort]);
+  }, [refine, run, values, sort, isOwn]);
   const visible = kept.slice(0, limit);
   const pills = facets.filter((f): f is Extract<FacetSpec, { kind: "chips" }> => f.kind === "chips" && !!f.pill).slice(0, 2);
   const corner = facets.find((f): f is Extract<FacetSpec, { kind: "check" }> => f.kind === "check" && !!f.corner);
@@ -272,8 +274,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
           <RefinePanel
             backLabel={`Back to ${noun.many}`}
             onBack={() => setMore(false)}
+            // The same place in every module (owner, 2026-11-03): WonderWorks only right after the back arrow, then the module's own check, on one line.
             corner={
-              <div className="flex flex-wrap items-center justify-end gap-x-4">
+              <div className="flex min-w-0 flex-1 flex-nowrap items-center justify-start gap-x-3 overflow-x-auto whitespace-nowrap [&_input]:size-4 [&_label]:gap-1.5">
                 {ownFilter && <RefineCheck label="WonderWorks only" title="Only listings posted on WonderWorks, not ones from outside sources" checked={editing[OWN_KEY] === "1"} onChange={(on) => setEditing((e) => ({ ...e, [OWN_KEY]: on ? "1" : undefined }))} />}
                 {corner && <RefineCheck label={corner.label} title={corner.title} checked={editing[corner.key] === "1"} onChange={(on) => setEditing((e) => ({ ...e, [corner.key]: on ? "1" : undefined }))} />}
               </div>

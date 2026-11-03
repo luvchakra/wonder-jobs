@@ -9,6 +9,9 @@ const SORTS = { relevance: "Relevance", date: "Newest" };
 const KIND_LABEL: Record<ListingKind, string> = { person: "People", team: "Teams" };
 
 /** Refine's values as the Co-founders facets (domain.ts::applyFacets), then the order picked. */
+/** Profiles and teams posted on WonderWorks (server/cofounders/profiles.ts::WONDERWORKS_COFOUNDERS), for Refine → WonderWorks only. */
+const IS_OWN = (l: { sourceId: string }) => l.sourceId === "cof_wonderworks";
+
 export function refineCofounders(list: CofounderListing[], v: FacetValues, sort: string) {
   const { kept, hidden } = applyFacets(list, { kind: (v.kind as ListingKind) || undefined, role: (v.role as Role) || undefined, commitment: (v.commitment as Commitment) || undefined, hasIdea: v.idea === "1" || undefined });
   return { kept: sort === "date" ? [...kept].sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? "")) : kept, hidden };
@@ -32,7 +35,7 @@ export function CofoundersFind() {
     [],
   );
   return (
-    <ModuleFind ownFilter={false}
+    <ModuleFind isOwn={IS_OWN}
       module="cofounders"
       noun={{ one: "match", many: "matches" }}
       placeholder="Search a skill, an idea or a place — fintech, sales, Pune"
