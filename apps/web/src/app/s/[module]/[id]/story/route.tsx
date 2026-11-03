@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ module: 
     image,
     photo,
     url: absoluteUrl(origin, l.url),
-    cta: `Tap the link to see this ${l.noun}`,
+    cta: `See this ${l.noun} at the link in the message`,
     pitch: LISTING_HINT,
   });
 }

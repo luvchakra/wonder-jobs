@@ -28,7 +28,7 @@ export interface StoryCard {
   photo?: string | null;
   /** The listing's public link, shown at the foot so a screenshot still says where to go. */
   url: string;
-  /** What the link does: "Tap the link to see the job and apply". */
+  /** Where the link is and what it does: "See the job and apply at the link in the message" (an image can't be tapped). */
   cta: string;
   /** The closing marketing line. */
   pitch: string;
@@ -184,12 +184,12 @@ export function storyImage(c: StoryCard): ImageResponse {
           {about && <span style={{ fontSize: 34, lineHeight: 1.42, color: "rgba(255,255,255,0.82)" }}>{about}</span>}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "36px 42px", borderRadius: 36, background: "#ffffff", color: "#1E1B4B" }}>
-          <span style={{ fontSize: 40, fontWeight: 700 }}>{c.cta}</span>
-          <span style={{ fontSize: 30, color: "#6D28D9", fontWeight: 600 }}>{clip(host, 52)}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 32, borderTop: "2px solid rgba(255,255,255,0.18)" }}>
+          {/* A picture can't be tapped: the words say where the link is (in the message shared with it) and the address is readable to type. */}
+          <span style={{ fontSize: 34, color: "rgba(255,255,255,0.75)" }}>{c.cta}</span>
+          <span style={{ fontSize: 38, fontWeight: 700, color: "#ffffff" }}>{clip(host, 46)}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 36, fontSize: 32, color: "rgba(255,255,255,0.75)" }}>
-          <span style={{ display: "flex", width: 14, height: 14, borderRadius: 7, background: "#a78bfa" }} />
           {c.pitch}
         </div>
       </div>
