@@ -153,7 +153,7 @@ export default function DataDbPage() {
                       )}
                     </span>
                   </div>
-                  {isOpen && <Details m={m} busy={!!busy} reload={reload} once={once} loop={loop} />}
+                  {isOpen && <Details m={m} busy={!!busy} reload={reload} once={once} loop={loop} setupSql={data.setupSql} />}
                 </li>
               );
             })}
@@ -175,7 +175,7 @@ export default function DataDbPage() {
 }
 
 /** A module's connection and its rarer actions, opened from its row. */
-function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boolean; reload: () => void; once: (m: ModuleDataDb, body: Record<string, unknown>, done: string) => Promise<void>; loop: (m: ModuleDataDb, a: "copy" | "clear" | "evict") => Promise<void> }) {
+function Details({ m, busy, reload, once, loop, setupSql }: { m: ModuleDataDb; busy: boolean; reload: () => void; setupSql: string; once: (m: ModuleDataDb, body: Record<string, unknown>, done: string) => Promise<void>; loop: (m: ModuleDataDb, a: "copy" | "clear" | "evict") => Promise<void> }) {
   const [url, setUrl] = useState("");
   const [key, setKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -194,7 +194,12 @@ function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boole
   };
   return (
     <div className="mt-2 flex flex-col gap-3 rounded-[10px] bg-bg-soft p-3 text-[13px]">
-      {!saved && <p className="text-ink-3">Create a new Supabase project for {name} (one no other module uses), run the setup script there, then enter its details. Only {name} data goes there.</p>}
+      {!saved && (
+        <p className="text-ink-3">
+          Create a new Supabase project for {name} (one no other module uses), run the setup script there, then enter its details. Only {name} data goes there.{" "}
+          <CopyScript sql={setupSql} />
+        </p>
+      )}
       {saved?.lastTest && <p className="text-[12px] text-ink-3">{`${saved.lastTest.ok ? "Last test passed" : "Last test failed"}: ${saved.lastTest.message}`}{saved.lastCopy ? ` Last copy: ${Object.entries(saved.lastCopy.rows).map(([t, n]) => `${t.replace(/_/g, " ")} ${num(n)}`).join(" · ")}.` : ""}</p>}
       <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <label className="min-w-0 text-[12px] text-ink-2">
@@ -211,6 +216,7 @@ function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boole
       </div>
       {saved && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+          {m.home !== "own" && <CopyScript sql={setupSql} />}
           {m.home !== "own" && (
             <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void once(m, { action: "test" }, "")}>
               Test again
@@ -237,5 +243,14 @@ function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boole
         </div>
       )}
     </div>
+  );
+}
+
+/** "Copy setup script": the same script for every module's project, copied for its SQL editor. */
+function CopyScript({ sql }: { sql: string }) {
+  return (
+    <button type="button" className="font-medium text-brand-600 hover:underline" onClick={() => void navigator.clipboard.writeText(sql).then(() => toast.success("Setup script copied", "Paste it into the new project's SQL editor and press Run."))}>
+      Copy setup script
+    </button>
   );
 }
