@@ -146,3 +146,4 @@
 - ✅ Scholarships & Projects: Share checked end to end; Share on the application page; cleaner share facts (WJ-528)
 - ✅ Jobs: Share on every job surface — Pipeline's job page added, careers pages use WonderWorks' share sheet; crisp-message tests (WJ-547)
 - ✅ Events: a shared outside event says "Source: WorksLakeDG", like the cards (WJ-577)
+- ✅ Co-founders: Share is the owner's choice — "Let others share my profile" and a team's, off by default; off, Share sends only a general Co-founders message (WJ-611)

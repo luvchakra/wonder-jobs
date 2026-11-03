@@ -13,7 +13,7 @@ import { SOURCE_NAME, WONDERWORKS_COFOUNDERS, toProfile } from "./profiles";
 export const MAX_TEAMS_PER_PERSON = 5;
 const MAX_MEMBERS = 12;
 
-export const toTeam = (r: TeamRow): Team => ({ name: r.name, idea: r.idea, description: r.description, stage: r.stage, openRoles: r.open_roles, ...(r.commitment ? { commitment: r.commitment } : {}), equity: r.equity, location: r.location, decision: r.decision, open: r.open && !r.closed });
+export const toTeam = (r: TeamRow): Team => ({ name: r.name, idea: r.idea, description: r.description, stage: r.stage, openRoles: r.open_roles, ...(r.commitment ? { commitment: r.commitment } : {}), equity: r.equity, location: r.location, decision: r.decision, open: r.open && !r.closed, shareable: r.shareable === true });
 
 /** The team and the caller's role in it, after checking that role may do `action`; a stranger gets a 404, never a hint. */
 export async function requireTeam(s: Session, teamId: string, action: TeamAction): Promise<{ team: TeamRow; role: TeamRole }> {
@@ -32,7 +32,7 @@ export async function foundersView(teamId: string, audience: "public" | "mutual"
 }
 
 export function teamListing(r: TeamRow, founders: number): CofounderListing {
-  return { id: r.id, kind: "team", title: r.name, company: r.idea, location: r.location, terms: { idea: r.idea, stage: r.stage, openRoles: r.open_roles, ...(r.commitment ? { commitment: r.commitment } : {}), ...(r.equity ? { equity: r.equity } : {}), decision: r.decision, founders }, description: r.description, postedAt: r.updated_at, sourceId: WONDERWORKS_COFOUNDERS, sourceName: SOURCE_NAME };
+  return { id: r.id, kind: "team", title: r.name, company: r.idea, location: r.location, terms: { idea: r.idea, stage: r.stage, openRoles: r.open_roles, ...(r.commitment ? { commitment: r.commitment } : {}), ...(r.equity ? { equity: r.equity } : {}), decision: r.decision, founders }, description: r.description, postedAt: r.updated_at, shareable: r.shareable === true, sourceId: WONDERWORKS_COFOUNDERS, sourceName: SOURCE_NAME };
 }
 
 /** Every team that is open (public fields only): the module's other cross-tenant read. */
@@ -52,7 +52,7 @@ export async function createTeam(s: Session, input: unknown): Promise<{ id: stri
   if (mine >= MAX_TEAMS_PER_PERSON) throw new HiringError(`You can run up to ${MAX_TEAMS_PER_PERSON} teams.`, 409);
   const at = now();
   const t = c.value;
-  const row: TeamRow = { id: newId("cft"), name: t.name, idea: t.idea, description: t.description, stage: t.stage, open_roles: t.openRoles, commitment: t.commitment ?? null, equity: t.equity, location: t.location, decision: t.decision, open: t.open, closed: false, created_by: s.tenantId, created_at: at, updated_at: at };
+  const row: TeamRow = { id: newId("cft"), name: t.name, idea: t.idea, description: t.description, stage: t.stage, open_roles: t.openRoles, commitment: t.commitment ?? null, equity: t.equity, location: t.location, decision: t.decision, open: t.open, shareable: t.shareable, closed: false, created_by: s.tenantId, created_at: at, updated_at: at };
   await teams().insert(row);
   await members().insert({ team_id: row.id, tenant_id: s.tenantId, role: "founder", joined_at: at });
   return { id: row.id, team: toTeam(row) };
@@ -65,7 +65,7 @@ export async function saveTeam(s: Session, teamId: string, input: unknown): Prom
   const c = cleanTeam(input);
   if ("problem" in c) throw new HiringError(c.problem);
   const t = c.value;
-  await teams().update({ id: teamId }, { name: t.name, idea: t.idea, description: t.description, stage: t.stage, open_roles: t.openRoles, commitment: t.commitment ?? null, equity: t.equity, location: t.location, decision: t.decision, open: t.open, updated_at: now() });
+  await teams().update({ id: teamId }, { name: t.name, idea: t.idea, description: t.description, stage: t.stage, open_roles: t.openRoles, commitment: t.commitment ?? null, equity: t.equity, location: t.location, decision: t.decision, open: t.open, shareable: t.shareable, updated_at: now() });
   return t;
 }
 
