@@ -7,6 +7,13 @@ import type { ScreeningQuestion } from "./screening";
 export type OrgRole = "owner" | "hiring_manager" | "recruiter";
 
 export const ORG_ROLE_LABEL: Record<OrgRole, string> = { owner: "Owner", hiring_manager: "Hiring manager", recruiter: "Recruiter" };
+/** The same roles in words for every other module's organisation (2026-11-03): the permissions are the same (domain/org/permissions.ts). */
+export const ORG_ROLE_LABEL_NEUTRAL: Record<OrgRole, string> = { owner: "Owner", hiring_manager: "Manager", recruiter: "Member" };
+export const ORG_ROLE_HELP_NEUTRAL: Record<OrgRole, string> = {
+  owner: "Everything, including the team and roles.",
+  hiring_manager: "Posts and edits listings, and decides on applications, requests and bookings.",
+  recruiter: "Helps with listings and replies, and reports to managers.",
+};
 export const ORG_ROLE_HELP: Record<OrgRole, string> = {
   owner: "Everything, including the team and roles.",
   hiring_manager: "Posts and edits jobs, reads recruiters' reports and decides on candidates.",

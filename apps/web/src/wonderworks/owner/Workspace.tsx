@@ -13,7 +13,7 @@ import {
 } from "@/components/common/States";
 import { Tabs } from "@/components/common/Tabs";
 import { can, type OrgPermission } from "@/domain/org/permissions";
-import { ORG_ROLE_LABEL, type OrgRole } from "@/domain/org/types";
+import { ORG_ROLE_LABEL_NEUTRAL, type OrgRole } from "@/domain/org/types";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { call } from "@/wonderworks/api";
 
@@ -100,7 +100,7 @@ export function OwnerWorkspace<T extends string>({
       </div>
     );
   if (!loaded) return <PageLoading rows={3} />;
-  const role = ORG_ROLE_LABEL[ws.role];
+  const role = ORG_ROLE_LABEL_NEUTRAL[ws.role];
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
@@ -110,7 +110,7 @@ export function OwnerWorkspace<T extends string>({
         actions={
           <div className="flex items-center gap-2">
             <Link
-              href={`/app/hiring?org=${encodeURIComponent(ws.org.id)}&tab=team`}
+              href={`/app/hiring?org=${encodeURIComponent(ws.org.id)}&tab=team&from=${encodeURIComponent(pathname)}`}
               className="text-[13px] font-medium text-brand-600 hover:underline"
             >
               Team &amp; settings
