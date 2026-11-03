@@ -116,7 +116,12 @@ export function storyImage(c: StoryCard): ImageResponse {
   const byline = c.byline && !same(c.byline) ? c.byline : undefined;
   const chips = c.chips.filter((x) => !same(x));
   const points = (c.highlights ?? []).filter(Boolean).slice(0, 3);
-  const rows = detailRows(c.lines, c.photo ? 3 : points.length ? 4 : 6);
+  // A detail row whose value is already a chip (Area, Where) says nothing new on the image.
+  const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const chipSet = new Set(chips.map(norm));
+  const rows = detailRows(c.lines, 12)
+    .filter(([, v]) => !chipSet.has(norm(v)))
+    .slice(0, c.photo ? 3 : points.length ? 4 : 6);
   // With no highlights, the description takes the room the details (and a photo) leave, so a short listing still fills the card.
   const about = points.length ? "" : aboutText(c.about, c.photo ? 220 : rows.length >= 5 ? 340 : rows.length >= 3 ? 460 : 660);
   const titleSize = c.title.length > 60 ? 70 : c.title.length > 32 ? 84 : 100;
