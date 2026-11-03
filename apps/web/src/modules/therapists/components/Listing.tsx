@@ -28,7 +28,7 @@ export const FIT: Record<Exclude<TherapistMatch["fit"], "unknown">, { top: strin
  * fit your preferences; the headline; practitioner · place · how they meet · fee; focus areas; what they wrote about
  * themselves, labelled as theirs; where it was found, and Save. No rating and no "verified" mark: neither exists yet.
  * A practice an open-data source maps (OpenStreetMap) shows only what the map has, with its credit, and links out to the
- * practice's own page: it can't be booked here and has no public share page.
+ * practice's own page: it can't be booked here, and its share page shows what the map has.
  */
 export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { item: TherapistListing; onOpen: (id: string) => void }) {
   const saved = useTherapistsStore((s) => !!s.saved[l.id]);
@@ -40,7 +40,7 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
   const t = l.terms;
   return (
     <ResultCard
-      share={outside ? null : shareOf(l)}
+      share={shareOf(l)}
       aside={
         <>
           <CompanyLogo name={l.company} logo size={44} />
@@ -64,9 +64,14 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
         </Link>
       }
       facts={[
-        <span key="c" className="font-medium text-ink-2">
-          {l.company}
-        </span>,
+        // A practice named after itself (most map entries) says its name once, in the title, and what kind of practice it is.
+        l.company.trim().toLowerCase() !== l.title.trim().toLowerCase() ? (
+          <span key="c" className="font-medium text-ink-2">
+            {l.company}
+          </span>
+        ) : (
+          l.practiceKind && <span key="c">{l.practiceKind}</span>
+        ),
         t.modes?.includes("in_person") && <span key="p" title={l.location}>{shortPlace(l.location)}</span>,
         modesLabel(t.modes) && <span key="m">{modesLabel(t.modes)}</span>,
         !outside && (

@@ -5,7 +5,7 @@ import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
-import { absoluteUrl, emailHref, facebookHref, listingShareMessage, whatsappHref, xHref, type ListingShareInput, type ShareMessage } from "./share";
+import { absoluteUrl, emailHref, facebookHref, listingShareMessage, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
 export interface ShareBuild {
@@ -221,6 +221,15 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
   );
 }
 
+const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
+/** The sheet's one line under its title: the listing's title and its first two facts, each kept short, none repeating the title. */
+export function sheetLine(title: string, facts: ListingShareInput["facts"]): string {
+  const same = (a: string) => a.trim().toLowerCase() === title.trim().toLowerCase();
+  const rest = (facts ?? []).filter((f): f is string => !!f && !same(f)).slice(0, 2);
+  return [short(title, 60), ...rest.map((f) => short(f, 32))].join(" · ");
+}
+
 /** A module's props for sharing one of its listings. */
 export interface ListingShareProps extends ListingShareInput {
   module: string;
@@ -240,13 +249,13 @@ export function ListingShare({ module, className, noun, title, facts, lines, det
     <ShareButton
       label={`Share ${input.title}`}
       title={`Share this ${input.noun}`}
-      description={[input.title, ...(input.facts ?? []).filter(Boolean)].join(" · ")}
+      description={sheetLine(input.title, input.facts)}
       className={className}
       onShared={(via) => track("listing_shared", { module, via })}
       build={(origin) => {
         const url = absoluteUrl(origin, input.url);
         // Listings with a public page (`/s/<module>/<id>`) have a share image; people's profiles don't.
-        return { url, message: listingShareMessage(input, url), ...(input.url.startsWith("/s/") ? { image: `${input.url}/story` } : {}) };
+        return { url, message: listingShareMessage(input, url), ...(input.url.startsWith("/s/") ? { image: storyPath(input.url) } : {}) };
       }}
     />
   );

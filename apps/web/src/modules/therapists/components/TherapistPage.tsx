@@ -72,7 +72,7 @@ function Page({ l }: { l: TherapistListing }) {
   return (
     <ListingPage
       report={{ module: "therapists", id: l.id }}
-      share={outside ? null : shareOf(l)}
+      share={shareOf(l)}
       back={FIND}
       title={l.title}
       actions={

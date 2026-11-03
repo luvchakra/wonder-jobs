@@ -11,8 +11,8 @@ import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, type Eve
 export const shareOf = (l: EventListing): ListingShareProps => {
   const t = l.terms;
   const out = l.outside;
-  // An event from an outside source is shared with its dates, place and source, and its own page as the link (it has no
-  // public page here): nothing is said that its source didn't.
+  // An event from an outside source is shared with its dates, place and source; its public page here shows it as the
+  // source lists it, with the event's own page as the original: nothing is said that its source didn't.
   if (out)
     return {
       module: "events",
@@ -21,8 +21,9 @@ export const shareOf = (l: EventListing): ListingShareProps => {
       facts: [dateRangeLabel(out.startDate, out.endDate), outsidePlace(l), l.company],
       lines: [`Source: ${l.sourceName}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
       details: l.description,
-      url: out.url,
+      url: publicPath("events", l.id),
       source: l.sourceName,
+      originalUrl: out.url,
     };
   return {
     module: "events",

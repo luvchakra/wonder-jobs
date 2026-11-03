@@ -171,9 +171,10 @@ describe("what Refine and Share do with an outside event", () => {
     expect(applyFacets([e], { ...EMPTY_FACETS, where: "in_person" }).kept).toHaveLength(1);
     expect(applyFacets([e], { ...EMPTY_FACETS, openOnly: true }).kept).toHaveLength(0);
   });
-  it("shares its dates, place and source with the event's own page as the link", () => {
+  it("shares its dates, place and source; the link is its public page here, with the event's own page as the original", () => {
     const s = shareOf(e);
-    expect(s.url).toBe("https://devopsdays.example/pune");
+    expect(s.url).toBe(`/s/events/${e.id}`);
+    expect(s.originalUrl).toBe("https://devopsdays.example/pune");
     expect(JSON.stringify(s)).toContain("confs.tech");
     expect(JSON.stringify(s)).not.toMatch(/Free|seats|RSVP/i);
   });
