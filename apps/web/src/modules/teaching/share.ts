@@ -15,12 +15,13 @@ export const shareOf = (l: TeachingListing): ListingShareProps => {
     noun: "teaching job",
     title: l.title,
     facts: [l.company, l.workMode === "remote" ? WORK_MODE_LABEL.remote : shortPlace(l.location), t.hours ? HOURS_LABEL[t.hours] : null],
+    // Most telling first: the share image shows only the first four rows beside the summary, and the place is already a chip.
     lines: [
-      l.location && l.workMode !== "remote" && `Where: ${[l.location, l.workMode ? WORK_MODE_LABEL[l.workMode] : null].filter(Boolean).join(" · ")}`,
       t.subject && `Subject: ${t.subject}`,
       t.grades?.length && `Grades: ${gradesLabel(t.grades)}`,
-      t.boards?.length && `Boards: ${t.boards.join(", ")}`,
       (t.payMin !== undefined || t.payMax !== undefined) && `Pay: ${payLabel(t)}`,
+      t.boards?.length && `Boards: ${t.boards.join(", ")}`,
+      l.location && l.workMode !== "remote" && `Where: ${[l.location, l.workMode ? WORK_MODE_LABEL[l.workMode] : null].filter(Boolean).join(" · ")}`,
       t.requires?.length && `Requires: ${t.requires.join(", ")}`,
       t.demo && "A demo class is part of hiring",
       l.sourceName && `From: ${l.sourceName}${l.origin === "wonderstar" && !l.companyVerified ? " (school not verified yet)" : ""}`,
