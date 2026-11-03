@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, distinctText, emailHref, excerpt, facebookHref, hashtag, listingShareMessage, publicPath, whatsappHref, xHref, xPost } from "./share";
+import { STORY_VERSION, storyPath, absoluteUrl, distinctText, emailHref, excerpt, facebookHref, hashtag, listingShareMessage, publicPath, whatsappHref, xHref, xPost } from "./share";
 
 describe("sharing a listing", () => {
   it("a message carries the title, the public facts and the link, last and alone on WhatsApp", () => {
@@ -80,5 +80,9 @@ describe("distinctText", () => {
     expect(post.length + 24).toBeLessThanOrEqual(280);
     expect(post.endsWith("\n\nend #tag")).toBe(true);
     expect(hashtag("buy sell & rent")).toBe("#BuySellRent");
+  });
+
+  it("the share image's link carries the design's version, so a phone never shows a cached old design", () => {
+    expect(storyPath("/s/teaching/opp_1")).toBe(`/s/teaching/opp_1/story?v=${STORY_VERSION}`);
   });
 });

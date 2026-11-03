@@ -15,10 +15,12 @@ import { outside as outsideTeaching, wonderworksTeaching } from "@/server/teachi
 import { openServicePosts } from "@/server/services/listings";
 import { outside as outsideService, wonderworksService } from "@/server/services/search";
 import { openTherapistPosts } from "@/server/therapists/listings";
-import { wonderworksTherapist } from "@/server/therapists/search";
+import { outside as outsideTherapist, wonderworksTherapist } from "@/server/therapists/search";
 import { openEventPosts, seatCounts } from "@/server/events/listings";
 import { wonderworksEvent } from "@/server/events/search";
 import { openMarketListings, toListing } from "@/server/marketplace/listings";
+import { outsideListing as outsideMarket } from "@/server/marketplace/search";
+import { toOutsideEvent } from "@/server/events/outside";
 import { shareOf as scholarshipShare } from "@/modules/scholarships/share";
 import { openScholarships } from "@/server/scholarships/applications";
 import { outside as outsideScholarship, wonderworksScholarship } from "@/server/scholarships/search";
@@ -71,16 +73,33 @@ async function load(module: ShareModule, id: string): Promise<ListingShareProps 
       return o ? servicesShare({ ...outsideService(o), id }) : null;
     }
     case "therapists": {
-      const p = own ? (await openTherapistPosts(MAX)).find((x) => x.posting.id === own) : undefined;
-      return p ? therapistsShare(wonderworksTherapist(p, OWN.therapists)) : null;
+      if (own) {
+        const p = (await openTherapistPosts(MAX)).find((x) => x.posting.id === own);
+        return p ? therapistsShare(wonderworksTherapist(p, OWN.therapists)) : null;
+      }
+      // A practice from an open-data map (a business's public listing): what the map says, with its own page as the original.
+      const o = await pooled(id, module);
+      return o ? therapistsShare(outsideTherapist(o)) : null;
     }
     case "events": {
-      const p = own ? (await openEventPosts(MAX)).find((x) => x.posting.id === own) : undefined;
+      if (!own) {
+        // An outside event (`ow_<id>`): as its source lists it, while it hasn't ended.
+        const o = id.startsWith("ow_") ? await pooled(id.slice(3), module) : undefined;
+        const l = o ? toOutsideEvent(o) : null;
+        return l ? eventsShare(l) : null;
+      }
+      const p = (await openEventPosts(MAX)).find((x) => x.posting.id === own);
       if (!p) return null;
       const seats = (await seatCounts([p.posting.id])).get(p.posting.id) ?? { going: 0, waiting: 0 };
       return eventsShare(wonderworksEvent(p, seats, OWN.events));
     }
     case "marketplace": {
+      if (id.startsWith("mk_out_")) {
+        // A shop's own item from an outside catalogue, while the shop still lists it in stock.
+        const o = await pooled(id.slice(7), module);
+        const l = o ? outsideMarket(o) : null;
+        return l ? marketplaceShare(l) : null;
+      }
       const r = (await openMarketListings(null, MAX)).find((x) => toListing(x).id === id);
       return r ? marketplaceShare({ ...toListing(r), sourceName: OWN.marketplace }) : null;
     }

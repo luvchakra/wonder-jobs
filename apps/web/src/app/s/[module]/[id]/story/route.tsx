@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { absoluteUrl, LISTING_HINT } from "@/wonderworks/listing/share";
 import { sharedListing } from "@/server/share/listing";
-import { logoDataUri, storyImage } from "@/server/share/storyImage";
+import { logoDataUri, photoDataUri, storyImage } from "@/server/share/storyImage";
 
 export const runtime = "nodejs";
 
@@ -23,6 +23,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ module: 
     lines: (l.lines ?? []).filter((x): x is string => !!x),
     about: l.details,
     image: org ? await logoDataUri({ name: org }) : null,
+    photo: await photoDataUri(new URL(req.url).origin, l.image),
     url: absoluteUrl(new URL(req.url).origin, l.url),
     cta: `Tap the link to see this ${l.noun}`,
     pitch: LISTING_HINT,

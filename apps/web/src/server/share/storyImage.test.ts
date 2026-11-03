@@ -16,4 +16,8 @@ describe("the share image's details", () => {
     expect(aboutText("one two three four five six", 14)).toBe("one two three…");
     expect(aboutText(undefined, 10)).toBe("");
   });
+
+  it("where a listing came from stays off the image (it names our sources, not the listing)", () => {
+    expect(detailRows(["From: WorksLake Data Gateway · Teaching", "Source: confs.tech", "Subject: Maths"])).toEqual([["Subject", "Maths"]]);
+  });
 });

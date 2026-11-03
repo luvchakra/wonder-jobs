@@ -6,7 +6,8 @@ import { priceLabel, type MarketListing } from "./domain";
 /**
  * What Share sends about a listing for sale or rent, everything the listing shows as it reads now: price (and whether it
  * is negotiable), condition, category, the area and its description. Never the seller's name or contact details, and no
- * photos (they are private to signed-in people). The link is its public page (`/s/marketplace/<id>`).
+ * photos people upload (they are private to signed-in people); a shop's own item carries the shop's public product photo.
+ * The link is its public page (`/s/marketplace/<id>`).
  */
 export const shareOf = (l: MarketListing): ListingShareProps => {
   const t = l.terms;
@@ -19,5 +20,6 @@ export const shareOf = (l: MarketListing): ListingShareProps => {
     details: l.description,
     url: publicPath("marketplace", l.id),
     source: l.sourceName,
+    ...(l.outside ? { originalUrl: l.outside.url, ...(l.outside.image ? { image: l.outside.image } : {}) } : {}),
   };
 };

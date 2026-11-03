@@ -52,7 +52,14 @@ export interface ListingShareInput {
    * listing; or the module's own page where a listing has no public page (people's profiles).
    */
   url: string;
+  /** A public photo of the listing (our image-proxy path), shown large on its share image; none for most listings. */
+  image?: string;
 }
+
+/** Bumped when the share image's design changes, so phones and the CDN fetch the new one instead of a cached copy. */
+export const STORY_VERSION = 3;
+/** A listing's or job's share image (`<public page>/story`). */
+export const storyPath = (page: string) => `${page}/story?v=${STORY_VERSION}`;
 
 /** A listing's public page on WonderWorks: its preview card shows the listing, and no account is needed to read it. */
 export const publicPath = (module: string, id: string) => `/s/${encodeURIComponent(module)}/${encodeURIComponent(id)}`;
