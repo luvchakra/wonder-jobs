@@ -124,3 +124,4 @@
 - ✅ The import-finished email covers the hourly collection too (WJ-675)
 - ✅ The import-finished email is configurable in Admin → Data → Import → Emails (WJ-676)
 - ✅ A separate data database per module, no shared fallback; the existing one is Jobs' (Admin → Data databases) (WJ-677)
+- ✅ Admin menu: Sources → Data databases (WJ-678)
