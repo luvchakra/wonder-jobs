@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setAssistModelForTests } from "@/server/ai/assist";
-import { checkedSummary, ruleSummary, shareSummary } from "./summary";
+import { checkedSummary, clean, ruleSummary, shareSummary } from "./summary";
 
 const input = { noun: "teaching job", title: "Maths Teacher", facts: ["Walderslade School", "Chatham"], lines: ["Subject: Mathematics", "Grades: Secondary", "From: WorksLake Data Gateway · Teaching"], details: "Maths Teacher Wanted. Do you have enthusiasm in abundance and the ability to explain algebra? Apply at https://x.test." };
 
@@ -33,5 +33,9 @@ describe("a share's summary", () => {
 
     setAssistModelForTests(async () => "not json");
     expect((await shareSummary("t:2", input)).ai).toBe(false);
+  });
+
+  it("a long highlight is cut at a word, never mid-word", () => {
+    expect(clean("School becomes co-educational as The Capstone School in September 2027", 64)).toBe("School becomes co-educational as The Capstone School in…");
   });
 });

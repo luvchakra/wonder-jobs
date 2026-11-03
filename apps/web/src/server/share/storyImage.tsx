@@ -175,7 +175,7 @@ export function storyImage(c: StoryCard): ImageResponse {
               {points.map((p, i) => (
                 <div key={`${p}-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 22 }}>
                   <span style={{ display: "flex", flexShrink: 0, width: 18, height: 18, marginTop: 14, borderRadius: 9, background: "#a78bfa" }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 40, lineHeight: 1.3, fontWeight: 600 }}>{clip(p, 70)}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 40, lineHeight: 1.3, fontWeight: 600 }}>{p}</span>
                 </div>
               ))}
             </div>

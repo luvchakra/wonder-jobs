@@ -13,14 +13,18 @@ export interface SummaryInput {
 }
 
 const HOOK_MAX = 140;
-const POINT_MAX = 64;
+const POINT_MAX = 72;
 const Reply = z.object({ hook: z.string().max(400), highlights: z.array(z.string().max(200)).max(6) });
 
 const NO_LINKS = /https?:\/\/|www\.|\S+@\S+\.\S+/i;
 const PROVENANCE = /^(from|source):/i;
-const clean = (s: string, max: number) => {
+/** Whitespace folded and a leading bullet dropped; cut at a word (never mid-word) with an ellipsis when over `max`. */
+export const clean = (s: string, max: number) => {
   const t = s.replace(/\s+/g, " ").replace(/^[-•*\s]+/, "").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.5 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, "")}…`;
 };
 const present = (l: Maybe[] | undefined) => (l ?? []).filter((x): x is string => !!x);
 
