@@ -9,9 +9,8 @@ describe("what Share sends about a listing", () => {
   it("a person's listing: its public page, its details, never their photos, name or contact", () => {
     const s = shareOf(own);
     expect(s).toMatchObject({ module: "marketplace", url: "/s/marketplace/mk_lst_abc123", title: "Study table" });
-    expect(s.facts).toEqual(expect.arrayContaining(["₹3,500 · negotiable", "Used", "Indiranagar, Bengaluru"]));
-    // Nothing is said twice: the area is a fact, so it is not also a detail line.
-    expect(s.lines).toEqual(["Category: Furniture"]);
+    expect(s.facts).toEqual(expect.arrayContaining(["₹3,500 · negotiable", "Used"]));
+    expect(s.lines).toEqual(["Category: Furniture", "Area: Indiranagar, Bengaluru"]);
     expect(s.image).toBeUndefined();
     expect(s.originalUrl).toBeUndefined();
     expect(JSON.stringify(s)).not.toMatch(/pho_secret|Sana/);

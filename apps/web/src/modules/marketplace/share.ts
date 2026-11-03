@@ -17,8 +17,7 @@ export const shareOf = (l: MarketListing): ListingShareProps => {
     noun: "listing",
     title: l.title,
     facts: [`${priceLabel(t.price)}${t.negotiable ? " · negotiable" : ""}`, t.condition, shortPlace(l.area)],
-    // The area is already a fact (shortened); the category is the one detail not elsewhere, so nothing is said twice.
-    lines: [`Category: ${t.category}`],
+    lines: [`Category: ${t.category}`, l.area && `Area: ${l.area}`],
     details: l.description,
     url: publicPath("marketplace", l.id),
     source: l.sourceName,
