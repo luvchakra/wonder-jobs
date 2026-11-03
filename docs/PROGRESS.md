@@ -133,3 +133,4 @@
 - ✅ Databases: collapsed cards with key info, full figures when opened (WJ-684)
 - ✅ Import writes verified per module DDB; writes re-check the DDB setting within 10 s (WJ-685)
 - ✅ Admin → Scheduler: jobs as collapsed cards with a play button (WJ-686)
+- ✅ Admin source page: audit entries wrap inside the card; subtitle aligned (WJ-687)
