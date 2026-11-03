@@ -23,8 +23,9 @@ export const shareOf = (l: TherapistListing): ListingShareProps => {
       t.approaches?.length && `Ways of working: ${t.approaches.join(", ")}`,
       l.origin !== "outside" && t.modes?.includes("in_person") && l.location && `Where: ${l.location}`,
     ],
-    // Map data keeps its credit wherever it is shown, the public page included (ODbL).
-    details: l.origin === "outside" ? [l.description, l.attribution].filter(Boolean).join("\n\n") || undefined : l.description,
+    details: l.description,
+    // Map data keeps its credit wherever it is shown, the public page included (ODbL); it is its own field, so it never counts as the description.
+    ...(l.origin === "outside" ? { originalLabel: "Their page on OpenStreetMap", ...(l.attribution ? { credit: l.attribution } : {}) } : {}),
     url: publicPath("therapists", l.id),
     source: l.sourceName,
   };
