@@ -28,13 +28,10 @@ export const clean = (s: string, max: number) => {
 };
 const present = (l: Maybe[] | undefined) => (l ?? []).filter((x): x is string => !!x);
 
-/** The summary without a model: the description's first distinct sentence, and the listing's first labelled details. */
+/** The summary without a model: the description's first sentence that says more than the title, and no highlights. */
 export function ruleSummary(input: SummaryInput): ShareSummary {
-  const highlights = present(input.lines)
-    .filter((l) => !NO_LINKS.test(l) && !PROVENANCE.test(l.trim()))
-    .slice(0, 3)
-    .map((l) => clean(l, POINT_MAX));
-  return { hook: firstSentence(input.title, input.details, HOOK_MAX), highlights, ai: false };
+  // No highlights without a model: the image already shows the detail rows, so repeating them adds nothing (it shows the description instead).
+  return { hook: firstSentence(input.title, input.details, HOOK_MAX), highlights: [], ai: false };
 }
 
 /**

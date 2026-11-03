@@ -7,9 +7,9 @@ const input = { noun: "teaching job", title: "Maths Teacher", facts: ["Waldersla
 afterEach(() => setAssistModelForTests(null));
 
 describe("a share's summary", () => {
-  it("without a model: the description's first sentence that says more than the title, and the first details, never where it came from", () => {
+  it("without a model: the description's first sentence that says more than the title, and no highlights (the image already shows the details)", () => {
     const s = ruleSummary(input);
-    expect(s).toEqual({ hook: "Do you have enthusiasm in abundance and the ability to explain algebra?", highlights: ["Subject: Mathematics", "Grades: Secondary"], ai: false });
+    expect(s).toEqual({ hook: "Do you have enthusiasm in abundance and the ability to explain algebra?", highlights: [], ai: false });
   });
 
   it("the model's reply is cut and checked: no links or emails, no repeat of the title, at most three highlights", () => {
