@@ -129,3 +129,4 @@
 - ✅ Admin says "DDB" instead of "data database" (WJ-680)
 - ✅ DDBs can be shared by modules and a module moved to a new DDB, its old rows removed (WJ-681)
 - ✅ Legacy Supabase key warnings on DDBs and Databases; key field renamed Secret key (WJ-682)
+- ✅ DDBs: connection fields show the saved project and no longer get browser autofill (WJ-683)
