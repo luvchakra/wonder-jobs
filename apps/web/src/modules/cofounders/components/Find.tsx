@@ -32,7 +32,7 @@ export function CofoundersFind() {
     [],
   );
   return (
-    <ModuleFind
+    <ModuleFind ownFilter={false}
       module="cofounders"
       noun={{ one: "match", many: "matches" }}
       placeholder="Search a skill, an idea or a place — fintech, sales, Pune"

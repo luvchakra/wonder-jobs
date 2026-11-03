@@ -117,3 +117,4 @@
 - ✅ Sign-up and sign-in are compact, with Google first and email below (WJ-668)
 - ✅ Moderation in every module: report a listing (hidden past a threshold), admin hide/ban/delete, delete your own posts (WJ-669)
 - ✅ Admin header says WonderWorks Admin; Back to WonderWorks ends the menu list (WJ-670)
+- ✅ Refine → WonderWorks only shows just the listings posted on WonderWorks, in every module (WJ-671)
