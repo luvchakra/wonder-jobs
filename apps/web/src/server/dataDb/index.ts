@@ -133,10 +133,17 @@ async function storedModules(): Promise<Record<string, StoredDataDb>> {
   return mods;
 }
 
+/**
+ * How fresh the setting must be before a write (2026-11-03: "ensure that import job updates new data in correct module
+ * specific ddb"): reads use the minute-long cache, but a write re-reads a setting older than this, so after an admin
+ * switches a module to another DDB, other servers stop writing its rows to the old one within seconds, not a minute.
+ */
+export const WRITE_FRESH_MS = 10_000;
+
 /** Reads which database holds each module's data (at most once a minute; concurrent callers share one read). */
-export function loadDataDb(force = false): Promise<void> {
+export function loadDataDb(force = false, maxAgeMs = TTL): Promise<void> {
   const now = Date.now();
-  if (!force && g.__wjDataDb && now - g.__wjDataDb.at < TTL) return Promise.resolve();
+  if (!force && g.__wjDataDb && now - g.__wjDataDb.at < maxAgeMs) return Promise.resolve();
   if (g.__wjDataDbLoading && !force) return g.__wjDataDbLoading;
   const p = (async () => {
     try {
