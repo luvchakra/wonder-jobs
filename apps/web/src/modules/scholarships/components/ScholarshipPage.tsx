@@ -106,6 +106,7 @@ function Page({ l }: { l: ScholarshipListing }) {
 
   return (
     <ListingPage
+      report={{ module: "scholarships", id: l.id }}
       share={shareOf(l)}
       back={FIND}
       title={l.title}

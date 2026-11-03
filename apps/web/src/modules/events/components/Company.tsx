@@ -1,4 +1,5 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
@@ -165,6 +166,7 @@ export function EventsCompany() {
                             Close
                           </button>
                         )}
+                        <DeletePost module="events" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                       </div>
                     )}
                   </li>

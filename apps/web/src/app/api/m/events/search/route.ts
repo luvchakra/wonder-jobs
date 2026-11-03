@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchEvents } from "@/server/events/search";
 
 export const runtime = "nodejs";
@@ -11,5 +12,5 @@ const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.str
 
 /** Events Find: the person's words and places, searched across the Events dataset's sources (never another module's). */
 export async function POST(req: Request) {
-  return hiringRoute(req, (_s, b) => searchEvents(b), { schema: Body, write: true });
+  return hiringRoute(req, (_s, b) => searchEvents(b).then(hideIn("events")), { schema: Body, write: true });
 }

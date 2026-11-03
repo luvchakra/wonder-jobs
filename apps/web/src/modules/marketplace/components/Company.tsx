@@ -2,6 +2,7 @@
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
@@ -100,6 +101,7 @@ export function MarketplaceCompany() {
                         </Button>
                       </>
                     )}
+                    <DeletePost module="marketplace" listingId={`mk_${l.listingId}`} title={l.title} onDeleted={() => void load()} className="min-h-8 px-2 text-[13px] font-medium text-danger-600 hover:underline" />
                   </div>
                 </li>
               ))}

@@ -25,6 +25,7 @@ import { gatewayModuleForSource } from "./gatewaySources";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
 import { bannedCompanies, isBannedListing, recordCompanies } from "./companies";
+import { hiddenListingIds } from "@/server/moderation";
 import { boardRef, closedRefs } from "@/server/jobs/origin";
 import { postingTooOld } from "@/domain/jobs/age";
 import { loadPlatformKeys } from "./platformKeys";
@@ -174,13 +175,16 @@ export const LATEST_LIMIT = 100;
  * filters, never a banned company's, a closed one's or one older than two weeks. Every live source is listed with how
  * many of the shown listings came from it.
  */
-async function latestListings(req: SearchRequest, dataset: ModuleId, sources: SourceRecord[], banned: { domains: Set<string>; names: Set<string> }, requestId: string, emit: (e: SearchEvent) => void): Promise<{ response: SearchResponse; plan: SearchPlan }> {
+/** Hidden by moderation, by its own id or (Jobs) the job id a source record carries. */
+const hiddenOpp = (o: CanonicalOpportunity, hidden: Set<string> | undefined) => !!hidden?.size && (hidden.has(o.id) || o.sourceRecords.some((r) => hidden.has(r.legacyJobId)));
+
+async function latestListings(req: SearchRequest, dataset: ModuleId, sources: SourceRecord[], banned: { domains: Set<string>; names: Set<string>; hidden?: Set<string> }, requestId: string, emit: (e: SearchEvent) => void): Promise<{ response: SearchResponse; plan: SearchPlan }> {
   // Streamed like any search: started (no source is asked) and completed, so a stream never ends without its answer.
   emit({ type: "search_started", requestId, plannedSources: [], searchMode: req.searchMode });
   const now = Date.now();
   // Gateway-collected listings reach this store from the jobs that collect them (warm.ts), for every module.
   const pool = await jobsLakeStore().listOpportunities({ module: dataset, limit: 2000 });
-  let results = pool.filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now) && !isBannedListing(o, banned));
+  let results = pool.filter((o) => validateOpportunity(o).length === 0 && !postingTooOld(o.freshness.postedAt, now) && !isBannedListing(o, banned) && !hiddenOpp(o, banned.hidden));
   const boardRefs = results.map((o) => boardRef(o.canonicalApplyUrl) ?? o.sourceRecords.map((r) => boardRef(r.url)).find(Boolean) ?? null);
   const gone = await closedRefs(boardRefs.filter((r): r is string => !!r)).catch(() => new Set<string>());
   if (gone.size) results = results.filter((_, i) => !boardRefs[i] || !gone.has(boardRefs[i]!));
@@ -216,10 +220,18 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const [health] = await Promise.all([healthBySource(), loadPlatformKeys()]);
   // Companies a platform admin banned: their listings are left out of every module's results (owner, 2026-11-01).
   // A failed read leaves nothing out, and says so in the logs.
-  const banned = await bannedCompanies().catch((e: unknown) => {
-    console.warn(`[jobslake] couldn't read banned companies: ${e instanceof Error ? e.message : e}`);
-    return { domains: new Set<string>(), names: new Set<string>() };
-  });
+  const [bannedCos, hidden] = await Promise.all([
+    bannedCompanies().catch((e: unknown) => {
+      console.warn(`[jobslake] couldn't read banned companies: ${e instanceof Error ? e.message : e}`);
+      return { domains: new Set<string>(), names: new Set<string>() };
+    }),
+    // Listings hidden, banned or deleted (Admin → Moderation, or reports past the threshold): never served (2026-11-03).
+    hiddenListingIds(dataset).catch((e: unknown) => {
+      console.warn(`[jobslake] couldn't read moderation: ${e instanceof Error ? e.message : e}`);
+      return new Set<string>();
+    }),
+  ]);
+  const banned = { ...bannedCos, hidden };
   // No words (owner, 2026-11-01: "just show top 100 entries if no search term is entered"): the module's latest stored
   // listings, newest first. Nothing is fetched and nothing guessed; the place filter and every exclusion still apply.
   if (!req.query.text?.trim() && !req.query.titles?.length) return latestListings(req, dataset, sources, banned, requestId, emit);
@@ -449,7 +461,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     console.info(`[jobslake] left out ${before - results.length} posting(s) found closed`);
   }
   // A banned company's listings are never served.
-  results = results.filter((o) => !isBannedListing(o, banned));
+  results = results.filter((o) => !isBannedListing(o, banned) && !hiddenOpp(o, hidden));
   // Only postings from the last two weeks are served; older ones are counted as too old, never shown.
   const beforeAge = results.length;
   const searchedAt = Date.now();

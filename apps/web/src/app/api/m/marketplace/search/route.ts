@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchMarketplace } from "@/server/marketplace/search";
 
 export const runtime = "nodejs";
@@ -9,5 +10,5 @@ const Body = z.object({ query: z.string().max(200), places: z.array(z.string().m
 
 /** Search WonderWorks listings for the person's own words and area: the module's own WorksLake dataset, never anyone they blocked. */
 export async function POST(req: Request) {
-  return hiringRoute(req, (s, b) => searchMarketplace(s, b), { schema: Body });
+  return hiringRoute(req, (s, b) => searchMarketplace(s, b).then(hideIn("marketplace")), { schema: Body });
 }

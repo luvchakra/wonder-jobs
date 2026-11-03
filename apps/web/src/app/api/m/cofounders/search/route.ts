@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchCofounders } from "@/server/cofounders/search";
 
 export const runtime = "nodejs";
@@ -11,5 +12,5 @@ const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.str
 
 /** Co-founders Find: the searcher's words and places, searched across the Co-founders dataset only (never another module's). */
 export async function POST(req: Request) {
-  return hiringRoute(req, (s, b) => searchCofounders(s, b), { schema: Body, write: true });
+  return hiringRoute(req, (s, b) => searchCofounders(s, b).then(hideIn("cofounders")), { schema: Body, write: true });
 }

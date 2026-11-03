@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchTeaching } from "@/server/teaching/search";
 
 export const runtime = "nodejs";
@@ -11,5 +12,5 @@ const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.str
 
 /** Teaching Find: the teacher's words and places, searched across the Teaching dataset's sources (never another module's). */
 export async function POST(req: Request) {
-  return hiringRoute(req, (_s, b) => searchTeaching(b), { schema: Body, write: true });
+  return hiringRoute(req, (_s, b) => searchTeaching(b).then(hideIn("teaching")), { schema: Body, write: true });
 }

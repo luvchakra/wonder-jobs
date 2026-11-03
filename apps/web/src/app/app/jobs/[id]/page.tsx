@@ -134,6 +134,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   // Description and Apply first, so both are on screen when the page opens; everything else is folded below them.
   return (
     <ListingPage
+      report={{ module: "jobs", id: job.id }}
       share={null}
       back={{ href: "/app/jobs", label: "Jobs" }}
       title={tx?.title ?? job.title}
