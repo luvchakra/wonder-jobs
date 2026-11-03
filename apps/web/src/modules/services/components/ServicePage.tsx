@@ -21,7 +21,7 @@ import { shortDate } from "@/wonderworks/listing/terms";
 import type { ReviewSummary } from "../deal";
 import { RequestQuote } from "./Request";
 import { FIT, useMatch } from "./Listing";
-import { shareOf } from "../share";
+import { sameName, shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/services", label: "Talent & Services" };
@@ -97,10 +97,15 @@ function Page({ l }: { l: ServiceListing }) {
         <ListingHead
           company={l.company}
           name={
-            <>
-              {l.company}
-              {l.origin === "wonderstar" && !l.companyVerified && <span className="font-normal text-ink-3"> · not verified yet</span>}
-            </>
+            // A directory listing is named for the business itself, which the title above already says: the line says where it is listed.
+            sameName(l) ? (
+              <span className="font-normal text-ink-3">Listed on {l.sourceName || "an outside source"}</span>
+            ) : (
+              <>
+                {l.company}
+                {l.origin === "wonderstar" && !l.companyVerified && <span className="font-normal text-ink-3"> · not verified yet</span>}
+              </>
+            )
           }
           facts={[
             t.lane !== "remote" && (
