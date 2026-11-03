@@ -79,7 +79,7 @@ export function TherapistsCompany() {
     <OwnerWorkspace
       module="Therapists"
       intro="For counsellors and clinics: list yourself so clients find you on WonderWorks, in your own words."
-      noWorkspace="Create one for your practice in Hiring, then list yourself here."
+      noWorkspace="Set up your practice to list yourself."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
