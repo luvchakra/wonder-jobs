@@ -14,6 +14,7 @@ import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
+import { parseEmailList, smtpConfig } from "@/server/notify";
 import { isGatewayBridge } from "./gatewaySources";
 import { setupTodo, type SetupItem } from "./setup";
 import { jobsLakeStore } from "./store";
@@ -101,6 +102,8 @@ export interface ImportView {
     find: { listings: number | null; refreshedAt: string | null; stored: Record<string, number> };
   };
   schedule: { activateWaiting: boolean; cronSet: boolean; pausedModules: string[] };
+  /** The "import finished" email's settings; `admins`: how many platform admins get it when no address is set. */
+  emails: { imports: boolean; hourly: boolean; to: string[]; admins: number; mailbox: boolean };
   /** The server job started by Import now, a module's import or the hourly run: while it runs, or for a day after. */
   job: ImportJobView | null;
   /** Every run, newest first (importRuns.ts). */
@@ -271,6 +274,7 @@ export async function importView(): Promise<ImportView> {
       find: { listings: counted.length ? counted.reduce((n, m) => n + (m.inFind ?? 0), 0) : null, refreshedAt: refresh?.at ?? null, stored: refresh?.stored ?? {} },
     },
     schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
+    emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig() },
     job: jobSummary(job),
     runs,
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,

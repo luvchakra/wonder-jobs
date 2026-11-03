@@ -15,6 +15,11 @@ export interface SchedulerSettings {
    * sources waiting on Setup to-do (added, not yet live), as one server job. Off: only an admin's press does it.
    */
   gateway: { activateWaiting: boolean; /** Modules whose import is paused (Data → Import): not collected, set up or refreshed until resumed. */ pausedModules: string[]; /** Sources an admin dismissed (Data → Import): never tried by Import now or the hourly run, and not counted as waiting. */ dismissed: string[] };
+  /**
+   * The "import finished" email (Data → Import → Emails, owner 2026-11-03): whether import jobs and the hourly collection
+   * send it, and to whom. An empty `to` means the platform admins (JOBSLAKE_ADMIN_EMAILS).
+   */
+  importEmail: { imports: boolean; hourly: boolean; to: string[] };
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -49,7 +54,15 @@ export const SCHEDULER_DEFAULTS: SchedulerSettings = {
   companyRefresh: { enabled: true, logoLimit: 150, budgetSec: 45 },
   ratings: { enabled: true, frequency: "weekly", notifyEmail: DEFAULT_RATINGS_NOTIFY_EMAIL },
   gateway: { activateWaiting: false, pausedModules: [], dismissed: [] },
+  importEmail: { imports: true, hourly: true, to: [] },
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Up to 10 addresses, each checked, lower-cased and deduplicated; from a list or a comma/space-separated line. */
+export function cleanEmailList(v: unknown): string[] {
+  const parts = Array.isArray(v) ? v : typeof v === "string" ? v.split(/[\s,;]+/) : [];
+  return [...new Set(parts.filter((x): x is string => typeof x === "string").map((x) => x.trim().toLowerCase()).filter((x) => x.length <= 200 && EMAIL_RE.test(x)))].slice(0, 10);
+}
 
 /** Each number's allowed range — the time budgets stay inside each function's Vercel limit. */
 export const SCHEDULER_LIMITS = {
@@ -70,6 +83,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
   const c = obj(r.companyRefresh);
   const g = obj(r.ratings);
   const gw = obj(r.gateway);
+  const ie = obj(r.importEmail);
   const D = SCHEDULER_DEFAULTS;
   return {
     scheduledRuns: {
@@ -90,6 +104,7 @@ export function cleanScheduler(raw: unknown): SchedulerSettings {
       notifyEmail: typeof g.notifyEmail === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.notifyEmail.trim()) && g.notifyEmail.length <= 200 ? g.notifyEmail.trim().toLowerCase() : D.ratings.notifyEmail,
     },
     gateway: { activateWaiting: bool(gw.activateWaiting, D.gateway.activateWaiting), pausedModules: Array.isArray(gw.pausedModules) ? [...new Set(gw.pausedModules.filter((m): m is string => typeof m === "string" && /^[a-z]{2,20}$/.test(m)))].slice(0, 20) : [], dismissed: Array.isArray(gw.dismissed) ? [...new Set(gw.dismissed.filter((d): d is string => typeof d === "string" && /^(gateway:src_[a-f0-9]{24}|catalogue:[a-z0-9-]{1,80}\.json)$/.test(d)))].slice(0, 300) : [] },
+    importEmail: { imports: bool(ie.imports, D.importEmail.imports), hourly: bool(ie.hourly, D.importEmail.hourly), to: cleanEmailList(ie.to) },
     ...(typeof r.updatedAt === "string" ? { updatedAt: r.updatedAt } : {}),
     ...(typeof r.updatedBy === "string" ? { updatedBy: r.updatedBy } : {}),
   };

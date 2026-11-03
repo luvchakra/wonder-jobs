@@ -122,3 +122,4 @@
 - ✅ Refine: WonderWorks only first on one line in every module, Co-founders included (WJ-673)
 - ✅ Admins are emailed when each import job finishes, with every module's new entries in Find (WJ-674)
 - ✅ The import-finished email covers the hourly collection too (WJ-675)
+- ✅ The import-finished email is configurable in Admin → Data → Import → Emails (WJ-676)
