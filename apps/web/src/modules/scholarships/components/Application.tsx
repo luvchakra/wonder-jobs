@@ -17,6 +17,8 @@ import { call } from "@/wonderworks/api";
 import { listingHref, scholarshipsManifest } from "../manifest";
 import { PROVIDER_NOT_STATED, canWithdraw, deadlineLabel, KIND_LABEL, LEVEL_LABEL, OUTSIDE_LABEL, outsideStatus, shortDate, stageOf, STATUS_LABEL, valueLabel, type MyScholarshipApplicationDetail, type ScholarshipListing, type ScholarshipStatus } from "../domain";
 import { useScholarshipsStore } from "../store";
+import { ListingShare } from "@/wonderworks/listing/ShareButton";
+import { listingOfApplication, shareOf } from "../share";
 
 const noop = () => () => undefined;
 const BACK = { href: "/app/m/scholarships/pipeline", label: "Applications" };
@@ -72,7 +74,7 @@ export function ScholarshipApplication({ id }: { id: string }) {
     const l = outside.item;
     const st = outsideStatus(outside.ref) ?? "applied";
     return (
-      <ItemPage back={BACK} title={l.company ? `${l.title} · ${l.company}` : l.title} badge={<Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge>}>
+      <ItemPage back={BACK} title={l.company ? `${l.title} · ${l.company}` : l.title} badge={<span className="flex items-center gap-2"><Badge tone={st === "applied" ? "info" : "neutral"}>{OUTSIDE_LABEL[st]}</Badge><ListingShare {...shareOf(l)} /></span>}>
         <ItemMain>
           <Card>
             <ItemHead company={l.company || PROVIDER_NOT_STATED} domain={l.companyDomain} lines={[facts([KIND_LABEL[l.terms.kind], valueLabel(l.terms)]), deadlineLabel(l.terms)]}>
@@ -143,7 +145,7 @@ export function ScholarshipApplication({ id }: { id: string }) {
   const p = sent.profile;
 
   return (
-    <ItemPage back={BACK} title={`${app.title} · ${app.company}`} badge={<Badge tone={TONE[app.status]}>{STATUS_LABEL[app.status]}</Badge>}>
+    <ItemPage back={BACK} title={`${app.title} · ${app.company}`} badge={<span className="flex items-center gap-2"><Badge tone={TONE[app.status]}>{STATUS_LABEL[app.status]}</Badge><ListingShare {...shareOf(listingOfApplication(app))} /></span>}>
       <ItemMain>
         <Card>
           <ItemHead company={app.company} lines={[facts([KIND_LABEL[app.terms.kind], valueLabel(app.terms)]), app.terms.deadline ? `Deadline ${shortDate(app.terms.deadline)}` : ""]} />

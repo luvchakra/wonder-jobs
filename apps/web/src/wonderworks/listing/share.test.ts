@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STORY_VERSION, storyPath, absoluteUrl, distinctText, emailHref, excerpt, facebookHref, hashtag, listingShareMessage, publicPath, whatsappHref, xHref, xPost } from "./share";
+import { STORY_VERSION, firstSentence, storyPath, absoluteUrl, distinctText, emailHref, excerpt, facebookHref, hashtag, listingShareMessage, publicPath, whatsappHref, xHref, xPost } from "./share";
 
 describe("sharing a listing", () => {
   it("a message carries the title, the public facts and the link, last and alone on WhatsApp", () => {
@@ -88,5 +88,15 @@ describe("distinctText", () => {
 
   it("the share image's link carries the design's version, so a phone never shows a cached old design", () => {
     expect(storyPath("/s/teaching/opp_1")).toBe(`/s/teaching/opp_1/story?v=${STORY_VERSION}`);
+  });
+
+  it("the line without a model is a whole sentence that fits, or the first cut at a word, never mid-word", () => {
+    const long = `We are hiring ${"a very ".repeat(30)}good engineer.`;
+    expect(firstSentence("Engineer", `${long} You will build our payments platform.`)).toBe("You will build our payments platform.");
+    const cut = firstSentence("Engineer", long);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(cut.length).toBeLessThanOrEqual(140);
+    expect(cut.slice(0, -1).split(" ").every((w) => long.includes(w))).toBe(true);
+    expect(cut).not.toMatch(/\bver…$/);
   });
 });

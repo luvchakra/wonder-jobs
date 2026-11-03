@@ -126,9 +126,16 @@ export function firstSentence(title: string, details: string | undefined, max = 
   const name = plain(title);
   // Not a sentence that only restates the title ("Maths Teacher Wanted."), nor one with a link.
   const says = (x: string) => x.trim().length > 20 && !/https?:\/\/|www\./i.test(x) && !(plain(x).includes(name) && plain(x).length < name.length + 16);
-  const s = text.split(/(?<=[.!?])\s+/).find(says) ?? "";
-  const t = s.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  const fold = (x: string) => x.replace(/\s+/g, " ").trim();
+  const candidates = text.split(/(?<=[.!?])\s+/).filter(says).map(fold);
+  // A whole sentence that fits, when one of the first few does; otherwise the first, cut at a word.
+  const whole = candidates.slice(0, 4).find((x) => x.length <= max);
+  if (whole) return whole;
+  const t = candidates[0] ?? "";
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.5 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, "")}…`;
 }
 
 /** Sections joined with one blank line between them, empty ones left out (so a missing hook leaves no gap). */
