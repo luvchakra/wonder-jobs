@@ -159,3 +159,4 @@
 - ✅ Share opens fast: buttons wait at most 2.5 s, image never waits long on the model (WJ-697)
 - ✅ Gateway crawler reads Next.js page data and schema.org scholarship/grant types (WJ-698)
 - ✅ Scholarships & Projects: Opportunities for Africans and Mladiinfo feeds, HackerEarth hackathons as live sources (WJ-529)
+- ✅ Gateway: Scholarships listings with no provider kept as "Provider not stated" (WJ-699)
