@@ -1,6 +1,7 @@
 import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { publicPath } from "@/wonderworks/listing/share";
 import { shortPlace } from "@/wonderworks/find/place";
+import { shortSourceNames } from "@/wonderworks/find/sourceName";
 import { ageLabel, dateRangeLabel, seatsLabel, whenLabel, type EventListing } from "./domain";
 
 /**
@@ -42,7 +43,7 @@ export const shareOf = (l: EventListing): ListingShareProps => {
       title: l.title,
       // The organiser is always the last fact, empty when the source names none, so the image never mistakes the place for one.
       facts: [dateRangeLabel(out.startDate, out.endDate), place && cutPlace(place), l.company],
-      lines: [place && `Where: ${place}`, `Source: ${l.sourceName}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
+      lines: [place && `Where: ${place}`, `Source: ${shortSourceNames(l.sourceName)}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
       details: l.description,
       url: publicPath("events", l.id),
       source: l.sourceName,
