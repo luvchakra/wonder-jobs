@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ module: 
   const facts = (l.facts ?? []).filter((x): x is string => !!x);
   // The organisation behind the listing, where a module's facts name one, for its logo from the shared company directory.
   const org = ORG_FACT[module] === "last" ? facts.at(-1) : ORG_FACT[module] === "first" ? facts[0] : undefined;
-  const [summary, image, photo] = await Promise.all([shareSummary(shared.key, shared.input), org ? logoDataUri({ name: org }) : null, photoDataUri(origin, l.image)]);
+  const [summary, image, photo] = await Promise.all([shareSummary(shared.key, shared.input), org ? logoDataUri({ name: org }) : null, photoDataUri(l.image)]);
   return storyImage({
     badge: l.noun[0].toUpperCase() + l.noun.slice(1),
     title: l.title,
