@@ -11,7 +11,7 @@ import { LANE_LABEL, materialsLabel, matchService, priceLabel, ratingLabel, turn
 import { listingHref } from "../manifest";
 import { selectProfile, useServicesStore } from "../store";
 import { isOpen } from "./Request";
-import { shareOf } from "../share";
+import { sameName, shareOf } from "../share";
 
 export function useMatch(l: ServiceListing): ServiceMatch {
   return matchService(l, useServicesStore(selectProfile));
@@ -63,9 +63,12 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
         </Link>
       }
       facts={[
-        <span key="c" className="font-medium text-ink-2">
-          {l.company}
-        </span>,
+        // A directory listing is named for the business itself: the name isn't repeated under the title.
+        !sameName(l) && (
+          <span key="c" className="font-medium text-ink-2">
+            {l.company}
+          </span>
+        ),
         l.origin === "wonderstar" && !l.companyVerified && <span key="v">not verified yet</span>,
         t.lane === "local" && <span key="p" title={l.location}>{shortPlace(l.location)}</span>,
         t.lane && <span key="l">{LANE_LABEL[t.lane]}</span>,
