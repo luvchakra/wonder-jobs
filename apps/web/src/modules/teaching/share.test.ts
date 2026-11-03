@@ -31,4 +31,11 @@ describe("Teaching share", () => {
     expect((s.lines ?? []).filter(Boolean).join("|")).toContain("Subject: Maths");
     expect(s.details).toContain("key stage 3");
   });
+
+  it("puts the most telling rows first: subject, grades and stated pay come before the place, which is already a chip", () => {
+    const s = shareOf({ ...base, id: "opp_abc123", origin: "outside", terms: { ...base.terms, payMin: 31000, payMax: 43000, currency: "GBP", payPer: "month" } } as TeachingListing);
+    const rows = (s.lines ?? []).filter((x): x is string => !!x).map((x) => x.split(":")[0]);
+    expect(rows.slice(0, 3)).toEqual(["Subject", "Grades", "Pay"]);
+    expect(rows.indexOf("Where")).toBeGreaterThan(rows.indexOf("Pay"));
+  });
 });

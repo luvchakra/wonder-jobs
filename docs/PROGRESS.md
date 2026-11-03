@@ -149,4 +149,6 @@
 - ✅ Events: a shared outside event says "Source: WorksLakeDG", like the cards (WJ-577)
 - ✅ Co-founders: Share is the owner's choice — "Let others share my profile" and a team's, off by default; off, Share sends only a general Co-founders message (WJ-611)
 - ✅ Share: highlights never repeat the image; original link names the site (WJ-693)
+- ✅ Teaching: Share rows put subject, grades and pay first (WJ-565)
 - ✅ Share image: link footer reads as text, not a button (WJ-694)
+- 2026-11-03 Talent & Services: share names the original link and carries the OSM credit (WJ-597)
