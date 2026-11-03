@@ -139,6 +139,7 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- 2026-11-03 Talent & Services: Share verified for own and outside pros; no repeated names; share lines reordered (WJ-596)
 - ✅ Share image: shop photos fetched as JPEG/PNG so they show (WJ-692)
 - ✅ Events: Share checked end to end — an outside event's place is cut cleanly for chips, the organiser slot never takes the place, Share is on a My events item (WJ-576)
 - ✅ Teaching: Share checked end to end (public URL per origin, image, help) (WJ-564)
@@ -147,3 +148,4 @@
 - ✅ Jobs: Share on every job surface — Pipeline's job page added, careers pages use WonderWorks' share sheet; crisp-message tests (WJ-547)
 - ✅ Events: a shared outside event says "Source: WorksLakeDG", like the cards (WJ-577)
 - ✅ Co-founders: Share is the owner's choice — "Let others share my profile" and a team's, off by default; off, Share sends only a general Co-founders message (WJ-611)
+- ✅ Share: highlights never repeat the image; original link names the site (WJ-693)

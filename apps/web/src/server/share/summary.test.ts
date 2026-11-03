@@ -38,4 +38,10 @@ describe("a share's summary", () => {
   it("a long highlight is cut at a word, never mid-word", () => {
     expect(clean("School becomes co-educational as The Capstone School in September 2027", 64)).toBe("School becomes co-educational as The Capstone School in…");
   });
+
+  it("drops a highlight that mostly repeats what the image already shows (place, date, title)", () => {
+    const ev = { noun: "event", title: "Gaming hobby group for Minecraft adventurers for 3.-6. graders", facts: ["6 Nov 2026", "Entresse Library, Espoo, Finland", ""], lines: ["Where: Entresse Library, Espoo, Finland"] };
+    const s = checkedSummary(ev, { hook: "A Minecraft hobby group for young players at a library.", highlights: ["For 3rd-6th graders", "Takes place at Entresse Library, Espoo, Finland", "Date: 6 Nov 2026", "Free to join, no sign-up needed"] });
+    expect(s!.highlights).toEqual(["For 3rd-6th graders", "Free to join, no sign-up needed"]);
+  });
 });
