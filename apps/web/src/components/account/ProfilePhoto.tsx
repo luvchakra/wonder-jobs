@@ -1,4 +1,5 @@
 "use client";
+import { avatarUrl } from "@/lib/avatarUrl";
 import { useHydration } from "@/store/hydration";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
@@ -40,7 +41,9 @@ export function ProfilePhoto({ name, size = 64 }: { name: string; size?: number 
     const img = new Image();
     img.onload = () => setHas(true);
     img.onerror = () => setHas(false);
-    img.src = `/api/avatar?v=${version}`;
+    const mode = getClientMode();
+    if (mode.mode !== "user") return;
+    img.src = avatarUrl(mode.userId, version);
   }, [version, signedIn]);
 
   const upload = async (file: File) => {

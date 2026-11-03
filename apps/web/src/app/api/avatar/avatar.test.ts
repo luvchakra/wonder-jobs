@@ -17,15 +17,27 @@ describe("profile photo", () => {
     const route = await import("./route");
     tenant = "tenant_a";
     expect((await route.PUT(new Request("http://x/api/avatar", { method: "PUT", body: JPEG }))).status).toBe(200);
-    const mine = await route.GET();
+    const mine = await route.GET(new Request("http://x/api/avatar"));
     expect(mine.status).toBe(200);
     expect(mine.headers.get("content-type")).toBe("image/jpeg");
     expect(new Uint8Array(await mine.arrayBuffer())).toEqual(JPEG);
     tenant = "tenant_b";
-    expect((await route.GET()).status).toBe(404);
+    expect((await route.GET(new Request("http://x/api/avatar"))).status).toBe(404);
     expect((await route.PUT(new Request("http://x/api/avatar", { method: "PUT", body: new TextEncoder().encode("<svg/>") }))).status).toBe(400);
+    // Signed in as B, the address for A's photo answers nothing (2026-11-03: a new account showed the last one's photo).
+    const asked = await route.GET(new Request("http://x/api/avatar?u=tenant_a&v=0"));
+    expect(asked.status).toBe(404);
+    expect(asked.headers.get("cache-control")).toBe("private, no-store");
     tenant = "tenant_a";
+    expect((await route.GET(new Request("http://x/api/avatar?u=tenant_a&v=0"))).status).toBe(200);
     await route.DELETE();
-    expect((await route.GET()).status).toBe(404);
+    expect((await route.GET(new Request("http://x/api/avatar"))).status).toBe(404);
+  });
+});
+
+describe("the photo's address", () => {
+  it("is different for every account", async () => {
+    const { avatarUrl } = await import("@/lib/avatarUrl");
+    expect(avatarUrl("a", 0)).not.toBe(avatarUrl("b", 0));
   });
 });
