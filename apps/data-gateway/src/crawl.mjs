@@ -1,5 +1,5 @@
 import { ApiError, normalizeAll } from "./core.mjs";
-import { allowedBy, checkRobots, decodeEntities, parseStructured, safeGet } from "./collect.mjs";
+import { allowedBy, checkRobots, decodeEntities, parseNextData, parseStructured, safeGet } from "./collect.mjs";
 
 /**
  * The gateway's crawler, for a site that publishes its listings as pages with schema.org data (JobPosting, Event,
@@ -164,7 +164,11 @@ export async function crawlRecords(source, deps = {}) {
     read++;
     try {
       // A record without its own URL takes the page's.
-      for (const item of parseStructured(await get(url, { origin: host }))) items.push({ ...item, canonicalUrl: item.canonicalUrl || url });
+      const html = await get(url, { origin: host });
+      // A Next.js site states its listing in the page's own data (source.nextDataPath, read through source.mapping);
+      // every other page through its schema.org blocks.
+      const found = source.nextDataPath ? parseNextData(html, source.nextDataPath, source.mapping) : parseStructured(html);
+      for (const item of found) items.push({ ...item, canonicalUrl: item.canonicalUrl || url });
     } catch { failed++; }
   }
 

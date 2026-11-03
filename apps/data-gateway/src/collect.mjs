@@ -197,6 +197,44 @@ export function businessRecord(o) {
   }
   return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: String(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
 }
+/**
+ * A Next.js page's own data (`<script id="__NEXT_DATA__">`), for sites whose listings carry no schema.org type (owner,
+ * 2026-11-03, Scholarships: Buddy4Study). `path` names the listing (or a list of them) inside it, e.g.
+ * "props.pageProps.scholarship"; `mapping` names each field's path inside that object (title, organization, location,
+ * description, canonicalUrl, publishedAt, id, and `attr.<name>` for extra fields). Only what the page states: text,
+ * numbers and true/false, a list of texts joined with ", "; nothing derived or guessed.
+ */
+export function parseNextData(html, path, mapping = {}) {
+  const m = html.match(/<script\b[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!m || !path) return [];
+  let data;
+  try { data = JSON.parse(m[1]); } catch { return []; }
+  const at = (obj, p) => String(p || "").split(".").filter(Boolean).reduce((acc, k) => (acc && typeof acc === "object" ? acc[k] : undefined), obj);
+  const scalar = (v) => {
+    if (["string", "number", "boolean"].includes(typeof v)) return v;
+    if (Array.isArray(v)) { const texts = v.map((x) => (["string", "number"].includes(typeof x) ? String(x) : typeof x?.name === "string" ? x.name : "")).filter(Boolean); return texts.length ? texts.slice(0, 20).join(", ") : undefined; }
+    return undefined;
+  };
+  const found = at(data, path);
+  const list = (Array.isArray(found) ? found : [found]).filter((x) => x && typeof x === "object").slice(0, 500);
+  const FIELDS = ["id", "title", "organization", "location", "description", "canonicalUrl", "publishedAt"];
+  return list.map((o) => {
+    const rec = {};
+    for (const f of FIELDS) { const v = mapping[f] ? scalar(at(o, mapping[f])) : undefined; if (v !== undefined) rec[f] = v; }
+    const attributes = {};
+    for (const [key, p] of Object.entries(mapping)) {
+      if (!key.startsWith("attr.")) continue;
+      const v = scalar(at(o, p));
+      if (v !== undefined) attributes[key.slice(5)] = v;
+    }
+    if (Object.keys(attributes).length) rec.attributes = attributes;
+    return rec;
+  });
+}
+
+/** Whether a schema.org type is a scholarship, grant or programme (Scholarships & Projects). */
+const PROGRAM = /ScholarshipProgram|EducationalOccupationalProgram|MonetaryGrant|^Grant$/i;
+
 export function parseStructured(html) {
   const out = [];
   // A page's breadcrumb trail (schema.org BreadcrumbList) names the category a business sits in, which a LocalBusiness
@@ -218,7 +256,7 @@ export function parseStructured(html) {
         }
         return;
       }
-      if (!kinds.some((k) => /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
+      if (!kinds.some((k) => PROGRAM.test(String(k)) || /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
       const first = (v) => (Array.isArray(v) ? v[0] : v);
       const org = first(o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher);
       // An event's place may be a list (a venue and its stream): the first one with an address, else the first.
@@ -227,6 +265,20 @@ export function parseStructured(html) {
       const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
       const business = !event && kinds.some((k) => /LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber|ProfessionalService/i.test(String(k)));
       if (business) { const rec = businessRecord(o); businesses.add(rec); out.push(rec); return; }
+      if (kinds.some((k) => PROGRAM.test(String(k)))) {
+        // A scholarship, grant or programme: who offers it, and its deadline and amount as stated.
+        const giver = first(o.provider || o.funder || o.sponsor || o.offeredBy || o.educationalProgramProvider);
+        const amount = first(o.amount || o.financialAidEligible || o.offers);
+        const value = typeof amount === "object" ? amount?.value ?? amount?.price : amount;
+        const attributes = {};
+        if (o.applicationDeadline) attributes.deadline = String(o.applicationDeadline).slice(0, 40);
+        if (o.applicationStartDate) attributes.opensOn = String(o.applicationStartDate).slice(0, 40);
+        if (["string", "number"].includes(typeof value)) attributes.amount = value;
+        const currency = typeof amount === "object" ? amount?.currency ?? amount?.priceCurrency : undefined;
+        if (typeof currency === "string") attributes.currency = currency;
+        out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.name || o.title, organization: typeof giver === "string" ? giver : giver?.name, location: typeof place === "string" ? place : place?.address?.addressCountry || place?.name || "", description: String(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePublished || null, ...(Object.keys(attributes).length ? { attributes } : {}) });
+        return;
+      }
       out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: String(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
