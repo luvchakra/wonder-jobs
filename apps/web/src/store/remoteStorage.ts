@@ -212,6 +212,16 @@ async function revalidate() {
  * Refresh (This week, Insights): reconcile with the server again now — newer server copies are re-read in place, as
  * on page load. Edits made on this page still win. Resolves once done; false when the server couldn't be read.
  */
+/**
+ * The account's server copy of one store document (its saved state), or `undefined` when the server can't be reached or
+ * this browser doesn't sync. Shares the page load's one GET.
+ */
+export async function serverState(name: string): Promise<unknown | null | undefined> {
+  const docs = await loadAll();
+  if (!docs) return undefined;
+  return docs[name]?.state ?? null;
+}
+
 export async function refreshFromServer(): Promise<boolean> {
   if (!syncsToServer()) return true;
   // Read the server afresh (not the copy fetched on page load), then reconcile as on load.
