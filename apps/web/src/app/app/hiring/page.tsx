@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Check, ShieldAlert } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { can } from "@/domain/org/permissions";
-import { ORG_ROLE_LABEL } from "@/domain/org/types";
+import { ORG_ROLE_LABEL, ORG_ROLE_LABEL_NEUTRAL } from "@/domain/org/types";
 import { hiringApi } from "@/services/hiring/client";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
@@ -155,6 +155,17 @@ function HiringPage() {
       />
     );
   const r = ws.role;
+  // From another module's post page (Team & settings): only the organisation's team, in neutral words, back to that
+  // page (owner, 2026-11-03: "what is shown … should be according to that module"). Only a module path is honoured.
+  const from = params.get("from");
+  if (from && /^\/app\/m\/[a-z]+\/company$/.test(from))
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageHeader title={ws.org.name} description={`Team · you're ${r === "owner" ? "an Owner" : `a ${ORG_ROLE_LABEL_NEUTRAL[r]}`}`} back={{ href: from, label: "Back" }} />
+        {dialogs}
+        <TeamTab orgId={ws.org.id} me={data.me} canManage={can(r, "org.manage")} onLeft={load} neutral />
+      </div>
+    );
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
