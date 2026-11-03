@@ -98,6 +98,16 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(rec.items).toEqual([{ id: "gateway:src_1", name: "Source 1", status: "live", valid: 3 }, { id: "gateway:src_2", name: "Source 2", status: "live", valid: 3 }]);
   });
 
+  it("emails the admins once when it finishes, with the run and the runs before it (2026-11-03)", async () => {
+    await startSetupJob([item(1)], "admin@example.com");
+    const notify = vi.fn(async () => undefined);
+    const run = vi.fn(async (r: SetupRun) => ({ ok: true as const, valid: 2, sourceId: (r as { sourceId: string }).sourceId }));
+    await continueSetupJob({ run, sleep: async () => undefined, refresh: async () => ({ stored: { therapists: 8 } }), notify });
+    await continueSetupJob({ run, sleep: async () => undefined, notify }); // already finished: no second email
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]).toEqual([expect.objectContaining({ stored: { therapists: 8 } }), []]);
+  });
+
   it("does nothing with no job, and nothing to queue is refused", async () => {
     expect(await continueSetupJob()).toEqual({ ran: 0, left: 0, done: true });
     expect(await startSetupJob([], "admin")).toMatchObject({ ok: false });

@@ -12,7 +12,8 @@
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 import { refreshGatewayListings } from "@/server/jobslake/warm";
-import { recordImportRun, type ImportRun } from "./importRuns";
+import { sendImportEmail } from "./importEmail";
+import { listImportRuns, recordImportRun, type ImportRun } from "./importRuns";
 import { collectGatewaySource, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
 
 export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string } | { kind: "collect"; sourceId: string };
@@ -113,6 +114,8 @@ export interface ContinueDeps {
   sleep?: (ms: number) => Promise<void>;
   run?: typeof runSetupItem;
   refresh?: () => Promise<{ stored: Record<string, number> }>;
+  /** The "import finished" email (importEmail.ts); tests pass their own. */
+  notify?: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown>;
 }
 
 /**
@@ -172,7 +175,13 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   }
   job.leaseUntil = undefined;
   await save(job);
-  if (job.finishedAt) await recordImportRun(runFromJob(job));
+  if (job.finishedAt) {
+    // The admins are emailed once, with each module's count in Find and the change since the last run (importEmail.ts).
+    const earlier = await listImportRuns().catch(() => []);
+    const record = runFromJob(job);
+    await recordImportRun(record);
+    await (deps.notify ?? sendImportEmail)(record, earlier);
+  }
   return { ran, left, done: !left, refreshed };
 }
 
