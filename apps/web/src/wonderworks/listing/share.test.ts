@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, distinctText, emailHref, excerpt, listingShareMessage, publicPath, whatsappHref } from "./share";
+import { absoluteUrl, distinctText, emailHref, excerpt, facebookHref, hashtag, listingShareMessage, publicPath, whatsappHref, xHref, xPost } from "./share";
 
 describe("sharing a listing", () => {
   it("a message carries the title, the public facts and the link, last and alone on WhatsApp", () => {
@@ -63,5 +63,22 @@ describe("distinctText", () => {
   });
   it("keeps what adds something, once", () => {
     expect(distinctText("Yoga", "Yoga. Weekend batches. Weekend batches.")).toBe("Weekend batches.");
+  });
+
+  it("X gets a short post under 280 with the link added by X; Instagram a caption ending with the link, the hint and hashtags", () => {
+    const m = listingShareMessage({ noun: "internship", title: "React Intern", facts: ["Acme", "Pune"], url: "x" }, "https://x.test/s/internships/1");
+    expect(m.x).toBe("React Intern\nAcme · Pune\n\nFind yours free on WonderWorks #Internship #WonderWorks");
+    expect(m.x).not.toContain("https://");
+    expect(xHref(m, "https://x.test/s/internships/1")).toBe(`https://x.com/intent/post?text=${encodeURIComponent(m.x)}&url=${encodeURIComponent("https://x.test/s/internships/1")}`);
+    expect(m.caption).toContain("See it: https://x.test/s/internships/1");
+    expect(m.caption.split("\n").slice(-2)).toEqual(["Find yours free on WonderWorks.", "#Internship #WonderWorks"]);
+    expect(facebookHref("https://x.test/a?b=1")).toBe("https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fx.test%2Fa%3Fb%3D1");
+  });
+
+  it("a long title is cut so the X post with its link stays under 280", () => {
+    const post = xPost("T".repeat(400), "facts", "end #tag");
+    expect(post.length + 24).toBeLessThanOrEqual(280);
+    expect(post.endsWith("\n\nend #tag")).toBe(true);
+    expect(hashtag("buy sell & rent")).toBe("#BuySellRent");
   });
 });

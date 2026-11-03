@@ -11,10 +11,27 @@ export interface ShareMessage {
   whatsapp: string;
   /** For the phone's own share sheet. */
   text: string;
+  /** An X post: short, the link added by X itself, hashtags last. */
+  x: string;
+  /** Instagram and Facebook: the caption to paste under the image, ending with the link and hashtags. */
+  caption: string;
 }
 
 export const emailHref = (m: ShareMessage) => `mailto:?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
 export const whatsappHref = (m: ShareMessage) => `https://wa.me/?text=${encodeURIComponent(m.whatsapp)}`;
+export const xHref = (m: ShareMessage, url: string) => `https://x.com/intent/post?text=${encodeURIComponent(m.x)}&url=${encodeURIComponent(url)}`;
+/** Facebook takes only the link; its preview card (the listing's image) is the post. */
+export const facebookHref = (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+
+/** An X post's text, cut so the post with its link (counted as 23) stays under 280. */
+export function xPost(head: string, facts: string, end: string): string {
+  const room = 280 - 24 - end.length - 2;
+  const lead = [head, facts].filter(Boolean).join("\n");
+  return `${lead.length > room ? `${lead.slice(0, room - 1).trimEnd()}…` : lead}\n\n${end}`;
+}
+
+/** A hashtag from a word or two: "internship" → "#Internship". */
+export const hashtag = (s: string) => `#${s.replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").map((w) => w[0]?.toUpperCase() + w.slice(1)).join("")}`;
 
 /** A line or fact that may be missing: `a && b` leaves false, 0, "" or undefined behind, and they are left out. */
 export type Maybe = string | null | undefined | false | 0;
@@ -41,6 +58,8 @@ export interface ListingShareInput {
 export const publicPath = (module: string, id: string) => `/s/${encodeURIComponent(module)}/${encodeURIComponent(id)}`;
 
 const PITCH = "Found with WonderWorks.";
+/** The closing marketing line on every shared listing's image, caption and post. */
+export const LISTING_HINT = "Find yours free on WonderWorks";
 
 /** The link as an absolute URL on `origin` when it's a path on this site. */
 export function absoluteUrl(origin: string, url: string): string {
@@ -94,5 +113,7 @@ export function listingShareMessage(input: ListingShareInput, url: string): Shar
     body: ["Hi,", "", `I came across this ${input.noun} and thought of you:`, "", head, ...body, "", `Take a look: ${url}`, "", "—", PITCH].join("\n"),
     whatsapp: [`*${head}*`, ...body, "", `Thought of you for this one. ${PITCH}`, "", url].join("\n"),
     text: [head, ...body, "", PITCH].join("\n"),
+    x: xPost(head, facts, `${LISTING_HINT} ${hashtag(input.noun)} #WonderWorks`),
+    caption: [head, ...(facts ? [facts] : []), "", `See it: ${url}`, "", `${LISTING_HINT}.`, `${hashtag(input.noun)} #WonderWorks`].join("\n"),
   };
 }
