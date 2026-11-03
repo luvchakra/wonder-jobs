@@ -57,7 +57,7 @@ export interface ListingShareInput {
 }
 
 /** Bumped when the share image's design changes, so phones and the CDN fetch the new one instead of a cached copy. */
-export const STORY_VERSION = 7;
+export const STORY_VERSION = 8;
 /** A listing's or job's share image (`<public page>/story`). */
 export const storyPath = (page: string) => `${page}/story?v=${STORY_VERSION}`;
 
