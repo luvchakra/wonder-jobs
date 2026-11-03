@@ -138,3 +138,4 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- ✅ Jobs: Share on every job surface — Pipeline's job page added, careers pages use WonderWorks' share sheet; crisp-message tests (WJ-547)
