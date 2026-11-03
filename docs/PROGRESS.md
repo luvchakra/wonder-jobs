@@ -139,6 +139,7 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- ✅ Buy, Sell & Rent: Share on My listings and Deals cards (live listings only), no dead links from drafts; WebP finding for shop photos reported (WJ-622)
 - 2026-11-03 Talent & Services: Share verified for own and outside pros; no repeated names; share lines reordered (WJ-596)
 - ✅ Share image: shop photos fetched as JPEG/PNG so they show (WJ-692)
 - ✅ Events: Share checked end to end — an outside event's place is cut cleanly for chips, the organiser slot never takes the place, Share is on a My events item (WJ-576)
