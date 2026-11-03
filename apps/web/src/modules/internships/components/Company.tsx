@@ -72,7 +72,7 @@ export function InternshipsCompany() {
     <OwnerWorkspace
       module="Internships"
       intro="For companies: post internships students find on WonderWorks, and review their applications."
-      noWorkspace="Create one for your company in Hiring, then post internships here."
+      noWorkspace="Set up your company to post internships."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}

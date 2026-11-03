@@ -80,7 +80,7 @@ export function ServicesCompany() {
     <OwnerWorkspace
       module="Talent & Services"
       intro="For pros and agencies: list the services clients find on WonderWorks — work at their place or remote projects."
-      noWorkspace="Create one for your business in Hiring, then list your services here."
+      noWorkspace="Set up your business to list your services."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}

@@ -74,7 +74,7 @@ export function EventsCompany() {
     <OwnerWorkspace
       module="Events & Social"
       intro="For organisers and groups: post an event so people find it on WonderWorks, RSVP, and wait for a seat when it's full."
-      noWorkspace="Create one for your group in Hiring, then post events here."
+      noWorkspace="Set up your group or organisation to host events."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}

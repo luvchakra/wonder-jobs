@@ -87,7 +87,7 @@ export function TeachingCompany() {
     <OwnerWorkspace
       module="Teaching"
       intro="For schools, colleges and coaching centres: post teaching jobs teachers find on WonderWorks, and review their applications."
-      noWorkspace="Create one for your school in Hiring, then post teaching jobs here."
+      noWorkspace="Set up your school or institute to post teaching jobs."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}

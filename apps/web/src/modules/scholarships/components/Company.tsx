@@ -72,7 +72,7 @@ export function ScholarshipsCompany() {
     <OwnerWorkspace
       module="Scholarships & Projects"
       intro="For foundations, companies, universities and labs: post scholarships and projects students find on WonderWorks, and review applications. Applying is always free."
-      noWorkspace="Create one for your organisation in Hiring, then post scholarships and projects here."
+      noWorkspace="Set up your foundation, university, lab or company to post scholarships and projects."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
