@@ -13,24 +13,28 @@ export interface SummaryInput {
 }
 
 const HOOK_MAX = 140;
-const POINT_MAX = 64;
+const POINT_MAX = 72;
 const Reply = z.object({ hook: z.string().max(400), highlights: z.array(z.string().max(200)).max(6) });
 
 const NO_LINKS = /https?:\/\/|www\.|\S+@\S+\.\S+/i;
 const PROVENANCE = /^(from|source):/i;
-const clean = (s: string, max: number) => {
+/** Whitespace folded and a leading bullet dropped; cut at a word (never mid-word) with an ellipsis when over `max`. */
+export const clean = (s: string, max: number) => {
   const t = s.replace(/\s+/g, " ").replace(/^[-•*\s]+/, "").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.5 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, "")}…`;
 };
 const present = (l: Maybe[] | undefined) => (l ?? []).filter((x): x is string => !!x);
+/** The words that carry meaning (two characters or more, lower case), for telling whether a highlight repeats what's shown. */
+const words = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 2 && !STOP.has(w));
+const STOP = new Set(["the", "and", "for", "with", "at", "in", "on", "of", "to", "a", "an", "is", "are", "takes", "place", "date", "from", "by"]);
 
-/** The summary without a model: the description's first distinct sentence, and the listing's first labelled details. */
+/** The summary without a model: the description's first sentence that says more than the title, and no highlights. */
 export function ruleSummary(input: SummaryInput): ShareSummary {
-  const highlights = present(input.lines)
-    .filter((l) => !NO_LINKS.test(l) && !PROVENANCE.test(l.trim()))
-    .slice(0, 3)
-    .map((l) => clean(l, POINT_MAX));
-  return { hook: firstSentence(input.title, input.details, HOOK_MAX), highlights, ai: false };
+  // No highlights without a model: the image already shows the detail rows, so repeating them adds nothing (it shows the description instead).
+  return { hook: firstSentence(input.title, input.details, HOOK_MAX), highlights: [], ai: false };
 }
 
 /**
@@ -40,9 +44,15 @@ export function ruleSummary(input: SummaryInput): ShareSummary {
 export function checkedSummary(input: SummaryInput, reply: z.infer<typeof Reply>): ShareSummary | null {
   const title = input.title.trim().toLowerCase();
   const hook = clean(reply.hook, HOOK_MAX);
+  // What the share image already shows (title, facts, detail rows): a highlight that mostly repeats it adds nothing.
+  const shown = new Set(words([input.title, ...present(input.facts), ...present(input.lines)].join(" ")));
+  const repeats = (h: string) => {
+    const w = words(h);
+    return w.length > 0 && w.filter((x) => shown.has(x)).length / w.length >= 0.6;
+  };
   const highlights = reply.highlights
     .map((h) => clean(h, POINT_MAX))
-    .filter((h) => h.length > 2 && !NO_LINKS.test(h) && h.toLowerCase() !== title)
+    .filter((h) => h.length > 2 && !NO_LINKS.test(h) && h.toLowerCase() !== title && !repeats(h))
     .slice(0, 3);
   if (hook.length < 12 || NO_LINKS.test(hook)) return null;
   return { hook, highlights, ai: true };
@@ -67,7 +77,7 @@ export async function shareSummary(key: string, input: SummaryInput): Promise<Sh
       task: "share_summary",
       instructions: [
         `Summarise this ${input.noun} listing for a person a friend is sharing it with.`,
-        `"hook": one plain sentence, under ${HOOK_MAX} characters, saying why it is worth a look. "highlights": up to 3 short phrases, under ${POINT_MAX} characters each, with the most useful concrete details (pay, schedule, requirements, perks, dates) that are not already in the title or facts.`,
+        `"hook": one plain sentence, under ${HOOK_MAX} characters, saying why it is worth a look. "highlights": up to 3 short phrases, under ${POINT_MAX} characters each, with the most useful concrete details from the description (what you do or get, requirements, perks, schedule). The image already shows the title, facts and details given, so never repeat them (no place, date, price or title again); fewer highlights are better than repeats.`,
         "Use only facts stated in the data; never invent or estimate anything. No links, emails, phone numbers, emojis, hashtags or marketing words.",
         'Shape: {"hook":"<sentence>","highlights":["<phrase>"]}.',
       ].join(" "),

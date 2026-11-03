@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getCareerJob } from "@/server/careerSite/client";
 import { CareersApplyForm } from "@/components/careers/CareersApplyForm";
 import { ShareJobLink } from "@/components/careers/ShareJobLink";
+import type { ShareJob } from "@/domain/jobs/share";
 import { CareersNotice, CareersShell } from "./Shell";
 import { unavailableState } from "./state";
 import { jobFacts, jobPostingJsonLd } from "./meta";
@@ -51,7 +52,7 @@ export async function CareerJobPage({ id }: { id: string }) {
         <a href="#apply" className="inline-flex h-10 items-center rounded-full bg-brand-600 px-6 text-[14px] font-medium text-white hover:bg-brand-700">
           Apply
         </a>
-        <ShareJobLink title={`${job.title} at ${job.company}`} />
+        <ShareJobLink job={{ id: job.id, title: job.title, company: job.company, location: job.location, workMode: job.workMode, salaryMin: job.salaryMin, salaryMax: job.salaryMax, currency: job.currency, jobType: job.jobType as ShareJob["jobType"] }} />
       </div>
       <div className="mt-8 whitespace-pre-line break-words text-[15px] leading-relaxed text-ink-2">{job.description}</div>
       {job.skills.length > 0 && (

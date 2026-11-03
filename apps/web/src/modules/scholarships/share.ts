@@ -1,6 +1,6 @@
 import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { publicPath } from "@/wonderworks/listing/share";
-import { deadlineLabel, durationLabel, KIND_LABEL, levelsLabel, shortDate, valueLabel, WORK_MODE_LABEL, type ScholarshipListing } from "./domain";
+import { deadlineLabel, durationLabel, KIND_LABEL, levelsLabel, shortDate, valueLabel, WORK_MODE_LABEL, type MyScholarshipApplicationDetail, type ScholarshipListing } from "./domain";
 
 /**
  * What Share sends about a scholarship or project: everything the listing shows as it reads now — provider or host,
@@ -13,9 +13,9 @@ export const shareOf = (l: ScholarshipListing): ListingShareProps => {
     module: "scholarships",
     noun: KIND_LABEL[t.kind].toLowerCase(),
     title: l.title,
-    facts: [l.company || null, valueLabel(t), deadlineLabel(t)],
+    // The provider first (the share image takes its logo from it); a value the listing doesn't state is left out, not shown as "not stated".
+    facts: [l.company || null, (t.kind === "project" ? t.stipend !== undefined : !!t.awardAmount) ? valueLabel(t) : null, t.deadline ? deadlineLabel(t) : null],
     lines: [
-      `Kind: ${KIND_LABEL[t.kind]}`,
       t.levels?.length && `For: ${levelsLabel(t)}`,
       t.deadline && `Apply by: ${shortDate(t.deadline)}`,
       t.region && `Region: ${t.region}`,
@@ -32,3 +32,21 @@ export const shareOf = (l: ScholarshipListing): ListingShareProps => {
     originalUrl: l.origin === "outside" ? l.applyUrl : undefined,
   };
 };
+
+/** The listing behind one of the student's own WonderWorks applications, so its page can share it (`/s/scholarships/ws_<id>`). */
+export const listingOfApplication = (a: MyScholarshipApplicationDetail): ScholarshipListing => ({
+  id: `ws_${a.postingId}`,
+  origin: "wonderstar",
+  postingId: a.postingId,
+  title: a.title,
+  company: a.company,
+  location: a.location,
+  workMode: a.workMode,
+  terms: a.terms,
+  termsFrom: "company",
+  skills: [],
+  description: a.description,
+  ...(a.terms.officialUrl ? { applyUrl: a.terms.officialUrl } : {}),
+  sourceId: "schol_wonderstar",
+  sourceName: "WonderWorks organisations",
+});

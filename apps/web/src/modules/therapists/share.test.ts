@@ -15,7 +15,10 @@ describe("Therapists Share", () => {
   it("a mapped practice shares only what the map has: no fee, language or focus is invented", () => {
     const s = JSON.stringify(shareOf(mapped));
     for (const x of ["Sindhi Polyclinic", "Indore"]) expect(s).toContain(x);
-    expect(s).toContain("© OpenStreetMap contributors");
+    expect(shareOf(mapped).credit).toBe("© OpenStreetMap contributors");
+    expect(shareOf(mapped).originalLabel).toBe("Their page on OpenStreetMap");
+    expect(shareOf(mapped).details).toBeFalsy();
+    expect(shareOf(own).credit).toBeUndefined();
     expect(s).not.toContain("Fee not stated");
     for (const x of ["Languages", "Focus", "Ways of working", "Session:", "₹"]) expect(s).not.toContain(x);
   });

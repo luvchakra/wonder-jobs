@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Mail, Share2, Sparkles } from "lucide-react";
+import { Link2, Loader2, Mail, Share2 } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
-import { absoluteUrl, emailHref, facebookHref, listingShareMessage, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
+import { absoluteUrl, emailHref, facebookHref, listingShareMessage, STORY_VERSION, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
 export interface ShareBuild {
@@ -26,7 +26,7 @@ function useSummary(page: string | undefined): { summary: ShareSummary | null; l
   useEffect(() => {
     if (!page) return;
     let live = true;
-    fetch(`/api/share/summary?page=${encodeURIComponent(page)}`, { signal: AbortSignal.timeout(7000) })
+    fetch(`/api/share/summary?page=${encodeURIComponent(page)}&v=${STORY_VERSION}`, { signal: AbortSignal.timeout(7000) })
       .then((r) => (r.ok ? (r.json() as Promise<ShareSummary>) : null))
       .then((s) => live && setGot({ page, summary: s && typeof s.hook === "string" && Array.isArray(s.highlights) ? s : null }))
       .catch(() => live && setGot({ page, summary: null }));
@@ -184,11 +184,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
         ) : (
           summary?.hook && (
             <p className="rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2">
-              {summary.ai && (
-                <span className="mr-1.5 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-                  <Sparkles className="size-3" aria-hidden /> AI summary
-                </span>
-              )}
+              <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">Summary</span>
               {summary.hook}
             </p>
           )
@@ -280,6 +276,10 @@ export interface ListingShareProps extends ListingShareInput {
   /** For the public page only: where the listing came from, and its original posting when it came from outside. */
   source?: string;
   originalUrl?: string;
+  /** The original link's words, when "Original posting on <source>" doesn't fit (a mapped practice: "Their page on OpenStreetMap"). */
+  originalLabel?: string;
+  /** A credit the source's licence asks for (open data: "© OpenStreetMap contributors, ODbL"), shown under the listing. */
+  credit?: string;
 }
 
 /**

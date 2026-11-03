@@ -65,7 +65,7 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
 - **Say when a value is unavailable.** A source without credentials says "Needs setup"; a failed fetch says "Unavailable"; an empty result gives its reason. Never fill the gap.
 - **Show provenance.**
   - A run shows what was searched, where, and across which sources, with per-source counts.
-  - AI drafts are labelled AI-generated.
+  - AI drafts are labelled AI-generated. Exception: Share's summary of a listing is labelled just "Summary" (owner, 2026-11-03).
   - The candidate can trace every number shown.
 - **Verify before claiming.** Check the code path and the Vercel `/api/jobs/search` runtime logs, or reproduce the fetch. Don't answer from the docs.
 

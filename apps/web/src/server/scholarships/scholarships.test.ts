@@ -142,6 +142,9 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
   it("a listing whose source names no provider shows none — never the source's name (owner, 2026-11-02)", () => {
     const item = `<item><title>SMART Scholarship-for-Service Program 2027</title><link>https://opportunitydesk.org/2026/10/30/smart/</link><description><![CDATA[Deadline: December 4, 2026]]></description></item>`;
     expect(rawFromFeedItem(item)!.company).toBe(NO_PROVIDER);
+    const unspecified = `<item><title>WAAW Foundation Scholarship 2027</title><link>https://opportunitydesk.org/2026/10/30/waaw/</link><description><![CDATA[Deadline: Unspecified Applications are open for the WAAW Foundation Scholarship 2027.]]></description></item>`;
+    expect(rawFromFeedItem(unspecified)!.description).toBe("Applications are open for the WAAW Foundation Scholarship 2027.");
+    expect(rawFromFeedItem(item)!.description).toBe("");
     expect(rawFromDevfolio({ name: "DevNexus 2.0", slug: "devnexus2", hackathon_setting: { subdomain: "devnexus2" } })!.company).toBe(NO_PROVIDER);
     expect(rawFromDevfolio({ name: "DevNexus 2.0", slug: "devnexus2", hosted_by: { name: "IEM Kolkata" } })!.company).toBe("IEM Kolkata");
     expect(rawFromDevpost({ id: 5, title: "Hack", url: "https://hack.devpost.com/", open_state: "open" })!.company).toBe(NO_PROVIDER);
