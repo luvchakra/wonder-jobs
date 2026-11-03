@@ -39,3 +39,16 @@ export async function sharedFor(page: string): Promise<Shared | null> {
   const listing = await sharedListing(s[1], s[2]);
   return listing ? { kind: "listing", key: `s:${s[1]}:${decodeURIComponent(s[2])}`, module: s[1], listing, input: listing } : null;
 }
+
+/** Which of a module's headline facts names the organisation (see each module's `share.ts`); the marketplace's never does. */
+const ORG_FACT: Record<string, "first" | "last"> = { internships: "first", teaching: "first", services: "first", therapists: "first", scholarships: "first", events: "last" };
+
+/**
+ * The organisation behind a listing, for its logo: read from the module's facts as they stand, before empty ones are
+ * dropped, so a listing without an organiser (an outside event with no organiser) gives none rather than its place.
+ */
+export function organisationOf(module: string, facts: ListingShareProps["facts"]): string | undefined {
+  const all = facts ?? [];
+  const at = ORG_FACT[module] === "last" ? all.at(-1) : ORG_FACT[module] === "first" ? all[0] : undefined;
+  return typeof at === "string" && at.trim() ? at.trim() : undefined;
+}

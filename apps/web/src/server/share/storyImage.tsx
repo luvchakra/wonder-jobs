@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import { brandMarkDataUri } from "@/server/brandMark";
 import { companyLogo } from "@/server/jobslake/companies";
+import { safeFetch } from "@/server/jobslake/safeFetch";
+import { verifyImage } from "@/server/imageProxy";
 
 /** A phone screen, portrait: WhatsApp Status, Instagram and Facebook Stories show it edge to edge. */
 export const STORY = { width: 1080, height: 1920 } as const;
@@ -35,15 +37,21 @@ export interface StoryCard {
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const SHOWN = /^image\/(png|jpe?g|svg\+xml)$/i;
 
-/** A public photo from our own image proxy (`/api/img?…`, signed) as a data URI, or null: PNG and JPEG only, under 1.5 MB, within 4 s. */
-export async function photoDataUri(origin: string, path: string | undefined): Promise<string | null> {
+/**
+ * A listing's public photo (its signed image-proxy path, `/api/img?u=…&s=…`) as a data URI, or null. Fetched straight from
+ * the shop with the proxy's safeguards (signed URLs only, public addresses, size cap), asking for JPEG or PNG only: shop
+ * CDNs answer WebP to browsers' Accept, and the image renderer can't draw WebP. Within 4 s, under 1.5 MB.
+ */
+export async function photoDataUri(path: string | undefined): Promise<string | null> {
   if (!path?.startsWith("/api/img?")) return null;
+  const q = new URLSearchParams(path.slice("/api/img?".length));
+  const url = q.get("u") ?? "";
+  if (!url || !verifyImage(url, q.get("s") ?? "")) return null;
   try {
-    const r = await fetch(`${origin}${path}`, { signal: AbortSignal.timeout(4000) });
-    const type = (r.headers.get("content-type") ?? "").split(";")[0].trim();
-    if (!r.ok || !/^image\/(png|jpe?g)$/i.test(type)) return null;
-    const data = Buffer.from(await r.arrayBuffer());
-    return data.length > 1_500_000 ? null : `data:${type};base64,${data.toString("base64")}`;
+    const r = await safeFetch(url, { timeoutMs: 4_000, maxBytes: 1_500_000, headers: { accept: "image/jpeg,image/png;q=0.9" } });
+    const type = r.contentType.split(";")[0].trim().toLowerCase();
+    if (r.status !== 200 || !/^image\/(png|jpe?g)$/.test(type)) return null;
+    return `data:${type};base64,${Buffer.from(r.bytes).toString("base64")}`;
   } catch {
     return null;
   }
@@ -167,7 +175,7 @@ export function storyImage(c: StoryCard): ImageResponse {
               {points.map((p, i) => (
                 <div key={`${p}-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 22 }}>
                   <span style={{ display: "flex", flexShrink: 0, width: 18, height: 18, marginTop: 14, borderRadius: 9, background: "#a78bfa" }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 40, lineHeight: 1.3, fontWeight: 600 }}>{clip(p, 70)}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 40, lineHeight: 1.3, fontWeight: 600 }}>{p}</span>
                 </div>
               ))}
             </div>
