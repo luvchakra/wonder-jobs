@@ -78,7 +78,15 @@ interface Conn {
   client: AdminClient;
   guard: ReturnType<typeof createDbGuard>;
   from: "environment" | "platform";
+  /** Connected with a legacy JWT key (service_role), which Supabase retires at the end of 2026. */
+  legacy: boolean;
 }
+
+/**
+ * A legacy JWT-based key (Supabase's `anon` / `service_role`, "eyJ…"), retired at the end of 2026 (Supabase: "Migrating
+ * to publishable and secret API keys"); the new secret keys start "sb_secret_". Works on the key or its masked form.
+ */
+export const isLegacyKey = (key: string | null | undefined): boolean => !!key && key.trim().startsWith("eyJ");
 
 interface Active {
   at: number;
@@ -103,7 +111,7 @@ function conn(url: string, key: string, from: Conn["from"]): Conn {
   let c = conns.get(id);
   if (!c) {
     const own = createDbGuard();
-    c = { url, client: client(url, key, own.fetch), guard: own, from };
+    c = { url, client: client(url, key, own.fetch), guard: own, from, legacy: isLegacyKey(key) };
     conns.set(id, c);
   }
   return c;
@@ -191,9 +199,9 @@ export function dataEvery(table: DataTable): { modules: string[] | "main"; from:
 }
 
 /** Each module's own data database that is on, with its safeguards (Admin → Databases). */
-export async function moduleDataDbs(): Promise<{ module: string; url: string; client: AdminClient; guard: ReturnType<Conn["guard"]["state"]> }[]> {
+export async function moduleDataDbs(): Promise<{ module: string; url: string; client: AdminClient; guard: ReturnType<Conn["guard"]["state"]>; legacy: boolean }[]> {
   await loadDataDb();
-  return Object.entries(g.__wjDataDb?.modules ?? {}).map(([module, c]) => ({ module, url: c.url, client: c.client, guard: c.guard.state() }));
+  return Object.entries(g.__wjDataDb?.modules ?? {}).map(([module, c]) => ({ module, url: c.url, client: c.client, guard: c.guard.state(), legacy: c.legacy }));
 }
 
 /**
@@ -224,6 +232,8 @@ export interface ModuleDataDb {
   next: { url: string; masked: string; savedAt: string; lastTest?: StoredDataDb["lastTest"]; lastCopy?: StoredDataDb["lastCopy"] } | null;
   /** The module's rows may still be in another database (after a move or a switch on): "Free the old copy" clears them. */
   oldCopy: boolean;
+  /** The saved key (or the pending move's) is a legacy service_role key, retired at the end of 2026. */
+  legacyKey: boolean;
   /** Other modules saved with the same project: they share this DDB. */
   sharedWith: string[];
   /** The DDB's size, when on (the whole project, so a shared DDB shows the same size on each module). */
@@ -276,6 +286,7 @@ export async function dataDbOverview(modules: readonly string[]): Promise<Module
         saved: toSaved(s),
         next: s?.next ? { url: s.next.url, masked: s.next.masked, savedAt: s.next.savedAt, lastTest: s.next.lastTest, lastCopy: s.next.lastCopy } : null,
         oldCopy: !!s?.previous,
+        legacyKey: c?.legacy ?? isLegacyKey((s?.next ?? s)?.masked),
         sharedWith,
         sizeBytes: c ? await sizes.get(c.url)! : null,
         foreignRows: c ? await foreignByUrl.get(c.url)! : null,
@@ -308,7 +319,7 @@ const mask = (key: string) => `${key.slice(0, 6)}••••${key.slice(-4)}`;
  * current DDB stays live, and becomes the module's DDB when switched to (after Test and Copy). Otherwise it's saved
  * switched off. A new key replaces the old; leaving it blank keeps the one saved for that project.
  */
-export async function saveDataDb(module: string, input: { url: string; key?: string }): Promise<{ ok: true; sharedWith: string[]; move: boolean } | { ok: false; message: string }> {
+export async function saveDataDb(module: string, input: { url: string; key?: string }): Promise<{ ok: true; sharedWith: string[]; move: boolean; legacyKey: boolean } | { ok: false; message: string }> {
   if (!validModule(module)) return { ok: false, message: "Unknown module." };
   const url = input.url.trim().replace(/\/$/, "");
   if (!PROJECT_URL.test(url)) return { ok: false, message: "Use the project URL from Supabase → Project Settings → API (https://<project>.supabase.co)." };
@@ -316,10 +327,10 @@ export async function saveDataDb(module: string, input: { url: string; key?: str
   const prev = mods[module];
   const sharedWith = Object.entries(mods).filter(([m, d]) => m !== module && d.url === url).map(([m]) => m);
   const key = input.key?.trim();
-  if (key && key.length < 40) return { ok: false, message: "That doesn't look like a service role key." };
+  if (key && key.length < 30) return { ok: false, message: "That doesn't look like a secret key (sb_secret_…)." };
   // A blank key keeps the one saved for this project: the module's own, its pending move's, or a module sharing it.
   const known = [prev, prev?.next, ...sharedWith.map((m) => mods[m])].find((d) => d?.url === url);
-  if (!key && !known) return { ok: false, message: "Paste the project's service role (secret) key." };
+  if (!key && !known) return { ok: false, message: "Paste the project's secret key (Supabase → Project Settings → API Keys → Secret keys, sb_secret_…)." };
   const keyCipher = key ? (await crypto()).encrypt(key) : known!.keyCipher;
   const masked = key ? mask(key) : known!.masked;
   const savedAt = new Date().toISOString();
@@ -330,7 +341,7 @@ export async function saveDataDb(module: string, input: { url: string; key?: str
   else doc = { url, keyCipher, masked, enabled: false, savedAt, ...(prev?.previous ? { previous: prev.previous } : {}) };
   await store(module, doc);
   await loadDataDb(true);
-  return { ok: true, sharedWith, move };
+  return { ok: true, sharedWith, move, legacyKey: isLegacyKey(masked) };
 }
 
 /** Drops a pending move; the module stays on its current DDB. */
@@ -355,7 +366,7 @@ export async function testDataDb(module: string): Promise<StoredDataDb["lastTest
     const { count, error } = await c.from(t).select(KEY[t], { count: "exact", head: true });
     if (error) {
       ok = false;
-      message = /PGRST205|does not exist|schema cache/i.test(`${error.code} ${error.message}`) ? `Table ${t} is missing: run the setup script in the new project's SQL editor.` : /JWT|401|invalid/i.test(error.message) ? "The key was refused: use the service role (secret) key." : `Couldn't read ${t}: ${error.message}`;
+      message = /PGRST205|does not exist|schema cache/i.test(`${error.code} ${error.message}`) ? `Table ${t} is missing: run the setup script in the new project's SQL editor.` : /JWT|401|invalid/i.test(error.message) ? "The key was refused: use the project's secret key (sb_secret_…), not the publishable one." : `Couldn't read ${t}: ${error.message}`;
       break;
     }
     tables[t] = count ?? 0;

@@ -7,7 +7,7 @@
  */
 import { getSupabaseAdmin, type AdminClient } from "./supabase";
 import { dbGuard } from "./dbGuard";
-import { moduleDataDbs, tablesFor } from "./dataDb";
+import { isLegacyKey, moduleDataDbs, tablesFor } from "./dataDb";
 import { loadSafeguards } from "./jobslake/safeguards";
 
 export interface DbHealth {
@@ -37,6 +37,8 @@ export interface DbReport {
   roundTripMs: number | null;
   health: DbHealth | null;
   guard: { active: number; waiting: number; failures: number; open: boolean; refusedBusy: number; refusedBreaker: number; timedOut: number };
+  /** Which of its keys are legacy JWT keys, retired at the end of 2026 (never the keys themselves). */
+  legacyKeys?: string[];
   error?: string;
 }
 
@@ -96,5 +98,11 @@ export async function databasesReport(labels: Record<string, string> = {}): Prom
       return measure(m.client, "gateway_listings").then((r) => shapeReport(base, r.usage, r.raw, r.ms, r.error)).catch((e) => shapeReport(base, null, null, null, e instanceof Error ? e.message : String(e)));
     }),
   );
+  // The main project's keys, checked here on the server; only whether each is legacy leaves it.
+  const adbLegacy = [isLegacyKey(process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY) ? "SUPABASE_SERVICE_ROLE_KEY" : null, isLegacyKey(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null].filter((k): k is string => !!k);
+  if (adbLegacy.length) adb.legacyKeys = adbLegacy;
+  mods.forEach((m, i) => {
+    if (m.legacy) modules[i].legacyKeys = ["secret key"];
+  });
   return { adb, modules };
 }

@@ -155,6 +155,7 @@ export default function DataDbPage() {
               const isOpen = open === m.module;
               const working = busy?.module === m.module;
               const line = [
+                m.legacyKey ? "legacy key" : null,
                 (m.foreignRows ?? 0) > 0 ? `${num(m.foreignRows ?? 0)} rows of other modules` : null,
                 m.next ? `moving to ${host(m.next.url)}` : null,
                 m.sharedWith.length ? `shared with ${labels(m.sharedWith)}` : null,
@@ -221,8 +222,9 @@ function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleData
     const r = await post({ module: m.module, action: "save", url: to || saved?.url || "", key: key || undefined });
     setSaving(false);
     if (r.ok) {
-      const d = r.data as { sharedWith?: string[]; move?: boolean };
-      toast.success(d.move ? "New DDB saved" : "Saved", d.move ? `${name} stays on its current DDB until you switch. Next: run the setup script there, then Test.` : d.sharedWith?.length ? `Shared with ${labels(d.sharedWith)}. Next: Test.` : "Next: run the setup script in that project, then Test.");
+      const d = r.data as { sharedWith?: string[]; move?: boolean; legacyKey?: boolean };
+      if (d.legacyKey) toast.error("Legacy key saved", "Supabase retires service_role keys at the end of 2026. Create a secret key (sb_secret_…) in the project and save it here instead.");
+      else toast.success(d.move ? "New DDB saved" : "Saved", d.move ? `${name} stays on its current DDB until you switch. Next: run the setup script there, then Test.` : d.sharedWith?.length ? `Shared with ${labels(d.sharedWith)}. Next: Test.` : "Next: run the setup script in that project, then Test.");
       setKey("");
       setUrl("");
     } else toast.error("Couldn't save", r.error.message);
@@ -241,6 +243,11 @@ function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleData
               : `Saved, switched off: ${name} data is in the main database.`}{" "}
         {(!saved || m.next || !onDdb) && <CopyScript sql={setupSql} />}
       </p>
+      {m.legacyKey && (
+        <p className="rounded-[8px] bg-warning-100 px-2.5 py-1.5 text-[12px] text-warning-600">
+          Legacy key: Supabase retires service_role keys at the end of 2026. In this project, create a secret key (Project Settings → API Keys → Secret keys), then paste it in Secret key below (leave the URL blank) and Save. {name} stays switched on.
+        </p>
+      )}
       {t?.lastTest && <p className="text-[12px] text-ink-3">{`${t.lastTest.ok ? "Last test passed" : "Last test failed"}: ${t.lastTest.message}`}{t.lastCopy ? ` Last copy: ${Object.entries(t.lastCopy.rows).map(([tb, n]) => `${tb.replace(/_/g, " ")} ${num(n)}`).join(" · ")}.` : ""}</p>}
       {others.length > 0 && !m.next && (
         <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
@@ -260,8 +267,8 @@ function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleData
           <Input value={url} placeholder={m.next?.url ?? saved?.url ?? "https://<project>.supabase.co"} onChange={(e) => setUrl(e.target.value)} autoComplete="off" />
         </label>
         <label className="min-w-0 text-[12px] text-ink-2">
-          Service role key
-          <Input value={key} type="password" placeholder={typed && knownUrl(typed) ? "Saved for this project; blank keeps it" : saved && !typed ? `Saved ${saved.masked}; blank keeps it` : "The secret key; stored encrypted"} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          Secret key <span className="text-ink-4">(sb_secret_…)</span>
+          <Input value={key} type="password" placeholder={typed && knownUrl(typed) ? "Saved for this project; blank keeps it" : saved && !typed ? `Saved ${saved.masked}; blank keeps it` : "Project Settings → API Keys → Secret keys; stored encrypted"} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
         </label>
         <Button size="sm" className="justify-self-start" loading={saving} disabled={busy || saving || (!typed && !key) || (!key && !!typed && !knownUrl(typed))} onClick={() => void save()}>
           Save
