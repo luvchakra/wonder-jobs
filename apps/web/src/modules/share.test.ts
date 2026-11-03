@@ -37,7 +37,9 @@ describe("every module's Share carries the listing's own details", () => {
 
   it("Events: when, where, who, seats right now, age, tags", () => {
     const m = text(events({ ...base, id: "ws_5", postingId: "5", title: "Open mic night", terms: { startsAt: "2026-12-05T13:30:00.000Z", online: false, capacity: 40, ageMin: 18, tags: ["Music", "Social"] }, seatsLeft: 12, waitlisted: 0 }));
-    for (const x of ["Open mic night", "Seats: 12 of 40 seats left", "Age: 18+", "Tags: Music, Social", "Where: Pune, Maharashtra"]) expect(m).toContain(x);
+    for (const x of ["Open mic night", "Seats: 12 of 40 seats left", "Age: 18+", "Tags: Music, Social", "Pune, Maharashtra"]) expect(m).toContain(x);
+    // The place is carried once, as the place chip: a separate "Where" line is only for a longer address the chip had to cut.
+    expect(m).not.toContain("Where: Pune, Maharashtra");
   });
 
   it("Marketplace: price, condition, category and area — never the seller", () => {
