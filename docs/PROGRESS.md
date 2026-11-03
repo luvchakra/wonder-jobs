@@ -135,3 +135,4 @@
 - ✅ Admin → Scheduler: jobs as collapsed cards with a play button (WJ-686)
 - ✅ Admin source page: audit entries wrap inside the card; subtitle aligned (WJ-687)
 - ✅ Share: phone-screen share image, Instagram/Facebook/X options, marketing line (WJ-688)
+- ✅ Share image filled with the listing's details, description and logo (WJ-689)
