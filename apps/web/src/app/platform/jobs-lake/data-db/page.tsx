@@ -22,7 +22,7 @@ type Step = { key: "setup" | "test" | "copy" | "enable" | "evict" | null; label:
 function stepOf(m: ModuleDataDb): Step {
   const s = m.saved;
   if (m.from === "environment") return { key: null, label: "", status: "Own database (set in the deployment)", tone: "success" };
-  if (m.home === "own" && (m.foreignRows ?? 0) > 0) return { key: "evict", label: "Move other modules' data out", status: `Own database · ${num(m.foreignRows ?? 0)} rows of other modules`, tone: "warning" };
+  if (m.home === "own" && (m.foreignRows ?? 0) > 0) return { key: "evict", label: "Move others' data out", status: "Own database", tone: "warning" };
   if (m.home === "own") return { key: null, label: "", status: "Own database", tone: "success" };
   if (!s) return { key: "setup", label: "Set up", status: "Main database", tone: "neutral" };
   if (!s.lastTest?.ok) return { key: "test", label: "Test", status: s.lastTest ? "Test failed" : "Saved, not tested", tone: s.lastTest ? "warning" : "info" };
@@ -135,19 +135,23 @@ export default function DataDbPage() {
               const working = busy?.module === m.module;
               return (
                 <li key={m.module} className="py-2">
-                  <div className="flex items-center gap-2 text-[13px]">
-                    <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.module)}>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
+                    <button type="button" className="min-w-[6rem] flex-1 text-left" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.module)}>
                       <span className="block font-medium text-ink">{label(m.module)}</span>
                       <span className="block truncate text-[12px] text-ink-3">
-                        {working ? busy.text : [m.saved ? host(m.saved.url) : null, m.sizeBytes != null ? mb(m.sizeBytes) : null].filter(Boolean).join(" · ") || "No database of its own"}
+                        {working ? busy.text : [(m.foreignRows ?? 0) > 0 ? `${num(m.foreignRows ?? 0)} rows of other modules` : null, m.sizeBytes != null ? mb(m.sizeBytes) : null, m.saved ? host(m.saved.url) : null].filter(Boolean).join(" · ") || "No database of its own"}
                       </span>
                     </button>
-                    <Badge tone={s.tone}>{s.status}</Badge>
-                    {s.key && (
-                      <Button size="sm" variant={s.key === "setup" ? "outline" : "primary"} disabled={!!busy} loading={working} onClick={() => next(m, s)}>
-                        {s.label}
-                      </Button>
-                    )}
+                    <span className="ml-auto flex shrink-0 items-center gap-2">
+                      <Badge tone={s.tone} className="whitespace-nowrap">
+                        {s.status}
+                      </Badge>
+                      {s.key && (
+                        <Button size="sm" className="whitespace-nowrap" variant={s.key === "setup" ? "outline" : "primary"} disabled={!!busy} loading={working} onClick={() => next(m, s)}>
+                          {s.label}
+                        </Button>
+                      )}
+                    </span>
                   </div>
                   {isOpen && <Details m={m} busy={!!busy} reload={reload} once={once} loop={loop} />}
                 </li>
