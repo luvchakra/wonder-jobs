@@ -131,3 +131,4 @@
 - ✅ Legacy Supabase key warnings on DDBs and Databases; key field renamed Secret key (WJ-682)
 - ✅ DDBs: connection fields show the saved project and no longer get browser autofill (WJ-683)
 - ✅ Databases: collapsed cards with key info, full figures when opened (WJ-684)
+- ✅ Import writes verified per module DDB; writes re-check the DDB setting within 10 s (WJ-685)

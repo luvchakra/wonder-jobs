@@ -6,7 +6,7 @@
  */
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { dataEvery, dataFrom, dataWritable, loadDataDb } from "@/server/dataDb";
+import { dataEvery, dataFrom, dataWritable, loadDataDb, WRITE_FRESH_MS } from "@/server/dataDb";
 import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
@@ -185,7 +185,7 @@ export class GatewayListingsTable {
   /** Saves listings, each module's into the database that holds that module's data and no other. */
   async upsert(list: GatewayListing[]) {
     if (!getSupabaseAdmin()) { for (const l of list) mem().set(l.id, l); return; }
-    await loadDataDb();
+    await loadDataDb(false, WRITE_FRESH_MS);
     // Where the listings live isn't known yet (dataDb): fail the collection (it's retried) rather than write them to
     // the wrong database.
     if (!dataWritable()) throw new Error("The WorksLake DDB setting couldn't be read; collect again shortly.");
