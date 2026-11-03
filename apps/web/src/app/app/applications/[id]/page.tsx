@@ -29,6 +29,7 @@ import { toast } from "@/components/feedback/Toast";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { useRecoverJobs } from "@/modules/jobs/components/useRecoverJobs";
+import { ShareJobButton } from "@/modules/jobs/components/ShareJobButton";
 
 const DOWNLOAD_LABEL: Record<"resume" | "cover_letter", string> = { resume: "Resume", cover_letter: "Cover letter" };
 
@@ -149,6 +150,8 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
                     Original posting <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                 )}
+                {/* The same Share as the job's card and page: the share image, the AI summary and the job's public link. */}
+                {job && <ShareJobButton job={job} className="-my-1.5 size-8 text-ink-2" />}
               </div>
             </ItemHead>
             {downloadableArtifacts.length > 0 && (

@@ -57,7 +57,7 @@ export interface ListingShareInput {
 }
 
 /** Bumped when the share image's design changes, so phones and the CDN fetch the new one instead of a cached copy. */
-export const STORY_VERSION = 4;
+export const STORY_VERSION = 7;
 /** A listing's or job's share image (`<public page>/story`). */
 export const storyPath = (page: string) => `${page}/story?v=${STORY_VERSION}`;
 
@@ -112,7 +112,7 @@ export function distinctText(title: string, text: string | undefined): string {
 /**
  * A listing's share summary (owner, 2026-11-03: "use ai to summarise … keep it useful and crisp"): `hook`, one sentence
  * on why it's worth a look, goes in the message; `highlights`, a few concrete details, go on the share image (or in the
- * message where there is no image). `ai` says the model wrote them, so the sheet labels them AI-generated.
+ * message where there is no image). `ai` says the model wrote them (kept for logs and tests); both are labelled just "Summary" (owner, 2026-11-03).
  */
 export interface ShareSummary {
   hook: string;
@@ -126,9 +126,16 @@ export function firstSentence(title: string, details: string | undefined, max = 
   const name = plain(title);
   // Not a sentence that only restates the title ("Maths Teacher Wanted."), nor one with a link.
   const says = (x: string) => x.trim().length > 20 && !/https?:\/\/|www\./i.test(x) && !(plain(x).includes(name) && plain(x).length < name.length + 16);
-  const s = text.split(/(?<=[.!?])\s+/).find(says) ?? "";
-  const t = s.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  const fold = (x: string) => x.replace(/\s+/g, " ").trim();
+  const candidates = text.split(/(?<=[.!?])\s+/).filter(says).map(fold);
+  // A whole sentence that fits, when one of the first few does; otherwise the first, cut at a word.
+  const whole = candidates.slice(0, 4).find((x) => x.length <= max);
+  if (whole) return whole;
+  const t = candidates[0] ?? "";
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.5 ? cut.slice(0, at) : cut).replace(/[\s,;:.–—-]+$/, "")}…`;
 }
 
 /** Sections joined with one blank line between them, empty ones left out (so a missing hook leaves no gap). */

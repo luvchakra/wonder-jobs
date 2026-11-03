@@ -8,6 +8,20 @@ import { ModuleIconTile } from "@/wonderworks/brand/tiles";
 import { distinctText, excerpt } from "@/wonderworks/listing/share";
 import { sharedListing } from "@/server/share/listing";
 
+
+/**
+ * The original link's words: "Original posting on <source>" for a named source, or the site's own name when the source is
+ * our gateway (its name is ours, not the listing's: "Original page on tapahtumat.hel.fi").
+ */
+function originalLabel(url: string, source: string | undefined): string {
+  if (source && !/WorksLake/i.test(source)) return `Original posting on ${source}`;
+  try {
+    return `Original page on ${new URL(url).hostname.replace(/^www\./, "")}`;
+  } catch {
+    return "Original posting";
+  }
+}
+
 export const runtime = "nodejs";
 
 type Props = { params: Promise<{ module: string; id: string }> };
@@ -84,9 +98,10 @@ export default async function SharedListingPage({ params }: Props) {
               )}
               {l.originalUrl && /^https?:\/\//i.test(l.originalUrl) && (
                 <a href={l.originalUrl} target="_blank" rel="noreferrer noopener" className="mt-4 inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-brand-600 hover:underline">
-                  Original posting{l.source ? ` on ${l.source}` : ""} <ExternalLink className="size-4" aria-hidden />
+                  {l.originalLabel ?? originalLabel(l.originalUrl, l.source)} <ExternalLink className="size-4" aria-hidden />
                 </a>
               )}
+              {l.credit && <p className="mt-2 text-[12px] text-ink-4">{l.credit}</p>}
               <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href={`/sign-up?next=${next}`} className="wj-gradient-bg wj-press inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-6 text-[15px] font-semibold text-white shadow-brand hover:brightness-105">
                   {action} — it&apos;s free <ArrowRight className="size-4" aria-hidden />
