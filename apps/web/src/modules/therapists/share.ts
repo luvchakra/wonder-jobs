@@ -14,15 +14,17 @@ export const shareOf = (l: TherapistListing): ListingShareProps => {
     module: "therapists",
     noun: "practitioner",
     title: l.title,
-    facts: [l.company, t.modes?.includes("in_person") ? shortPlace(l.location) : null, modesLabel(t.modes), feeLabel(t)],
+    // A mapped practice has no fee or way of meeting on the map, so it shares who, where and what kind; never "Fee not stated".
+    facts: [l.company, t.modes?.includes("in_person") ? shortPlace(l.location) : null, l.origin === "outside" ? l.practiceKind : modesLabel(t.modes), l.origin === "outside" ? null : feeLabel(t)],
     lines: [
       lengthLabel(t.sessionMinutes) && `Session: ${lengthLabel(t.sessionMinutes)}`,
       t.languages?.length && `Languages: ${t.languages.join(", ")}`,
       t.focus?.length && `Focus: ${t.focus.join(", ")}`,
       t.approaches?.length && `Ways of working: ${t.approaches.join(", ")}`,
-      t.modes?.includes("in_person") && l.location && `Where: ${l.location}`,
+      l.origin !== "outside" && t.modes?.includes("in_person") && l.location && `Where: ${l.location}`,
     ],
-    details: l.description,
+    // Map data keeps its credit wherever it is shown, the public page included (ODbL).
+    details: l.origin === "outside" ? [l.description, l.attribution].filter(Boolean).join("\n\n") || undefined : l.description,
     url: publicPath("therapists", l.id),
     source: l.sourceName,
   };
