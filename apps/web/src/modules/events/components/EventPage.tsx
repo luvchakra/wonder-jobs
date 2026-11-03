@@ -3,11 +3,12 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bookmark, Clock, ExternalLink, MapPin, Users } from "lucide-react";
+import { Bookmark, CalendarDays, Clock, ExternalLink, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { shortSourceNames } from "@/wonderworks/find/parts";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
@@ -23,6 +24,15 @@ import { shareOf } from "../share";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/events", label: "Events" };
+
+/** The site an outside event's own page is on ("tapahtumat.hel.fi"), for the line under the Event page button. */
+const siteOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
 
 /**
  * One event's own page, on WonderWorks' listing page (wonderworks/listing/): the head and whether it fits your interests
@@ -53,23 +63,29 @@ function Page({ l }: { l: EventListing }) {
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
   const out = l.outside;
-  const rows: [string, string][] = out
-    ? [
-        ["Dates", whenOf(l)],
-        ["Where", outsidePlace(l)],
-        ...(l.company ? ([["Organiser", l.company]] as [string, string][]) : []),
-        ...(out.cfpUrl ? ([["Call for papers", out.cfpEndDate ? `Open until ${dateRangeLabel(out.cfpEndDate)}` : "Open"]] as [string, string][]) : []),
-        ["Source", l.sourceName],
-      ]
+  // Each fact once. An outside event's head already has its organiser, dates and place and the Source fold has its source, so
+  // Details holds only what the head doesn't: its call for papers, as a link to where to answer it.
+  const rows: [string, React.ReactNode][] = out
+    ? out.cfpUrl
+      ? [
+          [
+            "Call for papers",
+            <a key="cfp" href={out.cfpUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">
+              {out.cfpEndDate ? `Open until ${dateRangeLabel(out.cfpEndDate)}` : "Open"}
+            </a>,
+          ],
+        ]
+      : []
     : [
-    ["When", `${whenLabel(t.startsAt)} (IST)`],
-    ...(t.endsAt ? ([["Ends", `${whenLabel(t.endsAt)} (IST)`]] as [string, string][]) : []),
-    ["Where", t.online ? "Online" : l.location],
-    ["Seats", seatsLabel(l)],
-    ["Price", "Free"],
-    ["Minimum age", ageLabel(t) ?? "None stated"],
-    ["Kind", t.tags.length ? t.tags.join(", ") : "Not stated"],
+        ["When", `${whenLabel(t.startsAt)} (IST)`],
+        ...(t.endsAt ? ([["Ends", `${whenLabel(t.endsAt)} (IST)`]] as [string, string][]) : []),
+        ["Where", t.online ? "Online" : l.location],
+        ["Seats", seatsLabel(l)],
+        ["Price", "Free"],
+        ["Minimum age", ageLabel(t) ?? "None stated"],
+        ["Kind", t.tags.length ? t.tags.join(", ") : "Not stated"],
       ];
+  const sourceShort = shortSourceNames(l.sourceName);
   return (
     <ListingPage
       report={{ module: "events", id: l.id }}
@@ -87,7 +103,10 @@ function Page({ l }: { l: EventListing }) {
         <ListingHead
           company={l.company || l.title}
           domain={l.companyDomain}
-          name={l.company || l.sourceName}
+          name={l.company}
+          // An outside event that names no organiser has no organiser line (never the source's name), and a calendar tile when it has no site to take a logo from.
+          hideName={!l.company}
+          icon={!l.company && !l.companyDomain ? <CalendarDays className="size-5" aria-hidden /> : undefined}
           facts={[
             <span key="w" className="inline-flex items-center gap-1">
               <Clock className="size-3.5" aria-hidden /> {out ? whenOf(l) : whenLabel(t.startsAt)}
@@ -118,22 +137,28 @@ function Page({ l }: { l: EventListing }) {
                 Save your interests and city in <Link href="/app/m/events/you/profile" className="font-medium text-brand-600 hover:underline">Events → You</Link> to see how it compares.
               </p>
             )}
-            <Fold title="Details" hint={out ? whenOf(l) : [whenLabel(t.startsAt), seatsLabel(l)].join(" · ")}>
-              <dl className="grid grid-cols-2 gap-3 text-[13px]">
-                {rows.map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="text-ink-4">{k}</dt>
-                    <dd className="font-medium text-ink">{v}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 text-[12px] text-ink-4">
-                {out ? `As ${l.sourceName} states them. WonderWorks adds nothing to them and doesn't organise this event.` : `As ${l.company} posted it on WonderWorks. Times are India time. You see how many seats are left, never who is going.`}
-              </p>
-            </Fold>
-            <Fold title="Source" hint={`Via ${l.sourceName}`}>
+            {rows.length > 0 && (
+              <Fold title="Details" hint={out ? "Call for papers" : [whenLabel(t.startsAt), seatsLabel(l)].join(" · ")}>
+                <dl className="grid grid-cols-2 gap-3 text-[13px]">
+                  {rows.map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="text-ink-4">{k}</dt>
+                      <dd className="font-medium text-ink">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {!out && <p className="mt-3 text-[12px] text-ink-4">{`As ${l.company} posted it on WonderWorks. Times are India time. You see how many seats are left, never who is going.`}</p>}
+              </Fold>
+            )}
+            <Fold title="Source" hint={out ? `Via ${sourceShort}` : `Via ${l.sourceName}`}>
               <p className="text-[13px] text-ink-2">
-                {out ? `Listed from ${l.sourceName}, an outside source. Its own page for the event is where anything further happens; there is no RSVP here.` : `Posted on WonderWorks by ${l.company}.${l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}`}
+                {out ? (
+                  <>
+                    Listed from <span title={sourceShort !== l.sourceName ? l.sourceName : undefined} className="font-medium text-ink">{sourceShort}</span>, an outside source. Its dates, place and description are as it states them; WonderWorks adds nothing and doesn&apos;t organise this event. Its own page for the event is where anything further happens; there is no RSVP here.
+                  </>
+                ) : (
+                  `Posted on WonderWorks by ${l.company}.${l.postedAt ? ` Updated ${relativeTime(l.postedAt)}.` : ""}`
+                )}
               </p>
             </Fold>
           </div>
@@ -145,7 +170,7 @@ function Page({ l }: { l: EventListing }) {
             <a href={out.url} target="_blank" rel="noopener noreferrer" className="wj-gradient-bg wj-press inline-flex h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-[14px] font-semibold text-white">
               <ExternalLink className="size-4" aria-hidden /> Event page
             </a>
-            <p className="text-center text-[12px] text-ink-3">Opens {l.sourceName}&apos;s page for this event. RSVP and seats are only for events posted on WonderWorks.</p>
+            <p className="text-center text-[12px] text-ink-3">Opens the event&apos;s own page{siteOf(out.url) ? ` on ${siteOf(out.url)}` : ""}. RSVP and seats are only for events posted on WonderWorks.</p>
             <OutsideTracker useStore={useEventsStore} id={l.id} item={l} flow={EVENTS_OUTSIDE} pipelineHref="/app/m/events/pipeline" />
           </>
         ) : (
