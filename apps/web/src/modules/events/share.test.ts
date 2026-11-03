@@ -47,7 +47,7 @@ describe("what Share sends about an event", () => {
     const s = shareOf(outside);
     expect(s.url).toBe("/s/events/ow_xyz");
     expect(s.originalUrl).toBe("https://www.district.in/events/acrylic-painting");
-    expect(s.lines).toEqual(expect.arrayContaining([expect.stringContaining("Call for papers: https://cfp.example/x (until "), "Source: WorksLake Data Gateway · Events & Social"]));
+    expect(s.lines).toEqual(expect.arrayContaining([expect.stringContaining("Call for papers: https://cfp.example/x (until "), "Source: WorksLakeDG"]));
   });
 
   it("an outside event with no organiser leaves the organiser slot empty, so the place is never taken for one", () => {
