@@ -34,7 +34,13 @@ export interface StoryCard {
   pitch: string;
 }
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+/** Cut to `n` characters at a word (never inside a word or a number), with an ellipsis; a single long word is cut as is. */
+export const clip = (s: string, n: number) => {
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > n * 0.4 ? cut.slice(0, at) : cut).replace(/[\s,;:.·–—-]+$/, "")}…`;
+};
 const SHOWN = /^image\/(png|jpe?g|svg\+xml)$/i;
 
 /**
@@ -110,7 +116,12 @@ export function storyImage(c: StoryCard): ImageResponse {
   const byline = c.byline && !same(c.byline) ? c.byline : undefined;
   const chips = c.chips.filter((x) => !same(x));
   const points = (c.highlights ?? []).filter(Boolean).slice(0, 3);
-  const rows = detailRows(c.lines, c.photo ? 3 : points.length ? 4 : 6);
+  // A detail row whose value is already a chip (Area, Where) says nothing new on the image.
+  const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const chipSet = new Set(chips.map(norm));
+  const rows = detailRows(c.lines, 12)
+    .filter(([, v]) => !chipSet.has(norm(v)))
+    .slice(0, c.photo ? 3 : points.length ? 4 : 6);
   // With no highlights, the description takes the room the details (and a photo) leave, so a short listing still fills the card.
   const about = points.length ? "" : aboutText(c.about, c.photo ? 220 : rows.length >= 5 ? 340 : rows.length >= 3 ? 460 : 660);
   const titleSize = c.title.length > 60 ? 70 : c.title.length > 32 ? 84 : 100;
@@ -187,7 +198,8 @@ export function storyImage(c: StoryCard): ImageResponse {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 32, borderTop: "2px solid rgba(255,255,255,0.18)" }}>
           {/* A picture can't be tapped: the words say where the link is (in the message shared with it) and the address is readable to type. */}
           <span style={{ fontSize: 34, color: "rgba(255,255,255,0.75)" }}>{c.cta}</span>
-          <span style={{ fontSize: 38, fontWeight: 700, color: "#ffffff" }}>{clip(host, 46)}</span>
+          {/* The whole address, never cut (it's there to be typed): smaller when long. */}
+          <span style={{ fontSize: host.length > 60 ? 26 : host.length > 46 ? 31 : 38, fontWeight: 700, color: "#ffffff", wordBreak: "break-all" }}>{host}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 36, fontSize: 32, color: "rgba(255,255,255,0.75)" }}>
           {c.pitch}
