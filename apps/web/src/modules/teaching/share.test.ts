@@ -27,8 +27,8 @@ describe("Teaching share", () => {
 
   it("leads with the school (its logo) and carries the details the image shows", () => {
     const s = shareOf({ ...base, id: "opp_abc123", origin: "outside" } as TeachingListing);
-    expect(s.facts[0]).toBe("Chelmer Valley High School");
-    expect(s.lines.filter(Boolean).join("|")).toContain("Subject: Maths");
+    expect(s.facts?.[0]).toBe("Chelmer Valley High School");
+    expect((s.lines ?? []).filter(Boolean).join("|")).toContain("Subject: Maths");
     expect(s.details).toContain("key stage 3");
   });
 });
