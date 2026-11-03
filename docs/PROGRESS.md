@@ -139,3 +139,4 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- ✅ Therapists: Share checked for own practitioners and mapped practices, with the map credit (WJ-604)
