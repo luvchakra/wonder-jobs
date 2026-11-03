@@ -261,7 +261,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const cacheOn = flags.jobsLakeCacheEnabled;
   const noCache: CacheLookup = { fresh: new Map(), fallback: new Map() };
   const caches = new Map<string, CacheLookup>(
-    await Promise.all(phrasings.map(async (q) => [q, (cacheOn ? await bookkeeping("read the search cache", () => lookupAnswers(planned.map((p) => byId.get(p.id)!), plan.depth, criteriaFor(q))) : undefined) ?? noCache] as const)),
+    await Promise.all(phrasings.map(async (q) => [q, (cacheOn ? await bookkeeping("read the search cache", () => lookupAnswers(planned.map((p) => byId.get(p.id)!), plan.depth, criteriaFor(q), Date.now(), dataset)) : undefined) ?? noCache] as const)),
   );
   const toCache: CachedAnswer[] = [];
   let fromCache = 0;
@@ -431,7 +431,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // Run history and the warm pool are bookkeeping around live results the sources already returned:
   // a failed write is logged for operators, never turned into a failed search for the candidate.
   await bookkeeping("record runs", () => store.recordRuns(runs));
-  if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache));
+  if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache, Date.now(), dataset));
 
   // Company directory: each employer's reported domain, for logos and company details.
   // Jobs' company directory is Jobs' data: another module's postings never enter it.

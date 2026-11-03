@@ -69,3 +69,46 @@ describe("when the data database setting can't be read", () => {
     expect(dataWritable()).toBe(true);
   });
 });
+
+describe("each module's own data database (owner, 2026-11-03)", () => {
+  const OTHER = "https://bbbbbbbbbbbbbbbbbbbb.supabase.co";
+  beforeEach(async () => {
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+    vi.stubEnv("WORKSLAKE_DATA_DB_URL", "");
+    __resetDataDb();
+    await removeDataDb();
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", null);
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("saves a module's connection on its own, encrypted and switched off, without touching the shared one", async () => {
+    expect((await saveDataDb({ url: URL_OK, key: KEY }, "therapists")).ok).toBe(true);
+    expect(JSON.stringify((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state)).not.toContain(KEY);
+    expect(await dataDbStatus("therapists")).toMatchObject({ target: "therapists", active: "main", saved: { url: URL_OK, enabled: false } });
+    expect((await dataDbStatus()).saved).toBeNull();
+    expect(await setDataDbEnabled(true, "therapists")).toMatchObject({ ok: false });
+  });
+
+  it("won't give two modules (or a module and the shared database) the same project, so no data mixes", async () => {
+    await saveDataDb({ url: URL_OK, key: KEY }, "therapists");
+    expect(await saveDataDb({ url: URL_OK, key: KEY }, "events")).toMatchObject({ ok: false, message: expect.stringContaining("therapists") });
+    await saveDataDb({ url: OTHER, key: KEY });
+    expect(await saveDataDb({ url: OTHER, key: KEY }, "events")).toMatchObject({ ok: false, message: expect.stringContaining("shared") });
+  });
+
+  it("routes a module's data to its own database once switched on, and every other module's elsewhere", async () => {
+    const { encrypt } = await import("../secrets");
+    const doc = { url: URL_OK, keyCipher: encrypt(KEY), masked: "x", enabled: true, savedAt: new Date().toISOString(), lastTest: { at: "", ok: true, message: "" } };
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", { modules: { therapists: doc } });
+    const { loadDataDb, dataHome, dataEvery, tablesFor } = await import("./index");
+    await loadDataDb(true);
+    expect(dataHome("therapists")).toBe("own");
+    expect(dataHome("events")).toBe("main");
+    // No main database in tests: only the module with its own database gets a query.
+    expect(dataFrom("gateway_listings", "therapists")).not.toBeNull();
+    expect(dataFrom("gateway_listings", "events")).toBeNull();
+    expect(dataEvery("gateway_listings").map((d) => d.modules)).toEqual([["therapists"]]);
+    expect(tablesFor("therapists")).toEqual(["jobslake_opportunities", "gateway_listings"]);
+    expect(tablesFor("jobs")).toContain("jobslake_h1b_employers");
+  });
+});

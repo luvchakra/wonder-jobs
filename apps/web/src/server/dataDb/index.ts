@@ -28,8 +28,29 @@ export type DataTable = (typeof DATA_TABLES)[number];
 const KEY: Record<DataTable, string> = { jobslake_opportunities: "id", jobslake_search_cache: "key", jobslake_h1b_employers: "name_key", gateway_listings: "id" };
 
 const DOC = "wj.datadb" as const;
+/** Each module's own data database (owner, 2026-11-03: "each module linked to a separate Supabase database"). */
+const MODULES_DOC = "wj.datadbs" as const;
 /** Only a Supabase project URL: the server sends a service key there, so never an arbitrary host. */
 export const PROJECT_URL = /^https:\/\/[a-z0-9]{20}\.supabase\.co$/;
+/** A module's id ("jobs", "therapists" …); the admin route checks it against the registry. */
+const MODULE_ID = /^[a-z]{2,20}$/;
+
+/**
+ * Which data database a setting is about: "shared" (the one WorksLake data database, for every module without its own)
+ * or a module's id (that module's own).
+ */
+export type DataTarget = "shared" | string;
+/** The tables that carry a `module` column, so one module's rows can be told apart from another's. */
+const PER_MODULE: readonly DataTable[] = ["jobslake_opportunities", "gateway_listings"];
+
+/**
+ * What one module's own database holds: its listings in WorksLake's pool and the gateway's, its search cache, and for
+ * Jobs the H-1B employers. What a copy moves: the cache isn't copied (it rebuilds itself).
+ */
+export function tablesFor(target: DataTarget): readonly DataTable[] {
+  if (target === "shared") return DATA_TABLES;
+  return target === "jobs" ? ["jobslake_opportunities", "gateway_listings", "jobslake_h1b_employers"] : PER_MODULE;
+}
 
 export interface StoredDataDb {
   url: string;
@@ -42,23 +63,44 @@ export interface StoredDataDb {
   lastCopy?: { at: string; rows: Record<string, number> };
 }
 
+interface Conn {
+  url: string;
+  client: AdminClient;
+  guard: ReturnType<typeof createDbGuard>;
+}
+
 interface Active {
   at: number;
-  /** The data client when the data database is on; null when every table stays in the main database. */
+  /** The shared data database when it is on; null when its tables stay in the main database. */
   client: AdminClient | null;
   from: "environment" | "platform" | null;
+  /** Modules whose own data database is on: their data is read and written there, and nowhere else. */
+  modules: Record<string, Conn>;
   /** The setting couldn't be read yet: where the data lives isn't known, so nothing is written (dataWritable). */
   unknown?: boolean;
 }
-const g = globalThis as unknown as { __wjDataDb?: Active; __wjDataDbLoading?: Promise<void> | null };
+const g = globalThis as unknown as { __wjDataDb?: Active; __wjDataDbLoading?: Promise<void> | null; __wjDataConns?: Map<string, Conn> };
 const TTL = 60_000;
 /** After a failed first read, ask again this soon. */
 const RETRY_MS = 5_000;
-// Its own guard: a struggling data database backs off without blocking the main one's requests.
+// Each database has its own guard: a struggling one backs off without blocking the main one's (or another module's) requests.
 const guard = createDbGuard();
 
-function client(url: string, key: string): AdminClient {
-  return createClient(url, key, { db: { schema: "public" }, auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: guard.fetch } });
+function client(url: string, key: string, fetcher: typeof fetch = guard.fetch): AdminClient {
+  return createClient(url, key, { db: { schema: "public" }, auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: fetcher } });
+}
+
+/** One client per project URL and key, kept across reloads of the setting. */
+function conn(url: string, key: string): Conn {
+  const conns = (g.__wjDataConns ??= new Map());
+  const id = `${url}|${key.slice(-12)}`;
+  let c = conns.get(id);
+  if (!c) {
+    const own = createDbGuard();
+    c = { url, client: client(url, key, own.fetch), guard: own };
+    conns.set(id, c);
+  }
+  return c;
 }
 
 function fromEnv(): { url: string; key: string } | null {
@@ -67,24 +109,31 @@ function fromEnv(): { url: string; key: string } | null {
   return url && key && PROJECT_URL.test(url) ? { url, key } : null;
 }
 
-/** Reads which database holds WorksLake's data (at most once a minute; concurrent callers share one read). */
+async function storedModules(): Promise<Record<string, StoredDataDb>> {
+  const doc = (await (await state()).get(PLATFORM_TENANT, MODULES_DOC))?.state as { modules?: Record<string, StoredDataDb> } | undefined;
+  return doc?.modules && typeof doc.modules === "object" ? doc.modules : {};
+}
+
+/** Reads which database holds each module's data (at most once a minute; concurrent callers share one read). */
 export function loadDataDb(force = false): Promise<void> {
   const now = Date.now();
   if (!force && g.__wjDataDb && now - g.__wjDataDb.at < TTL) return Promise.resolve();
   if (g.__wjDataDbLoading && !force) return g.__wjDataDbLoading;
   const p = (async () => {
-    const env = fromEnv();
-    if (env) {
-      g.__wjDataDb = { at: now, client: g.__wjDataDb?.from === "environment" && g.__wjDataDb.client ? g.__wjDataDb.client : client(env.url, env.key), from: "environment" };
-      return;
-    }
     try {
-      const doc = (await (await state()).get(PLATFORM_TENANT, DOC))?.state as StoredDataDb | undefined;
-      g.__wjDataDb = doc?.enabled && PROJECT_URL.test(doc.url) ? { at: now, client: client(doc.url, (await crypto()).decrypt(doc.keyCipher)), from: "platform" } : { at: now, client: null, from: null };
+      const env = fromEnv();
+      const [doc, mods] = await Promise.all([env ? Promise.resolve(undefined) : (async () => (await (await state()).get(PLATFORM_TENANT, DOC))?.state as StoredDataDb | undefined)(), storedModules()]);
+      const modules: Record<string, Conn> = {};
+      for (const [m, d] of Object.entries(mods)) if (MODULE_ID.test(m) && d?.enabled && PROJECT_URL.test(d.url)) modules[m] = conn(d.url, (await crypto()).decrypt(d.keyCipher));
+      if (env) {
+        g.__wjDataDb = { at: now, client: g.__wjDataDb?.from === "environment" && g.__wjDataDb.client ? g.__wjDataDb.client : client(env.url, env.key), from: "environment", modules };
+        return;
+      }
+      g.__wjDataDb = doc?.enabled && PROJECT_URL.test(doc.url) ? { at: now, client: client(doc.url, (await crypto()).decrypt(doc.keyCipher)), from: "platform", modules } : { at: now, client: null, from: null, modules };
     } catch {
       // Keep what was there. With nothing known yet, don't assume the main database (a cold instance whose read failed
       // once wrote 2,000 listings there while the data database was on, 2026-11-02): stay unknown and ask again soon.
-      g.__wjDataDb = g.__wjDataDb && !g.__wjDataDb.unknown ? { ...g.__wjDataDb, at: now } : { at: now - TTL + RETRY_MS, client: null, from: null, unknown: true };
+      g.__wjDataDb = g.__wjDataDb && !g.__wjDataDb.unknown ? { ...g.__wjDataDb, at: now } : { at: now - TTL + RETRY_MS, client: null, from: null, modules: {}, unknown: true };
     }
   })().finally(() => {
     g.__wjDataDbLoading = null;
@@ -93,22 +142,61 @@ export function loadDataDb(force = false): Promise<void> {
   return p;
 }
 
-/**
- * A query on one of WorksLake's data tables, in whichever database holds it now. Callers `await loadDataDb()` first
- * (entry points do); before the first load it is the main database. Null when no database is configured (tests).
- */
-export function dataFrom(table: DataTable) {
-  const data = g.__wjDataDb?.client;
-  if (data) return data.from(table);
+/** The main database's copy of a data table (where everything lives with no data database on). */
+function mainFrom(table: DataTable) {
   const main = getSupabaseAdmin();
   return main ? main.schema("wonderjobs").from(table) : null;
 }
 
-/** The data database's client and what its safeguards are doing, when it is on (Admin → Databases). */
+/**
+ * A query on one of WorksLake's data tables for one module, in whichever database holds that module's data now: its own
+ * data database when it has one switched on, else the shared data database, else the main one. Callers
+ * `await loadDataDb()` first (entry points do). Null when no database is configured (tests).
+ * Tables without a module (the search cache, H-1B employers) default to Jobs, whose data they are unless a module says.
+ */
+export function dataFrom(table: DataTable, module = "jobs") {
+  const own = g.__wjDataDb?.modules[module];
+  if (own) return own.client.from(table);
+  const data = g.__wjDataDb?.client;
+  if (data) return data.from(table);
+  return mainFrom(table);
+}
+
+/** Where a module's data lives now. */
+export function dataHome(module: string): "own" | "shared" | "main" {
+  return g.__wjDataDb?.modules[module] ? "own" : g.__wjDataDb?.client ? "shared" : "main";
+}
+
+/**
+ * The same table in every database that may hold some of it now (the main or shared one, and each module's own), once
+ * each: for work that isn't about one module (a source's clean-up, the daily safeguards, a lookup by id).
+ * `modules` lists, for each, the modules whose data it holds ("*": every module without its own).
+ */
+export function dataEvery(table: DataTable): { modules: string[] | "*"; from: () => NonNullable<ReturnType<typeof mainFrom>> }[] {
+  const out: { modules: string[] | "*"; from: () => NonNullable<ReturnType<typeof mainFrom>> }[] = [];
+  const shared = g.__wjDataDb?.client;
+  if (shared) out.push({ modules: "*", from: () => shared.from(table) });
+  else if (getSupabaseAdmin()) out.push({ modules: "*", from: () => mainFrom(table)! });
+  const byUrl = new Map<string, { modules: string[]; from: () => NonNullable<ReturnType<typeof mainFrom>> }>();
+  for (const [m, c] of Object.entries(g.__wjDataDb?.modules ?? {})) {
+    const e = byUrl.get(c.url);
+    if (e) e.modules.push(m);
+    else byUrl.set(c.url, { modules: [m], from: () => c.client.from(table) });
+  }
+  return [...out, ...byUrl.values()];
+}
+
+/** The shared data database's client and what its safeguards are doing, when it is on (Admin → Databases). */
 export async function dataDbNow(): Promise<{ client: AdminClient; guard: ReturnType<typeof guard.state> } | null> {
   await loadDataDb();
   const c = g.__wjDataDb?.client;
   return c ? { client: c, guard: guard.state() } : null;
+}
+
+/** Each module's own data database that is on, with its safeguards (Admin → Databases). */
+export async function moduleDataDbs(): Promise<{ module: string; url: string; client: AdminClient; guard: ReturnType<typeof guard.state> }[]> {
+  await loadDataDb();
+  return Object.entries(g.__wjDataDb?.modules ?? {}).map(([module, c]) => ({ module, url: c.url, client: c.client, guard: c.guard.state() }));
 }
 
 /**
@@ -119,10 +207,10 @@ export function dataWritable(): boolean {
   return !g.__wjDataDb?.unknown;
 }
 
-/** The data database's own `db_usage` (its size), when it is on. */
-export async function dataDbUsage(): Promise<{ dbBytes: number } | null> {
+/** A data database's own `db_usage` (its size), when it is on: the shared one, or a module's own. */
+export async function dataDbUsage(target: DataTarget = "shared"): Promise<{ dbBytes: number } | null> {
   await loadDataDb();
-  const data = g.__wjDataDb?.client;
+  const data = target === "shared" ? g.__wjDataDb?.client : g.__wjDataDb?.modules[target]?.client;
   if (!data) return null;
   const { data: d, error } = await data.rpc("db_usage");
   return error || !d ? null : { dbBytes: Number((d as { db_bytes: number }).db_bytes) };
@@ -131,47 +219,77 @@ export async function dataDbUsage(): Promise<{ dbBytes: number } | null> {
 /* ------------------------------------------------------------------ admin */
 
 export interface DataDbStatus {
-  /** Where WorksLake's data is read and written now. */
-  active: "main" | "data";
+  target: DataTarget;
+  /** Where this target's data is read and written now: for a module, its own database, the shared one or the main one. */
+  active: "main" | "data" | "shared";
   from: "environment" | "platform" | null;
   saved: { url: string; masked: string; enabled: boolean; savedAt: string; lastTest?: StoredDataDb["lastTest"]; lastCopy?: StoredDataDb["lastCopy"] } | null;
   tables: readonly string[];
 }
 
-async function stored(): Promise<StoredDataDb | undefined> {
-  return (await (await state()).get(PLATFORM_TENANT, DOC))?.state as StoredDataDb | undefined;
+async function stored(target: DataTarget = "shared"): Promise<StoredDataDb | undefined> {
+  if (target === "shared") return (await (await state()).get(PLATFORM_TENANT, DOC))?.state as StoredDataDb | undefined;
+  return (await storedModules())[target];
 }
 
-export async function dataDbStatus(): Promise<DataDbStatus> {
+async function store(target: DataTarget, doc: StoredDataDb | null): Promise<void> {
+  const st = await state();
+  if (target === "shared") {
+    if (doc) await st.put(PLATFORM_TENANT, DOC, doc);
+    else await st.remove(PLATFORM_TENANT, DOC);
+    return;
+  }
+  const mods = await storedModules();
+  if (doc) mods[target] = doc;
+  else delete mods[target];
+  await st.put(PLATFORM_TENANT, MODULES_DOC, { modules: mods });
+}
+
+const validTarget = (t: DataTarget) => t === "shared" || MODULE_ID.test(t);
+
+const toSaved = (s: StoredDataDb | undefined): DataDbStatus["saved"] => (s ? { url: s.url, masked: s.masked, enabled: s.enabled, savedAt: s.savedAt, lastTest: s.lastTest, lastCopy: s.lastCopy } : null);
+
+export async function dataDbStatus(target: DataTarget = "shared"): Promise<DataDbStatus> {
   await loadDataDb(true);
-  const s = await stored();
-  return {
-    active: g.__wjDataDb?.client ? "data" : "main",
-    from: g.__wjDataDb?.from ?? null,
-    saved: s ? { url: s.url, masked: s.masked, enabled: s.enabled, savedAt: s.savedAt, lastTest: s.lastTest, lastCopy: s.lastCopy } : null,
-    tables: DATA_TABLES,
-  };
+  const s = await stored(target);
+  if (target === "shared") return { target, active: g.__wjDataDb?.client ? "data" : "main", from: g.__wjDataDb?.from ?? null, saved: toSaved(s), tables: DATA_TABLES };
+  const home = dataHome(target);
+  return { target, active: home === "own" ? "data" : home, from: home === "own" ? "platform" : null, saved: toSaved(s), tables: tablesFor(target) };
+}
+
+/** Every module's data home and its own saved connection (Admin → Data database's overview). */
+export async function dataDbOverview(modules: readonly string[]): Promise<{ module: string; home: "own" | "shared" | "main"; saved: DataDbStatus["saved"] }[]> {
+  await loadDataDb(true);
+  const mods = await storedModules();
+  return modules.map((m) => ({ module: m, home: dataHome(m), saved: toSaved(mods[m]) }));
 }
 
 const mask = (key: string) => `${key.slice(0, 6)}••••${key.slice(-4)}`;
 
-/** Saves the connection, switched off. A new key replaces the old; leaving the key blank keeps it (same URL only). */
-export async function saveDataDb(input: { url: string; key?: string }): Promise<{ ok: true } | { ok: false; message: string }> {
+/**
+ * Saves the connection, switched off. A new key replaces the old; leaving the key blank keeps it (same URL only). A
+ * module's own project can't be one another module (or the shared database) already uses: each module's data is its own.
+ */
+export async function saveDataDb(input: { url: string; key?: string }, target: DataTarget = "shared"): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (!validTarget(target)) return { ok: false, message: "Unknown module." };
   const url = input.url.trim().replace(/\/$/, "");
   if (!PROJECT_URL.test(url)) return { ok: false, message: "Use the project URL from Supabase → Project Settings → API (https://<project>.supabase.co)." };
-  const prev = await stored();
+  const others = [...Object.entries(await storedModules()).filter(([m]) => m !== target).map(([m, d]) => [m, d.url] as const), ...(target === "shared" ? [] : [["shared", (await stored("shared"))?.url ?? ""] as const])];
+  const taken = others.find(([, u]) => u === url);
+  if (taken) return { ok: false, message: taken[0] === "shared" ? "That project is the shared data database. Give each module its own project." : `That project already holds the ${taken[0]} module's data. Give each module its own project.` };
+  const prev = await stored(target);
   const key = input.key?.trim();
   if (!key && (!prev || prev.url !== url)) return { ok: false, message: "Paste the project's service role (secret) key." };
   if (key && key.length < 40) return { ok: false, message: "That doesn't look like a service role key." };
   const doc: StoredDataDb = key ? { url, keyCipher: (await crypto()).encrypt(key), masked: mask(key), enabled: false, savedAt: new Date().toISOString() } : { ...prev!, enabled: false, savedAt: new Date().toISOString() };
-  await (await state()).put(PLATFORM_TENANT, DOC, doc);
+  await store(target, doc);
   await loadDataDb(true);
   return { ok: true };
 }
 
 /** Connects to the saved data database and checks every table exists (the setup script ran). Records the result. */
-export async function testDataDb(): Promise<StoredDataDb["lastTest"]> {
-  const s = await stored();
+export async function testDataDb(target: DataTarget = "shared"): Promise<StoredDataDb["lastTest"]> {
+  const s = await stored(target);
   if (!s) return { at: new Date().toISOString(), ok: false, message: "Save the connection first." };
   const c = client(s.url, (await crypto()).decrypt(s.keyCipher));
   const tables: Record<string, number> = {};
@@ -192,23 +310,34 @@ export async function testDataDb(): Promise<StoredDataDb["lastTest"]> {
     if (fe) message = "Connected; every table is there. The setup script is out of date (no performance figures): run it again, it's safe to re-run.";
   }
   const lastTest = { at: new Date().toISOString(), ok, message, tables };
-  await (await state()).put(PLATFORM_TENANT, DOC, { ...s, lastTest });
+  await store(target, { ...s, lastTest });
   return lastTest;
 }
 
 const PAGE = 500;
 
 /**
- * Copies one page of one table from the main database into the data database (upsert, so running it again is safe).
- * The admin page calls it page after page until `done`, so no single request runs long.
+ * Where a target's data lives while its own database is off, so a copy reads from there and "free the old copy" clears
+ * it: the main database for the shared one; for a module, the shared data database when that is on, else the main one.
  */
-export async function copyPage(table: DataTable, offset: number): Promise<{ copied: number; done: boolean } | { error: string }> {
-  if (!DATA_TABLES.includes(table)) return { error: "Unknown table." };
-  const s = await stored();
-  const main = getSupabaseAdmin();
-  if (!s || !main) return { error: "Save the connection first." };
+function previousHome(target: DataTarget, table: DataTable) {
+  if (target !== "shared" && g.__wjDataDb?.client) return g.__wjDataDb.client.from(table);
+  return mainFrom(table);
+}
+
+/**
+ * Copies one page of one table into the target's data database (upsert, so running it again is safe): everything for
+ * the shared one, only that module's rows for a module's own. The admin page calls it page after page until `done`.
+ */
+export async function copyPage(table: DataTable, offset: number, target: DataTarget = "shared"): Promise<{ copied: number; done: boolean } | { error: string }> {
+  if (!tablesFor(target).includes(table)) return { error: "Unknown table." };
+  await loadDataDb();
+  const s = await stored(target);
+  if (!s || !getSupabaseAdmin()) return { error: "Save the connection first." };
   if (!s.lastTest?.ok) return { error: "Test the connection first." };
-  const { data, error } = await main.schema("wonderjobs").from(table).select("*").order(KEY[table], { ascending: true }).range(offset, offset + PAGE - 1);
+  let q = previousHome(target, table)!.select("*");
+  if (target !== "shared" && PER_MODULE.includes(table)) q = q.eq("module", target);
+  const { data, error } = await q.order(KEY[table], { ascending: true }).range(offset, offset + PAGE - 1);
   if (error) return { error: `Couldn't read ${table}: ${error.message}` };
   const rows = data ?? [];
   if (rows.length) {
@@ -216,23 +345,26 @@ export async function copyPage(table: DataTable, offset: number): Promise<{ copi
     if (e) return { error: `Couldn't write ${table}: ${e.message}` };
   }
   const done = rows.length < PAGE;
-  if (done) await (await state()).put(PLATFORM_TENANT, DOC, { ...s, lastCopy: { at: new Date().toISOString(), rows: { ...(s.lastCopy?.rows ?? {}), [table]: offset + rows.length } } });
+  if (done) {
+    const now = (await stored(target)) ?? s;
+    await store(target, { ...now, lastCopy: { at: new Date().toISOString(), rows: { ...(now.lastCopy?.rows ?? {}), [table]: offset + rows.length } } });
+  }
   return { copied: rows.length, done };
 }
 
-/** Switches WorksLake's data to the data database (needs a passing test) or back to the main one. */
-export async function setDataDbEnabled(enabled: boolean): Promise<{ ok: true } | { ok: false; message: string }> {
-  const s = await stored();
+/** Switches the target's data to its data database (needs a passing test) or back. */
+export async function setDataDbEnabled(enabled: boolean, target: DataTarget = "shared"): Promise<{ ok: true } | { ok: false; message: string }> {
+  const s = await stored(target);
   if (!s) return { ok: false, message: "Save the connection first." };
   if (enabled && !s.lastTest?.ok) return { ok: false, message: "Test the connection first." };
-  await (await state()).put(PLATFORM_TENANT, DOC, { ...s, enabled });
+  await store(target, { ...s, enabled });
   await loadDataDb(true);
   return { ok: true };
 }
 
-/** Forgets the saved connection; WorksLake's data goes back to the main database. */
-export async function removeDataDb(): Promise<void> {
-  await (await state()).remove(PLATFORM_TENANT, DOC);
+/** Forgets the saved connection; the target's data goes back to where it lived before. */
+export async function removeDataDb(target: DataTarget = "shared"): Promise<void> {
+  await store(target, null);
   await loadDataDb(true);
 }
 
@@ -243,21 +375,24 @@ export function __resetDataDb() {
 }
 
 /**
- * After switching to the data database, deletes one batch of a table's old copy from the main database, freeing its
- * space for the app (Postgres reuses it). Only while the data database is on, so nothing in use is ever deleted.
+ * After switching on, deletes one batch of the old copy (for the shared database, the main database's; for a module's
+ * own, that module's rows where they lived before), freeing its space. Only while the target's database is on, so
+ * nothing in use is ever deleted.
  */
-export async function clearMainPage(table: DataTable): Promise<{ deleted: number; done: boolean } | { error: string }> {
-  if (!DATA_TABLES.includes(table)) return { error: "Unknown table." };
+export async function clearMainPage(table: DataTable, target: DataTarget = "shared"): Promise<{ deleted: number; done: boolean } | { error: string }> {
+  if (!tablesFor(target).includes(table)) return { error: "Unknown table." };
   await loadDataDb(true);
-  if (!g.__wjDataDb?.client) return { error: "Switch to the data database first." };
-  const main = getSupabaseAdmin();
-  if (!main) return { error: "No main database." };
-  const t = main.schema("wonderjobs").from(table);
-  const { data, error } = await t.select(KEY[table]).limit(1000);
+  if (target === "shared" ? !g.__wjDataDb?.client : !g.__wjDataDb?.modules[target]) return { error: "Switch to the data database first." };
+  const from = () => (target === "shared" ? mainFrom(table) : previousHome(target, table));
+  if (!from()) return { error: "No main database." };
+  const filtered = target !== "shared" && PER_MODULE.includes(table);
+  let q = from()!.select(KEY[table]);
+  if (filtered) q = q.eq("module", target);
+  const { data, error } = await q.limit(1000);
   if (error) return { error: error.message };
   const ids = (data ?? []).map((r) => (r as unknown as Record<string, string>)[KEY[table]]);
   for (let i = 0; i < ids.length; i += 200) {
-    const { error: e } = await main.schema("wonderjobs").from(table).delete().in(KEY[table], ids.slice(i, i + 200));
+    const { error: e } = await from()!.delete().in(KEY[table], ids.slice(i, i + 200));
     if (e) return { error: e.message };
   }
   return { deleted: ids.length, done: ids.length < 1000 };
