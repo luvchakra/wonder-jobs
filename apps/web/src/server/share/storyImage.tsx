@@ -19,7 +19,7 @@ export interface StoryCard {
   lines?: string[];
   /** The listing's own description, cut to fit: shown only when there are no highlights. */
   about?: string;
-  /** The share summary's highlights (a few concrete details), and whether a model wrote them (then labelled AI summary). */
+  /** The share summary's highlights (a few concrete details), and whether a model wrote them (labelled Summary: owner, 2026-11-03, "Instead of AI Summary just label it as Summary"). */
   highlights?: string[];
   ai?: boolean;
   /** The listing's own image (a company's logo) as a data URI, when there is one. */
@@ -171,7 +171,7 @@ export function storyImage(c: StoryCard): ImageResponse {
 
           {points.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {c.ai && <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: 2, color: "#c4b5fd" }}>AI SUMMARY</span>}
+              <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: 2, color: "#c4b5fd" }}>SUMMARY</span>
               {points.map((p, i) => (
                 <div key={`${p}-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 22 }}>
                   <span style={{ display: "flex", flexShrink: 0, width: 18, height: 18, marginTop: 14, borderRadius: 9, background: "#a78bfa" }} />
