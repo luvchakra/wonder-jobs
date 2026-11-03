@@ -57,7 +57,7 @@ export interface ListingShareInput {
 }
 
 /** Bumped when the share image's design changes, so phones and the CDN fetch the new one instead of a cached copy. */
-export const STORY_VERSION = 3;
+export const STORY_VERSION = 4;
 /** A listing's or job's share image (`<public page>/story`). */
 export const storyPath = (page: string) => `${page}/story?v=${STORY_VERSION}`;
 
@@ -109,18 +109,52 @@ export function distinctText(title: string, text: string | undefined): string {
   return out.join("\n\n");
 }
 
-export function listingShareMessage(input: ListingShareInput, url: string): ShareMessage {
+/**
+ * A listing's share summary (owner, 2026-11-03: "use ai to summarise … keep it useful and crisp"): `hook`, one sentence
+ * on why it's worth a look, goes in the message; `highlights`, a few concrete details, go on the share image (or in the
+ * message where there is no image). `ai` says the model wrote them, so the sheet labels them AI-generated.
+ */
+export interface ShareSummary {
+  hook: string;
+  highlights: string[];
+  ai: boolean;
+}
+
+/** The description's first sentence that says more than the title, cut to `max`: the summary without a model. */
+export function firstSentence(title: string, details: string | undefined, max = 140): string {
+  const text = distinctText(title, (details ?? "").replace(/<[^>]+>/g, " "));
+  const name = plain(title);
+  // Not a sentence that only restates the title ("Maths Teacher Wanted."), nor one with a link.
+  const says = (x: string) => x.trim().length > 20 && !/https?:\/\/|www\./i.test(x) && !(plain(x).includes(name) && plain(x).length < name.length + 16);
+  const s = text.split(/(?<=[.!?])\s+/).find(says) ?? "";
+  const t = s.replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/** Sections joined with one blank line between them, empty ones left out (so a missing hook leaves no gap). */
+export const sections = (...parts: (string | string[] | false | null | undefined)[]) =>
+  parts
+    .map((p) => (Array.isArray(p) ? p.filter(Boolean).join("\n") : p || ""))
+    .filter(Boolean)
+    .join("\n\n");
+
+/**
+ * The crisp message, the same shape in every module: the title, its headline facts, the one-line hook and the link, then
+ * WonderWorks' line. The details go on the share image, so the message doesn't repeat them; where a listing has no
+ * image (people's profiles), the highlights come in the message instead.
+ */
+export function listingShareMessage(input: ListingShareInput, url: string, opts: { summary?: ShareSummary | null; image?: boolean } = {}): ShareMessage {
   const facts = present(input.facts).join(" · ");
-  const lines = present(input.lines);
-  const about = excerpt(distinctText(input.title, input.details));
   const head = input.title;
-  const body = [...(facts ? [facts] : []), ...(lines.length ? ["", ...lines] : []), ...(about ? ["", about] : [])];
+  const hook = opts.summary?.hook || firstSentence(input.title, input.details);
+  const points = (opts.summary?.highlights.length ? opts.summary.highlights : present(input.lines).filter((l) => !/^(from|source):/i.test(l)).slice(0, 3)).map((h) => `• ${h}`);
+  const inline = opts.image ? [] : points;
   return {
     subject: `${input.noun[0].toUpperCase()}${input.noun.slice(1)} you might like: ${head}`,
-    body: ["Hi,", "", `I came across this ${input.noun} and thought of you:`, "", head, ...body, "", `Take a look: ${url}`, "", "—", PITCH].join("\n"),
-    whatsapp: [`*${head}*`, ...body, "", `Thought of you for this one. ${PITCH}`, "", url].join("\n"),
-    text: [head, ...body, "", PITCH].join("\n"),
-    x: xPost(head, facts, `${LISTING_HINT} ${hashtag(input.noun)} #WonderWorks`),
-    caption: [head, ...(facts ? [facts] : []), "", `See it: ${url}`, "", `${LISTING_HINT}.`, `${hashtag(input.noun)} #WonderWorks`].join("\n"),
+    body: sections(["Hi,"], `I came across this ${input.noun} and thought of you:`, [head, facts], hook, points, `Take a look: ${url}`, ["—", PITCH]),
+    whatsapp: sections([`*${head}*`, facts], hook, inline, `Thought of you for this one. ${PITCH}`, url),
+    text: sections([head, facts], hook, inline, PITCH),
+    x: xPost(head, [facts, hook].filter(Boolean).join("\n"), `${LISTING_HINT} ${hashtag(input.noun)} #WonderWorks`),
+    caption: sections([head, facts], hook, `See it: ${url}`, [`${LISTING_HINT}.`, `${hashtag(input.noun)} #WonderWorks`]),
   };
 }

@@ -1,7 +1,7 @@
 import { WORK_MODE_LABEL, type CanonicalJob } from "./types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "./jobType";
 import { formatSalaryRange } from "@/lib/format";
-import { emailHref, whatsappHref, xPost, type ShareMessage } from "@/wonderworks/listing/share";
+import { emailHref, sections, whatsappHref, xPost, type ShareMessage, type ShareSummary } from "@/wonderworks/listing/share";
 
 /**
  * Sharing a job with someone else (owner, 2026-10-19): a link to its public page on WonderJobs, whose
@@ -30,16 +30,18 @@ export function shareFacts(job: ShareJob): string {
 
 export type { ShareMessage };
 
-export function shareMessage(job: ShareJob, url: string, home: string): ShareMessage {
+/** The crisp message: the role, its facts, the summary's one-line hook (when there is one) and the link. The job's details go on its share image. */
+export function shareMessage(job: ShareJob, url: string, home: string, summary?: ShareSummary | null): ShareMessage {
   const role = `${job.title} at ${job.company}`;
   const facts = shareFacts(job);
+  const hook = summary?.hook ?? "";
   return {
     subject: `Job you might like: ${role}`,
-    body: ["Hi,", "", "I came across this role and thought of you:", "", role, facts, "", `See the job and apply: ${url}`, "", "—", `Found with WonderWorks. ${SHARE_PITCH} ${home}`].join("\n"),
-    whatsapp: [`*${role}*`, facts, "", "Thought of you for this one. Found with WonderWorks, the AI job-search agent.", "", url].join("\n"),
-    text: `${role}\n${facts}\n\nFound with WonderWorks, the AI job-search agent.`,
-    x: xPost(role, facts, `${SHARE_HINT} #hiring #jobs`),
-    caption: [role, facts, "", `See the job and apply: ${url}`, "", `${SHARE_HINT}.`, "#hiring #jobs #WonderWorks"].join("\n"),
+    body: sections(["Hi,"], "I came across this role and thought of you:", [role, facts], hook, (summary?.highlights ?? []).map((h) => `• ${h}`), `See the job and apply: ${url}`, ["—", `Found with WonderWorks. ${SHARE_PITCH} ${home}`]),
+    whatsapp: sections([`*${role}*`, facts], hook, "Thought of you for this one. Found with WonderWorks, the AI job-search agent.", url),
+    text: sections([role, facts], hook, "Found with WonderWorks, the AI job-search agent."),
+    x: xPost(role, [facts, hook].filter(Boolean).join("\n"), `${SHARE_HINT} #hiring #jobs`),
+    caption: sections([role, facts], hook, `See the job and apply: ${url}`, [`${SHARE_HINT}.`, "#hiring #jobs #WonderWorks"]),
   };
 }
 
