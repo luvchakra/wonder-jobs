@@ -113,3 +113,4 @@
 - ✅ The + button opens the new-entry form directly in every module (WJ-664)
 - ✅ Post pages set up an organisation in place, in the module's words, not via Hiring (WJ-665)
 - ✅ Onboarding is skipped for an account that already has a profile or résumé, on any device (WJ-666)
+- ✅ The avatar shows only the signed-in account's own photo, never a previous account's (WJ-667)
