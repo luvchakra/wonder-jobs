@@ -9,15 +9,18 @@ const ORDER: PlanId[] = ["free", "pro", "max"];
 /** ₹499 rather than ₹499.00 when the price is whole; otherwise as billing shows it. */
 const wholePrice = (minor: number, currency: string) => (minor % 100 === 0 ? new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(minor / 100) : formatMoney(minor, currency));
 
-/** What a plan gives, in its own numbers — read from the plan configuration checkout uses — then the lines an operator added in Plans & features. */
+/**
+ * What a plan gives, in its own numbers (read from the plan configuration checkout uses): first what every module shares,
+ * then Jobs' own, then the lines an operator added in Plans & features (owner, 2026-11-02: plans read as WonderWorks).
+ */
 export function planPoints(l: PlansConfig["plans"][PlanId]): string[] {
   return [
-    `${l.roles} role${l.roles === 1 ? "" : "s"} to search for`,
-    `${l.scheduledSearches} scheduled search${l.scheduledSearches === 1 ? "" : "es"}, ${l.dailySearches ? "daily or weekly" : "weekly"}`,
-    ...(l.keepWatch ? ["Keep watch — hear when a strong match turns up"] : []),
-    `${l.aiDraftsPerMonth} AI drafts a month`,
-    l.resumeTemplates >= 8 ? "All résumé designs" : `${l.resumeTemplates} résumé design${l.resumeTemplates === 1 ? "" : "s"}`,
-    ...(l.applyWithWonder ? ["Apply with Wonder — fills employer forms, on computer and phone"] : []),
+    `${l.scheduledSearches} scheduled search${l.scheduledSearches === 1 ? "" : "es"} across every module, ${l.dailySearches ? "daily or weekly" : "weekly"}`,
+    `${l.aiDraftsPerMonth} WonderWorks AI drafts a month`,
+    `Jobs: ${l.roles} role${l.roles === 1 ? "" : "s"} to search as`,
+    `Jobs: ${l.resumeTemplates >= 8 ? "all résumé designs" : `${l.resumeTemplates} résumé design${l.resumeTemplates === 1 ? "" : "s"}`}`,
+    ...(l.keepWatch ? ["Jobs: keep watch, to hear when a strong match turns up"] : []),
+    ...(l.applyWithWonder ? ["Jobs: the WonderWorks helper fills employers' forms in your desktop browser"] : []),
     ...(l.highlights ?? []),
   ];
 }

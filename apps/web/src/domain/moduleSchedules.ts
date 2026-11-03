@@ -89,3 +89,9 @@ export function cleanSchedule(raw: Partial<ModuleSchedule>, now: Date, id: strin
     createdAt: now.toISOString(),
   };
 }
+
+/** A module schedule's cadence as the plan sees it: every day or every weekday needs daily searches. */
+export const planCadence = (c: ModuleScheduleCadence): "daily" | "weekly" => (c === "weekly" ? "weekly" : "daily");
+
+/** A plan without daily searches runs a daily or weekday schedule at most once a week (what it last ran). */
+export const WEEK_MS = 6.5 * 86_400_000;

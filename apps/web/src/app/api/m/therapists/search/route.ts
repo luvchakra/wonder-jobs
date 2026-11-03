@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
+import { hideIn } from "@/server/moderation";
 import { searchTherapists } from "@/server/therapists/search";
 
 export const runtime = "nodejs";
@@ -11,5 +12,5 @@ const Body = z.object({ query: z.string().trim().max(120), places: z.array(z.str
 
 /** Therapists Find: the client's words and places, searched across the Therapists dataset's sources (never another module's). The words are not stored. */
 export async function POST(req: Request) {
-  return hiringRoute(req, (_s, b) => searchTherapists(b), { schema: Body, write: true });
+  return hiringRoute(req, (_s, b) => searchTherapists(b).then(hideIn("therapists")), { schema: Body, write: true });
 }

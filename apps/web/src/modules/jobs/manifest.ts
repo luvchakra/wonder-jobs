@@ -21,6 +21,7 @@ export const jobsManifest: ModuleManifest = {
   ],
   response: { verb: "apply", questions: true, states: ["new", "reviewing", "interview", "offer", "hired", "declined"], capability: "easy_apply" },
   pipeline: { label: "Pipeline", icon: "LayoutList", stages: stagesOf("Saved to apply", "Applied", "Interview", "Offer", "Hired / Closed"), sections: ["Calendar", "Insights", "Interview prep"] },
+  post: { href: "/app/hiring?tab=jobs", label: "Post a job" },
   ownerSide: { workspace: "company" },
   trust: { reviews: "off" },
 };

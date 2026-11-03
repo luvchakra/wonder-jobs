@@ -15,6 +15,8 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, whenOf, type EventListing } from "../domain";
 import { useEventsStore } from "../store";
+import { EVENTS_OUTSIDE } from "../outside";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { fitOf, useMatch } from "./Listing";
 import { Cover } from "./Cover";
 import { Rsvp } from "./Rsvp";
@@ -86,6 +88,7 @@ function Page({ l }: { l: EventListing }) {
   const sourceShort = shortSourceNames(l.sourceName);
   return (
     <ListingPage
+      report={{ module: "events", id: l.id }}
       share={shareOf(l)}
       back={FIND}
       title={l.title}
@@ -168,6 +171,7 @@ function Page({ l }: { l: EventListing }) {
               <ExternalLink className="size-4" aria-hidden /> Event page
             </a>
             <p className="text-center text-[12px] text-ink-3">Opens the event&apos;s own page{siteOf(out.url) ? ` on ${siteOf(out.url)}` : ""}. RSVP and seats are only for events posted on WonderWorks.</p>
+            <OutsideTracker useStore={useEventsStore} id={l.id} item={l} flow={EVENTS_OUTSIDE} pipelineHref="/app/m/events/pipeline" />
           </>
         ) : (
           <Rsvp listing={l} start={params.get("rsvp") === "1"} />

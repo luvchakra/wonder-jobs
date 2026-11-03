@@ -27,6 +27,7 @@ export const servicesManifest: ModuleManifest = {
   ],
   response: { verb: "request_quote", questions: true, states: ["requested", "quoted", "booked", "done", "paid", "reviewed"], capability: "services.request_quote" },
   pipeline: { label: "Bookings", icon: "CalendarCheck", stages: stagesOf("Requested", "Quoted", "Booked", "Done / Closed") },
+  post: { href: "/app/m/services/company", label: "Offer a service" },
   ownerSide: { workspace: "person" },
   trust: { reviews: "after_done" },
   money: { kind: "none", currency: "INR" },

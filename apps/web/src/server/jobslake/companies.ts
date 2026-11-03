@@ -7,7 +7,7 @@ import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
 import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { dataFrom, dataWritable, loadDataDb } from "@/server/dataDb";
+import { dataFrom, dataWritable, loadDataDb, WRITE_FRESH_MS } from "@/server/dataDb";
 
 /** A logo, once stored, is kept and never looked for again; only the finding that there is none is retried, after this long. */
 export const LOGO_TTL_MS = 30 * 86_400_000;
@@ -307,8 +307,8 @@ class SupabaseCompanies implements CompanyStore {
   }
   async putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean) {
     this.sb();
-    await loadDataDb();
-    if (!dataWritable()) throw new Error("The WorksLake data database setting couldn't be read; load the file again shortly.");
+    await loadDataDb(false, WRITE_FRESH_MS);
+    if (!dataWritable()) throw new Error("The WorksLake DDB setting couldn't be read; load the file again shortly.");
     // A new file replaces the last one's totals: rows it no longer names are removed first.
     if (replace) {
       const { error } = await this.h1bTable().delete().neq("name_key", "");

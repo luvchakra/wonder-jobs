@@ -9,6 +9,10 @@ import { relativeTime } from "@/lib/format";
 import { chipsOf, clientMay, STAGE_OF, STATUS_LABEL, todayIst, totalLabel, whenLabel, type MyRequest, type ServiceStatus } from "../deal";
 import { servicesManifest } from "../manifest";
 import { useServicesStore } from "../store";
+import { SERVICES_OUTSIDE } from "../outside";
+import { listingHref } from "../manifest";
+import type { ServiceListing } from "../domain";
+import { useTracked } from "@/wonderworks/pipeline/tracked";
 
 export const itemHref = (id: string) => `/app/m/services/pipeline/${encodeURIComponent(id)}`;
 
@@ -37,6 +41,8 @@ export function ServicesBookings() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<string | null>(null);
   const [chip, setChip] = useState<string | null>(null);
+  // Businesses outside WonderWorks the customer is tracking themselves (wonderworks/listing/progress.ts).
+  const tracked = useTracked<ServiceListing>(useServicesStore, SERVICES_OUTSIDE, (_id, l) => l.origin === "outside");
 
   const load = () =>
     call<{ requests: MyRequest[] }>("/api/m/services/requests")
@@ -60,7 +66,7 @@ export function ServicesBookings() {
   if (error) return <ErrorState title="Couldn't load your bookings" body={error} actions={[{ label: "Try again", onClick: () => (setError(null), void load()) }]} />;
   if (!list) return <PageLoading rows={3} />;
 
-  const count = (stage: string) => list.filter((r) => STAGE_OF[r.status] === stage).length;
+  const count = (stage: string) => list.filter((r) => STAGE_OF[r.status] === stage).length + tracked.filter((t) => t.stage === stage).length;
   const current = tab ?? stages.find((s) => count(s.id))?.id ?? stages[0].id;
   const label = stages.find((s) => s.id === current)!.label;
   const inStage = list.filter((r) => STAGE_OF[r.status] === current);
@@ -68,12 +74,13 @@ export function ServicesBookings() {
   const chips = [...new Set(inStage.flatMap(chipsFor))];
   const picked = chip && chips.includes(chip) ? chip : null;
   const shown = picked ? inStage.filter((r) => chipsFor(r).includes(picked)) : inStage;
+  const shownTracked = picked ? [] : tracked.filter((t) => t.stage === current);
 
   return (
     <div>
       <PageHeader title={servicesManifest.pipeline.label} />
-      {list.length === 0 ? (
-        <EmptyState title="No bookings yet" body="Request a quote from a pro on WonderWorks: their quote, your booking and the job show here." action={{ label: "Find a pro", href: "/app/m/services" }} />
+      {list.length === 0 && tracked.length === 0 ? (
+        <EmptyState title="No bookings yet" body="Request a quote from a pro on WonderWorks, or keep track of a business you contacted on its own page: it shows here." action={{ label: "Find a pro", href: "/app/m/services" }} />
       ) : (
         <section aria-label="Bookings">
           <StageTiles
@@ -85,7 +92,7 @@ export function ServicesBookings() {
               setChip(null);
             }}
           />
-          {shown.length === 0 ? (
+          {shown.length === 0 && shownTracked.length === 0 ? (
             <StageEmpty label={label} />
           ) : (
             <>
@@ -103,6 +110,11 @@ export function ServicesBookings() {
                       badge={{ label: STATUS_LABEL[r.status], tone: TONE[r.status] }}
                       when={relativeTime(r.updatedAt)}
                     />
+                  </li>
+                ))}
+                {shownTracked.map((t) => (
+                  <li key={t.id}>
+                    <StageCard href={listingHref(t.id)} logo={{ name: t.item.company }} company={t.item.company} title={t.item.title} line={t.line} tags={["Outside WonderWorks"]} badge={{ label: t.label, tone: "neutral" }} when={relativeTime(t.ref.at)} />
                   </li>
                 ))}
               </StageList>

@@ -1,0 +1,65 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
+import { stateStore } from "@/server/state";
+import { lastScheduledRunWithin, listImportRuns, MAX_IMPORT_RUNS, recentFailures, recordImportRun, type ImportRun } from "./importRuns";
+import { MONTHLY } from "@/domain/gateway/budget";
+
+const run = (over: Partial<ImportRun> = {}): ImportRun => ({ id: "r", kind: "hourly", trigger: "cron", startedAt: "2026-11-02T10:00:00Z", finishedAt: "2026-11-02T10:00:05Z", items: [], summary: "0 due · 0 collected", ...over });
+
+beforeEach(async () => {
+  await stateStore.put(PLATFORM_TENANT, "wj.importruns", null);
+});
+
+describe("every import run is kept (2026-11-02: persist every run detail)", () => {
+  it("keeps runs newest first, with each source's outcome", async () => {
+    await recordImportRun(run({ id: "a", kind: "import", trigger: "admin", by: "admin@x", items: [{ name: "OSM Mumbai", status: "live", valid: 17 }] }));
+    await recordImportRun(run({ id: "b", items: [{ name: "confs.tech", status: "failed", message: "SOURCE_UNAVAILABLE" }] }));
+    const runs = await listImportRuns();
+    expect(runs.map((r) => r.id)).toEqual(["b", "a"]);
+    expect(runs[1].items[0]).toEqual({ name: "OSM Mumbai", status: "live", valid: 17 });
+  });
+
+  it("folds hourly runs that found nothing in a row into one entry, so they don't push real runs out", async () => {
+    await recordImportRun(run({ id: "real", kind: "import", items: [{ name: "x", status: "live" }] }));
+    await recordImportRun(run({ id: "e1", finishedAt: "2026-11-02T11:00:00Z" }));
+    await recordImportRun(run({ id: "e2", finishedAt: "2026-11-02T12:00:00Z" }));
+    await recordImportRun(run({ id: "e3", finishedAt: "2026-11-02T13:00:00Z" }));
+    const runs = await listImportRuns();
+    expect(runs.map((r) => r.id)).toEqual(["e1", "real"]);
+    expect(runs[0]).toMatchObject({ repeats: 3, finishedAt: "2026-11-02T13:00:00Z" });
+  });
+
+  it("keeps the newest runs only", async () => {
+    for (let i = 0; i < MAX_IMPORT_RUNS + 5; i++) await recordImportRun(run({ id: `r${i}`, items: [{ name: "s", status: "collected", valid: i }] }));
+    const runs = await listImportRuns();
+    expect(runs).toHaveLength(MAX_IMPORT_RUNS);
+    expect(runs[0].id).toBe(`r${MAX_IMPORT_RUNS + 4}`);
+  });
+});
+
+describe("sources that didn't go live lately are left out of Import now (2026-11-02: blocked sites held an import up)", () => {
+  it("lists a source whose latest attempt in the last day failed, with why; a later success, or an older failure, doesn't count", async () => {
+    const now = Date.parse("2026-11-02T15:00:00Z");
+    await recordImportRun(run({ id: "old", kind: "import", finishedAt: "2026-11-01T10:00:00Z", items: [{ id: "gateway:src_old", name: "Old", status: "failed", message: "403" }] }));
+    await recordImportRun(run({ id: "a", kind: "import", finishedAt: "2026-11-02T13:00:00Z", items: [{ id: "gateway:src_h", name: "Houzz", status: "failed", step: "Test", message: "Cannot verify robots policy" }, { id: "gateway:src_x", name: "X", status: "failed", message: "403" }] }));
+    await recordImportRun(run({ id: "b", kind: "module", finishedAt: "2026-11-02T14:00:00Z", items: [{ id: "gateway:src_x", name: "X", status: "live", valid: 4 }] }));
+    const f = await recentFailures(undefined, now);
+    expect([...f.keys()]).toEqual(["gateway:src_h"]);
+    expect(f.get("gateway:src_h")).toEqual({ at: "2026-11-02T13:00:00Z", step: "Test", message: "Cannot verify robots policy" });
+  });
+});
+
+describe("the scheduled pace (2026-11-02: a month within the free plans)", () => {
+  it("knows a scheduled collection ran within the gap, and ignores admin runs", async () => {
+    const now = Date.parse("2026-11-02T12:00:00Z");
+    await recordImportRun(run({ id: "admin", kind: "import", trigger: "admin", finishedAt: "2026-11-02T11:55:00Z", items: [{ name: "x", status: "live" }] }));
+    expect(await lastScheduledRunWithin(150, now)).toBe(false);
+    await recordImportRun(run({ id: "cron", finishedAt: "2026-11-02T10:00:00Z", items: [{ name: "y", status: "collected" }] }));
+    expect(await lastScheduledRunWithin(150, now)).toBe(true);
+    expect(await lastScheduledRunWithin(90, now)).toBe(false);
+  });
+  it("stays within the month's budget", () => {
+    expect(MONTHLY.runs).toBeLessThanOrEqual(240);
+    expect(MONTHLY.perSource).toBeLessThanOrEqual(120);
+  });
+});

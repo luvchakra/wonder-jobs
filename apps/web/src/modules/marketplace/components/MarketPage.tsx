@@ -20,6 +20,8 @@ import { relativeTime } from "@/lib/format";
 import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
+import { MARKETPLACE_OUTSIDE } from "../outside";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { Gallery } from "./Gallery";
 import { ScamWarning } from "./ScamWarning";
 import { shareOf } from "../share";
@@ -106,6 +108,7 @@ function OutsidePanel({ l }: { l: MarketListing }) {
         View on {host}
       </a>
       <p className="text-[12px] text-ink-4">WonderWorks only lists it. Price, stock, delivery and payment are on the shop&apos;s own site, as {l.outside!.business} shows them.</p>
+      <OutsideTracker useStore={useMarketplaceStore} id={l.id} item={l} flow={MARKETPLACE_OUTSIDE} pipelineHref="/app/m/marketplace/pipeline" />
     </div>
   );
 }
@@ -183,6 +186,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
   ];
   return (
     <ListingPage
+      report={{ module: "marketplace", id: l.id }}
       share={shareOf(l)}
       back={owner ? { href: "/app/m/marketplace/company", label: "My listings" } : FIND}
       title={l.title}
@@ -195,7 +199,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
       }
     >
       <ListingMain>
-        <Gallery listingId={l.listingId} photos={l.terms.photos} title={l.title} />
+        <Gallery listingId={l.listingId} photos={l.terms.photos} title={l.title} outside={l.outside?.image ? { src: l.outside.image, credit: l.outside.business } : undefined} />
         <ListingHead
           company={owner ? "You" : l.seller}
           name={owner ? "You" : l.seller}

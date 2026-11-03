@@ -1,4 +1,6 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -36,6 +38,8 @@ export function TeachingCompany() {
   const [form, setForm] = useState<TeachingPosting | "new" | null>(null);
   const [offerFor, setOfferFor] = useState<TeachingApplicationView | null>(null);
   const [tab, setTab] = useState<"openings" | "applications">(params.get("tab") === "applications" ? "applications" : "openings");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -84,7 +88,7 @@ export function TeachingCompany() {
     <OwnerWorkspace
       module="Teaching"
       intro="For schools, colleges and coaching centres: post teaching jobs teachers find on WonderWorks, and review their applications."
-      noWorkspace="Create one for your school in Hiring, then post teaching jobs here."
+      noWorkspace="Set up your school or institute to post teaching jobs."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -125,6 +129,7 @@ export function TeachingCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="teaching" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>

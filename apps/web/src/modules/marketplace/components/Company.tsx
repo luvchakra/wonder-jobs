@@ -1,6 +1,8 @@
 "use client";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus, X } from "lucide-react";
@@ -34,6 +36,8 @@ export function MarketplaceCompany() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Mine | "new" | null>(null);
   const edit = useSearchParams().get("edit");
+  // The + button (?new=1) opens a new listing once the list is in.
+  useOpenNew(list !== null, useCallback(() => setEditing("new"), []));
   const load = () =>
     call<{ listings: Mine[] }>("/api/m/marketplace/listings")
       .then((r) => setList(r.listings))
@@ -97,6 +101,7 @@ export function MarketplaceCompany() {
                         </Button>
                       </>
                     )}
+                    <DeletePost module="marketplace" listingId={`mk_${l.listingId}`} title={l.title} onDeleted={() => void load()} className="min-h-8 px-2 text-[13px] font-medium text-danger-600 hover:underline" />
                   </div>
                 </li>
               ))}

@@ -30,6 +30,7 @@ export const therapistsManifest: ModuleManifest = {
   ],
   response: { verb: "book", questions: false, states: ["requested", "confirmed", "held", "cancelled"], capability: "therapists.book" },
   pipeline: { label: "Sessions", icon: "CalendarClock", stages: stagesOf("Requested", "Upcoming", "Held / Closed") },
+  post: { href: "/app/m/therapists/company", label: "List your practice" },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
   money: { kind: "fee_display", currency: "INR" },

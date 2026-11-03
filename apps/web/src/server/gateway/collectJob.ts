@@ -14,6 +14,9 @@ import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
 import { gatewaySourceModules } from "./admin";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
+import { lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun, RETRY_AFTER_MS, type ImportRun } from "./importRuns";
+import { sendImportEmail } from "./importEmail";
+import { MIN_GAP_MINUTES, SOURCE_FLOOR_MINUTES } from "@/domain/gateway/budget";
 
 export interface GatewayRunResult {
   ok: boolean;
@@ -24,15 +27,27 @@ export interface GatewayRunResult {
   refreshed?: Record<string, number>;
 }
 
-/** Waiting gateway sources to test and activate: added and paused, not tried and failed in the last day, not in a paused module. */
-async function waitingItems(pausedModules: string[]) {
-  const [todo, last] = await Promise.all([setupTodo(), readSetupJob()]);
-  const recent = last?.finishedAt && Date.now() - Date.parse(last.finishedAt) < 86_400_000 ? last : null;
-  const failedLately = new Set(recent?.items.filter((i) => i.status === "failed").map((i) => i.id) ?? []);
-  return todo.items.filter((i) => i.run?.kind === "activate" && !failedLately.has(i.id) && !pausedModules.includes(i.module)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+/**
+ * Sources that didn't go live in the last day: from the run records, and from the last import job itself (runs recorded
+ * before 2026-11-02 carry no ids).
+ */
+export async function failedLately(): Promise<Map<string, { at: string; step?: string; message?: string }>> {
+  const [runs, job] = await Promise.all([recentFailures(), readSetupJob().catch(() => null)]);
+  const out = new Map(runs);
+  const at = job?.finishedAt ?? job?.createdAt;
+  if (job && at && Date.now() - Date.parse(at) < RETRY_AFTER_MS)
+    for (const i of job.items) if (i.status === "failed" && !out.has(i.id)) out.set(i.id, { at: i.finishedAt ?? at, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}) });
+  return out;
 }
 
-export async function runGatewayCollection(trigger: "cron" | "admin", origin: string): Promise<GatewayRunResult> {
+/** Waiting gateway sources to test and activate: added and paused, not tried and failed in the last day, not in a paused module. */
+async function waitingItems(pausedModules: string[], dismissed: string[] = []) {
+  const [todo, failed] = await Promise.all([setupTodo(), failedLately()]);
+  const skip = new Set([...failed.keys(), ...dismissed]);
+  return todo.items.filter((i) => i.run?.kind === "activate" && !skip.has(i.id) && !pausedModules.includes(i.module)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+}
+
+export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail): Promise<GatewayRunResult> {
   const startedAt = new Date().toISOString();
   const hosted = hostedGateway();
   if (!hosted) return { ok: true, skipped: "gateway not configured", summary: "Gateway not configured" };
@@ -40,14 +55,21 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
 
   let queued = 0;
   if (settings.gateway.activateWaiting && !jobRunning(await readSetupJob())) {
-    const items = await waitingItems(settings.gateway.pausedModules).catch(() => []);
+    const items = await waitingItems(settings.gateway.pausedModules, settings.gateway.dismissed).catch(() => []);
     if (items.length) {
       const r = await startSetupJob(items, trigger === "admin" ? "Scheduler (Run now)" : "Scheduler", new Date(), "scheduler");
       if (r.ok) queued = r.job.items.length;
     }
   }
 
-  const outcomes = (await hosted.gateway.collectDue(undefined, settings.gateway.pausedModules)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
+  // A scheduled trigger right after the last one only carries a running import on (domain/gateway/budget.ts).
+  if (trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
+    const running = jobRunning(await readSetupJob());
+    if (running) await handOnSetupJob(origin);
+    return { ok: true, skipped: "ran recently", summary: running ? "Ran recently · Setup job continuing" : "Ran recently: nothing to do" };
+  }
+  const floor = trigger === "cron" ? SOURCE_FLOOR_MINUTES : 0;
+  const outcomes = (await hosted.gateway.collectDue(undefined, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
   if (setupRunning) await handOnSetupJob(origin);
 
@@ -66,7 +88,24 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   else if (setupRunning) parts.push("Setup job continuing");
   if (refreshed) parts.push(`Find refreshed: ${Object.entries(refreshed).map(([m, n]) => `${n} ${m}`).join(", ")}`);
   const summary = parts.join(" · ");
-  await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt: new Date().toISOString(), outcome: failed && !collected.length ? "failed" : "ok", summary });
+  const finishedAt = new Date().toISOString();
+  await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt, outcome: failed && !collected.length ? "failed" : "ok", summary });
+  // The run's own record, with each source's outcome (Data → Import → Runs).
+  const names = await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>());
+  const record: ImportRun = {
+    id: `hourly_${Date.parse(startedAt).toString(36)}`,
+    kind: "hourly",
+    trigger: trigger === "admin" ? "admin" : "cron",
+    startedAt,
+    finishedAt,
+    items: outcomes.filter((o) => o.code !== "DEFERRED").map((o) => ({ name: names.get(o.sourceId) ?? o.sourceId, status: o.ok ? "collected" : "failed", ...(o.valid != null ? { valid: o.valid } : {}), ...(o.ok ? {} : { message: o.code ?? "failed" }) })),
+    ...(refreshed ? { stored: refreshed } : {}),
+    summary,
+  };
+  const earlier = await listImportRuns().catch(() => []);
+  await recordImportRun(record);
+  // The admins hear about every collection that collected or refreshed anything, like an import (importEmail.ts).
+  await notify(record, earlier);
   return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
 }
 
@@ -76,20 +115,25 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
  * module's Find when it finishes; with nothing waiting, the collection runs now and refreshes every module itself.
  * Either way the work runs on the server after the answer; the page shows how far it got.
  */
-export async function startImport(by: string, origin: string): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {
+export async function startImport(by: string, origin: string): Promise<{ ok: true; queued: number; skipped: number } | { ok: false; message: string }> {
   if (!hostedGateway()) return { ok: false, message: "The gateway isn't configured on this deployment." };
   if (jobRunning(await readSetupJob())) return { ok: false, message: "An import is already running on the server." };
-  const { pausedModules } = (await loadScheduler()).gateway;
-  const items = (await setupTodo()).items.filter((i) => i.run && !pausedModules.includes(i.module)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+  const [{ pausedModules, dismissed }, failed] = await Promise.all([loadScheduler().then((s) => s.gateway), failedLately()]);
+  // Sources that didn't go live in the last day (a site that refuses us, a test that found nothing) are left out:
+  // retrying every one held a whole import up. Each still has its own Test & activate on its module's card.
+  const waiting = (await setupTodo()).items.filter((i) => i.run && !pausedModules.includes(i.module) && !dismissed.includes(i.id));
+  const items = waiting.filter((i) => !failed.has(i.id)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+  const skipped = waiting.length - items.length;
   if (items.length) {
     const r = await startSetupJob(items, by);
     if (!r.ok) return { ok: false, message: r.message };
-    // The job's own call does the work and hands the rest on; the collection runs on its hourly schedule.
+    // The job's own call does the work and hands the rest on, and refreshes every module's Find when it's done.
     await handOnSetupJob(origin);
-    return { ok: true, queued: r.job.items.length };
+    return { ok: true, queued: r.job.items.length, skipped };
   }
+  // Nothing new to set up: collect what's due and refresh every module's Find now.
   await runGatewayCollection("admin", origin);
-  return { ok: true, queued: 0 };
+  return { ok: true, queued: 0, skipped };
 }
 
 /**
@@ -99,13 +143,14 @@ export async function startImport(by: string, origin: string): Promise<{ ok: tru
 export async function startModuleImport(module: string, by: string, origin: string): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {
   const hosted = hostedGateway();
   if (!hosted) return { ok: false, message: "The gateway isn't configured on this deployment." };
-  if ((await loadScheduler()).gateway.pausedModules.includes(module)) return { ok: false, message: "This module's import is paused; resume it first." };
+  const gw = (await loadScheduler()).gateway;
+  if (gw.pausedModules.includes(module)) return { ok: false, message: "This module's import is paused; resume it first." };
   if (jobRunning(await readSetupJob())) return { ok: false, message: "An import is already running on the server." };
-  const waiting = (await setupTodo()).items.filter((i) => i.run && i.module === module).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
+  const waiting = (await setupTodo()).items.filter((i) => i.run && i.module === module && !gw.dismissed.includes(i.id)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
   const live = await hosted.store.read((s) => (s.sources as { id: string; attribution?: string; modules: string[]; enabled: boolean; kind: string; externalCollection?: boolean }[]).filter((x) => x.enabled && x.modules.includes(module) && x.kind !== "upload" && !x.externalCollection).map((x) => ({ id: `collect:${x.id}`, name: String(x.attribution ?? x.id), run: { kind: "collect" as const, sourceId: x.id } })));
   const items = [...waiting, ...live];
   if (!items.length) return { ok: false, message: "Nothing to import for this module: no waiting sources and no live gateway sources." };
-  const r = await startSetupJob(items, by);
+  const r = await startSetupJob(items, by, new Date(), "admin", { kind: "module", module });
   if (!r.ok) return { ok: false, message: r.message };
   await handOnSetupJob(origin);
   return { ok: true, queued: r.job.items.length };

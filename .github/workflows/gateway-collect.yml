@@ -1,4 +1,4 @@
-# WorksLake gateway collection every hour, between Vercel's once-a-day cron runs (Vercel's plan allows daily crons only).
+# WorksLake gateway collection every 3 hours, between Vercel's once-a-day cron runs (a pace that fits the free plans for a month: domain/gateway/budget.ts).
 # Calls /api/cron/gateway-collect with the same CRON_SECRET Vercel's crons use. The route collects only active sources
 # that are due (each source's own interval), honours robots and crawl delays, and is safe to call twice: a source that
 # is already being collected is skipped. Needs the repository secret CRON_SECRET (same value as on Vercel).
@@ -6,7 +6,7 @@ name: Gateway collection
 
 on:
   schedule:
-    - cron: "41 * * * *"
+    - cron: "41 */3 * * *" # every 3 hours (domain/gateway/budget.ts: fits the free plans)
   workflow_dispatch:
 
 permissions:

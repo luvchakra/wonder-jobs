@@ -1,6 +1,7 @@
 "use client";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
@@ -23,6 +24,8 @@ export function CofoundersTeams() {
   const [teams, setTeams] = useState<MyTeam[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<MyTeam | "new" | null>(null);
+  // The + button (?new=1) opens Start a team once the teams are in.
+  useOpenNew(teams !== null, useCallback(() => setForm("new"), []));
   const load = () =>
     call<{ teams: MyTeam[] }>("/api/m/cofounders/teams")
       .then((r) => (setTeams(r.teams), setError(null)))

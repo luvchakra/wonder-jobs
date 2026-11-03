@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PLATFORM_TENANT } from "@/server/billing/plansConfig";
 import { stateStore } from "@/server/state";
 import { continueSetupJob, readSetupJob, SETUP_BUDGET_MS, startSetupJob, type SetupRun } from "./setupJob";
+import { listImportRuns } from "./importRuns";
 
 const item = (n: number) => ({ id: `gateway:src_${n}`, name: `Source ${n}`, run: { kind: "activate", sourceId: `src_${n}` } as SetupRun });
 
 beforeEach(async () => {
   await stateStore.put(PLATFORM_TENANT, "wj.setupjob", null);
+  await stateStore.put(PLATFORM_TENANT, "wj.importruns", null);
 });
 
 describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
@@ -56,11 +58,15 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("a job where nothing went live refreshes nothing", async () => {
-    await startSetupJob([item(1)], "admin");
+  it("the hourly set-up refreshes nothing when nothing went live; an admin's import always ends with a refresh", async () => {
     const refresh = vi.fn(async () => ({ stored: {} }));
-    await continueSetupJob({ run: async () => ({ ok: false as const, step: "Test", message: "no" }), sleep: async () => undefined, refresh });
+    const fail = async () => ({ ok: false as const, step: "Test", message: "no" });
+    await startSetupJob([item(1)], "Scheduler", new Date(), "scheduler");
+    await continueSetupJob({ run: fail, sleep: async () => undefined, refresh });
     expect(refresh).not.toHaveBeenCalled();
+    await startSetupJob([item(2)], "admin@example.com");
+    await continueSetupJob({ run: fail, sleep: async () => undefined, refresh });
+    expect(refresh).toHaveBeenCalledTimes(1); // 2026-11-02: an import of blocked sites still refreshed nothing
   });
 
   it("a collect item only collects a live source (Import this module)", async () => {
@@ -71,6 +77,35 @@ describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
     expect(run).toHaveBeenCalledWith({ kind: "collect", sourceId: "src_1" }, expect.any(Function));
     expect((await readSetupJob())?.items[0]).toMatchObject({ status: "live", valid: 9 });
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves each step as it happens, so a reloaded page shows where the job is, and records the run when it finishes", async () => {
+    await startSetupJob([item(1), item(2)], "admin@example.com", new Date(), "admin", { kind: "module", module: "therapists" });
+    const seen: { status: string; step?: string }[] = [];
+    const run = vi.fn(async (r: SetupRun, onStep?: (s: string) => void) => {
+      onStep?.("Test");
+      await new Promise((res) => setTimeout(res, 0));
+      const saved = (await readSetupJob())!.items.find((i) => i.status === "running");
+      seen.push({ status: saved!.status, step: saved!.step });
+      return { ok: true as const, valid: 3, sourceId: (r as { sourceId: string }).sourceId };
+    });
+    await continueSetupJob({ run, sleep: async () => undefined, refresh: async () => ({ stored: { therapists: 6 } }) });
+    expect(seen).toEqual([{ status: "running", step: "Test" }, { status: "running", step: "Test" }]);
+    const job = (await readSetupJob())!;
+    expect(job.items.every((i) => i.startedAt && i.finishedAt)).toBe(true);
+    const [rec] = await listImportRuns();
+    expect(rec).toMatchObject({ kind: "module", module: "therapists", by: "admin@example.com", stored: { therapists: 6 }, summary: "2 of 2 went live · Find refreshed" });
+    expect(rec.items).toEqual([{ id: "gateway:src_1", name: "Source 1", status: "live", valid: 3 }, { id: "gateway:src_2", name: "Source 2", status: "live", valid: 3 }]);
+  });
+
+  it("emails the admins once when it finishes, with the run and the runs before it (2026-11-03)", async () => {
+    await startSetupJob([item(1)], "admin@example.com");
+    const notify = vi.fn(async () => undefined);
+    const run = vi.fn(async (r: SetupRun) => ({ ok: true as const, valid: 2, sourceId: (r as { sourceId: string }).sourceId }));
+    await continueSetupJob({ run, sleep: async () => undefined, refresh: async () => ({ stored: { therapists: 8 } }), notify });
+    await continueSetupJob({ run, sleep: async () => undefined, notify }); // already finished: no second email
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0]).toEqual([expect.objectContaining({ stored: { therapists: 8 } }), []]);
   });
 
   it("does nothing with no job, and nothing to queue is refused", async () => {

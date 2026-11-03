@@ -4,10 +4,13 @@ import { planPoints } from "./Pricing";
 
 describe("pricing on the landing page", () => {
   it("says what each plan gives from its own configured numbers", () => {
-    expect(planPoints(DEFAULT_PLANS.plans.free)).toEqual(["1 role to search for", "1 scheduled search, weekly", "5 AI drafts a month", "2 résumé designs"]);
+    // What every module shares first, then Jobs' own (2026-11-02: plans read as WonderWorks).
+    expect(planPoints(DEFAULT_PLANS.plans.free)).toEqual(["1 scheduled search across every module, weekly", "5 WonderWorks AI drafts a month", "Jobs: 1 role to search as", "Jobs: 2 résumé designs"]);
     const pro = planPoints({ ...DEFAULT_PLANS.plans.pro, aiDraftsPerMonth: 75 });
-    expect(pro).toContain("75 AI drafts a month");
-    expect(pro).toContain("Apply with Wonder — fills employer forms, on computer and phone");
+    expect(pro).toContain("75 WonderWorks AI drafts a month");
+    // The helper fills forms in a desktop browser only; phones apply the traditional way (CLAUDE.md).
+    expect(pro).toContain("Jobs: the WonderWorks helper fills employers' forms in your desktop browser");
+    expect(pro.join(" ")).not.toMatch(/phone/);
   });
 
   it("never lists the ATS report, which has no screen yet", () => {

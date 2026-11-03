@@ -15,7 +15,7 @@ vi.mock("@/server/gateway/listings", () => ({
 import type { GatewayListing } from "../../../../data-gateway/src/core.mjs";
 import { CITIES } from "@/wonderworks/find/cities";
 import { OSM_ATTRIBUTION, OSM_GATEWAY_NAME } from "@/wonderworks/find/osm";
-import { isPracticeName, practiceKind, readOsmTags, termsFromOsm } from "@/modules/therapists/domain";
+import { cleanPhone, isPracticeName, practiceKind, readOsmTags, termsFromOsm } from "@/modules/therapists/domain";
 import { shareOf } from "@/modules/therapists/share";
 import { fetchOsmPractices, OPENSTREETMAP_THERAPISTS, rawFromOsm, runTherapistsSource, THERAPISTS_SOURCES, therapistsSourceAvailable } from "./sources";
 import { outside } from "./search";
@@ -32,12 +32,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("an OpenStreetMap practice as a listing", () => {
-  it("keeps what the map has about a named practice, and nothing about a person: no phone, no email, no address, no licence", () => {
-    const raw = rawFromOsm(listing("way/42", "Calm Minds Counselling Centre", { healthcare: "counselling", clat: PUNE.lat + 0.01, clon: PUNE.lon, suburb: "Kothrud", website: "https://calmminds.example.in", phone: "+919876543210", email: "asha@example.in", street: "12 Rose Lane" }))!;
+  it("keeps what the map has about a named practice: its published phone and website, but no email, no address, no licence", () => {
+    const raw = rawFromOsm(listing("way/42", "Calm Minds Counselling Centre", { healthcare: "counselling", clat: PUNE.lat + 0.01, clon: PUNE.lon, suburb: "Kothrud", website: "https://calmminds.example.in", phone: "+91 20 1234 5678", email: "asha@example.in", street: "12 Rose Lane" }))!;
     expect(raw).toMatchObject({ title: "Calm Minds Counselling Centre", company: "Calm Minds Counselling Centre", location: "Pune", city: "Pune", applyUrl: "https://www.openstreetmap.org/way/42", employerSite: false });
     expect(raw.description).toBe("Counselling practice in Kothrud, Pune. Listed on OpenStreetMap.");
-    expect(JSON.stringify(raw)).not.toMatch(/9876543210|asha@example|Rose Lane/);
-    expect(readOsmTags(raw.tags!)).toEqual({ healthcare: "counselling", city: "Pune", web: "https://calmminds.example.in" });
+    expect(JSON.stringify(raw)).not.toMatch(/asha@example|Rose Lane/);
+    expect(readOsmTags(raw.tags!)).toEqual({ healthcare: "counselling", city: "Pune", web: "https://calmminds.example.in", phone: "+91 20 1234 5678" });
+    // A phone written the other way the map allows (contact:phone) is read too; a junk one is dropped.
+    expect(readOsmTags(rawFromOsm(listing("node/9", "Calm Minds Counselling Centre", { healthcare: "counselling", lat: PUNE.lat, lon: PUNE.lon, contactPhone: "+91 98765 43210; 020 111 2222" }))!.tags!).phone).toBe("+91 98765 43210");
+    expect(readOsmTags(rawFromOsm(listing("node/10", "Calm Minds Counselling Centre", { healthcare: "counselling", lat: PUNE.lat, lon: PUNE.lon, phone: "ask at the desk" }))!.tags!).phone).toBeUndefined();
     // In person only, no fee, language or focus stated: nothing is shown that the map doesn't have.
     expect(termsFromOsm()).toEqual({ currency: "INR", modes: ["in_person"] });
   });
@@ -54,8 +57,12 @@ describe("an OpenStreetMap practice as a listing", () => {
   });
 
   it("tells a practice's name from a person's", () => {
+    expect(cleanPhone("+91 20 1234 5678")).toBe("+91 20 1234 5678");
     for (const n of ["Calm Minds Counselling Centre", "Delhi Psychology Associates", "Sunrise Clinic", "Mann Wellness Studio", "Hope Foundation"]) expect(isPracticeName(n), n).toBe(true);
     for (const n of ["Dr. Anita Sharma", "Anita Sharma", "Rakesh Mehta", "Mr. K. Iyer"]) expect(isPracticeName(n), n).toBe(false);
+    // A clinic named after its doctor is a business mapped as one, so it stays (owner, 2026-11-02).
+    for (const n of ["Neuro Clinic - Neurologist indore - Dr. Dinesh Chouksey", "Dr Mehta's Clinic", "Prof. Rao Counselling Centre", "Sunrise Clinic (Dr. A. Rao)"]) expect(isPracticeName(n), n).toBe(true);
+    expect(isPracticeName("Doctors Hospital & Research Centre")).toBe(true);
     expect(practiceKind({ healthcare: "psychotherapist" })).toBe("Psychotherapy practice");
     expect(practiceKind({ amenity: "doctors" })).toBe("Medical practice");
   });
@@ -65,6 +72,10 @@ describe("an OpenStreetMap practice as a listing", () => {
     expect(outside(o("https://calmminds.example.in"))).toMatchObject({ origin: "outside", attribution: OSM_ATTRIBUTION, applyUrl: "https://calmminds.example.in", terms: { currency: "INR", modes: ["in_person"] }, sourceName: "OpenStreetMap" });
     expect(outside(o())).toMatchObject({ attribution: "© OpenStreetMap contributors", applyUrl: "https://www.openstreetmap.org/way/42" });
     expect(outside(o()).postingId).toBeUndefined();
+    // What the details page needs to name each way in: the map page, the kind of practice, and the published phone.
+    const full = outside({ ...(o("https://calmminds.example.in") as object), enrichment: { tags: ["hc:counselling", "city:Pune", "web:https://calmminds.example.in", "tel:+91 20 1234 5678"] } } as unknown as Parameters<typeof outside>[0]);
+    expect(full).toMatchObject({ mapUrl: "https://www.openstreetmap.org/way/42", practiceKind: "Counselling practice", phone: "+91 20 1234 5678", applyUrl: "https://calmminds.example.in" });
+    expect(outside(o()).phone).toBeUndefined();
     expect(outside(o()).terms.feeMin).toBeUndefined();
   });
 });
@@ -137,8 +148,10 @@ describe("what Share does with a mapped practice, and the definition files", () 
       expect(validateSource(d).permissionEvidence).toBe(d.permissionEvidence);
       expect(d.permissionEvidence.length).toBeLessThan(500);
       expect(d.extraUrls.length + 1).toBeLessThanOrEqual(7);
-      // No contact details and no address are mapped.
-      expect(Object.keys(d.mapping).concat(Object.values(d.mapping).flat() as string[]).filter((x) => x.startsWith("tags.") || x.startsWith("attr.")).join(" ")).not.toMatch(/phone|email|contact|addr:street|housenumber|operator/i);
+      // The practice's published phone is mapped; no email, address or operator is.
+      const mapped = Object.keys(d.mapping).concat(Object.values(d.mapping).flat() as string[]).filter((x) => x.startsWith("tags.") || x.startsWith("attr.")).join(" ");
+      expect(mapped).toMatch(/tags\.phone/);
+      expect(mapped).not.toMatch(/email|addr:street|housenumber|operator|contact:email|contact:website/i);
       for (const u of [d.url, ...d.extraUrls]) {
         const url = new URL(u);
         expect(url.hostname).toBe("overpass-api.de");

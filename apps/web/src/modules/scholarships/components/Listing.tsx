@@ -18,7 +18,7 @@ import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useAIService } from "@/lib/useAIService";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { deadlineLabel, daysLeft, KIND_LABEL, LEVEL_LABEL, LEVELS, levelsLabel, matchScholarship, missingProfile, outsideStatus, valueLabel, WORK_MODE_LABEL, type Level, type ScholarshipListing, type ScholarshipMatch, type StudentProfile } from "../domain";
+import { deadlineLabel, daysLeft, providerWord, KIND_LABEL, LEVEL_LABEL, LEVELS, levelsLabel, matchScholarship, missingProfile, outsideStatus, valueLabel, WORK_MODE_LABEL, type Level, type ScholarshipListing, type ScholarshipMatch, type StudentProfile } from "../domain";
 import { listingHref } from "../manifest";
 import { selectProfile, useScholarshipsStore } from "../store";
 import { shareOf } from "../share";
@@ -67,9 +67,11 @@ export const ScholarshipCard = memo(function ScholarshipCard({ item: l, onOpen }
         </Link>
       }
       facts={[
-        <span key="c" className="font-medium text-ink-2">
-          {l.company}
-        </span>,
+        l.company && (
+          <span key="c" className="font-medium text-ink-2">
+            {l.company}
+          </span>
+        ),
         l.origin === "wonderstar" && !l.companyVerified && <span key="v">not verified yet</span>,
         <span key="k">{KIND_LABEL[t.kind]}</span>,
         value && (
@@ -121,11 +123,11 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
     window.open(l.applyUrl, "_blank", "noopener,noreferrer");
     if (!applied && outsideStatus(useScholarshipsStore.getState().responses[l.id]) === null) setResponse(l.id, "preparing", { status: "preparing", mark: "apply_opened", item: l });
   };
-  const hint = () => toast.info(`Opened ${l.company}'s official page`, `Apply there — it's free. Then mark it applied to track it in Applications.`, { label: "I applied", onClick: remember });
+  const hint = () => toast.info(l.company ? `Opened ${l.company}'s official page` : "Opened the official page", `Apply there — it's free. Then mark it applied to track it in Applications.`, { label: "I applied", onClick: remember });
 
   if (l.origin === "outside" && card)
     return applied ? null : (
-      <button type="button" aria-label={`Apply to ${l.title} on ${l.company}'s official page (opens in a new tab)`} title="Apply on the official page" className={APPLY_BTN} onClick={() => (opened(), hint())}>
+      <button type="button" aria-label={`Apply to ${l.title} on its official page (opens in a new tab)`} title="Apply on the official page" className={APPLY_BTN} onClick={() => (opened(), hint())}>
         Apply
         <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
       </button>
@@ -144,12 +146,12 @@ export function ApplyButton({ listing: l, size = "md", full, card }: { listing: 
       await call<{ id: string }>("/api/m/scholarships/apply", { body: { postingId: l.postingId, name: s.name, profile: s.profile, answers: s.answers, statement: s.statement, shareSensitive: s.shareSensitive, ...(s.fileId ? { resumeFileId: s.fileId } : {}), consent: true, confirmed: s.decision === "ask" } });
       remember();
       setSheet(null);
-      toast.success(`Application sent to ${l.company}`, "Track it in Applications.");
+      toast.success(`Application sent to ${providerWord(l)}`, "Track it in Applications.");
     } catch (e) {
       if ((e as { status?: number }).status === 409 && /already applied/i.test((e as Error).message)) {
         remember();
         setSheet(null);
-        toast.info("You've already applied", `${l.company} has your application.`);
+        toast.info("You've already applied", `${providerWord(l)} has your application.`);
         return;
       }
       throw e;

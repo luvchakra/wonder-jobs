@@ -12,6 +12,7 @@ import { json, readJson } from "@/server/jobslake/http";
 import { importView } from "@/server/jobslake/importView";
 import { setupTodo } from "@/server/jobslake/setup";
 import { loadScheduler, saveScheduler } from "@/server/scheduler/store";
+import { cleanEmailList } from "@/domain/scheduler/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,13 +45,22 @@ export async function POST(req: Request) {
   if (action === "import") {
     const r = await startImport(a.actor, origin);
     if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);
-    await audit(a.actor, "import.started", undefined, { queued: r.queued });
+    await audit(a.actor, "import.started", undefined, { queued: r.queued, skipped: r.skipped });
     if (r.queued)
       after(async () => {
         const c = await continueSetupJob();
         if (c.left && c.ran) await handOnSetupJob(origin);
       });
-    return json({ ok: true, queued: r.queued });
+    return json({ ok: true, queued: r.queued, skipped: r.skipped });
+  }
+  if (action === "continue") {
+    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours): carry it on now.
+    after(async () => {
+      const c = await continueSetupJob();
+      if (c.left && c.ran) await handOnSetupJob(origin);
+    });
+    await audit(a.actor, "import.continued", undefined, {});
+    return json({ ok: true });
   }
   if (action === "item") {
     // Only an item the server itself lists as runnable: the page sends its id, never what to run.
@@ -60,6 +70,14 @@ export async function POST(req: Request) {
     const r = await runSetupItem(item.run);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
     return json(r, r.ok ? 200 : 422);
+  }
+  if (action === "emails") {
+    // The "import finished" email's settings (Data → Import → Emails); every field checked by cleanScheduler.
+    const current = await loadScheduler();
+    const next = { ...current.importEmail, ...(typeof body?.imports === "boolean" ? { imports: body.imports } : {}), ...(typeof body?.hourly === "boolean" ? { hourly: body.hourly } : {}), ...(body?.to !== undefined ? { to: cleanEmailList(body.to) } : {}) };
+    const saved = await saveScheduler({ ...current, importEmail: next }, a.actor);
+    await audit(a.actor, "scheduler.update", undefined, { importEmail: { imports: saved.importEmail.imports, hourly: saved.importEmail.hourly, recipients: saved.importEmail.to.length } });
+    return json({ ok: true, importEmail: saved.importEmail });
   }
   if (action === "schedule") {
     const current = await loadScheduler();
@@ -89,6 +107,18 @@ export async function POST(req: Request) {
       if (c.left && c.ran) await handOnSetupJob(origin);
     });
     return json({ ok: true, queued: r.queued });
+  }
+  if (action === "dismiss") {
+    // A source that keeps failing (a site that refuses us): Import never tries it until restored. Audited.
+    const id = typeof body?.id === "string" ? body.id.slice(0, 120) : "";
+    if (!/^(gateway:src_[a-f0-9]{24}|catalogue:[a-z0-9-]{1,80}\.json)$/.test(id)) return jlError("INVALID_REQUEST", "Name the source.", 400);
+    const current = await loadScheduler();
+    const set = new Set(current.gateway.dismissed);
+    if (body?.dismissed === false) set.delete(id);
+    else set.add(id);
+    await saveScheduler({ ...current, gateway: { ...current.gateway, dismissed: [...set] } }, a.actor);
+    await audit(a.actor, body?.dismissed === false ? "import.source_restored" : "import.source_dismissed", undefined, { id });
+    return json({ ok: true });
   }
   if (action === "source_status") {
     // A WorksLake source paused or resumed by the admin (the same change its own page makes), audited there.

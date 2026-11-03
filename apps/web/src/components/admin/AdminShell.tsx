@@ -1,4 +1,5 @@
 "use client";
+import { WonderStarMark, WonderStarWord } from "@/wonderworks/brand/Logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -39,7 +40,7 @@ const LAKE = "/platform/jobs-lake";
  * Two sections. Data: where listings come from (Sources), what they are (Listings), and who offers them
  * (Organisations: companies, schools, practices, organisers, shops). Platform: keeping it running (Operations),
  * money (Billing) and settings. Pages that belong to another page are reached from it (SUB_PAGES), not the rail:
- * Add a source from Sources and Import, Storage limits and Data database from Databases. Alerts are on Health and
+ * Add a source from Sources and Import, Storage limits from Databases; DDBs (each module's own data database) are under Sources. Alerts are on Health and
  * source credentials on Keys. Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
  */
 export const ADMIN_MENUS: AdminMenu[] = [
@@ -58,6 +59,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/import`, label: "Import" },
       { href: `${LAKE}/sources`, label: "All sources" },
       { href: `${LAKE}/keys`, label: "Keys" },
+      { href: `${LAKE}/data-db`, label: "DDBs" },
     ],
   },
   {
@@ -69,6 +71,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/quality`, label: "Quality" },
       { href: `${LAKE}/insights`, label: "Source insights" },
       { href: `${LAKE}/playground`, label: "Try a search" },
+      { href: `${LAKE}/moderation`, label: "Moderation" },
     ],
   },
   {
@@ -124,7 +127,6 @@ export const ADMIN_MENUS: AdminMenu[] = [
 export const SUB_PAGES: Record<string, string> = {
   [`${LAKE}/add`]: `${LAKE}/sources`,
   [`${LAKE}/storage`]: `${LAKE}/databases`,
-  [`${LAKE}/data-db`]: `${LAKE}/databases`,
 };
 
 /** The page a path belongs to: the longest link that it is, or sits under. The Overview matches only itself. */
@@ -253,13 +255,13 @@ function Brand() {
   return (
     <Link href={LAKE} className="flex items-center gap-2.5">
       <span
-        className="grid size-9 place-items-center rounded-[10px] bg-brand-500 text-[15px] font-bold text-white"
+        className="grid size-9 place-items-center rounded-[10px] bg-white"
         aria-hidden
       >
-        W
+        <WonderStarMark className="h-6 w-auto" />
       </span>
-      <span className="hidden text-[15px] font-semibold text-white sm:inline">
-        WonderWorks Admin
+      <span className="text-[15px]">
+        <WonderStarWord dark /> <span className="font-semibold text-white">Admin</span>
       </span>
     </Link>
   );
@@ -275,7 +277,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [sheet, setSheet] = useState(false);
-  // The way back to the app is a prominent button on every admin page (owner, 2026-11-01).
+  // The way back to the app (owner, 2026-11-01), at the end of the menu list (owner, 2026-11-03).
   const back = (label: string, className?: string) => (
     <Link
       href="/app"
@@ -298,12 +300,13 @@ export function AdminShell({
   return (
     <div className="flex min-h-dvh bg-bg">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 bg-[#15132b] px-3 py-5 text-white/80 lg:flex">
-        <div className="flex flex-col gap-4 px-2">
+        <div className="px-2">
           <Brand />
-          {back("Back to WonderWorks", "py-2.5")}
         </div>
+        {/* Back to WonderWorks closes the menu list (owner, 2026-11-03). */}
         <div className="flex-1 overflow-y-auto">
           <Nav pathname={pathname} />
+          <div className="mt-4 px-2">{back("Back to WonderWorks", "py-2.5")}</div>
         </div>
         {footer}
       </aside>
@@ -313,7 +316,6 @@ export function AdminShell({
           <div className="flex items-center justify-between px-4 py-3">
             <Brand />
             <div className="flex items-center gap-2">
-              {back("WonderWorks", "h-10")}
               <button
                 type="button"
                 onClick={() => setSheet((v) => !v)}
@@ -336,6 +338,7 @@ export function AdminShell({
                 pathname={pathname}
                 onNavigate={() => setSheet(false)}
               />
+              {back("Back to WonderWorks", "py-2.5")}
               {footer}
             </div>
           )}

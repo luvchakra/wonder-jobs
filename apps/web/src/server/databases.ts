@@ -7,7 +7,7 @@
  */
 import { getSupabaseAdmin, type AdminClient } from "./supabase";
 import { dbGuard } from "./dbGuard";
-import { dataDbNow, DATA_TABLES } from "./dataDb";
+import { isLegacyKey, moduleDataDbs, tablesFor } from "./dataDb";
 import { loadSafeguards } from "./jobslake/safeguards";
 
 export interface DbHealth {
@@ -22,7 +22,7 @@ export interface DbHealth {
 }
 
 export interface DbReport {
-  id: "adb" | "ddb";
+  id: "adb" | `ddb:${string}`;
   name: string;
   holds: string;
   /** False for a DDB that isn't set up (its data is in the ADB). */
@@ -37,6 +37,8 @@ export interface DbReport {
   roundTripMs: number | null;
   health: DbHealth | null;
   guard: { active: number; waiting: number; failures: number; open: boolean; refusedBusy: number; refusedBreaker: number; timedOut: number };
+  /** Which of its keys are legacy JWT keys, retired at the end of 2026 (never the keys themselves). */
+  legacyKeys?: string[];
   error?: string;
 }
 
@@ -77,20 +79,30 @@ async function measure(c: AdminClient, probeTable: string): Promise<{ usage: { d
   // A data database set up before db_health() existed (the setup script gained it with the Databases page): say how to
   // add it, not the database's own words.
   const missing = (e: { message: string } | null) => !!e && /schema cache|does not exist|PGRST202/i.test(e.message);
-  const rerun = "Run the setup script again in the data database (Data database → Copy script → its SQL editor → Run; safe to re-run).";
+  const rerun = "Run the setup script again in the DDB (Sources → DDBs → Setup script → Copy script → its SQL editor → Run; safe to re-run).";
   const error = probe.error?.message ?? (missing(u.error) ? `Size unavailable. ${rerun}` : u.error?.message) ?? (h.error ? (missing(h.error) ? `Performance figures unavailable. ${rerun}` : `Performance figures unavailable: ${h.error.message}`) : undefined);
   return { usage: (u.data as { db_bytes: number; tables?: DbReport["tables"] } | null) ?? null, raw: (h.data as Raw | null) ?? null, ms, error };
 }
 
-export async function databasesReport(): Promise<{ adb: DbReport; ddb: DbReport }> {
+export async function databasesReport(labels: Record<string, string> = {}): Promise<{ adb: DbReport; modules: DbReport[] }> {
   const { settings } = await loadSafeguards();
   const main = getSupabaseAdmin();
-  const data = await dataDbNow();
-  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: data ? "Accounts, saves, applications, settings and the gateway's configuration." : "Everything: the app's data and, with no data database switched on, WorksLake's data too.", configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
-  const ddbBase = { id: "ddb" as const, name: "Data database (DDB)", holds: `WorksLake's ${DATA_TABLES.map((t) => t.replace(/_/g, " ")).join(", ")}.`, configured: !!data, limitMb: settings.dataLimitMb, guard: data?.guard ?? { active: 0, waiting: 0, failures: 0, open: false, refusedBusy: 0, refusedBreaker: 0, timedOut: 0 } };
-  const [adb, ddb] = await Promise.all([
-    main ? measure(main, "tenants").then((m) => shapeReport(adbBase, m.usage, m.raw, m.ms, m.error)).catch((e) => shapeReport(adbBase, null, null, null, e instanceof Error ? e.message : String(e))) : Promise.resolve(shapeReport(adbBase, null, null, null, "No database is configured on this deployment.")),
-    data ? measure(data.client, "gateway_listings").then((m) => shapeReport(ddbBase, m.usage, m.raw, m.ms, m.error)).catch((e) => shapeReport(ddbBase, null, null, null, e instanceof Error ? e.message : String(e))) : Promise.resolve(shapeReport(ddbBase, null, null, null)),
-  ]);
-  return { adb, ddb };
+  // Each module's own data database (owner, 2026-11-03), each on the data databases' plan size.
+  const mods = await moduleDataDbs();
+  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: `Accounts, saves, applications, settings and the gateway's configuration${mods.length < Object.keys(labels).length ? ", and the listings of every module without its own DDB" : ""}.`, configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
+  const adb = await (main ? measure(main, "tenants").then((m) => shapeReport(adbBase, m.usage, m.raw, m.ms, m.error)).catch((e) => shapeReport(adbBase, null, null, null, e instanceof Error ? e.message : String(e))) : Promise.resolve(shapeReport(adbBase, null, null, null, "No database is configured on this deployment.")));
+  const modules = await Promise.all(
+    mods.map((m) => {
+      const name = labels[m.module] ?? m.module;
+      const base = { id: `ddb:${m.module}` as const, name: `${name} DDB`, holds: `${name} only: its ${tablesFor(m.module).map((t) => t.replace(/_/g, " ")).join(", ")} and search cache.`, configured: true, limitMb: settings.dataLimitMb, guard: m.guard };
+      return measure(m.client, "gateway_listings").then((r) => shapeReport(base, r.usage, r.raw, r.ms, r.error)).catch((e) => shapeReport(base, null, null, null, e instanceof Error ? e.message : String(e)));
+    }),
+  );
+  // The main project's keys, checked here on the server; only whether each is legacy leaves it.
+  const adbLegacy = [isLegacyKey(process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY) ? "SUPABASE_SERVICE_ROLE_KEY" : null, isLegacyKey(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null].filter((k): k is string => !!k);
+  if (adbLegacy.length) adb.legacyKeys = adbLegacy;
+  mods.forEach((m, i) => {
+    if (m.legacy) modules[i].legacyKeys = ["secret key"];
+  });
+  return { adb, modules };
 }

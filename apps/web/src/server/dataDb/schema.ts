@@ -4,7 +4,7 @@
  * setting has to change there. Row-level security is on with no policies, so only the service role can reach them,
  * exactly as in the main database. The admin copies this into the new project's SQL editor and runs it once.
  */
-export const DATA_DB_SCHEMA_SQL = `-- WorksLake data database: run once in the new Supabase project's SQL editor.
+export const DATA_DB_SCHEMA_SQL = `-- WorksLake DDB (a module's data database): run once in the new Supabase project's SQL editor.
 create table if not exists public.jobslake_opportunities (
   id text primary key,
   data jsonb not null,

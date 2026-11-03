@@ -91,12 +91,10 @@ function PlaygroundPageInner() {
       <PageTitle
         title="Try a search"
         subtitle="Runs a real search of this module through WorksLake core. Runs are recorded with the “playground” trigger and the search is audited."
-        actions={
-          <ModulePicker
-            value={mod.module}
-            onChange={(m) => (setPicked([]), setOut(null), mod.setModule(m))}
-          />
-        }
+      />
+      <ModulePicker
+        value={mod.module}
+        onChange={(m) => (setPicked([]), setOut(null), mod.setModule(m))}
       />
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <Panel title="Search">

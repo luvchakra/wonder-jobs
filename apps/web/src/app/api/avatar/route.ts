@@ -12,14 +12,18 @@ const STORE = "wj.avatar";
 type Photo = { data: string; type: string; updatedAt: string };
 
 /** GET — the signed-in candidate's photo (tenant = the session's own user), or 404 when there is none. */
-export async function GET() {
+export async function GET(req: Request) {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
+  // The address names the account it was asked for (lib/avatarUrl.ts): another account's address answers nothing, so a
+  // browser never keeps one person's photo under an address another account then uses.
+  const asked = new URL(req.url).searchParams.get("u");
+  if (asked && asked !== session.userId) return new NextResponse(null, { status: 404, headers: { "cache-control": "private, no-store" } });
   const doc = await stateStore.get(session.tenantId, STORE).catch(() => undefined);
   const photo = doc?.state as Photo | undefined;
   if (!photo?.data || !photo.type) return new NextResponse(null, { status: 404, headers: { "cache-control": "private, no-store" } });
   return new NextResponse(new Uint8Array(Buffer.from(photo.data, "base64")), {
-    headers: { "content-type": photo.type, "cache-control": "private, max-age=300", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox" },
+    headers: { "content-type": photo.type, "cache-control": "private, max-age=300", vary: "Cookie", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox" },
   });
 }
 

@@ -7,12 +7,12 @@ import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
-import { toast } from "@/components/feedback/Toast";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
-import { OutcomeButtons } from "@/wonderworks/listing/OutcomeButtons";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
+import { TEACHING_OUTSIDE } from "../outside";
 import { ResumeButton } from "@/wonderworks/listing/ResumeButton";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -58,13 +58,10 @@ function Page({ l }: { l: TeachingListing }) {
   const t = l.terms;
   const pay = t.payMin !== undefined || t.payMax !== undefined ? payLabel(t) : null;
 
-  const mark = (outcome: "applied" | "withdrawn") => {
-    setResponse(l.id, outcome, { status: outcome, item: l });
-    toast.success(outcome === "applied" ? "Marked as applied" : "Marked as withdrawn", "It's in Pipeline.");
-  };
 
   return (
     <ListingPage
+      report={{ module: "teaching", id: l.id }}
       share={shareOf(l)}
       back={FIND}
       title={l.title}
@@ -190,7 +187,7 @@ function Page({ l }: { l: TeachingListing }) {
             if (status === null || status === "preparing") setResponse(l.id, "preparing", { status: "preparing", mark: "resume", item: l });
           }}
         />
-        {outside && status !== null && <OutcomeButtons outcome={status === "applied" || status === "withdrawn" ? status : null} onMark={mark} />}
+        {outside && status !== null && <OutsideTracker useStore={useTeachingStore} id={l.id} item={l} flow={TEACHING_OUTSIDE} pipelineHref="/app/m/teaching/pipeline" />}
       </ListingAside>
     </ListingPage>
   );

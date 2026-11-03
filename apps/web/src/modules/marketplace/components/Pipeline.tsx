@@ -10,11 +10,15 @@ import { shortPlace } from "@/wonderworks/find/place";
 import { CARD_TARGET, ResultCard } from "@/wonderworks/find/parts";
 import { Badge } from "@/components/common/Badge";
 import { relativeTime } from "@/lib/format";
-import { StageEmpty, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
+import { StageCard, StageEmpty, StageList, StageTiles } from "@/wonderworks/pipeline/parts";
+import { useTracked } from "@/wonderworks/pipeline/tracked";
 import { priceLabel, STAGE_OF, STATUS_LABEL, type ThreadStatus } from "../domain";
 import { marketplaceManifest } from "../manifest";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
+import { MARKETPLACE_OUTSIDE } from "../outside";
+import { listingHref } from "../manifest";
+import type { MarketListing } from "../domain";
 
 export const itemHref = (id: string) => `/app/m/marketplace/pipeline/${encodeURIComponent(id)}`;
 export const TONE: Record<ThreadStatus, Tone> = { messaged: "info", offer: "brand", visit: "brand", done: "success", declined: "neutral", closed: "neutral" };
@@ -92,27 +96,35 @@ export function MarketplacePipeline() {
   const stages = marketplaceManifest.pipeline.stages;
   const { list, error, reload } = useMyThreads();
   const [tab, setTab] = useState<string | null>(null);
+  // Shop items outside WonderWorks the buyer is tracking themselves (wonderworks/listing/progress.ts).
+  const tracked = useTracked<MarketListing>(useMarketplaceStore, MARKETPLACE_OUTSIDE, (_id, l) => !!l.outside);
   if (error) return <ErrorState title="Couldn't load your deals" body={error} actions={[{ label: "Try again", onClick: reload }]} />;
   if (!list) return <PageLoading rows={3} />;
-  const count = (stage: string) => list.filter((t) => STAGE_OF[t.status] === stage).length;
+  const count = (stage: string) => list.filter((t) => STAGE_OF[t.status] === stage).length + tracked.filter((x) => x.stage === stage).length;
   const current = tab ?? stages.find((s) => count(s.id))?.id ?? stages[0].id;
   const label = stages.find((s) => s.id === current)!.label;
   const shown = list.filter((t) => STAGE_OF[t.status] === current);
+  const shownTracked = tracked.filter((x) => x.stage === current);
   return (
     <div>
       <PageHeader title={marketplaceManifest.pipeline.label} />
-      {list.length === 0 ? (
-        <EmptyState title="No deals yet" body="Message a seller, or wait for a buyer to message you: each conversation shows here." action={{ label: "Find something", href: "/app/m/marketplace" }} />
+      {list.length === 0 && tracked.length === 0 ? (
+        <EmptyState title="No deals yet" body="Message a seller, wait for a buyer to message you, or keep track of a shop's item you went to buy: each shows here." action={{ label: "Find something", href: "/app/m/marketplace" }} />
       ) : (
         <section aria-label="Deals">
           <StageTiles label="Deals by stage" stages={stages.map((s) => ({ id: s.id, label: s.label, count: count(s.id) }))} current={current} onPick={setTab} />
-          {shown.length === 0 ? (
+          {shown.length === 0 && shownTracked.length === 0 ? (
             <StageEmpty label={label} />
           ) : (
             <StageList label={label}>
               {shown.map((t) => (
                 <li key={t.id}>
                   <DealCard t={t} />
+                </li>
+              ))}
+              {shownTracked.map((x) => (
+                <li key={x.id}>
+                  <StageCard href={listingHref(x.id)} logo={{ name: x.item.outside!.business }} company={x.item.outside!.business} title={x.item.title} line={x.line} tags={["Outside WonderWorks"]} badge={{ label: x.label, tone: "neutral" }} when={relativeTime(x.ref.at)} />
                 </li>
               ))}
             </StageList>

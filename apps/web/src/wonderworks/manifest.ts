@@ -1,13 +1,13 @@
 /**
  * WonderWorks' manifest types (docs/WONDERWORKS_PLATFORM.md §4): what every module describes about itself. A manifest is
- * data WonderWorks reads (the Find menu, the tabs, the module shell, WorksLake's per-module datasets); it never lists a
+ * data WonderWorks reads (the module menu, the tabs, the module shell, WorksLake's per-module datasets); it never lists a
  * posting. The modules themselves are listed in `modules/registry.ts`, the composition root — WonderWorks imports no module.
  */
 
 export const MODULE_IDS = ["jobs", "internships", "teaching", "cofounders", "services", "therapists", "events", "marketplace", "scholarships"] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
 
-/** The kind ids the Find dropdown and Admin → Settings → Menus → Find menu already use (kept, so saved menu settings still apply). */
+/** The kind ids the Find dropdown and Admin → Settings → App menus → Modules already use (kept, so saved menu settings still apply). */
 export type UpcomingKindId = "internships" | "teaching" | "cofounders" | "talent_services" | "therapists" | "events_social" | "buy_sell_rent" | "scholarships";
 
 export type ModuleStatus = "live" | "soon";
@@ -58,6 +58,8 @@ export interface ModuleManifest {
   /** The one tab a module shapes (§4.1); Find, Saved and You are the platform's. */
   pipeline: { label: string; icon: string; stages: PipelineStage[]; sections?: string[] };
   ownerSide: { workspace: "company" | "person" | "none" };
+  /** Where a new entry is posted, as its You tab links it, and what the + button says (owner, 2026-11-02). */
+  post?: { href: string; label: string };
   trust: { reviews: "off" | "after_done" | "both_sides" };
   money?: { kind: "none" | "fee_display" | "booking_payment" | "escrow"; currency: string };
   compliance?: ("health_data" | "minors" | "payments" | "housing")[];

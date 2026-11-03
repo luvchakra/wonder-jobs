@@ -1,7 +1,9 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
@@ -33,6 +35,8 @@ export function EventsCompany() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<EventPosting | "new" | null>(null);
   const [tab, setTab] = useState<"events" | "attendees">("events");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -71,7 +75,7 @@ export function EventsCompany() {
     <OwnerWorkspace
       module="Events & Social"
       intro="For organisers and groups: post an event so people find it on WonderWorks, RSVP, and wait for a seat when it's full."
-      noWorkspace="Create one for your group in Hiring, then post events here."
+      noWorkspace="Set up your group or organisation to host events."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -162,6 +166,7 @@ export function EventsCompany() {
                             Close
                           </button>
                         )}
+                        <DeletePost module="events" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                       </div>
                     )}
                   </li>

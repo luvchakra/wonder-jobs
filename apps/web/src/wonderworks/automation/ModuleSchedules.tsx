@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { X } from "lucide-react";
-import { CADENCE_LABEL, MODULE_SCHEDULES_CAP, type ModuleScheduleCadence, type ScheduleRunState } from "@/domain/moduleSchedules";
+import { CADENCE_LABEL, MODULE_SCHEDULES_CAP, planCadence, type ModuleScheduleCadence, type ScheduleRunState } from "@/domain/moduleSchedules";
+import { scheduleAllowance } from "@/domain/billing/plans";
+import { usePlan } from "@/lib/usePlan";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { Input, Select, Switch } from "@/components/common/Input";
@@ -11,16 +13,25 @@ import { useModuleSchedules } from "./schedules";
 
 const noop = () => () => {};
 const useMounted = () => useSyncExternalStore(noop, () => true, () => false);
-type Status = Record<string, Omit<ScheduleRunState, "seen" | "key">>;
+type Status = Record<string, Omit<ScheduleRunState, "seen" | "key"> & { held?: true }>;
 const hourLabel = (h: number) => new Date(Date.UTC(2026, 0, 1, h)).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
 
 /**
  * Scheduled searches in every other module (owner, 2026-11-01): the same words and places that module's Find takes,
  * run by WonderWorks on a schedule. The first run learns what's there; after that you're told only about new listings.
- * The modules come from the composition root (WonderWorks imports no module).
+ * The modules come from the composition root (WonderWorks imports no module), and so does how many Jobs scheduled
+ * searches are on: the plan's limit counts across every module (owner, 2026-11-02).
  */
-export function ModuleSchedules({ modules }: { modules: { id: string; label: string }[] }) {
+export function ModuleSchedules({ modules, jobsEnabled = 0 }: { modules: { id: string; label: string }[]; jobsEnabled?: number }) {
   const mounted = useMounted();
+  const { plan, plans } = usePlan();
+  /** May this schedule be on? Says why not, with the plan that allows it. */
+  const allowed = (cadence: ModuleScheduleCadence, exceptId?: string) => {
+    const others = jobsEnabled + useModuleSchedules.getState().schedules.filter((s) => s.enabled && s.id !== exceptId).length;
+    const a = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, planCadence(cadence));
+    if (!a.ok) toast.error("Your plan doesn't allow this", `${a.reason}${a.needs ? ` ${plans[a.needs].label} does.` : ""}`);
+    return a.ok;
+  };
   const schedules = useModuleSchedules((s) => s.schedules);
   const [status, setStatus] = useState<Status>({});
   useEffect(() => {
@@ -56,10 +67,10 @@ export function ModuleSchedules({ modules }: { modules: { id: string; label: str
                   </span>
                   <span className="block text-[12px] text-ink-3">
                     {st?.lastRunAt ? `Last run ${relativeTime(st.lastRunAt)} · ${last?.error ?? (last?.fresh ? `${last.fresh} new of ${last.found}` : `${last?.found ?? 0} found, nothing new`)}` : "Hasn't run yet; the first run learns what's there"}
-                    {s.enabled && st?.nextRunAt ? ` · next ${relativeTime(st.nextRunAt)}` : ""}
+                    {st?.held ? " · held: your plan's scheduled searches are all in use" : s.enabled && st?.nextRunAt ? ` · next ${relativeTime(st.nextRunAt)}` : ""}
                   </span>
                 </span>
-                <Switch checked={s.enabled} onChange={(v) => useModuleSchedules.getState().setEnabled(s.id, v)} label={`${s.enabled ? "Pause" : "Resume"} this search`} />
+                <Switch checked={s.enabled} onChange={(v) => (!v || allowed(s.cadence, s.id)) && useModuleSchedules.getState().setEnabled(s.id, v)} label={`${s.enabled ? "Pause" : "Resume"} this search`} />
                 <button type="button" aria-label="Remove this scheduled search" onClick={() => useModuleSchedules.getState().remove(s.id)} className="grid size-8 shrink-0 place-items-center rounded-full text-ink-4 hover:bg-bg-soft hover:text-danger-600">
                   <X className="size-4" aria-hidden />
                 </button>
@@ -68,12 +79,12 @@ export function ModuleSchedules({ modules }: { modules: { id: string; label: str
           })}
         </ul>
       )}
-      {schedules.length < MODULE_SCHEDULES_CAP && <NewModuleSchedule modules={modules} />}
+      {schedules.length < MODULE_SCHEDULES_CAP && <NewModuleSchedule modules={modules} allowed={allowed} />}
     </div>
   );
 }
 
-function NewModuleSchedule({ modules }: { modules: { id: string; label: string }[] }) {
+function NewModuleSchedule({ modules, allowed }: { modules: { id: string; label: string }[]; allowed: (c: ModuleScheduleCadence) => boolean }) {
   const [mod, setMod] = useState(modules[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [place, setPlace] = useState("");
@@ -85,6 +96,7 @@ function NewModuleSchedule({ modules }: { modules: { id: string; label: string }
         className="flex flex-col gap-2.5 pb-4 text-[13px]"
         onSubmit={(e) => {
           e.preventDefault();
+          if (!allowed(cadence)) return;
           const s = useModuleSchedules.getState().add({ module: mod, query, places: place.trim() ? [place] : [], cadence, hour });
           if (!s) return toast.error("Couldn't add it", `Up to ${MODULE_SCHEDULES_CAP} scheduled searches.`);
           toast.success("Scheduled", "The first run learns what's there; after that you're told only about new listings.");

@@ -13,7 +13,7 @@ export const shareOf = (l: ScholarshipListing): ListingShareProps => {
     module: "scholarships",
     noun: KIND_LABEL[t.kind].toLowerCase(),
     title: l.title,
-    facts: [l.company, valueLabel(t), deadlineLabel(t)],
+    facts: [l.company || null, valueLabel(t), deadlineLabel(t)],
     lines: [
       `Kind: ${KIND_LABEL[t.kind]}`,
       t.levels?.length && `For: ${levelsLabel(t)}`,

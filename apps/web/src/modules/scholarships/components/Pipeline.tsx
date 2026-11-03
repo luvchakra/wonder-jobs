@@ -10,7 +10,7 @@ import { StageCard, StageEmpty, StageFilter, StageList, StageTiles } from "@/won
 import { relativeTime } from "@/lib/format";
 import { call } from "@/wonderworks/api";
 import { listingHref, scholarshipsManifest } from "../manifest";
-import { canWithdraw, deadlineLabel, deadlines, KIND_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, shortDate, stageOf, STATUS_LABEL, valueLabel, type MyScholarshipApplication, type ScholarshipListing, type ScholarshipStatus } from "../domain";
+import { PROVIDER_NOT_STATED, canWithdraw, deadlineLabel, deadlines, KIND_LABEL, OUTSIDE_LABEL, OUTSIDE_STAGE, outsideStatus, shortDate, stageOf, STATUS_LABEL, valueLabel, type MyScholarshipApplication, type ScholarshipListing, type ScholarshipStatus } from "../domain";
 import { savedItems, useScholarshipsStore } from "../store";
 
 const noop = () => () => undefined;
@@ -131,7 +131,7 @@ export function ScholarshipsPipeline() {
                     const canWd = !!i.app && canWithdraw(i.app.status);
                     return (
                       <li key={i.id} className="relative">
-                        <StageCard href={i.href} logo={{ name: i.company, domain: i.domain }} company={i.company} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={canWd} className={i.outside ? "pr-11" : undefined} />
+                        <StageCard href={i.href} logo={{ name: i.company, domain: i.domain }} company={i.company || PROVIDER_NOT_STATED} title={i.title} line={i.line} badge={{ label: i.status, tone: i.tone }} tags={i.tags} when={relativeTime(i.at)} actionSpace={canWd} className={i.outside ? "pr-11" : undefined} />
                         {canWd && (
                           <Button size="sm" variant="ghost" className="absolute bottom-3 right-3" loading={busy === i.id} onClick={() => void withdraw(i.id)} aria-label={`Withdraw your application to ${i.company}`}>
                             Withdraw
@@ -155,7 +155,7 @@ export function ScholarshipsPipeline() {
               <StageList label="Deadlines">
                 {due.slice(0, 12).map((d) => (
                   <li key={d.id}>
-                    <StageCard href={listingHref(d.id)} logo={{ name: d.company }} company={d.company} title={d.title} line={KIND_LABEL[d.kind]} badge={{ label: `${d.label} · ${shortDate(d.date)}`, tone: d.label.includes("today") || d.label.includes("tomorrow") ? "danger" : "warning" }} when="" />
+                    <StageCard href={listingHref(d.id)} logo={{ name: d.company }} company={d.company || PROVIDER_NOT_STATED} title={d.title} line={KIND_LABEL[d.kind]} badge={{ label: `${d.label} · ${shortDate(d.date)}`, tone: d.label.includes("today") || d.label.includes("tomorrow") ? "danger" : "warning" }} when="" />
                   </li>
                 ))}
               </StageList>

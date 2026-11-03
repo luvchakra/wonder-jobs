@@ -1,8 +1,10 @@
 /**
- * Menus a platform admin arranges for every user (owner, 2026-10-22), in WonderJobs Admin → Settings → Menus:
+ * Menus a platform admin arranges for every user (owner, 2026-10-22), in WonderWorks Admin → Settings → App menus:
  * - the account menu (the avatar's menu, or the phone's ••• button) — Account and Sign out are always there,
  *   so nobody is locked out of their own account; Admin is shown only to platform admins, last, outside the list;
- * - the You page's rows (under the Career Profile card, which is always there).
+ * - Jobs' You page rows (under the Career Profile card, which is always there; other modules' You pages supply their own);
+ * - the module menu in the top bar (owner, 2026-11-02: "instead of find menu, call these modules"): Jobs first, then
+ *   the other modules in this order. Its id stays `find_kinds` (stored as wj.findkindsmenu).
  * Each keeps an order and a set of hidden items. An item a saved order doesn't know (added in a later release)
  * takes its default place and is shown until an admin says otherwise.
  */
@@ -24,8 +26,8 @@ export const MENUS = {
     alwaysShown: ["account"],
   },
   you: {
-    title: "You page",
-    where: "The rows under the Career Profile card on You. The Career Profile card is always there.",
+    title: "You page rows (Jobs)",
+    where: "The rows on Jobs' You page, under the Career Profile card (always there). Other modules' You pages show their own rows.",
     items: [
       { id: "ask_wonder", label: "Ask Wonder" },
       { id: "skill_up", label: "Skill Up" },
@@ -38,8 +40,8 @@ export const MENUS = {
     alwaysShown: [],
   },
   find_kinds: {
-    title: "Find menu",
-    where: "The Full Time / Part Time menu on Find: the coming-soon kinds listed under Full Time Jobs and Part Time Jobs (both always there). Hide one and nobody sees it.",
+    title: "Modules",
+    where: "The module menu in the middle of the top bar, on every page. Jobs (Full Time and Part Time) is always first; the other modules follow in this order. A hidden module isn't in the menu for anyone.",
     items: UPCOMING_KINDS,
     alwaysShown: [],
   },

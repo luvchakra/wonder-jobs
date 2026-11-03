@@ -199,9 +199,8 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
                   )}
                 </div>
                 <p className="mt-1 text-[12.5px] text-ink-2">
-                  {l.scheduledSearches} scheduled search{l.scheduledSearches === 1 ? "" : "es"}{l.dailySearches ? ", daily" : ", weekly"}{l.keepWatch ? ", keep watch" : ""} · {l.aiDraftsPerMonth} AI drafts a month · {l.roles} role{l.roles === 1 ? "" : "s"} · {l.resumeTemplates >= 8 ? "all" : l.resumeTemplates} résumé designs
-                  {l.applyWithWonder ? " · Apply with Wonder" : ""}
-                  {l.atsReport ? " · ATS report" : ""}
+                  {l.scheduledSearches} scheduled search{l.scheduledSearches === 1 ? "" : "es"} across every module{l.dailySearches ? ", daily" : ", weekly"} · {l.aiDraftsPerMonth} AI drafts a month · Jobs: {l.roles} role{l.roles === 1 ? "" : "s"}, {l.resumeTemplates >= 8 ? "all" : l.resumeTemplates} résumé designs{l.keepWatch ? ", keep watch" : ""}
+                  {l.applyWithWonder ? ", the WonderWorks helper" : ""}
                   {(l.highlights ?? []).map((h) => ` · ${h}`).join("")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">

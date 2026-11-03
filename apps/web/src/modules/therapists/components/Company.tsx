@@ -1,4 +1,6 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -37,6 +39,8 @@ export function TherapistsCompany() {
   const [declineFor, setDeclineFor] = useState<PractitionerSession | null>(null);
   const params = useSearchParams();
   const [tab, setTab] = useState<"listings" | "requests">(params.get("tab") === "requests" ? "requests" : "listings");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -76,7 +80,7 @@ export function TherapistsCompany() {
     <OwnerWorkspace
       module="Therapists"
       intro="For counsellors and clinics: list yourself so clients find you on WonderWorks, in your own words."
-      noWorkspace="Create one for your practice in Hiring, then list yourself here."
+      noWorkspace="Set up your practice to list yourself."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -169,6 +173,7 @@ export function TherapistsCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="therapists" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>

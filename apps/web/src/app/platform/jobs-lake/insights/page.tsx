@@ -95,7 +95,6 @@ function InsightsPageInner() {
         subtitle="What each of this module's sources is worth, from stored runs, its listings and people's own matching. Suggestions show the numbers they rest on; none changes a source."
         actions={
           <span className="flex flex-wrap items-center gap-2">
-            <ModulePicker value={mod.module} onChange={mod.setModule} />
             <Segmented
               value={days}
               onChange={setDays}
@@ -110,6 +109,7 @@ function InsightsPageInner() {
           </span>
         }
       />
+      <ModulePicker value={mod.module} onChange={mod.setModule} />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {v && (

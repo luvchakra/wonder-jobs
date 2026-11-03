@@ -1,4 +1,6 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -40,6 +42,8 @@ export function ServicesCompany() {
   const [declineFor, setDeclineFor] = useState<{ r: ProRequest; reason: string } | null>(null);
   const params = useSearchParams();
   const [tab, setTab] = useState<"listings" | "requests">(params.get("tab") === "requests" ? "requests" : "listings");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -77,7 +81,7 @@ export function ServicesCompany() {
     <OwnerWorkspace
       module="Talent & Services"
       intro="For pros and agencies: list the services clients find on WonderWorks — work at their place or remote projects."
-      noWorkspace="Create one for your business in Hiring, then list your services here."
+      noWorkspace="Set up your business to list your services."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -190,6 +194,7 @@ export function ServicesCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="services" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>

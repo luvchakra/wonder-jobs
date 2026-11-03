@@ -1,4 +1,6 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -34,6 +36,8 @@ export function ScholarshipsCompany() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<ScholarshipPosting | "new" | null>(null);
   const [tab, setTab] = useState<"listings" | "applications">(params.get("tab") === "applications" ? "applications" : "listings");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -69,7 +73,7 @@ export function ScholarshipsCompany() {
     <OwnerWorkspace
       module="Scholarships & Projects"
       intro="For foundations, companies, universities and labs: post scholarships and projects students find on WonderWorks, and review applications. Applying is always free."
-      noWorkspace="Create one for your organisation in Hiring, then post scholarships and projects here."
+      noWorkspace="Set up your foundation, university, lab or company to post scholarships and projects."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -109,6 +113,7 @@ export function ScholarshipsCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="scholarships" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>

@@ -12,6 +12,7 @@ import { JOBS_MENU_CHOICES, pickJobsFindMode, useJobsFindMode, useJobsStatus } f
 import { SECTION_TABS } from "./jobs/nav";
 import { moduleFromPath, moduleNav } from "./nav";
 import { MODULES, type ModuleId, type UpcomingKindId } from "./registry";
+import { withNew } from "@/wonderworks/owner/useOpenNew";
 
 // Each other module's icon and tint in the menu are its manifest's; a live one (WJ-418: Internships) is picked like
 // Full Time and Part Time — the four tabs become its own (docs/WONDERWORKS_PLATFORM.md §4.1). The rest are "Coming soon".
@@ -20,21 +21,25 @@ const LIVE = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status ===
 
 /**
  * The menu in the middle of the top bar: WonderJobs' Full Time Jobs and Part Time Jobs, then the other modules in the
- * order a platform admin set (Admin → Settings → Menus → Find menu). Its value is the module whose pages are open, else
+ * order a platform admin set (Admin → Settings → App menus → Modules). Its value is the module whose pages are open, else
  * Jobs' current kind. A kind of jobs switches Find — in place on Find, or opening Find from anywhere else.
  */
 function FindMenu() {
   const current = useJobsFindMode();
   const router = useRouter();
   const pathname = usePathname();
-  const onModule = moduleFromPath(pathname);
+  // The module whose pages are open, else the one picked last (as the tab bar shows it, useSelectedModule), so a shared
+  // page (Automation, Analytics, Notifications) names the same module as its tabs (2026-11-02: "Part Time Jobs" over
+  // Talent & Services' tabs).
+  const stored = useUIStore((s) => s.activeModule);
+  const onModule = moduleFromPath(pathname) ?? stored ?? null;
   const setActiveModule = useUIStore((s) => s.setActiveModule);
   const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
   const liveKinds = kinds.filter((k) => LIVE[k.id]);
   const liveNow = onModule && onModule !== "jobs" ? liveKinds.find((k) => LIVE[k.id]!.id === onModule) : undefined;
   return (
     <ModuleMenu
-      label="Kind of jobs"
+      label="Module"
       now={liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!}
       choices={JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current }))}
       live={liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id }))}
@@ -65,7 +70,12 @@ function useStatus(hydrated: boolean, module: string) {
   return module === "jobs" ? status : { ...status, tasks: 0 };
 }
 
-const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus };
+// The + opens the post page with its new-entry form already open (useOpenNew reads ?new=1).
+const postFor = (m: string) => {
+  const p = MODULES.find((x) => x.id === m)?.post;
+  return p ? { ...p, href: withNew(p.href) } : null;
+};
+const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus, postFor };
 
 /** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {

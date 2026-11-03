@@ -29,7 +29,7 @@ export function EventsFind() {
       { key: "when", label: "When", kind: "chips", any: "Any time", options: WHEN_OPTIONS.filter((w) => w !== "Any time").map((w) => ({ value: w, label: w })), pill: (v) => v || "Any time" },
       { key: "where", label: "Where", kind: "chips", any: "Any", options: [{ value: "in_person", label: "In person" }, { value: "online", label: "Online" }], pill: (v) => (v === "online" ? "Online" : v === "in_person" ? "In person" : "Online or in person") },
       { key: "tag", label: "Kind", kind: "select", any: "Any", options: CATEGORIES.map((c) => ({ value: c, label: c })) },
-      { key: "openOnly", label: "Only events with seats left", kind: "check", corner: true },
+      { key: "openOnly", label: "With seats left", kind: "check", corner: true },
     ],
     [],
   );

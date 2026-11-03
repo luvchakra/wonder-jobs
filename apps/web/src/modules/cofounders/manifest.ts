@@ -33,6 +33,7 @@ export const cofoundersManifest: ModuleManifest = {
   ],
   response: { verb: "connect", questions: false, mutual: true, states: ["interested", "mutual", "talking", "building", "passed"], capability: "cofounders.connect" },
   pipeline: { label: "Connections", icon: "Handshake", stages: STAGES_OF },
+  post: { href: "/app/m/cofounders/company", label: "Start a team" },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
 };

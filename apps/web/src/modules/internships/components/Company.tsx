@@ -1,4 +1,6 @@
 "use client";
+import { DeletePost } from "@/wonderworks/owner/DeletePost";
+import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { PlaceField } from "@/wonderworks/forms/PlaceField";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -34,6 +36,8 @@ export function InternshipsCompany() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<InternshipPosting | "new" | null>(null);
   const [tab, setTab] = useState<"internships" | "applications">(params.get("tab") === "applications" ? "applications" : "internships");
+  // The + button (?new=1) opens the new-entry form once posting is possible here.
+  useOpenNew(!!data && may("jobs.edit"), useCallback(() => setForm("new"), []));
 
   const load = useCallback(() => {
     if (!org) return;
@@ -69,7 +73,7 @@ export function InternshipsCompany() {
     <OwnerWorkspace
       module="Internships"
       intro="For companies: post internships students find on WonderWorks, and review their applications."
-      noWorkspace="Create one for your company in Hiring, then post internships here."
+      noWorkspace="Set up your company to post internships."
       state={{ ...workspaces, error: workspaces.error ?? error }}
       loaded={!!data}
       tabs={tabs}
@@ -109,6 +113,7 @@ export function InternshipsCompany() {
                           Close
                         </button>
                       )}
+                      <DeletePost module="internships" listingId={`ws_${p.id}`} title={p.title} onDeleted={load} />
                     </div>
                   )}
                 </li>

@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Play } from "lucide-react";
+import { ChevronDown, Play } from "lucide-react";
 import type { CronRun, SchedulerSettings } from "@/domain/scheduler/settings";
 import { Badge } from "@/components/common/Badge";
-import { Button } from "@/components/common/Button";
+import { Button, IconButton } from "@/components/common/Button";
 import { Input, Switch } from "@/components/common/Input";
 import { LoadError, Loading, Note, PageTitle, Panel, ResponsiveTable, adminFetch, useAdmin } from "@/components/jobslake/ui";
+import { cn } from "@/lib/cn";
 import { relativeTime } from "@/lib/format";
 
 type Limits = Record<"maxTenants" | "tenantBudgetSec" | "logoLimit" | "budgetSec", readonly [number, number]>;
@@ -35,6 +36,49 @@ export default function SchedulerPage() {
       {!data && !error && <Loading />}
       {data && <Scheduler data={data} reload={reload} />}
     </>
+  );
+}
+
+/** One scheduled job as a card: name, state and next run when collapsed; what it does, its route and its last run when open. */
+function JobCard({ j, on, running, onRun }: { j: Job; on: boolean; running: CronRun["job"] | null; onRun?: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="wj-card self-start px-4 py-3 md:px-5">
+      <div className="flex items-start gap-2">
+        <button type="button" className="flex min-w-0 flex-1 flex-col gap-1 text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
+          <span className="flex w-full flex-wrap items-center gap-2 text-[15px] font-semibold text-ink">
+            {j.label}
+            <Badge tone={on ? "success" : "neutral"}>{on ? "On" : "Off"}</Badge>
+            {j.lastRun && <Badge tone={tone(j.lastRun.outcome)}>Last: {j.lastRun.outcome}</Badge>}
+          </span>
+          <span className="text-[12px] text-ink-3">
+            {j.when} · next {j.nextRunAt ? relativeTime(j.nextRunAt) : "—"}
+          </span>
+        </button>
+        {onRun && <IconButton label={`Run ${j.label} now`} size="sm" variant="outline" className="shrink-0" icon={<Play className="size-3.5" aria-hidden />} loading={running === j.id} disabled={!!running} onClick={onRun} />}
+        <button type="button" aria-label={open ? "Collapse" : "Expand"} aria-expanded={open} className="grid size-9 shrink-0 place-items-center text-ink-3" onClick={() => setOpen(!open)}>
+          <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="mt-3 flex flex-col gap-1 border-t border-line pt-3 text-[12px]">
+          <span className="text-ink-3">{j.description}</span>
+          <span className="text-ink-2">
+            Next {when(j.nextRunAt)} · <span className="font-mono text-[11px] text-ink-4">{j.path}</span>
+          </span>
+          {j.lastRun && (
+            <span className="text-ink-3">
+              Last run {when(j.lastRun.finishedAt)} — {j.lastRun.summary}
+            </span>
+          )}
+          {j.id === "gateway-collect" && (
+            <Link href="/platform/jobs-lake/import" className="font-medium text-brand-600 hover:underline">
+              Manage on Import
+            </Link>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -92,39 +136,14 @@ function Scheduler({ data, reload }: { data: Data; reload: () => void }) {
       {!data.cron.secretSet && <Note tone="warning">CRON_SECRET isn&apos;t set on this deployment, so Vercel Cron can&apos;t run these jobs.</Note>}
       {message && <Note tone={message.tone}>{message.text}</Note>}
 
-      <Panel title="Jobs">
-        <ul className="divide-y divide-line">
-          {data.jobs.map((j) => {
-            const on = isOn(j.id);
-            return (
-              <li key={j.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-ink">
-                    {j.label}
-                    <Badge tone={on ? "success" : "neutral"}>{on ? "On" : "Off"}</Badge>
-                    {j.lastRun && <Badge tone={tone(j.lastRun.outcome)}>Last: {j.lastRun.outcome}</Badge>}
-                  </span>
-                  <span className="mt-0.5 block text-[12px] text-ink-3">{j.description}</span>
-                  <span className="mt-1 block text-[12px] text-ink-2">
-                    {j.when} · next {when(j.nextRunAt)} · <span className="font-mono text-[11px] text-ink-4">{j.path}</span>
-                  </span>
-                  {j.lastRun && <span className="mt-0.5 block text-[12px] text-ink-3">Last run {when(j.lastRun.finishedAt)} — {j.lastRun.summary}</span>}
-                </span>
-                {j.id === "gateway-collect" && (
-                  <Link href="/platform/jobs-lake/import" className="shrink-0 text-[12px] font-medium text-brand-600 hover:underline">
-                    Manage on Import
-                  </Link>
-                )}
-                {RUNNABLE.includes(j.id) && (
-                  <Button size="sm" variant="outline" className="shrink-0" icon={<Play className="size-3.5" aria-hidden />} loading={running === j.id} disabled={!!running} onClick={() => void runNow(j.id)}>
-                    Run now
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </Panel>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-[15px] font-semibold text-ink">Jobs</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          {data.jobs.map((j) => (
+            <JobCard key={j.id} j={j} on={isOn(j.id)} running={running} onRun={RUNNABLE.includes(j.id) ? () => void runNow(j.id) : undefined} />
+          ))}
+        </div>
+      </section>
 
       <Panel title="Daily run">
         <ul className="divide-y divide-line">

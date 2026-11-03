@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Play, Plus, Timer, Trash2 } from "lucide-react";
 import { AI_PROVIDERS } from "@/domain/ai/types";
 import { roleSearch } from "@/domain/career/roles";
+import { useModuleSchedules } from "@/wonderworks/automation/schedules";
 import { scheduleAllowance } from "@/domain/billing/plans";
 import { nextScheduledRun } from "@/domain/workflow/schedule";
 import { buildFromTemplate, CADENCES, cadenceId, SEARCH_TEMPLATES, type SearchTemplate } from "@/domain/workflow/searchTemplates";
@@ -59,7 +60,9 @@ export function ScheduledSearchList() {
   /** The plan decides how many searches may be on at once and how often they may run. */
   const allowed = (cadence: Pick<WorkflowSchedule, "frequency">, except?: string) => {
     // Read fresh: one click may add several searches.
-    const others = Object.values(useWorkflowStore.getState().schedules).filter((s) => s.enabled && s.id !== except).length;
+    const others = Object.values(useWorkflowStore.getState().schedules).filter((s) => s.enabled && s.id !== except).length
+      // The plan counts scheduled searches across every module (Data → Plans & features).
+      + useModuleSchedules.getState().schedules.filter((s) => s.enabled).length;
     const a = scheduleAllowance(plan, { plans, priceRefs: { pro: {}, max: {} } }, others, cadence.frequency === "weekly" || cadence.frequency === "monthly" ? "weekly" : "daily");
     if (!a.ok) toast.error(a.reason, a.needs ? `Included in ${plans[a.needs].label} — see Account → Plan.` : undefined);
     return a.ok;

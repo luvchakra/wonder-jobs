@@ -7,12 +7,12 @@ import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { EmptyState, PageLoading } from "@/components/common/States";
-import { toast } from "@/components/feedback/Toast";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { CompanyFold } from "@/wonderworks/listing/CompanyFold";
-import { OutcomeButtons } from "@/wonderworks/listing/OutcomeButtons";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
+import { INTERNSHIPS_OUTSIDE } from "../outside";
 import { ResumeButton } from "@/wonderworks/listing/ResumeButton";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -60,13 +60,10 @@ function Page({ l }: { l: InternshipListing }) {
   const asksOutcome = outside && status !== null;
   const stipend = l.terms.stipendMin || l.terms.stipendMax ? stipendLabel(l.terms) : null;
 
-  const mark = (outcome: "applied" | "withdrawn") => {
-    setResponse(l.id, outcome, { status: outcome, item: l });
-    toast.success(outcome === "applied" ? "Marked as applied" : "Marked as withdrawn", "It's in Applications.");
-  };
 
   return (
     <ListingPage
+      report={{ module: "internships", id: l.id }}
       share={shareOf(l)}
       back={FIND}
       title={l.title}
@@ -206,7 +203,7 @@ function Page({ l }: { l: InternshipListing }) {
             if (outsideStatus(useInternshipsStore.getState().responses[l.id]) === null || status === "preparing") setResponse(l.id, "preparing", { status: "preparing", mark: "resume", item: l });
           }}
         />
-        {asksOutcome && <OutcomeButtons outcome={status === "applied" || status === "withdrawn" ? status : null} onMark={mark} />}
+        {asksOutcome && <OutsideTracker useStore={useInternshipsStore} id={l.id} item={l} flow={INTERNSHIPS_OUTSIDE} pipelineHref="/app/m/internships/pipeline" />}
       </ListingAside>
     </ListingPage>
   );

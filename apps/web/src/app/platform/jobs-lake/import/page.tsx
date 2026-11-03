@@ -3,15 +3,17 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import type { ImportAction, ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
+import type { ImportRun } from "@/server/gateway/importRuns";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { Field, Input, Select, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { DataTypes } from "@/components/jobslake/DataTypes";
-import { adminFetch, LoadError, Loading, ms, Note, PageTitle, Panel, ResponsiveTable, Stat, num, useAdmin } from "@/components/jobslake/ui";
+import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, Stat, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
+import { SCHEDULE_LINE, TRIGGER_EVERY_HOURS } from "@/domain/gateway/budget";
 
 const when = (iso: string | null | undefined) => (iso ? relativeTime(iso) : "—");
 const post = (body: Record<string, unknown>) => adminFetch<Record<string, unknown>>("import", { method: "POST", body: JSON.stringify(body) });
@@ -27,7 +29,7 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 /**
  * Admin → Data → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
  * nowhere else. One press, Import now, runs the pipeline on the server: it sets up the sources that are waiting,
- * collects, and refreshes every module's Find. The same job runs every hour. Each module shows its three numbers
+ * collects, and refreshes every module's Find. The same job runs on a schedule that fits the free plans (domain/gateway/budget.ts). Each module shows its three numbers
  * (sources, collected, in Find) and, opened, its sources with one state and one action each.
  */
 export default function ImportPage() {
@@ -39,7 +41,7 @@ export default function ImportPage() {
     if (!running) return;
     const t = setInterval(() => {
       if (document.visibilityState === "visible") reload();
-    }, 10_000);
+    }, 5_000);
     return () => clearInterval(t);
   }, [running, reload]);
 
@@ -47,7 +49,8 @@ export default function ImportPage() {
     setStarting(true);
     const r = await post({ action: "import" });
     setStarting(false);
-    if (r.ok) toast.success("Import started", Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed. You can leave this page.` : "Collecting, then refreshing every module's Find. You can leave this page.");
+    const skipped = r.ok && Number(r.data.skipped) ? ` ${num(Number(r.data.skipped))} that didn't go live in the last day are left out; each has Try again on its module's card.` : "";
+    if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
     else toast.error("Didn't start", r.error.message);
     reload();
   };
@@ -56,7 +59,7 @@ export default function ImportPage() {
     <>
       <PageTitle
         title="Import"
-        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs every hour. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
+        subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs on its own every few hours. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
         actions={
           <Button icon={<Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
             {running ? "Importing…" : "Import now"}
@@ -68,14 +71,17 @@ export default function ImportPage() {
       {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
+          <ProgressBanner d={data} />
           <Pipeline d={data} />
-          <JobLine d={data} reload={reload} />
+          <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
             {data.modules.map((m) => (
               <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
           </div>
           <AddSources reload={reload} />
+          <RunHistory runs={data.runs} />
+          <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
         </div>
@@ -92,54 +98,215 @@ function Pipeline({ d }: { d: ImportView }) {
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr]">
       <Stat label="Sources live" value={num(p.sources.live)} hint={[p.sources.waiting ? `${num(p.sources.waiting)} waiting` : "", p.sources.needsYou ? `${num(p.sources.needsYou)} need you` : ""].filter(Boolean).join(" · ") || "Nothing waiting"} />
       {arrow}
-      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
+      <Stat label="Collected by the gateway" value={num(p.collected.listings)} hint={p.collected.lastAt ? `Last ${when(p.collected.lastAt)}${p.collected.nextAt ? ` · next ${Date.parse(p.collected.nextAt) <= Date.parse(d.generatedAt) ? "due at the next scheduled run" : when(p.collected.nextAt)}` : ""}` : "Not collected yet"} />
       {arrow}
       <Stat label="In Find" value={p.find.listings == null ? "—" : num(p.find.listings)} hint={p.find.refreshedAt ? `Refreshed ${when(p.find.refreshedAt)}` : "Not refreshed from the gateway yet: press Import now"} />
     </div>
   );
 }
 
-/** What the server is doing, what it last did, and the hourly schedule's one option. */
-function JobLine({ d, reload }: { d: ImportView; reload: () => void }) {
+/**
+ * The import's progress, read from the database (wj.setupjob), so a reload shows exactly where it is (owner,
+ * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
+ * finishes, its outcome stays for a day.
+ */
+function ProgressBanner({ d }: { d: ImportView }) {
   const j = d.job;
+  if (!j) return null;
+  const pct = j.total ? Math.round((j.done / j.total) * 100) : 100;
+  const what = j.kind === "module" ? `Importing ${MODULES.find((m) => m.id === j.module)?.label ?? j.module}` : "Importing";
+  const tone = j.running ? "border-brand-200 bg-brand-50" : j.failed ? "border-warning-100 bg-warning-100/40" : "border-success-100 bg-success-100/40";
+  return (
+    <div role="status" aria-live="polite" className={`rounded-[14px] border px-4 py-3 text-[13px] ${tone}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold text-ink">
+          {j.running ? (j.phase === "refreshing" ? "Refreshing Find for every module…" : `${what}: ${num(j.done)} of ${num(j.total)} sources`) : `Last import finished ${when(j.finishedAt)}`}
+        </p>
+        <p className="text-[12px] text-ink-3">
+          Started {when(j.startedAt)} by {j.trigger === "scheduler" ? "the scheduled run" : j.by}
+        </p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70" aria-hidden>
+        <div className={`h-full rounded-full ${j.running ? "bg-brand-500" : j.failed ? "bg-warning-600" : "bg-success-600"} transition-[width]`} style={{ width: `${j.running && j.phase === "refreshing" ? 100 : pct}%` }} />
+      </div>
+      <p className="mt-2 text-[12.5px] text-ink-2">
+        {j.running && j.current ? (
+          <>
+            Now: <span className="font-medium text-ink">{j.current.name}</span>
+            {j.current.step ? ` · ${j.current.step}` : ""}
+            {j.current.since ? ` · ${when(j.current.since)}` : ""} ·{" "}
+          </>
+        ) : null}
+        {num(j.live)} live · {num(j.failed)} didn&apos;t go live · {num(j.total - j.done)} to go
+        {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
+        {j.running ? ". It runs on the server; you can leave this page." : "."}
+      </p>
+      {j.stalled && <ContinueImport />}
+      <RunItems items={j.items} />
+    </div>
+  );
+}
+
+/** A running import no server has picked up for a while: one press carries it on (the scheduled run would, later). */
+function ContinueImport() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-warning-600">
+      It has paused: no server has worked on it for a few minutes.
+      <Button
+        size="sm"
+        variant="outline"
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          const r = await post({ action: "continue" });
+          setBusy(false);
+          if (!r.ok) toast.error("Couldn't continue it", r.error.message);
+          else toast.success("Continuing on the server", "This page shows where it gets to.");
+        }}
+      >
+        Continue
+      </Button>
+    </p>
+  );
+}
+
+const ITEM_TONE: Record<string, string> = { live: "text-success-600", collected: "text-success-600", failed: "text-danger-600", running: "text-brand-600", pending: "text-ink-4" };
+const ITEM_LABEL: Record<string, string> = { live: "Live", collected: "Collected", failed: "Didn't go live", running: "Working", pending: "Waiting" };
+
+/** A run's sources, folded: each one's outcome and, when it failed, the step and why. */
+function RunItems({ items }: { items: { name: string; status: string; step?: string; message?: string; valid?: number }[] }) {
+  if (!items.length) return null;
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
+      <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
+        {items.map((i, n) => (
+          <li key={`${i.name}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1">
+            <span className="min-w-0 text-ink-2">{i.name}</span>
+            <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
+              {ITEM_LABEL[i.status] ?? i.status}
+              {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
+              {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+              {i.status === "failed" ? ` · ${i.step ? `${i.step}: ` : ""}${i.message ?? ""}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+const RUN_KIND: Record<ImportRun["kind"], string> = { import: "Import now", module: "Module import", hourly: "Scheduled collection" };
+
+/** Every run, newest first, each folded to its sources (owner, 2026-11-02: "persist every run detail in folded form"). */
+function RunHistory({ runs }: { runs: ImportRun[] }) {
+  return (
+    <Fold title="Runs" hint={runs.length ? `The newest ${num(runs.length)}, each with what happened to every source` : "None yet"}>
+      <ul className="flex flex-col divide-y divide-line pb-4">
+        {runs.map((r) => (
+          <li key={`${r.id}-${r.finishedAt}`} className="py-2 text-[13px]">
+            <details>
+              <summary className="cursor-pointer">
+                <span className="font-medium text-ink">
+                  {RUN_KIND[r.kind]}
+                  {r.module ? ` · ${MODULES.find((m) => m.id === r.module)?.label ?? r.module}` : ""}
+                </span>
+                <span className="text-ink-3">
+                  {" "}
+                  · {when(r.finishedAt)}
+                  {r.repeats && r.repeats > 1 ? ` · ${r.repeats} runs with nothing new since ${when(r.startedAt)}` : ""} · {r.trigger === "cron" ? "scheduled" : r.trigger === "scheduler" ? "scheduled set-up" : (r.by ?? "admin")}
+                </span>
+                <span className="block text-[12px] text-ink-3">{r.summary}</span>
+              </summary>
+              <div className="mt-1 pl-3">
+                {r.stored && Object.keys(r.stored).length > 0 && (
+                  <p className="text-[12px] text-ink-3">In Find after it: {Object.entries(r.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}</p>
+                )}
+                {r.items.length ? <RunItems items={r.items} /> : <p className="text-[12px] text-ink-4">No source was due.</p>}
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </Fold>
+  );
+}
+
+/**
+ * The "import finished" email (owner, 2026-11-03: "make this email sending configurable in admin"): whether import jobs
+ * and the hourly collection send it, and to whom (empty: the platform admins).
+ */
+function Emails({ d, reload }: { d: ImportView; reload: () => void }) {
+  const e = d.emails;
+  const [to, setTo] = useState(e.to.join(", "));
+  const [saving, setSaving] = useState(false);
+  const save = async (patch: Record<string, unknown>, done?: string) => {
+    setSaving(true);
+    const r = await post({ action: "emails", ...patch });
+    setSaving(false);
+    if (!r.ok) toast.error("Couldn't save", r.error.message);
+    else if (done) toast.success(done);
+    reload();
+  };
+  const who = e.to.length ? e.to.join(", ") : e.admins ? `the ${num(e.admins)} platform ${e.admins === 1 ? "admin" : "admins"}` : "the Company ratings notify address";
+  const state = !e.imports && !e.hourly ? "Off" : `${[e.imports && "imports", e.hourly && "hourly collections"].filter(Boolean).join(" and ")} · to ${who}`;
+  return (
+    <Fold title="Emails" hint={e.mailbox ? `When a run finishes, each module's new entries in Find: ${state}` : "The platform mailbox (SMTP) isn't set up, so no email is sent"}>
+      <div className="flex flex-col gap-3 pb-4">
+        {(
+          [
+            ["imports", "When an import finishes", "Import now, a module's import, the scheduled set-up"],
+            ["hourly", "When an hourly collection brings anything in", "Not sent for an hour with nothing due"],
+          ] as const
+        ).map(([k, label, hint]) => (
+          <div key={k} className="flex items-center justify-between gap-3 text-[13px]">
+            <span className="min-w-0">
+              <span className="block text-ink">{label}</span>
+              <span className="block text-[12px] text-ink-3">{hint}</span>
+            </span>
+            <Switch label={label} checked={e[k]} disabled={saving} onChange={(v) => save({ [k]: v })} />
+          </div>
+        ))}
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            void save({ to }, "Recipients saved");
+          }}
+        >
+          <Field label="Send to" htmlFor="import-email-to" className="min-w-0 flex-1">
+            <Input id="import-email-to" value={to} onChange={(ev) => setTo(ev.target.value)} placeholder="Platform admins" maxLength={1000} />
+          </Field>
+          <Button type="submit" size="sm" variant="outline" disabled={saving || to === e.to.join(", ")}>
+            Save
+          </Button>
+          <p className="w-full text-[12px] text-ink-3">Comma-separated, up to 10. Leave empty for the platform admins.</p>
+        </form>
+      </div>
+    </Fold>
+  );
+}
+
+/** The schedule and its one option. */
+function Schedule({ d, reload }: { d: ImportView; reload: () => void }) {
   const [saving, setSaving] = useState(false);
   return (
-    <Panel>
-      <div className="flex flex-col gap-2 text-[13px] text-ink-2">
-        {j?.running && (
-          <p>
-            <span className="font-medium text-ink">Importing on the server:</span> {j.done} of {j.total} sources set up. Then every module&apos;s Find is refreshed. You can leave this page.
-          </p>
-        )}
-        {j && !j.running && (
-          <p>
-            <span className="font-medium text-ink">Last import {when(j.finishedAt)}:</span> {num(j.live)} of {num(j.total)} sources went live
-            {j.failed.length ? ` · not live: ${j.failed.map((f) => `${f.name} (${f.step ?? "failed"}: ${f.message ?? ""})`).join("; ")}` : ""}.
-            {Object.keys(d.pipeline.find.stored).length ? ` In Find: ${Object.entries(d.pipeline.find.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}.` : ""}
-          </p>
-        )}
-        {!j && d.lastRun && (
-          <p>
-            <span className="font-medium text-ink">Last hourly run {when(d.lastRun.finishedAt)}:</span> {d.lastRun.summary}.
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-ink-3">{d.schedule.cronSet ? "Runs every hour: collects what's due and refreshes Find for anything new." : "CRON_SECRET isn't set, so the hourly run can't reach this deployment."}</span>
-          <Switch
-            label="Also set up waiting sources every hour"
-            checked={d.schedule.activateWaiting}
-            disabled={saving}
-            onChange={async (v) => {
-              setSaving(true);
-              const r = await post({ action: "schedule", activateWaiting: v });
-              setSaving(false);
-              if (!r.ok) toast.error("Couldn't save", r.error.message);
-              reload();
-            }}
-          />
-        </div>
-      </div>
-    </Panel>
+    <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px]">
+      <span className="text-ink-3">{d.schedule.cronSet ? `${SCHEDULE_LINE} It collects what's due and refreshes Find for anything new.` : "CRON_SECRET isn't set, so the scheduled run can't reach this deployment."}</span>
+      <Switch
+        label={`Also set up waiting sources every ${TRIGGER_EVERY_HOURS} hours`}
+        checked={d.schedule.activateWaiting}
+        disabled={saving}
+        onChange={async (v) => {
+          setSaving(true);
+          const r = await post({ action: "schedule", activateWaiting: v });
+          setSaving(false);
+          if (!r.ok) toast.error("Couldn't save", r.error.message);
+          reload();
+        }}
+      />
+    </div>
   );
 }
 
@@ -157,7 +324,7 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
     const r = await post({ action: "module_pause", module: m.id, paused });
     setBusy(null);
     if (!r.ok) toast.error("Couldn't change it", r.error.message);
-    else toast.success(paused ? `${m.label} import paused` : `${m.label} import resumed`, paused ? "Nothing new is collected or stored for it until you resume. What Find has stays." : "The next hourly run includes it again.");
+    else toast.success(paused ? `${m.label} import paused` : `${m.label} import resumed`, paused ? "Nothing new is collected or stored for it until you resume. What Find has stays." : "The next scheduled run includes it again.");
     reload();
   };
   const importNow = async () => {
@@ -227,6 +394,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     a.kind === "run" ? { action: "item", id: rowId }
     : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
     : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
+    : a.kind === "dismiss" ? { action: "dismiss", id: a.id, dismissed: a.dismissed }
     : { action: a.kind, sourceId: a.sourceId };
   const done = (d: Record<string, unknown>) =>
     a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
@@ -235,6 +403,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     : a.kind === "activate" ? "Live"
     : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
     : a.kind === "test" ? (d.ok === false ? `Test didn't pass: ${num(Number(d.valid ?? 0))} of ${num(Number(d.discovered ?? 0))} read well` : `Test passed · ${num(Number(d.valid ?? 0))} read well`)
+    : a.kind === "dismiss" ? (a.dismissed ? "Dismissed: Import won't try it again" : "Restored")
     : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
   return (
     <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
@@ -426,33 +595,49 @@ function AddSources({ reload }: { reload: () => void }) {
   );
 }
 
-/** The gateway's last collections and tests. */
+/** What a gateway failure code means, and what can be done, in plain words. */
+const REASON: Record<string, string> = {
+  ROBOTS_UNAVAILABLE: "Its robots.txt can't be read from our servers, so it isn't collected. Dismiss it, or ask the site to allow WonderWorks.",
+  ROBOTS_DISALLOWED: "Its robots.txt doesn't allow collecting this page. Dismiss it.",
+  SOURCE_UNAVAILABLE: "The site refused us or didn't answer (403 or down). Try again later, or dismiss it.",
+  UNSAFE_REDIRECT: "The site sends us to another address, which isn't followed. Dismiss it, or fix its address.",
+  INVALID_SOURCE: "Too few of its records read well (90% needed). Open its Details to see why.",
+  SOURCE_TIMEOUT: "It took too long to answer. The next run tries again.",
+  "Collection already running": "It was already being collected. The next run tries again.",
+};
+const reasonFor = (code?: string) => (code ? (REASON[code] ?? code) : "It failed without a reason.");
+
+/** The gateway's last collections and tests, repeats grouped: one line per source and outcome, with what it means. */
 function RecentRuns({ d }: { d: ImportView }) {
+  const groups = new Map<string, { source: string; ok: boolean; code?: string; kind: string; count: number; at: string; valid?: number }>();
+  for (const r of d.recentRuns) {
+    const kind = r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect";
+    const key = `${r.source}|${r.ok}|${r.code ?? ""}|${kind}`;
+    const g = groups.get(key);
+    if (g) g.count++;
+    else groups.set(key, { source: r.source, ok: r.ok, code: r.code, kind, count: 1, at: r.at, valid: r.valid });
+  }
+  const rows = [...groups.values()];
+  const failing = rows.filter((r) => !r.ok).length;
   return (
-    <Fold title="Recent collections" hint={d.recentRuns.length ? `Newest ${d.recentRuns.length}` : "None yet"}>
-      <div className="pb-4">
-        <ResponsiveTable
-          rows={d.recentRuns}
-          rowKey={(r) => `${r.at}${r.sourceId}${r.trigger}`}
-          empty="No collections yet."
-          columns={[
-            { header: "When", cell: (r) => when(r.at) },
-            { header: "Source", cell: (r) => r.source },
-            { header: "Kind", cell: (r) => (r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect") },
-            { header: "Result", cell: (r) => (r.ok ? `${num(r.valid)} listings` : <span className="text-danger-600">{r.code ?? "failed"}</span>) },
-            { header: "Time", cell: (r) => ms(r.ms) },
-          ]}
-          card={(r) => (
-            <div className="flex flex-col gap-0.5 text-[13px]">
-              <span className="font-medium text-ink">{r.source}</span>
-              <span className="text-ink-3">
-                {when(r.at)} · {r.trigger === "test" ? "Test" : r.trigger === "ingest" ? "Delivered" : "Collect"} · {ms(r.ms)}
+    <Fold title="Recent collections" hint={rows.length ? `The newest ${num(d.recentRuns.length)}${failing ? ` · ${num(failing)} failing; each says why and what to do` : ""}` : "None yet"}>
+      <ul className="flex flex-col divide-y divide-line pb-4">
+        {rows.map((r) => (
+          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="py-2 text-[13px]">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="font-medium text-ink">
+                {r.source}
+                {r.count > 1 ? <span className="font-normal text-ink-3"> ×{r.count}</span> : null}
               </span>
-              <span>{r.ok ? `${num(r.valid)} listings` : <span className="text-danger-600">{r.code ?? "failed"}</span>}</span>
-            </div>
-          )}
-        />
-      </div>
+              <span className="text-[12px] text-ink-3">
+                {r.kind} · {when(r.at)}
+              </span>
+            </span>
+            <span className={`block text-[12px] ${r.ok ? "text-success-600" : "text-danger-600"}`}>{r.ok ? `${num(r.valid)} listings` : reasonFor(r.code)}</span>
+          </li>
+        ))}
+      </ul>
+      {failing > 0 && <p className="pb-4 text-[12px] text-ink-3">To stop a failing source being tried: open its module card above, then Details → Dismiss on its row.</p>}
     </Fold>
   );
 }

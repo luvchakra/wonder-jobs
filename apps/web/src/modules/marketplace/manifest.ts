@@ -28,6 +28,7 @@ export const marketplaceManifest: ModuleManifest = {
   ],
   response: { verb: "offer", questions: false, states: ["messaged", "offer", "visit", "done"], capability: "marketplace.offer" },
   pipeline: { label: "Deals", icon: "Handshake", stages: stagesOf("Messaged", "Offer", "Visit", "Done"), sections: ["My listings"] },
+  post: { href: "/app/m/marketplace/company", label: "Sell something" },
   ownerSide: { workspace: "person" },
   trust: { reviews: "off" },
   compliance: ["payments", "housing"],

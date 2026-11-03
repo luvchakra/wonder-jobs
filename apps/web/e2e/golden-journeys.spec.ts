@@ -429,7 +429,7 @@ test.describe("Golden journey — search", () => {
     await openApp(page, "/app/jobs");
     const main = page.locator("#main");
     // Full Time / Part Time: the menu in the middle of the top bar.
-    const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
+    const kindBtn = page.getByRole("button", { name: /^Module/ });
     const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
       await kindBtn.click();
       await page.getByRole("menuitemradio", { name: label }).click();
@@ -448,7 +448,7 @@ test.describe("Golden journey — search", () => {
     // Kept between visits, per mode.
     await page.waitForTimeout(1500);
     await page.reload();
-    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Module: Full Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
     await pickKind("Part Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine");
@@ -458,14 +458,14 @@ test.describe("Golden journey — search", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openApp(page, "/app/jobs");
     // Full Time / Part Time: the menu in the middle of the top bar.
-    const kindBtn = page.getByRole("button", { name: /^Kind of jobs/ });
+    const kindBtn = page.getByRole("button", { name: /^Module/ });
     const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
       await kindBtn.click();
       await page.getByRole("menuitemradio", { name: label }).click();
     };
-    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Module: Full Time Jobs");
     // The menu sits in the top bar.
-    await expect(page.locator("header[data-top-bar]").getByRole("button", { name: /^Kind of jobs/ })).toBeVisible();
+    await expect(page.locator("header[data-top-bar]").getByRole("button", { name: /^Module/ })).toBeVisible();
 
     // Full Time: Looking for with Change, then Refine · Location · Salary and the round search; no search box.
     // The views and job types are in Refine, not on the page.
@@ -514,7 +514,7 @@ test.describe("Golden journey — search", () => {
 
     // Pick Part Time from the menu.
     await pickKind("Part Time Jobs");
-    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Part Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Module: Part Time Jobs");
     for (const [i, y] of (await rows()).entries()) expect(Math.abs(y - fullRows[i])).toBeLessThanOrEqual(1);
 
     // Part Time: the box with Refine on its right, and Search; no Looking for. In Refine: its job types
@@ -572,12 +572,12 @@ test.describe("Golden journey — search", () => {
 
     // The menu switches back, and Escape closes it without choosing.
     await pickKind("Full Time Jobs");
-    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    await expect(kindBtn).toHaveAccessibleName("Module: Full Time Jobs");
     await kindBtn.click();
-    await expect(page.getByRole("menu", { name: "Kind of jobs" })).toBeVisible();
+    await expect(page.getByRole("menu", { name: "Module" })).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("menu", { name: "Kind of jobs" })).toHaveCount(0);
-    await expect(kindBtn).toHaveAccessibleName("Kind of jobs: Full Time Jobs");
+    await expect(page.getByRole("menu", { name: "Module" })).toHaveCount(0);
+    await expect(kindBtn).toHaveAccessibleName("Module: Full Time Jobs");
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 });

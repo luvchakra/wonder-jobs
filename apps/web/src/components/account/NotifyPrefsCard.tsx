@@ -18,7 +18,10 @@ const CHANNELS: { id: NotifyChannel; label: string }[] = [
  * that way ("—" where it can't), inside what the platform allows (a channel it doesn't is shown off and fixed).
  * Signed-in accounts only: the choices are kept with the account.
  */
-export function NotifyPrefsCard() {
+/** One kind as a module words it; a kind left out isn't shown. */
+export type TopicView = { id: NotifyTopic; label?: string; hint?: string };
+
+export function NotifyPrefsCard({ topics, footnote }: { /** The kinds shown, in order, with the module's words (2026-11-02: module-specific); every kind by default. */ topics?: TopicView[]; footnote?: string } = {}) {
   const mode = useAuthStore((s) => s.mode);
   const [prefs, setPrefs] = useState<NotifyPrefs | null>(null);
   const [allowed, setAllowed] = useState<Record<NotifyTopic, Record<NudgeChannel, boolean>> | null>(null);
@@ -65,7 +68,7 @@ export function NotifyPrefsCard() {
         ))}
       </div>
       <ul className="divide-y divide-line" aria-label="Kinds of notification">
-        {NOTIFY_TOPICS.map((t) => (
+        {(topics ?? NOTIFY_TOPICS.map((x) => ({ id: x.id }))).map((v) => ({ ...NOTIFY_TOPICS.find((x) => x.id === v.id)!, ...v })).map((t) => (
           <li key={t.id} className="flex items-center gap-2 py-3">
             <span className="min-w-0 flex-1">
               <span className="block text-[14px] text-ink">{t.label}</span>
@@ -85,7 +88,7 @@ export function NotifyPrefsCard() {
           </li>
         ))}
       </ul>
-      <p className="pt-2 text-[12px] text-ink-3">Email goes only when a push didn&apos;t reach you. A switch you can&apos;t change is off for everyone.</p>
+      <p className="pt-2 text-[12px] text-ink-3">Email goes only when a push didn&apos;t reach you. A switch you can&apos;t change is off for everyone.{footnote ? ` ${footnote}` : ""}</p>
     </Card>
   );
 }

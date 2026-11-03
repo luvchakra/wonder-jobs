@@ -39,6 +39,21 @@ describe("Import page: a module's sources as rows with one state and one action 
     expect(row.history.find((h) => h.label === "Last collection")?.value).toMatch(/failed: SOURCE_UNAVAILABLE/);
   });
 
+  it("a source that didn't go live in the last day reads 'needs you' with why, and Try again", () => {
+    const failed = new Map([["gateway:src_h", { at: new Date(Date.now() - 2 * 3_600_000).toISOString(), step: "Test", message: "Cannot verify robots policy" }]]);
+    const [row] = moduleRows("services", [], [gw("src_h", "services")], [item("gateway:src_h", "services", "activate", { run: { kind: "activate", sourceId: "src_h" } })], failed);
+    expect(row).toMatchObject({ state: "needs_you", action: { kind: "run", label: "Try again" } });
+    expect(row.detail).toMatch(/^Didn't go live 2 h ago at Test: Cannot verify robots policy\. Import now leaves it out for a day\.$/);
+  });
+
+  it("a failing source can be dismissed; a dismissed one is off, not counted as waiting, with Restore", () => {
+    const failed = new Map([["gateway:src_h", { at: new Date().toISOString(), message: "Cannot verify robots policy" }]]);
+    const it = item("gateway:src_h", "services", "activate", { run: { kind: "activate", sourceId: "src_h" } });
+    expect(moduleRows("services", [], [gw("src_h", "services")], [it], failed)[0].more).toContainEqual({ kind: "dismiss", label: "Dismiss", id: "gateway:src_h", dismissed: true });
+    const [row] = moduleRows("services", [], [gw("src_h", "services")], [it], failed, new Set(["gateway:src_h"]));
+    expect(row).toMatchObject({ state: "off", action: { kind: "dismiss", label: "Restore", dismissed: false } });
+  });
+
   it("a partner's row asks for its list, then offers Activate once one is uploaded", () => {
     expect(moduleRows("events", [], [gw("src_p", "events", { kind: "upload" })], [])[0]).toMatchObject({ kind: "Partner", state: "needs_you", action: { kind: "upload" } });
     expect(moduleRows("events", [], [gw("src_p", "events", { kind: "upload", listings: 40 })], [])[0]).toMatchObject({ state: "waiting", action: { kind: "activate" } });

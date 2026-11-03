@@ -12,6 +12,7 @@ import { pickEntry, searchKey, servingDepths, STALE_MS } from "@/domain/jobslake
 import type { Depth } from "@/domain/jobslake/planner";
 import { jobsLakeStore, type CachedAnswer } from "./store";
 import type { SourceRecord } from "./types";
+import type { ModuleId } from "@/wonderworks/manifest";
 
 export function answerKey(src: Pick<SourceRecord, "id" | "updatedAt">, depth: Depth, search: string): string {
   return createHash("sha256").update(`${src.id}|${src.updatedAt}|${depth}|${search}`).digest("hex").slice(0, 40);
@@ -25,11 +26,11 @@ export interface CacheLookup {
 }
 
 /** Every planned source's cached answers for this search, in one read. */
-export async function lookupAnswers(sources: Pick<SourceRecord, "id" | "updatedAt">[], depth: Depth, criteria: { query: string; locations: string[] }, now = Date.now()): Promise<CacheLookup> {
+export async function lookupAnswers(sources: Pick<SourceRecord, "id" | "updatedAt">[], depth: Depth, criteria: { query: string; locations: string[] }, now = Date.now(), module: ModuleId = "jobs"): Promise<CacheLookup> {
   const search = searchKey(criteria);
   const keyOwner = new Map<string, string>();
   for (const s of sources) for (const d of servingDepths(depth)) keyOwner.set(answerKey(s, d, search), s.id);
-  const entries = await jobsLakeStore().getCachedAnswers([...keyOwner.keys()]);
+  const entries = await jobsLakeStore().getCachedAnswers([...keyOwner.keys()], module);
   const bySource = new Map<string, CachedAnswer[]>();
   for (const e of entries) {
     const owner = keyOwner.get(e.key);
@@ -53,9 +54,9 @@ export function answerFor(src: Pick<SourceRecord, "id" | "updatedAt">, depth: De
 const g = globalThis as unknown as { __jlCachePrunedAt?: number };
 
 /** Stores this search's fresh answers; at most every 10 minutes per server, drops ones too old to serve. */
-export async function saveAnswers(entries: CachedAnswer[], now = Date.now()): Promise<void> {
+export async function saveAnswers(entries: CachedAnswer[], now = Date.now(), module: ModuleId = "jobs"): Promise<void> {
   const store = jobsLakeStore();
-  if (entries.length) await store.putCachedAnswers(entries);
+  if (entries.length) await store.putCachedAnswers(entries, module);
   if (!g.__jlCachePrunedAt || now - g.__jlCachePrunedAt > 10 * 60_000) {
     g.__jlCachePrunedAt = now;
     await store.pruneCachedAnswers(new Date(now - STALE_MS).toISOString());
