@@ -84,9 +84,10 @@ export default async function SharedListingPage({ params }: Props) {
               )}
               {l.originalUrl && /^https?:\/\//i.test(l.originalUrl) && (
                 <a href={l.originalUrl} target="_blank" rel="noreferrer noopener" className="mt-4 inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-brand-600 hover:underline">
-                  Original posting{l.source ? ` on ${l.source}` : ""} <ExternalLink className="size-4" aria-hidden />
+                  {l.originalLabel ?? `Original posting${l.source ? ` on ${l.source}` : ""}`} <ExternalLink className="size-4" aria-hidden />
                 </a>
               )}
+              {l.credit && <p className="mt-2 text-[12px] text-ink-4">{l.credit}</p>}
               <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href={`/sign-up?next=${next}`} className="wj-gradient-bg wj-press inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-6 text-[15px] font-semibold text-white shadow-brand hover:brightness-105">
                   {action} — it&apos;s free <ArrowRight className="size-4" aria-hidden />

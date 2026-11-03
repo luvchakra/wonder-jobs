@@ -280,6 +280,10 @@ export interface ListingShareProps extends ListingShareInput {
   /** For the public page only: where the listing came from, and its original posting when it came from outside. */
   source?: string;
   originalUrl?: string;
+  /** The original link's words, when "Original posting on <source>" doesn't fit (a mapped practice: "Their page on OpenStreetMap"). */
+  originalLabel?: string;
+  /** A credit the source's licence asks for (open data: "© OpenStreetMap contributors, ODbL"), shown under the listing. */
+  credit?: string;
 }
 
 /**
