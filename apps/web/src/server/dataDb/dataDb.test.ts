@@ -43,10 +43,44 @@ describe("each module's own data database (owner, 2026-11-03)", () => {
     expect(dataHome("events")).toBe("main");
   });
 
-  it("won't give two modules the same project, so no module's data mixes with another's", async () => {
+  it("lets modules share a DDB: the same project is accepted, and a blank key reuses the saved one (2026-11-03)", async () => {
     await saveDataDb("therapists", { url: URL_OK, key: KEY });
-    expect(await saveDataDb("events", { url: URL_OK, key: KEY })).toMatchObject({ ok: false, message: expect.stringContaining("therapists") });
-    expect((await saveDataDb("events", { url: OTHER, key: KEY })).ok).toBe(true);
+    expect(await saveDataDb("events", { url: URL_OK })).toMatchObject({ ok: true, sharedWith: ["therapists"], move: false });
+    const rows = await dataDbOverview(["therapists", "events", "jobs"]);
+    expect(rows.map((r) => r.sharedWith)).toEqual([["events"], ["therapists"], []]);
+    // A project nobody uses still needs its key.
+    expect((await saveDataDb("jobs", { url: OTHER })).ok).toBe(false);
+  });
+
+  it("moves a module to a new DDB without cutting it over: the new one waits until it's tested and switched to (2026-11-03)", async () => {
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", { modules: { therapists: await enabledDoc(URL_OK), events: await enabledDoc(URL_OK) } });
+    await loadDataDb(true);
+    expect(await saveDataDb("therapists", { url: OTHER, key: KEY })).toMatchObject({ ok: true, move: true });
+    // Still on the old (shared) DDB until the switch. (Read from the setting: the overview would ask the DDBs.)
+    const saved = async () => ((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state as { modules: Record<string, Record<string, unknown>> }).modules;
+    expect((await saved()).therapists).toMatchObject({ url: URL_OK, enabled: true, next: { url: OTHER } });
+    expect(dataHome("therapists")).toBe("own");
+    expect(await setDataDbEnabled("therapists", true)).toMatchObject({ ok: false }); // the new DDB isn't tested
+    // Once tested, switching moves it and remembers the old DDB so its rows there can be freed.
+    const mods = ((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state as { modules: Record<string, { next: object }> }).modules;
+    mods.therapists.next = { ...mods.therapists.next, lastTest: { at: "", ok: true, message: "" } };
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", { modules: mods });
+    expect(await setDataDbEnabled("therapists", true)).toEqual({ ok: true });
+    const after = await saved();
+    expect(after.therapists).toMatchObject({ url: OTHER, enabled: true, previous: { url: URL_OK } });
+    expect(after.therapists.next).toBeUndefined();
+    // Events stays on the DDB it shared.
+    expect(after.events).toMatchObject({ url: URL_OK, enabled: true });
+  });
+
+  it("drops a pending move on request; the module stays where it is", async () => {
+    const { discardMove } = await import("./index");
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", { modules: { therapists: await enabledDoc(URL_OK) } });
+    await saveDataDb("therapists", { url: OTHER, key: KEY });
+    await discardMove("therapists");
+    const mods = ((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state as { modules: Record<string, Record<string, unknown>> }).modules;
+    expect(mods.therapists).toMatchObject({ url: URL_OK, enabled: true });
+    expect(mods.therapists.next).toBeUndefined();
   });
 
   it("routes a module's data only to its own database once on; a module without one uses the main database, never another's", async () => {
@@ -66,8 +100,8 @@ describe("each module's own data database (owner, 2026-11-03)", () => {
     expect(dataHome("jobs")).toBe("own");
     expect(dataHome("events")).toBe("main");
     expect(dataFrom("gateway_listings", "events")).toBeNull();
-    // A project already held by Jobs (the legacy one) can't be given to another module.
-    expect((await saveDataDb("events", { url: URL_OK, key: KEY })).ok).toBe(false);
+    // Another module may share the legacy DDB.
+    expect(await saveDataDb("events", { url: URL_OK })).toMatchObject({ ok: true, sharedWith: ["jobs"] });
     // Jobs' first change folds the legacy setting into its own entry.
     await setDataDbEnabled("jobs", false);
     expect((await stateStore.get(PLATFORM_TENANT, "wj.datadb"))?.state ?? null).toBeNull();

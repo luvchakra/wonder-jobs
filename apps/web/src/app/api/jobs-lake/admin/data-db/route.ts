@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
-import { clearMainPage, copyPage, dataDbOverview, evictPage, removeDataDb, saveDataDb, setDataDbEnabled, tablesFor, testDataDb, type DataTable } from "@/server/dataDb";
+import { clearMainPage, copyPage, dataDbOverview, discardMove, evictPage, removeDataDb, saveDataDb, setDataDbEnabled, tablesFor, testDataDb, type DataTable } from "@/server/dataDb";
 import { DATA_DB_SCHEMA_SQL } from "@/server/dataDb/schema";
 import { MODULE_IDS } from "@/modules/registry";
 
@@ -19,7 +19,7 @@ export async function GET() {
 
 /**
  * For one module (`module`, a registered module's id): save · test · copy (one page) · clear (one batch of its old copy)
- * · evict (one batch of other modules' rows out of its database) · enable · disable · remove. Audited with the module,
+ * · evict (one batch of other modules' rows out of its DDB) · enable · disable · discard (a pending move) · remove. Audited with the module,
  * never the key.
  */
 export async function POST(req: Request) {
@@ -56,6 +56,11 @@ export async function POST(req: Request) {
       const r = await setDataDbEnabled(mod, action === "enable");
       await audit(a.actor, `datadb.${action}d`, undefined, { module: mod, ok: r.ok });
       return r.ok ? json(r) : jlError("INVALID_REQUEST", r.message, 409);
+    }
+    case "discard": {
+      await discardMove(mod);
+      await audit(a.actor, "datadb.move_discarded", undefined, { module: mod });
+      return json({ ok: true });
     }
     case "remove": {
       await removeDataDb(mod);
