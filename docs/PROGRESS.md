@@ -136,3 +136,4 @@
 - ✅ Admin source page: audit entries wrap inside the card; subtitle aligned (WJ-687)
 - ✅ Share: phone-screen share image, Instagram/Facebook/X options, marketing line (WJ-688)
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
+- ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
