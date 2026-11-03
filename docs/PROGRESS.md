@@ -141,3 +141,4 @@
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
 - ✅ Teaching: Share checked end to end (public URL per origin, image, help) (WJ-564)
 - ✅ Therapists: Share checked for own practitioners and mapped practices, with the map credit (WJ-604)
+- ✅ Scholarships & Projects: Share checked end to end; Share on the application page; cleaner share facts (WJ-528)

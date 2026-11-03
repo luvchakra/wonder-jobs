@@ -323,13 +323,15 @@ export function rawFromFeedItem(item: string): RawPosting | null {
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const deadline = statedDeadline(text);
   const pub = Date.parse(tag(item, "pubDate"));
+  // The post's opening "Deadline: …" is kept as the deadline, not repeated as the first words of the description.
+  const body = text.replace(/^\s*deadline[^:\n]{0,30}:\s*(?:[A-Za-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+[A-Za-z]+\.?,?\s+\d{4}|unspecified|ongoing|varies|rolling|open)\s*(?:\([^)]*\))?\s*/i, "");
   return {
     externalId: link,
     title,
     company: providerFromTitle(title, NO_PROVIDER),
     location: "",
     remote: false,
-    description: text.slice(0, 3000),
+    description: body.slice(0, 3000),
     tags: [],
     ...(Number.isFinite(pub) ? { postedAt: new Date(pub).toISOString() } : {}),
     applyUrl: link,
