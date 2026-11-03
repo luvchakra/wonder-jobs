@@ -81,6 +81,7 @@ export default function ImportPage() {
           </div>
           <AddSources reload={reload} />
           <RunHistory runs={data.runs} />
+          <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
         </div>
@@ -228,6 +229,61 @@ function RunHistory({ runs }: { runs: ImportRun[] }) {
           </li>
         ))}
       </ul>
+    </Fold>
+  );
+}
+
+/**
+ * The "import finished" email (owner, 2026-11-03: "make this email sending configurable in admin"): whether import jobs
+ * and the hourly collection send it, and to whom (empty: the platform admins).
+ */
+function Emails({ d, reload }: { d: ImportView; reload: () => void }) {
+  const e = d.emails;
+  const [to, setTo] = useState(e.to.join(", "));
+  const [saving, setSaving] = useState(false);
+  const save = async (patch: Record<string, unknown>, done?: string) => {
+    setSaving(true);
+    const r = await post({ action: "emails", ...patch });
+    setSaving(false);
+    if (!r.ok) toast.error("Couldn't save", r.error.message);
+    else if (done) toast.success(done);
+    reload();
+  };
+  const who = e.to.length ? e.to.join(", ") : e.admins ? `the ${num(e.admins)} platform ${e.admins === 1 ? "admin" : "admins"}` : "the Company ratings notify address";
+  const state = !e.imports && !e.hourly ? "Off" : `${[e.imports && "imports", e.hourly && "hourly collections"].filter(Boolean).join(" and ")} · to ${who}`;
+  return (
+    <Fold title="Emails" hint={e.mailbox ? `When a run finishes, each module's new entries in Find: ${state}` : "The platform mailbox (SMTP) isn't set up, so no email is sent"}>
+      <div className="flex flex-col gap-3 pb-4">
+        {(
+          [
+            ["imports", "When an import finishes", "Import now, a module's import, the scheduled set-up"],
+            ["hourly", "When an hourly collection brings anything in", "Not sent for an hour with nothing due"],
+          ] as const
+        ).map(([k, label, hint]) => (
+          <div key={k} className="flex items-center justify-between gap-3 text-[13px]">
+            <span className="min-w-0">
+              <span className="block text-ink">{label}</span>
+              <span className="block text-[12px] text-ink-3">{hint}</span>
+            </span>
+            <Switch label={label} checked={e[k]} disabled={saving} onChange={(v) => save({ [k]: v })} />
+          </div>
+        ))}
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            void save({ to }, "Recipients saved");
+          }}
+        >
+          <Field label="Send to" htmlFor="import-email-to" className="min-w-0 flex-1">
+            <Input id="import-email-to" value={to} onChange={(ev) => setTo(ev.target.value)} placeholder="Platform admins" maxLength={1000} />
+          </Field>
+          <Button type="submit" size="sm" variant="outline" disabled={saving || to === e.to.join(", ")}>
+            Save
+          </Button>
+          <p className="w-full text-[12px] text-ink-3">Comma-separated, up to 10. Leave empty for the platform admins.</p>
+        </form>
+      </div>
     </Fold>
   );
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { moduleCounts, renderImportEmail, sendImportEmail } from "./importEmail";
+import { cleanScheduler } from "@/domain/scheduler/settings";
+import { importEmailRecipients, moduleCounts, renderImportEmail, sendImportEmail } from "./importEmail";
 import type { ImportRun } from "./importRuns";
 
 const run = (id: string, finishedAt: string, stored?: Record<string, number>, extra: Partial<ImportRun> = {}): ImportRun => ({ id, kind: "import", trigger: "admin", startedAt: finishedAt, finishedAt, items: [], summary: "1 of 1 went live · Find refreshed", ...(stored ? { stored } : {}), ...extra });
@@ -43,5 +44,24 @@ describe("the import-finished email (owner, 2026-11-03)", () => {
     expect(await sendImportEmail(r, [], { send, recipients: ["a@example.com", "b@example.com"] })).toEqual({ sent: 2 });
     expect(send.mock.calls.map((c) => (c as unknown as [{ to: string }])[0].to)).toEqual(["a@example.com", "b@example.com"]);
     expect(await sendImportEmail(r, [], { send: vi.fn(), recipients: [] })).toEqual({ sent: 0, reason: "no admin email set" });
+  });
+
+  it("follows Admin → Import → Emails: each kind of run can be off, and set addresses replace the admins (2026-11-03)", async () => {
+    const send = vi.fn(async () => ({ sent: true }));
+    const imp = run("i", "2026-11-03T02:00:00Z", { therapists: 1 });
+    const hourly = run("h", "2026-11-03T02:00:00Z", { therapists: 1 }, { kind: "hourly", trigger: "cron" });
+    const settings = { imports: false, hourly: true, to: [] };
+    expect(await sendImportEmail(imp, [], { send, recipients: ["a@example.com"], settings })).toEqual({ sent: 0, reason: "turned off" });
+    expect(await sendImportEmail(hourly, [], { send, recipients: ["a@example.com"], settings: { ...settings, hourly: false, imports: true } })).toEqual({ sent: 0, reason: "turned off" });
+    expect(send).not.toHaveBeenCalled();
+    expect(await importEmailRecipients({ JOBSLAKE_ADMIN_EMAILS: "admin@example.com" } as unknown as NodeJS.ProcessEnv, ["ops@example.com"])).toEqual(["ops@example.com"]);
+    expect(await importEmailRecipients({ JOBSLAKE_ADMIN_EMAILS: "Admin@Example.com, x" } as unknown as NodeJS.ProcessEnv)).toEqual(["admin@example.com"]);
+  });
+
+  it("stores the settings checked: on by default, addresses cleaned and capped", () => {
+    expect(cleanScheduler({}).importEmail).toEqual({ imports: true, hourly: true, to: [] });
+    const c = cleanScheduler({ importEmail: { imports: false, hourly: "no", to: "Ops@Example.com, bad, ops@example.com; b@example.com" } });
+    expect(c.importEmail).toEqual({ imports: false, hourly: true, to: ["ops@example.com", "b@example.com"] });
+    expect(cleanScheduler({ importEmail: { to: Array.from({ length: 20 }, (_, i) => `u${i}@example.com`) } }).importEmail.to).toHaveLength(10);
   });
 });

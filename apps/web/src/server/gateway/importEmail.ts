@@ -8,6 +8,7 @@
 import { siteUrl } from "@/lib/siteUrl";
 import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "@/server/email/layout";
 import { parseEmailList, sendMail } from "@/server/notify";
+import { SCHEDULER_DEFAULTS, type SchedulerSettings } from "@/domain/scheduler/settings";
 import { loadScheduler } from "@/server/scheduler/store";
 import { MODULE_LABELS } from "@/server/schedules/labels";
 import type { ImportRun } from "./importRuns";
@@ -52,8 +53,9 @@ ${rows ? `<table style="font-size:14px;border-collapse:collapse;margin:0 0 12px"
   return { subject: `WonderWorks: ${what} finished · ${head}`, ...mail };
 }
 
-/** Who gets it: the platform admins, or the scheduler's notify address when no admin list is set. */
-export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env): Promise<string[]> {
+/** Who gets it: the addresses set on Data → Import, else the platform admins, else the scheduler's notify address. */
+export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env, set: string[] = []): Promise<string[]> {
+  if (set.length) return set;
   const admins = parseEmailList(env.JOBSLAKE_ADMIN_EMAILS);
   if (admins.length) return admins;
   const fallback = (await loadScheduler().catch(() => null))?.ratings.notifyEmail;
@@ -63,10 +65,13 @@ export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env
 /** An hourly collection that had nothing due and refreshed nothing isn't worth an email (the run log folds those too). */
 export const worthEmailing = (run: ImportRun) => run.kind !== "hourly" || run.items.length > 0 || Object.keys(run.stored ?? {}).length > 0;
 
-export async function sendImportEmail(run: ImportRun, earlier: ImportRun[], deps: { send?: Mailer; recipients?: string[] } = {}): Promise<{ sent: number; reason?: string }> {
+export async function sendImportEmail(run: ImportRun, earlier: ImportRun[], deps: { send?: Mailer; recipients?: string[]; settings?: SchedulerSettings["importEmail"] } = {}): Promise<{ sent: number; reason?: string }> {
   try {
     if (!worthEmailing(run)) return { sent: 0, reason: "nothing collected" };
-    const to = deps.recipients ?? (await importEmailRecipients());
+    // Admin → Data → Import → Emails: each kind of run can be switched off; a failed lookup keeps the default (on).
+    const settings = deps.settings ?? (await loadScheduler().catch(() => SCHEDULER_DEFAULTS)).importEmail;
+    if (!(run.kind === "hourly" ? settings.hourly : settings.imports)) return { sent: 0, reason: "turned off" };
+    const to = deps.recipients ?? (await importEmailRecipients(process.env, settings.to));
     if (!to.length) return { sent: 0, reason: "no admin email set" };
     const mail = renderImportEmail(run, moduleCounts(run, earlier), siteUrl().origin);
     const send = deps.send ?? sendMail;

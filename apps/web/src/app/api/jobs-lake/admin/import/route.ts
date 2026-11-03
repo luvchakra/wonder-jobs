@@ -12,6 +12,7 @@ import { json, readJson } from "@/server/jobslake/http";
 import { importView } from "@/server/jobslake/importView";
 import { setupTodo } from "@/server/jobslake/setup";
 import { loadScheduler, saveScheduler } from "@/server/scheduler/store";
+import { cleanEmailList } from "@/domain/scheduler/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,14 @@ export async function POST(req: Request) {
     const r = await runSetupItem(item.run);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
     return json(r, r.ok ? 200 : 422);
+  }
+  if (action === "emails") {
+    // The "import finished" email's settings (Data → Import → Emails); every field checked by cleanScheduler.
+    const current = await loadScheduler();
+    const next = { ...current.importEmail, ...(typeof body?.imports === "boolean" ? { imports: body.imports } : {}), ...(typeof body?.hourly === "boolean" ? { hourly: body.hourly } : {}), ...(body?.to !== undefined ? { to: cleanEmailList(body.to) } : {}) };
+    const saved = await saveScheduler({ ...current, importEmail: next }, a.actor);
+    await audit(a.actor, "scheduler.update", undefined, { importEmail: { imports: saved.importEmail.imports, hourly: saved.importEmail.hourly, recipients: saved.importEmail.to.length } });
+    return json({ ok: true, importEmail: saved.importEmail });
   }
   if (action === "schedule") {
     const current = await loadScheduler();
