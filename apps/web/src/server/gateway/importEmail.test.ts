@@ -26,6 +26,17 @@ describe("the import-finished email (owner, 2026-11-03)", () => {
     expect(none.subject).toContain("Find wasn't refreshed");
   });
 
+  it("covers the hourly collection too, but not one that had nothing due and refreshed nothing (2026-11-03)", async () => {
+    const hourly = run("h", "2026-11-03T04:00:00Z", { events: 6 }, { kind: "hourly", trigger: "cron", items: [{ name: "confs.tech", status: "collected", valid: 2 }] });
+    const m = renderImportEmail(hourly, moduleCounts(hourly, [run("a", "2026-11-03T03:00:00Z", { events: 4 })]), "https://example.com");
+    expect(m.subject).toBe("WonderWorks: The hourly collection finished · 2 new entries in Find");
+    const send = vi.fn(async () => ({ sent: true }));
+    expect(await sendImportEmail(hourly, [], { send, recipients: ["a@example.com"] })).toEqual({ sent: 1 });
+    const empty = run("e", "2026-11-03T05:00:00Z", undefined, { kind: "hourly", trigger: "cron" });
+    expect(await sendImportEmail(empty, [], { send, recipients: ["a@example.com"] })).toEqual({ sent: 0, reason: "nothing collected" });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("sends one email to each admin, and nothing without an address", async () => {
     const send = vi.fn(async () => ({ sent: true }));
     const r = run("b", "2026-11-03T02:00:00Z", { therapists: 1 });

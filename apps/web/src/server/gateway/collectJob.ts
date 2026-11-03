@@ -14,7 +14,8 @@ import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
 import { gatewaySourceModules } from "./admin";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
-import { lastScheduledRunWithin, recentFailures, recordImportRun, RETRY_AFTER_MS } from "./importRuns";
+import { lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun, RETRY_AFTER_MS, type ImportRun } from "./importRuns";
+import { sendImportEmail } from "./importEmail";
 import { MIN_GAP_MINUTES, SOURCE_FLOOR_MINUTES } from "@/domain/gateway/budget";
 
 export interface GatewayRunResult {
@@ -46,7 +47,7 @@ async function waitingItems(pausedModules: string[], dismissed: string[] = []) {
   return todo.items.filter((i) => i.run?.kind === "activate" && !skip.has(i.id) && !pausedModules.includes(i.module)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
 }
 
-export async function runGatewayCollection(trigger: "cron" | "admin", origin: string): Promise<GatewayRunResult> {
+export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail): Promise<GatewayRunResult> {
   const startedAt = new Date().toISOString();
   const hosted = hostedGateway();
   if (!hosted) return { ok: true, skipped: "gateway not configured", summary: "Gateway not configured" };
@@ -91,7 +92,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt, outcome: failed && !collected.length ? "failed" : "ok", summary });
   // The run's own record, with each source's outcome (Data → Import → Runs).
   const names = await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>());
-  await recordImportRun({
+  const record: ImportRun = {
     id: `hourly_${Date.parse(startedAt).toString(36)}`,
     kind: "hourly",
     trigger: trigger === "admin" ? "admin" : "cron",
@@ -100,7 +101,11 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
     items: outcomes.filter((o) => o.code !== "DEFERRED").map((o) => ({ name: names.get(o.sourceId) ?? o.sourceId, status: o.ok ? "collected" : "failed", ...(o.valid != null ? { valid: o.valid } : {}), ...(o.ok ? {} : { message: o.code ?? "failed" }) })),
     ...(refreshed ? { stored: refreshed } : {}),
     summary,
-  });
+  };
+  const earlier = await listImportRuns().catch(() => []);
+  await recordImportRun(record);
+  // The admins hear about every collection that collected or refreshed anything, like an import (importEmail.ts).
+  await notify(record, earlier);
   return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
 }
 
