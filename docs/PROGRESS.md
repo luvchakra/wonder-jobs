@@ -138,3 +138,4 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- ✅ Buy, Sell & Rent: Share on My listings and Deals cards (live listings only), no dead links from drafts; WebP finding for shop photos reported (WJ-622)

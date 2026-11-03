@@ -14,6 +14,7 @@ import { StageCard, StageEmpty, StageList, StageTiles } from "@/wonderworks/pipe
 import { useTracked } from "@/wonderworks/pipeline/tracked";
 import { priceLabel, STAGE_OF, STATUS_LABEL, type ThreadStatus } from "../domain";
 import { marketplaceManifest } from "../manifest";
+import { shareOfDeal } from "../share";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
 import { MARKETPLACE_OUTSIDE } from "../outside";
@@ -42,7 +43,7 @@ function DealCard({ t }: { t: ThreadView }) {
   const i = t.item;
   return (
     <ResultCard
-      share={null}
+      share={shareOfDeal(t)}
       aside={<Thumb listingId={t.listingId} photo={i.photo} size={44} />}
       title={
         <Link href={itemHref(t.id)} className={CARD_TARGET}>

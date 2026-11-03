@@ -7,7 +7,7 @@ export interface ThreadView {
   title: string;
   price: number;
   /** The item as its listing card shows it. */
-  item: { photo?: string; photos: string[]; description: string; condition: string; area: string; category: string; negotiable: boolean };
+  item: { photo?: string; photos: string[]; description: string; /** Whether its listing is still open in Find: only then has it a public page to share. */ open: boolean; condition: string; area: string; category: string; negotiable: boolean };
   side: "buyer" | "seller";
   counterpart: string;
   status: ThreadStatus;
