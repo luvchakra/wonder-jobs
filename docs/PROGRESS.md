@@ -132,3 +132,4 @@
 - ✅ DDBs: connection fields show the saved project and no longer get browser autofill (WJ-683)
 - ✅ Databases: collapsed cards with key info, full figures when opened (WJ-684)
 - ✅ Import writes verified per module DDB; writes re-check the DDB setting within 10 s (WJ-685)
+- ✅ Admin → Scheduler: jobs as collapsed cards with a play button (WJ-686)
