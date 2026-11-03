@@ -24,3 +24,14 @@ describe("a listing's photo on its share image", () => {
     expect(calls).toHaveLength(2);
   });
 });
+
+describe("the organisation behind a listing, for its logo", () => {
+  it("comes from the module's facts before empty ones are dropped, so a missing organiser never becomes the place", async () => {
+    const { organisationOf } = await import("./page");
+    expect(organisationOf("events", ["7 Nov 2026", "Gardens Galleria Mall, Noida", ""])).toBeUndefined();
+    expect(organisationOf("events", ["7 Nov 2026", "Noida", "Social Sailor"])).toBe("Social Sailor");
+    expect(organisationOf("scholarships", [null, "₹50,000", "Apply by 1 Dec"])).toBeUndefined();
+    expect(organisationOf("teaching", ["Walderslade School", "Chatham"])).toBe("Walderslade School");
+    expect(organisationOf("marketplace", ["₹2,999", "New"])).toBeUndefined();
+  });
+});
