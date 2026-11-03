@@ -120,3 +120,4 @@
 - ✅ Refine → WonderWorks only shows just the listings posted on WonderWorks, in every module (WJ-671)
 - ✅ The Account user card opens the Career Profile (WJ-672)
 - ✅ Refine: WonderWorks only first on one line in every module, Co-founders included (WJ-673)
+- ✅ Admins are emailed when each import job finishes, with every module's new entries in Find (WJ-674)
