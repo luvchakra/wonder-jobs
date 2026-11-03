@@ -21,6 +21,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     byline: job.company,
     title: job.title,
     chips,
+    lines: [
+      job.seniority && `Level: ${job.seniority[0].toUpperCase()}${job.seniority.slice(1)}`,
+      job.skills?.length ? `Skills: ${job.skills.slice(0, 6).join(", ")}` : null,
+      job.postedAt && `Posted: ${new Date(job.postedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+    ].filter((x): x is string => !!x),
+    about: job.description,
     image: await logoDataUri({ domain: job.companyDomain, name: job.company }),
     url: shareUrl(new URL(req.url).origin, job.id),
     cta: "Tap the link to see the job and apply",
