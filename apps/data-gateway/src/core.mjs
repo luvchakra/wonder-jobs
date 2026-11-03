@@ -180,6 +180,38 @@ export function plainText(value) {
   return t.replace(/[<>]/g, " ").replace(/\s+/g, " ").trim();
 }
 /**
+ * A description as readable text that keeps the source's shape: paragraphs, headings and line breaks become new lines and
+ * list items "- " lines (owner, 2026-11-03: descriptions showed as one run-on block). Markup is removed (even escaped
+ * markup), script/style bodies dropped, spaces folded within a line, at most one blank line in a row. Plain text with no
+ * markup keeps its own line breaks.
+ */
+export function richText(value) {
+  let t = String(value ?? "");
+  const BREAK = "\u0001";
+  const marked = /<\/?[a-z!][^>]*>|&(amp;)*lt;\/?[a-z]/i.test(t);
+  // In markup, the source's own line breaks are just spacing; in plain text they are the lines.
+  if (marked) t = t.replace(/\s+/g, " ");
+  for (let i = 0; i < 3; i++) {
+    t = t.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ");
+    t = t.replace(/<\s*li\b[^>]*>/gi, BREAK + "- ").replace(/<\s*(br|hr)\b[^>]*>/gi, BREAK).replace(/<\s*\/?\s*(p|div|h[1-6]|ul|ol|tr|table|section|article|header|footer|blockquote)\b[^>]*>/gi, BREAK);
+    t = t.replace(/<\/?[a-z!][^>]*>/gi, " ");
+    t = t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (_m, e) => {
+      const named = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+      if (e[0] === "#") { const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : Number(e.slice(1)); return Number.isInteger(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ""; }
+      return named[e.toLowerCase()] ?? "";
+    });
+  }
+  t = t.replace(/[<>]/g, " ").split(BREAK).join("\n");
+  return t
+    .split("\n")
+    .map((line) => line.replace(/[^\S\n]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^- *$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+/**
  * A source's extra fields (mapping keys `attr.<name>`, e.g. `attr.startDate` for an event), kept as they are stated:
  * text cut to 300 characters, numbers and true/false as they are. Nothing is derived or guessed.
  */
@@ -259,7 +291,7 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const orgUrl = String(field("organizationUrl") ?? "").trim();
   const domainOf = (u) => { try { const h = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.toLowerCase().replace(/^www\./, ""); return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) ? h : ""; } catch { return ""; } };
   const organizationDomain = domainOf(orgUrl) || (source.organizationOptional ? domainOf(parsed.toString()) : "");
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: plainText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: richText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");

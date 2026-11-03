@@ -117,7 +117,7 @@ test("the API description covers every module and the keyed routes", () => {
   assert.deepEqual(OPENAPI.components.schemas.Listing.properties.module.enum, MODULES);
   for (const path of ["/v1/search", "/v1/listings/{id}", "/v1/workslake/{module}/listings", "/v1/admin/keys/{id}/rotate", "/v1/admin/sources/{id}/activate"]) assert.ok(OPENAPI.paths[path], path);
 });
-import { plainText } from "../src/core.mjs";
+import { plainText, richText } from "../src/core.mjs";
 test("source text is stored as plain text, even markup that arrived escaped", () => {
   assert.equal(plainText("&lt;p&gt;Hello &lt;strong&gt;team&lt;/strong&gt;&lt;/p&gt;"), "Hello team");
   assert.equal(plainText('<p>Hi</p><script>alert(1)</script><style>p{}</style> there &amp; you'), "Hi there & you");
@@ -163,4 +163,11 @@ test("a source keeps the countries it covers; anything but country codes, global
   assert.deepEqual(validateSource({ ...def, geography: ["IN", "IN", "global"] }).geography, ["IN", "global"]);
   assert.equal(validateSource(def).geography, undefined);
   assert.throws(() => validateSource({ ...def, geography: ["india"] }), /geography/);
+});
+
+test("a description keeps its shape: paragraphs, headings and list items on their own lines", () => {
+  assert.equal(richText("<p><strong>About</strong></p><p>We build\n   things.</p><ul><li>One</li><li>Two &amp; three</li></ul><script>x()</script>"), "About\n\nWe build things.\n\n- One\n- Two & three");
+  assert.equal(richText("&lt;p&gt;Hello&lt;/p&gt;&lt;p&gt;team&lt;br /&gt;here&lt;/p&gt;"), "Hello\n\nteam\nhere", "escaped markup too");
+  assert.equal(richText("Line one\nLine two\n\n\n\nNext"), "Line one\nLine two\n\nNext", "plain text keeps its own lines");
+  assert.equal(richText(null), "");
 });

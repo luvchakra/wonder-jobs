@@ -145,11 +145,13 @@ export function decodeEntities(s) {
   });
 }
 const strip = (s) => decodeEntities(String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+/** A field's inner text as the feed gave it (CDATA unwrapped), markup kept: a description's shape is read by core's richText. */
+const rawTag = (s, key) => { const m = s.match(new RegExp("<(?:[\\w]+:)?" + key + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?" + key + ">", "i")); return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1").trim() : ""; };
 const tag = (s, key) => { const m = s.match(new RegExp("<(?:[\\w]+:)?" + key + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?" + key + ">", "i")); return m ? strip(m[1]) : ""; };
 export function parseFeed(xml) {
   return [...xml.matchAll(/<(item|entry)\b[^>]*>[\s\S]*?<\/\1>/gi)].slice(0, 500).map(([block]) => {
     const atom = block.match(/<link\b[^>]*\bhref=["']([^"']+)["']/i)?.[1];
-    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: tag(block, "description") || tag(block, "summary") || tag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
+    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: rawTag(block, "description") || rawTag(block, "summary") || rawTag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
   });
 }
 /**
@@ -193,7 +195,7 @@ export function businessRecord(o) {
   if (site) {
     try { const u = new URL(site); for (const k of [...u.searchParams.keys()]) if (/^utm_/i.test(k)) u.searchParams.delete(k); attributes.website = u.toString(); } catch { /* not a URL */ }
   }
-  return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: strip(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
+  return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: String(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
 }
 export function parseStructured(html) {
   const out = [];
@@ -225,7 +227,7 @@ export function parseStructured(html) {
       const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
       const business = !event && kinds.some((k) => /LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber|ProfessionalService/i.test(String(k)));
       if (business) { const rec = businessRecord(o); businesses.add(rec); out.push(rec); return; }
-      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
+      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: String(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
     if (out.length >= 500) break;

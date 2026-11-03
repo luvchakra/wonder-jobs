@@ -154,3 +154,4 @@
 - ✅ Share image: link footer reads as text, not a button (WJ-694)
 - 2026-11-03 Talent & Services: share names the original link and carries the OSM credit (WJ-597)
 - ✅ Jobs: Share checked against the v8 image and "Summary" label (WJ-548)
+- ✅ Listing descriptions keep paragraphs, headings and bullets (WJ-696)
