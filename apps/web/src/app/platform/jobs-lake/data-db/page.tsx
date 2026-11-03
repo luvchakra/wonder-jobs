@@ -21,9 +21,9 @@ type Step = { key: "setup" | "test" | "copy" | "enable" | "evict" | null; label:
 /** Where a module stands and its one next step. */
 function stepOf(m: ModuleDataDb): Step {
   const s = m.saved;
-  if (m.from === "environment") return { key: null, label: "", status: "Own database (set in the deployment)", tone: "success" };
-  if (m.home === "own" && (m.foreignRows ?? 0) > 0) return { key: "evict", label: "Move others' data out", status: "Own database", tone: "warning" };
-  if (m.home === "own") return { key: null, label: "", status: "Own database", tone: "success" };
+  if (m.from === "environment") return { key: null, label: "", status: "Own DDB (set in the deployment)", tone: "success" };
+  if (m.home === "own" && (m.foreignRows ?? 0) > 0) return { key: "evict", label: "Move others' data out", status: "Own DDB", tone: "warning" };
+  if (m.home === "own") return { key: null, label: "", status: "Own DDB", tone: "success" };
   if (!s) return { key: "setup", label: "Set up", status: "Main database", tone: "neutral" };
   if (!s.lastTest?.ok) return { key: "test", label: "Test", status: s.lastTest ? "Test failed" : "Saved, not tested", tone: s.lastTest ? "warning" : "info" };
   if (!s.lastCopy) return { key: "copy", label: "Copy data", status: "Tested, not copied", tone: "info" };
@@ -32,7 +32,7 @@ function stepOf(m: ModuleDataDb): Step {
 
 const FILTERS = [
   { id: "all", label: "All" },
-  { id: "own", label: "Own database" },
+  { id: "own", label: "Own DDB" },
   { id: "main", label: "Main database" },
   { id: "todo", label: "Needs a step" },
 ] as const;
@@ -109,14 +109,14 @@ export default function DataDbPage() {
     if (s.key === "setup") return setOpen(m.module);
     if (s.key === "test") return void once(m, { action: "test" }, "");
     if (s.key === "copy") return void loop(m, "copy");
-    if (s.key === "enable") return void once(m, { action: "enable" }, `Switched on: ${label(m.module)} data is now read and written only in its own database.`);
+    if (s.key === "enable") return void once(m, { action: "enable" }, `Switched on: ${label(m.module)} data is now read and written only in its own DDB.`);
     if (s.key === "evict") return void loop(m, "evict");
   };
 
   return (
     <>
-      <PageTitle title="Data databases" subtitle="Each module keeps its listings in its own Supabase project, so each grows on its own free plan and no module's data mixes with another's. A module without its own database keeps them in the main database. Accounts, saves and settings always stay in the main database." />
-      <Panel title={`${num(own.length)} of ${num(data.modules.length)} modules have their own database${used ? ` · ${mb(used)} in use` : ""}`}>
+      <PageTitle title="DDBs" subtitle="Each module keeps its listings in its own DDB (data database: a Supabase project of its own), so each grows on its own free plan and no module's data mixes with another's. A module without its own DDB keeps them in the main database. Accounts, saves and settings always stay in the main database." />
+      <Panel title={`${num(own.length)} of ${num(data.modules.length)} modules have their own DDB${used ? ` · ${mb(used)} in use` : ""}`}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a module or project" aria-label="Find a module or project" className="min-w-0 flex-1" />
@@ -139,7 +139,7 @@ export default function DataDbPage() {
                     <button type="button" className="min-w-[6rem] flex-1 text-left" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.module)}>
                       <span className="block font-medium text-ink">{label(m.module)}</span>
                       <span className="block truncate text-[12px] text-ink-3">
-                        {working ? busy.text : [(m.foreignRows ?? 0) > 0 ? `${num(m.foreignRows ?? 0)} rows of other modules` : null, m.sizeBytes != null ? mb(m.sizeBytes) : null, m.saved ? host(m.saved.url) : null].filter(Boolean).join(" · ") || "No database of its own"}
+                        {working ? busy.text : [(m.foreignRows ?? 0) > 0 ? `${num(m.foreignRows ?? 0)} rows of other modules` : null, m.sizeBytes != null ? mb(m.sizeBytes) : null, m.saved ? host(m.saved.url) : null].filter(Boolean).join(" · ") || "No DDB of its own"}
                       </span>
                     </button>
                     <span className="ml-auto flex shrink-0 items-center gap-2">
@@ -222,7 +222,7 @@ function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boole
             </button>
           )}
           {m.home === "own" && (
-            <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void loop(m, "clear")} title={`Deletes ${name} rows left in the main database${m.module === "jobs" ? "" : " and in Jobs' database"}; its own database keeps everything.`}>
+            <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void loop(m, "clear")} title={`Deletes ${name} rows left in the main database${m.module === "jobs" ? "" : " and in Jobs' DDB"}; its own DDB keeps everything.`}>
               Free the old copy
             </button>
           )}

@@ -308,7 +308,7 @@ class SupabaseCompanies implements CompanyStore {
   async putH1b(rows: (H1bRecord & { nameKey: string; name: string })[], replace: boolean) {
     this.sb();
     await loadDataDb();
-    if (!dataWritable()) throw new Error("The WorksLake data database setting couldn't be read; load the file again shortly.");
+    if (!dataWritable()) throw new Error("The WorksLake DDB setting couldn't be read; load the file again shortly.");
     // A new file replaces the last one's totals: rows it no longer names are removed first.
     if (replace) {
       const { error } = await this.h1bTable().delete().neq("name_key", "");

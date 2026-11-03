@@ -77,7 +77,7 @@ async function measure(c: AdminClient, probeTable: string): Promise<{ usage: { d
   // A data database set up before db_health() existed (the setup script gained it with the Databases page): say how to
   // add it, not the database's own words.
   const missing = (e: { message: string } | null) => !!e && /schema cache|does not exist|PGRST202/i.test(e.message);
-  const rerun = "Run the setup script again in the data database (Data database → Copy script → its SQL editor → Run; safe to re-run).";
+  const rerun = "Run the setup script again in the DDB (Sources → DDBs → Setup script → Copy script → its SQL editor → Run; safe to re-run).";
   const error = probe.error?.message ?? (missing(u.error) ? `Size unavailable. ${rerun}` : u.error?.message) ?? (h.error ? (missing(h.error) ? `Performance figures unavailable. ${rerun}` : `Performance figures unavailable: ${h.error.message}`) : undefined);
   return { usage: (u.data as { db_bytes: number; tables?: DbReport["tables"] } | null) ?? null, raw: (h.data as Raw | null) ?? null, ms, error };
 }
@@ -87,12 +87,12 @@ export async function databasesReport(labels: Record<string, string> = {}): Prom
   const main = getSupabaseAdmin();
   // Each module's own data database (owner, 2026-11-03), each on the data databases' plan size.
   const mods = await moduleDataDbs();
-  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: `Accounts, saves, applications, settings and the gateway's configuration${mods.length < Object.keys(labels).length ? ", and the listings of every module without its own data database" : ""}.`, configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
+  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: `Accounts, saves, applications, settings and the gateway's configuration${mods.length < Object.keys(labels).length ? ", and the listings of every module without its own DDB" : ""}.`, configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
   const adb = await (main ? measure(main, "tenants").then((m) => shapeReport(adbBase, m.usage, m.raw, m.ms, m.error)).catch((e) => shapeReport(adbBase, null, null, null, e instanceof Error ? e.message : String(e))) : Promise.resolve(shapeReport(adbBase, null, null, null, "No database is configured on this deployment.")));
   const modules = await Promise.all(
     mods.map((m) => {
       const name = labels[m.module] ?? m.module;
-      const base = { id: `ddb:${m.module}` as const, name: `${name} data database`, holds: `${name} only: its ${tablesFor(m.module).map((t) => t.replace(/_/g, " ")).join(", ")} and search cache.`, configured: true, limitMb: settings.dataLimitMb, guard: m.guard };
+      const base = { id: `ddb:${m.module}` as const, name: `${name} DDB`, holds: `${name} only: its ${tablesFor(m.module).map((t) => t.replace(/_/g, " ")).join(", ")} and search cache.`, configured: true, limitMb: settings.dataLimitMb, guard: m.guard };
       return measure(m.client, "gateway_listings").then((r) => shapeReport(base, r.usage, r.raw, r.ms, r.error)).catch((e) => shapeReport(base, null, null, null, e instanceof Error ? e.message : String(e)));
     }),
   );

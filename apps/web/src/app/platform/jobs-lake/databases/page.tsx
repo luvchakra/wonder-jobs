@@ -22,14 +22,14 @@ export default function DatabasesPage() {
     <>
       <PageTitle
         title="Databases"
-        subtitle="How full each database is, how much room is left, and how fast it answers. Its limits are under Storage limits; each module's own database for its data is under Data databases."
+        subtitle="How full each database is, how much room is left, and how fast it answers. Its limits are under Storage limits; each module's own DDB is under Sources → DDBs."
         actions={
           <>
             <Button size="sm" variant="outline" href="/platform/jobs-lake/storage">
               Storage limits
             </Button>
             <Button size="sm" variant="outline" href="/platform/jobs-lake/data-db">
-              Data databases
+              DDBs
             </Button>
             <Button size="sm" variant="outline" onClick={() => reload()}>
               Refresh
@@ -46,9 +46,9 @@ export default function DatabasesPage() {
             <DbCard key={m.id} r={m} />
           ))}
           {!data.modules.length && (
-            <Panel title="Module data databases">
+            <Panel title="Module DDBs">
               <p className="text-[13px] text-ink-3">
-                No module has its own data database switched on, so every module&apos;s listings are in the ADB. <Link href="/platform/jobs-lake/data-db" className="text-brand-600 hover:underline">Set one up</Link>
+                No module has its own DDB switched on, so every module&apos;s listings are in the ADB. <Link href="/platform/jobs-lake/data-db" className="text-brand-600 hover:underline">Set one up</Link>
               </p>
             </Panel>
           )}
