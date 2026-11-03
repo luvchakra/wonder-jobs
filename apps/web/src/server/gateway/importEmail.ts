@@ -1,7 +1,7 @@
 /**
  * The "import finished" email (owner, 2026-11-03: "every time the import job finishes, send an email to admin with
  * additional counts of entries available in Find of each module"). Sent once per finished import job (Import now,
- * Import this module, the scheduled import) to the platform admins (`JOBSLAKE_ADMIN_EMAILS`; the scheduler's notify
+ * Import this module, the scheduled import, and each hourly collection that collected or refreshed anything) to the platform admins (`JOBSLAKE_ADMIN_EMAILS`; the scheduler's notify
  * address when none is set). Each module's line is what's in Find now and the change since the last run that counted
  * it, both from the runs' own records; nothing is estimated. Never throws: an email must not fail an import.
  */
@@ -38,7 +38,7 @@ export function renderImportEmail(run: ImportRun, counts: ModuleCount[], origin:
   const C = EMAIL_COLORS;
   const link = `${origin}/platform/jobs-lake/import`;
   const added = counts.reduce((n, c) => n + Math.max(0, c.added ?? 0), 0);
-  const what = run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
+  const what = run.kind === "hourly" ? (run.trigger === "cron" ? "The hourly collection" : "The collection (Run now)") : run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
   const head = counts.length ? `${added.toLocaleString("en")} new ${added === 1 ? "entry" : "entries"} in Find` : "Find wasn't refreshed";
   const rows = counts
     .map((c) => `<tr><td style="padding:4px 12px 4px 0">${escapeHtml(c.label)}</td><td style="padding:4px 12px 4px 0;text-align:right;font-weight:600">${escapeHtml(signed(c.added))}</td><td style="padding:4px 0;text-align:right;color:${C.ink}">${c.inFind.toLocaleString("en")} in Find</td></tr>`)
@@ -60,8 +60,12 @@ export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env
   return fallback ? [fallback] : [];
 }
 
+/** An hourly collection that had nothing due and refreshed nothing isn't worth an email (the run log folds those too). */
+export const worthEmailing = (run: ImportRun) => run.kind !== "hourly" || run.items.length > 0 || Object.keys(run.stored ?? {}).length > 0;
+
 export async function sendImportEmail(run: ImportRun, earlier: ImportRun[], deps: { send?: Mailer; recipients?: string[] } = {}): Promise<{ sent: number; reason?: string }> {
   try {
+    if (!worthEmailing(run)) return { sent: 0, reason: "nothing collected" };
     const to = deps.recipients ?? (await importEmailRecipients());
     if (!to.length) return { sent: 0, reason: "no admin email set" };
     const mail = renderImportEmail(run, moduleCounts(run, earlier), siteUrl().origin);
