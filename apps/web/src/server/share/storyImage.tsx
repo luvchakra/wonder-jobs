@@ -34,7 +34,13 @@ export interface StoryCard {
   pitch: string;
 }
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+/** Cut to `n` characters at a word (never inside a word or a number), with an ellipsis; a single long word is cut as is. */
+export const clip = (s: string, n: number) => {
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > n * 0.4 ? cut.slice(0, at) : cut).replace(/[\s,;:.·–—-]+$/, "")}…`;
+};
 const SHOWN = /^image\/(png|jpe?g|svg\+xml)$/i;
 
 /**
