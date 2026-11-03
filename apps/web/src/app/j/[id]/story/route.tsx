@@ -25,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     ai: summary.ai,
     image,
     url: shareUrl(new URL(req.url).origin, job.id),
-    cta: "Tap the link to see the job and apply",
+    cta: "See the job and apply at the link in the message",
     pitch: SHARE_HINT,
   });
 }
