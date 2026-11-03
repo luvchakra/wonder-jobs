@@ -119,3 +119,4 @@
 - ✅ Admin header says WonderWorks Admin; Back to WonderWorks ends the menu list (WJ-670)
 - ✅ Refine → WonderWorks only shows just the listings posted on WonderWorks, in every module (WJ-671)
 - ✅ The Account user card opens the Career Profile (WJ-672)
+- ✅ Refine: WonderWorks only first on one line in every module, Co-founders included (WJ-673)
