@@ -126,3 +126,4 @@
 - ✅ A separate data database per module, no shared fallback; the existing one is Jobs' (Admin → Data databases) (WJ-677)
 - ✅ Admin menu: Sources → Data databases (WJ-678)
 - ✅ Data databases rows aligned on phones (WJ-679)
+- ✅ Admin says "DDB" instead of "data database" (WJ-680)

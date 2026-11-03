@@ -40,7 +40,7 @@ const LAKE = "/platform/jobs-lake";
  * Two sections. Data: where listings come from (Sources), what they are (Listings), and who offers them
  * (Organisations: companies, schools, practices, organisers, shops). Platform: keeping it running (Operations),
  * money (Billing) and settings. Pages that belong to another page are reached from it (SUB_PAGES), not the rail:
- * Add a source from Sources and Import, Storage limits from Databases; Data databases (each module's own) is under Sources. Alerts are on Health and
+ * Add a source from Sources and Import, Storage limits from Databases; DDBs (each module's own data database) are under Sources. Alerts are on Health and
  * source credentials on Keys. Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
  */
 export const ADMIN_MENUS: AdminMenu[] = [
@@ -59,7 +59,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/import`, label: "Import" },
       { href: `${LAKE}/sources`, label: "All sources" },
       { href: `${LAKE}/keys`, label: "Keys" },
-      { href: `${LAKE}/data-db`, label: "Data databases" },
+      { href: `${LAKE}/data-db`, label: "DDBs" },
     ],
   },
   {

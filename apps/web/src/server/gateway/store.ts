@@ -188,7 +188,7 @@ export class GatewayListingsTable {
     await loadDataDb();
     // Where the listings live isn't known yet (dataDb): fail the collection (it's retried) rather than write them to
     // the wrong database.
-    if (!dataWritable()) throw new Error("The WorksLake data database setting couldn't be read; collect again shortly.");
+    if (!dataWritable()) throw new Error("The WorksLake DDB setting couldn't be read; collect again shortly.");
     const byModule = new Map<string, GatewayListing[]>();
     for (const l of list) byModule.set(l.module, [...(byModule.get(l.module) ?? []), l]);
     for (const [module, rows] of byModule) {
