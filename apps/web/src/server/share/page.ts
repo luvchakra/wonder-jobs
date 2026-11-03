@@ -28,6 +28,26 @@ export type Shared = { kind: "job"; key: string; job: CanonicalJob; input: Summa
  * What a public share page (`/j/<id>` or `/s/<module>/<id>`) shows, read from the public record, with what its summary is
  * made from. Null for anything else or a listing that's gone.
  */
+const looked = new Map<string, { at: number; value: Promise<Shared | null> }>();
+const LOOK_MS = 10 * 60_000;
+
+/**
+ * `sharedFor`, remembered for ten minutes per server (owner, 2026-11-03: Share "is taking a long time to load"): the
+ * summary and the share image both read the same public listing, so the second read, and a re-share, skip the database.
+ * Public listing data only, the same for everyone; a lookup that fails or finds nothing isn't kept.
+ */
+export function sharedForCached(page: string): Promise<Shared | null> {
+  const hit = looked.get(page);
+  if (hit && Date.now() - hit.at < LOOK_MS) return hit.value;
+  const value = sharedFor(page).catch(() => null);
+  if (looked.size >= 500) looked.delete(looked.keys().next().value as string);
+  looked.set(page, { at: Date.now(), value });
+  void value.then((v) => {
+    if (!v) looked.delete(page);
+  });
+  return value;
+}
+
 export async function sharedFor(page: string): Promise<Shared | null> {
   const j = /^\/j\/([^/?#]{1,200})$/.exec(page);
   if (j) {

@@ -20,23 +20,33 @@ export interface ShareBuild {
 /** What a Share button sends, given the summary (null when there is none or it couldn't be had). */
 export type ShareBuilder = (origin: string, summary: ShareSummary | null) => ShareBuild;
 
-/** The listing's share summary from the server, or null after 7 s or on any failure (the message then uses the listing's own words). */
+/** How long the buttons wait for the summary before sharing with the listing's own words (it still upgrades the message when it lands). */
+const SUMMARY_WAIT_MS = 2500;
+
+/**
+ * The listing's share summary from the server (null on failure or after 8 s), and whether the buttons should still wait
+ * for it: at most `SUMMARY_WAIT_MS` (owner, 2026-11-03: Share "is taking a long time to load"). A summary that arrives
+ * later still replaces the message.
+ */
 function useSummary(page: string | undefined): { summary: ShareSummary | null; loading: boolean } {
   const [got, setGot] = useState<{ page?: string; summary: ShareSummary | null } | null>(null);
+  const [waited, setWaited] = useState<string | null>(null);
   useEffect(() => {
     if (!page) return;
     let live = true;
-    fetch(`/api/share/summary?page=${encodeURIComponent(page)}&v=${STORY_VERSION}`, { signal: AbortSignal.timeout(7000) })
+    const timer = setTimeout(() => live && setWaited(page), SUMMARY_WAIT_MS);
+    fetch(`/api/share/summary?page=${encodeURIComponent(page)}&v=${STORY_VERSION}`, { signal: AbortSignal.timeout(8000) })
       .then((r) => (r.ok ? (r.json() as Promise<ShareSummary>) : null))
       .then((s) => live && setGot({ page, summary: s && typeof s.hook === "string" && Array.isArray(s.highlights) ? s : null }))
       .catch(() => live && setGot({ page, summary: null }));
     return () => {
       live = false;
+      clearTimeout(timer);
     };
   }, [page]);
   if (!page) return { summary: null, loading: false };
-  if (!got || got.page !== page) return { summary: null, loading: true };
-  return { summary: got.summary, loading: false };
+  const have = got && got.page === page;
+  return { summary: have ? got.summary : null, loading: !have && waited !== page };
 }
 
 /**

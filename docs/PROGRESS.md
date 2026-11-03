@@ -156,3 +156,4 @@
 - ✅ Share image: cuts end at a whole word (WJ-695)
 - ✅ Jobs: Share checked against the v8 image and "Summary" label (WJ-548)
 - ✅ Listing descriptions keep paragraphs, headings and bullets (WJ-696)
+- ✅ Share opens fast: buttons wait at most 2.5 s, image never waits long on the model (WJ-697)
