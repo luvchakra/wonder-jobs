@@ -180,6 +180,10 @@ function TeamForm({ existing, onDone }: { existing: MyTeam | null; onDone: (save
         <span className="text-[13px] text-ink-2">List the team so people can find it</span>
         <Switch checked={t.open} onChange={(v) => set("open", v)} label="List the team" />
       </div>
+      <div className="flex items-center justify-between gap-3 rounded-[12px] bg-surface-2 p-3">
+        <span className="text-[13px] text-ink-2">Let others share this team. Off, Share on the team sends only a general Co-founders message.</span>
+        <Switch checked={t.shareable} onChange={(v) => set("shareable", v)} label="Let others share this team" />
+      </div>
       {problem && <p className="text-[13px] text-danger-600">{problem}</p>}
       <div className="flex gap-2">
         <Button type="submit" loading={busy}>

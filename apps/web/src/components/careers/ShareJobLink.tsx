@@ -6,7 +6,7 @@ import { shareFacts, shareMessage, type ShareJob } from "@/domain/jobs/share";
 /**
  * Share on a careers job page: WonderWorks' share sheet (WhatsApp, Instagram, Facebook, X, email, copy link, the phone's
  * own sheet) with Jobs' crisp message, linking to this careers page itself. These are WonderWorks' own positions, not
- * WorksLake listings, so there's no /j/ page: no share image and no AI summary, only the posting's own facts.
+ * WorksLake listings, so there's no /j/ page: no share image and no summary, only the posting's own facts.
  */
 export function ShareJobLink({ job }: { job: ShareJob }) {
   return (
