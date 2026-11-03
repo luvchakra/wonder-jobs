@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { listingShareMessage, publicPath } from "@/wonderworks/listing/share";
 import type { ServiceListing } from "./domain";
-import { sameName, shareOf } from "./share";
+import { originalLabel, sameName, shareOf } from "./share";
 
 const base = { postedAt: null, termsFrom: "posting", sourceId: "s", sourceName: "Houzz professionals" } as const;
 const own = { ...base, id: "ws_post1", origin: "wonderstar", postingId: "post1", title: "AC service & gas refill", company: "CoolFix Pune", companyVerified: true, location: "Kothrud, Pune", workMode: "onsite", description: "Split AC service at your place.", terms: { lane: "local", currency: "INR", category: "AC service & repair", priceKind: "visit", priceMin: 499, areas: ["Pune"] } } as unknown as ServiceListing;
@@ -30,6 +30,22 @@ describe("Share for a pro", () => {
     expect(text).toContain("Bengaluru");
     expect(JSON.stringify(shareOf(own))).toContain("₹499");
     expect(text).not.toMatch(/\+91|@|tel:/);
+  });
+
+  it("names the original link for what it is, and carries open data's credit", () => {
+    expect(originalLabel("https://www.houzz.in/professionals/construction/a-pf~1")).toBe("Their page on Houzz");
+    expect(originalLabel("https://www.wedmegood.com/profile/A-1")).toBe("Their page on WedMeGood");
+    expect(originalLabel("https://www.freelancer.com/u/Skyapps")).toBe("Their profile on Freelancer.com");
+    expect(originalLabel("https://www.openstreetmap.org/node/1")).toBe("Their page on OpenStreetMap");
+    expect(originalLabel("https://depanache.in")).toBe("Their website");
+    expect(originalLabel("not a url")).toBe("Their page");
+    expect(shareOf(outsideDir).originalLabel).toBe("Their website");
+    expect(shareOf(outsideDir).credit).toBeUndefined();
+    const osm = shareOf({ ...outsideDir, applyUrl: "https://www.openstreetmap.org/node/1", attribution: "© OpenStreetMap contributors, ODbL" } as ServiceListing);
+    expect(osm).toMatchObject({ originalLabel: "Their page on OpenStreetMap", credit: "© OpenStreetMap contributors, ODbL" });
+    // An own pro has no original page and no credit.
+    expect(shareOf(own)).not.toHaveProperty("originalUrl");
+    expect(shareOf(own)).not.toHaveProperty("credit");
   });
 
   it("leads with what tells most and leaves out a price the source never stated", () => {
