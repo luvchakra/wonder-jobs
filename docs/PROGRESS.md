@@ -149,3 +149,4 @@
 - ✅ Events: a shared outside event says "Source: WorksLakeDG", like the cards (WJ-577)
 - ✅ Share: highlights never repeat the image; original link names the site (WJ-693)
 - ✅ Teaching: Share rows put subject, grades and pay first (WJ-565)
+- ✅ Share image: link footer reads as text, not a button (WJ-694)
