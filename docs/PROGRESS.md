@@ -123,4 +123,4 @@
 - ✅ Admins are emailed when each import job finishes, with every module's new entries in Find (WJ-674)
 - ✅ The import-finished email covers the hourly collection too (WJ-675)
 - ✅ The import-finished email is configurable in Admin → Data → Import → Emails (WJ-676)
-- ✅ A separate data database per module: Admin → Data databases, each module's listings in its own Supabase project (WJ-677)
+- ✅ A separate data database per module, no shared fallback; the existing one is Jobs' (Admin → Data databases) (WJ-677)

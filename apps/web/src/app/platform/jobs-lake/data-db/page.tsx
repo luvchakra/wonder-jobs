@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import type { DataDbStatus, StoredDataDb } from "@/server/dataDb";
+import { useMemo, useState } from "react";
+import type { ModuleDataDb, StoredDataDb } from "@/server/dataDb";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
@@ -8,225 +8,230 @@ import { Fold } from "@/components/common/Fold";
 import { toast } from "@/components/feedback/Toast";
 import { adminFetch, LoadError, Loading, PageTitle, Panel, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
+import { cn } from "@/lib/cn";
 
-type Overview = { module: string; home: "own" | "shared" | "main"; saved: DataDbStatus["saved"] }[];
-type Data = DataDbStatus & { usage: { dbBytes: number } | null; setupSql: string; modules: Overview };
-const mb = (b: number) => `${Math.round(b / 1048576)} MB`;
-const label = (id: string) => (id === "shared" ? "Shared data database" : (MODULES.find((m) => m.id === id)?.label ?? id));
-const HOME = { own: { text: "Own database", tone: "success" }, shared: { text: "Shared data database", tone: "info" }, main: { text: "Main database", tone: "neutral" } } as const;
+type Data = { modules: ModuleDataDb[]; setupSql: string };
+const mb = (b: number) => (b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1048576))} MB`);
+const label = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
+const host = (url: string) => url.replace(/^https:\/\//, "").replace(/\.supabase\.co$/, "");
+const post = (body: Record<string, unknown>) => adminFetch<Record<string, unknown>>("data-db", { method: "POST", body: JSON.stringify(body) });
+
+type Step = { key: "setup" | "test" | "copy" | "enable" | "evict" | null; label: string; status: string; tone: "success" | "warning" | "neutral" | "info" };
+
+/** Where a module stands and its one next step. */
+function stepOf(m: ModuleDataDb): Step {
+  const s = m.saved;
+  if (m.from === "environment") return { key: null, label: "", status: "Own database (set in the deployment)", tone: "success" };
+  if (m.home === "own" && (m.foreignRows ?? 0) > 0) return { key: "evict", label: "Move other modules' data out", status: `Own database · ${num(m.foreignRows ?? 0)} rows of other modules`, tone: "warning" };
+  if (m.home === "own") return { key: null, label: "", status: "Own database", tone: "success" };
+  if (!s) return { key: "setup", label: "Set up", status: "Main database", tone: "neutral" };
+  if (!s.lastTest?.ok) return { key: "test", label: "Test", status: s.lastTest ? "Test failed" : "Saved, not tested", tone: s.lastTest ? "warning" : "info" };
+  if (!s.lastCopy) return { key: "copy", label: "Copy data", status: "Tested, not copied", tone: "info" };
+  return { key: "enable", label: "Switch on", status: "Copied, not switched on", tone: "info" };
+}
+
+const FILTERS = [
+  { id: "all", label: "All" },
+  { id: "own", label: "Own database" },
+  { id: "main", label: "Main database" },
+  { id: "todo", label: "Needs a step" },
+] as const;
 
 /**
- * Data databases (owner, 2026-11-01; per module 2026-11-03: "each module linked to a separate Supabase database … the
- * data for that module should route to that particular database and not other databases"). Each module can keep its
- * WorksLake data (its listings, the gateway's listings, its search cache; Jobs also its H-1B data) in its own Supabase
- * project, so each grows on its own free plan. A module without one uses the shared data database, or the main one.
- * For each: save the connection, run the setup script there, test, copy today's data, switch on, then free the old copy.
+ * Data databases (owner, 2026-11-01; per module 2026-11-03: "each module linked to a separate Supabase database";
+ * "current ddb should be dedicated for jobs … don't have any fallback … make the admin simple to manage even with
+ * large number of databases"). One row per module: where its data is, its size, and its one next step; the row opens
+ * its connection and the rarer actions. A module's data goes only to its own database; without one it stays in the
+ * main database. The setup script is the same for every project, so it's shown once.
  */
 export default function DataDbPage() {
-  const [target, setTarget] = useState("shared");
-  const { data, error, reload } = useAdmin<Data>(`data-db?module=${encodeURIComponent(target)}`);
+  const { data, error, reload } = useAdmin<Data>("data-db");
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
+  const [open, setOpen] = useState<string | null>(null);
+  const [busy, setBusy] = useState<{ module: string; text: string } | null>(null);
+
+  const rows = useMemo(() => {
+    const words = q.trim().toLowerCase();
+    return (data?.modules ?? []).filter((m) => {
+      if (words && !`${label(m.module)} ${m.module} ${m.saved?.url ?? ""}`.toLowerCase().includes(words)) return false;
+      if (filter === "own") return m.home === "own";
+      if (filter === "main") return m.home === "main";
+      if (filter === "todo") return stepOf(m).key !== null && stepOf(m).key !== "setup";
+      return true;
+    });
+  }, [data, q, filter]);
+
+  if (error) return <LoadError error={error} onRetry={reload} />;
+  if (!data) return <Loading rows={4} />;
+  const own = data.modules.filter((m) => m.home === "own");
+  const used = own.reduce((n, m) => n + (m.sizeBytes ?? 0), 0);
+
+  /** Runs one paged action (copy, clear, evict) over a module's tables until each says it's done. */
+  const loop = async (m: ModuleDataDb, action: "copy" | "clear" | "evict") => {
+    let total = 0;
+    for (const table of m.tables) {
+      let part = 0;
+      let offset = 0;
+      for (;;) {
+        setBusy({ module: m.module, text: `${action === "copy" ? "Copying" : action === "clear" ? "Freeing" : "Moving"} ${table.replace(/_/g, " ")} · ${num(total)} rows` });
+        const r = await post({ module: m.module, action, table, part, offset });
+        if (!r.ok) {
+          setBusy(null);
+          toast.error(`Stopped at ${table.replace(/_/g, " ")}`, r.error.message);
+          reload();
+          return;
+        }
+        const d = r.data as { copied?: number; deleted?: number; moved?: number; part?: number; offset?: number; done?: boolean };
+        total += Number(d.copied ?? d.deleted ?? d.moved ?? 0);
+        if (d.done) break;
+        part = d.part ?? part;
+        offset = d.offset ?? 0;
+      }
+    }
+    setBusy(null);
+    toast.success(action === "copy" ? "Copied" : action === "clear" ? "Old copy freed" : "Moved out", `${num(total)} rows.`);
+    reload();
+  };
+  const once = async (m: ModuleDataDb, body: Record<string, unknown>, done: string) => {
+    setBusy({ module: m.module, text: "Working…" });
+    const r = await post({ module: m.module, ...body });
+    setBusy(null);
+    if (!r.ok) toast.error("Didn't work", r.error.message);
+    else if (body.action === "test") {
+      const t = r.data.test as StoredDataDb["lastTest"];
+      if (t?.ok) toast.success("Connected", t.message);
+      else toast.error("Test failed", t?.message ?? "");
+    } else toast.success(done);
+    reload();
+  };
+  const next = (m: ModuleDataDb, s: Step) => {
+    if (s.key === "setup") return setOpen(m.module);
+    if (s.key === "test") return void once(m, { action: "test" }, "");
+    if (s.key === "copy") return void loop(m, "copy");
+    if (s.key === "enable") return void once(m, { action: "enable" }, `Switched on: ${label(m.module)} data is now read and written only in its own database.`);
+    if (s.key === "evict") return void loop(m, "evict");
+  };
+
   return (
     <>
-      <PageTitle title="Data databases" subtitle="Give each module its own Supabase project for its listings, so each grows on its own free plan and no module's data mixes with another's. A module without its own uses the shared data database, or the main one. Accounts, saves and settings always stay in the main database." />
-      {error && <LoadError error={error} onRetry={reload} />}
-      {!data && !error && <Loading rows={3} />}
-      {data && (
-        <>
-          <Panel title="Where each module's data lives">
-            <ul className="flex flex-col divide-y divide-line">
-              {[{ module: "shared", home: "main" as const, saved: null }, ...data.modules].map((m) => {
-                const home = m.module === "shared" ? null : HOME[m.home];
-                const selected = m.module === target;
-                return (
-                  <li key={m.module} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13px]">
-                    <span className="min-w-0">
+      <PageTitle title="Data databases" subtitle="Each module keeps its listings in its own Supabase project, so each grows on its own free plan and no module's data mixes with another's. A module without its own database keeps them in the main database. Accounts, saves and settings always stay in the main database." />
+      <Panel title={`${num(own.length)} of ${num(data.modules.length)} modules have their own database${used ? ` · ${mb(used)} in use` : ""}`}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a module or project" aria-label="Find a module or project" className="min-w-0 flex-1" />
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Show">
+              {FILTERS.map((f) => (
+                <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)} className={cn("rounded-full border px-3 py-1 text-[12px]", filter === f.id ? "border-brand-600 bg-brand-50 text-brand-700" : "border-line text-ink-3 hover:text-ink")}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ul className="flex flex-col divide-y divide-line">
+            {rows.map((m) => {
+              const s = stepOf(m);
+              const isOpen = open === m.module;
+              const working = busy?.module === m.module;
+              return (
+                <li key={m.module} className="py-2">
+                  <div className="flex items-center gap-2 text-[13px]">
+                    <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.module)}>
                       <span className="block font-medium text-ink">{label(m.module)}</span>
-                      <span className="block text-[12px] text-ink-3">{m.module === "shared" ? "For every module without its own" : m.saved ? `${m.saved.url.replace("https://", "")}${m.saved.enabled ? "" : " · saved, switched off"}` : "No database of its own"}</span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {home && <Badge tone={home.tone}>{home.text}</Badge>}
-                      <Button size="sm" variant={selected ? "primary" : "outline"} aria-pressed={selected} onClick={() => setTarget(m.module)}>
-                        {selected ? "Selected" : m.saved || m.module === "shared" ? "Manage" : "Set up"}
+                      <span className="block truncate text-[12px] text-ink-3">
+                        {working ? busy.text : [m.saved ? host(m.saved.url) : null, m.sizeBytes != null ? mb(m.sizeBytes) : null].filter(Boolean).join(" · ") || "No database of its own"}
+                      </span>
+                    </button>
+                    <Badge tone={s.tone}>{s.status}</Badge>
+                    {s.key && (
+                      <Button size="sm" variant={s.key === "setup" ? "outline" : "primary"} disabled={!!busy} loading={working} onClick={() => next(m, s)}>
+                        {s.label}
                       </Button>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </Panel>
-          {data.target === target && <Setup key={target} target={target} data={data} reload={reload} />}
-        </>
-      )}
+                    )}
+                  </div>
+                  {isOpen && <Details m={m} busy={!!busy} reload={reload} once={once} loop={loop} />}
+                </li>
+              );
+            })}
+            {!rows.length && <li className="py-3 text-[13px] text-ink-3">No module matches.</li>}
+          </ul>
+        </div>
+      </Panel>
+
+      <Fold title="Setup script" hint="The same for every module's project: Supabase → SQL editor → paste → Run, once per new project. Safe to re-run." className="mt-4">
+        <div className="pb-4">
+          <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(data.setupSql).then(() => toast.success("Copied", "Paste it into the new project's SQL editor and press Run."))}>
+            Copy script
+          </Button>
+          <pre className="mt-3 max-h-64 overflow-auto rounded-[10px] bg-bg-soft p-3 text-[11px] text-ink-3">{data.setupSql}</pre>
+        </div>
+      </Fold>
     </>
   );
 }
 
-/** One data database's steps: the shared one, or one module's own. */
-function Setup({ target, data, reload }: { target: string; data: Data; reload: () => void }) {
+/** A module's connection and its rarer actions, opened from its row. */
+function Details({ m, busy, reload, once, loop }: { m: ModuleDataDb; busy: boolean; reload: () => void; once: (m: ModuleDataDb, body: Record<string, unknown>, done: string) => Promise<void>; loop: (m: ModuleDataDb, a: "copy" | "clear" | "evict") => Promise<void> }) {
   const [url, setUrl] = useState("");
   const [key, setKey] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
-  const saved = data.saved;
-  const onData = data.active === "data";
-  const tested = saved?.lastTest?.ok === true;
-  const mine = target !== "shared";
-  const name = label(target);
-  const fromEnv = !mine && data.from === "environment";
-
-  const post = (body: Record<string, unknown>) => adminFetch<Record<string, unknown>>("data-db", { method: "POST", body: JSON.stringify({ ...body, module: target }) });
-  const step = async (label: string, body: Record<string, unknown>, done: string) => {
-    setBusy(label);
-    const r = await post(body);
-    setBusy(null);
-    if (r.ok) toast.success(done);
-    else toast.error("Didn't work", r.error.message);
-    reload();
-  };
+  const [saving, setSaving] = useState(false);
+  const saved = m.saved;
+  const name = label(m.module);
+  if (m.from === "environment") return <p className="mt-2 text-[12px] text-ink-3">Set by WORKSLAKE_DATA_DB_URL and WORKSLAKE_DATA_DB_KEY in the deployment; remove those to manage it here.</p>;
   const save = async () => {
-    setBusy("save");
-    const r = await post({ action: "save", url: url || saved?.url || "", key: key || undefined });
-    setBusy(null);
+    setSaving(true);
+    const r = await post({ module: m.module, action: "save", url: url || saved?.url || "", key: key || undefined });
+    setSaving(false);
     if (r.ok) {
-      toast.success("Saved", "Next: run the setup script there, then Test.");
+      toast.success("Saved", "Next: run the setup script in that project, then Test.");
       setKey("");
     } else toast.error("Couldn't save", r.error.message);
     reload();
   };
-  const test = async () => {
-    setBusy("test");
-    const r = await post({ action: "test" });
-    setBusy(null);
-    const t = r.ok ? (r.data.test as StoredDataDb["lastTest"]) : undefined;
-    if (t?.ok) toast.success("Connected", t.message);
-    else toast.error("Test failed", t?.message ?? (r.ok ? "" : r.error.message));
-    reload();
-  };
-  // Page by page, table by table, so no request runs long; safe to run again (it upserts).
-  const loop = async (action: "copy" | "clear") => {
-    let total = 0;
-    for (const table of data.tables) {
-      let offset = 0;
-      for (;;) {
-        setBusy(`${action}: ${table.replace(/_/g, " ")} (${num(total)})`);
-        const r = await post({ action, table, offset });
-        if (!r.ok) {
-          setBusy(null);
-          toast.error(`Stopped at ${table}`, r.error.message);
-          reload();
-          return;
-        }
-        const n = Number(r.data.copied ?? r.data.deleted ?? 0);
-        total += n;
-        offset += n;
-        if (r.data.done) break;
-      }
-    }
-    setBusy(null);
-    toast.success(action === "copy" ? "Copied" : "Old copy freed", `${num(total)} rows.`);
-    reload();
-  };
-
-  const where = onData ? (mine ? "in its own database" : "switched on") : mine ? (data.active === "shared" ? "in the shared data database" : "in the main database") : "off, WorksLake's data is in the main database";
-  const line = fromEnv
-    ? "Set by WORKSLAKE_DATA_DB_URL and WORKSLAKE_DATA_DB_KEY in the deployment; the settings below don't apply while those are set."
-    : onData
-      ? `${saved?.url ?? ""} · switched on.`
-      : saved
-        ? `${saved.url} is saved, switched off.`
-        : mine
-          ? `No database of its own yet. Create a new Supabase project for ${name} (not one another module uses), then enter its details below. Only this module's data goes there.`
-          : "No shared data database yet. Create a Supabase project, then enter its details below.";
-
   return (
-    <>
-      <Panel title={`${name}: ${mine ? "data is " : ""}${where}${onData && data.usage ? ` · ${mb(data.usage.dbBytes)}` : ""}`} className="mt-4">
-        <p className="text-[13px] text-ink-3">{line}</p>
-      </Panel>
-
-      {!fromEnv && (
-        <>
-          <Panel title="1. Connection" className="mt-4">
-            <div className="flex flex-col gap-3">
-              <label className="text-[13px] text-ink-2">
-                Project URL <span className="text-ink-4">(Supabase → Project Settings → API)</span>
-                <Input value={url} placeholder={saved?.url ?? "https://<project>.supabase.co"} onChange={(e) => setUrl(e.target.value)} autoComplete="off" />
-              </label>
-              <label className="text-[13px] text-ink-2">
-                Service role key <span className="text-ink-4">{saved ? `(saved: ${saved.masked}; leave blank to keep)` : "(the secret key; stored encrypted)"}</span>
-                <Input value={key} type="password" onChange={(e) => setKey(e.target.value)} autoComplete="off" />
-              </label>
-              <Button className="self-start" loading={busy === "save"} disabled={!!busy || (!url && !saved) || (!key && (!saved || (!!url && url.replace(/\/$/, "") !== saved.url)))} onClick={() => void save()}>
-                Save
-              </Button>
-            </div>
-          </Panel>
-
-          {saved && (
-            <>
-              <Fold title="2. Run the setup script in the new project" hint="Supabase → SQL editor → paste → Run. Once." className="mt-4">
-                <div className="pb-4">
-                  <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(data.setupSql).then(() => toast.success("Copied", "Paste it into the new project's SQL editor and press Run."))}>
-                    Copy script
-                  </Button>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-[10px] bg-bg-soft p-3 text-[11px] text-ink-3">{data.setupSql}</pre>
-                </div>
-              </Fold>
-
-              <Panel title="3. Test, copy and switch on" className="mt-4">
-                <div className="flex flex-col gap-3 text-[13px] text-ink-3">
-                  <p>
-                    {saved.lastTest ? `${saved.lastTest.ok ? "Last test passed" : "Last test failed"}: ${saved.lastTest.message}` : "Not tested yet."}
-                    {saved.lastCopy ? ` Last copy: ${Object.entries(saved.lastCopy.rows).map(([t, n]) => `${t.replace(/_/g, " ")} ${num(n)}`).join(" · ")}.` : ""}
-                  </p>
-                  {busy && busy.includes(":") && <p className="text-ink-2">{busy}…</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {!onData && (
-                      <>
-                        <Button size="sm" variant={tested ? "outline" : "primary"} loading={busy === "test"} disabled={!!busy} onClick={() => void test()}>
-                          Test
-                        </Button>
-                        <Button size="sm" variant="outline" disabled={!!busy || !tested} onClick={() => void loop("copy")}>
-                          Copy today&apos;s data
-                        </Button>
-                        <Button size="sm" disabled={!!busy || !tested || !saved.lastCopy} onClick={() => void step("enable", { action: "enable" }, mine ? `Switched on: ${name} data is now read and written only in its own database.` : "Switched on: WorksLake now reads and writes the data database.")}>
-                          Switch on
-                        </Button>
-                      </>
-                    )}
-                    {onData && (
-                      <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void loop("clear")}>
-                        {mine ? "Free the old copy" : "Free the main database"}
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-[12px] text-ink-4">
-                    {onData
-                      ? mine
-                        ? `Free the old copy deletes this module's rows where they were before; its own database keeps everything.`
-                        : "Free the main database deletes the old copy there; the data database keeps everything."
-                      : mine
-                        ? `Copy moves only this module's rows. It can run again safely; anything collected while it runs is collected again on the next run.`
-                        : "Copy can run again safely. Anything collected while it runs is collected again on the next run."}
-                  </p>
-                </div>
-              </Panel>
-
-              <Fold title="Switch off or remove" className="mt-4">
-                <div className="flex flex-wrap gap-2 pb-4">
-                  {onData && (
-                    <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void step("disable", { action: "disable" }, mine ? `Switched off: ${name} uses the shared or main database again.` : "Switched back to the main database.")}>
-                      {mine ? "Switch off" : "Switch back to the main database"}
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void step("remove", { action: "remove" }, mine ? `Removed; ${name} uses the shared or main database.` : "Removed; WorksLake uses the main database.")}>
-                    Remove the connection
-                  </Button>
-                </div>
-              </Fold>
-            </>
+    <div className="mt-2 flex flex-col gap-3 rounded-[10px] bg-bg-soft p-3 text-[13px]">
+      {!saved && <p className="text-ink-3">Create a new Supabase project for {name} (one no other module uses), run the setup script there, then enter its details. Only {name} data goes there.</p>}
+      {saved?.lastTest && <p className="text-[12px] text-ink-3">{`${saved.lastTest.ok ? "Last test passed" : "Last test failed"}: ${saved.lastTest.message}`}{saved.lastCopy ? ` Last copy: ${Object.entries(saved.lastCopy.rows).map(([t, n]) => `${t.replace(/_/g, " ")} ${num(n)}`).join(" · ")}.` : ""}</p>}
+      <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <label className="min-w-0 text-[12px] text-ink-2">
+          Project URL
+          <Input value={url} placeholder={saved?.url ?? "https://<project>.supabase.co"} onChange={(e) => setUrl(e.target.value)} autoComplete="off" />
+        </label>
+        <label className="min-w-0 text-[12px] text-ink-2">
+          Service role key
+          <Input value={key} type="password" placeholder={saved ? `Saved ${saved.masked}; blank keeps it` : "The secret key; stored encrypted"} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+        </label>
+        <Button size="sm" className="justify-self-start" loading={saving} disabled={busy || saving || (!url && !saved) || (!key && (!saved || (!!url && url.replace(/\/$/, "") !== saved.url)))} onClick={() => void save()}>
+          Save
+        </Button>
+      </div>
+      {saved && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+          {m.home !== "own" && (
+            <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void once(m, { action: "test" }, "")}>
+              Test again
+            </button>
           )}
-        </>
+          {m.home !== "own" && saved.lastTest?.ok && (
+            <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void loop(m, "copy")}>
+              Copy data{saved.lastCopy ? " again" : ""}
+            </button>
+          )}
+          {m.home === "own" && (
+            <button type="button" className="font-medium text-brand-600 hover:underline disabled:opacity-50" disabled={busy} onClick={() => void loop(m, "clear")} title={`Deletes ${name} rows left in the main database${m.module === "jobs" ? "" : " and in Jobs' database"}; its own database keeps everything.`}>
+              Free the old copy
+            </button>
+          )}
+          {m.home === "own" && (
+            <button type="button" className="text-ink-3 hover:text-ink hover:underline disabled:opacity-50" disabled={busy} onClick={() => void once(m, { action: "disable" }, `Switched off: ${name} data goes to the main database again.`)}>
+              Switch off
+            </button>
+          )}
+          <button type="button" className="text-ink-3 hover:text-ink hover:underline disabled:opacity-50" disabled={busy} onClick={() => void once(m, { action: "remove" }, `Removed; ${name} data goes to the main database.`)}>
+            Remove the connection
+          </button>
+        </div>
       )}
-    </>
+    </div>
   );
 }
