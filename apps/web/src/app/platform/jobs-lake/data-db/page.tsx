@@ -206,7 +206,9 @@ const quietCls = "text-ink-3 hover:text-ink hover:underline disabled:opacity-50"
 
 /** A module's connection and its rarer actions, opened from its row. */
 function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleDataDb; all: ModuleDataDb[]; busy: boolean; reload: () => void; setupSql: string; once: (m: ModuleDataDb, body: Record<string, unknown>, done: string) => Promise<boolean>; loop: (m: ModuleDataDb, a: "copy" | "clear" | "evict") => Promise<boolean> }) {
-  const [url, setUrl] = useState("");
+  const current = m.next ?? m.saved;
+  // The field shows the project this module is on (or moving to), so what's saved is what's seen.
+  const [url, setUrl] = useState(current?.url ?? "");
   const [key, setKey] = useState("");
   const [saving, setSaving] = useState(false);
   const saved = m.saved;
@@ -226,7 +228,7 @@ function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleData
       if (d.legacyKey) toast.error("Legacy key saved", "Supabase retires service_role keys at the end of 2026. Create a secret key (sb_secret_…) in the project and save it here instead.");
       else toast.success(d.move ? "New DDB saved" : "Saved", d.move ? `${name} stays on its current DDB until you switch. Next: run the setup script there, then Test.` : d.sharedWith?.length ? `Shared with ${labels(d.sharedWith)}. Next: Test.` : "Next: run the setup script in that project, then Test.");
       setKey("");
-      setUrl("");
+      setUrl(to || saved?.url || "");
     } else toast.error("Couldn't save", r.error.message);
     reload();
   };
@@ -263,14 +265,15 @@ function Details({ m, all, busy, reload, once, loop, setupSql }: { m: ModuleData
       )}
       <div className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <label className="min-w-0 text-[12px] text-ink-2">
-          {onDdb && !m.next ? "New project URL" : "Project URL"}
-          <Input value={url} placeholder={m.next?.url ?? saved?.url ?? "https://<project>.supabase.co"} onChange={(e) => setUrl(e.target.value)} autoComplete="off" />
+          Project URL{onDdb && !m.next ? <span className="text-ink-4"> (enter another to move)</span> : null}
+          {/* Not a login form: keep the browser from filling a saved email and password in here. */}
+          <Input value={url} type="url" name="ddb-project-url" placeholder="https://<project>.supabase.co" onChange={(e) => setUrl(e.target.value)} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false} />
         </label>
         <label className="min-w-0 text-[12px] text-ink-2">
           Secret key <span className="text-ink-4">(sb_secret_…)</span>
-          <Input value={key} type="password" placeholder={typed && knownUrl(typed) ? "Saved for this project; blank keeps it" : saved && !typed ? `Saved ${saved.masked}; blank keeps it` : "Project Settings → API Keys → Secret keys; stored encrypted"} onChange={(e) => setKey(e.target.value)} autoComplete="off" />
+          <Input value={key} type="password" name="ddb-secret-key" placeholder={typed && typed === current?.url ? `Saved ${current.masked}; paste a new one to replace it` : typed && knownUrl(typed) ? "Saved for this project; blank keeps it" : "Project Settings → API Keys → Secret keys; stored encrypted"} onChange={(e) => setKey(e.target.value)} autoComplete="new-password" data-1p-ignore data-lpignore="true" />
         </label>
-        <Button size="sm" className="justify-self-start" loading={saving} disabled={busy || saving || (!typed && !key) || (!key && !!typed && !knownUrl(typed))} onClick={() => void save()}>
+        <Button size="sm" className="justify-self-start" loading={saving} disabled={busy || saving || (!typed && !key) || (!key && !!typed && !knownUrl(typed)) || (!key && typed === current?.url)} onClick={() => void save()}>
           Save
         </Button>
       </div>
