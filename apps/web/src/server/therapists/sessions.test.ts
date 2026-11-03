@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => null, touchTenant: async () => undefined }));
 vi.mock("@/server/push/subscriptions", () => ({ notifyTenant: vi.fn(async () => ({ sent: 0 })) }));
@@ -26,11 +26,18 @@ const L = { title: "Counselling for work stress", description: "I work with adul
 const ASK = { mode: "online", date: "2026-11-03", slot: "evening", phone: "98765 43210" };
 const policy = (t: string, p: Record<string, string>) => writeClientState(t, "wj.automation", POLICY_VERSION, { policy: { ...defaultPolicy(), ...p }, defaultLevel: "guided" } as never);
 
+/** The clock is frozen on TODAY, so the dates below stay in the future however late the suite runs; a test that needs a later "now" sets its own. */
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(`${TODAY}T06:00:00Z`));
   resetTablesForTests();
   mailed.length = 0;
   delivered.length = 0;
   await policy(client.tenantId, { "therapists.book": "automatic" });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 async function listed() {
