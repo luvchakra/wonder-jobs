@@ -91,9 +91,7 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
           <span className="inline-flex flex-wrap items-center gap-2">
             <SourceStatusChip status={s.status} label={s.statusLabel} />
             <AccessBadge label={s.accessLabel} />
-            <span>{s.categoryLabel}</span>
-            <span>· {s.provider}</span>
-            {s.builtin && <span>· Built in</span>}
+            <span>{[s.categoryLabel, s.provider, s.builtin ? "Built in" : null].filter(Boolean).join(" · ")}</span>
           </span>
         }
         actions={

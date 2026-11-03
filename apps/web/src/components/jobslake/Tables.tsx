@@ -55,17 +55,17 @@ export function AuditList({ events }: { events: AuditEvent[] }) {
   return (
     <ul className="divide-y divide-line">
       {events.map((e, i) => (
-        <li key={`${e.at}-${i}`} className="flex flex-col gap-0.5 py-2 text-[13px] sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-          <span>
+        <li key={`${e.at}-${i}`} className="flex min-w-0 flex-col gap-0.5 py-2 text-[13px] [overflow-wrap:anywhere]">
+          <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="font-mono text-[12px] text-ink">{e.action}</span>
             {e.sourceId && (
-              <Link href={`/platform/jobs-lake/sources/${e.sourceId}`} className="ml-2 text-[12px] text-brand-600 hover:underline">
+              <Link href={`/platform/jobs-lake/sources/${e.sourceId}`} className="min-w-0 text-[12px] text-brand-600 hover:underline">
                 {e.sourceId}
               </Link>
             )}
-            {e.detail && Object.keys(e.detail).length > 0 && <span className="ml-2 text-[12px] text-ink-4">{Object.entries(e.detail).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ")}</span>}
           </span>
-          <span className="shrink-0 text-[12px] text-ink-3">
+          {e.detail && Object.keys(e.detail).length > 0 && <span className="text-[12px] text-ink-4">{Object.entries(e.detail).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`).join(" · ")}</span>}
+          <span className="text-[12px] text-ink-3">
             {e.actor} · {relativeTime(e.at)}
           </span>
         </li>
