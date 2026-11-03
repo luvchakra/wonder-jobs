@@ -140,3 +140,4 @@
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
 - ✅ Share image: shop photos fetched as JPEG/PNG so they show (WJ-692)
+- ✅ Therapists: Share checked for own practitioners and mapped practices, with the map credit (WJ-604)
