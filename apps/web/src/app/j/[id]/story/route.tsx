@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 import { SHARE_HINT, shareUrl } from "@/domain/jobs/share";
 import { formatSalaryRange } from "@/lib/format";
-import { jobChips, jobLines, sharedFor } from "@/server/share/page";
+import { jobChips, jobLines, sharedForCached } from "@/server/share/page";
 import { logoDataUri, storyImage } from "@/server/share/storyImage";
-import { shareSummary } from "@/server/share/summary";
+import { summaryWithin } from "@/server/share/summary";
 
 export const runtime = "nodejs";
 
 /** GET — a shared job as a portrait image (WhatsApp Status, Instagram and Facebook Stories): its company logo when the directory has one, the role, its facts, details and summary highlights. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const shared = await sharedFor(`/j/${id}`);
+  const shared = await sharedForCached(`/j/${id}`);
   if (!shared || shared.kind !== "job") return new NextResponse(null, { status: 404 });
   const job = shared.job;
-  const [summary, image] = await Promise.all([shareSummary(shared.key, shared.input), logoDataUri({ domain: job.companyDomain, name: job.company })]);
+  const [summary, image] = await Promise.all([summaryWithin(shared.key, shared.input, 2500), logoDataUri({ domain: job.companyDomain, name: job.company })]);
   return storyImage({
     badge: "Job opening",
     byline: job.company,
