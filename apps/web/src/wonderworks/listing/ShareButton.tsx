@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Link2, Mail, Share2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link2, Loader2, Mail, Share2, Sparkles } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
-import { absoluteUrl, emailHref, facebookHref, listingShareMessage, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage } from "./share";
+import { absoluteUrl, emailHref, facebookHref, listingShareMessage, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
 export interface ShareBuild {
@@ -13,13 +13,37 @@ export interface ShareBuild {
   message: ShareMessage;
   /** The listing's portrait share image (`…/story`), for Status and Stories; none where the listing has no public page. */
   image?: string;
+  /** The listing's public page (`/j/<id>`, `/s/<module>/<id>`), which the sheet asks for a summary of before sharing. */
+  page?: string;
+}
+
+/** What a Share button sends, given the summary (null when there is none or it couldn't be had). */
+export type ShareBuilder = (origin: string, summary: ShareSummary | null) => ShareBuild;
+
+/** The listing's share summary from the server, or null after 7 s or on any failure (the message then uses the listing's own words). */
+function useSummary(page: string | undefined): { summary: ShareSummary | null; loading: boolean } {
+  const [got, setGot] = useState<{ page?: string; summary: ShareSummary | null } | null>(null);
+  useEffect(() => {
+    if (!page) return;
+    let live = true;
+    fetch(`/api/share/summary?page=${encodeURIComponent(page)}`, { signal: AbortSignal.timeout(7000) })
+      .then((r) => (r.ok ? (r.json() as Promise<ShareSummary>) : null))
+      .then((s) => live && setGot({ page, summary: s && typeof s.hook === "string" && Array.isArray(s.highlights) ? s : null }))
+      .catch(() => live && setGot({ page, summary: null }));
+    return () => {
+      live = false;
+    };
+  }, [page]);
+  if (!page) return { summary: null, loading: false };
+  if (!got || got.page !== page) return { summary: null, loading: true };
+  return { summary: got.summary, loading: false };
 }
 
 /**
  * Share, for every module and every place a listing shows (taken from Jobs' ShareJobButton): an icon button that opens
  * the share sheet. The sheet is mounted only when open — the link and the device's share sheet exist only in the browser.
  */
-export function ShareButton({ label, title, description, build, onShared, className }: { label: string; title: string; description?: string; build: (origin: string) => ShareBuild; onShared?: (via: string) => void; className?: string }) {
+export function ShareButton({ label, title, description, build, onShared, className }: { label: string; title: string; description?: string; build: ShareBuilder; onShared?: (via: string) => void; className?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -105,8 +129,11 @@ function saveFile(file: File) {
  * per network in its own format — WhatsApp and Instagram get the image (with the message or a copied caption), Facebook
  * and X the link (their preview card is the listing's image), then email, copy link and the phone's own sheet.
  */
-function ShareSheet({ title, description, build, onShared, onClose }: { title: string; description?: string; build: (origin: string) => ShareBuild; onShared?: (via: string) => void; onClose: () => void }) {
-  const [{ url, message, image }] = useState(() => build(window.location.origin));
+function ShareSheet({ title, description, build, onShared, onClose }: { title: string; description?: string; build: ShareBuilder; onShared?: (via: string) => void; onClose: () => void }) {
+  const [{ page, image }] = useState(() => build(window.location.origin, null));
+  // The message is summarised before anything is shared: the buttons wait for it (7 s at most).
+  const { summary, loading } = useSummary(page);
+  const { url, message } = useMemo(() => build(window.location.origin, summary), [build, summary]);
   const { file, state } = useImageFile(image);
   const [shown, setShown] = useState(true);
   const native = typeof navigator.share === "function";
@@ -150,7 +177,23 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
             </div>
           </div>
         )}
-        <div className="grid grid-cols-4 gap-1">
+        {loading ? (
+          <p role="status" className="flex items-center justify-center gap-2 text-[13px] text-ink-3">
+            <Loader2 className="size-4 wj-animate-spin" aria-hidden /> Summarising for a crisp message…
+          </p>
+        ) : (
+          summary?.hook && (
+            <p className="rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2">
+              {summary.ai && (
+                <span className="mr-1.5 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
+                  <Sparkles className="size-3" aria-hidden /> AI summary
+                </span>
+              )}
+              {summary.hook}
+            </p>
+          )
+        )}
+        <div className={cn("grid grid-cols-4 gap-1", loading && "pointer-events-none opacity-40")} aria-busy={loading}>
           <a href={whatsappHref(message)} target="_blank" rel="noopener noreferrer" className={TILE} onClick={whatsapp}>
             <span className={cn(DISC, "bg-[#25d366]")}>
               <WhatsAppLogo />
@@ -252,10 +295,11 @@ export function ListingShare({ module, className, noun, title, facts, lines, det
       description={sheetLine(input.title, input.facts)}
       className={className}
       onShared={(via) => track("listing_shared", { module, via })}
-      build={(origin) => {
+      build={(origin, summary) => {
         const url = absoluteUrl(origin, input.url);
-        // Listings with a public page (`/s/<module>/<id>`) have a share image; people's profiles don't.
-        return { url, message: listingShareMessage(input, url), ...(input.url.startsWith("/s/") ? { image: storyPath(input.url) } : {}) };
+        // Listings with a public page (`/s/<module>/<id>`) have a share image and a summary; people's profiles don't.
+        const page = input.url.startsWith("/s/") ? input.url : undefined;
+        return { url, message: listingShareMessage(input, url, { summary, image: !!page }), ...(page ? { image: storyPath(page), page } : {}) };
       }}
     />
   );

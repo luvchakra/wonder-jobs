@@ -15,8 +15,11 @@ export interface StoryCard {
   chips: string[];
   /** Labelled details, one row each ("Subject: Maths"); a row without a label shows as plain text. */
   lines?: string[];
-  /** The listing's own description, cut to fit. */
+  /** The listing's own description, cut to fit: shown only when there are no highlights. */
   about?: string;
+  /** The share summary's highlights (a few concrete details), and whether a model wrote them (then labelled AI summary). */
+  highlights?: string[];
+  ai?: boolean;
   /** The listing's own image (a company's logo) as a data URI, when there is one. */
   image?: string | null;
   /** A photo of the listing itself (a shop's product photo) as a data URI: shown large, in place of the logo. */
@@ -98,9 +101,10 @@ export function storyImage(c: StoryCard): ImageResponse {
   const same = (s: string) => s.trim().toLowerCase() === c.title.trim().toLowerCase();
   const byline = c.byline && !same(c.byline) ? c.byline : undefined;
   const chips = c.chips.filter((x) => !same(x));
-  const rows = detailRows(c.lines, c.photo ? 4 : 6);
-  // The description takes the room the details (and a photo) leave, so a short listing still fills the card.
-  const about = aboutText(c.about, c.photo ? 220 : rows.length >= 5 ? 340 : rows.length >= 3 ? 460 : 660);
+  const points = (c.highlights ?? []).filter(Boolean).slice(0, 3);
+  const rows = detailRows(c.lines, c.photo ? 3 : points.length ? 4 : 6);
+  // With no highlights, the description takes the room the details (and a photo) leave, so a short listing still fills the card.
+  const about = points.length ? "" : aboutText(c.about, c.photo ? 220 : rows.length >= 5 ? 340 : rows.length >= 3 ? 460 : 660);
   const titleSize = c.title.length > 60 ? 70 : c.title.length > 32 ? 84 : 100;
   return new ImageResponse(
     (
@@ -152,6 +156,18 @@ export function storyImage(c: StoryCard): ImageResponse {
                 <div key={`${k}-${i}`} style={{ display: "flex", gap: 20, fontSize: 34, lineHeight: 1.3 }}>
                   {k && <span style={{ display: "flex", flexShrink: 0, width: 230, color: "#c4b5fd", fontWeight: 600 }}>{clip(k, 16)}</span>}
                   <span style={{ flex: 1, minWidth: 0, color: "#ffffff" }}>{clip(v, k ? 70 : 90)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {points.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {c.ai && <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: 2, color: "#c4b5fd" }}>AI SUMMARY</span>}
+              {points.map((p, i) => (
+                <div key={`${p}-${i}`} style={{ display: "flex", alignItems: "flex-start", gap: 22 }}>
+                  <span style={{ display: "flex", flexShrink: 0, width: 18, height: 18, marginTop: 14, borderRadius: 9, background: "#a78bfa" }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 40, lineHeight: 1.3, fontWeight: 600 }}>{clip(p, 70)}</span>
                 </div>
               ))}
             </div>

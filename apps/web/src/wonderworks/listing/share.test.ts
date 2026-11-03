@@ -29,16 +29,20 @@ describe("sharing a listing", () => {
     expect(whatsappHref(m)).toBe(`https://wa.me/?text=${encodeURIComponent(m.whatsapp)}`);
   });
 
-  it("carries every labelled detail and the description, not just the headline: what the listing shows at the moment of sharing", () => {
-    const m = listingShareMessage(
-      { noun: "internship", title: "React Intern", facts: ["Acme", "Pune", "₹10,000 a month"], lines: ["Duration: 3 months", false, "Skills: React, SQL", 0, "Apply by: 30 Nov 2026"], details: "Build the dashboard.\nWork with the design team.", url: "x" },
-      "https://x.test/s/internships/ws_1",
-    );
-    for (const part of ["*React Intern*", "Acme · Pune · ₹10,000 a month", "Duration: 3 months", "Skills: React, SQL", "Apply by: 30 Nov 2026", "Build the dashboard.", "Work with the design team."]) expect(m.whatsapp).toContain(part);
-    expect(m.whatsapp).not.toContain("false");
-    expect(m.body).toContain("Skills: React, SQL");
-    expect(m.text).toContain("Duration: 3 months");
-    expect(m.whatsapp.split("\n").at(-1)).toBe("https://x.test/s/internships/ws_1");
+  it("is crisp: title, facts, one hook line and the link; the details go on the image, not in the message", () => {
+    const input: Parameters<typeof listingShareMessage>[0] = { noun: "internship", title: "React Intern", facts: ["Acme", "Pune", "₹10,000 a month"], lines: ["Duration: 3 months", false, "Skills: React, SQL", 0, "Apply by: 30 Nov 2026", "From: WorksLake Data Gateway"], details: "Build the dashboard with the design team. More text follows here.", url: "x" };
+    const m = listingShareMessage(input, "https://x.test/s/internships/ws_1", { image: true });
+    expect(m.whatsapp).toBe(["*React Intern*\nAcme · Pune · ₹10,000 a month", "Build the dashboard with the design team.", "Thought of you for this one. Found with WonderWorks.", "https://x.test/s/internships/ws_1"].join("\n\n"));
+    expect(m.whatsapp).not.toMatch(/Duration|Skills|More text|false/);
+    // The AI summary's hook replaces the first sentence, and its highlights go in the email (which has no image).
+    const s = listingShareMessage(input, "https://x.test/s/internships/ws_1", { image: true, summary: { hook: "A paid React internship in Pune.", highlights: ["3 months", "Apply by 30 Nov"], ai: true } });
+    expect(s.whatsapp).toContain("A paid React internship in Pune.");
+    expect(s.whatsapp).not.toContain("3 months");
+    expect(s.body).toContain("• Apply by 30 Nov");
+    // Without an image (people's profiles), the highlights come in the message, never where it came from.
+    const n = listingShareMessage(input, "https://x.test/app/m/x");
+    expect(n.whatsapp).toContain("• Duration: 3 months");
+    expect(n.whatsapp).not.toContain("WorksLake");
   });
 
   it("a long description is cut at a word, with an ellipsis, and a short one is kept whole", () => {

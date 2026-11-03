@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { listingShareMessage } from "@/wonderworks/listing/share";
 import { shareOf as internships } from "./internships/share";
 import { shareOf as teaching } from "./teaching/share";
 import { shareOf as services } from "./services/share";
@@ -9,9 +8,10 @@ import { shareOf as marketplace } from "./marketplace/share";
 import { shareOf as cofounders } from "./cofounders/share";
 
 const base = { company: "Acme", location: "Pune, Maharashtra", sourceId: "s", sourceName: "WonderWorks X", description: "The full description of the thing." };
-const text = (p: Parameters<typeof listingShareMessage>[0]) => listingShareMessage(p, "https://x.test/l").whatsapp;
+/** What a share is made from: the details its image shows and its summary is written from (the message itself is crisp). */
+const text = (p: object) => JSON.stringify(p);
 
-/** What each module's Share says — every field its listing shows, never a generic line — and what it never says. */
+/** What each module's Share is made from — every field its listing shows, never a generic line — and what it never says. */
 describe("every module's Share carries the listing's own details", () => {
   it("Internships: stipend, duration, start, last day, schedule, skills, source, description", () => {
     const m = text(internships({ ...base, id: "ws_1", origin: "wonderstar", title: "Marketing Intern", workMode: "hybrid", terms: { currency: "INR", stipendMin: 10000, durationMonths: 3, startsOn: "2026-12-01", applyBy: "2026-11-20", schedule: "full_time" }, termsFrom: "company", skills: ["SEO", "Copy"] }));

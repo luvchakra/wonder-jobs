@@ -13,9 +13,10 @@ export function ShareJobButton({ job, className }: { job: ShareJob; className?: 
       description={`${job.title} at ${job.company} · ${shareFacts(job)}`}
       className={className}
       onShared={(via) => track("job_shared", { via })}
-      build={(origin) => {
+      build={(origin, summary) => {
         const url = shareUrl(origin, job.id);
-        return { url, message: shareMessage(job, url, origin), image: storyPath(`/j/${encodeURIComponent(job.id)}`) };
+        const page = `/j/${encodeURIComponent(job.id)}`;
+        return { url, message: shareMessage(job, url, origin, summary), image: storyPath(page), page };
       }}
     />
   );
