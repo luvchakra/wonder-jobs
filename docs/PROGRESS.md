@@ -149,3 +149,4 @@
 - ✅ Jobs: Share on every job surface — Pipeline's job page added, careers pages use WonderWorks' share sheet; crisp-message tests (WJ-547)
 - ✅ Events: a shared outside event says "Source: WorksLakeDG", like the cards (WJ-577)
 - ✅ Share: highlights never repeat the image; original link names the site (WJ-693)
+- ✅ Share image: link footer reads as text, not a button (WJ-694)
