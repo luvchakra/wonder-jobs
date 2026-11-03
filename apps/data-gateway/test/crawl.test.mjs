@@ -203,3 +203,11 @@ test("sitemapOrder newest reads the last children of a sitemap index (dated site
   });
   assert.deepEqual(read.filter((u) => u.includes("sitemap-")), dated.slice(-5).reverse());
 });
+
+test("a crawl source may read a Next.js listing from its page data: a dot path, and a mapping that names its title", () => {
+  const nd = { ...base, nextDataPath: "props.pageProps.scholarship.scholarship", mapping: { title: "scholarshipMultilinguals.0.title" } };
+  assert.equal(validateSource(nd).nextDataPath, "props.pageProps.scholarship.scholarship");
+  assert.throws(() => validateSource({ ...nd, nextDataPath: "props..x" }), /nextDataPath/);
+  assert.throws(() => validateSource({ ...nd, nextDataPath: "constructor; drop" }), /nextDataPath/);
+  assert.throws(() => validateSource({ ...nd, mapping: {} }), /mapping.title/);
+});
