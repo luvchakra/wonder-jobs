@@ -6,7 +6,7 @@
  */
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
-import { dataFrom, dataWritable, loadDataDb } from "@/server/dataDb";
+import { dataEvery, dataFrom, dataWritable, loadDataDb } from "@/server/dataDb";
 import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
@@ -130,13 +130,21 @@ const mem = () => (g2.__wlListings ??= new Map());
  * only its own source's rows. Without Supabase (local, tests) they are kept in memory with the same rules.
  */
 /**
- * The listings table, in the main database or the optional WorksLake data database (dataDb): a function that starts a
- * fresh query each call. Null without Supabase (local, tests: memory).
+ * The listings table for one module, in whichever database holds that module's data (dataDb: its own data database,
+ * the shared one, or the main one): a function that starts a fresh query each call. Null without Supabase (local,
+ * tests: memory).
  */
-async function listingsTable(): Promise<(() => NonNullable<ReturnType<typeof dataFrom>>) | null> {
+async function listingsTable(module: string): Promise<(() => NonNullable<ReturnType<typeof dataFrom>>) | null> {
   if (!getSupabaseAdmin()) return null;
   await loadDataDb();
-  return () => dataFrom("gateway_listings")!;
+  return () => dataFrom("gateway_listings", module)!;
+}
+
+/** The listings table in every database that may hold some listings now (for work not about one module). */
+async function everyListingsTable(): Promise<ReturnType<typeof dataEvery> | null> {
+  if (!getSupabaseAdmin()) return null;
+  await loadDataDb();
+  return dataEvery("gateway_listings");
 }
 
 export class GatewayListingsTable {
@@ -145,7 +153,7 @@ export class GatewayListingsTable {
     const now = new Date().toISOString();
     const words = queryWords(plan.query).map(likeSafe).filter(Boolean);
     const places = plan.locations.map(likeSafe).filter(Boolean);
-    const sb = await listingsTable();
+    const sb = await listingsTable(plan.module);
     if (!sb) {
       const all = [...mem().values()]
         .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
@@ -161,23 +169,34 @@ export class GatewayListingsTable {
     return { rows: (data ?? []).map((r) => (r as { doc: GatewayListing }).doc), matched: count ?? 0 };
   }
 
+  /** One listing by id: its module isn't known here, so each database that may hold it is asked in turn. */
   async get(id: string): Promise<GatewayListing | undefined> {
-    const sb = await listingsTable();
-    if (!sb) return mem().get(id);
-    const { data, error } = await sb().select("doc").eq("id", id).limit(1);
-    if (error) throw new Error(`Could not read a gateway listing: ${error.message}`);
-    return (data?.[0] as { doc: GatewayListing } | undefined)?.doc;
+    const every = await everyListingsTable();
+    if (!every) return mem().get(id);
+    for (const db of every) {
+      const { data, error } = await db.from().select("doc").eq("id", id).limit(1);
+      if (error) throw new Error(`Could not read a gateway listing: ${error.message}`);
+      const doc = (data?.[0] as { doc: GatewayListing } | undefined)?.doc;
+      if (doc) return doc;
+    }
+    return undefined;
   }
 
+  /** Saves listings, each module's into the database that holds that module's data and no other. */
   async upsert(list: GatewayListing[]) {
-    const sb = await listingsTable();
-    if (!sb) { for (const l of list) mem().set(l.id, l); return; }
+    if (!getSupabaseAdmin()) { for (const l of list) mem().set(l.id, l); return; }
+    await loadDataDb();
     // Where the listings live isn't known yet (dataDb): fail the collection (it's retried) rather than write them to
     // the wrong database.
     if (!dataWritable()) throw new Error("The WorksLake data database setting couldn't be read; collect again shortly.");
-    for (let i = 0; i < list.length; i += CHUNK) {
-      const { error } = await sb().upsert(list.slice(i, i + CHUNK).map(toRow), { onConflict: "id" });
-      if (error) throw new Error(`Could not save gateway listings: ${error.message}`);
+    const byModule = new Map<string, GatewayListing[]>();
+    for (const l of list) byModule.set(l.module, [...(byModule.get(l.module) ?? []), l]);
+    for (const [module, rows] of byModule) {
+      const sb = (await listingsTable(module))!;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error } = await sb().upsert(rows.slice(i, i + CHUNK).map(toRow), { onConflict: "id" });
+        if (error) throw new Error(`Could not save gateway listings: ${error.message}`);
+      }
     }
   }
 
@@ -190,30 +209,35 @@ export class GatewayListingsTable {
     const now = new Date().toISOString();
     const runAt = results.reduce((m, l) => (l.observedAt < m ? l.observedAt : m), now);
     await this.upsert(results);
-    const sb = await listingsTable();
-    if (!sb) {
+    const every = await everyListingsTable();
+    if (!every) {
       for (const [id, l] of mem()) if (l.sourceId === sourceId && (l.expiresAt <= now || (!merge && l.observedAt < runAt))) mem().delete(id);
       return [...mem().values()].filter((l) => l.sourceId === sourceId).length;
     }
-    const gone = await sb().delete().eq("source_id", sourceId).lte("expires_at", now);
-    if (gone.error) throw new Error(`Could not remove expired gateway listings: ${gone.error.message}`);
-    if (!merge) {
-      const old = await sb().delete().eq("source_id", sourceId).lt("observed_at", runAt);
-      if (old.error) throw new Error(`Could not remove gateway listings a source no longer has: ${old.error.message}`);
+    // A source's listings may sit in more than one database (one source can feed several modules): each is cleaned.
+    let total = 0;
+    for (const db of every) {
+      const gone = await db.from().delete().eq("source_id", sourceId).lte("expires_at", now);
+      if (gone.error) throw new Error(`Could not remove expired gateway listings: ${gone.error.message}`);
+      if (!merge) {
+        const old = await db.from().delete().eq("source_id", sourceId).lt("observed_at", runAt);
+        if (old.error) throw new Error(`Could not remove gateway listings a source no longer has: ${old.error.message}`);
+      }
+      const { count, error } = await db.from().select("id", { count: "exact", head: true }).eq("source_id", sourceId);
+      if (error) throw new Error(`Could not count gateway listings: ${error.message}`);
+      total += count ?? 0;
     }
-    const { count, error } = await sb().select("id", { count: "exact", head: true }).eq("source_id", sourceId);
-    if (error) throw new Error(`Could not count gateway listings: ${error.message}`);
-    return count ?? 0;
+    return total;
   }
 
   /** Live listings per source and per module, for the admin page. */
   async counts(pairs: { sourceId: string; modules: string[] }[]): Promise<{ bySource: Record<string, number>; byModule: Record<string, number> }> {
     const now = new Date().toISOString();
     const bySource: Record<string, number> = {}, byModule: Record<string, number> = {};
-    const sb = await listingsTable();
     for (const { sourceId, modules } of pairs)
       for (const mod of modules) {
         let n = 0;
+        const sb = await listingsTable(mod);
         if (!sb) n = [...mem().values()].filter((l) => l.sourceId === sourceId && l.module === mod && l.expiresAt > now).length;
         else {
           const { count, error } = await sb().select("id", { count: "exact", head: true }).eq("source_id", sourceId).eq("module", mod).gt("expires_at", now);

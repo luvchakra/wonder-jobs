@@ -1,52 +1,84 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { __resetDataDb, dataDbStatus, dataFrom, PROJECT_URL, removeDataDb, saveDataDb, setDataDbEnabled } from "./index";
+import { __resetDataDb, dataDbOverview, dataEvery, dataFrom, dataHome, loadDataDb, PROJECT_URL, removeDataDb, saveDataDb, setDataDbEnabled, tablesFor } from "./index";
 import { DATA_DB_SCHEMA_SQL } from "./schema";
 import { stateStore } from "../state";
 import { PLATFORM_TENANT } from "../billing/plansConfig";
 
 const URL_OK = "https://abcdefghijklmnopqrst.supabase.co";
+const OTHER = "https://bbbbbbbbbbbbbbbbbbbb.supabase.co";
 const KEY = "sb_secret_" + "x".repeat(40);
 
-describe("optional WorksLake data database", () => {
-  beforeEach(async () => {
-    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
-    vi.stubEnv("WORKSLAKE_DATA_DB_URL", "");
-    __resetDataDb();
-    await removeDataDb();
-  });
-  afterEach(() => vi.unstubAllEnvs());
+beforeEach(async () => {
+  vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+  vi.stubEnv("WORKSLAKE_DATA_DB_URL", "");
+  __resetDataDb();
+  await stateStore.put(PLATFORM_TENANT, "wj.datadbs", null);
+  await stateStore.put(PLATFORM_TENANT, "wj.datadb", null);
+});
+afterEach(() => vi.unstubAllEnvs());
 
+const enabledDoc = async (url: string) => ({ url, keyCipher: (await import("../secrets")).encrypt(KEY), masked: "x", enabled: true, savedAt: new Date().toISOString(), lastTest: { at: "", ok: true, message: "" } });
+
+describe("each module's own data database (owner, 2026-11-03)", () => {
   it("only accepts a Supabase project URL, since the server sends a service key there", async () => {
     expect(PROJECT_URL.test(URL_OK)).toBe(true);
     for (const bad of ["http://abcdefghijklmnopqrst.supabase.co", "https://evil.example.com", "https://abcdefghijklmnopqrst.supabase.co.evil.com", "https://x@abcdefghijklmnopqrst.supabase.co"]) {
-      expect((await saveDataDb({ url: bad, key: KEY })).ok).toBe(false);
+      expect((await saveDataDb("events", { url: bad, key: KEY })).ok).toBe(false);
     }
   });
 
-  it("stores the key encrypted and shows it only masked; saved connections start switched off", async () => {
-    expect((await saveDataDb({ url: URL_OK, key: KEY })).ok).toBe(true);
-    const raw = JSON.stringify((await stateStore.get(PLATFORM_TENANT, "wj.datadb"))?.state);
-    expect(raw).not.toContain(KEY);
-    const s = await dataDbStatus();
-    expect(s).toMatchObject({ active: "main", saved: { url: URL_OK, enabled: false } });
-    expect(s.saved?.masked).not.toContain(KEY.slice(10, 40));
+  it("stores a module's key encrypted and shows it only masked; a saved connection starts switched off", async () => {
+    expect((await saveDataDb("therapists", { url: URL_OK, key: KEY })).ok).toBe(true);
+    expect(JSON.stringify((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state)).not.toContain(KEY);
+    const [row] = await dataDbOverview(["therapists"]);
+    expect(row).toMatchObject({ module: "therapists", home: "main", saved: { url: URL_OK, enabled: false } });
+    expect(row.saved?.masked).not.toContain(KEY.slice(10, 40));
   });
 
-  it("needs a key for a new URL, and keeps the saved one when left blank", async () => {
-    expect((await saveDataDb({ url: URL_OK })).ok).toBe(false);
-    await saveDataDb({ url: URL_OK, key: KEY });
-    expect((await saveDataDb({ url: URL_OK })).ok).toBe(true);
-    expect((await saveDataDb({ url: "https://zzzzzzzzzzzzzzzzzzzz.supabase.co" })).ok).toBe(false);
+  it("needs a key for a new URL, keeps the saved one when left blank, and won't switch on before a passing test", async () => {
+    expect((await saveDataDb("events", { url: URL_OK })).ok).toBe(false);
+    await saveDataDb("events", { url: URL_OK, key: KEY });
+    expect((await saveDataDb("events", { url: URL_OK })).ok).toBe(true);
+    expect(await setDataDbEnabled("events", true)).toMatchObject({ ok: false });
+    expect(dataHome("events")).toBe("main");
   });
 
-  it("won't switch on before a passing test, so a search never reads an empty database", async () => {
-    await saveDataDb({ url: URL_OK, key: KEY });
-    expect(await setDataDbEnabled(true)).toMatchObject({ ok: false });
-    expect((await dataDbStatus()).active).toBe("main");
+  it("won't give two modules the same project, so no module's data mixes with another's", async () => {
+    await saveDataDb("therapists", { url: URL_OK, key: KEY });
+    expect(await saveDataDb("events", { url: URL_OK, key: KEY })).toMatchObject({ ok: false, message: expect.stringContaining("therapists") });
+    expect((await saveDataDb("events", { url: OTHER, key: KEY })).ok).toBe(true);
   });
 
-  it("keeps every table in the main database while switched off (no Supabase in tests: nothing to query)", () => {
-    expect(dataFrom("jobslake_opportunities")).toBeNull();
+  it("routes a module's data only to its own database once on; a module without one uses the main database, never another's", async () => {
+    await stateStore.put(PLATFORM_TENANT, "wj.datadbs", { modules: { therapists: await enabledDoc(URL_OK) } });
+    await loadDataDb(true);
+    expect(dataHome("therapists")).toBe("own");
+    expect(dataHome("events")).toBe("main");
+    // No main database in tests: only the module with its own database gets a query.
+    expect(dataFrom("gateway_listings", "therapists")).not.toBeNull();
+    expect(dataFrom("gateway_listings", "events")).toBeNull();
+    expect(dataEvery("gateway_listings").map((d) => d.modules)).toEqual([["therapists"]]);
+  });
+
+  it("the data database set up before (2026-11-01) is Jobs' own, and only Jobs' (no shared fallback)", async () => {
+    await stateStore.put(PLATFORM_TENANT, "wj.datadb", await enabledDoc(URL_OK));
+    await loadDataDb(true);
+    expect(dataHome("jobs")).toBe("own");
+    expect(dataHome("events")).toBe("main");
+    expect(dataFrom("gateway_listings", "events")).toBeNull();
+    // A project already held by Jobs (the legacy one) can't be given to another module.
+    expect((await saveDataDb("events", { url: URL_OK, key: KEY })).ok).toBe(false);
+    // Jobs' first change folds the legacy setting into its own entry.
+    await setDataDbEnabled("jobs", false);
+    expect((await stateStore.get(PLATFORM_TENANT, "wj.datadb"))?.state ?? null).toBeNull();
+    expect((await stateStore.get(PLATFORM_TENANT, "wj.datadbs"))?.state).toMatchObject({ modules: { jobs: { url: URL_OK, enabled: false } } });
+    await removeDataDb("jobs");
+    expect(dataHome("jobs")).toBe("main");
+  });
+
+  it("names what each module's database holds: Jobs also its H-1B employers", () => {
+    expect(tablesFor("therapists")).toEqual(["jobslake_opportunities", "gateway_listings"]);
+    expect(tablesFor("jobs")).toContain("jobslake_h1b_employers");
   });
 
   it("the setup script creates every data table with row-level security and no access for anon", () => {
@@ -59,7 +91,7 @@ describe("optional WorksLake data database", () => {
 describe("when the data database setting can't be read", () => {
   afterEach(() => vi.restoreAllMocks());
   it("writes nothing until it knows where the data lives, instead of assuming the main database", async () => {
-    const { dataWritable, loadDataDb, __resetDataDb } = await import("./index");
+    const { dataWritable } = await import("./index");
     __resetDataDb();
     const spy = vi.spyOn(stateStore, "get").mockRejectedValueOnce(new Error("database busy"));
     await loadDataDb(true);

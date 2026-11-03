@@ -14,22 +14,22 @@ const since = (iso: string | null) => {
 
 /**
  * Admin → Databases (owner, 2026-11-01): usage and performance of the application database (ADB) and the optional data
- * database (DDB), side by side. Read-only; opening the page reads each database's figures once.
+ * database (DDB) and each module's own data database, side by side. Read-only; opening the page reads each database's figures once.
  */
 export default function DatabasesPage() {
-  const { data, error, reload } = useAdmin<{ adb: DbReport; ddb: DbReport }>("databases");
+  const { data, error, reload } = useAdmin<{ adb: DbReport; modules: DbReport[] }>("databases");
   return (
     <>
       <PageTitle
         title="Databases"
-        subtitle="How full each database is, how much room is left, and how fast it answers. Its limits are under Storage limits; a second database for WorksLake's data is under Data database."
+        subtitle="How full each database is, how much room is left, and how fast it answers. Its limits are under Storage limits; each module's own database for its data is under Data databases."
         actions={
           <>
             <Button size="sm" variant="outline" href="/platform/jobs-lake/storage">
               Storage limits
             </Button>
             <Button size="sm" variant="outline" href="/platform/jobs-lake/data-db">
-              Data database
+              Data databases
             </Button>
             <Button size="sm" variant="outline" onClick={() => reload()}>
               Refresh
@@ -42,7 +42,16 @@ export default function DatabasesPage() {
       {data && (
         <div className="grid gap-4 lg:grid-cols-2">
           <DbCard r={data.adb} />
-          <DbCard r={data.ddb} />
+          {data.modules.map((m) => (
+            <DbCard key={m.id} r={m} />
+          ))}
+          {!data.modules.length && (
+            <Panel title="Module data databases">
+              <p className="text-[13px] text-ink-3">
+                No module has its own data database switched on, so every module&apos;s listings are in the ADB. <Link href="/platform/jobs-lake/data-db" className="text-brand-600 hover:underline">Set one up</Link>
+              </p>
+            </Panel>
+          )}
         </div>
       )}
     </>
@@ -54,13 +63,7 @@ function DbCard({ r }: { r: DbReport }) {
     return (
       <Panel title={r.name}>
         <p className="text-[13px] text-ink-3">
-          {r.id === "ddb" ? (
-            <>
-              Not set up: WorksLake&apos;s data is in the ADB. <Link href="/platform/jobs-lake/data-db" className="text-brand-600 hover:underline">Set up a data database</Link>
-            </>
-          ) : (
-            (r.error ?? "Not configured.")
-          )}
+          {r.error ?? "Not configured."}
         </p>
       </Panel>
     );

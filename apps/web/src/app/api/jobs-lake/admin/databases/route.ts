@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/jobslake/access";
 import { json } from "@/server/jobslake/http";
 import { databasesReport } from "@/server/databases";
+import { MODULES } from "@/modules/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,5 +11,5 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
-  return json(await databasesReport());
+  return json(await databasesReport(Object.fromEntries(MODULES.map((m) => [m.id, m.label]))));
 }
