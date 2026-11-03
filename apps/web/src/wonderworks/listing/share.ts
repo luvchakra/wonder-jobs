@@ -57,7 +57,7 @@ export interface ListingShareInput {
 }
 
 /** Bumped when the share image's design changes, so phones and the CDN fetch the new one instead of a cached copy. */
-export const STORY_VERSION = 6;
+export const STORY_VERSION = 7;
 /** A listing's or job's share image (`<public page>/story`). */
 export const storyPath = (page: string) => `${page}/story?v=${STORY_VERSION}`;
 
@@ -112,7 +112,7 @@ export function distinctText(title: string, text: string | undefined): string {
 /**
  * A listing's share summary (owner, 2026-11-03: "use ai to summarise … keep it useful and crisp"): `hook`, one sentence
  * on why it's worth a look, goes in the message; `highlights`, a few concrete details, go on the share image (or in the
- * message where there is no image). `ai` says the model wrote them, so the sheet labels them AI-generated.
+ * message where there is no image). `ai` says the model wrote them (kept for logs and tests); both are labelled just "Summary" (owner, 2026-11-03).
  */
 export interface ShareSummary {
   hook: string;

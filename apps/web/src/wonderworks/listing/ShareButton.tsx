@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Mail, Share2, Sparkles } from "lucide-react";
+import { Link2, Loader2, Mail, Share2 } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
@@ -184,11 +184,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
         ) : (
           summary?.hook && (
             <p className="rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2">
-              {summary.ai && (
-                <span className="mr-1.5 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-                  <Sparkles className="size-3" aria-hidden /> AI summary
-                </span>
-              )}
+              <span className="mr-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">Summary</span>
               {summary.hook}
             </p>
           )
