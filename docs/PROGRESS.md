@@ -143,3 +143,4 @@
 - ✅ Teaching: Share checked end to end (public URL per origin, image, help) (WJ-564)
 - ✅ Therapists: Share checked for own practitioners and mapped practices, with the map credit (WJ-604)
 - ✅ Scholarships & Projects: Share checked end to end; Share on the application page; cleaner share facts (WJ-528)
+- ✅ Jobs: Share on every job surface — Pipeline's job page added, careers pages use WonderWorks' share sheet; crisp-message tests (WJ-547)

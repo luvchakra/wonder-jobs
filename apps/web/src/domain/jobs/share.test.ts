@@ -34,4 +34,36 @@ describe("job sharing", () => {
     const m = shareMessage({ ...job, ...({ score: 87, fit: "strong" } as object) } as ShareJob, "https://x/j/1", "https://x");
     expect(JSON.stringify(m)).not.toMatch(/87|strong/i);
   });
+
+  // The share image carries the details (owner, 2026-11-03: the message was too long); the message stays crisp.
+  describe("stays crisp", () => {
+    const full = { ...job, description: "We build payments infrastructure for millions of merchants across India.", skills: ["PostgreSQL", "Oracle RAC"], level: "senior", requirements: "7+ years with PostgreSQL" } as unknown as ShareJob;
+    const summary = { hook: "Own the databases behind India's busiest payments rails.", highlights: ["Lead a team of 4 DBAs", "Hybrid, 3 days in Mumbai"], ai: true };
+
+    it("never carries the description, skills, level or requirements", () => {
+      const m = shareMessage(full, "https://x/j/1", "https://x", summary);
+      for (const v of Object.values(m)) {
+        expect(v).not.toMatch(/payments infrastructure|Oracle RAC|PostgreSQL|7\+ years|senior/i);
+      }
+    });
+
+    it("carries the summary's hook in every message, and its highlights only in the email (which has no image)", () => {
+      const m = shareMessage(full, "https://x/j/1", "https://x", summary);
+      for (const k of ["whatsapp", "text", "x", "caption", "body"] as const) expect(m[k]).toContain(summary.hook);
+      expect(m.body).toContain("• Lead a team of 4 DBAs");
+      for (const k of ["whatsapp", "text", "x", "caption"] as const) expect(m[k]).not.toContain("Lead a team of 4 DBAs");
+    });
+
+    it("is a few short lines: role, facts, hook, a WonderWorks line and the link", () => {
+      const m = shareMessage(full, "https://x/j/1", "https://x", summary);
+      const lines = m.whatsapp.split("\n").filter((l) => l.trim());
+      expect(lines).toEqual(["*Database Administrator at HR India Solutions*", "Mumbai, Maharashtra · On-site · Full-time · ₹12L–15L", summary.hook, "Thought of you for this one. Found with WonderWorks, the AI job-search agent.", "https://x/j/1"]);
+    });
+
+    it("leaves the hook out, with no empty gap, when there's no summary", () => {
+      const m = shareMessage(full, "https://x/j/1", "https://x", null);
+      expect(m.whatsapp).not.toMatch(/\n{3,}/);
+      expect(m.whatsapp.split("\n").filter((l) => l.trim())).toHaveLength(4);
+    });
+  });
 });
