@@ -8,10 +8,14 @@ import { resolveCapability } from "@/domain/automation/policy";
 import { useAutomationStore } from "@/store/automation";
 import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { shortPlace } from "@/wonderworks/find/place";
+import { publicPath } from "@/wonderworks/listing/share";
+import { ListingShare } from "@/wonderworks/listing/ShareButton";
 import { attendeeMay, needsConfirm, STAGE_OF, STATUS_LABEL, whenLabel } from "../domain";
 import { useEventsStore } from "../store";
 import { Cover } from "./Cover";
 import { lineOf, TONE, useMyRsvps } from "./Pipeline";
+import { cutPlace } from "../share";
 
 const BACK = { href: "/app/m/events/pipeline", label: "My events" };
 
@@ -58,7 +62,13 @@ export function EventsItem({ id }: { id: string }) {
   ];
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader back={BACK} title={r.title} description={lineOf(r)} />
+      <PageHeader
+        back={BACK}
+        title={r.title}
+        description={lineOf(r)}
+        // The event itself, as anyone would see it: its public page (the seats and your RSVP are never in it).
+        actions={<ListingShare module="events" noun="event" title={r.title} facts={[whenLabel(r.startsAt), r.online ? "Online" : cutPlace(shortPlace(r.location)), r.organiser]} url={publicPath("events", `ws_${r.listingId}`)} />}
+      />
       <Cover postingId={r.listingId} cover={r.cover} place="page" alt={`Cover photo for ${r.title}`} />
       <section className="wj-card space-y-3 p-4">
         <Badge tone={TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>

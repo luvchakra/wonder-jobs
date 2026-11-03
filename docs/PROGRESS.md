@@ -138,3 +138,4 @@
 - ✅ Share image filled with the listing's details, description and logo (WJ-689)
 - ✅ Share fixes: fresh image, outside listings shareable with photos, short sheet line, no repeated names (WJ-690)
 - ✅ Share: AI summary first; crisp message, details on the image (WJ-691)
+- ✅ Events: Share checked end to end — an outside event's place is cut cleanly for chips, the organiser slot never takes the place, Share is on a My events item (WJ-576)
