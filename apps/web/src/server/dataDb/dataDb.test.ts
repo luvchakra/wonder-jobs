@@ -135,3 +135,22 @@ describe("when the data database setting can't be read", () => {
     expect(dataWritable()).toBe(true);
   });
 });
+
+describe("legacy keys (Supabase retires service_role keys at the end of 2026)", () => {
+  it("tells a legacy JWT key from a new secret key, on the key or its masked form", async () => {
+    const { isLegacyKey } = await import("./index");
+    expect(isLegacyKey("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.x.y")).toBe(true);
+    expect(isLegacyKey("eyJhbG••••abcd")).toBe(true);
+    expect(isLegacyKey("sb_secret_" + "x".repeat(31))).toBe(false);
+    expect(isLegacyKey(undefined)).toBe(false);
+  });
+
+  it("flags a DDB saved with a legacy key, and accepts a new secret key", async () => {
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+    const legacy = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + "a".repeat(40);
+    expect(await saveDataDb("events", { url: URL_OK, key: legacy })).toMatchObject({ ok: true, legacyKey: true });
+    expect((await dataDbOverview(["events"]))[0].legacyKey).toBe(true);
+    expect(await saveDataDb("events", { url: URL_OK, key: "sb_secret_" + "x".repeat(31) })).toMatchObject({ ok: true, legacyKey: false });
+    expect((await dataDbOverview(["events"]))[0].legacyKey).toBe(false);
+  });
+});

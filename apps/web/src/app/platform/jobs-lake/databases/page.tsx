@@ -72,6 +72,12 @@ function DbCard({ r }: { r: DbReport }) {
   const g = r.guard;
   return (
     <Panel title={r.name}>
+      {r.legacyKeys?.length ? (
+        <p className="mb-3 rounded-[8px] bg-warning-100 px-2.5 py-1.5 text-[12px] text-warning-600">
+          Legacy key ({r.legacyKeys.join(", ")}): Supabase retires service_role and anon keys at the end of 2026.{" "}
+          {r.id === "adb" ? "Create a secret key and a publishable key in this project (Project Settings → API Keys), put them in those Vercel variables, and redeploy." : "Create a secret key in its project and save it on Sources → DDBs with the same project URL."}
+        </p>
+      ) : null}
       <p className="mb-3 text-[12.5px] text-ink-3">{r.holds}</p>
       {share != null && <Meter label={`${mb(r.sizeBytes)} of ${num(r.limitMb)} MB used`} value={share} judged={false} />}
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
