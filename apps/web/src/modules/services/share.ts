@@ -3,6 +3,18 @@ import { publicPath } from "@/wonderworks/listing/share";
 import { shortPlace } from "@/wonderworks/find/place";
 import { LANE_LABEL, materialsLabel, priceLabel, ratingLabel, turnaroundLabel, visitLabel, warrantyLabel, type ServiceListing } from "./domain";
 
+/** The sites an outside pro's page can be on, in the words of the link ("Their page on Houzz"); a business's own site is "Their website". */
+const SITES: [RegExp, string][] = [[/(^|\.)houzz\.in$/, "Houzz"], [/(^|\.)wedmegood\.com$/, "WedMeGood"], [/(^|\.)freelancer\.com$/, "Freelancer.com"], [/(^|\.)openstreetmap\.org$/, "OpenStreetMap"]];
+export function originalLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname;
+    const site = SITES.find(([re]) => re.test(host));
+    return site ? `Their ${site[1] === "Freelancer.com" ? "profile" : "page"} on ${site[1]}` : "Their website";
+  } catch {
+    return "Their page";
+  }
+}
+
 /** Whether the listing is named for the business itself (a directory entry), so its name needn't be said twice. */
 export const sameName = (l: Pick<ServiceListing, "title" | "company">) => l.title.trim().toLowerCase() === l.company.trim().toLowerCase();
 
@@ -39,6 +51,6 @@ export const shareOf = (l: ServiceListing): ListingShareProps => {
     details: l.description,
     url: publicPath("services", l.id),
     source: l.sourceName,
-    originalUrl: l.origin === "outside" ? l.applyUrl : undefined,
+    ...(l.origin === "outside" ? { originalUrl: l.applyUrl, ...(l.applyUrl ? { originalLabel: originalLabel(l.applyUrl) } : {}), ...(l.attribution ? { credit: l.attribution } : {}) } : {}),
   };
 };

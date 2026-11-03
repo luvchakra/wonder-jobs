@@ -637,6 +637,7 @@ Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root D
 
 ## Deviations from the spec
 
+- ✅ Talent & Services: a shared outside pro names its original link ("Their page on Houzz", "Their website") and carries open data's credit (OpenStreetMap), as Therapists (WJ-597)
 - ✅ Talent & Services: Share checked end to end for own and outside pros (public lookup, image, URL), a directory business's name isn't repeated on its card or page, the share image leads with rating and area and drops an unstated price (WJ-596)
 - ✅ Talent & Services: "Open their page" on an outside pro's page is a real link opening in a new tab (generic `Button external`), as Therapists; no Call action, since Services never keeps a phone (WJ-595)
 - ✅ Talent & Services: India pass 2 — OpenStreetMap asks for seven more trades (tilers, roofers, glaziers, plasterers, masons, photographers, caterers); `geography: ["IN"]` on all services gateway definitions; Asklaila, Sulekha, WeddingWire.in and government lists researched, not built; Udyam API request is an owner decision (WJ-594).
