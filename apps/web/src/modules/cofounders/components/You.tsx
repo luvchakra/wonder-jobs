@@ -145,6 +145,10 @@ function ProfileForm({ initial, fresh }: { initial: Profile; fresh: boolean }) {
         <span className="text-[13px] text-ink-2">Let people find me. Turn it off any time and you disappear from Find at once.</span>
         <Switch checked={p.open} onChange={(v) => set("open", v)} label="Let people find me" />
       </div>
+      <div className="flex items-center justify-between gap-3 rounded-[12px] bg-surface-2 p-3">
+        <span className="text-[13px] text-ink-2">Let others share my profile. Off, Share on your profile sends only a general Co-founders message, never your headline or details.</span>
+        <Switch checked={p.shareable} onChange={(v) => set("shareable", v)} label="Let others share my profile" />
+      </div>
       {problem && <p className="text-[13px] text-danger-600">{problem}</p>}
       <Button type="submit" full loading={busy}>
         Save

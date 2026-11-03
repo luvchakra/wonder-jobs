@@ -46,6 +46,23 @@ describe("profiles", () => {
     expect(listed.some((l) => l.listing.title.startsWith("Hidden"))).toBe(false);
   });
 
+  it("a listing says whether its owner allows sharing: never unless they turned it on, and only they can", async () => {
+    expect((await openProfiles()).every((p) => p.listing.shareable === false)).toBe(true);
+    await saveProfile(asha, P("asha", { shareable: true }));
+    const listed = Object.fromEntries((await openProfiles()).map((p) => [p.tenant, p.listing.shareable]));
+    expect(listed).toMatchObject({ "u-asha": true, "u-ravi": false });
+    // Someone else's save, search or connection never changes it.
+    await connect(ravi, (await myProfile(asha))!.publicId);
+    expect((await myProfile(asha))!.shareable).toBe(true);
+    expect((await myProfile(ravi))!.shareable).toBe(false);
+    const { id } = await createTeam(asha, T);
+    expect((await openTeams())[0].listing.shareable).toBe(false);
+    await saveTeam(asha, id, { ...T, shareable: true });
+    expect((await openTeams())[0].listing.shareable).toBe(true);
+    await expect(saveTeam(ravi, id, { ...T, shareable: false })).rejects.toMatchObject({ status: 404 });
+    expect((await openTeams())[0].listing.shareable).toBe(true);
+  });
+
   it("closing a listing removes it at once; a person reads only their own profile in full", async () => {
     await setOpen(asha, false);
     expect((await openProfiles()).map((l) => l.tenant)).not.toContain(asha.tenantId);
