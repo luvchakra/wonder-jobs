@@ -17,6 +17,8 @@ import { Act } from "@/wonderworks/pipeline/Act";
 import { CATEGORIES, CONDITIONS, MAX_PHOTOS, priceLabel, type Condition, type ListingState, type MarketListing } from "../domain";
 import { listingHref, photoSrc } from "../manifest";
 import { preparePhoto } from "../photo";
+import { ListingShare } from "@/wonderworks/listing/ShareButton";
+import { shareOf } from "../share";
 import { Thumb } from "./Listing";
 import { ScamWarning } from "./ScamWarning";
 
@@ -94,6 +96,7 @@ export function MarketplaceCompany() {
                       </Button>
                     )}
                     {(l.state === "draft" || l.state === "closed") && <Act capability="marketplace.publish" label="Publish" size="sm" settings={SETTINGS} review={<>“{l.title}” goes into Find at {priceLabel(l.terms.price)}, with your first name and area. Contact details stay private.</>} run={async (confirmed) => (await call(url(l.listingId), { method: "PATCH", body: { action: "publish", confirmed } }), void load())} done="Published" />}
+                    {l.state === "open" && <ListingShare {...shareOf(l)} />}
                     {l.state === "open" && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => call(url(l.listingId), { method: "PATCH", body: { action: "state", state: "closed" } }).then(() => load()).catch((e: Error) => toast.error("Couldn't do that", e.message))}>
