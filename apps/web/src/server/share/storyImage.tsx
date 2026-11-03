@@ -193,7 +193,8 @@ export function storyImage(c: StoryCard): ImageResponse {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 32, borderTop: "2px solid rgba(255,255,255,0.18)" }}>
           {/* A picture can't be tapped: the words say where the link is (in the message shared with it) and the address is readable to type. */}
           <span style={{ fontSize: 34, color: "rgba(255,255,255,0.75)" }}>{c.cta}</span>
-          <span style={{ fontSize: 38, fontWeight: 700, color: "#ffffff" }}>{clip(host, 46)}</span>
+          {/* The whole address, never cut (it's there to be typed): smaller when long. */}
+          <span style={{ fontSize: host.length > 60 ? 26 : host.length > 46 ? 31 : 38, fontWeight: 700, color: "#ffffff" }}>{host}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 36, fontSize: 32, color: "rgba(255,255,255,0.75)" }}>
           {c.pitch}
