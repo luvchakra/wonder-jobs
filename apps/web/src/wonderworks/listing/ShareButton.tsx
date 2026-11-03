@@ -5,7 +5,7 @@ import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
-import { absoluteUrl, emailHref, facebookHref, listingShareMessage, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
+import { absoluteUrl, emailHref, facebookHref, listingShareMessage, STORY_VERSION, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
 export interface ShareBuild {
@@ -26,7 +26,7 @@ function useSummary(page: string | undefined): { summary: ShareSummary | null; l
   useEffect(() => {
     if (!page) return;
     let live = true;
-    fetch(`/api/share/summary?page=${encodeURIComponent(page)}`, { signal: AbortSignal.timeout(7000) })
+    fetch(`/api/share/summary?page=${encodeURIComponent(page)}&v=${STORY_VERSION}`, { signal: AbortSignal.timeout(7000) })
       .then((r) => (r.ok ? (r.json() as Promise<ShareSummary>) : null))
       .then((s) => live && setGot({ page, summary: s && typeof s.hook === "string" && Array.isArray(s.highlights) ? s : null }))
       .catch(() => live && setGot({ page, summary: null }));
