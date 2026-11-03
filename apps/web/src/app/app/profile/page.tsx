@@ -1,6 +1,8 @@
 "use client";
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { useAIStore } from "@/store/ai";
 import { AI_PROVIDERS } from "@/domain/ai/types";
@@ -59,14 +61,18 @@ function ProfileInner() {
       <PageHeader title="Account" />
       <Card className="flex items-center gap-4">
         <ProfilePhoto name={displayName} size={56} />
-        <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-semibold text-ink">{displayName}</p>
-          <p className="truncate text-[13px] text-ink-3">{dna.headline || email || ""}</p>
-          <div className="mt-1 flex gap-2">
-            {billing && <Badge tone={billing.plan === "free" ? "neutral" : "brand"}>{planBadgeLabel(billing.plan, billing.plans)}</Badge>}
-            <Badge>{AI_PROVIDERS[config.activeProvider].name}</Badge>
+        {/* The card opens the Career Profile, where the name and target are edited (owner, 2026-11-03); the photo keeps its own button. */}
+        <Link href="/app/career-dna" aria-label={`${displayName}: open your Career Profile`} className="-my-2 -mr-2 flex min-w-0 flex-1 items-center gap-2 rounded-[14px] py-2 pr-2 hover:bg-bg-soft">
+          <div className="min-w-0 flex-1">
+            <p className="text-[17px] font-semibold text-ink">{displayName}</p>
+            <p className="truncate text-[13px] text-ink-3">{dna.headline || email || ""}</p>
+            <div className="mt-1 flex gap-2">
+              {billing && <Badge tone={billing.plan === "free" ? "neutral" : "brand"}>{planBadgeLabel(billing.plan, billing.plans)}</Badge>}
+              <Badge>{AI_PROVIDERS[config.activeProvider].name}</Badge>
+            </div>
           </div>
-        </div>
+          <ChevronRight className="size-5 shrink-0 text-ink-4" aria-hidden />
+        </Link>
       </Card>
       <PlanCard returnState={billingReturn} />
       <JobsLakeApiCard returnState={params.get("api")} />
