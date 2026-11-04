@@ -75,9 +75,21 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   }
 
   // A scheduled trigger right after the last one only carries a running import on (domain/gateway/budget.ts).
+  // Find not refreshed for REFRESH_STALE_MS (a run cut short, or nothing new collected since) refreshes every module, so
+  // listings the gateway already re-read reach Find, even when the last scheduled run was a moment ago.
+  const findStale = async () => trigger === "cron" && (await lastRefreshAt().catch(() => 0)) < Date.now() - REFRESH_STALE_MS;
   if (trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
     const running = jobRunning(await readSetupJob());
     if (running) await handOnSetupJob(origin);
+    if (!running && (await findStale())) {
+      const stored = (await refreshGatewayListings().catch(() => null))?.stored;
+      if (stored) {
+        const summary = `Ran recently · Find refreshed: ${Object.entries(stored).map(([m, n]) => `${n} ${m}`).join(", ")}`;
+        const finishedAt = new Date().toISOString();
+        await recordImportRun({ id: `hourly_${Date.parse(startedAt).toString(36)}`, kind: "hourly", trigger: "cron", startedAt, finishedAt, items: [], stored, summary });
+        return { ok: true, skipped: "ran recently", summary, refreshed: stored };
+      }
+    }
     return { ok: true, skipped: "ran recently", summary: running ? "Ran recently · Setup job continuing" : "Ran recently: nothing to do" };
   }
   const floor = trigger === "cron" ? SOURCE_FLOOR_MINUTES : 0;
@@ -91,9 +103,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // One refresh per run: a running Setup job refreshes every module itself when it finishes.
   let refreshed: Record<string, number> | undefined;
   const collected = outcomes.filter((o) => o.ok && (o.valid ?? 0) > 0);
-  // Find not refreshed for REFRESH_STALE_MS (a run cut short, or nothing new collected since) refreshes every module, so
-  // listings the gateway already re-read reach Find.
-  const stale = !setupRunning && trigger === "cron" && (await lastRefreshAt().catch(() => 0)) < Date.now() - REFRESH_STALE_MS;
+  const stale = !setupRunning && (await findStale());
   if (!setupRunning && (trigger === "admin" || stale)) refreshed = (await refreshGatewayListings().catch(() => null))?.stored;
   else if (!setupRunning && collected.length) {
     const modules = (await Promise.all(collected.map((o) => gatewaySourceModules(o.sourceId)))).flat();

@@ -161,3 +161,4 @@
 - ✅ Scholarships & Projects: Opportunities for Africans and Mladiinfo feeds, HackerEarth hackathons as live sources (WJ-529)
 - ✅ Scholarships & Projects: Buddy4Study added as a paused gateway crawl (WJ-530)
 - ✅ Gateway collection fits its call; Find refreshes so fixed descriptions show (WJ-700)
+- ✅ A "ran recently" collection still refreshes a stale Find (WJ-701)
