@@ -160,3 +160,4 @@
 - ✅ Gateway crawler reads Next.js page data and schema.org scholarship/grant types (WJ-698)
 - ✅ Scholarships & Projects: Opportunities for Africans and Mladiinfo feeds, HackerEarth hackathons as live sources (WJ-529)
 - ✅ Scholarships & Projects: Buddy4Study added as a paused gateway crawl (WJ-530)
+- ✅ Gateway collection fits its call; Find refreshes so fixed descriptions show (WJ-700)

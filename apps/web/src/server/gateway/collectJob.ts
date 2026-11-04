@@ -18,6 +18,18 @@ import { lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun
 import { sendImportEmail } from "./importEmail";
 import { MIN_GAP_MINUTES, SOURCE_FLOOR_MINUTES } from "@/domain/gateway/budget";
 
+/** Collection's share of one scheduled call (Vercel stops it at 60 s); the rest is the Find refresh and the run's record. */
+export const COLLECT_BUDGET_MS = 25_000;
+/** How long Find may go without a refresh before a scheduled run refreshes every module. */
+export const REFRESH_STALE_MS = 6 * 60 * 60_000;
+
+/** When Find was last refreshed from the gateway: the latest recorded run that stored listings (0 when none). */
+async function lastRefreshAt(): Promise<number> {
+  const runs = await listImportRuns();
+  const done = runs.filter((r) => r.stored && r.finishedAt).map((r) => Date.parse(r.finishedAt as string));
+  return done.length ? Math.max(...done) : 0;
+}
+
 export interface GatewayRunResult {
   ok: boolean;
   skipped?: string;
@@ -69,14 +81,20 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
     return { ok: true, skipped: "ran recently", summary: running ? "Ran recently · Setup job continuing" : "Ran recently: nothing to do" };
   }
   const floor = trigger === "cron" ? SOURCE_FLOOR_MINUTES : 0;
-  const outcomes = (await hosted.gateway.collectDue(undefined, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
+  // Collection takes at most COLLECT_BUDGET_MS of the call (each source only the time left), so the Find refresh and the
+  // run's record still fit in Vercel's 60 s: runs that ran out of time (504) never refreshed Find (owner, 2026-11-04:
+  // descriptions stayed flattened after the fix).
+  const outcomes = (await hosted.gateway.collectDue(COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
   if (setupRunning) await handOnSetupJob(origin);
 
   // One refresh per run: a running Setup job refreshes every module itself when it finishes.
   let refreshed: Record<string, number> | undefined;
   const collected = outcomes.filter((o) => o.ok && (o.valid ?? 0) > 0);
-  if (!setupRunning && trigger === "admin") refreshed = (await refreshGatewayListings().catch(() => null))?.stored;
+  // Find not refreshed for REFRESH_STALE_MS (a run cut short, or nothing new collected since) refreshes every module, so
+  // listings the gateway already re-read reach Find.
+  const stale = !setupRunning && trigger === "cron" && (await lastRefreshAt().catch(() => 0)) < Date.now() - REFRESH_STALE_MS;
+  if (!setupRunning && (trigger === "admin" || stale)) refreshed = (await refreshGatewayListings().catch(() => null))?.stored;
   else if (!setupRunning && collected.length) {
     const modules = (await Promise.all(collected.map((o) => gatewaySourceModules(o.sourceId)))).flat();
     if (modules.length) refreshed = (await refreshGatewayListings(modules).catch(() => null))?.stored;

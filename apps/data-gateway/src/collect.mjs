@@ -366,7 +366,7 @@ export async function pagedRecords(source, deps = {}) {
   const items = [];
   let read = 0, failed = 0;
   while (next && read < perRun) {
-    if (read > 0) { if (now() - started > 40000) break; await sleep(source.requestDelayMs ?? 1000); }
+    if (read > 0) { if (now() - started > Math.min(40000, deps.budgetMs ?? 40000)) break; await sleep(source.requestDelayMs ?? 1000); }
     let url;
     try { url = new URL(next); } catch { next = null; break; }
     if (url.hostname !== host || url.protocol !== "https:") { next = null; break; }
