@@ -67,7 +67,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   // Where listings live: the store's own table when it has one, else the state document.
   const listings = store.listings ?? stateListings(store);
 
-  async function collectOne(sourceId, testOnly = false) {
+  async function collectOne(sourceId, testOnly = false, budgetMs = undefined) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
     activeCrawls.add(sourceId);
     const startedAt = Date.now();
@@ -83,7 +83,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         return { ok: source.lastTest.ok, discovered: source.lastTest.discovered, valid: source.lastTest.valid };
       }
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
-      const report = await fetchRecords(source);
+      // A scheduled pass gives each source only the time it has left, so one long crawl can't outlast the serverless call.
+      const report = await fetchRecords(source, budgetMs ? { budgetMs } : {});
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
       const ms = Date.now() - startedAt;
       const progress = report.crawl ? { read: report.crawl.read, failed: report.crawl.failed, pages: report.crawl.pages } : {};
@@ -134,9 +135,11 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     const outcomes = [];
     const started = Date.now();
     for (const sourceId of due) {
-      // One pass fits one serverless call: a source not started by now waits for the next pass (still due).
-      if (Date.now() - started > budgetMs) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
-      try { outcomes.push({ sourceId, ...(await collectOne(sourceId)) }); }
+      // One pass fits one serverless call: a source not started with at least 8 s left waits for the next pass (still
+      // due), and the one that starts gets only the time that's left (a crawl's own 45 s cap otherwise).
+      const left = budgetMs - (Date.now() - started);
+      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
+      try { outcomes.push({ sourceId, ...(await collectOne(sourceId, false, left)) }); }
       catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
     }
     return outcomes;
