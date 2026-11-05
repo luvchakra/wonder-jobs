@@ -420,7 +420,9 @@ Dataset `marketplace`. WonderWorks listings (`server/marketplace/sources.ts`), p
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| eBay Browse API | Sandbox open; production needs a contract and partner programme approval; results capped at 10,000 | Not a casual feed; items link to eBay for commission. Only for a deliberate partnership. |
+| eBay Browse API | Free self-serve keyset (shared-layer report, 2026-11-05: 5,000 calls a day; an earlier note here said production needs approval, and eBay's developer pages refuse our server's fetch with 403, so this is unconfirmed: the key's Test and the first live search settle it) | Built 2026-11-05 as `mkt_ebay` (`server/marketplace/ebay.ts`): fixed-price items only, price in its own currency, "eBay seller", links to eBay; "Needs setup" until `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are set on Admin → Keys. Terms pending: the eBay API licence (caching, display) and EPN attribution. |
+| Flipkart Affiliate API | Free self-serve (affiliate.flipkart.com): tracking ID + API token | Built 2026-11-05 as `mkt_flipkart` (`server/marketplace/flipkart.ts`): keyword search (10 items a call; marked "deprecated soon" in Flipkart's docs), in-stock INR items only, "Flipkart seller", links to Flipkart; "Needs setup" until `FLIPKART_AFFILIATE_ID` and `FLIPKART_AFFILIATE_TOKEN` are set. Terms pending (af_tou.html): no use "in a similar or competitive platform", no use of Flipkart's name without written consent, 20 calls a second. |
+| Best Buy Products API, Etsy v3 | Free key (Best Buy; temporary caching only); Etsy needs Commercial Access review | Not built (shared-layer suggestion, 2026-11-05: possible later). Etsy's review is an owner decision. |
 | Craigslist (scraper services) | Paid per result, unofficial | Rejected: no official API, terms risk. |
 | OLX, Mercari, Gumtree | No public API found | Not possible. |
 | Open datasets of used goods or rentals | None found | — |
