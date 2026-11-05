@@ -509,20 +509,50 @@ export const MIN_VALID_SHARE = 0.9;
  * Admin Test (spec §26 step 3): a real fetch through the source's connector, validated against the
  * protocol. Only checks that actually ran are reported — nothing is ticked for show.
  */
+/**
+ * The word a source's Test tries when a search with no words fails or finds nothing (owner, 2026-11-05: Jooble's Test
+ * "responded 400": keyword APIs refuse an empty search). A source that shows what the gateway collected has none.
+ */
+export const TEST_QUERY: Record<ModuleId, string> = {
+  jobs: "engineer",
+  internships: "intern",
+  teaching: "teacher",
+  scholarships: "scholarship",
+  events: "conference",
+  services: "plumber",
+  therapists: "therapist",
+  marketplace: "bag",
+  cofounders: "startup",
+};
+export function testQuery(src: SourceRecord): string {
+  if (gatewayFed(src) || gatewayModuleForSource(src.id)) return "";
+  return TEST_QUERY[sourceModule(src) as ModuleId] ?? "";
+}
+
 export async function testSource(src: SourceRecord, actor: string): Promise<TestReport> {
   const started = Date.now();
   const checks: TestReport["checks"] = [];
   const store = jobsLakeStore();
   let report: TestReport;
   try {
-    const r = await withTimeout(runConnector(src, { query: "", locations: [] }, "normal"), Math.max(src.limits.timeoutMs, 15_000));
+    const word = testQuery(src);
+    const run = (query: string) => withTimeout(runConnector(src, { query, locations: [] }, "normal"), Math.max(src.limits.timeoutMs, 15_000));
+    // No words first, as before; a keyword API that refuses that or finds nothing gets one more try with its module's word.
+    let r: Awaited<ReturnType<typeof run>>;
+    try {
+      r = await run("");
+      if (word && !r.jobs.length && !(r.mapping?.totalItems ?? 0)) r = await run(word);
+    } catch (e) {
+      if (!word || e instanceof NeedsSetupError) throw e;
+      r = await run(word);
+    }
     checks.push({ label: "Connection", ok: true, detail: `Responded in ${((Date.now() - started) / 1000).toFixed(1)}s` });
     if (src.secretRef) checks.push({ label: "Authentication", ok: true, detail: "Credential accepted" });
     if (!r.jobs.length && !(r.mapping?.totalItems ?? 0)) {
       // Nothing came back: one plain reason, not a list of checks that all follow from it.
       const gw = gatewayModuleForSource(src.id);
       const label = MODULES.find((m) => m.id === (gw ?? sourceModule(src)))?.label ?? "this module";
-      checks.push({ label: "Listings found", ok: false, detail: gw ? `The gateway holds no ${label} listings yet. On Sources → Import, press ${SETUP_HOW}, then test again.` : gatewayFed(src) ? `${src.name} shows what the data gateway collected from ${src.provider}, and nothing has been collected yet. On Sources → Import, press ${SETUP_HOW}, then test again once they've collected.` : "The source returned nothing for an empty search." });
+      checks.push({ label: "Listings found", ok: false, detail: gw ? `The gateway holds no ${label} listings yet. On Sources → Import, press ${SETUP_HOW}, then test again.` : gatewayFed(src) ? `${src.name} shows what the data gateway collected from ${src.provider}, and nothing has been collected yet. On Sources → Import, press ${SETUP_HOW}, then test again once they've collected.` : word ? `The source returned nothing for an empty search or a search for "${word}".` : "The source returned nothing for an empty search." });
       report = { at: new Date().toISOString(), ok: false, durationMs: Date.now() - started, checks, discovered: 0, valid: 0, duplicates: 0, sampleTitles: [] };
       await store.recordRuns([{ id: newId("run"), sourceId: src.id, trigger: "test", startedAt: new Date(started).toISOString(), durationMs: report.durationMs, outcome: "empty", retrieved: 0, valid: 0, duplicates: 0 }]);
       await audit(actor, "source.test_failed", src.id, { discovered: 0, valid: 0, error: "no listings" });
