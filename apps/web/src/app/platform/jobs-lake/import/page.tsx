@@ -28,7 +28,7 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 };
 
 /**
- * Admin → Data → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
+ * Sources → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
  * nowhere else. One press, Import now, runs the pipeline on the server: it sets up the sources that are waiting,
  * collects, and refreshes every module's Find. The same job runs on a schedule that fits the free plans (domain/gateway/budget.ts). Each module shows its three numbers
  * (sources, collected, in Find) and, opened, its sources with one state and one action each.

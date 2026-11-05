@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Admin → Data → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
+/** Sources → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     return json(r, r.ok ? 200 : 422);
   }
   if (action === "emails") {
-    // The "import finished" email's settings (Data → Import → Emails); every field checked by cleanScheduler.
+    // The "import finished" email's settings (Sources → Import → Emails); every field checked by cleanScheduler.
     const current = await loadScheduler();
     const next = { ...current.importEmail, ...(typeof body?.imports === "boolean" ? { imports: body.imports } : {}), ...(typeof body?.hourly === "boolean" ? { hourly: body.hourly } : {}), ...(body?.to !== undefined ? { to: cleanEmailList(body.to) } : {}) };
     const saved = await saveScheduler({ ...current, importEmail: next }, a.actor);

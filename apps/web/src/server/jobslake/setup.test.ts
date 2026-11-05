@@ -4,7 +4,7 @@ import type { SourceView } from "./views";
 
 const base = { id: "evt_ticketmaster", name: "Ticketmaster", status: "active", available: false, credential: null, statusReason: undefined } as unknown as SourceView;
 
-describe("Setup to-do — what each source still needs", () => {
+describe("Sources → Import — what each source still needs", () => {
   it("sends a missing platform key to Keys, and a source's own credential to its source page (Configuration)", () => {
     expect(sourceNeed({ ...base, credential: { ref: "env:TICKETMASTER_API_KEY", masked: "Not set (TICKETMASTER_API_KEY)", managedBy: "environment", present: false } } as SourceView)).toMatchObject({ need: "key", detail: "Needs TICKETMASTER_API_KEY", action: { href: "/platform/jobs-lake/keys" } });
     expect(sourceNeed({ ...base, credential: { ref: "env:THEIRSTACK", masked: "Not set (THEIRSTACK_API_KEYS or THEIRSTACK_API_KEY)", managedBy: "environment", present: false } } as SourceView)?.action.href).toBe(`/platform/jobs-lake/sources/${encodeURIComponent(base.id)}`);

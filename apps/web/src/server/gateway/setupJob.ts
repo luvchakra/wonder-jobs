@@ -1,5 +1,5 @@
 /**
- * Setup to-do's server job (owner, 2026-11-02: "keep the entire process backend job based ... ui based option only on
+ * Sources → Import's server job (owner, 2026-11-02: "keep the entire process backend job based ... ui based option only on
  * demand"). An admin's one press of "Test & activate all" queues the shown gateway items; the server then adds, tests,
  * activates and collects them one after another, and stores each module's listings in WorksLake (warm.ts). Closing the
  * page doesn't stop it. Each row's own button still runs that one item in the page, on demand.
@@ -19,7 +19,7 @@ import { collectGatewaySource, registerFromCatalogue, setGatewaySource, testGate
 export type SetupRun = { kind: "add"; file: string } | { kind: "activate"; sourceId: string } | { kind: "collect"; sourceId: string };
 
 export interface SetupJobItem {
-  /** The Setup to-do item's id ("gateway:src_…", "catalogue:<file>"). */
+  /** The Sources → Import item's id ("gateway:src_…", "catalogue:<file>"). */
   id: string;
   name: string;
   run: SetupRun;
@@ -40,7 +40,7 @@ export interface SetupJob {
   /** Until when a server is working on it (ISO); another server waits until it has passed. */
   leaseUntil?: string;
   items: SetupJobItem[];
-  /** Who started it: an admin's press on Setup to-do, or the scheduled Gateway collection. */
+  /** Who started it: an admin's press on Sources → Import, or the scheduled Gateway collection. */
   trigger?: "admin" | "scheduler";
   /** Listings in Find per module after the job's refresh (every module, once, when the job finished). */
   stored?: Record<string, number>;
