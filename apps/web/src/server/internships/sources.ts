@@ -15,6 +15,7 @@
  * - Unstop (India) and the Workable job board: public JSON lists, live with "terms pending" (CLAUDE.md, "Finding data sources").
  * - ReliefWeb: its open jobs API, type Internship — needs RELIEFWEB_APPNAME (free, approved on request).
  * - Find an apprenticeship (UK): the DfE Display Advert API v2 — needs FIND_APPRENTICESHIP_API_KEY (free).
+ * - Personio and Recruitee career sites: WorksLake's shared connectors, kept to their own intern, working-student and trainee types.
  * Connectors for the internship-only APIs are in ./providers.ts.
  * Not here, on purpose: Internshala and LinkedIn publish no open job-search API (LinkedIn's Job Posting API is partner-only,
  * Internshala has none), and WorksLake never scrapes a site against its terms. AICTE's internship portal and India's NATS publish
@@ -30,7 +31,7 @@ import { fetchAtsBoards } from "@/server/jobslake/ats";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { asIntern, fetchHimalayasInternships, fetchUkApprenticeships, ukApprenticeshipsAvailable, fetchReliefWebInternships, reliefWebAvailable, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
+import { asIntern, fetchHimalayasInternships, fetchPersonioInternships, fetchRecruiteeInternships, fetchUkApprenticeships, ukApprenticeshipsAvailable, fetchReliefWebInternships, reliefWebAvailable, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
 
 const EPOCH = "2026-10-28T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL", "Job type"];
@@ -57,6 +58,8 @@ export const INTERNSHIP_SOURCES: SourceRecord[] = [
   source({ id: "intern_workable", name: "Workable job board internships", provider: "Workable", category: "ats", geography: ["global", "IN"], statusReason: "terms pending: jobs.workable.com's job-search JSON is public and robots.txt doesn't disallow it, but Workable's terms don't state reuse; confirm with Workable", description: "Internships on Workable career sites, from Workable's public job board." }),
   source({ id: "intern_reliefweb", name: "ReliefWeb internships", provider: "ReliefWeb (UN OCHA)", category: "portal", geography: ["global"], secretRef: "env:RELIEFWEB", description: "Humanitarian and development internships worldwide from ReliefWeb's open jobs API." }),
   source({ id: "intern_uk_apprenticeships", name: "Find an apprenticeship (UK)", provider: "Department for Education", category: "portal", geography: ["GB"], secretRef: "env:FIND_APPRENTICESHIP", capabilities: [...FEED_CAPS, "Salary"], description: "Live apprenticeship vacancies in England from the DfE Display Advert API (Open Government Licence)." }),
+  source({ id: "intern_personio", name: "Personio career sites", provider: "Personio", category: "ats", geography: ["DE", "global"], description: "Internships, working-student roles and traineeships on Personio career sites (public job feed)." }),
+  source({ id: "intern_recruitee", name: "Recruitee career sites", provider: "Recruitee", category: "ats", geography: ["global"], description: "Internships on Recruitee career sites (public offers API)." }),
   source({ id: "intern_jooble", name: "Jooble internships", provider: "Jooble", category: "aggregator", geography: ["global", "IN"], secretRef: "env:JOOBLE", description: "Internships from Jooble's REST API." }),
 ];
 
@@ -139,6 +142,10 @@ export async function runInternshipSource(s: SourceRecord, c: SearchCriteria, de
     case "intern_uk_apprenticeships":
       if (!ukApprenticeshipsAvailable()) throw needsSetup(`${s.name} needs FIND_APPRENTICESHIP_API_KEY (a free key from the apprenticeship service developer hub) on this deployment.`);
       return { jobs: (await fetchUkApprenticeships(c)).filter(isInternship), warnings: [] };
+    case "intern_personio":
+      return { jobs: (await fetchPersonioInternships(c)).filter(isInternship), warnings: [] };
+    case "intern_recruitee":
+      return { jobs: (await fetchRecruiteeInternships(c)).filter(isInternship), warnings: [] };
     case "intern_jooble":
       if (!joobleAvailable()) throw needsSetup(`${s.name} needs JOOBLE_API_KEY on this deployment.`);
       return { jobs: (await fetchJoobleInternships(c)).filter(isInternship), warnings: [] };

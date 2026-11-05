@@ -13,6 +13,8 @@ import { corePhrase, titleMatches, type RawPosting } from "@/services/jobs/norma
 import { fetchJooble } from "@/server/jobslake/jooble";
 import { fetchUsaJobs } from "@/server/jobslake/usajobs";
 import { platformKey } from "@/server/jobslake/platformKeys";
+import { fetchPersonio } from "@/server/jobslake/personio";
+import { fetchRecruitee, type RecruiteeOffer } from "@/server/jobslake/recruitee";
 
 /** A student's words, asked of a general job source as an internship search ("marketing" → "marketing intern"). */
 export const asIntern = (c: SearchCriteria): SearchCriteria => ({ ...c, query: /\b(intern|internship|trainee)\b/i.test(c.query) ? c.query : `${c.query} intern`.trim() });
@@ -339,3 +341,16 @@ export async function fetchUkApprenticeships(c: SearchCriteria): Promise<Job[]> 
   const pages = await Promise.all([1, 2, 3].map((p, i) => getJson<{ vacancies?: UkApprenticeship[] }>(`https://api.apprenticeships.education.gov.uk/vacancies/vacancy?Sort=AgeDesc&PageSize=100&PageNumber=${p}`, { headers }).catch((e) => (i === 0 ? Promise.reject(e) : { vacancies: [] }))));
   return finish("intern_uk_apprenticeships", pages.flatMap((p) => p.vacancies ?? []).map(rawFromUkApprenticeship), c);
 }
+
+/* ---------- Recruitee and Personio career sites (shared WorksLake connectors), intern roles only ---------- */
+/** Personio's own types that are internships for a student: an internship, a working-student role, a traineeship. */
+export const PERSONIO_INTERN_TYPES = new Set(["intern", "working_student", "trainee"]);
+/** Recruitee's own employment-type codes for internships and traineeships. */
+export const isRecruiteeIntern = (o: Pick<RecruiteeOffer, "employment_type_code">) => /intern|trainee/i.test(o.employment_type_code ?? "");
+
+// Kept by the source's own employment type, so each is an internship as the source says (Personio's "working_student"
+// isn't a phrase the shared job-type reader knows, so it is said here).
+const asInternship = (jobs: Job[]): Job[] => jobs.map((j) => ({ ...j, jobType: "internship" as const, jobTypeFrom: "source" as const }));
+
+export const fetchPersonioInternships = async (c: SearchCriteria): Promise<Job[]> => asInternship(await fetchPersonio("intern_personio", c, (p) => PERSONIO_INTERN_TYPES.has(p.employmentType)));
+export const fetchRecruiteeInternships = async (c: SearchCriteria): Promise<Job[]> => asInternship(await fetchRecruitee("intern_recruitee", c, isRecruiteeIntern));
