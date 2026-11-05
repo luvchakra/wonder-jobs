@@ -155,7 +155,7 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
-    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href.startsWith("/") && i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
+    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
     else if (i.run?.kind === "add") {
       const f = failed.get(i.id);
       if (dismissed.has(i.id)) rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "off", detail: "Dismissed: Import never tries it.", action: { kind: "dismiss", label: "Restore", id: i.id, dismissed: false }, more: [], history: [] });
@@ -171,7 +171,10 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     const open: ImportAction = { kind: "link", label: "Open source", href };
     if (item) {
       const state: ImportState = item.need === "activate" ? "waiting" : "needs_you";
-      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: item.need === "terms", action: { kind: "link", label: item.action.label, href: item.action.href }, more: item.action.href === href ? [] : [open], history: sourceHistory(v) });
+      // Terms pending on a live source: confirm them here, or pause it (owner, 2026-11-05: "give direct action buttons").
+      const terms = item.need === "terms";
+      const termsActions: ImportAction[] = terms ? [{ kind: "decide", label: "Terms confirmed", decision: `terms:${v.id}` }, ...(v.status === "paused" ? [] : [{ kind: "source_status" as const, label: "Pause", id: v.id, status: "paused" as const }])] : [];
+      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: terms, action: terms ? termsActions[0] : { kind: "link", label: item.action.label, href: item.action.href }, more: [...termsActions.slice(1), ...(item.action.href === href ? [] : [open]), ...(terms ? [open] : [])].filter((a, n, all) => all.findIndex((b) => b.label === a.label) === n), history: sourceHistory(v) });
       continue;
     }
     if (liveStatus(v)) rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: v.health?.state === "down" ? "down" : "live", detail: v.health?.state === "down" ? "Down: its last runs failed" : v.statusLabel, action: v.health?.state === "down" ? open : undefined, more: [{ kind: "source_status", label: "Pause", id: v.id, status: "paused" }, ...(v.health?.state === "down" ? [] : [open])], history: sourceHistory(v) });

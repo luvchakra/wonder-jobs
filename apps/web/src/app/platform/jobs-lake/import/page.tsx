@@ -387,7 +387,11 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
 /** One action button, for a row's main action and its Details. */
 function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm" }: { a: ImportAction; rowId: string; busy: boolean; act: (body: Record<string, unknown>, done: (d: Record<string, unknown>) => string) => Promise<void>; setBusy: (b: boolean) => void; setMsg: (m: string | null) => void; reload: () => void; size?: "sm" }) {
   if (a.kind === "link")
-    return (
+    return /^https?:/.test(a.href) ? (
+      <a href={a.href} target="_blank" rel="noreferrer" className="text-[12px] font-medium text-brand-600 hover:underline">
+        {a.label}
+      </a>
+    ) : (
       <Link href={a.href} className="text-[12px] font-medium text-brand-600 hover:underline">
         {a.label}
       </Link>
@@ -439,7 +443,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
             <Badge tone={s.tone}>{s.label}</Badge>
             <span className="font-medium text-ink">{r.name}</span>
             <span className="text-[12px] text-ink-4">{r.kind}</span>
-            {(r.history.length > 0 || r.more.length > 0) && (
+            {(r.history.length > 0 || (r.more.length > 0 && r.state !== "needs_you")) && (
               <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-[12px] text-ink-3 hover:text-ink">
                 {details ? "Hide details" : "Details"}
               </button>
@@ -447,7 +451,11 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
           </span>
           <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
         </span>
-        {r.action && <ActionButton a={r.action} {...shared} />}
+        <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {r.action && <ActionButton a={r.action} {...shared} />}
+          {/* A row that needs you shows every option on the row, not behind Details. */}
+          {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
+        </span>
       </div>
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
@@ -461,7 +469,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
               ))}
             </dl>
           )}
-          {r.more.length > 0 && (
+          {r.more.length > 0 && r.state !== "needs_you" && (
             <div className="flex flex-wrap items-center gap-2">
               {r.more.map((a) => (
                 <ActionButton key={a.label} a={a} {...shared} />
