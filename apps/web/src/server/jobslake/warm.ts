@@ -27,6 +27,8 @@ export interface GatewayRefresh {
   at: string;
   /** Listings stored per module. */
   stored: Record<string, number>;
+  /** Modules left for the next call when a deadline was given and ran out. */
+  remaining?: string[];
   /** Sources that couldn't be read, with why. */
   failed: { sourceId: string; error: string }[];
 }
@@ -60,11 +62,23 @@ export async function lastGatewayRefresh(): Promise<GatewayRefresh | null> {
  * Refreshes these modules (every module when none are named): stores their gateway listings and retires the cached
  * answers. One source's failure doesn't stop the rest; it's reported.
  */
-export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date()): Promise<GatewayRefresh> {
+/** Time a module's refresh is given at least: a module isn't started with less than this left before `deadline`. */
+export const REFRESH_MODULE_MS = 12_000;
+
+/**
+ * `deadline` (ms since epoch): modules not started by then are left in `remaining` for the next call (owner, 2026-11-05:
+ * refreshing every module's 1,000 listings in one call ran past Vercel's 60 s, a 504, so nothing was recorded).
+ */
+export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date(), deadline?: number): Promise<GatewayRefresh> {
   const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
   // A module whose import is paused (Sources → Import) keeps what Find has; nothing new is stored for it.
   const paused = new Set((await loadScheduler()).gateway.pausedModules);
-  for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
+  const wanted = [...new Set(modules ?? MODULES.map((m) => m.id))];
+  for (const [i, mod] of wanted.entries()) {
+    if (deadline && Date.now() > deadline - REFRESH_MODULE_MS) {
+      result.remaining = wanted.slice(i).filter((m) => !paused.has(m));
+      break;
+    }
     if (paused.has(mod)) continue;
     const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
     const observations: Observation[] = [];

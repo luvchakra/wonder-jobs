@@ -49,6 +49,8 @@ export interface SetupJob {
   module?: string;
   /** What the job is doing now: setting sources up, or refreshing Find once they're done. */
   phase?: "setup" | "refreshing";
+  /** Modules whose Find refresh didn't fit in the last call: the next call refreshes them before the job finishes. */
+  refreshLeft?: string[];
 }
 
 const KEY = "wj.setupjob" as const;
@@ -122,7 +124,7 @@ export interface ContinueDeps {
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
   run?: typeof runSetupItem;
-  refresh?: () => Promise<{ stored: Record<string, number> }>;
+  refresh?: (modules: string[] | undefined, deadline: number) => Promise<{ stored: Record<string, number>; remaining?: string[] }>;
   /** The "import finished" email (importEmail.ts); tests pass their own. */
   notify?: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown>;
 }
@@ -131,14 +133,17 @@ export interface ContinueDeps {
  * Works on the job until it's done or the time budget runs out. Returns whether items are left (so the caller hands
  * them on). Does nothing while another server holds the lease.
  */
-export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: number; left: number; done: boolean; refreshed?: boolean }> {
+/** How long into a call the job's Find refresh may still start a module (Vercel stops a call at 60 s). */
+export const REFRESH_DEADLINE_MS = 45_000;
+
+export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: number; left: number; done: boolean; refreshed?: boolean; more: boolean }> {
   const now = deps.now ?? Date.now;
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const run = deps.run ?? runSetupItem;
-  const refresh = deps.refresh ?? (() => refreshGatewayListings());
+  const refresh = deps.refresh ?? ((modules: string[] | undefined, deadline: number) => refreshGatewayListings(modules, new Date(), deadline));
   const job = await readSetupJob();
-  if (!job || job.finishedAt) return { ran: 0, left: 0, done: true };
-  if (job.leaseUntil && Date.parse(job.leaseUntil) > now()) return { ran: 0, left: job.items.filter((i) => i.status !== "live" && i.status !== "failed").length, done: false };
+  if (!job || job.finishedAt) return { ran: 0, left: 0, done: true, more: false };
+  if (job.leaseUntil && Date.parse(job.leaseUntil) > now()) return { ran: 0, left: job.items.filter((i) => i.status !== "live" && i.status !== "failed").length, done: false, more: false };
   const started = now();
   job.leaseUntil = new Date(started + LEASE_MS).toISOString();
   // An item left "running" by a server that stopped mid-way is tried again.
@@ -171,16 +176,19 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
   if (!left) {
     // An admin's import always ends with a refresh, so Find is up to date even when nothing new went live; the
     // hourly set-up refreshes only when something did.
-    if (job.items.some((i) => i.status === "live") || (job.trigger ?? "admin") === "admin") {
+    // The refresh stops at the call's deadline and leaves the remaining modules to the next call (2026-11-05: refreshing
+    // every module's listings in one call ran past Vercel's 60 s).
+    if (job.refreshLeft?.length || job.items.some((i) => i.status === "live") || (job.trigger ?? "admin") === "admin") {
       job.phase = "refreshing";
       await save(job);
-      const r = await refresh().catch(() => null);
+      const r = await refresh(job.refreshLeft, started + REFRESH_DEADLINE_MS).catch(() => null);
       if (r) {
-        job.stored = r.stored;
+        job.stored = { ...job.stored, ...r.stored };
         refreshed = true;
       }
+      job.refreshLeft = r?.remaining?.length ? r.remaining : undefined;
     }
-    job.finishedAt = new Date(now()).toISOString();
+    if (!job.refreshLeft) job.finishedAt = new Date(now()).toISOString();
   }
   job.leaseUntil = undefined;
   await save(job);
@@ -191,7 +199,7 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
     await recordImportRun(record);
     await (deps.notify ?? sendImportEmail)(record, earlier);
   }
-  return { ran, left, done: !left, refreshed };
+  return { ran, left, done: !!job.finishedAt, refreshed, more: (left > 0 && ran > 0) || !!job.refreshLeft };
 }
 
 /**

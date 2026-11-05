@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   after(async () => {
     const r = await continueSetupJob();
     console.info("[gateway-setup]", JSON.stringify(r));
-    if (r.left && r.ran) await handOnSetupJob(origin, expected);
+    if (r.more) await handOnSetupJob(origin, expected);
   });
   return NextResponse.json({ ok: true, accepted: true });
 }

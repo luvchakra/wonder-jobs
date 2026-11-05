@@ -17,6 +17,7 @@ import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setup
 import { ARCHIVE_AFTER, failStreaks, lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun, RETRY_AFTER_MS, type ImportRun } from "./importRuns";
 import { sendImportEmail } from "./importEmail";
 import { MIN_GAP_MINUTES, SOURCE_FLOOR_MINUTES } from "@/domain/gateway/budget";
+import { MODULE_IDS } from "@/wonderworks/manifest";
 
 /** Collection's share of one scheduled call (Vercel stops it at 60 s); the rest is the Find refresh and the run's record. */
 export const COLLECT_BUDGET_MS = 25_000;
@@ -71,14 +72,17 @@ async function waitingItems(pausedModules: string[], dismissed: string[] = []) {
  * the next ones; the chain stops when nothing is left due or after this many calls.
  */
 export const MAX_COLLECT_HOPS = 20;
+/** How long into a call its Find refresh may still start a module (the rest of the 60 s is the run's record). */
+export const CALL_DEADLINE_MS = 48_000;
 
 /** Starts the next call of a collection chain and returns without waiting for it (like handOnSetupJob). */
-export async function handOnCollection(origin: string, hop: number, chain: string, secret = process.env.CRON_SECRET, fetcher: typeof fetch = fetch): Promise<boolean> {
+export async function handOnCollection(origin: string, hop: number, chain: string, refresh: string[] = [], secret = process.env.CRON_SECRET, fetcher: typeof fetch = fetch): Promise<boolean> {
   if (!secret || hop > MAX_COLLECT_HOPS) return false;
   try {
     const url = new URL("/api/cron/gateway-collect", origin);
     url.searchParams.set("hop", String(hop));
     url.searchParams.set("chain", chain);
+    if (refresh.length) url.searchParams.set("refresh", refresh.join(","));
     await fetcher(url, { headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(2500), cache: "no-store" });
   } catch {
     // A timeout here is expected: the next call keeps working after this one stops waiting.
@@ -86,8 +90,11 @@ export async function handOnCollection(origin: string, hop: number, chain: strin
   return true;
 }
 
-export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string): Promise<GatewayRunResult> {
+export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string, pendingRefresh: string[] = []): Promise<GatewayRunResult> {
   const startedAt = new Date().toISOString();
+  // Everything this call does must end inside Vercel's 60 s: refreshing Find stops by here and leaves the rest to the
+  // next call (2026-11-05: refreshing every module in the same call ran past 60 s, a 504, and nothing was recorded).
+  const deadline = Date.parse(startedAt) + CALL_DEADLINE_MS;
   // Every call of a chain records into the first call's run.
   const runId = `hourly_${chain && /^[a-z0-9]{4,16}$/.test(chain) ? chain : Date.parse(startedAt).toString(36)}`;
   const hosted = hostedGateway();
@@ -112,11 +119,13 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
     const running = jobRunning(await readSetupJob());
     if (running) await handOnSetupJob(origin);
     if (!running && (await findStale())) {
-      const stored = (await refreshGatewayListings().catch(() => null))?.stored;
+      const r = await refreshGatewayListings(undefined, new Date(), deadline).catch(() => null);
+      const stored = r?.stored;
+      if (r?.remaining?.length) await handOn(origin, 1, runId.slice("hourly_".length), r.remaining);
       if (stored) {
         const summary = `Ran recently · Find refreshed: ${Object.entries(stored).map(([m, n]) => `${n} ${m}`).join(", ")}`;
         const finishedAt = new Date().toISOString();
-        await recordImportRun({ id: `hourly_${Date.parse(startedAt).toString(36)}`, kind: "hourly", trigger: "cron", startedAt, finishedAt, items: [], stored, summary });
+        await recordImportRun({ id: runId, kind: "hourly", trigger: "cron", startedAt, finishedAt, items: [], stored, summary });
         return { ok: true, skipped: "ran recently", summary, refreshed: stored };
       }
     }
@@ -132,23 +141,28 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
 
   // One refresh per run: a running Setup job refreshes every module itself when it finishes.
   let refreshed: Record<string, number> | undefined;
+  let refreshLeft: string[] = [];
   const collected = outcomes.filter((o) => o.ok && (o.valid ?? 0) > 0);
   const stale = !setupRunning && (await findStale());
-  if (!setupRunning && (trigger === "admin" || stale)) refreshed = (await refreshGatewayListings().catch(() => null))?.stored;
-  else if (!setupRunning && collected.length) {
-    const modules = (await Promise.all(collected.map((o) => gatewaySourceModules(o.sourceId)))).flat();
-    if (modules.length) refreshed = (await refreshGatewayListings(modules).catch(() => null))?.stored;
+  // Modules to refresh: every one on Run now or when Find is stale, else the ones collected for; plus any an earlier call
+  // of the chain ran out of time for. Each call refreshes what fits before its deadline and hands the rest on.
+  const wanted = setupRunning ? [] : trigger === "admin" || stale ? MODULE_IDS.slice() : [...pendingRefresh, ...(await Promise.all(collected.map((o) => gatewaySourceModules(o.sourceId)))).flat()];
+  if (wanted.length) {
+    const r = await refreshGatewayListings([...new Set([...pendingRefresh, ...wanted])], new Date(), deadline).catch(() => null);
+    if (r && Object.keys(r.stored).length) refreshed = r.stored;
+    refreshLeft = r?.remaining ?? [];
   }
 
   const failed = outcomes.filter((o) => !o.ok).length;
   const deferred = outcomes.filter((o) => o.code === "DEFERRED").length;
-  // Sources still due once this call's time ran out: the next call in the chain collects them.
-  const continues = deferred > 0 && hop < MAX_COLLECT_HOPS && (await handOn(origin, hop + 1, runId.slice("hourly_".length)));
+  // Sources still due once this call's time ran out, or modules not yet refreshed: the next call in the chain does them.
+  const continues = (deferred > 0 || refreshLeft.length > 0) && hop < MAX_COLLECT_HOPS && (await handOn(origin, hop + 1, runId.slice("hourly_".length), refreshLeft));
   const parts = [`${outcomes.length} due · ${collected.length} collected${failed ? ` · ${failed} failed` : ""}${deferred ? ` · ${deferred} ${continues ? "carried to the next call" : "left for the next run"}` : ""}`];
   if (hop) parts.push(`call ${hop + 1}`);
   if (queued) parts.push(`${queued} waiting sources queued to test & activate`);
   else if (setupRunning) parts.push("Setup job continuing");
   if (refreshed) parts.push(`Find refreshed: ${Object.entries(refreshed).map(([m, n]) => `${n} ${m}`).join(", ")}`);
+  if (refreshLeft.length) parts.push(`${refreshLeft.length} modules' refresh ${continues ? "carried to the next call" : "left for the next run"}`);
   const summary = parts.join(" · ");
   const finishedAt = new Date().toISOString();
   await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt, outcome: failed && !collected.length ? "failed" : "ok", summary });
