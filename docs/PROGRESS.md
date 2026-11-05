@@ -172,3 +172,4 @@
 - ✅ Admin → Keys: old Kaggle username + key fields hidden (WJ-707)
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- ✅ Events: Hasgeek's event pages are read again — the crawler asks for pages as HTML, not JSON (WJ-579)

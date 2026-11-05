@@ -1,5 +1,5 @@
 import { ApiError, normalizeAll } from "./core.mjs";
-import { allowedBy, checkRobots, decodeEntities, parseNextData, parseStructured, safeGet } from "./collect.mjs";
+import { allowedBy, checkRobots, decodeEntities, PAGE_ACCEPT, parseNextData, parseStructured, safeGet } from "./collect.mjs";
 
 /**
  * The gateway's crawler, for a site that publishes its listings as pages with schema.org data (JobPosting, Event,
@@ -124,7 +124,7 @@ export async function crawlRecords(source, deps = {}) {
     throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The sitemap is on another host and the site's robots.txt doesn't list it");
   }
   // A sitemap may be large (WedMeGood's list 50,000 profiles in 6.9 MB); pages keep the 2 MB cap.
-  const first = await get(mapUrl, { origin: mapHost, ...(source.discover === "sitemap" ? { maxBytes: CRAWL_LIMITS.sitemapBytes } : {}) });
+  const first = await get(mapUrl, { origin: mapHost, ...(source.discover === "sitemap" ? { maxBytes: CRAWL_LIMITS.sitemapBytes } : { accept: PAGE_ACCEPT }) });
   if (source.discover === "sitemap") {
     const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
     const top = parseSitemap(first, keep);
@@ -145,7 +145,7 @@ export async function crawlRecords(source, deps = {}) {
     for (const extra of crawlTargets(source.extraUrls ?? [], { url: source.url, pathPrefix: "/" }, policy.rules)) {
       if (now() - started > budget / 3) break;
       await sleep(delayMs);
-      try { found.push(...pageLinks(await get(extra, { origin: host }), extra)); } catch { /* one index page missing doesn't stop the rest */ }
+      try { found.push(...pageLinks(await get(extra, { origin: host, accept: PAGE_ACCEPT }), extra)); } catch { /* one index page missing doesn't stop the rest */ }
     }
   }
   const targets = crawlTargets(found, source, policy.rules);
@@ -164,7 +164,7 @@ export async function crawlRecords(source, deps = {}) {
     read++;
     try {
       // A record without its own URL takes the page's.
-      const html = await get(url, { origin: host });
+      const html = await get(url, { origin: host, accept: PAGE_ACCEPT });
       // A Next.js site states its listing in the page's own data (source.nextDataPath, read through source.mapping);
       // every other page through its schema.org blocks.
       const found = source.nextDataPath ? parseNextData(html, source.nextDataPath, source.mapping) : parseStructured(html);
