@@ -31,6 +31,8 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
   { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
+  { name: "CQC_API_KEY", label: "CQC Syndication API key", usedBy: "Therapists: England's registered mental-health and therapy services (practices only). Not built yet: its fetcher waits for the portal's API documentation (see Setup to-do)", signup: "https://api-portal.service.cqc.org.uk", free: true },
+  { name: "NHS_SERVICE_SEARCH_KEY", label: "NHS Service Search (v3) key", usedBy: "Therapists: NHS talking-therapies services in England (practices only). Not built yet: access is by onboarding and its cost isn't stated (see Setup to-do)", signup: "https://digital.nhs.uk/developer/api-catalogue/directory-of-healthcare-services", free: false },
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));

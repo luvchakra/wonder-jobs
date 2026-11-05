@@ -288,6 +288,16 @@ Still not built: any register or directory of individuals; licence checks; crisi
 
 ---
 
+**Key-based sources for the UK and US (2026-11-05, WJ-605): keys and owner decisions only, nothing fetched yet**
+
+| Source | Status | What is known | What is missing |
+|---|---|---|---|
+| CQC Syndication API (England) | Needs setup: `CQC_API_KEY` (free; api-portal.service.cqc.org.uk) | Registered care providers and locations, incl. independent mental-health and therapy services; OGL v3; a `partnerCode` request parameter is asked for. Practices only. | The portal's API documentation needs a sign-in, so the base URL, key header, filters and location fields are unverified; no fetcher is written from guesses. Terms pending: OGL attribution wording and any caching limit. |
+| NHS Service Search API v3 (England) | Needs setup: `NHS_SERVICE_SEARCH_KEY` (cost not stated; onboarding, not self-service) | NHS organisations and services incl. talking therapies; v1/v2 retired 2026-02-02; v3 searches by latitude/longitude. | The documentation page refused WorksLake's tools (403): endpoint, header, service types and fields unverified. Terms pending. |
+| FindTreatment.gov (SAMHSA, US) | Owner decision | Facilities, not individuals. | Its guide says access is for "approved users"; ask SAMHSA. |
+
+All three are lines on Admin → Data → Setup to-do (`therapists-cqc`, `therapists-nhs-service-search`, `therapists-findtreatment`); the two keys are in `server/jobslake/platformKeys.ts`. A fetcher is added when the documented request and a sample response are in hand, never before.
+
 ## 8. Co-founders
 
 Dataset `cofounders`. WonderWorks founders only (`server/cofounders/sources.ts`).
