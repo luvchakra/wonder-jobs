@@ -16,6 +16,9 @@ describe("owner decisions on Setup to-do", () => {
   it("marks one done and back, refuses unknown ids, and keeps who and when", async () => {
     const id = OWNER_DECISIONS[0].id;
     expect(await setDecision("nope", true, "admin@x")).toBe(false);
+    // A live source's terms, confirmed on the Import page.
+    expect(await setDecision("terms:workingnomads", true, "admin@x")).toBe(true);
+    expect(await setDecision("terms:bad id!", true, "admin@x")).toBe(false);
     expect(await setDecision(id, true, "admin@x", " chose self-hosted ", new Date("2026-11-01T10:00:00Z"))).toBe(true);
     expect((await decisionsDone())[id]).toEqual({ at: "2026-11-01T10:00:00.000Z", by: "admin@x", note: "chose self-hosted" });
     await setDecision(id, false, "admin@x");

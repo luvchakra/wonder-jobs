@@ -71,7 +71,8 @@ export async function decisionsDone(): Promise<Record<string, DecisionState>> {
 
 /** Marks a decision done (or, with done false, back on the list). Only known decisions. */
 export async function setDecision(id: string, done: boolean, by: string, note?: string, now = new Date()): Promise<boolean> {
-  if (!OWNER_DECISIONS.some((d) => d.id === id)) return false;
+  // A known decision, or "terms:<setup item id>": the owner confirmed a live source's reuse terms (Import → Terms confirmed).
+  if (!OWNER_DECISIONS.some((d) => d.id === id) && !/^terms:[\w:.-]{1,100}$/.test(id)) return false;
   const current = await decisionsDone();
   const next = { ...current };
   if (done) next[id] = { at: now.toISOString(), by: by.slice(0, 120), ...(note?.trim() ? { note: note.trim().slice(0, 300) } : {}) };

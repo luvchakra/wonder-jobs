@@ -64,4 +64,11 @@ describe("Import page: a module's sources as rows with one state and one action 
     const rows = moduleRows("jobs", [view("adzuna", "jobs", "active")], [], [item("adzuna", "jobs", "key", { action: { label: "Set key", href: "/platform/jobs-lake/keys" } })]);
     expect(rows[0]).toMatchObject({ state: "needs_you", action: { kind: "link", href: "/platform/jobs-lake/keys", label: "Set key" } });
   });
+  it("a live source with terms pending offers Terms confirmed and Pause on the row (owner, 2026-11-05)", () => {
+    const rows = moduleRows("jobs", [view("workingnomads", "jobs", "active")], [], [item("workingnomads", "jobs", "terms", { action: { label: "Open source", href: "/platform/jobs-lake/sources/workingnomads" } })]);
+    const r = rows.find((x) => x.id === "workingnomads")!;
+    expect(r.state).toBe("needs_you");
+    expect(r.action).toMatchObject({ kind: "decide", label: "Terms confirmed", decision: "terms:workingnomads" });
+    expect(r.more.map((a) => a.label)).toEqual(["Pause", "Open source"]);
+  });
 });
