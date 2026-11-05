@@ -76,6 +76,7 @@ export default function ImportPage() {
           <Pipeline d={data} />
           <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
+            <StateLegend />
             {data.modules.map((m) => (
               <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
@@ -88,6 +89,30 @@ export default function ImportPage() {
         </div>
       )}
     </>
+  );
+}
+
+/** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
+const LEGEND: { state: ImportRow["state"]; text: string }[] = [
+  { state: "needs_you", text: "Can't go further without you: a key to set, a decision or terms check, or it failed lately (its line says why). Its button says what to do." },
+  { state: "waiting", text: "Added but not on yet. Nothing to do: Import now, or the scheduled run, tests it and switches it on. Press its button to do it now." },
+  { state: "live", text: "Collecting on its schedule. Nothing to do." },
+  { state: "down", text: "Was live, but its last collections failed. It retries on its own; Details says why." },
+  { state: "off", text: "Paused or dismissed by an admin; Import skips it. Its button turns it back on." },
+];
+
+function StateLegend() {
+  return (
+    <Fold title="What the states mean" hint="Needs you, Waiting, Live, Down, Off">
+      <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {LEGEND.map((l) => (
+          <li key={l.state} className="flex items-baseline gap-2">
+            <span className="shrink-0"><Badge tone={STATE[l.state].tone}>{STATE[l.state].label}</Badge></span>
+            <span>{l.text}</span>
+          </li>
+        ))}
+      </ul>
+    </Fold>
   );
 }
 
