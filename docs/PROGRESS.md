@@ -174,3 +174,4 @@
 - ✅ Teaching: jobs.ac.uk and EdJoin crawl sources fixed and found listings within 20 s (WJ-566)
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- ✅ Teaching: more-sources pass; Norway NAV token decision added to Setup to-do (WJ-567)
