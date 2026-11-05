@@ -176,3 +176,8 @@
 - 2026-11-05 Talent & Services: Houzz and WedMeGood refused from our server, recorded and put to the owner (WJ-598)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
 - ✅ Buy, Sell & Rent: Flipkart and eBay sources (keys on Admin → Keys with Test, Needs setup until set), foreign-currency prices as stated (WJ-623)
+- ✅ Events: Hasgeek's event pages are read again — the crawler asks for pages as HTML, not JSON (WJ-579)
+- ✅ Gateway asks for */* on feeds and HTML on pages: EdJOIN and Hasgeek read again (WJ-710)
+- 2026-11-05 Talent & Services: business-listing APIs researched, none built, licence question put to the owner (WJ-599)
+- ✅ Scholarships & Projects: Buddy4Study crawl reads the newest pages and finds current listings (WJ-532)
+- ✅ Internships: UK apprenticeships from Find an apprenticeship (DfE API v2; needs its free key) (WJ-583)
