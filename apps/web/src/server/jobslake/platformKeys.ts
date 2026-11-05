@@ -80,6 +80,8 @@ export function platformKey(name: string): string | undefined {
 
 export interface PlatformKeyStatus extends PlatformKeySpec {
   set: boolean;
+  /** Admin → Keys shows a Test for it (keyTest.ts). */
+  testable?: boolean;
   from: "platform" | "environment" | null;
   masked: string;
 }
