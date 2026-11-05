@@ -5,11 +5,11 @@ import { shortSourceNames } from "@/wonderworks/find/sourceName";
 import { ageLabel, dateRangeLabel, seatsLabel, whenLabel, type EventListing } from "./domain";
 
 /**
- * A place short enough for a chip or the sheet's line: whole comma-separated parts while they fit, never a word cut in half
+ * A place short enough for a chip or the sheet's line (the share image clips a chip at about 34 characters): whole comma-separated parts while they fit, never a word cut in half
  * (a venue's full street address becomes its first parts), and "…" when even the first part is too long. The full place
  * stays in the message's "Where" line.
  */
-export function cutPlace(place: string, max = 44): string {
+export function cutPlace(place: string, max = 32): string {
   const parts = place.split(",").map((p) => p.trim()).filter(Boolean);
   let out = "";
   for (const p of parts) {
@@ -43,7 +43,7 @@ export const shareOf = (l: EventListing): ListingShareProps => {
       title: l.title,
       // The organiser is always the last fact, empty when the source names none, so the image never mistakes the place for one.
       facts: [dateRangeLabel(out.startDate, out.endDate), place && cutPlace(place), l.company],
-      lines: [place && `Where: ${place}`, `Source: ${shortSourceNames(l.sourceName)}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
+      lines: [place && cutPlace(place) !== place && `Where: ${place}`, `Source: ${shortSourceNames(l.sourceName)}`, out.cfpUrl && `Call for papers: ${out.cfpUrl}${out.cfpEndDate ? ` (until ${dateRangeLabel(out.cfpEndDate)})` : ""}`],
       details: l.description,
       url: publicPath("events", l.id),
       source: l.sourceName,
@@ -57,7 +57,8 @@ export const shareOf = (l: EventListing): ListingShareProps => {
     facts: [whenLabel(t.startsAt), t.online ? "Online" : cutPlace(shortPlace(l.location)), l.company],
     lines: [
       t.endsAt && `Ends: ${whenLabel(t.endsAt)}`,
-      !t.online && l.location && `Where: ${l.location}`,
+      // Only when it adds to the chip (a street address the chip cut short); the same words twice add nothing.
+      !t.online && l.location && cutPlace(shortPlace(l.location)) !== l.location && `Where: ${l.location}`,
       `Seats: ${seatsLabel(l)}`,
       ageLabel(t) && `Age: ${ageLabel(t)}`,
       "Free to join",

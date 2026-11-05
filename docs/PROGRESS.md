@@ -152,6 +152,7 @@
 - ✅ Share: highlights never repeat the image; original link names the site (WJ-693)
 - ✅ Teaching: Share rows put subject, grades and pay first (WJ-565)
 - ✅ Share image: link footer reads as text, not a button (WJ-694)
+- ✅ Events: share image place chip fits and the place isn't shown twice (WJ-578)
 - 2026-11-03 Talent & Services: share names the original link and carries the OSM credit (WJ-597)
 - ✅ Share image: cuts end at a whole word (WJ-695)
 - ✅ Jobs: Share checked against the v8 image and "Summary" label (WJ-548)
@@ -171,4 +172,5 @@
 - ✅ Scholarships & Projects: Kaggle source uses the new API token, or the older username + key (WJ-531)
 - ✅ Admin → Keys: old Kaggle username + key fields hidden (WJ-707)
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
+- ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
 - ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
