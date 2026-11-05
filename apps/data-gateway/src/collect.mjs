@@ -47,7 +47,12 @@ export function requestTimeoutMs(input) {
   const m = /\[timeout:(\d{1,3})\]/.exec(q);
   return m ? Math.min(35000, Math.max(12000, (Number(m[1]) + 5) * 1000)) : 12000;
 }
-export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2 } = {}) {
+/** What a page crawl asks for: the page as a browser gets it. (A site that negotiates content, like Hasgeek, answers a request that prefers JSON with a JSON version of the page that has no JSON-LD.) */
+export const PAGE_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5";
+// Ends with */* (Teaching, 2026-11-05): edjoin.org answers 406 to a request whose Accept has no */*, so its robots.txt "didn't load".
+const FEED_ACCEPT = "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1";
+
+export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2, accept = FEED_ACCEPT } = {}) {
   const url = checkPublicUrl(input);
   if (origin && url.hostname !== origin) throw new ApiError(403, "UNSAFE_REDIRECT", "Cross-host redirects are not allowed");
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
@@ -57,7 +62,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     const req = request(url, {
       method: "GET",
       timeout: requestTimeoutMs(input),
-      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
+      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept },
       lookup: pinnedLookup(selected),
     }, (res) => {
       const chunks = []; let bytes = 0;
@@ -71,7 +76,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
   });
   if ([301, 302, 303, 307, 308].includes(response.status)) {
     if (!redirects || !response.headers.location) throw new ApiError(502, "UNSAFE_REDIRECT", "Too many redirects");
-    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1 });
+    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1, accept });
   }
   if (response.status !== 200) throw new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
   return response.text;
