@@ -118,7 +118,7 @@ describe("the job's Find refresh fits its call (2026-11-05: refreshing every mod
   it("leaves the modules it had no time for to the next call, which finishes the job", async () => {
     await startSetupJob([{ id: "gateway:a", name: "A", run: { kind: "activate", sourceId: "a" } }], "admin@x");
     const calls: (string[] | undefined)[] = [];
-    const refresh = async (m: string[] | undefined) => { calls.push(m); return calls.length === 1 ? { stored: { jobs: 5 }, remaining: ["events", "teaching"] } : { stored: { events: 2, teaching: 3 } }; };
+    const refresh = async (m: string[] | undefined): Promise<{ stored: Record<string, number>; remaining?: string[] }> => { calls.push(m); return calls.length === 1 ? { stored: { jobs: 5 }, remaining: ["events", "teaching"] } : { stored: { events: 2, teaching: 3 } }; };
     const deps = { run: async () => ({ ok: true as const, sourceId: "a", valid: 4 }), refresh, notify: async () => {}, sleep: async () => {} };
     const first = await continueSetupJob(deps);
     expect(first).toMatchObject({ done: false, more: true });
