@@ -65,14 +65,37 @@ async function waitingItems(pausedModules: string[], dismissed: string[] = []) {
   return todo.items.filter((i) => i.run?.kind === "activate" && !skip.has(i.id) && !pausedModules.includes(i.module)).map((i) => ({ id: i.id, name: i.name, run: i.run! }));
 }
 
-export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail): Promise<GatewayRunResult> {
+/**
+ * Calls a run's collection hands on to when sources are still due after its time ran out (owner, 2026-11-05: "identify
+ * all the issues": each call collected 2-3 of ~15 due sources, so most were days overdue). Each follow-up call collects
+ * the next ones; the chain stops when nothing is left due or after this many calls.
+ */
+export const MAX_COLLECT_HOPS = 20;
+
+/** Starts the next call of a collection chain and returns without waiting for it (like handOnSetupJob). */
+export async function handOnCollection(origin: string, hop: number, chain: string, secret = process.env.CRON_SECRET, fetcher: typeof fetch = fetch): Promise<boolean> {
+  if (!secret || hop > MAX_COLLECT_HOPS) return false;
+  try {
+    const url = new URL("/api/cron/gateway-collect", origin);
+    url.searchParams.set("hop", String(hop));
+    url.searchParams.set("chain", chain);
+    await fetcher(url, { headers: { authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(2500), cache: "no-store" });
+  } catch {
+    // A timeout here is expected: the next call keeps working after this one stops waiting.
+  }
+  return true;
+}
+
+export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string): Promise<GatewayRunResult> {
   const startedAt = new Date().toISOString();
+  // Every call of a chain records into the first call's run.
+  const runId = `hourly_${chain && /^[a-z0-9]{4,16}$/.test(chain) ? chain : Date.parse(startedAt).toString(36)}`;
   const hosted = hostedGateway();
   if (!hosted) return { ok: true, skipped: "gateway not configured", summary: "Gateway not configured" };
   const settings = await loadScheduler();
 
   let queued = 0;
-  if (settings.gateway.activateWaiting && !jobRunning(await readSetupJob())) {
+  if (hop === 0 && settings.gateway.activateWaiting && !jobRunning(await readSetupJob())) {
     const items = await waitingItems(settings.gateway.pausedModules, settings.gateway.dismissed).catch(() => []);
     if (items.length) {
       const r = await startSetupJob(items, trigger === "admin" ? "Scheduler (Run now)" : "Scheduler", new Date(), "scheduler");
@@ -84,7 +107,8 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // Find not refreshed for REFRESH_STALE_MS (a run cut short, or nothing new collected since) refreshes every module, so
   // listings the gateway already re-read reach Find, even when the last scheduled run was a moment ago.
   const findStale = async () => trigger === "cron" && (await lastRefreshAt().catch(() => 0)) < Date.now() - REFRESH_STALE_MS;
-  if (trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
+  // A chain's follow-up call carries on its own run, so the "ran recently" check is only for a fresh trigger.
+  if (hop === 0 && trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
     const running = jobRunning(await readSetupJob());
     if (running) await handOnSetupJob(origin);
     if (!running && (await findStale())) {
@@ -117,7 +141,11 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   }
 
   const failed = outcomes.filter((o) => !o.ok).length;
-  const parts = [`${outcomes.length} due · ${collected.length} collected${failed ? ` · ${failed} failed` : ""}`];
+  const deferred = outcomes.filter((o) => o.code === "DEFERRED").length;
+  // Sources still due once this call's time ran out: the next call in the chain collects them.
+  const continues = deferred > 0 && hop < MAX_COLLECT_HOPS && (await handOn(origin, hop + 1, runId.slice("hourly_".length)));
+  const parts = [`${outcomes.length} due · ${collected.length} collected${failed ? ` · ${failed} failed` : ""}${deferred ? ` · ${deferred} ${continues ? "carried to the next call" : "left for the next run"}` : ""}`];
+  if (hop) parts.push(`call ${hop + 1}`);
   if (queued) parts.push(`${queued} waiting sources queued to test & activate`);
   else if (setupRunning) parts.push("Setup job continuing");
   if (refreshed) parts.push(`Find refreshed: ${Object.entries(refreshed).map(([m, n]) => `${n} ${m}`).join(", ")}`);
@@ -127,7 +155,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // The run's own record, with each source's outcome (Sources → Import → Runs).
   const names = await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>());
   const record: ImportRun = {
-    id: `hourly_${Date.parse(startedAt).toString(36)}`,
+    id: runId,
     kind: "hourly",
     trigger: trigger === "admin" ? "admin" : "cron",
     startedAt,
@@ -138,8 +166,9 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   };
   const earlier = await listImportRuns().catch(() => []);
   await recordImportRun(record);
-  // The admins hear about every collection that collected or refreshed anything, like an import (importEmail.ts).
-  await notify(record, earlier);
+  // The admins hear about every collection that collected or refreshed anything, like an import (importEmail.ts); a chain
+  // is one email, from its last call.
+  if (!continues) await notify(record, earlier);
   return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
 }
 

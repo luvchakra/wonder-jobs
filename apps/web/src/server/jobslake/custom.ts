@@ -224,6 +224,9 @@ export async function fetchJsonApi(cfg: JsonApiConfig, c: SearchCriteria, secret
   const page = async (extra: Record<string, string>) => {
     const res = await authedGet(cfg, c, secret, timeoutMs, extra);
     if (res.status === 401 || res.status === 403) throw Object.assign(new Error(`The source rejected the credentials (${res.status})`), { code: "SOURCE_NEEDS_SETUP" });
+    // 508 is Vercel refusing a call from this app to itself (a loop); it should never happen for the gateway, which is
+    // answered in process (safeFetch.ts::inProcessGateway), so it's logged with where the call went (2026-11-05).
+    if (res.status === 508) console.warn(`[jobslake] 508 Loop Detected from ${new URL(res.finalUrl).host}${new URL(res.finalUrl).pathname}`);
     if (res.status >= 400) throw new Error(`The source responded ${res.status}`);
     try {
       return JSON.parse(res.text) as unknown;

@@ -81,3 +81,14 @@ describe("failed tries in a row, for Archived (2026-11-05)", () => {
     expect((await failStreaks()).has("a")).toBe(false);
   });
 });
+
+describe("a collection chain is one run (2026-11-05)", () => {
+  it("merges a later call into the first call's run", async () => {
+    await recordImportRun(run({ id: "hourly_abc", items: [{ name: "A", status: "collected" }], summary: "2 due · 1 collected · 1 carried to the next call" }));
+    await recordImportRun(run({ id: "hourly_abc", items: [{ name: "B", status: "failed" }], summary: "1 due · 0 collected · 1 failed · call 2 · Find refreshed: 5 jobs" }));
+    const runs = await listImportRuns();
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ calls: 2, summary: "1 collected · 1 failed over 2 calls · Find refreshed: 5 jobs" });
+    expect(runs[0].items).toHaveLength(2);
+  });
+});
