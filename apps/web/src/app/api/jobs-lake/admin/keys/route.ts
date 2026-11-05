@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
-import { platformKeyStatus, removePlatformKeyAt, setPlatformKey } from "@/server/jobslake/platformKeys";
+import { importPlatformKeysFromEnv, platformKeyStatus, removePlatformKeyAt, setPlatformKey } from "@/server/jobslake/platformKeys";
 import { TESTABLE, testPlatformKey } from "@/server/jobslake/keyTest";
 
 export const runtime = "nodejs";
@@ -18,13 +18,19 @@ export async function GET() {
 export async function POST(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
-  const body = (await readJson(req, 10_000)) as { name?: unknown; value?: unknown; test?: unknown; removeAt?: unknown } | null;
+  const body = (await readJson(req, 10_000)) as { name?: unknown; value?: unknown; test?: unknown; removeAt?: unknown; importEnv?: unknown } | null;
   const name = typeof body?.name === "string" ? body.name.slice(0, 64) : "";
   // Test: one small request to the provider with the saved key (keyTest.ts); audited by name and outcome only.
   if (body?.test === true && name) {
     const r = await testPlatformKey(name);
     await audit(a.actor, "platform_key.tested", undefined, { name, ok: r.ok });
     return json(r);
+  }
+  // A multi-key entry's deployment keys, copied into the admin's list (values never leave the server).
+  if (body?.importEnv === true && name) {
+    const r = await importPlatformKeysFromEnv(name);
+    await audit(a.actor, "platform_key.imported", undefined, { name, ok: r.ok });
+    return json(r.ok ? r : { ...r, error: { code: "INVALID_REQUEST", message: r.message } }, r.ok ? 200 : 400);
   }
   // One key of a multi-key entry (TheirStack's), by its place in the list.
   if (typeof body?.removeAt === "number" && name) {

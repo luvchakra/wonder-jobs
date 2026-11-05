@@ -156,6 +156,19 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   return { ok: true, message: value === null ? `${name} removed.` : `${name} saved. Sources that need it can run now.` };
 }
 
+/**
+ * Copies the keys the deployment sets for a multi-key entry into the admin's list (owner, 2026-11-05: "copy from vercel to
+ * admin"), so they can be seen, tested and removed one by one; the deployment's variable can then be deleted. The values
+ * go from the server's environment to the encrypted store and are never shown.
+ */
+export async function importPlatformKeysFromEnv(name: string, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
+  if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
+  const fromEnv = splitKeys(process.env[name]);
+  if (!fromEnv.length) return { ok: false, message: "The deployment sets no keys for this." };
+  const r = await setPlatformKey(name, fromEnv.join("\n"), now);
+  return r.ok ? { ok: true, message: `Copied from the deployment: ${r.message} You can now delete ${name} in Vercel.` } : r;
+}
+
 /** Removes one key of a multi-key entry, by its place in the masked list. */
 export async function removePlatformKeyAt(name: string, index: number, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
   if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
