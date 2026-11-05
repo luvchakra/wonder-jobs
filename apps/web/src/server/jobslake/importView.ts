@@ -1,5 +1,5 @@
 /**
- * Admin → Data → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
+ * Sources → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
  * so that it can be managed from one page"): the one read model behind that page. Three stages, for every module:
  *   Sources (live, waiting, needs you) → Collected (what the gateway holds) → In Find (what WorksLake stores).
  * Each module lists its sources as rows with one state and at most one action, so an admin sees in one place why a

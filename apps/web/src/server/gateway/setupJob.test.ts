@@ -11,7 +11,7 @@ beforeEach(async () => {
   await stateStore.put(PLATFORM_TENANT, "wj.importruns", null);
 });
 
-describe("Setup to-do's server job (2026-11-02: backend, not the page)", () => {
+describe("Sources → Import's server job (2026-11-02: backend, not the page)", () => {
   it("runs every queued item, records each outcome, and refreshes every module's Find once, when it finishes", async () => {
     await startSetupJob([item(1), item(2), item(3)], "admin@example.com");
     const run = vi.fn(async (r: SetupRun) => (r.kind === "activate" && r.sourceId === "src_2" ? { ok: false as const, step: "Test", message: "no valid listings" } : { ok: true as const, valid: 5, sourceId: (r as { sourceId: string }).sourceId }));

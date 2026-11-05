@@ -62,7 +62,7 @@ export async function lastGatewayRefresh(): Promise<GatewayRefresh | null> {
  */
 export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date()): Promise<GatewayRefresh> {
   const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
-  // A module whose import is paused (Data → Import) keeps what Find has; nothing new is stored for it.
+  // A module whose import is paused (Sources → Import) keeps what Find has; nothing new is stored for it.
   const paused = new Set((await loadScheduler()).gateway.pausedModules);
   for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
     if (paused.has(mod)) continue;

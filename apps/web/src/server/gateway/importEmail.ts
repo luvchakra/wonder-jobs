@@ -53,7 +53,7 @@ ${rows ? `<table style="font-size:14px;border-collapse:collapse;margin:0 0 12px"
   return { subject: `WonderWorks: ${what} finished · ${head}`, ...mail };
 }
 
-/** Who gets it: the addresses set on Data → Import, else the platform admins, else the scheduler's notify address. */
+/** Who gets it: the addresses set on Sources → Import, else the platform admins, else the scheduler's notify address. */
 export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env, set: string[] = []): Promise<string[]> {
   if (set.length) return set;
   const admins = parseEmailList(env.JOBSLAKE_ADMIN_EMAILS);
@@ -68,7 +68,7 @@ export const worthEmailing = (run: ImportRun) => run.kind !== "hourly" || run.it
 export async function sendImportEmail(run: ImportRun, earlier: ImportRun[], deps: { send?: Mailer; recipients?: string[]; settings?: SchedulerSettings["importEmail"] } = {}): Promise<{ sent: number; reason?: string }> {
   try {
     if (!worthEmailing(run)) return { sent: 0, reason: "nothing collected" };
-    // Admin → Data → Import → Emails: each kind of run can be switched off; a failed lookup keeps the default (on).
+    // Sources → Import → Emails: each kind of run can be switched off; a failed lookup keeps the default (on).
     const settings = deps.settings ?? (await loadScheduler().catch(() => SCHEDULER_DEFAULTS)).importEmail;
     if (!(run.kind === "hourly" ? settings.hourly : settings.imports)) return { sent: 0, reason: "turned off" };
     const to = deps.recipients ?? (await importEmailRecipients(process.env, settings.to));
