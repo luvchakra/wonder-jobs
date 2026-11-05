@@ -170,3 +170,4 @@
 - ✅ Kaggle API token (KGAT_) on Admin → Keys with Test (WJ-706)
 - ✅ Scholarships & Projects: Kaggle source uses the new API token, or the older username + key (WJ-531)
 - ✅ Admin → Keys: old Kaggle username + key fields hidden (WJ-707)
+- ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)

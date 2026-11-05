@@ -39,7 +39,7 @@ For a site that publishes listings as pages with schema.org data (JobPosting, Ev
 
 ## Reviewed sources
 
-`sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.
+`sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely-design.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.
 
 ## Behaviour worth knowing
 

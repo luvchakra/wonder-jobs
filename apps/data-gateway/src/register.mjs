@@ -1,5 +1,5 @@
 // Registers a reviewed source definition (sources/*.json) with a running gateway. The source starts paused.
-//   GATEWAY_URL=http://127.0.0.1:8790 GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely.json
+//   GATEWAY_URL=http://127.0.0.1:8790 GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely-design.json
 import { readFile } from "node:fs/promises";
 
 const [file] = process.argv.slice(2);
