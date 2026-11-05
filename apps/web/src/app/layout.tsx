@@ -27,7 +27,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "WonderWorks", statusBarStyle: "default" },
   // Next now writes `capable` as the standard `mobile-web-app-capable`; older iOS versions only read the
   // Apple-prefixed tag, so it's set explicitly too (WJ-301).
-  other: { "apple-mobile-web-app-capable": "yes" },
+  // impact.com affiliate site verification (owner, 2026-11-05).
+  other: { "apple-mobile-web-app-capable": "yes", "impact-site-verification": "e7bc1d92-3f06-475c-bd7d-2d308db27727" },
   // `opengraph-image.tsx` supplies the image itself, by file convention, for every page that doesn't
   // override it. `title`/`description` are deliberately *not* pinned here: leaving them out lets each
   // page's own title and description flow into og:title/og:description, so a shared link names the
