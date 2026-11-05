@@ -25,6 +25,8 @@ const PROBES: Record<string, Probe> = {
   // Jooble answers 400 to an empty search even with a good key (owner, 2026-11-05), so the test names a common word;
   // it's a connection check, never anyone's search.
   jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
+  // One small search (one request off the RapidAPI quota, not off the daily cap): a connection check, never anyone's search.
+  jsearch: { needs: ["JSEARCH_API_KEY"], request: (k) => ({ url: "https://jsearch.p.rapidapi.com/search?query=engineer%20in%20london&page=1&num_pages=1&country=gb&date_posted=today", init: { headers: { "X-RapidAPI-Key": k("JSEARCH_API_KEY"), "X-RapidAPI-Host": "jsearch.p.rapidapi.com" } } }) },
   kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
   simplerGrants: { needs: ["SIMPLER_GRANTS_API_KEY"], request: (k) => ({ url: "https://api.simpler.grants.gov/v1/opportunities/search", init: { method: "POST", headers: { "content-type": "application/json", "X-API-Key": k("SIMPLER_GRANTS_API_KEY") }, body: JSON.stringify({ pagination: { page_offset: 1, page_size: 1, sort_order: [{ order_by: "post_date", sort_direction: "descending" }] } }) } }) },
   clist: { needs: ["CLIST_USERNAME", "CLIST_API_KEY"], request: (k) => ({ url: "https://clist.by/api/v4/contest/?limit=1&format=json", init: { headers: { authorization: `ApiKey ${k("CLIST_USERNAME")}:${k("CLIST_API_KEY")}` } } }) },

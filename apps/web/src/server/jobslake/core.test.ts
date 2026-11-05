@@ -420,6 +420,13 @@ describe("WorksLake smart search — broader phrasings searched at once", () => 
     expect(ghRuns[0].search).toEqual({ query: "senior director identity access", places: ["Singapore"], phrasings: 3 });
   });
 
+  it("asks a source metered per request (onePhrasing: JSearch) only the search's own words", async () => {
+    connector.mockImplementation(async () => ({ jobs: [], warnings: [] }));
+    await search(req({ query: { text: "senior director identity access", locations: ["Singapore"], variants: ["identity access", "identity"] } }), { trigger: "search" });
+    const asked = connector.mock.calls.filter((c) => (c[0] as { id: string }).id === "jsearch").map((c) => (c[1] as { query: string }).query);
+    expect(asked).toEqual(["senior director identity access"]);
+  });
+
   it("a phrasing that fails doesn't fail the source when another phrasing answered", async () => {
     connector.mockImplementation(async (src: { id: string }, c: { query: string }) => {
       if (src.id !== "greenhouse") return { jobs: [], warnings: [] };

@@ -37,7 +37,7 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.accountmenu / wj.youmenu / wj.findkindsmenu: the account menu's, the You page's and Find's coming-soon menu's order and hidden items, set by a platform admin for every user, platform tenant only.
 // wj.avatar: the candidate's profile photo (a small JPEG/PNG/WebP), read and written only through /api/avatar.
 // wj.sensitive: the candidate's answers to sensitive questions (EEO, work authorization, declarations) and ID numbers — all encrypted.
-export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.companynames", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.findkindsmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin", "wj.schedruns", "wj.setupdecisions", "wj.dbsafeguards", "wj.datadb", "wj.datadbs", "wj.setupjob", "wj.gatewayrefresh", "wj.importruns", "wj.moderation"] as const;
+export const SERVER_STORES = ["wj.jobsapply", "wj.plan", "wj.plans", "wj.digest", "wj.billingadmin", "wj.apiplan", "wj.sensitive", "wj.scheduler", "wj.cronruns", "wj.ratingruns", "wj.companynames", "wj.avatar", "wj.accountmenu", "wj.youmenu", "wj.findkindsmenu", "wj.mailed", "wj.notifyprefs", "wj.notifyadmin", "wj.schedruns", "wj.setupdecisions", "wj.dbsafeguards", "wj.datadb", "wj.datadbs", "wj.setupjob", "wj.gatewayrefresh", "wj.importruns", "wj.moderation", "wj.jsearchcap"] as const;
 export type ServerStoreName = (typeof SERVER_STORES)[number];
 export type AnyStoreName = StateStoreName | ServerStoreName;
 export const MAX_STATE_BYTES = 2_000_000;
