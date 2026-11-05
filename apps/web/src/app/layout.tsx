@@ -47,6 +47,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
+        {/* impact.com affiliate site verification (owner, 2026-11-05). It reads a `value` attribute, which Next's metadata
+            API can't write (it writes `content`), so the tag is plain markup. */}
+        <meta name="impact-site-verification" {...{ value: "e7bc1d92-3f06-475c-bd7d-2d308db27727" }} />
         {/* Holds Chromium's install prompt if it fires before the app's JavaScript loads (WJ-301). */}
         <script dangerouslySetInnerHTML={{ __html: INSTALL_EARLY_CAPTURE }} />
       </head>

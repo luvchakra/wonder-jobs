@@ -24,7 +24,11 @@ export interface CredentialStatus {
 const ENV_REFS: Record<string, { present: (env: Record<string, string | undefined>) => boolean; label: (env: Record<string, string | undefined>) => string }> = {
   "env:ADZUNA": { present: (e) => !!e.ADZUNA_APP_ID && !!e.ADZUNA_APP_KEY, label: () => "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
   "env:USAJOBS": { present: (e) => !!e.USAJOBS_API_KEY && !!e.USAJOBS_EMAIL, label: () => "USAJOBS_API_KEY + USAJOBS_EMAIL" },
+  "env:FLIPKART": { present: (e) => !!e.FLIPKART_AFFILIATE_ID && !!e.FLIPKART_AFFILIATE_TOKEN, label: () => "FLIPKART_AFFILIATE_ID + FLIPKART_AFFILIATE_TOKEN" },
+  "env:EBAY": { present: (e) => !!e.EBAY_CLIENT_ID && !!e.EBAY_CLIENT_SECRET, label: () => "EBAY_CLIENT_ID + EBAY_CLIENT_SECRET" },
   "env:JOOBLE": { present: (e) => !!e.JOOBLE_API_KEY, label: () => "JOOBLE_API_KEY" },
+  "env:FIND_APPRENTICESHIP": { present: (e) => !!e.FIND_APPRENTICESHIP_API_KEY, label: () => "FIND_APPRENTICESHIP_API_KEY" },
+  "env:RELIEFWEB": { present: (e) => !!e.RELIEFWEB_APPNAME, label: () => "RELIEFWEB_APPNAME" },
   "env:WORKSLAKE_GATEWAY_API_KEY": { present: (e) => !!e.WORKSLAKE_GATEWAY_API_KEY, label: () => "WORKSLAKE_GATEWAY_API_KEY" },
   // Either variable may hold the keys; only how many are set is ever shown.
   "env:THEIRSTACK": {

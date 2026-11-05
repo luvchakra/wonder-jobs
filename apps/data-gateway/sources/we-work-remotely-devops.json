@@ -1,0 +1,21 @@
+{
+  "url": "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
+  "kind": "rss",
+  "modules": [
+    "jobs"
+  ],
+  "geography": [
+    "global",
+    "remote"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "weworkremotely.com/remote-job-rss-feed (read 2026-10-31): \"Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely.\"",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "We Work Remotely",
+  "titleCompanyPrefix": true,
+  "allRemote": true,
+  "retentionHours": 24,
+  "minIntervalMinutes": 120
+}

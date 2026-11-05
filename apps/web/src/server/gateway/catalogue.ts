@@ -1,6 +1,9 @@
 import apnaInternships from "../../../../data-gateway/sources/apna-internships.json";
+import idealistInternships from "../../../../data-gateway/sources/idealist-internships.json";
+import wayupInternships from "../../../../data-gateway/sources/wayup-internships.json";
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
+import buddy4studyScholarships from "../../../../data-gateway/sources/buddy4study-scholarships.json";
 import districtEvents from "../../../../data-gateway/sources/district-events.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
 import jobsAcUk from "../../../../data-gateway/sources/jobs-ac-uk.json";
@@ -41,7 +44,17 @@ import osmTherapistsSouth from "../../../../data-gateway/sources/osm-therapists-
 import osmTherapistsWest from "../../../../data-gateway/sources/osm-therapists-west.json";
 import teachaway from "../../../../data-gateway/sources/teachaway-international.json";
 import ukTeachingVacancies from "../../../../data-gateway/sources/uk-teaching-vacancies.json";
-import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.json";
+import weWorkRemotelyProgramming from "../../../../data-gateway/sources/we-work-remotely-programming.json";
+import weWorkRemotelyFullStack from "../../../../data-gateway/sources/we-work-remotely-full-stack.json";
+import weWorkRemotelyBackEnd from "../../../../data-gateway/sources/we-work-remotely-back-end.json";
+import weWorkRemotelyFrontEnd from "../../../../data-gateway/sources/we-work-remotely-front-end.json";
+import weWorkRemotelyDevops from "../../../../data-gateway/sources/we-work-remotely-devops.json";
+import weWorkRemotelyDesign from "../../../../data-gateway/sources/we-work-remotely-design.json";
+import weWorkRemotelyProduct from "../../../../data-gateway/sources/we-work-remotely-product.json";
+import weWorkRemotelyCustomerSupport from "../../../../data-gateway/sources/we-work-remotely-customer-support.json";
+import weWorkRemotelySalesMarketing from "../../../../data-gateway/sources/we-work-remotely-sales-marketing.json";
+import weWorkRemotelyManagementFinance from "../../../../data-gateway/sources/we-work-remotely-management-finance.json";
+import weWorkRemotelyOther from "../../../../data-gateway/sources/we-work-remotely-other.json";
 
 /**
  * The reviewed source definitions that ship with the gateway (`apps/data-gateway/sources/*.json`), so an admin can add
@@ -50,8 +63,11 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "apna-internships.json": apnaInternships as Record<string, unknown>,
+  "idealist-internships.json": idealistInternships as Record<string, unknown>,
+  "wayup-internships.json": wayupInternships as Record<string, unknown>,
   "confs-tech.json": confsTech as Record<string, unknown>,
   "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
+  "buddy4study-scholarships.json": buddy4studyScholarships as Record<string, unknown>,
   "district-events.json": districtEvents as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
   "jobs-ac-uk.json": jobsAcUk as Record<string, unknown>,
@@ -92,7 +108,17 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "osm-therapists-west.json": osmTherapistsWest as Record<string, unknown>,
   "teachaway-international.json": teachaway as Record<string, unknown>,
   "uk-teaching-vacancies.json": ukTeachingVacancies as Record<string, unknown>,
-  "we-work-remotely.json": weWorkRemotely as Record<string, unknown>,
+  "we-work-remotely-programming.json": weWorkRemotelyProgramming as Record<string, unknown>,
+  "we-work-remotely-full-stack.json": weWorkRemotelyFullStack as Record<string, unknown>,
+  "we-work-remotely-back-end.json": weWorkRemotelyBackEnd as Record<string, unknown>,
+  "we-work-remotely-front-end.json": weWorkRemotelyFrontEnd as Record<string, unknown>,
+  "we-work-remotely-devops.json": weWorkRemotelyDevops as Record<string, unknown>,
+  "we-work-remotely-design.json": weWorkRemotelyDesign as Record<string, unknown>,
+  "we-work-remotely-product.json": weWorkRemotelyProduct as Record<string, unknown>,
+  "we-work-remotely-customer-support.json": weWorkRemotelyCustomerSupport as Record<string, unknown>,
+  "we-work-remotely-sales-marketing.json": weWorkRemotelySalesMarketing as Record<string, unknown>,
+  "we-work-remotely-management-finance.json": weWorkRemotelyManagementFinance as Record<string, unknown>,
+  "we-work-remotely-other.json": weWorkRemotelyOther as Record<string, unknown>,
 };
 
 export interface CatalogueEntry {

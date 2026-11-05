@@ -27,10 +27,18 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "USAJOBS_API_KEY", label: "USAJOBS API key", usedBy: "Jobs, Teaching and Internships: US government roles", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
+  { name: "OPENAGENDA_API_KEY", label: "OpenAgenda API key", usedBy: "Events: the public agendas of French and European towns, museums and associations (a public key, oa_pk_…)", signup: "https://developers.openagenda.com/authentification/", free: true },
+  { name: "THESPORTSDB_API_KEY", label: "TheSportsDB API key (optional)", usedBy: "Events: cricket and Indian Super League fixtures; without one the free test key is used (about three results a call)", signup: "https://www.thesportsdb.com/pricing", free: false },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
-  { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key)", signup: "https://www.kaggle.com/settings/account", free: true },
-  { name: "KAGGLE_KEY", label: "Kaggle API key", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Create New Token)", signup: "https://www.kaggle.com/settings/account", free: true },
+  { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
+  { name: "NAV_PAM_STILLING_FEED_TOKEN", label: "NAV job feed token (Norway)", usedBy: "Jobs: every Norwegian vacancy from NAV's pam-stilling-feed, once its connector is built (WJ-550)", signup: "https://navikt.github.io/pam-stilling-feed/", free: true },
+  { name: "FIND_APPRENTICESHIP_API_KEY", label: "Find an apprenticeship API key (UK)", usedBy: "Internships: live apprenticeship vacancies in England (DfE Display Advert API v2)", signup: "https://developer.apprenticeships.education.gov.uk/third-party-accounts/register", free: true },
+  { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
+  { name: "FLIPKART_AFFILIATE_ID", label: "Flipkart affiliate tracking ID", usedBy: "Buy, Sell & Rent (India): items from Flipkart. Terms pending: Flipkart's affiliate API terms of use", signup: "https://affiliate.flipkart.com/", free: true },
+  { name: "FLIPKART_AFFILIATE_TOKEN", label: "Flipkart affiliate API token", usedBy: "With the Flipkart tracking ID (generated on the affiliate dashboard)", signup: "https://affiliate.flipkart.com/", free: true },
+  { name: "EBAY_CLIENT_ID", label: "eBay Client ID (App ID)", usedBy: "Buy, Sell & Rent: fixed-price eBay items in the US, UK, Australia, Canada and larger EU marketplaces (5,000 calls a day). Terms pending: the eBay API licence and EPN attribution", signup: "https://developer.ebay.com/my/keys", free: true },
+  { name: "EBAY_CLIENT_SECRET", label: "eBay Client Secret (Cert ID)", usedBy: "With the eBay Client ID (the Production keyset's Cert ID)", signup: "https://developer.ebay.com/my/keys", free: true },
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
@@ -79,6 +87,8 @@ export function platformKey(name: string): string | undefined {
 
 export interface PlatformKeyStatus extends PlatformKeySpec {
   set: boolean;
+  /** Admin → Keys shows a Test for it (keyTest.ts). */
+  testable?: boolean;
   from: "platform" | "environment" | null;
   masked: string;
 }
@@ -108,6 +118,19 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   cache = null;
   await loadPlatformKeys(Date.now(), true);
   return { ok: true, message: value === null ? `${name} removed.` : `${name} saved. Sources that need it can run now.` };
+}
+
+/**
+ * The Authorization header for Kaggle's API: the new single token (KGAT_…, sent as Bearer) when set, else the older
+ * username + key pair (Basic), which is no longer on Admin → Keys (owner, 2026-11-05) and works only as deployment
+ * variables. Undefined when neither is set ("Needs setup").
+ */
+export function kaggleAuthorization(): string | undefined {
+  const token = platformKey("KAGGLE_API_TOKEN");
+  if (token) return `Bearer ${token}`;
+  const user = platformKey("KAGGLE_USERNAME");
+  const key = platformKey("KAGGLE_KEY");
+  return user && key ? `Basic ${Buffer.from(`${user}:${key}`).toString("base64")}` : undefined;
 }
 
 /** Tests only. */

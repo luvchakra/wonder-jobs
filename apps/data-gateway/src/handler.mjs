@@ -67,7 +67,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   // Where listings live: the store's own table when it has one, else the state document.
   const listings = store.listings ?? stateListings(store);
 
-  async function collectOne(sourceId, testOnly = false) {
+  async function collectOne(sourceId, testOnly = false, budgetMs = undefined) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
     activeCrawls.add(sourceId);
     const startedAt = Date.now();
@@ -83,7 +83,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         return { ok: source.lastTest.ok, discovered: source.lastTest.discovered, valid: source.lastTest.valid };
       }
       if (!testOnly && !source.enabled) throw new ApiError(409, "SOURCE_PAUSED", "Source is not active");
-      const report = await fetchRecords(source);
+      // A scheduled pass gives each source only the time it has left, so one long crawl can't outlast the serverless call.
+      const report = await fetchRecords(source, budgetMs ? { budgetMs } : {});
       const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
       const ms = Date.now() - startedAt;
       const progress = report.crawl ? { read: report.crawl.read, failed: report.crawl.failed, pages: report.crawl.pages } : {};
@@ -134,9 +135,11 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     const outcomes = [];
     const started = Date.now();
     for (const sourceId of due) {
-      // One pass fits one serverless call: a source not started by now waits for the next pass (still due).
-      if (Date.now() - started > budgetMs) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
-      try { outcomes.push({ sourceId, ...(await collectOne(sourceId)) }); }
+      // One pass fits one serverless call: a source not started with at least 8 s left waits for the next pass (still
+      // due), and the one that starts gets only the time that's left (a crawl's own 45 s cap otherwise).
+      const left = budgetMs - (Date.now() - started);
+      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
+      try { outcomes.push({ sourceId, ...(await collectOne(sourceId, false, left)) }); }
       catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
     }
     return outcomes;
@@ -176,7 +179,14 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         }
         if (method === "POST" && p[2] === "sources" && p.length === 5) {
           const id = p[3], action = p[4];
-          if (action === "test" || action === "refresh") return reply(200, await collectOne(id, action === "test"));
+          if (action === "test" || action === "refresh") {
+            // An optional time limit (5–45 s): the app's import job runs each step inside a 60 s serverless call, and a
+            // full 45 s crawl test followed by a 45 s first collection was cut off there.
+            const body = await readBody(request).catch(() => null);
+            const asked = Number(body?.budgetMs);
+            const budgetMs = Number.isFinite(asked) && asked > 0 ? Math.min(45000, Math.max(5000, asked)) : undefined;
+            return reply(200, await collectOne(id, action === "test", budgetMs));
+          }
           if (action === "upload") {
             // A partner's list, uploaded by an admin: checked like any source's records, then it replaces the partner's
             // listings. The check counts as the source's test (so it can be activated after a good upload).
