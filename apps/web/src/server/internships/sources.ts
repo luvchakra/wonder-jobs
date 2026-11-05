@@ -13,6 +13,7 @@
  * - USAJOBS: the US government's Search API, for jobs open to students (Pathways internships) — needs USAJOBS_API_KEY + USAJOBS_EMAIL.
  * - Jooble: its REST API asked for internships — needs JOOBLE_API_KEY.
  * - Unstop (India) and the Workable job board: public JSON lists, live with "terms pending" (CLAUDE.md, "Finding data sources").
+ * - ReliefWeb: its open jobs API, type Internship — needs RELIEFWEB_APPNAME (free, approved on request).
  * Connectors for the internship-only APIs are in ./providers.ts.
  * Not here, on purpose: Internshala and LinkedIn publish no open job-search API (LinkedIn's Job Posting API is partner-only,
  * Internshala has none), and WorksLake never scrapes a site against its terms. AICTE's internship portal and India's NATS publish
@@ -28,7 +29,7 @@ import { fetchAtsBoards } from "@/server/jobslake/ats";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { asIntern, fetchHimalayasInternships, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
+import { asIntern, fetchHimalayasInternships, fetchReliefWebInternships, reliefWebAvailable, fetchUnstopInternships, fetchWorkableInternships, INTERN_BOARDS, fetchJoobleInternships, fetchMuseInternships, fetchUsaJobsInternships, joobleAvailable, usaJobsAvailable } from "./providers";
 
 const EPOCH = "2026-10-28T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL", "Job type"];
@@ -53,6 +54,7 @@ export const INTERNSHIP_SOURCES: SourceRecord[] = [
   source({ id: "intern_usajobs", name: "USAJOBS student internships", provider: "USAJOBS", category: "portal", geography: ["US"], secretRef: "env:USAJOBS", capabilities: [...FEED_CAPS, "Salary"], description: "US federal internships open to students (Pathways) from the USAJOBS Search API." }),
   source({ id: "intern_unstop", name: "Unstop internships", provider: "Unstop", category: "aggregator", geography: ["IN", "remote"], capabilities: [...FEED_CAPS, "Salary"], statusReason: "terms pending: Unstop's public opportunity list has no published reuse terms and its robots.txt disallows /api/*; confirm with Unstop", description: "Open internships for Indian students from Unstop, with the stipend each states." }),
   source({ id: "intern_workable", name: "Workable job board internships", provider: "Workable", category: "ats", geography: ["global", "IN"], statusReason: "terms pending: jobs.workable.com's job-search JSON is public and robots.txt doesn't disallow it, but Workable's terms don't state reuse; confirm with Workable", description: "Internships on Workable career sites, from Workable's public job board." }),
+  source({ id: "intern_reliefweb", name: "ReliefWeb internships", provider: "ReliefWeb (UN OCHA)", category: "portal", geography: ["global"], secretRef: "env:RELIEFWEB", description: "Humanitarian and development internships worldwide from ReliefWeb's open jobs API." }),
   source({ id: "intern_jooble", name: "Jooble internships", provider: "Jooble", category: "aggregator", geography: ["global", "IN"], secretRef: "env:JOOBLE", description: "Internships from Jooble's REST API." }),
 ];
 
@@ -68,6 +70,7 @@ export function internshipSourceAvailable(s: SourceRecord): boolean {
   if (s.id === "intern_adzuna_in") return SOURCE_FETCHERS.adzuna_in.available();
   if (s.id === "intern_usajobs") return usaJobsAvailable();
   if (s.id === "intern_jooble") return joobleAvailable();
+  if (s.id === "intern_reliefweb") return reliefWebAvailable();
   return INTERNSHIP_SOURCES.some((x) => x.id === s.id);
 }
 
@@ -127,6 +130,9 @@ export async function runInternshipSource(s: SourceRecord, c: SearchCriteria, de
       return { jobs: (await fetchUnstopInternships(c)).filter(isInternship), warnings: [] };
     case "intern_workable":
       return { jobs: (await fetchWorkableInternships(c)).filter(isInternship), warnings: [] };
+    case "intern_reliefweb":
+      if (!reliefWebAvailable()) throw needsSetup(`${s.name} needs RELIEFWEB_APPNAME (an app name ReliefWeb approves) on this deployment.`);
+      return { jobs: (await fetchReliefWebInternships(c)).filter(isInternship), warnings: [] };
     case "intern_jooble":
       if (!joobleAvailable()) throw needsSetup(`${s.name} needs JOOBLE_API_KEY on this deployment.`);
       return { jobs: (await fetchJoobleInternships(c)).filter(isInternship), warnings: [] };

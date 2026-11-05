@@ -162,3 +162,4 @@
 - ✅ Scholarships & Projects: Buddy4Study added as a paused gateway crawl (WJ-530)
 - ✅ Gateway collection fits its call; Find refreshes so fixed descriptions show (WJ-700)
 - ✅ A "ran recently" collection still refreshes a stale Find (WJ-701)
+- ✅ Internships: Idealist and WayUp internship crawls (paused until activated) and ReliefWeb internships (needs its free app name) (WJ-582)
